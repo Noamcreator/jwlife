@@ -1,0 +1,65 @@
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/material.dart';
+import 'package:html/dom.dart' as html_dom;
+
+class PublicationMediaItemsView extends StatefulWidget {
+  final String document;
+
+  const PublicationMediaItemsView({super.key, required this.document});
+
+  @override
+  _PublicationMediaItemsViewState createState() => _PublicationMediaItemsViewState();
+}
+
+class _PublicationMediaItemsViewState extends State<PublicationMediaItemsView> {
+  List<Map<String, dynamic>> media_items = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _init();
+  }
+
+  Future<void> _init() async {
+    // Parse le document HTML
+    html_dom.Document document = html_dom.Document.html(widget.document);
+
+    // Parcourt tous les éléments du document
+    for (var element in document.getElementsByTagName('img')) {
+      // Vérifie si l'élément est une image
+      if (element.localName == 'img') {
+        // Imprime le lien de l'image (valeur de l'attribut 'src')
+        media_items.add({
+          'ImageUrl': 'https://wol.jw.org' + element.attributes['src']!,
+        });
+      }
+    }
+
+    setState(() {
+      // Actualise l'état si nécessaire
+      media_items = media_items;
+    });
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Voir les médias'),
+      ),
+      body: ListView.builder(
+        itemCount: media_items.length,
+        itemBuilder: (context, index) {
+          return ListTile(
+            leading: CachedNetworkImage(imageUrl: media_items[index]['ImageUrl']),
+          );
+        },
+      ),
+    );
+  }
+}
