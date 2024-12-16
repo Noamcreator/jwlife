@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/Noamcreator/jwlife/refs/heads/master/assets/icons/jw_life.png?token=GHSAT0AAAAAAC36EVARAB3SNU6U4PWJUZMKZ27ELRQ" alt="JW Life Logo" width="150">
+  <img src="https://github.com/Noamcreator/jwlife/blob/master/assets/icons/jw_life.png?raw=true" alt="JW Life Logo" width="150">
 </p>
 
 # JW Life

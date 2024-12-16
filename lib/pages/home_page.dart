@@ -351,6 +351,10 @@ class _HomePageState extends State<HomePage> {
         FROM pub_collections.Publication pc
         WHERE p.Symbol = pc.Symbol AND p.MepsLanguageId = pc.MepsLanguageId
         LIMIT 1) AS DatabasePath,
+    (SELECT pc.Hash
+        FROM pub_collections.Publication pc
+        WHERE p.Symbol = pc.Symbol AND p.MepsLanguageId = pc.MepsLanguageId
+        LIMIT 1) AS Hash,    
     (SELECT CASE WHEN COUNT(tg.TagMapId) > 0 THEN 1 ELSE 0 END
         FROM userdata.TagMap tg
         JOIN userdata.Location ON tg.LocationId = userdata.Location.LocationId
@@ -1307,7 +1311,7 @@ List<IconLinkInfo> _iconLinks(BuildContext context) {
           ? 'assets/icons/nav_github_light.png'
           : 'assets/icons/nav_github_dark.png',
       'GitHub de JW Life',
-      'https://github.com/Noamcreator/jwlibrary',
+      'https://github.com/Noamcreator/jwlife',
     ),
   ];
 }

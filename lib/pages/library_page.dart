@@ -36,7 +36,7 @@ class _LibraryPageState extends State<LibraryPage> {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 6,
+      length: 5,
       child: Scaffold(
         appBar: AppBar(
           title: Column(
@@ -77,7 +77,6 @@ class _LibraryPageState extends State<LibraryPage> {
             const TabBar(
               isScrollable: true,
               tabs: <Widget>[
-                Tab(text: 'BIBLES'),
                 Tab(text: 'PUBLICATIONS'),
                 Tab(text: 'VIDÉOS'),
                 Tab(text: 'AUDIOS'),
@@ -88,7 +87,6 @@ class _LibraryPageState extends State<LibraryPage> {
             Expanded(
               child: TabBarView(
                 children: <Widget>[
-                  BiblePage(),
                   PublicationsPage(),
                   VideoPage(),
                   AudioPage(),

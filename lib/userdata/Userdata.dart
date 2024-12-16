@@ -108,6 +108,10 @@ class Userdata {
         FROM pub_collections.Publication pc
         WHERE p.Symbol = pc.Symbol AND p.MepsLanguageId = pc.MepsLanguageId
         LIMIT 1) AS DatabasePath,
+    (SELECT pc.Hash
+        FROM pub_collections.Publication pc
+        WHERE p.Symbol = pc.Symbol AND p.MepsLanguageId = pc.MepsLanguageId
+        LIMIT 1) AS Hash,
     (SELECT CASE WHEN COUNT(tg.TagMapId) > 0 THEN 1 ELSE 0 END
         FROM userdata.TagMap tg
         JOIN userdata.Location ON tg.LocationId = userdata.Location.LocationId
@@ -131,7 +135,9 @@ LEFT JOIN
             p.KeySymbol = ? AND pa.MepsLanguageId = ?
         ''', [keySymbol, mepsLanguageId]);
 
-            favorites.add(result.first);
+            if (result.isNotEmpty) {
+              favorites.add(result.first);
+            }
           }
         }
 

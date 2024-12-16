@@ -1,10 +1,11 @@
 import 'package:beamer/beamer.dart';
 import 'package:flutter/material.dart';
 import 'package:jwlife/pages/bible_page.dart';
+import 'package:jwlife/pages/congregation_page.dart';
 import 'package:jwlife/pages/home_page.dart';
 import 'package:jwlife/pages/library_page.dart';
 import 'package:jwlife/pages/meeting_page.dart';
-import 'package:jwlife/pages/personal.dart';
+import 'package:jwlife/pages/personal_page.dart';
 import 'package:jwlife/pages/predication_page.dart';
 import 'package:jwlife/splash_screen.dart';
 import 'package:jwlife/userdata/Userdata.dart';
@@ -113,7 +114,7 @@ class JwLifePage extends StatefulWidget {
   static int currentTabIndex = 0;
   static bool isPersistentTabViewVisible = true;
   static bool isAudioWidgetVisible = false;
-  static List<bool> persistentBarIsBlack = [false, false, false, false, false, false];
+  static List<bool> persistentBarIsBlack = [false, false, false, false, false, false, false];
 
   const JwLifePage({super.key, required this.toggleTheme});
 
@@ -125,6 +126,7 @@ class _JwLifePageState extends State<JwLifePage> {
   bool _isPersistentTabViewVisible = true;
   bool _isAudioWidgetVisible = false;
   bool _persistentBarIsBlack = false;
+  bool _isExtended = false;
   late int _currentIndex;
 
   // Declare a list of delegates but initialize them later
@@ -149,6 +151,15 @@ class _JwLifePageState extends State<JwLifePage> {
               routeInformation,
               HomePage(toggleTheme: widget.toggleTheme),
             );
+          }
+          return NotFound(path: routeInformation.location);
+        },
+      ),
+      BeamerDelegate(
+        initialPath: '/bible',
+        locationBuilder: (routeInformation, _) {
+          if (routeInformation.location.contains('/bible')) {
+            return SimpleLocation(routeInformation, BiblePage());
           }
           return NotFound(path: routeInformation.location);
         },
@@ -181,10 +192,10 @@ class _JwLifePageState extends State<JwLifePage> {
         },
       ),
       BeamerDelegate(
-        initialPath: '/bible',
+        initialPath: '/congregation',
         locationBuilder: (routeInformation, _) {
-          if (routeInformation.location.contains('/bible')) {
-            return SimpleLocation(routeInformation, BiblePage());
+          if (routeInformation.location.contains('/congregation')) {
+            return SimpleLocation(routeInformation, CongregationPage());
           }
           return NotFound(path: routeInformation.location);
         },
@@ -204,9 +215,13 @@ class _JwLifePageState extends State<JwLifePage> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final uriString = Beamer.of(context).configuration.location;
-    _currentIndex = ["/home", "/library", "/meeting", "/predication", "/bible", "/personal"]
-        .indexWhere((path) => uriString.contains(path));
+    final uriString = Beamer
+        .of(context)
+        .configuration
+        .location;
+    _currentIndex =
+        ["/home", "/bible", "/library", "/meeting", "/predication", "/congregation", "/personal"]
+            .indexWhere((path) => uriString.contains(path));
   }
 
   void _toggleBottomBarVisibility(bool isVisible) {
@@ -233,14 +248,18 @@ class _JwLifePageState extends State<JwLifePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Column(
+      body: MediaQuery
+          .of(context)
+          .orientation == Orientation.portrait
+          ? Column(
         children: [
           Expanded(
             child: Stack(
               children: <Widget>[
                 IndexedStack(
                   index: _currentIndex,
-                  children: _routerDelegates.map((delegate) => Beamer(routerDelegate: delegate)).toList(),
+                  children: _routerDelegates.map((delegate) =>
+                      Beamer(routerDelegate: delegate)).toList(),
                 ),
               ],
             ),
@@ -250,29 +269,142 @@ class _JwLifePageState extends State<JwLifePage> {
             visible: _isAudioWidgetVisible && !_persistentBarIsBlack,
           ),
         ],
+      )
+          : Row(
+        children: [
+          _isPersistentTabViewVisible ? NavigationRail(
+            leading: SizedBox(
+              width: _isExtended ? 240 : 40.0,  // Largeur fixe pour l'icône de menu
+              child: IconButton(
+                alignment: _isExtended ? Alignment.centerLeft : Alignment.center,
+                icon: Icon(Icons.menu, color: Colors.white),
+                onPressed: () {
+                  setState(() {
+                    _isExtended = !_isExtended;
+                  });
+                },
+              ),
+            ),
+            backgroundColor: _persistentBarIsBlack
+                ? Colors.transparent
+                : Theme
+                .of(context)
+                .bottomNavigationBarTheme
+                .backgroundColor,
+            selectedIconTheme: IconThemeData(
+              color: Theme
+                  .of(context)
+                  .bottomNavigationBarTheme
+                  .selectedItemColor,
+            ),
+            unselectedIconTheme: IconThemeData(
+              color: Theme
+                  .of(context)
+                  .bottomNavigationBarTheme
+                  .unselectedItemColor,
+            ),
+            useIndicator: false,
+            indicatorColor: _persistentBarIsBlack
+                ? Colors.transparent
+                : Theme
+                .of(context)
+                .bottomNavigationBarTheme
+                .backgroundColor,
+            indicatorShape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(0.0),
+            ),
+            minWidth: 60.0,
+            extended: _isExtended,
+            selectedIndex: _currentIndex,
+            onDestinationSelected: (index) {
+              _isExtended = false;
+              JwLifePage.currentTabIndex = index;
+              setState(() {
+                _toggleBottomBarBlack(index, JwLifePage.persistentBarIsBlack[index]);
+              });
+              if (index != _currentIndex) {
+                setState(() => _currentIndex = index);
+                _routerDelegates[_currentIndex].update(rebuild: false);
+              }
+            },
+            destinations: const [
+              NavigationRailDestination(
+                icon: Icon(JwIcons.home),
+                label: Text('Accueil'),
+              ),
+              NavigationRailDestination(
+                icon: Icon(JwIcons.bible),
+                label: Text('Bible'),
+              ),
+              NavigationRailDestination(
+                icon: Icon(JwIcons.publication_video_music),
+                label: Text('Bibliothèque'),
+              ),
+              NavigationRailDestination(
+                icon: Icon(JwIcons.speaker_audience),
+                label: Text('Réunions'),
+              ),
+              NavigationRailDestination(
+                icon: Icon(JwIcons.persons_doorstep),
+                label: Text('Prédication'),
+              ),
+              NavigationRailDestination(
+                icon: Icon(JwIcons.kingdom_hall),
+                label: Text('Assemblée Locale'),
+              ),
+              NavigationRailDestination(
+                icon: Icon(JwIcons.person_studying),
+                label: Text('Personel'),
+              ),
+            ],
+          ) : Container(),
+          // Zone principale avec le contenu
+          Expanded(
+            child: IndexedStack(
+              index: _currentIndex,
+              children: _routerDelegates.map((delegate) =>
+                  Beamer(routerDelegate: delegate)).toList(),
+            ),
+          ),
+        ],
       ),
       extendBody: _persistentBarIsBlack,
-      bottomNavigationBar: _isPersistentTabViewVisible
+      bottomNavigationBar: _isPersistentTabViewVisible && MediaQuery
+          .of(context)
+          .orientation == Orientation.portrait
           ? BottomNavigationBar(
-        unselectedFontSize: 10.0,
-        selectedFontSize: 10.0,
-        backgroundColor: _persistentBarIsBlack ? Colors.transparent : Theme.of(context).bottomNavigationBarTheme.backgroundColor,
+        unselectedFontSize: 8.0,
+        selectedFontSize: 8.5,
+        backgroundColor: _persistentBarIsBlack
+            ? Colors.transparent
+            : Theme
+            .of(context)
+            .bottomNavigationBarTheme
+            .backgroundColor,
         currentIndex: _currentIndex,
         type: BottomNavigationBarType.fixed,
-        selectedItemColor: Theme.of(context).bottomNavigationBarTheme.selectedItemColor,
-        unselectedItemColor: Theme.of(context).bottomNavigationBarTheme.unselectedItemColor,
+        selectedItemColor: Theme
+            .of(context)
+            .bottomNavigationBarTheme
+            .selectedItemColor,
+        unselectedItemColor: Theme
+            .of(context)
+            .bottomNavigationBarTheme
+            .unselectedItemColor,
         items: const [
           BottomNavigationBarItem(label: 'Accueil', icon: Icon(JwIcons.home)),
+          BottomNavigationBarItem(label: 'Bible', icon: Icon(JwIcons.bible)),
           BottomNavigationBarItem(label: 'Bibliothèque', icon: Icon(JwIcons.publication_video_music)),
           BottomNavigationBarItem(label: 'Réunions', icon: Icon(JwIcons.speaker_audience)),
           BottomNavigationBarItem(label: 'Prédication', icon: Icon(JwIcons.persons_doorstep)),
           BottomNavigationBarItem(label: 'Assemblée Locale', icon: Icon(JwIcons.kingdom_hall)),
-          BottomNavigationBarItem(label: 'Étude Personelle', icon: Icon(JwIcons.person_studying)),
+          BottomNavigationBarItem(label: 'Personel', icon: Icon(JwIcons.person_studying)),
         ],
         onTap: (index) {
           JwLifePage.currentTabIndex = index;
           setState(() {
-            _toggleBottomBarBlack(index, JwLifePage.persistentBarIsBlack[index]);
+            _toggleBottomBarBlack(
+                index, JwLifePage.persistentBarIsBlack[index]);
           });
           if (index != _currentIndex) {
             setState(() => _currentIndex = index);
@@ -280,12 +412,13 @@ class _JwLifePageState extends State<JwLifePage> {
           }
         },
       )
-          : null,
+          : SizedBox.shrink(),
     );
   }
 }
 
-class SimpleLocation extends BeamLocation<BeamState> {
+
+  class SimpleLocation extends BeamLocation<BeamState> {
   SimpleLocation(RouteInformation super.routeInformation, this.page);
 
   final Widget page;

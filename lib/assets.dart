@@ -286,8 +286,8 @@ class Assets {
   static const String imagesXDark = 'assets/webapp/images/x_dark.svg';
   static const String userDataDefaultThumbnail = 'assets/userData/default_thumbnail.png';
   static const String userDataUserData = 'assets/userData/userData.db';
-  static const String webappBreakingNews = 'assets/webapp/breakingNews.html';
   static const String webappCollector = 'assets/webapp/collector.css';
+  static const String webappDocumentView = 'assets/webapp/DocumentView.js';
   static const String webappFontsJwIconsExternal1970474 = 'assets/webapp/fonts/jw-icons-external-1970474.woff';
-  static const String webappImageDisplay = 'assets/webapp/imageDisplay.html';
+
 }

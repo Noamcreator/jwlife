@@ -152,8 +152,9 @@ final dark = ThemeData(
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: ButtonStyle(
-        foregroundColor: WidgetStateProperty.all(primaryColorDark),
-        overlayColor: WidgetStateProperty.all(primaryColorDark.withAlpha(40)),
+        foregroundColor: WidgetStateProperty.all(Colors.white),
+        overlayColor: WidgetStateProperty.all(Colors.white),
+        iconColor: WidgetStateProperty.all(primaryColorDark),
       ),
     )
 );

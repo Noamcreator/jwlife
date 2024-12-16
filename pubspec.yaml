@@ -65,6 +65,9 @@ flutter:
     - assets/userData/
     - assets/webapp/
   fonts:
+    - family: NotoSansBold
+      fonts:
+        - asset: assets/webapp/fonts/NotoSans-Bold.ttf
     - family: jw-icons-external
       fonts:
         - asset: assets/webapp/fonts/jw-icons-external-1970474.ttf

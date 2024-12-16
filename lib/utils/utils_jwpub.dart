@@ -73,7 +73,8 @@ Future<Map<String, dynamic>> downloadJwpubFile(dynamic pub, BuildContext context
     else {
       throw Exception('Erreur lors de la récupération des données');
     }
-  } catch (e) {
+  }
+  catch (e) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -176,7 +177,7 @@ Future<Map<String, dynamic>> jwpubUnzip(File file, BuildContext context) async {
     'ExpandedSize': manifestData['expandedSize'],
     'MepsBuildNumber': manifestData['mepsBuildNumber'],
   };
-  print('pubDb: $pubDb');
+
   int publicationId = await db.insert('Publication', pubDb);
 
   dynamic images = publication['images'];
