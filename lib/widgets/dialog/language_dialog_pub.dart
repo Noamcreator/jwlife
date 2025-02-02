@@ -1,10 +1,8 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:jwlife/core/utils/files_helper.dart';
 import 'package:sqflite/sqflite.dart';
-
-import '../../jwlife.dart';
-import '../../utils/files_helper.dart';
 
 class LanguagesPubDialog extends StatefulWidget {
   final Map<String, dynamic> publication;

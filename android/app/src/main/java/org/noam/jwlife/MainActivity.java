@@ -1,4 +1,4 @@
-package org.noam.jwlife;
+package com.noam.jwlife;
 
 import io.flutter.embedding.android.FlutterActivity;
 

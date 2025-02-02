@@ -1,14 +1,13 @@
 import 'dart:io';
-import '../../utils/directory_helper.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
+import 'package:jwlife/core/utils/directory_helper.dart';
+import 'package:jwlife/core/utils/files_helper.dart';
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
 
-import '../utils/files_helper.dart';
-
 class ImageCachedWidget extends StatefulWidget {
-  final String imageUrl;
+  final String? imageUrl;
   final String pathNoImage;
   final double width;
   final double height;
@@ -26,7 +25,7 @@ class ImageCachedWidget extends StatefulWidget {
 }
 
 class _ImageCachedWidgetState extends State<ImageCachedWidget> {
-  late Future<File> _imageFuture;
+  late Future<File?> _imageFuture;
 
   @override
   void initState() {
@@ -43,60 +42,65 @@ class _ImageCachedWidgetState extends State<ImageCachedWidget> {
     }
   }
 
-  Future<String?> _getImagePathFromDatabase(String imageUrl, String filename) async {
+  Future<String?> _getImagePathFromDatabase(Database database, String imageUrl, String filename) async {
     if (imageUrl.startsWith('https')) {
-      final directory = await getTilesDbFile();
-      final database = await openDatabase(directory.path);
       final List<Map<String, dynamic>> result = await database.query(
-        'Tiles',
-        where: 'Filename = ?',
+        'TilesCache',
+        where: 'FileName = ?',
         whereArgs: [filename],
       );
-      return result.isNotEmpty ? result.first['Path'] as String : null;
-    } else if (imageUrl.isNotEmpty) {
+      return result.isNotEmpty ? result.first['FilePath'] as String : null;
+    }
+    else if (imageUrl.isNotEmpty) {
       return imageUrl;
     }
     return null;
   }
 
-  Future<void> _addImageToDatabase(String filename, String path) async {
-    final directory = await getTilesDbFile();
-    final database = await openDatabase(directory.path);
+  Future<void> _addImageToDatabase(Database database, String filename, String path) async {
     await database.insert(
-      'Tiles',
-      {'Filename': filename, 'Path': path},
+      'TilesCache',
+      {'FileName': filename, 'FilePath': path},
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
   }
 
-  Future<File> _downloadImage(String imageUrl, String filename) async {
+  Future<File> _downloadImage(database, String imageUrl, String filename) async {
     final directory = await getAppTileDirectory();
 
     final response = await http.get(Uri.parse(imageUrl));
     if (response.statusCode == 200) {
       final file = File('${directory.path}/$filename');
       await file.writeAsBytes(response.bodyBytes);
-      await _addImageToDatabase(filename, file.path);
+      await _addImageToDatabase(database, filename, file.path);
       return file;
-    } else {
+    }
+    else {
       throw Exception('Erreur lors du téléchargement de l\'image : ${response.statusCode}');
     }
   }
 
-  Future<File> _getOrDownloadImage() async {
-    final filename = basename(widget.imageUrl);
-    final existingPath = await _getImagePathFromDatabase(widget.imageUrl, filename);
+  Future<File?> _getOrDownloadImage() async {
+    File? imageFile;
+    if (widget.imageUrl != null) {
+      final filename = basename(widget.imageUrl!);
+      final directory = await getTilesDbFile();
+      final database = await openDatabase(directory.path);
+      final existingPath = await _getImagePathFromDatabase(database, widget.imageUrl!, filename);
 
-    if (existingPath != null) {
-      return File(existingPath);
-    } else {
-      return await _downloadImage(widget.imageUrl, filename);
+      if (existingPath != null) {
+        imageFile = File(existingPath);
+      }
+      else {
+        imageFile = await _downloadImage(database, widget.imageUrl!, filename);
+      }
     }
+    return imageFile;
   }
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<File>(
+    return FutureBuilder<File?>(
       future: _imageFuture, // Utilisation de _imageFuture pour éviter de relancer la tâche
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -108,7 +112,8 @@ class _ImageCachedWidgetState extends State<ImageCachedWidget> {
             width: widget.width,
             fit: BoxFit.cover,
           );
-        } else if (snapshot.hasError) {
+        }
+        else if (snapshot.hasError || snapshot.data == null) {
           return Image.asset(
             Theme.of(context).brightness == Brightness.dark
                 ? 'assets/images/${widget.pathNoImage}_gray.png'
@@ -117,7 +122,8 @@ class _ImageCachedWidgetState extends State<ImageCachedWidget> {
             width: widget.width,
             fit: BoxFit.cover,
           );
-        } else {
+        }
+        else {
           return Image.file(
             snapshot.data!,
             height: widget.height,

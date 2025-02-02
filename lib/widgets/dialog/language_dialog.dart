@@ -1,11 +1,10 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:jwlife/app/jwlife_app.dart';
+import 'package:jwlife/core/icons.dart';
+import 'package:jwlife/core/utils/files_helper.dart';
 import 'package:sqflite/sqflite.dart';
-
-import '../../jwlife.dart';
-import '../../utils/files_helper.dart';
-import '../../utils/icons.dart';
 
 class LanguageDialog extends StatefulWidget {
   final Map<String, dynamic> languagesListJson;
