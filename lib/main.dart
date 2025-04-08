@@ -16,7 +16,7 @@ Future<void> main() async {
 
   // Initialise le service de lecture audio avec une notification persistante sur Android
   await JustAudioBackground.init(
-    androidNotificationChannelId: 'com.noam.jwlife.channel.audio',
+    androidNotificationChannelId: 'org.noam.jwlife.channel.audio',
     androidNotificationChannelName: 'JW Audio',
     androidNotificationOngoing: true,
   );

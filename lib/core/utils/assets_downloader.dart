@@ -1,8 +1,12 @@
 import 'dart:io';
+import 'dart:typed_data';
+import 'package:archive/archive.dart';
 import 'package:jwlife/core/utils/directory_helper.dart';
 import 'package:http/http.dart' as http;
 
-class FontDownloader {
+class AssetsDownload {
+  static final String webappFileUrl = 'https://github.com/Noamcreator/jwlife/raw/refs/heads/master/assets/webapp.zip';
+
   static final List<String> fontUrls = [
     'https://b.jw-cdn.org/fonts/noto-sans/2.007-edcd458/hinted/NotoSans-Regular.woff2',
     'https://b.jw-cdn.org/fonts/noto-sans/2.007-edcd458/hinted/NotoSans-Regular.woff',
@@ -328,37 +332,47 @@ class FontDownloader {
   ];
 
   // Télécharge et enregistre les polices localement
-  static Future<void> downloadFonts() async {
+  static Future<void> download() async {
     final directory = await getAppWebViewDirectory();
-    String path = '${directory.path}/webapp';
-    final fontDir = Directory('$path/fonts');
+    final webappDir = Directory('${directory.path}/webapp');
 
-    if (!await fontDir.exists()) {
-      await fontDir.create(recursive: true);
-    }
-
-    if(fontDir.listSync().length -2 != fontUrls.length) {
-      for (var url in fontUrls) {
-        await _downloadAndSaveFont(url, fontDir);
+    if (!await webappDir.exists()) {
+      await webappDir.create(recursive: true);
+      try {
+        final response = await http.get(Uri.parse(webappFileUrl));
+        if (response.statusCode == 200) {
+          extractWebAppZip(webappDir, response.bodyBytes);
+        }
+        else {
+          print('Failed to download webapp: $webappFileUrl');
+        }
+      } catch (e) {
+        print('Error downloading webapp: $e');
       }
     }
   }
 
-  // Télécharge une police et l'enregistre dans le répertoire local
-  static Future<void> _downloadAndSaveFont(String url, Directory fontDir) async {
+  static Future<void> extractWebAppZip(Directory targetDirectory, Uint8List bytes) async {
     try {
-      final response = await http.get(Uri.parse(url));
-      if (response.statusCode == 200) {
-        final fileName = url.split('/').last;
-        final file = File('${fontDir.path}/$fileName');
-        await file.writeAsBytes(response.bodyBytes);
-        print('Font saved: ${file.path}');
-      }
-      else {
-        print('Failed to download font: $url');
+      // Décompresser le ZIP
+      final Archive archive = ZipDecoder().decodeBytes(bytes);
+
+      for (final ArchiveFile file in archive) {
+        final String filePath = '${targetDirectory.path}/${file.name}';
+
+        if (file.isFile) {
+          // Créer le dossier parent si nécessaire
+          await File(filePath).parent.create(recursive: true);
+          // Écrire le contenu du fichier
+          await File(filePath).writeAsBytes(file.content);
+        }
+        else {
+          // Si c'est un dossier, le créer
+          await Directory(filePath).create(recursive: true);
+        }
       }
     } catch (e) {
-      print('Error downloading font: $e');
+      print("Erreur lors de l'extraction du ZIP : $e");
     }
   }
 }

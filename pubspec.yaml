@@ -84,7 +84,6 @@ flutter:
     - assets/icons/highlights/light/
     - assets/images/
     - assets/userData/
-    - assets/webapp.zip
 
   fonts:
     - family: NotoSansBold

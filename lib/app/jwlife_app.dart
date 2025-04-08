@@ -8,7 +8,7 @@ import 'package:jwlife/core/BibleCluesInfo.dart';
 import 'package:jwlife/core/api.dart';
 import 'package:jwlife/core/constants.dart';
 import 'package:jwlife/core/theme.dart';
-import 'package:jwlife/core/utils/font_downloader.dart';
+import 'package:jwlife/core/utils/assets_downloader.dart';
 import 'package:jwlife/core/utils/shared_preferences_helper.dart';
 import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/data/databases/MediaCollections.dart';
@@ -126,7 +126,7 @@ class _JwLifeAppState extends State<JwLifeApp> {
     PublicationCategory.initializeCategories();
 
     await CopyAssets.copy();
-    await FontDownloader.downloadFonts();
+    await AssetsDownload.download();
     await CreateDatabase.create();
     await JwLifeApp.pubCollections.init();
     await JwLifeApp.mediaCollections.init();

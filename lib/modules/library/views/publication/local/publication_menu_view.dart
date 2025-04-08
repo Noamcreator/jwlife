@@ -140,25 +140,19 @@ class _PublicationMenuViewState extends State<PublicationMenuView> with SingleTi
   Future<void> _fetchItems() async {
     try {
       List<Map<String, dynamic>> tabs = await _documentsManager.database.rawQuery('''
-  WITH RankedItems AS (
-    SELECT DISTINCT
-      PublicationViewItem.PublicationViewItemId,
-      PublicationViewItem.Title,
-      PublicationViewSchema.DataType,
-      ROW_NUMBER() OVER (
-        PARTITION BY PublicationViewItem.PublicationViewItemId
-        ORDER BY 
-          CASE WHEN PublicationViewSchema.DataType = 'name' THEN 1 ELSE 2 END
-      ) AS row_num
-    FROM PublicationViewItem
-    LEFT JOIN PublicationViewSchema ON PublicationViewItem.ChildTemplateSchemaType = PublicationViewSchema.SchemaType
-    LEFT JOIN PublicationView ON PublicationViewItem.PublicationViewId = PublicationView.PublicationViewId
-    WHERE PublicationView.Symbol = 'jwpub' AND PublicationViewItem.ParentPublicationViewItemId = -1
-  )
   SELECT 
-    PublicationViewItemId, Title, DataType
-  FROM RankedItems
-  WHERE row_num = 1;
+  pvi.PublicationViewItemId,
+  pvi.Title,
+  pvs.DataType
+FROM PublicationViewItem pvi
+LEFT JOIN PublicationViewSchema pvs 
+  ON pvi.ChildTemplateSchemaType = pvs.SchemaType
+LEFT JOIN PublicationView pv 
+  ON pvi.PublicationViewId = pv.PublicationViewId
+WHERE 
+  pv.Symbol = 'jwpub' 
+  AND pvi.ParentPublicationViewItemId = -1
+  AND pvs.DataType = 'name'
 ''');
 
       // Récupérer les items et sous-items pour chaque onglet
