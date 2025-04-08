@@ -43,7 +43,7 @@ class _StudyTabViewState extends State<StudyTabView> {
             ),
           ),
           SizedBox(height: 10),
-          Container(
+          SizedBox(
             height: 215,
             child: ListView(
               children: [
@@ -69,7 +69,7 @@ class _StudyTabViewState extends State<StudyTabView> {
                         ),
                       ),
                       child: Text(
-                        category['TagName'],
+                        category['Name'],
                         style: TextStyle(
                           fontSize: 14,
                           color: Theme.of(context).brightness == Brightness.dark
@@ -100,7 +100,7 @@ class _StudyTabViewState extends State<StudyTabView> {
                     borderRadius: BorderRadius.circular(2),
                     color: Note.getColor(
                       context,
-                      note['NoteColorIndex'] ?? 0,
+                      note['ColorIndex'] ?? 0,
                     ),
                   ),
                   child: TextButton(
@@ -112,7 +112,7 @@ class _StudyTabViewState extends State<StudyTabView> {
                       child: Align(
                         alignment: Alignment.centerLeft,
                         child: Text(
-                          note['NoteTitle'],
+                          note['Title'],
                           textAlign: TextAlign.left,
                           style: TextStyle(
                             fontSize: 14,

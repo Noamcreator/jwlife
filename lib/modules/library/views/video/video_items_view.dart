@@ -23,6 +23,7 @@ class _VideoItemsViewState extends State<VideoItemsView> {
   String categoryName = '';
   String language = '';
   List<Category> subcategories = [];
+  List<Category> filteredVideos = [];  // Ajout de filteredVideos
   bool _isSearching = false;
   final TextEditingController _searchController = TextEditingController();
 
@@ -30,6 +31,12 @@ class _VideoItemsViewState extends State<VideoItemsView> {
   void initState() {
     super.initState();
     loadItems(widget.category.language);
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   void loadItems(String? languageCode) async {
@@ -41,6 +48,7 @@ class _VideoItemsViewState extends State<VideoItemsView> {
         categoryName = widget.category.localizedName!;
         language = lang.vernacular!;
         subcategories = widget.category.subcategories;
+        filteredVideos = subcategories;  // Initialiser filteredVideos
       });
     }
     else {
@@ -52,6 +60,7 @@ class _VideoItemsViewState extends State<VideoItemsView> {
           categoryName = category.localizedName!;
           language = lang.vernacular!;
           subcategories = category.subcategories;
+          filteredVideos = subcategories;  // Initialiser filteredVideos
         });
       }
       else {
@@ -61,23 +70,36 @@ class _VideoItemsViewState extends State<VideoItemsView> {
     }
   }
 
-  void _filterAudios(String query) {
-    if (query.isEmpty) {
-      setState(() {
-        subcategories = widget.category.subcategories;
-      });
-    } else {
-      setState(() {
-        /*
-        filteredVideos = widget.category.categories.where((subCategory) {
-          return subCategory.media.any((audio) {
-            return audio['title'].toLowerCase().contains(query.toLowerCase());
-          });
-        }).toList();
+  void _filterVideos(String query) {
+    setState(() {
+      // Si la requête est vide, on réinitialise filteredVideos à toutes les sous-catégories
+      if (query.isEmpty) {
+        filteredVideos = subcategories;
+      } else {
+        // Sinon, on filtre les sous-catégories et leurs vidéos
+        filteredVideos = subcategories
+            .map((subCategory) {
+          // Filtrer les médias qui contiennent la requête
+          List<String> filteredMedia = subCategory.media
+              .where((media) {
+            try {
+              // Récupérer l'élément MediaItem à partir de la clé
+              MediaItem mediaItem = RealmLibrary.realm.all<MediaItem>().query("naturalKey == '$media'").first;
+              // Retourner vrai si le titre correspond à la recherche
+              return mediaItem.title != null && mediaItem.title!.toLowerCase().contains(query.toLowerCase());
+            } catch (e) {
+              return false;
+            }
+          })
+              .toList();
 
-         */
-      });
-    }
+          // Retourner la sous-catégorie avec les vidéos filtrées
+          return subCategory.copyWith(media: filteredMedia);
+        })
+            .where((subCategory) => subCategory.media.isNotEmpty) // Garder les sous-catégories qui ont des vidéos correspondantes
+            .toList();
+      }
+    });
   }
 
   @override
@@ -91,20 +113,26 @@ class _VideoItemsViewState extends State<VideoItemsView> {
     );
 
     return Scaffold(
-      appBar: AppBar(
-        title: _isSearching
-            ? TextField(
+      appBar: _isSearching
+          ? AppBar(
+        title: SearchBar(
+          autoFocus: true,
+          hintText: 'Rechercher...',
           controller: _searchController,
-          autofocus: true,
-          decoration: const InputDecoration(
-            hintText: 'Rechercher...',
-            border: InputBorder.none,
-            hintStyle: TextStyle(color: Colors.black),
-          ),
-          style: const TextStyle(color: Colors.black),
-          //onChanged: _filterAudios,
-        )
-            : Column(
+          onChanged: _filterVideos,
+          onSubmitted: _filterVideos,
+        ),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            setState(() {
+              _isSearching = false;
+            });
+          },
+        ),
+      )
+          : AppBar(
+        title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
@@ -113,22 +141,18 @@ class _VideoItemsViewState extends State<VideoItemsView> {
             ),
             Text(
               language,
-              style: textStyleSubtitle
+              style: textStyleSubtitle,
             ),
           ],
         ),
         actions: [
           IconButton(
-            icon: Icon(_isSearching ? JwIcons.x : JwIcons.magnifying_glass),
+            icon: Icon(JwIcons.magnifying_glass),
             onPressed: () {
               setState(() {
-                if (_isSearching) {
-                  _isSearching = false;
-                  _searchController.clear();
-                  subcategories = widget.category.subcategories;
-                } else {
-                  _isSearching = true;
-                }
+                _isSearching = true;
+                _searchController.clear();
+                filteredVideos = subcategories;  // Réinitialiser filteredVideos lors de la recherche
               });
             },
           ),
@@ -143,13 +167,13 @@ class _VideoItemsViewState extends State<VideoItemsView> {
                 loadItems(value['Symbol']);
               });
             },
-          )
+          ),
         ],
       ),
       body: ListView.builder(
-        itemCount: subcategories.length,
+        itemCount: filteredVideos.length,  // Utiliser filteredVideos ici
         itemBuilder: (context, index) {
-          var subCategory = subcategories[index];
+          var subCategory = filteredVideos[index];  // Utiliser filteredVideos
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -164,7 +188,7 @@ class _VideoItemsViewState extends State<VideoItemsView> {
                 ),
               ),
               SizedBox(
-                height: 180, // Adjust height as needed
+                height: 180, // Ajuster la hauteur comme nécessaire
                 child: ListView.builder(
                   scrollDirection: Axis.horizontal,
                   itemCount: subCategory.media.length,
@@ -172,35 +196,41 @@ class _VideoItemsViewState extends State<VideoItemsView> {
                     MediaItem mediaItem = RealmLibrary.realm.all<MediaItem>().query("naturalKey == '${subCategory.media[index]}'").first;
                     return GestureDetector(
                       onTap: () {
-                        showFullScreenVideo(context, mediaItem.languageAgnosticNaturalKey!, mediaItem.languageSymbol!);
+                        showFullScreenVideo(context, mediaItem);
                       },
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 3.0), // Ajoutez une marge horizontale
+                        padding: const EdgeInsets.symmetric(horizontal: 3.0),
                         child: SizedBox(
-                          width: 180, // Ajuster la largeur avec un espace supplémentaire
+                          width: 180,
                           child: Stack(
                             children: [
                               ClipRRect(
-                                borderRadius: BorderRadius.circular(8.0),
+                                borderRadius: BorderRadius.circular(2.0),
                                 child: ImageCachedWidget(
-                                    imageUrl: mediaItem.realmImages!.wideFullSizeImageUrl,
-                                    pathNoImage: "pub_type_video",
-                                    height: 100,
-                                    width: 180
+                                  imageUrl: mediaItem.realmImages!.wideFullSizeImageUrl ?? mediaItem.realmImages!.wideImageUrl,
+                                  pathNoImage: "pub_type_video",
+                                  height: 100,
+                                  width: 180,
                                 ),
                               ),
                               Positioned(
-                                top: 6,
-                                left: 6,
+                                top: 4,
+                                left: 4,
                                 child: Container(
                                   color: Colors.black.withOpacity(0.8),
                                   padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                                  child: Text(
-                                    formatDuration(mediaItem.duration!),
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 10,
-                                    ),
+                                  child: Row(
+                                    children: [
+                                      Icon(JwIcons.play, size: 12, color: Colors.white),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        formatDuration(mediaItem.duration!),
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 10,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ),
@@ -208,10 +238,7 @@ class _VideoItemsViewState extends State<VideoItemsView> {
                                 top: -5,
                                 right: -10,
                                 child: PopupMenuButton(
-                                  popUpAnimationStyle: AnimationStyle.lerp(AnimationStyle(curve: Curves.ease), AnimationStyle(curve: Curves.ease), 0.5),
-                                  icon: const Icon(Icons.more_vert, color: Colors.white, shadows: [Shadow(color: Colors.black, blurRadius: 5)], size: 25),
-                                  shadowColor: Colors.black,
-                                  elevation: 8,
+                                  icon: const Icon(Icons.more_vert, color: Colors.white),
                                   itemBuilder: (context) => [
                                     getVideoShareItem(mediaItem),
                                     getVideoLanguagesItem(context, mediaItem),
@@ -223,7 +250,7 @@ class _VideoItemsViewState extends State<VideoItemsView> {
                                 ),
                               ),
                               Positioned(
-                                top: 100, // Ajuster la position du titre
+                                top: 100,
                                 left: 0,
                                 right: 0,
                                 child: Container(
@@ -231,9 +258,9 @@ class _VideoItemsViewState extends State<VideoItemsView> {
                                   child: Text(
                                     mediaItem.title!,
                                     style: const TextStyle(
-                                      fontSize: 12, // Ajuster la taille de la police au besoin
+                                      fontSize: 12,
                                     ),
-                                    textAlign: TextAlign.center,
+                                    textAlign: TextAlign.start,
                                     maxLines: 2,
                                     overflow: TextOverflow.ellipsis,
                                   ),

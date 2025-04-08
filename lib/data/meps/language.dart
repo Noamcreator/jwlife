@@ -18,6 +18,12 @@ class MepsLanguage {
     this.lib = lib ?? '';
   }
 
+  MepsLanguage.fromJson(Map<String, dynamic> json)
+      : id = json['LanguageId'],
+        symbol = json['Symbol'],
+        vernacular = json['VernacularName'],
+        primaryIetfCode = json['PrimaryIetfCode'];
+
   void setRsConf(String newRsConf) {
     rsConf = newRsConf;
   }

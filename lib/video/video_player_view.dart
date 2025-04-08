@@ -2,9 +2,13 @@ import 'dart:convert';
 import 'dart:async'; // Importer pour utiliser Timer
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:jwlife/app/jwlife_view.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/utils.dart';
+import 'package:jwlife/data/databases/Video.dart';
+import 'package:jwlife/data/databases/history.dart';
+import 'package:jwlife/data/realm/catalog.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:video_player/video_player.dart';
 import 'package:http/http.dart' as http;
@@ -12,14 +16,12 @@ import 'package:http/http.dart' as http;
 import 'subtitles.dart';
 
 class VideoPlayerView extends StatefulWidget {
-  final String lank;
-  final String lang;
-  final dynamic api;
-  final dynamic pubApi;
-  final Duration postionStart;
-  final dynamic localVideo;
+  final MediaItem mediaItem;
+  final dynamic onlineVideo;
+  final Video? localVideo;
+  final Duration startPosition;
 
-  VideoPlayerView({Key? key, this.lank='', this.lang='', this.api='', this.pubApi='', this.postionStart=Duration.zero, this.localVideo}) : super(key: key);
+  const VideoPlayerView({super.key, required this.mediaItem, this.onlineVideo, this.localVideo, this.startPosition=Duration.zero});
 
   @override
   _VideoPlayerViewState createState() => _VideoPlayerViewState();
@@ -41,54 +43,27 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
   @override
   void initState() {
     super.initState();
+    // Met le mode plein écran en masquant les barres système
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+
+    setState(() {
+      _title = widget.mediaItem.title ?? '';
+      _duration = Duration(seconds: widget.mediaItem.duration!.toInt());
+    });
+
+    // Met le mode plein écran en masquant le player audio
     toggleAudioWidgetVisibility();
+
+    History.insertVideo(widget.mediaItem);
+
     if(widget.localVideo != null) {
-      File file = File(widget.localVideo['FilePath']);
-
-      setState(() {
-        _title = widget.localVideo['Title'];
-        _duration = Duration(seconds: (widget.localVideo['Duration'] as num).toInt());
-      });
-
-      _controller = VideoPlayerController.file(file)
-        ..initialize().then((_) {
-          setState(() {
-            _controller!.play();
-            _controller!.seekTo(widget.postionStart);
-            // Démarrez le Timer lorsque le contrôleur est prêt
-            _timer = Timer.periodic(Duration(milliseconds: 100), (Timer timer) {
-              if (_controller!.value.isInitialized && mounted) {
-                setState(() {
-                  if(!_isPositionSeeking) {
-                    _positionSlider = _controller!.value.position.inSeconds.toDouble();
-                  }
-                });
-              }
-              if(_controller!.value.position >= _controller!.value.duration) {
-                JwLifeView.toggleNavBarVisibility.call(true);
-                JwLifeView.toggleNavBarBlack.call(JwLifeView.currentTabIndex, false);
-                Navigator.pop(context);
-              }
-            });
-            Timer(Duration(seconds: 2), () {
-              if(JwLifeView.persistentBarIsBlack[JwLifeView.currentTabIndex] == true) {
-                setState(() {
-                  _controlsVisible = !_controlsVisible; // Toggle visibility
-                  JwLifeView.toggleNavBarVisibility.call(_controlsVisible); // Appeler la fonction pour modifier la visibilité de la barre de navigation
-                });
-              }
-            });
-          });
-        });
+      playLocalVideo();
     }
-    else if (widget.api.isNotEmpty) {
-      fetchMedia(widget.api);
-    }
-    else if (widget.pubApi.isNotEmpty) {
-      fetchPubMedia(widget.pubApi);
+    else if (widget.onlineVideo != null) {
+      fetchMedia(widget.onlineVideo);
     }
     else {
-      getVideoApi(widget.lank, widget.lang);
+      getVideoApi();
     }
   }
 
@@ -99,9 +74,12 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
   }
 
   // Method to play the video
-  Future<void> getVideoApi(String lank, String lang) async {
+  Future<void> getVideoApi() async {
+    String lank = widget.mediaItem.languageAgnosticNaturalKey!;
+    String lang = widget.mediaItem.languageSymbol!;
     if (lank.isNotEmpty && lang.isNotEmpty) {
       final apiUrl = 'https://b.jw-cdn.org/apis/mediator/v1/media-items/$lang/$lank?clientType=www';
+      print('apiUrl: $apiUrl');
       try {
         final response = await http.get(Uri.parse(apiUrl));
 
@@ -139,16 +117,11 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
 
   // Method to play the video
   Future<void> playOnlineVideo(String title, Duration duration, String videoUrl) async {
-    setState(() {
-      _title = title;
-      _duration = duration;
-    });
-
     _controller = VideoPlayerController.network(videoUrl)
       ..initialize().then((_) {
         setState(() {
           _controller!.play();
-          _controller!.seekTo(widget.postionStart);
+          _controller!.seekTo(widget.startPosition);
           // Démarrez le Timer lorsque le contrôleur est prêt
           _timer = Timer.periodic(Duration(milliseconds: 100), (Timer timer) {
             if (_controller!.value.isInitialized && mounted) {
@@ -175,6 +148,43 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
         });
       });
   }
+
+  // Method to play the video
+  Future<void> playLocalVideo() async {
+    File file = File(widget.localVideo!.filePath);
+
+    _controller = VideoPlayerController.file(file)
+      ..initialize().then((_) {
+        setState(() {
+          _controller!.play();
+          _controller!.seekTo(widget.startPosition);
+          // Démarrez le Timer lorsque le contrôleur est prêt
+          _timer = Timer.periodic(Duration(milliseconds: 100), (Timer timer) {
+            if (_controller!.value.isInitialized && mounted) {
+              setState(() {
+                if(!_isPositionSeeking) {
+                  _positionSlider = _controller!.value.position.inSeconds.toDouble();
+                }
+              });
+            }
+            if(_controller!.value.position >= _controller!.value.duration) {
+              JwLifeView.toggleNavBarVisibility.call(true);
+              JwLifeView.toggleNavBarBlack.call(JwLifeView.currentTabIndex, false);
+              Navigator.pop(context);
+            }
+          });
+          Timer(Duration(seconds: 2), () {
+            if(JwLifeView.persistentBarIsBlack[JwLifeView.currentTabIndex] == true) {
+              setState(() {
+                _controlsVisible = !_controlsVisible; // Toggle visibility
+                JwLifeView.toggleNavBarVisibility.call(_controlsVisible); // Appeler la fonction pour modifier la visibilité de la barre de navigation
+              });
+            }
+          });
+        });
+      });
+  }
+
   // Méthode pour obtenir les sous-titres actuellement visibles
   Subtitle _getCurrentSubtitle() {
     final position = _controller!.value.position+Duration(milliseconds: 800);
@@ -215,13 +225,13 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
                         child: Align(
                           alignment: _getCurrentSubtitle().alignment,
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
                               color: Colors.black.withOpacity(0.8),
-                              borderRadius: BorderRadius.circular(8),
+                              borderRadius: BorderRadius.circular(0),
                             ),
                             child: Text(
-                              _getCurrentSubtitle().text,
+                              _getCurrentSubtitle().getText(),
                               textAlign: TextAlign.center,
                               style: TextStyle(
                                 color: Colors.white,
@@ -249,6 +259,9 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
                   leading: IconButton(
                     icon: Icon(Icons.arrow_back, color: Colors.white),
                     onPressed: () {
+                      // Restaure l'affichage des barres système
+                      SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+
                       JwLifeView.toggleNavBarVisibility.call(true);
                       JwLifeView.toggleNavBarBlack.call(JwLifeView.currentTabIndex, false);
                       Navigator.pop(context);
@@ -395,7 +408,7 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
                                   ),
                                   onTap: () {
                                     Share.share(
-                                        'https://www.jw.org/finder?srcid=jwlshare&wtlocale=${widget.lang}&lank=${widget.lank}'
+                                        'https://www.jw.org/finder?srcid=jwlshare&wtlocale=${widget.mediaItem.languageSymbol}&lank=${widget.mediaItem.languageAgnosticNaturalKey}'
                                     );
                                   },
                                 ),
@@ -441,21 +454,21 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
                                           onTap: () async {
                                             Subtitles subtitles = Subtitles();
                                             if(widget.localVideo != null) {
-                                              File file = File(widget.localVideo['SubtitleFilePath']);
+                                              File file = File(widget.localVideo!.subtitlesFilePath);
                                               await subtitles.loadSubtitlesFromFile(file);
                                             }
                                             else {
                                               var jsonData = {};
-                                              if (widget.api.isEmpty) {
-                                                String link = 'https://b.jw-cdn.org/apis/mediator/v1/media-items/${widget.lang}/${widget.lank}';
+                                              if (widget.onlineVideo != null) {
+                                                jsonData = widget.onlineVideo;
+                                              }
+                                              else {
+                                                String link = 'https://b.jw-cdn.org/apis/mediator/v1/media-items/${widget.mediaItem.languageSymbol}/${widget.mediaItem.languageAgnosticNaturalKey}';
                                                 final response = await http.get(Uri.parse(link));
                                                 if (response.statusCode == 200) {
                                                   final jsonFile = response.body;
                                                   jsonData = json.decode(jsonFile)['media'][0];
                                                 }
-                                              }
-                                              else {
-                                                jsonData = widget.api;
                                               }
                                               await subtitles.loadSubtitles(jsonData);
                                             }
@@ -530,6 +543,9 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
 
   @override
   void dispose() {
+    // Restaure l'affichage des barres système
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+
     _controller?.dispose();
     _timer?.cancel(); // Annulez le Timer
     JwLifeView.toggleNavBarVisibility.call(true);

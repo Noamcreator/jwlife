@@ -1,29 +1,29 @@
 import 'dart:io';
 
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/core/icons.dart';
-import 'package:jwlife/core/utils/files_helper.dart';
 import 'package:jwlife/core/utils/utils.dart';
-import 'package:jwlife/core/utils/utils_publication.dart';
+import 'package:jwlife/core/utils/utils_pub.dart';
+import 'package:jwlife/data/databases/Publication.dart';
+import 'package:jwlife/data/databases/PublicationCategory.dart';
+import 'package:jwlife/data/databases/catalog.dart';
 import 'package:jwlife/widgets/dialog/language_dialog.dart';
 import 'package:jwlife/widgets/image_widget.dart';
-import 'package:sqflite/sqflite.dart';
 
 class PublicationsItemsView extends StatefulWidget {
-  final Map<String, dynamic> category;
-  final String year;
+  final PublicationCategory category;
+  final int? year;
 
-  PublicationsItemsView({Key? key, required this.category, this.year=''}) : super(key: key);
+  PublicationsItemsView({Key? key, required this.category, this.year}) : super(key: key);
 
   @override
   _PublicationsItemsViewState createState() => _PublicationsItemsViewState();
 }
 
 class _PublicationsItemsViewState extends State<PublicationsItemsView> {
-  String categoryName = '';
-  String language = '';
-  List<Map<String, dynamic>> groupedPublications = [];
+  Map<int, List<Publication>> publications = {};
 
   @override
   void initState() {
@@ -32,195 +32,59 @@ class _PublicationsItemsViewState extends State<PublicationsItemsView> {
   }
 
   void loadItems() async {
-    String langVernacular = JwLifeApp.currentLanguage.vernacular;
-    int mepsLanguageId =JwLifeApp.currentLanguage.id;
+    Map<int, List<Publication>> publications;
 
-    File catalogFile = await getCatalogFile();
-    File mepsFile = await getMepsFile();
-    File pubCollectionsFile = await getPubCollectionsFile();
-    File userdataFile = await getUserdataFile();
-
-    if (await catalogFile.exists() && await mepsFile.exists()) {
-      Database catalog = await openReadOnlyDatabase(catalogFile.path);
-      await catalog.execute("ATTACH DATABASE '${mepsFile.path}' AS meps");
-      await catalog.execute("ATTACH DATABASE '${pubCollectionsFile.path}' AS pub_collections");
-      await catalog.execute("ATTACH DATABASE '${userdataFile.path}' AS userdata");
-
-      List<Map<String, dynamic>> result = [];
-      if (widget.year == '') {
-        result = await catalog.rawQuery(''' 
-    SELECT DISTINCT
-    p.Id AS PublicationId,
-    p.MepsLanguageId,
-    meps.Language.Symbol AS LanguageSymbol,
-    meps.Language.VernacularName AS LanguageVernacularName,
-    meps.Language.PrimaryIetfCode AS LanguagePrimaryIetfCode,
-    p.PublicationTypeId,
-    p.IssueTagNumber,
-    p.Title,
-    p.IssueTitle,
-    p.ShortTitle,
-    p.CoverTitle,
-    p.KeySymbol,
-    p.Symbol,
-    p.Year,
-    pam.PublicationAttributeId,
-    pa.CatalogedOn,
-    pa.ExpandedSize,
-    (SELECT ia.NameFragment
-        FROM ImageAsset ia
-        JOIN PublicationAssetImageMap paim ON ia.Id = paim.ImageAssetId
-        WHERE paim.PublicationAssetId = pa.Id 
-        AND (ia.NameFragment LIKE '%_sqr-%' OR (ia.Width = 600 AND ia.Height = 600))
-        ORDER BY ia.Width DESC
-        LIMIT 1) AS ImageSqr,
-    (SELECT ia.NameFragment
-        FROM ImageAsset ia
-        JOIN PublicationAssetImageMap paim ON ia.Id = paim.ImageAssetId
-        WHERE paim.PublicationAssetId = pa.Id 
-        AND ia.NameFragment LIKE '%_lsr-%'
-        ORDER BY ia.Width DESC
-        LIMIT 1) AS ImageLsr,
-    (SELECT CASE WHEN COUNT(pc.Symbol) > 0 THEN 1 ELSE 0 END
-        FROM pub_collections.Publication pc
-        WHERE p.Symbol = pc.Symbol AND p.IssueTagNumber = pc.IssueTagNumber AND p.MepsLanguageId = pc.MepsLanguageId) AS isDownload,
-    (SELECT pc.Path
-        FROM pub_collections.Publication pc
-        WHERE p.Symbol = pc.Symbol AND p.IssueTagNumber = pc.IssueTagNumber AND p.MepsLanguageId = pc.MepsLanguageId
-        LIMIT 1) AS Path,
-    (SELECT pc.DatabasePath
-        FROM pub_collections.Publication pc
-        WHERE p.Symbol = pc.Symbol AND p.IssueTagNumber = pc.IssueTagNumber AND p.MepsLanguageId = pc.MepsLanguageId
-        LIMIT 1) AS DatabasePath,
-    (SELECT pc.Hash
-        FROM pub_collections.Publication pc
-        WHERE p.Symbol = pc.Symbol AND p.IssueTagNumber = pc.IssueTagNumber AND p.MepsLanguageId = pc.MepsLanguageId
-        LIMIT 1) AS Hash,    
-    (SELECT CASE WHEN COUNT(tg.TagMapId) > 0 THEN 1 ELSE 0 END
-        FROM userdata.TagMap tg
-        JOIN userdata.Location ON tg.LocationId = userdata.Location.LocationId
-        WHERE userdata.Location.IssueTagNumber = p.IssueTagNumber 
-        AND userdata.Location.KeySymbol = p.KeySymbol 
-        AND userdata.Location.MepsLanguage = p.MepsLanguageId 
-        AND tg.TagId = 1) AS isFavorite
-    FROM 
-      Publication p
-    LEFT JOIN
-      PublicationAsset pa ON p.Id = pa.PublicationId
-    LEFT JOIN
-      PublicationRootKey prk ON p.PublicationRootKeyId = prk.Id
-    LEFT JOIN
-      PublicationAssetImageMap paim ON pa.Id = paim.PublicationAssetId
-    LEFT JOIN
-      ImageAsset ia ON paim.ImageAssetId = ia.Id
-    LEFT JOIN
-      PublicationAttributeMap pam ON pa.PublicationId = pam.PublicationId
-    LEFT JOIN
-      meps.Language ON p.MepsLanguageId = meps.Language.LanguageId
-    WHERE 
-      p.MepsLanguageId = ? AND p.PublicationTypeId = ?
-    ORDER BY pam.PublicationAttributeId
-    ''', [mepsLanguageId, widget.category['id']]);
-      }
-      else {
-        result = await catalog.rawQuery(''' 
-    SELECT DISTINCT
-    p.Id AS PublicationId,
-    p.MepsLanguageId,
-    meps.Language.Symbol AS LanguageSymbol,
-    meps.Language.VernacularName AS LanguageVernacularName,
-    meps.Language.PrimaryIetfCode AS LanguagePrimaryIetfCode,
-    p.PublicationTypeId,
-    p.IssueTagNumber,
-    p.Title,
-    p.IssueTitle,
-    p.ShortTitle,
-    p.CoverTitle,
-    p.KeySymbol,
-    p.Symbol,
-    p.Year,
-    pam.PublicationAttributeId,
-    pa.CatalogedOn,
-    pa.ExpandedSize,
-    (SELECT ia.NameFragment
-        FROM ImageAsset ia
-        JOIN PublicationAssetImageMap paim ON ia.Id = paim.ImageAssetId
-        WHERE paim.PublicationAssetId = pa.Id 
-        AND (ia.NameFragment LIKE '%_sqr-%' OR (ia.Width = 600 AND ia.Height = 600))
-        ORDER BY ia.Width DESC
-        LIMIT 1) AS ImageSqr,
-    (SELECT ia.NameFragment
-        FROM ImageAsset ia
-        JOIN PublicationAssetImageMap paim ON ia.Id = paim.ImageAssetId
-        WHERE paim.PublicationAssetId = pa.Id 
-        AND ia.NameFragment LIKE '%_lsr-%'
-        ORDER BY ia.Width DESC
-        LIMIT 1) AS ImageLsr,
-    (SELECT CASE WHEN COUNT(pc.Symbol) > 0 THEN 1 ELSE 0 END
-        FROM pub_collections.Publication pc
-        WHERE p.Symbol = pc.Symbol AND p.IssueTagNumber = pc.IssueTagNumber AND p.MepsLanguageId = pc.MepsLanguageId) AS isDownload,
-    (SELECT pc.Path
-        FROM pub_collections.Publication pc
-        WHERE p.Symbol = pc.Symbol AND p.IssueTagNumber = pc.IssueTagNumber AND p.MepsLanguageId = pc.MepsLanguageId
-        LIMIT 1) AS Path,
-    (SELECT pc.DatabasePath
-        FROM pub_collections.Publication pc
-        WHERE p.Symbol = pc.Symbol AND p.IssueTagNumber = pc.IssueTagNumber AND p.MepsLanguageId = pc.MepsLanguageId
-        LIMIT 1) AS DatabasePath,
-    (SELECT pc.Hash
-        FROM pub_collections.Publication pc
-        WHERE p.Symbol = pc.Symbol AND p.IssueTagNumber = pc.IssueTagNumber AND p.MepsLanguageId = pc.MepsLanguageId
-        LIMIT 1) AS Hash,    
-    (SELECT CASE WHEN COUNT(tg.TagMapId) > 0 THEN 1 ELSE 0 END
-        FROM userdata.TagMap tg
-        JOIN userdata.Location ON tg.LocationId = userdata.Location.LocationId
-        WHERE userdata.Location.IssueTagNumber = p.IssueTagNumber 
-        AND userdata.Location.KeySymbol = p.KeySymbol 
-        AND userdata.Location.MepsLanguage = p.MepsLanguageId 
-        AND tg.TagId = 1) AS isFavorite
-    FROM 
-      Publication p
-    LEFT JOIN
-      PublicationAsset pa ON p.Id = pa.PublicationId
-    LEFT JOIN
-      PublicationRootKey prk ON p.PublicationRootKeyId = prk.Id
-    LEFT JOIN
-      PublicationAssetImageMap paim ON pa.Id = paim.PublicationAssetId
-    LEFT JOIN
-      ImageAsset ia ON paim.ImageAssetId = ia.Id
-    LEFT JOIN
-      PublicationAttributeMap pam ON pa.PublicationId = pam.PublicationId
-    LEFT JOIN
-      meps.Language ON p.MepsLanguageId = meps.Language.LanguageId
-    WHERE 
-      p.MepsLanguageId = ? AND p.PublicationTypeId = ? AND p.Year = ?
-    ORDER BY p.Title
-    ''', [mepsLanguageId, widget.category['id'], widget.year]);
-      }
-
-      await catalog.execute("DETACH DATABASE userdata");
-      await catalog.execute("DETACH DATABASE pub_collections");
-      await catalog.execute("DETACH DATABASE meps");
-      await catalog.close();
-
-      // Mettre à jour l'état avec le mappage trié
-      setState(() {
-        categoryName = widget.category['name'];
-        language = langVernacular;
-        groupedPublications = result.map((item) => Map<String, dynamic>.from(item)).toList();;
-      });
+    if (widget.year != null) {
+      // Récupération des publications pour une année spécifique
+      publications = await PubCatalog.getPublicationsFromCategory(
+        widget.category.id,
+        year: widget.year,
+      );
     }
+    else {
+      // Récupération de toutes les publications sans filtrage par année
+      publications = await PubCatalog.getPublicationsFromCategory(widget.category.id);
+    }
+
+    // Remplace les publications existantes
+    this.publications = publications;
+
+    // Ajoute les publications manquantes provenant des collections personnelles
+    for (var pub in JwLifeApp.pubCollections.publications) {
+      if (pub.category.id == widget.category.id && (widget.year == null || pub.year == widget.year) && !this.publications.values.expand((list) => list).any((p) => p.keySymbol == pub.keySymbol && p.issueTagNumber == pub.issueTagNumber)) {
+        if (pub.attribute.isNotEmpty) {
+          String attribute = pub.attribute;
+          int? attributeId = attributes.entries
+              .firstWhere((entry) => entry.value['attribute'] == attribute, orElse: () => MapEntry(0, {}))
+              .key;
+
+          if (attributeId != 0) {
+            publications.putIfAbsent(attributeId, () => []).add(pub);
+          }
+          else {
+            this.publications.putIfAbsent(pub.attributeId, () => []).add(pub);
+          }
+        }
+        else {
+          this.publications.putIfAbsent(pub.attributeId, () => []).add(pub); // Ajout à l'année 0 si aucune année spécifique
+        }
+      }
+    }
+
+    var sortedEntries = this.publications.keys.toList()
+      ..sort((a, b) => a.compareTo(b)); // Trie par ordre croissant des clés
+
+    // Rafraîchit l'interface
+    setState(() {
+      this.publications = Map.fromEntries(
+          sortedEntries.map((key) => MapEntry(key, this.publications[key]!))
+      );
+    });
+
   }
 
   @override
   Widget build(BuildContext context) {
-    // Grouper les publications par PublicationAttributeId
-    Map<int, List<Map<String, dynamic>>> groupedByCategory = {};
-    for (var publication in groupedPublications) {
-      int attributeId = publication['PublicationAttributeId'] ?? -1;
-      groupedByCategory.putIfAbsent(attributeId, () => []).add(publication);
-    }
-
     // Styles partagés
     final textStyleTitle = const TextStyle(fontSize: 20, fontWeight: FontWeight.bold);
     final textStyleSubtitle = TextStyle(
@@ -241,8 +105,8 @@ class _PublicationsItemsViewState extends State<PublicationsItemsView> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(categoryName, style: textStyleTitle),
-            Text(language, style: textStyleSubtitle),
+            Text(widget.category.getName(context), style: textStyleTitle),
+            Text(JwLifeApp.settings.currentLanguage.vernacular, style: textStyleSubtitle),
           ],
         ),
         actions: [
@@ -261,68 +125,80 @@ class _PublicationsItemsViewState extends State<PublicationsItemsView> {
           ),
         ],
       ),
-      body: ListView.builder(
-        physics: AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.symmetric(vertical: 5.0, horizontal: 10.0),
-        itemCount: groupedByCategory.length,
-        itemBuilder: (context, index) {
-          var entry = groupedByCategory.entries.elementAt(index);
-          int attributeId = entry.key;
-          List<Map<String, dynamic>> publications = entry.value;
+        body: Padding(
+          padding: const EdgeInsets.all(10.0),
+          child: ListView.builder(
+            itemCount: publications.length,
+            itemBuilder: (context, index) {
+              int categorySymbol = publications.keys.elementAt(index);
+              List<Publication> categoryPublications = publications[categorySymbol]!;
 
-          // Créez une liste de widgets pour chaque section
-          List<Widget> sectionWidgets = [];
+              // Tri des publications selon la logique appropriée
+              if (widget.category.hasYears) {
+                categoryPublications.sort((a, b) => a.issueTagNumber.compareTo(b.issueTagNumber));
+              }
+              else {
+                bool shouldSortByYear = categorySymbol != -1 && attributes[categorySymbol]!['order'] == 1;
 
-          // Si l'attribut existe, ajoutez son titre
-          if (attributeId != -1) {
-            sectionWidgets.add(
-              Text(
-                attributes[attributeId]?['name'] ?? '',
-                style: textStyleTitle,
-              ),
-            );
-            sectionWidgets.add(const SizedBox(height: 5));
-          }
+                if (shouldSortByYear) {
+                  categoryPublications.sort((a, b) => b.year.compareTo(a.year));
+                } else {
+                  categoryPublications.sort((a, b) {
+                    String titleA = a.title.toLowerCase();
+                    String titleB = b.title.toLowerCase();
+                    bool isSpecialA = RegExp(r'^[^a-zA-Z]').hasMatch(titleA);
+                    bool isSpecialB = RegExp(r'^[^a-zA-Z]').hasMatch(titleB);
+                    return isSpecialA == isSpecialB ? titleA.compareTo(titleB) : (isSpecialA ? -1 : 1);
+                  });
+                }
+              }
 
-          // Ajoutez les publications sous cette section
-          sectionWidgets.addAll(publications.map((publication) {
-            return GestureDetector(
-              onTap: () {
-                showPublicationMenu(context, publication);
-              },
-              child: Container(
-                margin: const EdgeInsets.symmetric(vertical: 1.0),
-                decoration: boxDecoration,
-                child: _buildCategoryButton(context, publication),
-              ),
-            );
-          }).toList());
-
-          // Ajout d'un espacement après les publications
-          sectionWidgets.add(const SizedBox(height: 30));
-
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: sectionWidgets,
-          );
-        },
-      ),
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (categorySymbol != -1)
+                    Padding(
+                      padding: EdgeInsets.only(top: index == 0 ? 0.0 : 40.0, bottom: 5.0),
+                      child: Text(
+                        attributes[categorySymbol]!['name'],
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? Colors.white
+                              : Colors.black,
+                        ),
+                      ),
+                    ),
+                  Wrap(
+                    spacing: 3.0,
+                    runSpacing: 3.0,
+                    children: categoryPublications.map((pub) {
+                      Publication downloadPublication = JwLifeApp.pubCollections.getPublication(pub);
+                      return GestureDetector(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).brightness == Brightness.dark
+                                ? const Color(0xFF292929)
+                                : Colors.white,
+                          ),
+                          child: _buildCategoryButton(context, downloadPublication, pub),
+                        ),
+                        onTap: () {
+                          downloadPublication.showMenu(context, update: (progress) => setState(() {}));
+                        },
+                      );
+                    }).toList(),
+                  ),
+                ],
+              );
+            },
+          ),
+        )
     );
   }
 
-  Widget _buildCategoryButton(BuildContext context, Map<String, dynamic> publication) {
-    var imageSqr = publication['ImageSqr'] ?? '';
-    var title = publication['Title'] ?? '';
-    var issueTitle = publication['IssueTitle'] ?? '';
-    var coverTitle = publication['CoverTitle'] ?? '';
-    var year = publication['Year'] ?? '';
-
-    // Construire l'URL de l'image
-    String imageUrl = '';
-    if (imageSqr.isNotEmpty) {
-      imageUrl = 'https://app.jw-cdn.org/catalogs/publications/$imageSqr';
-    }
-
+  Widget _buildCategoryButton(BuildContext context, Publication downloadPub, Publication pub) {
     return SizedBox(
       height: 85,
       child: Stack(
@@ -332,8 +208,8 @@ class _PublicationsItemsViewState extends State<PublicationsItemsView> {
               ClipRRect(
                 borderRadius: BorderRadius.circular(0),
                 child: ImageCachedWidget(
-                    imageUrl: imageUrl,
-                    pathNoImage: widget.category['image'],
+                    imageUrl: downloadPub.imageSqr,
+                    pathNoImage: widget.category.image,
                     height: 85,
                     width: 85
                 ),
@@ -346,9 +222,9 @@ class _PublicationsItemsViewState extends State<PublicationsItemsView> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      if (issueTitle.isNotEmpty)
+                      if (downloadPub.issueTitle.isNotEmpty)
                         Text(
-                          issueTitle,
+                          downloadPub.issueTitle,
                           style: TextStyle(
                             fontSize: 12,
                             color: Theme.of(context).brightness == Brightness.dark
@@ -358,37 +234,30 @@ class _PublicationsItemsViewState extends State<PublicationsItemsView> {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
-                      if (coverTitle.isNotEmpty)
+                      if (downloadPub.coverTitle.isNotEmpty)
                         Text(
-                          coverTitle,
+                          downloadPub.coverTitle,
                           style: TextStyle(
                             fontSize: 14,
                           ),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
-                      if (issueTitle.isEmpty && coverTitle.isEmpty)
+                      if (downloadPub.issueTitle.isEmpty && downloadPub.coverTitle.isEmpty)
                         Text(
-                          title,
+                          downloadPub.title,
                           style: TextStyle(fontSize: 14),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
                       Spacer(),
                       Text(
-                        '$year - ${publication['Symbol']}',
+                        '${downloadPub.year} - ${downloadPub.symbol}',
                         style: TextStyle(fontSize: 12, color: Theme.of(context).brightness == Brightness.dark
                             ? const Color(0xFFc3c3c3)
                             : const Color(0xFF626262),
                         ),
                       ),
-                      publication['inProgress'] != null ? const Spacer() : Container(),
-                      publication['inProgress'] != null
-                          ? publication['inProgress'] == -1 ? LinearProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).primaryColor)):
-                      LinearProgressIndicator(
-                          value: publication['inProgress'],
-                          valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).primaryColor),
-                          color: Theme.of(context).primaryColor) : Container()
                     ],
                   ),
                 ),
@@ -405,37 +274,63 @@ class _PublicationsItemsViewState extends State<PublicationsItemsView> {
               ),
               itemBuilder: (BuildContext context) {
                 return [
-                  getPubShareMenuItem(publication),
-                  getPubLanguagesItem(context, "Autres langues", publication),
-                  getPubFavoriteItem(publication),
-                  getPubDownloadItem(context, publication, update: () {
+                  getPubShareMenuItem(downloadPub),
+                  getPubLanguagesItem(context, "Autres langues", downloadPub),
+                  getPubFavoriteItem(downloadPub),
+                  getPubDownloadItem(context, downloadPub, update: (progress) {
                     setState(() {});
                   }),
                 ];
               },
             ),
           ),
-          publication['isDownload'] == 0 && publication['inProgress'] == null ? Positioned(
+          JwLifeApp.userdata.isPubFavorite(downloadPub) ? Positioned(
+              bottom: -2,
+              right: 3,
+              height: 40,
+              child: Icon(
+                  JwIcons.star,
+                  color: Color(0xFF9d9d9d)
+              )) : downloadPub.isDownloading ? Positioned(
+              bottom: -2,
+              right: -8,
+              height: 40,
+              child: IconButton(
+                padding: const EdgeInsets.all(0),
+                onPressed: () {
+                  downloadPub.cancelDownload(context, update: (progress) {setState(() {});});
+                },
+                icon: Icon(JwIcons.x, color: Color(0xFF9d9d9d)),
+              )) : pub.hasUpdate(downloadPub) ? Positioned(
+              bottom: 5,
+              right: -8,
+              height: 40,
+              child: IconButton(
+                padding: const EdgeInsets.all(0),
+                onPressed: () {
+                  downloadPub.update(context, update: (progress) {setState(() {});});
+                },
+                icon: Icon(JwIcons.arrows_circular, color: Color(0xFF9d9d9d)),
+              )) :
+          !downloadPub.isDownloaded ? Positioned(
             bottom: 5,
             right: -8,
             height: 40,
             child: IconButton(
               padding: const EdgeInsets.all(0),
               onPressed: () {
-                downloadPublication(context, publication, update: () {
-                  setState(() {});
-                });
+                downloadPub.download(context, update: (progress) {setState(() {});});
               },
               icon: Icon(JwIcons.cloud_arrow_down, color: Color(0xFF9d9d9d)),
             ),
           ): Container(),
-          publication['isDownload'] == 0 && publication['inProgress'] == null ? Positioned(
+          (!downloadPub.isDownloaded || pub.hasUpdate(downloadPub)) && !downloadPub.isDownloading ? Positioned(
               bottom: 0,
               right: -5,
               width: 50,
               child: Text(
                 textAlign: TextAlign.center,
-                formatFileSize(publication['ExpandedSize']),
+                formatFileSize(downloadPub.expandedSize),
                 style: TextStyle(
                   fontSize: 11,
                   color: Theme.of(context).brightness == Brightness.dark
@@ -444,6 +339,20 @@ class _PublicationsItemsViewState extends State<PublicationsItemsView> {
                 ),
               )
           ) : Container(),
+          Positioned(
+            bottom: 0,
+            right: 0,
+            height: 2,
+            width: 386-85,
+            child: downloadPub.isDownloading
+                ? LinearProgressIndicator(
+              value: downloadPub.downloadProgress == -1 ? null : downloadPub.downloadProgress,
+              valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).primaryColor),
+              backgroundColor: Colors.grey, // Fond gris
+              minHeight: 2, // Assure que la hauteur est bien prise en compte
+            )
+                : Container(),
+          )
         ],
       ),
     );
@@ -452,36 +361,62 @@ class _PublicationsItemsViewState extends State<PublicationsItemsView> {
 
 // La définition de votre map d'attributs reste inchangée.
 Map<int, Map<String, dynamic>> attributes = {
-  0: {'key': 'null', 'name': ''},
-  32: {'key': 'archive', 'name': 'PUBLICATIONS PLUS ANCIENNES'},
-  1: {'key': 'assembly_convention', 'name': 'ASSEMBLÉE RÉGIONALE ET DE CIRCONSCRIPTION'},
-  29: {'key': 'bethel', 'name': 'BÉTHEL'},
-  2: {'key': 'circuit_assembly', 'name': 'ASSEMBLÉE DE CIRCONSCRIPTION'},
-  30: {'key': 'circuit_overseer', 'name': 'RESPONSABLE DE CIRCONSCRIPTION'},
-  31: {'key': 'congregation', 'name': 'ASSEMBLÉE LOCALE'},
-  33: {'key': 'congregation_circuit_overseer', 'name': 'ASSEMBLÉE LOCALE ET RESPONSABLE DE CIRCONSCRIPTION'},
-  3: {'key': 'convention', 'name': 'ASSEMBLÉE RÉGIONALE'},
-  9: {'key': 'convention_invitation', 'name': 'INVITATIONS À L\'ASSEMBLÉE RÉGIONALE'},
-  49: {'key': 'design_construction', 'name': 'DÉVELOPPEMENT-CONSTRUCTION'},
-  4: {'key': 'drama', 'name': 'REPRÉSENTATIONS THÉÂTRALES'},
-  5: {'key': 'dramatic_bible_reading', 'name': 'LECTURES BIBLIQUES THÉÂTRALES'},
-  7: {'key': 'examining_the_scriptures', 'name': 'EXAMINONS LES ÉCRITURES'},
-  50: {'key': 'financial', 'name': 'COMPTABILITÉ'},
-  41: {'key': 'invitation', 'name': 'INVITATIONS'},
-  10: {'key': 'kingdom_news', 'name': 'NOUVELLES DU ROYAUME'},
-  51: {'key': 'medical', 'name': 'MÉDICAL'},
-  57: {'key': 'meetings', 'name': 'RÉUNIONS'},
-  52: {'key': 'ministry', 'name': 'MINISTÈRE'},
-  12: {'key': 'music', 'name': 'MUSIQUE'},
-  16: {'key': 'public', 'name': 'ÉDITION PUBLIQUE'},
-  53: {'key': 'purchasing', 'name': 'ACHATS'},
-  54: {'key': 'safety', 'name': 'SÉCURITÉ'},
-  55: {'key': 'schools', 'name': 'ÉCOLES'},
-  27: {'key': 'simplified', 'name': 'VERSION FACILE'},
-  22: {'key': 'study', 'name': 'ÉDITION D’ÉTUDE'},
-  28: {'key': 'study_questions', 'name': 'QUESTIONS D\'ÉTUDE'},
-  21: {'key': 'study_simplified', 'name': 'ÉDITION D’ÉTUDE (FACILE)'},
-  24: {'key': 'vocal_rendition', 'name': 'VERSION CHANTÉE'},
-  56: {'key': 'writing_translation', 'name': 'RÉDACTION / TRADUCTION'},
-  26: {'key': 'yearbook', 'name': 'ANNUAIRES ET RAPPORTS DES ANNÉES DE SERVICE'}
+  0: {'key': 'null', 'attribute': '', 'name': '', 'order': 0},
+  1: {'key': 'assembly_convention', 'attribute': 'Cast', 'name': 'ASSEMBLÉE RÉGIONALE ET DE CIRCONSCRIPTION', 'order': 1},
+  2: {'key': 'circuit_assembly', 'attribute': 'Circuit Assembly', 'name': 'ASSEMBLÉE DE CIRCONSCRIPTION', 'order': 1},
+  3: {'key': 'convention', 'attribute': 'Convention', 'name': 'ASSEMBLÉE RÉGIONALE', 'order': 1},
+  4: {'key': 'drama', 'attribute': 'Drama', 'name': 'REPRÉSENTATIONS THÉÂTRALES', 'order': 0},
+  5: {'key': 'dramatic_bible_reading', 'attribute': 'Dramatic Bible Reading', 'name': 'LECTURES BIBLIQUES THÉÂTRALES', 'order': 0},
+  6: {'key': 'envelope', 'attribute': 'Envelope', 'name': 'ENVELOPPE', 'order': 0},
+  7: {'key': 'examining_the_scriptures', 'attribute': 'Examining the Scriptures', 'name': 'EXAMINONS LES ÉCRITURES', 'order': 1},
+  8: {'key': 'insert', 'attribute': 'Insert', 'name': 'ENCART', 'order': 0},
+  9: {'key': 'convention_invitation', 'attribute': 'Invitation', 'name': 'INVITATIONS À L\'ASSEMBLÉE RÉGIONALE', 'order': 0},
+  10: {'key': 'kingdom_news', 'attribute': 'Kingdom News', 'name': 'NOUVELLES DU ROYAUME', 'order': 0},
+  11: {'key': 'large_print', 'attribute': 'Large Print', 'name': 'GROS CARACTÈRES', 'order': 0},
+  12: {'key': 'music', 'attribute': 'Music', 'name': 'MUSIQUE', 'order': 0},
+  13: {'key': 'ost', 'attribute': 'OST', 'name': 'BANDE ORIGINALE', 'order': 0},
+  14: {'key': 'outline', 'attribute': 'Outline', 'name': 'PLAN', 'order': 0},
+  15: {'key': 'poster', 'attribute': 'Poster', 'name': 'AFFICHE', 'order': 0},
+  16: {'key': 'public', 'attribute': 'Public', 'name': 'ÉDITION PUBLIQUE', 'order': 1},
+  17: {'key': 'reprint', 'attribute': 'Reprint', 'name': 'RÉIMPRESSION', 'order': 0},
+  18: {'key': 'sad', 'attribute': 'SAD', 'name': 'ASSEMBLÉE SPÉCIALE', 'order': 0},
+  19: {'key': 'script', 'attribute': 'Script', 'name': 'SCRIPT', 'order': 0},
+  20: {'key': 'sign_language', 'attribute': 'Sign Language', 'name': 'LANGUE DES SIGNES', 'order': 0},
+  21: {'key': 'study_simplified', 'attribute': 'Simplified', 'name': 'ÉDITION D’ÉTUDE (FACILE)', 'order': 1},
+  22: {'key': 'study', 'attribute': 'Study', 'name': 'ÉDITION D’ÉTUDE', 'order': 1},
+  23: {'key': 'transcript', 'attribute': 'Transcript', 'name': 'TRANSCRIPTION', 'order': 0},
+  24: {'key': 'vocal_rendition', 'attribute': 'Vocal Rendition', 'name': 'VERSION CHANTÉE', 'order': 0},
+  25: {'key': 'web', 'attribute': 'Web', 'name': 'WEB', 'order': 0},
+  26: {'key': 'yearbook', 'attribute': 'Yearbook', 'name': 'ANNUAIRES ET RAPPORTS DES ANNÉES DE SERVICE', 'order': 1},
+  27: {'key': 'simplified', 'attribute': 'In-house', 'name': 'VERSION FACILE', 'order': 1},
+  28: {'key': 'study_questions', 'attribute': 'Study Questions', 'name': 'QUESTIONS D\'ÉTUDE', 'order': 0},
+  29: {'key': 'bethel', 'attribute': 'Bethel', 'name': 'BÉTHEL', 'order': 0},
+  30: {'key': 'circuit_overseer', 'attribute': 'Circuit Overseer', 'name': 'RESPONSABLE DE CIRCONSCRIPTION', 'order': 0},
+  31: {'key': 'congregation', 'attribute': 'Congregation', 'name': 'ASSEMBLÉE LOCALE', 'order': 0},
+  32: {'key': 'archive', 'attribute': 'Archive', 'name': 'PUBLICATIONS PLUS ANCIENNES', 'order': 0},
+  33: {'key': 'congregation_circuit_overseer', 'attribute': 'A-Form', 'name': 'ASSEMBLÉE LOCALE ET RESPONSABLE DE CIRCONSCRIPTION', 'order': 0},
+  34: {'key': 'ao_form', 'attribute': 'AO-Form', 'name': 'FORMULAIRE AO', 'order': 0},
+  35: {'key': 'b_form', 'attribute': 'B-Form', 'name': 'FORMULAIRE B', 'order': 0},
+  36: {'key': 'ca_form', 'attribute': 'CA-Form', 'name': 'FORMULAIRE CA', 'order': 0},
+  37: {'key': 'cn_form', 'attribute': 'CN-Form', 'name': 'FORMULAIRE CN', 'order': 0},
+  38: {'key': 'co_form', 'attribute': 'CO-Form', 'name': 'FORMULAIRE CO', 'order': 0},
+  39: {'key': 'dc_form', 'attribute': 'DC-Form', 'name': 'FORMULAIRE DC', 'order': 0},
+  40: {'key': 'f_form', 'attribute': 'F-Form', 'name': 'FORMULAIRE F', 'order': 0},
+  41: {'key': 'invitation', 'attribute': 'G-Form', 'name': 'INVITATIONS', 'order': 0},
+  42: {'key': 'h_form', 'attribute': 'H-Form', 'name': 'FORMULAIRE H', 'order': 0},
+  43: {'key': 'm_form', 'attribute': 'M-Form', 'name': 'FORMULAIRE M', 'order': 0},
+  44: {'key': 'pd_form', 'attribute': 'PD-Form', 'name': 'FORMULAIRE PD', 'order': 0},
+  45: {'key': 's_form', 'attribute': 'S-Form', 'name': 'FORMULAIRE S', 'order': 0},
+  46: {'key': 't_form', 'attribute': 'T-Form', 'name': 'FORMULAIRE T', 'order': 0},
+  47: {'key': 'to_form', 'attribute': 'TO-Form', 'name': 'FORMULAIRE TO', 'order': 0},
+  48: {'key': 'assembly_hall', 'attribute': 'Assembly Hall', 'name': 'SALLE D’ASSEMBLÉE', 'order': 0},
+  49: {'key': 'design_construction', 'attribute': 'Design/Construction', 'name': 'DÉVELOPPEMENT-CONSTRUCTION', 'order': 0},
+  50: {'key': 'financial', 'attribute': 'Financial', 'name': 'COMPTABILITÉ', 'order': 0},
+  51: {'key': 'medical', 'attribute': 'Medical', 'name': 'MÉDICAL', 'order': 0},
+  52: {'key': 'ministry', 'attribute': 'Ministry', 'name': 'MINISTÈRE', 'order': 0},
+  53: {'key': 'purchasing', 'attribute': 'Purchasing', 'name': 'ACHATS', 'order': 0},
+  54: {'key': 'safety', 'attribute': 'Safety', 'name': 'SÉCURITÉ', 'order': 0},
+  55: {'key': 'schools', 'attribute': 'Schools', 'name': 'ÉCOLES', 'order': 0},
+  56: {'key': 'writing_translation', 'attribute': 'Writing/Translation', 'name': 'RÉDACTION / TRADUCTION', 'order': 0},
+  57: {'key': 'meetings', 'attribute': 'Meetings', 'name': 'RÉUNIONS', 'order': 0},
 };

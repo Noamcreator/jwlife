@@ -16,9 +16,10 @@ class LanguageDialog extends StatefulWidget {
 }
 
 class _LanguageDialogState extends State<LanguageDialog> {
-  Map<String, dynamic>? selectedLanguage;
+  String? selectedLanguage;
   final TextEditingController _searchController = TextEditingController();
   List<Map<String, dynamic>> filteredLanguagesList = [];
+  List<Map<String, dynamic>> favoriteLanguages = []; // Liste pour les langues favorites
   Database? database;
 
   @override
@@ -29,15 +30,16 @@ class _LanguageDialogState extends State<LanguageDialog> {
   }
 
   Future<void> initSettings(String searchTerm) async {
+    selectedLanguage = JwLifeApp.settings.currentLanguage.symbol;
+
     File mepsUnitFile = await getMepsFile(); // mepsUnitFile est .db
-    String languageSymbol = JwLifeApp.currentLanguage.symbol;
 
     if (await mepsUnitFile.exists()) {
       // Ouvrir la base de données
       database = await openDatabase(mepsUnitFile.path);
 
       // Fetch languages using language code
-      await fetchLanguages(languageSymbol, searchTerm);
+      await fetchLanguages(selectedLanguage!, searchTerm);
 
       database!.close();
     }
@@ -63,7 +65,7 @@ class _LanguageDialogState extends State<LanguageDialog> {
   ''', [languageCode]);
 
     // Si le widget.languagesList est vide, on effectue une requête à la base de données.
-    if (!widget.languagesListJson.isEmpty) {
+    if (widget.languagesListJson.isNotEmpty) {
       // Filtrer les résultats pour ne garder que ceux présents dans la liste de langues
       response = response.where((language) => widget.languagesListJson.keys.contains(language['Symbol'])).toList();
 
@@ -79,9 +81,20 @@ class _LanguageDialogState extends State<LanguageDialog> {
       }).toList(); // Assurez-vous de convertir le résultat en liste
     }
 
+    // Mise à jour de filteredLanguagesList
+    List<Map<String, dynamic>> languagesModifiable = List.from(response);
+
     setState(() {
-      filteredLanguagesList = response;
+      filteredLanguagesList = languagesModifiable;
+      favoriteLanguages = filteredLanguagesList.where((lang) {
+        return isFavorite(lang);
+      }).toList();
+      filteredLanguagesList.removeWhere((lang) => isFavorite(lang));
     });
+  }
+
+  bool isFavorite(Map<String, dynamic> language) {
+    return language['Symbol'] == selectedLanguage;
   }
 
   Future<void> _onSearchChanged() async {
@@ -92,129 +105,183 @@ class _LanguageDialogState extends State<LanguageDialog> {
 
   @override
   Widget build(BuildContext context) {
-    // Accès au thème pour éviter les erreurs de constantes
-    final Color dividerColor = Theme.of(context).brightness == Brightness.dark
-        ? Colors.black
-        : const Color(0xFFf0f0f0);
-    final Color hintColor = Theme.of(context).brightness == Brightness.dark
-        ? const Color(0xFFc5c5c5)
-        : const Color(0xFF666666);
-    final Color subtitleColor = Theme.of(context).brightness == Brightness.dark
-        ? const Color(0xFFbdbdbd)
-        : const Color(0xFF626262);
-    final Color buttonColor = Theme.of(context).primaryColor;
+    bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
-    return SimpleDialog(
-      title: const Text('Langues'),
-      contentPadding: const EdgeInsets.only(top: 10, bottom: 0),
-      children: <Widget>[
-        const SizedBox(height: 10),
-        // Ligne de séparation
-        Container(
-          height: 1,
-          color: dividerColor,
-        ),
-        const SizedBox(height: 10),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 15),
-          child: Row(
-            children: [
-              Icon(
-                JwIcons.magnifying_glass,
-                color: const Color(0xFF9d9d9d),
+    // Accès au thème pour éviter les erreurs de constantes
+    final Color dividerColor = isDarkMode ? Colors.black : const Color(0xFFf0f0f0);
+    final Color hintColor = isDarkMode ? const Color(0xFFc5c5c5) : const Color(0xFF666666);
+    final Color subtitleColor = isDarkMode ? const Color(0xFFbdbdbd) : const Color(0xFF626262);
+
+    // Combine favoriteLanguages en haut et filteredLanguagesList en bas
+    final combinedLanguages = [
+      ...favoriteLanguages.map((language) => {...language, 'isFavorite': true}),
+      ...filteredLanguagesList.map((language) => {
+        ...language,
+        'isFavorite': false
+      }),
+    ];
+
+    return Dialog(
+      insetPadding: const EdgeInsets.all(20),
+      child: Container(
+        width: MediaQuery.of(context).size.width,  // Largeur de l'écran
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 10, horizontal: 20),
+              child: Text(
+                'Langues',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
-              const SizedBox(width: 20),
-              Expanded(
-                child: TextField(
-                  controller: _searchController,
-                  autocorrect: false, // Désactive la correction automatique
-                  enableSuggestions: false, // Désactive les suggestions
-                  keyboardType: TextInputType.text, // Permet la saisie de texte
-                  decoration: InputDecoration(
-                    hintText: 'Rechercher une langue',
-                    hintStyle: TextStyle(
-                      fontSize: 18,
-                      color: hintColor,
+            ),
+
+            Divider(color: dividerColor),
+
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 15),
+              child: Row(
+                children: [
+                  Icon(
+                    JwIcons.magnifying_glass,
+                    color: const Color(0xFF9d9d9d),
+                  ),
+                  const SizedBox(width: 20),
+                  Expanded(
+                    child: TextField(
+                      controller: _searchController,
+                      autocorrect: false, // Désactive la correction automatique
+                      enableSuggestions: false, // Désactive les suggestions
+                      keyboardType: TextInputType.text, // Permet la saisie de texte
+                      decoration: InputDecoration(
+                        hintText: 'Rechercher une langue (${filteredLanguagesList.length})',
+                        hintStyle: TextStyle(
+                          fontSize: 18,
+                          color: hintColor,
+                        ),
+                      ),
                     ),
                   ),
-                ),
-              )
-            ],
-          ),
-        ),
-        const SizedBox(height: 10),
-        SizedBox(
-          width: MediaQuery.of(context).size.width,  // Largeur de l'écran
-          height: MediaQuery.of(context).size.height * 0.6,  // 50% de la hauteur de l'écran
-          child: ListView.builder(
-            itemCount: filteredLanguagesList.length,
-            itemBuilder: (BuildContext context, int index) {
-              final languageData = filteredLanguagesList[index];
-              final vernacularName = languageData['VernacularName'];
-              final translatedName = languageData['Name'];
-              final title = languageData['Title'] ?? ''; // Affichage du titre si disponible
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
 
-              return ListTile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 15),
-                title: Text(translatedName, style: const TextStyle(fontSize: 17)),
-                subtitle: title != ''
-                    ? Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: subtitleColor,
-                  ),
-                )
-                    : Text(
-                  vernacularName,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: subtitleColor,
-                  ),
-                ),
-                leading: Radio(
-                  fillColor: MaterialStateColor.resolveWith(
-                        (states) => const Color(0xFF9d9d9d),
-                  ),
-                  value: vernacularName,
-                  groupValue: selectedLanguage?['VernacularName'],
-                  onChanged: (value) {
-                    setState(() {
-                      selectedLanguage = filteredLanguagesList[index];
-                    });
-                  },
-                ),
-                onTap: () {
-                  setState(() {
-                    selectedLanguage = filteredLanguagesList[index];
-                    Navigator.of(context).pop(selectedLanguage);
-                  });
+            Expanded(
+              child: ListView.separated(
+                itemCount: combinedLanguages.length,
+                separatorBuilder: (context, index) => Divider(color: dividerColor),
+                itemBuilder: (BuildContext context, int index) {
+                  final languageData = combinedLanguages[index];
+                  final vernacularName = languageData['VernacularName'];
+                  final translatedName = languageData['Name'];
+                  final title = languageData['Title'] ?? ''; // Affichage du titre si disponible
+                  final isFavorite = languageData['isFavorite'] as bool;
+
+                  return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (isFavorite && index == 0)
+                        Padding(
+                          padding: EdgeInsets.only(left: 20, bottom: 8),
+                          child: Text(
+                            'Favoris',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Theme.of(context).secondaryHeaderColor,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      if (!isFavorite && index == favoriteLanguages.length)
+                        Padding(
+                          padding: EdgeInsets.only(left: 20, bottom: 8, top: 10),
+                          child: Text(
+                            'Autres langues',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Theme.of(context).secondaryHeaderColor,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      InkWell(
+                          onTap: () {
+                            setState(() {
+                              selectedLanguage = languageData['Symbol'];
+                              Navigator.of(context).pop(languageData);
+                            });
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.only(left: 10, right: 5),
+                            child: Row(
+                              children: [
+                                Radio(
+                                  value: languageData['Symbol'],
+                                  activeColor: Theme.of(context).primaryColor,
+                                  groupValue: selectedLanguage,
+                                  onChanged: (value) {
+                                    setState(() {
+                                      selectedLanguage = languageData['Symbol'];
+                                    });
+                                  },
+                                ),
+                                SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(translatedName, style: const TextStyle(fontSize: 17)),
+                                      title != ''
+                                          ? Text(
+                                        title,
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          color: subtitleColor,
+                                        ),
+                                      ) : Text(
+                                        vernacularName,
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          color: subtitleColor,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                )
+                              ],
+                            ),
+                          )
+                      ),
+                    ]
+                  );
                 },
-              );
-            },
-          ),
-        ),
-        Container(
-          height: 1,
-          color: dividerColor,
-        ),
-        ButtonBar(
-          children: <Widget>[
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop(null);
-              },
-              child: Text(
-                'TERMINER',
-                style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: buttonColor),
+              )
+            ),
+
+            Divider(color: dividerColor),
+
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                child: Text(
+                  'TERMINER',
+                  style: TextStyle(
+                      fontFamily: 'Roboto',
+                      letterSpacing: 1,
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).primaryColor),
+                ),
+                onPressed: () {
+                  Navigator.pop(context, null); // Retourne null si l'utilisateur ferme la boîte de dialogue
+                },
               ),
             ),
           ],
         ),
-      ],
+      ),
     );
   }
 }

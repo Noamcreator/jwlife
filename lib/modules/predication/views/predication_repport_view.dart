@@ -1,9 +1,6 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:jwlife/app/jwlife_app.dart';
-import 'package:jwlife/data/firebase/firebase.dart';
 import 'package:table_calendar/table_calendar.dart';
 
 class PreachingReportPage extends StatefulWidget {
@@ -39,6 +36,7 @@ class _PreachingReportPageState extends State<PreachingReportPage> {
   Future<void> _loadReports() async {
     // Charger les rapports depuis Firestore
     // Enregistrer ou mettre à jour le rapport dans Firestore
+    /*
     DocumentReference userDoc = await getUserCollection();
 
     final snapshot = await userDoc.collection('preaching_reports').get();
@@ -54,11 +52,14 @@ class _PreachingReportPageState extends State<PreachingReportPage> {
         };
       });
     }
+
+     */
   }
 
   // Enregistrer les données dans Firestore
   Future<void> _updateReport() async {
     if (_selectedDay != null) {
+      /*
       final dateString = _selectedDay!.toIso8601String();
 
       // Enregistrer ou mettre à jour le rapport dans Firestore
@@ -78,6 +79,8 @@ class _PreachingReportPageState extends State<PreachingReportPage> {
           'credits': _creditsController.text,
         };
       });
+
+       */
     }
   }
 
@@ -124,7 +127,7 @@ class _PreachingReportPageState extends State<PreachingReportPage> {
               ),
             ),
             TableCalendar(
-              locale: JwLifeApp.locale.languageCode,
+              locale: JwLifeApp.settings.locale.languageCode,
               firstDay: DateTime.utc(2020, 1, 1),
               lastDay: DateTime.utc(2030, 12, 31),
               focusedDay: _focusedDay,
@@ -170,7 +173,7 @@ class _PreachingReportPageState extends State<PreachingReportPage> {
             const SizedBox(height: 20),
             if (_selectedDay != null) ...[
               Text(
-                DateFormat("EEEE d MMMM", JwLifeApp.locale.languageCode).format(_selectedDay!),
+                DateFormat("EEEE d MMMM", JwLifeApp.settings.locale.languageCode).format(_selectedDay!),
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 10),

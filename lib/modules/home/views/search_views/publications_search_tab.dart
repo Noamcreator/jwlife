@@ -3,172 +3,192 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/core/api.dart';
-import 'package:jwlife/core/utils/utils_publication.dart';
+import 'package:jwlife/core/utils/utils_pub.dart';
+import 'package:jwlife/data/databases/Publication.dart';
 import 'package:jwlife/data/databases/catalog.dart';
+import 'package:jwlife/modules/home/views/search_views/search_model.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-class PublicationsSearchTab extends StatefulWidget {
-  final String query;
+import '../../../../widgets/dialog/language_dialog.dart';
 
-  const PublicationsSearchTab({
-    super.key,
-    required this.query,
-  });
+class PublicationsSearchTab extends StatefulWidget {
+  final SearchModel model;
+
+  const PublicationsSearchTab({super.key, required this.model});
 
   @override
   _PublicationsSearchTabState createState() => _PublicationsSearchTabState();
 }
 
 class _PublicationsSearchTabState extends State<PublicationsSearchTab> {
-  List<Map<String, dynamic>> results = [];
-
   @override
   void initState() {
     super.initState();
-    fetchApiJw(widget.query);
-  }
-
-  Future<void> fetchApiJw(String query) async {
-    final queryParams = {'q': query};
-    final url = Uri.https(
-        'b.jw-cdn.org', '/apis/search/results/${JwLifeApp.currentLanguage.symbol}/publications', queryParams);
-
-    try {
-      Map<String, String> headers = {
-        'Authorization': 'Bearer ${Api.currentJwToken}',
-      };
-
-      http.Response alertResponse = await http.get(url, headers: headers);
-
-      if (alertResponse.statusCode == 200) {
-        Map<String, dynamic> data = jsonDecode(alertResponse.body);
-
-        setState(() {
-          results = (data['results'] as List).map((item) {
-            return {
-              'title': item['title'] ?? '',
-              'snippet': item['snippet'] ?? '',
-              'context': item['context'] ?? '',
-              'lank': item['lank'] ?? '',
-              'imageUrl': item['image'] != null ? item['image']['url'] : '',
-              'jwLink': item['links']['jw.org'] ?? '',
-              'wolLink': item['links']['wol'] ?? '',
-            };
-          }).toList();
-        });
-      }
-      else {
-        print('Erreur de requête HTTP: ${alertResponse.statusCode}');
-      }
-    }
-    catch (e) {
-      print('Erreur lors de la récupération des données de l\'API: $e');
-    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return ListView.builder(
-      itemCount: results.length,
-      itemBuilder: (context, index) {
-        final item = results[index];
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: widget.model.fetchPublications(), // Appel de la méthode async du modèle
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        } else if (snapshot.hasError) {
+          return Center(child: Text('Erreur : ${snapshot.error}'));
+        } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return const Center(child: Text('Aucune publication trouvée'));
+        }
 
-        return GestureDetector(
-          child: Card(
-            color: Theme.of(context).brightness == Brightness.dark ? Color(0xFF292929) : Colors.white,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
-            margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
-            child: SizedBox(
-              height: 150, // Garde la hauteur de la Card
-              child: Row(
-                children: [
-                  // Image à gauche
-                  item['imageUrl'] != null && item['imageUrl'] != ''
-                      ? SizedBox(
-                    width: 110, // Définit la largeur fixe pour l'image en mode portrait
-                    height: 150, // Garde la hauteur pour correspondre à la Card
-                    child: Image.network(
-                      item['imageUrl'],
-                      fit: BoxFit.cover, // Remplit tout l'espace en conservant les proportions
-                    ),
-                  ) : Container(
-                    width: 110,
-                    height: 150,
-                    color: Colors.grey,
-                  ),
-                  // Texte à droite
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.all(10.0), // Ajoute un peu de padding autour du texte
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            item['title'],
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            item['context'],
-                            style: TextStyle(
-                              color: Colors.grey,
-                              fontSize: 14,
-                            ),
-                            maxLines: 3, // Limite le texte à 3 lignes
-                            overflow: TextOverflow.ellipsis, // Si le texte est trop long, il sera tronqué
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          onTap: () async {
-            if (item['wolLink'] != null && item['wolLink'] != '') {
-              String lank = item['lank'];
+        final results = snapshot.data!;
 
-              // Initialize variables
-              String keySymbol = '';
-              String issueTagNumber = '0';
+        return ListView.builder(
+          itemCount: results.length,
+          itemBuilder: (context, index) {
+            final item = results[index];
 
-              // Corrected regular expression
-              RegExp regExp = RegExp(r'^(pub|pi)-([\w-]+?)(?:_(\d+))?$');
-              Match? match = regExp.firstMatch(lank);
+            return GestureDetector(
+              onTap: () async {
+                String? jwLink = item['links']['jw.org'] ?? '';
+                String? wolLink = item['links']['wol'] ?? '';
 
-              if (match != null) {
-                keySymbol = match.group(2) ?? ''; // Captures the part after "pub-" or "pi-" up to the underscore
+                if (wolLink != null && wolLink.isNotEmpty) {
+                  String lank = item['lank'];
+                  String keySymbol = '';
+                  String issueTagNumber = '0';
 
-                if (match.group(3) != null) {
-                  String rawNumber = match.group(3)!;
-                  // Append "00" only if the number has 6 digits, otherwise keep it as is
-                  issueTagNumber = rawNumber.length == 6 ? '${rawNumber}00' : rawNumber;
+                  RegExp regExp = RegExp(r'^(pub|pi)-([\w-]+?)(?:_(\d+))?$');
+                  Match? match = regExp.firstMatch(lank);
+
+                  if (match != null) {
+                    keySymbol = match.group(2) ?? '';
+                    if (match.group(3) != null) {
+                      String rawNumber = match.group(3)!;
+                      issueTagNumber = rawNumber.length == 6 ? '${rawNumber}00' : rawNumber;
+                    }
+                  }
+
+                  Publication? publication = await PubCatalog.searchPub(
+                    keySymbol,
+                    int.parse(issueTagNumber),
+                    JwLifeApp.settings.currentLanguage.id,
+                  );
+
+                  if (publication != null) {
+                    publication.showMenu(context, update: null);
+                  }
+                  else {
+                    print('Publication not found for lank: $lank');
+                  }
                 }
                 else {
-                  issueTagNumber = '0';
+                  launchUrl(Uri.parse(jwLink!), mode: LaunchMode.externalApplication);
                 }
-              }
-
-              Map<String, dynamic>? publication = await PublicationsCatalog.searchPub(keySymbol, issueTagNumber);
-              if (publication != null) {
-                showPublicationMenu(context, publication);
-              }
-              else {
-                print('Publication not found for lank: $lank');
-                print('lank: $lank');
-                print('keySymbol: $keySymbol');
-                print('issueTagNumber: $issueTagNumber');
-              }
-            }
-            else {
-              print(item['jwLink']);
-              launchUrl(Uri.parse(item['jwLink']), mode: LaunchMode.externalApplication);
-            }
+              },
+              child: Card(
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? Color(0xFF292929)
+                    : Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(0)),
+                margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                child: SizedBox(
+                  height: 150,
+                  child: Row(
+                    children: [
+                      item['imageUrl'] != null && item['imageUrl'] != ''
+                          ? Stack(
+                        children: [
+                          SizedBox(
+                            width: 110,
+                            height: 150,
+                            child: ClipRRect(
+                              borderRadius: const BorderRadius.horizontal(left: Radius.circular(0)),
+                              child: Image.network(
+                                item['imageUrl'],
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ) : Container(
+                        width: 110,
+                        height: 150,
+                        color: Colors.grey,
+                      ),
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                          child: Stack(
+                            children: [
+                              Positioned.fill(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text(
+                                      item['title'],
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 17,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      item['context'],
+                                      style: const TextStyle(
+                                        color: Colors.grey,
+                                        fontSize: 15,
+                                      ),
+                                      maxLines: 3,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Positioned(
+                                top: -7,
+                                right: -13,
+                                child: PopupMenuButton<String>(
+                                  icon: const Icon(Icons.more_vert, color: Colors.white, size: 25),
+                                  itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+                                    PopupMenuItem(
+                                      child: const Text('Envoyer le lien'),
+                                      onTap: () {
+                                        Share.share(
+                                          'https://www.jw.org/finder?srcid=jwlshare&wtlocale=${JwLifeApp.settings.currentLanguage.symbol}&lank=${item['lank']}',
+                                        );
+                                      },
+                                    ),
+                                    PopupMenuItem(
+                                      child: const Text('Autres langues'),
+                                      onTap: () async {
+                                        String link =
+                                            'https://b.jw-cdn.org/apis/mediator/v1/media-item-availability/${item['lank']}?clientType=www';
+                                        final response = await http.get(Uri.parse(link));
+                                        if (response.statusCode == 200) {
+                                          final jsonData = json.decode(response.body);
+                                          LanguageDialog languageDialog = LanguageDialog(
+                                            languagesListJson: jsonData['languages'],
+                                          );
+                                          showDialog(
+                                            context: context,
+                                            builder: (context) => languageDialog,
+                                          );
+                                        }
+                                      },
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
           },
         );
       },

@@ -1,10 +1,9 @@
 name: jwlife
-description: "Jw Life est une application codé avec Flutter. L'objectif de ce projet est de refaire l'application \"Jw Library\" pour corriger des bugs et pour ajouter des fonctionalités à la vie d'un Témoins de Jéhovah !"
-publish_to: 'none'
+description: "JW Life est une application codé avec Flutter. L'objectif de ce projet est de refaire l'application \"Jw Library\" pour corriger des bugs et pour ajouter des fonctionalités à la vie d'un Témoins de Jéhovah !"
 version: 1.0.0
 
 environment:
-  sdk: ^3.6.0
+  sdk: ^3.7.2
 
 dependencies:
   flutter:
@@ -13,66 +12,64 @@ dependencies:
     sdk: flutter
   intl: any
 
-  package_info_plus: ^8.1.4
+  package_info_plus: ^8.3.0
   path_provider: ^2.1.5
-  file_picker: ^8.3.1
+  file_picker: ^10.0.0
   http: ^1.3.0
   cupertino_icons: ^1.0.8
   encrypt: ^5.0.3
   crypto: ^3.0.6
   archive: ^3.6.1
-  sqflite_common_ffi: ^2.3.4+4
-  shared_preferences: ^2.5.1
+  collection: ^1.19.1
+  sqflite: ^2.4.2
+  shared_preferences: ^2.5.3
   url_launcher: ^6.3.1
-  just_audio: ^0.9.45
-  just_audio_windows: ^0.2.2
+  just_audio: ^0.9.46
   just_audio_background: ^0.0.1-beta.15
-  video_player: ^2.9.2
-  video_player_win: ^3.1.1
-  cached_network_image: ^3.4.1
+  audio_metadata_reader: ^1.1.1
+  video_player: ^2.9.5
+  palette_generator: ^0.3.3+6
   html: ^0.15.5
   realm: ^20.0.1
   qr_flutter: ^4.1.0
-  printing: ^5.14.0
+  printing: ^5.14.2
   share_plus: ^10.1.4
   uuid: ^4.5.1
-  flutter_timezone: ^4.1.0
-  searchfield: ^1.2.4
-  rxdart: ^0.28.0
+  searchfield: ^1.2.6
+  device_info_plus: ^11.3.3
   dio: ^5.8.0+1
   open_file: ^3.5.10
-  permission_handler: ^11.3.1
+  permission_handler: ^11.4.0
   flutter_inappwebview: ^6.1.5
-  flutter_inappwebview_windows: ^0.6.0
-  flutter_asset_generator: ^1.2.0
+  flutter_widget_from_html: ^0.16.0
   beamer: ^1.7.0
-  connectivity_plus: ^6.1.2
-  app_settings: ^5.1.1
-  speech_to_text: ^7.0.0
+  connectivity_plus: ^6.1.3
+  app_settings: ^6.1.1
+  #speech_to_text: ^7.0.0
   table_calendar: ^3.1.3
   flutter_contacts: ^1.1.9+2
   flutter_colorpicker: ^1.1.0
+  #home_widget: ^0.7.0+1
 
   #firebase
-  firebase_core: ^3.10.1
-  firebase_auth: ^5.4.1
-  cloud_firestore: ^5.6.2
+  #firebase_core: ^3.13.0
+  #firebase_auth: ^5.5.2
+  #cloud_firestore: ^5.6.6
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
   flutter_launcher_icons: ^0.14.3
+  flutter_asset_generator: ^1.2.0
 
 flutter_launcher_icons:
   android: true
   image_path: "assets/icons/ic_launcher.png"
-  min_sdk_android: 21 # android min sdk min:16, default 21
-  windows:
-    generate: true
-    image_path: "assets/icons/ic_launcher.png"
-    icon_size: 48 # min:48, max:256, default: 48
+  min_sdk_android: 23 # android min sdk min:16, default 21
 
+
+# The following section is specific to Flutter packages.
 flutter:
   generate: true
 
@@ -81,15 +78,24 @@ flutter:
   assets:
     - assets/db/
     - assets/icons/
+    - assets/icons/bookmarks/dark/
+    - assets/icons/bookmarks/light/
+    - assets/icons/highlights/dark/
+    - assets/icons/highlights/light/
     - assets/images/
     - assets/userData/
-    - assets/webapp/fonts/
-    - assets/webapp/jw-styles.css
-    - assets/webapp/highlight.js
+    - assets/webapp.zip
+
   fonts:
     - family: NotoSansBold
       fonts:
-        - asset: assets/webapp/fonts/NotoSans-Bold.ttf
-    - family: jw-icons-external
+        - asset: assets/fonts/NotoSans-Bold.ttf
+    - family: Roboto
       fonts:
-        - asset: assets/webapp/fonts/jw-icons-external-1970474.ttf
+        - asset: assets/fonts/Roboto-Regular.ttf
+        - asset: assets/fonts/Roboto-Bold.ttf
+        - asset: assets/fonts/Roboto-Italic.ttf
+        - asset: assets/fonts/Roboto-BoldItalic.ttf
+    - family: jw-icons
+      fonts:
+        - asset: assets/fonts/jw-icons.ttf

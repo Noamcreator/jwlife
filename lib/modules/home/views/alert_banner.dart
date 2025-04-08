@@ -60,7 +60,7 @@ class _AlertBannerState extends State<AlertBanner> {
         color: Theme.of(context).primaryColor,
         padding: const EdgeInsets.all(8),
         alignment: Alignment.centerLeft,
-        height: 60, // Ajustez la hauteur selon vos besoins
+        height: 55, // Ajustez la hauteur selon vos besoins
         child: PageView.builder(
           controller: _pageController,
           itemCount: widget.alerts.length,

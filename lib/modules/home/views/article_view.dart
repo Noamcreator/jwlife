@@ -5,7 +5,7 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/files_helper.dart';
 import 'package:jwlife/core/utils/utils_document.dart';
-import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'package:sqflite/sqflite.dart';
 
 class ArticlePage extends StatefulWidget {
   final String title;
@@ -44,10 +44,14 @@ class _ArticlePageState extends State<ArticlePage> {
   }
 
   Future<void> createHtmlWithClass() async {
-    _htmlContent = await createHtmlContent(
+    /*
+    _htmlContent = createHtmlContent(
       widget.link,
       '''jwac showRuby ml-F ms-ROMAN dir-ltr layout-reading layout-sidebar''',
+      false
     );
+
+     */
   }
 
   void _toggleNotesView() {

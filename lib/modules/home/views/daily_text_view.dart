@@ -1,21 +1,23 @@
+import 'dart:io';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:html/parser.dart' as html_parser;
-import 'package:http/http.dart' as http;
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/core/utils/utils_document.dart';
-import 'package:share_plus/share_plus.dart';
+import 'package:jwlife/core/utils/utils_jwpub.dart';
+import 'package:jwlife/data/databases/Publication.dart';
+import 'package:jwlife/data/databases/catalog.dart';
 
 import '../../../app/jwlife_app.dart';
-import '../../../widgets/dialog/language_dialog_pub.dart';
-import '../../personal/views/note_view.dart';
+import '../../../core/utils/directory_helper.dart';
 
 class DailyTextPage extends StatefulWidget {
-  final dynamic data;
+  final Publication publication;
 
-  const DailyTextPage({super.key, required this.data});
+  const DailyTextPage({super.key, required this.publication});
 
   @override
   _DailyTextPageState createState() => _DailyTextPageState();
@@ -23,11 +25,11 @@ class DailyTextPage extends StatefulWidget {
 
 class _DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderStateMixin {
   String _htmlContent = '';
-  int docId = 502016177;
-  Map<String, dynamic> publication = {};
   bool _showNotes = false;
   bool _isLoadingDatabase = false;
   bool _isLoadingWebView = false;
+
+  String webappPath = '';
 
   late InAppWebViewController _controller;
 
@@ -41,17 +43,6 @@ class _DailyTextPageState extends State<DailyTextPage> with SingleTickerProvider
   void initState() {
     super.initState();
 
-    int currentYear = DateTime.now().year;
-    String yearSuffix = (currentYear % 100).toString().padLeft(2, '0'); // Assurez-vous d'obtenir un format à deux chiffres
-
-    publication = {
-      'IssueTagNumber': 0,
-      'KeySymbol': 'es$yearSuffix', // on fait es + l'année (24 pour 2024)
-      'MepsLanguageId': JwLifeApp.currentLanguage.id,
-      'DocumentId': docId,
-      'Content': widget.data['Content'],
-    };
-
     _initializeDatabaseAndData();
 
     _controllerAnimation = AnimationController(
@@ -63,6 +54,9 @@ class _DailyTextPageState extends State<DailyTextPage> with SingleTickerProvider
 
   Future<void> _initializeDatabaseAndData() async {
     try {
+      Directory webApp = await getAppWebViewDirectory();
+      webappPath = '${webApp.path}/webapp';
+
       await fetchAllDocuments();
     }
     catch (e) {
@@ -76,10 +70,18 @@ class _DailyTextPageState extends State<DailyTextPage> with SingleTickerProvider
   }
 
   Future<void> fetchAllDocuments() async {
-    print('widget.data: ${widget.data['Class']}');
-    _htmlContent = await createHtmlContent(
-      widget.data['Content'],
-      '''${widget.data['Class']} pub-${publication['KeySymbol']} layout-reading layout-sidebar''',
+    dynamic document = await PubCatalog.getDatedDocumentForToday(widget.publication);
+
+    final decodedHtml = decodeBlobContent(
+      document!['Content'] as Uint8List,
+      widget.publication.hash,
+    );
+
+    _htmlContent = createHtmlContent(
+      decodedHtml,
+      '''pub-${widget.publication.keySymbol} layout-reading layout-sidebar''',
+      widget.publication,
+      true
     );
   }
 
@@ -91,6 +93,14 @@ class _DailyTextPageState extends State<DailyTextPage> with SingleTickerProvider
 
   @override
   Widget build(BuildContext context) {
+    final textStyleTitle = TextStyle(fontSize: 20, fontWeight: FontWeight.bold);
+    final textStyleSubtitle = TextStyle(
+      fontSize: 14,
+      color: Theme.of(context).brightness == Brightness.dark
+          ? const Color(0xFFc3c3c3)
+          : const Color(0xFF626262),
+    );
+
     return Scaffold(
       backgroundColor: Theme.of(context).brightness == Brightness.dark
           ? const Color(0xFF121212)
@@ -111,12 +121,11 @@ class _DailyTextPageState extends State<DailyTextPage> with SingleTickerProvider
                   initialData: InAppWebViewInitialData(
                     data: _htmlContent,
                     mimeType: 'text/html',
-                    baseUrl: WebUri('file:///android_asset/flutter_assets/assets/webapp/'),
+                    baseUrl: WebUri('file://$webappPath/'),
                   ),
                   onWebViewCreated: (controller) {
                     _controller = controller;
                   },
-
                   onScrollChanged: (controller, x, y) {
                     // Si la différence est plus grande que 2 pour que l'état change
                     if (y > _currentScrollPosition) {
@@ -154,7 +163,19 @@ class _DailyTextPageState extends State<DailyTextPage> with SingleTickerProvider
               left: 0,
               right: 0,
               child: AppBar(
-                title: Text(DateFormat('d MMMM yyyy', JwLifeApp.currentLanguage.primaryIetfCode).format(DateTime.now())),
+                title: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                        DateFormat('d MMMM yyyy', JwLifeApp.settings.currentLanguage.primaryIetfCode).format(DateTime.now()),
+                        style: textStyleTitle
+                    ),
+                    Text(
+                        'Texte du jour',
+                        style: textStyleSubtitle
+                    ),
+                  ],
+                ),
                 leading: IconButton(
                   icon: const Icon(Icons.arrow_back),
                   onPressed: () {

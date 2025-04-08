@@ -1,42 +1,37 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:just_audio_background/just_audio_background.dart';
-import 'package:jwlife/core/theme.dart';
-import 'package:jwlife/core/utils/shared_preferences_helper.dart';
+import 'package:jwlife/app/jw_settings.dart';
 
 import 'app/jwlife_app.dart';
-import 'firebase_options.dart';
 
-void main() async {
+Future<void> main() async {
+  // Assure l'initialisation correcte des widgets Flutter
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Configure le mode d'affichage du système (utilisation de la zone complète de l'écran)
+  SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+
+  // Initialise le service de lecture audio avec une notification persistante sur Android
   await JustAudioBackground.init(
-    androidNotificationChannelId: 'com.noam.jwlife.channel.audio',
+    androidNotificationChannelId: 'org.noam.jwlife.channel.audio',
     androidNotificationChannelName: 'JW Audio',
-    androidNotificationOngoing: true
+    androidNotificationOngoing: true,
   );
 
-  await Firebase.initializeApp(
-    name: 'JW Life',
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  // Initialise Firebase avec les options spécifiques à la plateforme
+  //await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  FirebaseFirestore.instance.settings = const Settings(
-    persistenceEnabled: true,
-  );
+  // Active la persistance hors ligne pour Firestore
+  //FirebaseFirestore.instance.settings = const Settings(persistenceEnabled: true);
 
-  final theme = await getTheme();
-  final themeMode = theme == 'dark' ? ThemeMode.dark : theme == 'light' ? ThemeMode.light : ThemeMode.system;
-  final lightData = await getPrimaryColor(ThemeMode.light);
-  final darkData = await getPrimaryColor(ThemeMode.dark);
-  final locale = await getLocale();
+  JwSettings jwSettings = JwSettings();
 
-  runApp(JwLifeApp());
+  // Initialise les configurations de l'application
+  JwLifeApp jwLifeApp = JwLifeApp();
 
-  JwLifeApp.theme = themeMode;
-  JwLifeApp.locale = Locale(locale);
-  JwLifeApp.lightData = AppTheme.getLightTheme(lightData);
-  JwLifeApp.darkData = AppTheme.getDarkTheme(darkData);
+  JwLifeApp.settings = jwSettings;
+
+  // Lance l'application Flutter
+  runApp(jwLifeApp);
 }

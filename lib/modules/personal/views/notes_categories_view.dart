@@ -2,8 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
+import 'package:jwlife/core/utils/utils_document.dart';
+import 'package:jwlife/core/utils/utils_note_tag.dart';
+import 'package:jwlife/data/databases/PublicationCategory.dart';
+import 'package:jwlife/data/databases/history.dart';
 import 'package:jwlife/data/userdata/Note.dart';
+import 'package:jwlife/modules/library/views/publication/publications_view.dart';
 import 'package:jwlife/modules/personal/views/category_view.dart';
+import 'package:jwlife/widgets/image_widget.dart';
 import 'note_view.dart';
 
 class NotesCategoryView extends StatefulWidget {
@@ -22,12 +28,12 @@ class _NotesCategoryViewState extends State<NotesCategoryView> {
   Widget build(BuildContext context) {
     // Filtrer les catégories et notes en fonction de la recherche
     List<Map<String, dynamic>> filteredCategories = JwLifeApp.userdata.categories.where((category) {
-      return category['TagName'].toLowerCase().contains(searchQuery.toLowerCase());
+      return category['Name'].toLowerCase().contains(searchQuery.toLowerCase());
     }).toList();
 
     List<Map<String, dynamic>> filteredNotes = JwLifeApp.userdata.notes.where((note) {
-      return note['NoteTitle'].toLowerCase().contains(searchQuery.toLowerCase()) ||
-          note['NoteContent'].toLowerCase().contains(searchQuery.toLowerCase());
+      return note['Title'].toLowerCase().contains(searchQuery.toLowerCase()) ||
+          note['Content'].toLowerCase().contains(searchQuery.toLowerCase());
     }).toList();
 
     return Scaffold(
@@ -53,19 +59,23 @@ class _NotesCategoryViewState extends State<NotesCategoryView> {
           IconButton(
             icon: Icon(JwIcons.note_plus),
             onPressed: () async {
-              // Appeler la fonction addNote et attendre qu'elle se termine
-              var note = await JwLifeApp.userdata.addNote("Note", "Ceci est une nouvelle note", 2, [28], null, null, null, null);
-
+              var note = await JwLifeApp.userdata.addNote("", "", null, [], null, null, null, null);
               showPage(context, NoteView(note: note));
             },
           ),
           IconButton(
-            icon: Icon(JwIcons.pencil),
-            onPressed: () {
-              // Logic for renaming the category can go here
+            icon: Icon(JwIcons.tag_plus),
+            onPressed: () async {
+              showAddTagDialog(context);
             },
           ),
-        ],
+          IconButton(
+            icon: Icon(JwIcons.arrow_circular_left_clock),
+            onPressed: () {
+              History.showHistoryDialog(context);
+            },
+          ),
+    ],
       ),
       body: Scrollbar(
         child: CustomScrollView(
@@ -87,7 +97,7 @@ class _NotesCategoryViewState extends State<NotesCategoryView> {
               ),
             ),
             SliverToBoxAdapter(
-              child: Container(
+              child: SizedBox(
                 height: 150,
                 child: LayoutBuilder(
                   builder: (context, constraints) {
@@ -96,7 +106,7 @@ class _NotesCategoryViewState extends State<NotesCategoryView> {
 
                     // Si le nombre de catégories filtrées dépasse le maximum, ajouter le bouton "Afficher plus"
                     if (filteredCategories.length > maxButtons) {
-                      visibleCategories.add({'TagName': 'Afficher plus'});
+                      visibleCategories.add({'Name': 'Afficher plus'});
                     }
 
                     return Column(
@@ -105,7 +115,7 @@ class _NotesCategoryViewState extends State<NotesCategoryView> {
                           spacing: 8,
                           runSpacing: -5,
                           children: visibleCategories.map((category) {
-                            if (category['TagName'] == 'Afficher plus') {
+                            if (category['Name'] == 'Afficher plus') {
                               return GestureDetector(
                                 onTap: () {
                                   // Afficher toutes les catégories
@@ -118,7 +128,7 @@ class _NotesCategoryViewState extends State<NotesCategoryView> {
                                           child: ListBody(
                                             children: JwLifeApp.userdata.categories.map((cat) {
                                               return ListTile(
-                                                title: Text(cat['TagName']),
+                                                title: Text(cat['Name']),
                                                 onTap: () {
                                                   showPage(context, CategoryView(category: cat));
                                                 },
@@ -167,7 +177,7 @@ class _NotesCategoryViewState extends State<NotesCategoryView> {
                                 ),
                               ),
                               child: Text(
-                                category['TagName'],
+                                category['Name'],
                                 style: TextStyle(
                                   fontSize: 14,
                                   color: Theme.of(context).brightness == Brightness.dark
@@ -205,83 +215,116 @@ class _NotesCategoryViewState extends State<NotesCategoryView> {
                               : Colors.grey[300]!,
                           width: 1,
                         ),
-                        color: Note.getColor(context, note['NoteColorIndex'] ?? 0),
+                        color: Note.getColor(context, note['ColorIndex'] ?? 0),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            Note.dateTodayToCreated(note['NoteLastModified']),
-                            style: TextStyle(fontSize: 10),
-                          ),
-                          Text(
-                            note['NoteTitle'] ?? '',
-                            style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
-                          ),
-                          SizedBox(height: 10),
-                          Text(
-                            note['NoteContent'] ?? '',
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          Note.dateTodayToCreated(note['LastModified']),
+                          style: TextStyle(fontSize: 10),
+                        ),
+                        Text(
+                          note['Title'] ?? '',
+                          style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                        ),
+                        SizedBox(height: 10),
+                        SizedBox(
+                          height: 100, // Limite de hauteur pour le contenu
+                          child: Text(
+                            note['Content'] ?? '',
                             style: TextStyle(fontSize: 16),
+                            maxLines: 4, // Limite à 4 lignes
+                            overflow: TextOverflow.ellipsis, // Affiche "..." si dépassement
                           ),
-                          SizedBox(height: 8),
-                          Align(
-                            alignment: Alignment.bottomRight,
-                            child: Container(
-                              constraints: BoxConstraints(
-                                maxHeight: 50, // Limitez la hauteur du conteneur
-                                maxWidth: MediaQuery.of(context).size.width * 0.8, // Limite la largeur à 80% de l'écran
-                              ),
-                              child: SingleChildScrollView(
-                                scrollDirection: Axis.horizontal,
-                                child: Wrap(
-                                  spacing: 8,
-                                  runSpacing: 0,
-                                  alignment: WrapAlignment.end,
-                                  children: categoriesName.map((categoryName) {
-                                    int index = categoriesName.indexOf(categoryName);
-                                    Map<String, dynamic> category = {
-                                      "TagId": int.parse(categoriesId[index]), // Conversion en int
-                                      "TagName": categoryName,
-                                    };
-                                    return ElevatedButton(
-                                      onPressed: () {
-                                        showPage(context, CategoryView(category: category));
-                                      },
-                                      style: ButtonStyle(
-                                        minimumSize: MaterialStateProperty.all<Size>(Size(0, 38)),
-                                        backgroundColor: MaterialStateProperty.all<Color>(
-                                          Theme.of(context).brightness == Brightness.dark
-                                              ? Color(0xEE1e1e1e)
-                                              : Color(0xFFe8e8e8),
-                                        ),
-                                        overlayColor: MaterialStateProperty.all<Color>(
-                                          Theme.of(context).brightness == Brightness.dark
-                                              ? Color(0xEE404040)
-                                              : Color(0xFFf8f8f8),
-                                        ),
-                                        padding: MaterialStateProperty.all<EdgeInsetsGeometry>(
-                                          EdgeInsets.symmetric(horizontal: 20),
-                                        ),
-                                      ),
-                                      child: Text(
-                                        categoryName,
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          color: Theme.of(context).brightness == Brightness.dark
-                                              ? Color(0xFF8b9fc1)
-                                              : Color(0xFF4a6da7),
-                                        ),
-                                      ),
-                                    );
-                                  }).toList(),
-                                ),
-                              ),
-                            ),
+                        ),
+                        SizedBox(height: 8),
+                        LayoutBuilder(
+                          builder: (context, constraints) {
+                            double availableWidth = constraints.maxWidth; // Largeur disponible
+                            double buttonWidth = 100; // Largeur approximative d'un bouton (ajuste si nécessaire)
+                            int maxCategories = (availableWidth / buttonWidth).floor(); // Nombre max de catégories affichables
+
+                            List<String> visibleCategories = categoriesName.take(maxCategories).toList(); // On affiche seulement celles qui tiennent
+
+                            return Wrap(
+                              spacing: 8,
+                              children: visibleCategories.map((categoryName) {
+                                int index = categoriesName.indexOf(categoryName);
+                                Map<String, dynamic> category = {
+                                  "TagId": int.parse(categoriesId[index]),
+                                  "Name": categoryName,
+                                };
+
+                                return ElevatedButton(
+                                  onPressed: () {
+                                    showPage(context, CategoryView(category: category));
+                                  },
+                                  style: ButtonStyle(
+                                    minimumSize: MaterialStateProperty.all<Size>(Size(0, 38)),
+                                    backgroundColor: MaterialStateProperty.all<Color>(
+                                      Theme.of(context).brightness == Brightness.dark
+                                          ? Color(0xEE1e1e1e)
+                                          : Color(0xFFe8e8e8),
+                                    ),
+                                    overlayColor: MaterialStateProperty.all<Color>(
+                                      Theme.of(context).brightness == Brightness.dark
+                                          ? Color(0xEE404040)
+                                          : Color(0xFFf8f8f8),
+                                    ),
+                                    padding: MaterialStateProperty.all<EdgeInsetsGeometry>(
+                                      EdgeInsets.symmetric(horizontal: 20),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    categoryName,
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Theme.of(context).brightness == Brightness.dark
+                                          ? Color(0xFF8b9fc1)
+                                          : Color(0xFF4a6da7),
+                                    ),
+                                  ),
+                                );
+                              }).toList(),
+                            );
+                          },
+                        ),
+                        Divider(
+                          thickness: 1,
+                          color: Colors.grey,
+                        ),
+                        InkWell(
+                          onTap: () {
+                            showDocumentView(context, note['DocumentId'], note['MepsLanguage']);
+                          },
+                          child: Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: note['ShortTitle'] == null ? Container() : Row(
+                                children: [
+                                  ImageCachedWidget(
+                                    imageUrl: 'https://app.jw-cdn.org/catalogs/publications/${note['ImageSqr']}',
+                                    pathNoImage: PublicationCategory.getCategories().firstWhere((category) => category.id == note['PublicationTypeId']).image,
+                                    height: 40,
+                                    width: 40,
+                                  ),
+                                  SizedBox(width: 8),
+                                  Expanded( // ✅ Ajout pour limiter la largeur du texte
+                                    child: Text(
+                                      note['ShortTitle'] ?? 'Publication',
+                                      style: TextStyle(color: Colors.grey),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              )
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
+                  ),
                   );
                 },
                 childCount: filteredNotes.length,

@@ -1,23 +1,26 @@
 import 'dart:convert';
 import 'dart:io';
 
-Future<File?> decompressGZipDb(List<int> gzipBytes, File file) async {
-  try {
-    return await file.writeAsBytes(GZipCodec().decode(gzipBytes));
-  }
-  catch (e) {
-    print('Error decompressing gzip: $e');
-    return null;
-  }
+import 'package:archive/archive.dart';
+
+Future<void> decompressGZipDb(List<int> gzipBytes, File file) async {
+  // Décompresser le fichier
+  final decompressed = GZipDecoder().decodeBytes(gzipBytes);
+
+  // Sauvegarder le fichier extrait
+  file.writeAsBytesSync(decompressed);
 }
 
-Future<String?> decompressGZip(List<int> gzipBytes) async {
-  try {
-    // Convert decoded bytes to string
-    return utf8.decode(GZipCodec().decode(gzipBytes), allowMalformed: true);
-  }
-  catch (e) {
-    print('Error decompressing gzip: $e');
-    return null;
-  }
+Future<Map<String, dynamic>> decompressJSONGZip(List<int> gzipBytes) async {
+  // Décompresser le fichier
+  final decompressedBytes = GZipDecoder().decodeBytes(gzipBytes);
+
+  // Convertir les octets en chaîne de caractères JSON
+  final jsonString = utf8.decode(decompressedBytes);
+
+  // Parser le JSON en Map<String, dynamic>
+  final jsonData = jsonDecode(jsonString);
+
+  print('Extraction et parsing JSON terminés');
+  return jsonData;
 }

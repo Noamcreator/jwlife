@@ -1,10 +1,10 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:html/parser.dart' as htmlParser;
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/modules/library/views/publication/online/pages_document_view.dart';
+import 'package:jwlife/widgets/image_widget.dart';
 
 class PublicationMenu extends StatefulWidget {
   final Map<String, dynamic> publication;
@@ -24,7 +24,7 @@ class _PublicationMenuState extends State<PublicationMenu> with SingleTickerProv
   late Map<String, dynamic> _publicationData;
   List<Map<String, String>> _tabItems = [];
   List<List<Map<String, dynamic>>> _navigationCards = [];
-  List<Map<String, dynamic>> _allNavigationCards = []; // all navigation cards for page the publication
+  final List<Map<String, dynamic>> _allNavigationCards = []; // all navigation cards for page the publication
   TabController? _tabController;
   bool _isLoading = true;
 
@@ -332,7 +332,7 @@ class _PublicationMenuState extends State<PublicationMenu> with SingleTickerProv
                 children: [
                   // Image en haut
                   _publicationData['ImageLsr'] == null ? Container() :
-                  CachedNetworkImage(imageUrl: 'https://app.jw-cdn.org/catalogs/publications/' + _publicationData['ImageLsr'], fit: BoxFit.fill, width: double.infinity),
+                  ImageCachedWidget(imageUrl: 'https://app.jw-cdn.org/catalogs/publications/' + _publicationData['ImageLsr'], fit: BoxFit.fill, width: double.infinity, pathNoImage: ''),
                   Padding(
                     padding: EdgeInsets.only(left: 12.0, right: 12.0, bottom: 10.0, top: 10.0),
                     child: Column(

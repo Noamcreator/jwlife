@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:jwlife/core/utils/common_ui.dart';
+import 'package:jwlife/core/utils/utils_document.dart';
+import 'package:jwlife/data/databases/PublicationCategory.dart';
 import 'package:jwlife/data/userdata/Note.dart';
+import 'package:jwlife/modules/library/views/publication/publications_view.dart';
+import 'package:jwlife/widgets/image_widget.dart';
 
 import '../../../app/jwlife_app.dart';
 
@@ -23,16 +28,14 @@ class _NoteViewState extends State<NoteView> {
     super.initState();
     _note = Map<String, dynamic>.from(widget.note); // Copie mutable
 
-    _titleController = TextEditingController(text: _note['NoteTitle']);
+    _titleController = TextEditingController(text: _note['Title']);
     _titleController.addListener(() {
-      _note['NoteTitle'] = _titleController.text;
-      JwLifeApp.userdata.updateNote(_note, _titleController.text, _contentController.text, _note['NoteColorIndex'], []);
+      JwLifeApp.userdata.updateNote(_note, _titleController.text, _contentController.text);
     });
 
-    _contentController = TextEditingController(text: _note['NoteContent']);
+    _contentController = TextEditingController(text: _note['Content']);
     _contentController.addListener(() {
-      _note['NoteContent'] = _contentController.text;
-      JwLifeApp.userdata.updateNote(_note, _titleController.text, _contentController.text, _note['NoteColorIndex'], []);
+      JwLifeApp.userdata.updateNote(_note, _titleController.text, _contentController.text);
     });
 
     _categoriesController = TextEditingController();
@@ -124,9 +127,9 @@ class _NoteViewState extends State<NoteView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Note.getColor(context, _note['NoteColorIndex'] == null ? 0 : _note['NoteColorIndex']),
+      backgroundColor: Note.getColor(context, _note['ColorIndex'] ?? 0),
       appBar: AppBar(
-        backgroundColor: Note.getColor(context, _note['NoteColorIndex'] == null ? 0 : _note['NoteColorIndex']),
+        backgroundColor: Note.getColor(context, _note['ColorIndex'] ?? 0),
         actions: [
           PopupMenuButton(
             itemBuilder: (context) => [
@@ -134,21 +137,22 @@ class _NoteViewState extends State<NoteView> {
                 child: ListTile(
                   title: Text('Supprimer'),
                   onTap: () {
-                    Navigator.pop(context);
+                    JwLifeApp.userdata.deleteNote(_note);
+                    Navigator.pop(context); // Fermer le PopupMenuButton
+                    Navigator.pop(context); // Fermer la vue de la note
                   },
                 ),
               ),
               PopupMenuItem(
                 child: ListTile(
                   title: Text('Changer la couleur'),
-                  onTap: () {
-                  },
+                  onTap: () {},
                   trailing: DropdownButton<int>(
-                    value: _note['NoteColorIndex'] == null ? 0 : _note['NoteColorIndex'], // Valeur sélectionnée par défaut
+                    value: _note['ColorIndex'] ?? 0,
                     onChanged: (int? newValue) {
                       if (newValue != null) {
-                        _note['NoteColorIndex'] = newValue;
-                        JwLifeApp.userdata.updateNote(_note, _titleController.text, _contentController.text, newValue, []).then((updatedNote) {
+                        _note['ColorIndex'] = newValue;
+                        JwLifeApp.userdata.updateNote(_note, _titleController.text, _contentController.text, colorIndex: newValue).then((updatedNote) {
                           setState(() {
                             _note = updatedNote;
                           });
@@ -175,7 +179,7 @@ class _NoteViewState extends State<NoteView> {
         ],
       ),
       body: Padding(
-        padding: EdgeInsets.symmetric(horizontal: 15, vertical: 0),
+        padding: EdgeInsets.symmetric(horizontal: 20, vertical: 0),
         child: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -184,11 +188,22 @@ class _NoteViewState extends State<NoteView> {
                 controller: _titleController,
                 maxLines: null,
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22),
+                decoration: InputDecoration(
+                  border: InputBorder.none,
+                  hintText: 'Titre',
+                  hintStyle: TextStyle(fontWeight: FontWeight.bold, fontSize: 22, color: Color(0xFF757575)),
+                )
               ),
+              SizedBox(height: 10),
               TextField(
                 controller: _contentController,
                 maxLines: null,
                 style: TextStyle(fontSize: 20),
+                  decoration: InputDecoration(
+                    border: InputBorder.none,
+                    hintText: 'Note',
+                    hintStyle: TextStyle(fontSize: 22, color: Color(0xFF757575)),
+                )
               ),
               SizedBox(height: 10),
               Wrap(
@@ -207,7 +222,31 @@ class _NoteViewState extends State<NoteView> {
                 }).toList(),
               ),
               SizedBox(height: 10),
-              //_buildCategoryDropdown(context),
+              // Ajouter un séparateur en bas
+              Divider(
+                thickness: 1,
+                color: Colors.grey,
+              ),
+              InkWell(
+                onTap: () {
+                  showDocumentView(context, widget.note['DocumentId'], widget.note['MepsLanguage']);
+                },
+                child: Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: widget.note['ShortTitle'] == null ? Container() : Row(
+                    children: [
+                      ImageCachedWidget(
+                        imageUrl: 'https://app.jw-cdn.org/catalogs/publications/${widget.note['ImageSqr']}',
+                        pathNoImage: PublicationCategory.getCategories().firstWhere((category) => category.id == widget.note['PublicationTypeId']).image,
+                        height: 40,
+                        width: 40,
+                      ),
+                      SizedBox(width: 8),
+                      Text(widget.note['ShortTitle'] ?? 'Publication', style: TextStyle(color: Colors.grey)),
+                    ],
+                  )
+                ),
+              ),
             ],
           ),
         ),

@@ -1,15 +1,27 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 Future<void> showPage(BuildContext context, Widget page) {
   return Navigator.push(
     context,
     PageRouteBuilder(
-      pageBuilder: (BuildContext context, Animation<double> animation1, Animation<double> animation2) {
-        return page;
+      pageBuilder: (context, animation, secondaryAnimation) => page,
+      transitionsBuilder: (context, animation, secondaryAnimation, child) {
+        // Créer une animation de fondu (fade)
+        var opacity = Tween(begin: 0.0, end: 1.0).animate(
+          CurvedAnimation(
+            parent: animation,
+            curve: Curves.easeInOut,
+          ),
+        );
+
+        return FadeTransition(
+          opacity: opacity,
+          child: child,
+        );
       },
-      transitionDuration: Duration.zero,
-      reverseTransitionDuration: Duration.zero,
+      transitionDuration: const Duration(milliseconds: 300),
+      reverseTransitionDuration: const Duration(milliseconds: 200),
+      maintainState: true,
     ),
   );
 }
@@ -30,10 +42,16 @@ void showBottomMessageWithAction(BuildContext context, String message, SnackBarA
   );
 }
 
+/*
 void showBottomMessage(BuildContext context, String message) {
   if(FirebaseAuth.instance.currentUser != null) { // si l'utilisateur n'est pas connecté, ne pas afficher le message
     showBottomMessageWithAction(context, message, null);
   }
+}
+ */
+
+void showBottomMessage(BuildContext context, String message) {
+  showBottomMessageWithAction(context, message, null);
 }
 
 Future<void> showErrorDialog(BuildContext context, String message) {

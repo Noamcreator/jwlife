@@ -2,19 +2,23 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/app/jwlife_view.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
+import 'package:jwlife/core/utils/utils_video.dart';
+import 'package:jwlife/data/databases/Video.dart';
+import 'package:jwlife/data/realm/catalog.dart';
 import 'package:jwlife/video/video_player_view.dart';
 import 'package:jwlife/video/subtitles.dart';
 import 'package:http/http.dart' as http;
 
 class SubtitlesView extends StatefulWidget {
-  final String apiVideoUrl;
+  final MediaItem? mediaItem;
   final String query;
-  final dynamic localVideo;
+  final Video? localVideo;
 
-  const SubtitlesView({Key? key, this.apiVideoUrl="", this.query="", this.localVideo}) : super(key: key);
+  const SubtitlesView({Key? key, this.mediaItem, this.query="", this.localVideo}) : super(key: key);
 
   @override
   _SubtitlesViewState createState() => _SubtitlesViewState();
@@ -23,9 +27,10 @@ class SubtitlesView extends StatefulWidget {
 class _SubtitlesViewState extends State<SubtitlesView> {
   Subtitles _subtitles = Subtitles(); // Direct list initialization
   dynamic _mediaData = {};
-  TextEditingController _searchController = TextEditingController();
-  String _searchQuery = '';
   List<Subtitle> _searchResults = [];
+
+  bool _isSearching = false;
+  final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
@@ -34,7 +39,7 @@ class _SubtitlesViewState extends State<SubtitlesView> {
       fetchLocalSubtitles(widget.localVideo!); // Fetch subtitles when the page initializes
     }
     else {
-      fetchOnlineSubtitles(widget.apiVideoUrl); // Fetch subtitles when the page initializes
+      fetchOnlineSubtitles(); // Fetch subtitles when the page initializes
     }
   }
 
@@ -44,8 +49,10 @@ class _SubtitlesViewState extends State<SubtitlesView> {
     _loadSubtitles();
   }
 
-  void fetchOnlineSubtitles(String apiVideoUrl) async {
-    final response = await http.get(Uri.parse(apiVideoUrl));
+  void fetchOnlineSubtitles() async {
+    String link = 'https://b.jw-cdn.org/apis/mediator/v1/media-items/${widget.mediaItem!.languageSymbol}/${widget.mediaItem!.languageAgnosticNaturalKey}';
+
+    final response = await http.get(Uri.parse(link));
     if (response.statusCode == 200) {
       final jsonData = json.decode(response.body);
       _mediaData = jsonData['media'][0];
@@ -63,21 +70,15 @@ class _SubtitlesViewState extends State<SubtitlesView> {
       if (widget.query.isNotEmpty) {
         if (result.isNotEmpty) {
           _searchController.text = widget.query;
-          _searchQuery = widget.query;
           _searchResults = result;
         }
       }
     });
-    _searchController.addListener(_onSearchChanged);
   }
 
-  void _onSearchChanged() {
+  void _searchSubtitles(String query) {
     setState(() {
-      _searchQuery = _searchController.text;
-      // Filter the results
-      _searchResults = _subtitles.getSubtitles()
-          .where((subtitle) => subtitle.text.toLowerCase().contains(_searchQuery.toLowerCase()))
-          .toList();
+      _searchResults = _subtitles.getSubtitles().where((subtitle) => subtitle.text.toLowerCase().contains(query.toLowerCase())).toList();
     });
   }
 
@@ -89,11 +90,12 @@ class _SubtitlesViewState extends State<SubtitlesView> {
 
   // Render subtitles with highlighted text
   Text _highlightText(String text) {
-    if (_searchQuery.isEmpty) {
+    String query = _searchController.text;
+    if (query.isEmpty) {
       return Text(text, style: TextStyle(fontSize: 26.0), textAlign: TextAlign.center);
     }
     else {
-      final regExp = RegExp(_searchQuery, caseSensitive: false);
+      final regExp = RegExp(query, caseSensitive: false);
       final matches = regExp.allMatches(text);
 
       List<TextSpan> textSpans = [];
@@ -124,70 +126,72 @@ class _SubtitlesViewState extends State<SubtitlesView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Sous-titres'),
+      appBar: _isSearching ? AppBar(
+        title: SearchBar(
+          autoFocus: true,
+          hintText: 'Rechercher...',
+          controller: _searchController,
+          onChanged: _searchSubtitles,
+          onSubmitted: _searchSubtitles,
+        ),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            setState(() {
+              _isSearching = false;
+            });
+          },
+        ),
+      ) : AppBar(
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            widget.mediaItem != null ? Text(widget.mediaItem!.title!, style: const TextStyle(fontSize: 18.0)) : Container(),
+            const Text('Sous-titres', style: TextStyle(fontSize: 12.0)),
+          ],
+        ),
         actions: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8.0),
-            child: IconButton(
-              icon: const Icon(JwIcons.document_stack),
-              onPressed: () {
-                Clipboard.setData(ClipboardData(text: _subtitles.toString()));
-              },
-            ),
+          IconButton(
+            icon: const Icon(JwIcons.magnifying_glass),
+            onPressed: () {
+              setState(() {
+                _isSearching = true;
+              });
+            },
+          ),
+          IconButton(
+            icon: const Icon(JwIcons.document_stack),
+            onPressed: () {
+              Clipboard.setData(ClipboardData(text: _subtitles.toString()));
+            },
           ),
         ],
       ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                hintText: 'Rechercher...',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8.0),
-                ),
-                suffixIcon: _searchQuery.isNotEmpty
-                    ? IconButton(
-                  icon: const Icon(Icons.clear),
-                  onPressed: () {
-                    _searchController.clear();
-                  },
-                ) : null,
+      body: ListView.builder(
+        padding: const EdgeInsets.all(10.0),
+        itemCount: _searchResults.length,
+        itemBuilder: (context, index) {
+          final subtitle = _searchResults[index];
+          return GestureDetector(
+            onTap: () {
+              JwLifeView.toggleNavBarBlack.call(JwLifeView.currentTabIndex, true);
+              if (widget.localVideo != null) {
+                MediaItem? mediaItem = getVideoItem(widget.localVideo!.keySymbol, widget.localVideo!.track, widget.localVideo!.documentId, widget.localVideo!.issueTagNumber, JwLifeApp.settings.currentLanguage.id);
+                showPage(context, VideoPlayerView(mediaItem: mediaItem!, localVideo: widget.localVideo, startPosition: subtitle.startTime));
+              }
+              else {
+                showPage(context, VideoPlayerView(mediaItem: widget.mediaItem!, onlineVideo: _mediaData, startPosition: subtitle.startTime));
+              }
+            },
+            child: Center( // Centrer horizontalement le texte
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8.0),
+                child: _highlightText(subtitle.text),
               ),
             ),
-          ),
-          Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.all(10.0),
-              itemCount: _searchResults.length,
-              itemBuilder: (context, index) {
-                final subtitle = _searchResults[index];
-                return GestureDetector(
-                  onTap: () {
-                    JwLifeView.toggleNavBarBlack.call(JwLifeView.currentTabIndex, true);
-                    if (widget.localVideo != null) {
-                      print('localVideo: ${widget.localVideo}');
-                      showPage(context, VideoPlayerView(localVideo: widget.localVideo, postionStart: subtitle.startTime));
-                    }
-                    else {
-                      showPage(context, VideoPlayerView(api: _mediaData, postionStart: subtitle.startTime));
-                    }
-                  },
-                  child: Center( // Centrer horizontalement le texte
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 8.0),
-                      child: _highlightText(subtitle.text),
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
-      ),
+          );
+        },
+      )
     );
   }
 }

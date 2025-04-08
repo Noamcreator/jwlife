@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:http/http.dart' as http;
@@ -8,17 +9,18 @@ import 'package:html/parser.dart' as html_parser;
 import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
-import 'package:jwlife/core/utils/files_helper.dart';
 import 'package:jwlife/core/utils/utils_document.dart';
-import 'package:jwlife/core/utils/utils_publication.dart';
-import 'package:jwlife/l10n/localization.dart';
-import 'package:jwlife/modules/library/views/publication/local/document_view.dart';
+import 'package:jwlife/core/utils/widgets_utils.dart';
+import 'package:jwlife/data/databases/Publication.dart';
+import 'package:jwlife/data/databases/catalog.dart';
+import 'package:jwlife/i18n/localization.dart';
+import 'package:jwlife/modules/home/views/home_view.dart';
+import 'package:jwlife/modules/library/views/publication/local/meetings_document_view.dart';
+import 'package:jwlife/modules/library/views/publication/local/publication_menu_view.dart';
 import 'package:jwlife/widgets/dialog/utils_dialog.dart';
-import 'package:sqflite/sqflite.dart';
 
 class MeetingsView extends StatefulWidget {
-  static dynamic meetingWorkbookPub;
-  static dynamic watchtowerPub;
+  static late Function() refreshMeetingsView;
   const MeetingsView({super.key});
 
   @override
@@ -27,13 +29,17 @@ class MeetingsView extends StatefulWidget {
 
 class _MeetingsViewState extends State<MeetingsView> {
   int initialIndex = 0;
-  String weekRange = '';
+  DateTime weekRange = DateTime.now();
   String? docLaM;
   int? docIdLaM;
   String? docWatchtower;
   int? docIdWatchtower;
   Map<String, dynamic>? regional_convention_pub;
   bool isLoading = true;
+
+  Publication? _conventionPub;
+  Publication? _circuitCoPub;
+  Publication? _circuitBrPub;
 
   @override
   void initState() {
@@ -48,14 +54,20 @@ class _MeetingsViewState extends State<MeetingsView> {
       initialIndex = 1; // Samedi et dimanche
     }
 
-    weekRange = DateFormat('yyyyMMdd').format(DateTime.now());  // Retourne le premier jour de la semaine au format 'yyyy-MM-dd'
+    MeetingsView.refreshMeetingsView = _reloadPage;
 
-    fetchMeetingsOfTheWeek();
-    //fetchRegionalConvention();
+    _reloadPage();
 
     setState(() {
       isLoading = false;
     });
+  }
+
+  Future<void> _reloadPage() async {
+    _conventionPub = PubCatalog.assembliesPublications.firstWhereOrNull((element) => element.keySymbol.contains('CO-pgm'));
+    _circuitCoPub = PubCatalog.assembliesPublications.firstWhereOrNull((element) => element.keySymbol.contains('CA-copgm'));
+    _circuitBrPub = PubCatalog.assembliesPublications.firstWhereOrNull((element) => element.keySymbol.contains('CA-brpgm'));
+    setState(() {});
   }
 
   Future<void> fetchMeetingsOfTheWeek() async {
@@ -70,7 +82,7 @@ class _MeetingsViewState extends State<MeetingsView> {
     }
 
      */
-    String languageSymbol = JwLifeApp.currentLanguage.symbol;
+    String languageSymbol = JwLifeApp.settings.currentLanguage.symbol;
     try {
       final response = await http.get(Uri.parse('https://wol.jw.org/wol/finder?wtlocale=$languageSymbol&alias=meetings&date=${DateFormat('yyyy-MM-dd').format(DateTime.now().add(Duration(days: 1)))}'));
 
@@ -143,131 +155,73 @@ class _MeetingsViewState extends State<MeetingsView> {
     return '$dayStart-$dayEnd $month';
   }
 
-  Future<void> fetchRegionalConvention() async {
-    int mepsLanguageId = JwLifeApp.currentLanguage.id;
-
-    File catalogosFile = await getCatalogFile();
-    File mepsFile = await getMepsFile();
-
-    if (await catalogosFile.exists()) {
-      Database catalogDatabase = await openDatabase(catalogosFile.path);
-
-      await catalogDatabase.execute("ATTACH DATABASE ? AS meps", [mepsFile.path]);
-
-      // Changez le type de result ici
-      List<Map<String, dynamic>> resultList = await catalogDatabase.rawQuery(''' 
-        SELECT DISTINCT
-          p.Id AS PublicationId,
-          p.KeySymbol,
-          p.Symbol,
-          p.IssueTagNumber,
-          p.Title,
-          p.IssueTitle,
-          p.ShortTitle,
-          p.CoverTitle,
-          pam.PublicationAttributeId,
-          p.MepsLanguageId,
-          meps.Language.Symbol AS LanguageSymbol,
-          (SELECT ia.NameFragment
-          FROM ImageAsset ia
-          JOIN PublicationAssetImageMap paim ON ia.Id = paim.ImageAssetId
-          WHERE paim.PublicationAssetId = pa.Id AND ia.NameFragment LIKE '%_sqr-%'
-          ORDER BY ia.Width DESC
-          LIMIT 1) AS ImageSqr,
-          (SELECT ia.NameFragment
-          FROM ImageAsset ia
-          JOIN PublicationAssetImageMap paim ON ia.Id = paim.ImageAssetId
-          WHERE paim.PublicationAssetId = pa.Id AND ia.NameFragment LIKE '%_lsr-%'
-          ORDER BY ia.Width DESC
-          LIMIT 1) AS ImageLsr
-        FROM 
-          Publication p
-        LEFT JOIN
-          PublicationAsset pa ON p.Id = pa.PublicationId
-        LEFT JOIN
-          PublicationRootKey prk ON p.PublicationRootKeyId = prk.Id
-        LEFT JOIN
-          PublicationAssetImageMap paim ON pa.Id = paim.PublicationAssetId
-        LEFT JOIN
-          ImageAsset ia ON paim.ImageAssetId = ia.Id
-        LEFT JOIN
-          PublicationAttributeMap pam ON pa.PublicationId = pam.PublicationId
-        LEFT JOIN
-          meps.Language ON p.MepsLanguageId = meps.Language.LanguageId
-        WHERE 
-          p.MepsLanguageId = ? AND p.KeySymbol LIKE '%CO-pgm%'
-        ORDER BY p.Year DESC
-        LIMIT 1
-        ''', [mepsLanguageId]);
-
-      await catalogDatabase.execute("DETACH DATABASE meps");
-      await catalogDatabase.close();
-
-      setState(() {
-        // Vérifiez si le résultat n'est pas vide avant d'accéder au premier élément
-        regional_convention_pub = resultList.isNotEmpty ? resultList[0] : {};
-      });
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    return DefaultTabController(
-      initialIndex: initialIndex,
-      length: 4,
-      child: Scaffold(
-        appBar: AppBar(
-          title: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Réunions et Assemblées',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-              ),
-              Text(
-                formatWeekRange(DateTime.now()),
-                style: const TextStyle(fontSize: 14, color: Colors.grey),
-              ),
-            ],
-          ),
-          actions: [
-            IconButton(
-              icon: const Icon(JwIcons.magnifying_glass),
-              onPressed: () {},
-            ),
-            IconButton(
-              icon: const Icon(JwIcons.language),
-              onPressed: () {},
-            ),
-            PopupMenuButton(
-              icon: const Icon(Icons.more_vert),
-              itemBuilder: (context) => [
-                PopupMenuItem<String>(
-                  child: Text('Sélectionner une semaine'),
-                  onTap: () async {
-                    String selectedWeek = await showWeekSelectionDialog(context);
-                    setState(() {
-                      isLoading = true;
-                    });
-                    await Future.delayed(
-                      Duration(milliseconds: 20),
-                    );
-                    setState(() {
-                      weekRange = selectedWeek;
-                      isLoading = false;
-                    });
-                  },
+    if (HomeView.isRefreshing) {
+      return getLoadingWidget();
+    }
+    else {
+      return DefaultTabController(
+        initialIndex: initialIndex,
+        length: 4,
+        child: Scaffold(
+          appBar: AppBar(
+            title: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Réunions et Assemblées',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                 ),
-                PopupMenuItem<String>(
-                  child: Text('Voir les médias'),
-                  onTap: () {
-                    showPage(context, Container());
-                  },
+                Text(
+                  formatWeekRange(weekRange),
+                  style: const TextStyle(fontSize: 14, color: Colors.grey),
                 ),
-                PopupMenuItem<String>(
-                  child: Text('Envoyer le lien'),
-                  onTap: () {
-                    /*
+              ],
+            ),
+            actions: [
+              IconButton(
+                icon: const Icon(JwIcons.magnifying_glass),
+                onPressed: () {},
+              ),
+              IconButton(
+                icon: const Icon(JwIcons.language),
+                onPressed: () {},
+              ),
+              PopupMenuButton(
+                icon: const Icon(Icons.more_vert),
+                itemBuilder: (context) => [
+                  PopupMenuItem<String>(
+                    child: Text('Sélectionner une semaine'),
+                    onTap: () async {
+                      DateTime selectedWeek = await showWeekSelectionDialog(context, weekRange);
+                      setState(() {
+                        isLoading = true;
+                      });
+
+                      List<Publication> weeksPubs = await PubCatalog.getPublicationsForTheDay(date: selectedWeek);
+
+                      if (weeksPubs.isNotEmpty) {
+                        //MeetingsView.watchtowerPub = weeksPubs.firstWhere((element) => element.keySymbol.contains('w'));
+                        //MeetingsView.meetingWorkbookPub = weeksPubs.firstWhere((element) => element.keySymbol.contains('mwb'));
+                      }
+
+                      setState(() {
+                        weekRange = selectedWeek;
+                        isLoading = false;
+                      });
+                    },
+                  ),
+                  PopupMenuItem<String>(
+                    child: Text('Voir les médias'),
+                    onTap: () {
+                      showPage(context, Container());
+                    },
+                  ),
+                  PopupMenuItem<String>(
+                    child: Text('Envoyer le lien'),
+                    onTap: () {
+                      /*
                     int mepsDocumentId = _document['MepsDocumentId'] ?? -1;
                     Share.share(
                       'https://www.jw.org/finder?srcid=jwlshare&wtlocale=${widget.publication['LanguageSymbol']}&prefer=lang&docid=$mepsDocumentId',
@@ -275,83 +229,203 @@ class _MeetingsViewState extends State<MeetingsView> {
                     );
 
                      */
-                  },
-                ),
-                PopupMenuItem<String>(
-                  child: Text('Taille de police'),
-                  onTap: () {
-                    Future.delayed(
-                      Duration.zero,
-                          () => showFontSizeDialog(context, null),
-                    );
-                  },
-                ),
-              ],
-            )
-          ],
-        ),
-        body: isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : Column(
-          children: [
-            TabBar(
-              isScrollable: true,
-              tabs: <Widget>[
-                Tab(text: localization(context).navigation_meetings.toUpperCase()),
-                Tab(text: localization(context).navigation_meetings_watchtower_study.toUpperCase()),
-                Tab(text: localization(context).navigation_meetings_assembly.toUpperCase()),
-                Tab(text: localization(context).navigation_meetings_convention.toUpperCase()),
-              ],
-            ),
-            Expanded(
-              child: TabBarView(
-                children: <Widget>[
-                  _isContentIsDownload(context, MeetingsView.meetingWorkbookPub, weekRange, update: () {
-                    setState(() {});
-                  }),
-                  _isContentIsDownload(context, MeetingsView.watchtowerPub, weekRange, update: () {
-                    setState(() {});
-                  }),
-                  const Center(child: Text('Assemblé de circonscription')),
-                  const Center(child: Text("Pas de contenu pour l'Assemblée régionale")),
+                    },
+                  ),
+                  PopupMenuItem<String>(
+                    child: Text('Taille de police'),
+                    onTap: () {
+                      Future.delayed(
+                        Duration.zero,
+                            () => showFontSizeDialog(context, null),
+                      );
+                    },
+                  ),
+                ],
+              )
+            ],
+          ),
+          body: isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : Column(
+            children: [
+              TabBar(
+                isScrollable: true,
+                tabs: <Widget>[
+                  Tab(text: localization(context).navigation_meetings_life_and_ministry.toUpperCase()),
+                  Tab(text: localization(context).navigation_meetings_watchtower_study.toUpperCase()),
+                  Tab(text: localization(context).navigation_meetings_assembly.toUpperCase()),
+                  Tab(text: localization(context).navigation_meetings_convention.toUpperCase()),
                 ],
               ),
+              Expanded(
+                child: TabBarView(
+                  children: <Widget>[
+                    _isMeetingsContentIsDownload(context, PubCatalog.datedPublications.firstWhereOrNull((element) => element.keySymbol.contains('mwb')), weekRange, update: (progress) {
+                      setState(() {});
+                    }),
+                    _isMeetingsContentIsDownload(context, PubCatalog.datedPublications.firstWhereOrNull((element) => element.keySymbol.contains('w')), weekRange, update: (progress) {
+                      setState(() {});
+                    }),
+                    _isCircuitContentIsDownload(context, update: (progress) {
+                      setState(() {});
+                    }),
+                    _isConventionContentIsDownload(context, update: (progress) {
+                      setState(() {});
+                    }),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+  }
+
+  Widget _isMeetingsContentIsDownload(BuildContext context, Publication? publication, DateTime weekRange, {void Function(double progress)? update}) {
+    if (publication == null) {
+      return const Center(child: Text('Pas de contenu pour la semaine'));
+    }
+
+    Publication? downloadedPublication = JwLifeApp.pubCollections.getPublication(publication);
+    if (!downloadedPublication.isDownloaded) {
+      return Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Center(child: Column(
+              children: [
+                Text(downloadedPublication.issueTitle, style: TextStyle(fontSize: 17)),
+                const SizedBox(height: 10),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Theme.of(context).primaryColor,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(0),
+                    ),
+                    textStyle: const TextStyle(fontSize: 17),
+                  ),
+                  onPressed: () {
+                    downloadedPublication.download(context, update: update);
+                  },
+                  child: Text(localization(context).action_download.toUpperCase()),
+                ),
+              ],
+            )),
+            downloadedPublication.downloadProgress != 0 ? const Spacer() : Container(),
+            downloadedPublication.downloadProgress == -1 ? LinearProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).primaryColor)) : downloadedPublication.downloadProgress == 0 ? Container():
+            LinearProgressIndicator(
+                value: downloadedPublication.downloadProgress,
+                valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).primaryColor),
+                color: Theme.of(context).primaryColor)
+          ]
+      );
+    }
+    else {
+      return MeetingsDocumentView(publication: downloadedPublication, weekRange: DateFormat('yyyyMMdd').format(weekRange));
+    }
+  }
+
+  Widget _isConventionContentIsDownload(BuildContext context, {void Function(double progress)? update}) {
+    if (_conventionPub == null) {
+      return const Center(child: Text("Pas de programme pour l'Assemblée Régionale"));
+    }
+
+    Publication? downloadedPublication = JwLifeApp.pubCollections.getPublication(_conventionPub!);
+    if (!downloadedPublication.isDownloaded) {
+      return Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Center(child: Column(
+              children: [
+                Text(downloadedPublication.issueTitle, style: TextStyle(fontSize: 17)),
+                const SizedBox(height: 10),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Theme.of(context).primaryColor,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(0),
+                    ),
+                    textStyle: const TextStyle(fontSize: 17),
+                  ),
+                  onPressed: () {
+                    downloadedPublication.download(context, update: update);
+                  },
+                  child: Text(localization(context).action_download.toUpperCase()),
+                ),
+              ],
+            )),
+            downloadedPublication.downloadProgress != 0 ? const Spacer() : Container(),
+            downloadedPublication.downloadProgress == -1 ? LinearProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).primaryColor)) : downloadedPublication.downloadProgress == 0 ? Container():
+            LinearProgressIndicator(
+                value: downloadedPublication.downloadProgress,
+                valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).primaryColor),
+                color: Theme.of(context).primaryColor)
+          ]
+      );
+    }
+    else {
+      return PublicationMenuView(publication: downloadedPublication, showAppBar: false);
+    }
+  }
+
+  Widget _isCircuitContentIsDownload(BuildContext context, {void Function(double progress)? update}) {
+    if (_circuitBrPub == null) {
+      return const Center(child: Text("Pas de programme pour l'Assemblée Régionale"));
+    }
+
+    Publication? downloadedPublication = JwLifeApp.pubCollections.getPublication(_circuitBrPub!);
+    Publication? downloadedPublication1 = JwLifeApp.pubCollections.getPublication(_circuitCoPub!);
+
+    if (!downloadedPublication.isDownloaded) {
+      return Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Center(
+            child: Column(
+              children: [
+                Text(downloadedPublication.issueTitle, style: TextStyle(fontSize: 17)),
+                const SizedBox(height: 10),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Theme.of(context).primaryColor,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(0),
+                    ),
+                    textStyle: const TextStyle(fontSize: 17),
+                  ),
+                  onPressed: () {
+                    downloadedPublication.download(context, update: update);
+                  },
+                  child: Text(localization(context).action_download.toUpperCase()),
+                ),
+              ],
             ),
+          ),
+          downloadedPublication.downloadProgress != 0 ? const Spacer() : Container(),
+          downloadedPublication.downloadProgress == -1
+              ? LinearProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).primaryColor))
+              : downloadedPublication.downloadProgress == 0
+              ? Container()
+              : LinearProgressIndicator(
+              value: downloadedPublication.downloadProgress,
+              valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).primaryColor),
+              color: Theme.of(context).primaryColor)
+        ],
+      );
+    }
+    else {
+      return SingleChildScrollView(
+        child: Column(
+          children: [
+            PublicationMenuView(publication: downloadedPublication, showAppBar: false),
+            const Divider(height: 50, color: Colors.grey, thickness: 3),
+            PublicationMenuView(publication: downloadedPublication1, showAppBar: false),
           ],
         ),
-      ),
-    );
-  }
-}
-
-Widget _isContentIsDownload(BuildContext context, dynamic publication, String weekRange, {void Function()? update}) {
-  if (publication == null) {
-    return const Center(child: Text('Pas de contenu pour la semaine'));
-  }
-  else if (publication['Download'] == 0) {
-    return Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(publication['IssueTitle']),
-          const SizedBox(height: 8),
-          ElevatedButton(
-            style: ButtonStyle(shape: MaterialStateProperty.all<RoundedRectangleBorder>(RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)))),
-            onPressed: () {
-              downloadPublication(context, publication, update: update);
-            },
-            child: Text(localization(context).action_download),
-          ),
-          publication['inProgress'] != null ? const Spacer() : Container(),
-          publication['inProgress'] != null
-              ? publication['inProgress'] == -1 ? LinearProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).primaryColor)):
-          LinearProgressIndicator(
-              value: publication['inProgress'],
-              valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).primaryColor),
-              color: Theme.of(context).primaryColor) : Container()
-        ]
-    );
-  }
-  else {
-    return DocumentView(publication: publication, weekRange: weekRange);
+      );
+    }
   }
 }
