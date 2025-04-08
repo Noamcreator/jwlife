@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:jwlife/app/jwlife_app.dart';
 
 class WebViewData {
   late String theme;
@@ -7,8 +6,7 @@ class WebViewData {
   late String cssCode;
 
   // Méthode privée pour charger le CSS
-  Future<void> init() async {
-    ThemeMode themeMode = JwLifeApp.settings.themeMode;
+  Future<void> init(ThemeMode themeMode) async {
     bool isDark;
     if (themeMode == ThemeMode.dark) {
       isDark = true;

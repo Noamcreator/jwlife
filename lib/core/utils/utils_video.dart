@@ -4,22 +4,18 @@ import 'dart:io';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:jwlife/app/jwlife_app.dart';
-import 'package:jwlife/core/icons.dart';
-import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/core/utils/utils_media.dart';
-import 'package:jwlife/data/databases/Video.dart';
 import 'package:jwlife/video/subtitles.dart';
 import 'package:jwlife/video/subtitles_view.dart';
 import 'package:jwlife/video/video_player_view.dart';
 import 'package:jwlife/widgets/dialog/language_dialog.dart';
 import 'package:jwlife/widgets/dialog/utils_dialog.dart';
-import 'package:jwlife/widgets/dialog/publication_dialogs.dart';
+import 'package:jwlife/widgets/publication/publication_dialogs.dart';
 import 'package:realm/realm.dart';
 
 import 'package:share_plus/share_plus.dart';
 import 'package:http/http.dart' as http;
-import 'package:sqflite/sqflite.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import '../../app/jwlife_view.dart';
 import '../../data/realm/catalog.dart';
@@ -27,23 +23,30 @@ import '../../data/realm/realm_library.dart';
 import 'common_ui.dart';
 import 'files_helper.dart';
 
-void showFullScreenVideo(BuildContext context, MediaItem mediaItem) async {
-  Video? video = JwLifeApp.mediaCollections.getVideo(mediaItem);
+void showFullScreenVideo(BuildContext context, String lank, String lang) async {
+  File mediaCollectionFile = await getMediaCollectionsFile();
+  Database db = await openDatabase(mediaCollectionFile.path, readOnly: true, version: 1);
 
-  if (video != null) {
+  MediaItem mediaItem = RealmLibrary.realm.all<MediaItem>().query("languageAgnosticNaturalKey == '$lank'").query("languageSymbol == '$lang'").first;
+
+  dynamic media = await getMediaIfDownload(db, mediaItem);
+
+  if (media != null) {
     JwLifeView.toggleNavBarBlack.call(JwLifeView.currentTabIndex, true);
 
     showPage(context, VideoPlayerView(
-      mediaItem: mediaItem,
-      localVideo: video
+      localVideo: media
     ));
   }
   else {
-    if(await hasInternetConnection()) {
+    final List<ConnectivityResult> connectivityResult = await (Connectivity().checkConnectivity());
+
+    if(connectivityResult.contains(ConnectivityResult.wifi) || connectivityResult.contains(ConnectivityResult.mobile) || connectivityResult.contains(ConnectivityResult.ethernet)) {
       JwLifeView.toggleNavBarBlack.call(JwLifeView.currentTabIndex, true);
 
       showPage(context, VideoPlayerView(
-        mediaItem: mediaItem
+        lank: lank,
+        lang: lang
       ));
     }
     else {
@@ -52,46 +55,9 @@ void showFullScreenVideo(BuildContext context, MediaItem mediaItem) async {
   }
 }
 
-MediaItem getVideoItemFromLank(String lank, String wtlocale) => RealmLibrary.realm.all<MediaItem>().query("languageAgnosticNaturalKey == '$lank'").query("languageSymbol == '$wtlocale'").first;
-MediaItem getVideoItemFromDocId(String docId, String wtlocale) => RealmLibrary.realm.all<MediaItem>().query("documentId == '$docId'").query("languageSymbol == '$wtlocale'").first;
-
-
-MediaItem? getVideoItem(String? keySymbol, int? track, int? documentId, int? issueTagNumber, dynamic mepsLanguage) {
-  var queryParts = <String>[];
-  if (keySymbol != null) queryParts.add("pubSymbol == '$keySymbol'");
-  if (track != null) queryParts.add("track == '$track'");
-  if (documentId != null) queryParts.add("documentId == '$documentId'");
-  if (issueTagNumber != null && issueTagNumber != 0) {
-    String issueStr = issueTagNumber.toString();
-    if (issueStr.endsWith("00")) {
-      issueStr = issueStr.substring(0, 6); // Supprime les deux derniers 0
-    }
-    queryParts.add("issueDate == '$issueStr'");
-  }
-
-  String languageSymbol = JwLifeApp.settings.currentLanguage.symbol;
-  if(mepsLanguage != null && mepsLanguage is String) {
-    languageSymbol = mepsLanguage;
-  }
-  if (mepsLanguage != null) queryParts.add("languageSymbol == '$languageSymbol'");
-
-  if (queryParts.isEmpty) return null;
-
-  queryParts.add("type == 'VIDEO'");
-  String query = queryParts.join(" AND ");
-
-  return RealmLibrary.realm.all<MediaItem>().query(query).firstOrNull;
-}
-
 PopupMenuItem getVideoShareItem(MediaItem item) {
   return PopupMenuItem(
-    child: Row(
-      children: [
-        Icon(JwIcons.share),
-        SizedBox(width: 8),
-        Text('Envoyer le lien'),
-      ],
-    ),
+    child: const Text('Envoyer le lien'),
     onTap: () {
       Share.shareUri(Uri.parse('https://www.jw.org/finder?srcid=jwlshare&wtlocale=${item.languageSymbol}&lank=${item.languageAgnosticNaturalKey}'));
     },
@@ -100,13 +66,7 @@ PopupMenuItem getVideoShareItem(MediaItem item) {
 
 PopupMenuItem getVideoLanguagesItem(BuildContext context, MediaItem item) {
   return PopupMenuItem(
-    child: Row(
-      children: [
-        Icon(JwIcons.language),
-        SizedBox(width: 8),
-        Text('Autres langues'),
-      ],
-    ),
+    child: const Text('Autres langues'),
     onTap: () async {
       final List<ConnectivityResult> connectivityResult = await (Connectivity().checkConnectivity());
 
@@ -133,13 +93,7 @@ PopupMenuItem getVideoLanguagesItem(BuildContext context, MediaItem item) {
 
 PopupMenuItem getVideoFavoriteItem(MediaItem item) {
   return PopupMenuItem(
-    child: Row(
-      children: [
-        Icon(JwIcons.star),
-        SizedBox(width: 8),
-        Text('Ajouter aux favoris'),
-      ],
-    ),
+    child: Text('Ajouter aux favoris'),
     onTap: () async {
       // Ajoutez ici votre logique d'ajout aux favoris
     },
@@ -148,26 +102,20 @@ PopupMenuItem getVideoFavoriteItem(MediaItem item) {
 
 PopupMenuItem getVideoDownloadItem(BuildContext context, MediaItem item) {
   return PopupMenuItem(
-    child: Row(
-      children: [
-        Icon(JwIcons.cloud_arrow_down),
-        SizedBox(width: 8),
-        Text('Télécharger'),
-      ],
-    ),
+    child: Text('Télécharger'),
     onTap: () async {
-      if(await hasInternetConnection()) {
+      final List<ConnectivityResult> connectivityResult = await (Connectivity().checkConnectivity());
+
+      if(connectivityResult.contains(ConnectivityResult.wifi) || connectivityResult.contains(ConnectivityResult.mobile) || connectivityResult.contains(ConnectivityResult.ethernet)) {
         String link = 'https://b.jw-cdn.org/apis/mediator/v1/media-items/${item.languageSymbol}/${item.languageAgnosticNaturalKey}';
         final response = await http.get(Uri.parse(link));
         if (response.statusCode == 200) {
           final jsonFile = response.body;
           final jsonData = json.decode(jsonFile);
 
-          print(link);
-
           showVideoDownloadDialog(context, jsonData['media'][0]['files']).then((value) {
             if (value != null) {
-              downloadMedia(context, item, jsonData['media'][0], file: value);
+              downloadVideoFile(item, jsonData['media'][0], value, context);
             }
           });
         }
@@ -181,18 +129,14 @@ PopupMenuItem getVideoDownloadItem(BuildContext context, MediaItem item) {
 
 PopupMenuItem getShowSubtitlesItem(BuildContext context, MediaItem item, {String query=''}) {
   return PopupMenuItem(
-    child: Row(
-      children: [
-        Icon(JwIcons.caption),
-        SizedBox(width: 8),
-        Text('Voir les sous-titres'),
-      ],
-    ),
+    child: const Text('Voir les sous-titres'),
     onTap: () async {
-      Video? video = JwLifeApp.mediaCollections.getVideo(item);
-      if (video != null) {
+      File mediaCollectionFile = await getMediaCollectionsFile();
+      Database db = await openDatabase(mediaCollectionFile.path, readOnly: true, version: 1);
+      dynamic media = await getMediaIfDownload(db, item);
+      if (media != null) {
         showPage(context, SubtitlesView(
-            localVideo: video,
+            localVideo: media,
             query: query
         ));
       }
@@ -200,8 +144,10 @@ PopupMenuItem getShowSubtitlesItem(BuildContext context, MediaItem item, {String
         final List<ConnectivityResult> connectivityResult = await (Connectivity().checkConnectivity());
 
         if(connectivityResult.contains(ConnectivityResult.wifi) || connectivityResult.contains(ConnectivityResult.mobile) || connectivityResult.contains(ConnectivityResult.ethernet)) {
+          String link = 'https://b.jw-cdn.org/apis/mediator/v1/media-items/${item.languageSymbol}/${item.languageAgnosticNaturalKey}';
+
           showPage(context, SubtitlesView(
-              mediaItem: item,
+              apiVideoUrl: link,
               query: query
           ));
         }
@@ -215,17 +161,11 @@ PopupMenuItem getShowSubtitlesItem(BuildContext context, MediaItem item, {String
 
 PopupMenuItem getCopySubtitlesItem(BuildContext context, MediaItem item) {
   return PopupMenuItem(
-    child: Row(
-      children: [
-        Icon(JwIcons.document_stack),
-        SizedBox(width: 8),
-        Text('Copier les sous-titres'),
-      ],
-    ),
+    child: const Text('Copier les sous-titres'),
     onTap: () async {
       File mediaCollectionFile = await getMediaCollectionsFile();
       Database db = await openDatabase(mediaCollectionFile.path, readOnly: true, version: 1);
-      dynamic media = await getVideoIfDownload(db, item);
+      dynamic media = await getMediaIfDownload(db, item);
 
       Subtitles subtitles = Subtitles();
       if (media != null) {
@@ -238,7 +178,6 @@ PopupMenuItem getCopySubtitlesItem(BuildContext context, MediaItem item) {
         if(connectivityResult.contains(ConnectivityResult.wifi) || connectivityResult.contains(ConnectivityResult.mobile) || connectivityResult.contains(ConnectivityResult.ethernet)) {
           String link = 'https://b.jw-cdn.org/apis/mediator/v1/media-items/${item.languageSymbol}/${item.languageAgnosticNaturalKey}';
           final response = await http.get(Uri.parse(link));
-
           if (response.statusCode == 200) {
             final jsonFile = response.body;
             final jsonData = json.decode(jsonFile);
@@ -250,7 +189,6 @@ PopupMenuItem getCopySubtitlesItem(BuildContext context, MediaItem item) {
           return;
         }
       }
-      print(subtitles.toString());
       Clipboard.setData(ClipboardData(text: subtitles.toString())).then((value) => showBottomMessage(context, "Sous-titres copiés dans le presse-papier"));
     },
   );

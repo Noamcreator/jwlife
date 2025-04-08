@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
+import 'package:jwlife/data/firebase/firebase.dart';
 import 'package:jwlife/modules/congregation/views/contact_editor_view.dart';
 
 class BrothersAndSistersView extends StatefulWidget {
@@ -24,7 +26,6 @@ class _BrothersAndSistersViewState extends State<BrothersAndSistersView> {
   }
 
   Future<void> _fetchCongregationsFromFirestore() async {
-    /*
     try {
       CollectionReference congregationCollection = await getCongregationCollection();
       final querySnapshot = await congregationCollection.get();
@@ -42,8 +43,6 @@ class _BrothersAndSistersViewState extends State<BrothersAndSistersView> {
           String nameB = b['name']?.toString().toLowerCase() ?? '';
           return nameA.compareTo(nameB);
         });
-
-
       });
     } catch (e) {
       debugPrint('Erreur lors du chargement des congrégations : $e');
@@ -52,49 +51,7 @@ class _BrothersAndSistersViewState extends State<BrothersAndSistersView> {
         _isLoading = false;
       });
     }
-
-     */
   }
-
-  Future<void> _loadSelectedCongregation() async {
-    /*
-    try {
-      // Récupérer la référence de l'utilisateur
-      CollectionReference usersRef = FirebaseFirestore.instance.collection('users');
-      DocumentSnapshot userDoc = await usersRef.doc("utilisateur_id_unique").get(); // Remplace par l'ID réel
-
-      if (userDoc.exists && userDoc.data() != null) {
-        setState(() {
-          _selectedCongregationId = userDoc['selected_congregation'];
-        });
-
-        // Charger les frères et sœurs après avoir récupéré la congrégation
-        _fetchBrothersAndSisters();
-      }
-    } catch (e) {
-      debugPrint("Erreur lors du chargement de la congrégation : $e");
-    }
-
-     */
-  }
-
-
-
-  /*
-  Future<void> _saveSelectedCongregation(String congregationId) async {
-    if (congregationId.isNotEmpty) {
-      try {
-        CollectionReference congregationCollection = await getCongregationCollection();
-
-        final docRef = await congregationCollection.add(data);
-        debugPrint('Congrégation enregistrée avec succès.');
-      } catch (e) {
-        debugPrint('Erreur lors de l\'enregistrement : $e');
-      }
-    }
-  }
-
-   */
 
   // Méthode pour importer des contacts
   Future<void> _importContacts() async {
@@ -170,7 +127,6 @@ class _BrothersAndSistersViewState extends State<BrothersAndSistersView> {
   }
 
   Future<void> _addContactToCongregation(Contact contact) async {
-    /*
     if (_selectedCongregationId != null) {
       try {
         // Récupérer la collection des frères et sœurs dans la congrégation sélectionnée
@@ -196,13 +152,10 @@ class _BrothersAndSistersViewState extends State<BrothersAndSistersView> {
         debugPrint('Erreur lors de l\'ajout du contact : $e');
       }
     }
-
-     */
   }
 
   // Méthode pour récupérer les frères et sœurs de la congrégation sélectionnée
   Future<void> _fetchBrothersAndSisters() async {
-    /*
     if (_selectedCongregationId != null) {
       try {
         CollectionReference congregationRef = await getCongregationCollection();
@@ -224,8 +177,6 @@ class _BrothersAndSistersViewState extends State<BrothersAndSistersView> {
         debugPrint('Erreur lors du chargement des frères et sœurs : $e');
       }
     }
-
-     */
   }
 
   @override
@@ -253,7 +204,6 @@ class _BrothersAndSistersViewState extends State<BrothersAndSistersView> {
                 onChanged: (value) {
                   setState(() {
                     _selectedCongregationId = value;
-
                   });
                   _fetchBrothersAndSisters(); // Rafraîchir la liste des frères et sœurs
                 },

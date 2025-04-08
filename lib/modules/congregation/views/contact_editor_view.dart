@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
+import 'package:jwlife/data/firebase/firebase.dart';
 
 class ContactEditorView extends StatefulWidget {
   final String congregationId;
@@ -30,7 +32,6 @@ class _ContactEditorViewState extends State<ContactEditorView> {
   }
 
   Future<void> _loadContact() async {
-    /*
     try {
       // Récupérer la référence de la collection
       CollectionReference congregationRef = await getCongregationCollection();
@@ -68,8 +69,6 @@ class _ContactEditorViewState extends State<ContactEditorView> {
         _isLoading = false;
       });
     }
-
-     */
   }
 
   Future<void> _updateContact() async {
@@ -103,8 +102,6 @@ class _ContactEditorViewState extends State<ContactEditorView> {
       await updatedContact.update();
 
       // Mettre à jour le contact dans Firebase
-
-      /*
       final firebaseData = {
         'first_name': _firstNameController.text,
         'last_name': _lastNameController.text,
@@ -118,11 +115,8 @@ class _ContactEditorViewState extends State<ContactEditorView> {
       DocumentReference congregationDoc = congregationRef.doc(widget.congregationId);
       CollectionReference brothersAndSisters = congregationDoc.collection('brothers_and_sisters');
 
-
       // Ajouter le contact dans la base de données
       await brothersAndSisters.doc(widget.id).set(firebaseData);
-
-       */
 
       showBottomMessage(context, 'Contact mis à jour avec succès !');
 

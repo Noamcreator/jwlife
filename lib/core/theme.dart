@@ -62,7 +62,7 @@ class AppTheme {
         backgroundColor: WidgetStateProperty.all(const Color(0xFFffffff)),
         shape: WidgetStateProperty.all(
           const RoundedRectangleBorder(
-            borderRadius: BorderRadius.all(Radius.circular(0.0)),
+            borderRadius: BorderRadius.all(Radius.circular(8.0)),
           ),
         ),
       ),
@@ -157,17 +157,12 @@ class AppTheme {
           titleTextStyle: TextStyle(color: Color(0xFFffffff), fontSize: 20, fontWeight: FontWeight.bold),
         ),
         searchBarTheme: SearchBarThemeData(
-          backgroundColor: WidgetStateProperty.all(const Color(0xFF1f1f1f)),
+          backgroundColor: WidgetStateProperty.all(const Color(0xFF292929)),
           shape: WidgetStateProperty.all(
             const RoundedRectangleBorder(
-              borderRadius: BorderRadius.all(Radius.circular(0.0)),
+              borderRadius: BorderRadius.all(Radius.circular(8.0)),
             ),
           ),
-          elevation: WidgetStateProperty.all(0),
-          constraints: const BoxConstraints(maxHeight: 48, minHeight: 48),
-          padding: WidgetStateProperty.all(const EdgeInsets.symmetric(horizontal: 10)),
-          textStyle: WidgetStateProperty.all(const TextStyle(color: Colors.white, decoration: TextDecoration.none)),
-          hintStyle: WidgetStateProperty.all(const TextStyle(color: Color(0xFFB3B3B3), decoration: TextDecoration.none)),
         ),
         searchViewTheme: SearchViewThemeData(
           backgroundColor: Color(0xFF292929),

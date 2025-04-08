@@ -9,7 +9,6 @@ class Subtitles {
   // Méthode pour charger les sous-titres depuis l'URL
   Future<void> loadSubtitles(dynamic jsonData) async {
     String subtitlesUrl = jsonData['files'][0]['subtitles']['url'];
-    print('subtitlesUrl: $subtitlesUrl');
     try {
       final response = await http.get(Uri.parse(subtitlesUrl));
       if (response.statusCode == 200) {
@@ -163,9 +162,4 @@ class Subtitle {
   final GlobalKey key;
 
   Subtitle({required this.text, required this.startTime, required this.endTime, required this.alignment}) : key = GlobalKey();
-
-  String getText() {
-    // retourner le texte sans les balises
-    return text.replaceAll(RegExp(r'<[^>]*>'), '');
-  }
 }

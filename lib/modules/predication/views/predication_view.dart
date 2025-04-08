@@ -1,14 +1,13 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:jwlife/i18n/localization.dart';
+import 'package:jwlife/l10n/localization.dart';
 import 'package:jwlife/modules/predication/views/predication_repport_view.dart';
 import 'package:qr_flutter/qr_flutter.dart';  // Utilisé pour générer des QR codes
 import 'package:printing/printing.dart';     // Utilisé pour générer un PDF
 import 'package:flutter/services.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'dart:ui' as ui;
-
-import 'visits_view.dart';  // Import for ImageByteFormat
+import 'dart:ui' as ui;  // Import for ImageByteFormat
 
 class PredicationView extends StatefulWidget {
   @override
@@ -117,39 +116,36 @@ class _PredicationViewState extends State<PredicationView>
 
   @override
   Widget build(BuildContext context) {
-    return DefaultTabController(
-        length: 4,
-        child: Scaffold(
-          appBar: AppBar(
-            title: Text('Prédication',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
-          ),
-          body: Column(
-            children: [
-              TabBar(
-                isScrollable: true,
-                controller: _tabController,
-                tabs: [
-                  Tab(text: localization(context).navigation_predication_letters.toUpperCase()),
-                  Tab(text: localization(context).navigation_predication_visits.toUpperCase()),
-                  Tab(text: localization(context).navigation_predication_bible_studies.toUpperCase()),
-                  Tab(text: localization(context).navigation_predication_report.toUpperCase()),
-                ],
-              ),
-              Expanded(
-                child: TabBarView(
-                  controller: _tabController,
-                  children: [
-                    _buildCourrierTab(), // Contenu de l'onglet "COURRIER"
-                    VisitsView(),
-                    Center(child: Text('COURS BIBLIQUES')),
-                    PreachingReportPage(),
-                  ],
-                ),
-              ),
-            ],
-          ),
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Prédication',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
+        bottom: TabBar(
+          tabAlignment: TabAlignment.start,
+          isScrollable: true,
+          indicatorWeight: 1.0,
+          indicatorSize: TabBarIndicatorSize.tab,
+          labelStyle: TextStyle(
+              fontSize: 15, letterSpacing: 1.0, fontWeight: FontWeight.bold),
+          unselectedLabelStyle: TextStyle(fontSize: 15, letterSpacing: 1.0),
+          controller: _tabController,
+          tabs: [
+            Tab(text: localization(context).navigation_predication_letters.toUpperCase()),
+            Tab(text: localization(context).navigation_predication_visits.toUpperCase()),
+            Tab(text: localization(context).navigation_predication_bible_studies.toUpperCase()),
+            Tab(text: localization(context).navigation_predication_report.toUpperCase()),
+          ],
         ),
+      ),
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          _buildCourrierTab(), // Contenu de l'onglet "COURRIER"
+          Center(child: Text('VISITES')),
+          Center(child: Text('COURS BIBLIQUES')),
+          PreachingReportPage(),
+        ],
+      ),
     );
   }
 

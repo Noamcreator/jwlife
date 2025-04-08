@@ -31,11 +31,6 @@ Future<File> getMediaCollectionsFile() async {
   return File('${directory.path}/media_collections.db');
 }
 
-Future<File> getHistoryFile() async {
-  final directory = await getAppDatabasesDirectory();
-  return File('${directory.path}/history.db');
-}
-
 Future<File> getUserdataFile() async {
   Directory userData = await getAppUserDataDirectory();
   return File('${userData.path}/userData.db');
@@ -50,3 +45,9 @@ Future<File> getBibleFile() async {
   final directory = await getAppPublications();
   return File('${directory.path}/nwtsty_F.jwpub/nwtsty_F.db');
 }
+
+Future<File> getDailyTextFile() async {
+  final directory = await getAppPublications();
+  return File('${directory.path}/es24_F.jwpub/es24_F.db');
+}
+

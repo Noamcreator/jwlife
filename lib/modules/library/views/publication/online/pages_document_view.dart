@@ -10,9 +10,9 @@ import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/modules/personal/views/note_view.dart';
 import 'package:share_plus/share_plus.dart';
 
-import 'publication_media_items_view.dart';
-import '../local/publication_notes_view.dart';
-import 'publication_svg_view.dart';
+import '../publication_media_items_view.dart';
+import '../publication_notes_view.dart';
+import '../publication_svg_view.dart';
 
 class PagesDocumentView extends StatefulWidget {
   final Map<String, dynamic> publication;
@@ -52,7 +52,7 @@ class _PagesDocumentViewState extends State<PagesDocumentView> {
   }
 
   Future<void> _loadInputFields(int currentIndex) async {
-    int lang = JwLifeApp.settings.currentLanguage.id;
+    int lang = JwLifeApp.currentLanguage.id;
     var inputFields = await JwLifeApp.userdata.getInputFieldsFromDocId(widget.navCards[currentIndex]['docId']!, lang);
     print('inputFields: $inputFields');
     setState(() {
@@ -61,8 +61,8 @@ class _PagesDocumentViewState extends State<PagesDocumentView> {
   }
 
   Future<void> _loadBlockRange(int currentIndex) async {
-    int lang = JwLifeApp.settings.currentLanguage.id;
-    var blockRange = await JwLifeApp.userdata.getHighlightsFromDocId(widget.navCards[currentIndex]['docId']!, lang);
+    int lang = JwLifeApp.currentLanguage.id;
+    var blockRange = await JwLifeApp.userdata.getHightlightsFromDocId(widget.navCards[currentIndex]['docId']!, lang);
     print('blockRange: $blockRange');
     setState(() {
       _blockRange = blockRange; // Store the result in the variable

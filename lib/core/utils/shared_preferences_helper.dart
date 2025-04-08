@@ -1,9 +1,14 @@
+import 'dart:ui';
+
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:jwlife/i18n/app_localizations.dart';
+import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../app/jwlife_app.dart';
 import '../../data/meps/language.dart';
+
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 int LANGUAGE_ID = 0;
 int LANGUAGE_CODE = 1;
@@ -140,7 +145,7 @@ Future<void> setLibraryLanguage(Map<String, dynamic> selectedLanguage) async {
   SharedPreferences prefs = await SharedPreferences.getInstance();
   prefs.setStringList('library_language', [selectedLanguage['LanguageId'].toString(), selectedLanguage['Symbol'], selectedLanguage['VernacularName'], selectedLanguage['PrimaryIetfCode']]);
 
-  JwLifeApp.settings.currentLanguage = MepsLanguage.fromJson(selectedLanguage);
+  JwLifeApp.currentLanguage = MepsLanguage(id: selectedLanguage['LanguageId'], symbol: selectedLanguage['Symbol'], vernacular: selectedLanguage['VernacularName'], primaryIetfCode: selectedLanguage['PrimaryIetfCode']);
 }
 
 
@@ -175,20 +180,6 @@ Future<double> getFontSize() async {
 Future<void> setFontSize(double fontSize) async {
   SharedPreferences prefs = await SharedPreferences.getInstance();
   prefs.setDouble('font_size', fontSize);
-}
-
-/* FULLSCREEN PUBLICATION */
-Future<bool> getFullscreen() async {
-  SharedPreferences prefs = await SharedPreferences.getInstance();
-  if (prefs.containsKey('fullscreen') == true) {
-    return prefs.getBool('fullscreen')!;
-  }
-  return true;
-}
-
-Future<void> setFullscreen(bool fullscreen) async {
-  SharedPreferences prefs = await SharedPreferences.getInstance();
-  prefs.setBool('fullscreen', fullscreen);
 }
 
 /* HIGHLIGHT */

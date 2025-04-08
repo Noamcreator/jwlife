@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:html/parser.dart' as html_parser;
 
-import 'online_bible_view.dart';
+import 'bible_view.dart';
 
 class ChapterBiblePage extends StatefulWidget {
   final Book book;

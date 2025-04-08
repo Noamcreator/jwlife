@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/core/icons.dart';
+import 'package:jwlife/data/firebase/firebase.dart';
 
 class AboutMeView extends StatefulWidget {
   @override
@@ -69,7 +72,6 @@ class _AboutMeViewState extends State<AboutMeView> {
   }
 
   Future<void> _loadMeData() async {
-    /*
     // Récupérer les données de l'utilisateur depuis Firebase Firestore
     final docRef = await getUserCollection();
     final snapshot = await docRef.get();
@@ -90,12 +92,9 @@ class _AboutMeViewState extends State<AboutMeView> {
         _isAnointed = _me['Anointed'] == 1;
       });
     }
-
-     */
   }
 
   Future<void> _saveUserData() async {
-    /*
     final docRef = await getUserCollection();
     await docRef.set({
       'Name': _nameController.text,
@@ -110,8 +109,6 @@ class _AboutMeViewState extends State<AboutMeView> {
       'PioneerId': _pioneerId,
       'Anointed': _isAnointed ? 1 : 0,
     });
-
-     */
   }
 
   @override

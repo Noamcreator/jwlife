@@ -13,38 +13,46 @@ class RealmLibrary {
 
   static Future<void> loadTeachingToolboxVideos() async {
     teachingToolboxVideos.clear();
-    String languageSymbol = JwLifeApp.settings.currentLanguage.symbol;
+    String languageSymbol = JwLifeApp.currentLanguage.symbol;
 
-    // Rechercher les médias associés à la catégorie 'TeachingToolbox' dans la langue correspondante
-    teachingToolboxVideos.addAll(
-      realm
-          .all<Category>()
-          .query("key == 'TeachingToolbox' AND language == '$languageSymbol'")
-          .expand((category) => category.media)
-          .map((mediaKey) => realm.all<MediaItem>().query("naturalKey == '$mediaKey'").firstOrNull)
-          .whereType<MediaItem>(), // Filtrer les valeurs nulles
-    );
+    // Rechercher la catégorie avec la clé 'TeachingToolbox' et la langue correspondante
+    final teachingToolbox = realm.all<Category>().query("key == 'TeachingToolbox'").query("language == '$languageSymbol'").firstOrNull;
 
-    if (teachingToolboxVideos.isEmpty) {
+    if (teachingToolbox != null && teachingToolbox.media.isNotEmpty) {
+      for (String mediaKey in teachingToolbox.media) {
+        // Rechercher le MediaItem correspondant
+        final mediaItem = realm.all<MediaItem>().query("naturalKey == '$mediaKey'").firstOrNull;
+
+        if (mediaItem != null) {
+          teachingToolboxVideos.add(mediaItem);
+        }
+      }
+    }
+    else {
+      // Traiter le cas où la catégorie ou les médias sont introuvables
       print("TeachingToolbox category or media is missing.");
     }
   }
 
   static Future<void> loadLatestVideos() async {
     latestAudiosVideos.clear();
-    String languageSymbol = JwLifeApp.settings.currentLanguage.symbol;
+    String languageSymbol = JwLifeApp.currentLanguage.symbol;
 
-    // Rechercher les médias associés à la catégorie 'LatestAudioVideo' dans la langue correspondante
-    latestAudiosVideos.addAll(
-      realm
-          .all<Category>()
-          .query("key == 'LatestAudioVideo' AND language == '$languageSymbol'")
-          .expand((category) => category.media)
-          .map((mediaKey) => realm.all<MediaItem>().query("naturalKey == '$mediaKey'").firstOrNull)
-          .whereType<MediaItem>(), // Filtrer les valeurs null
-    );
+    // Rechercher la catégorie avec la clé 'LatestAudioVideo' et la langue correspondante
+    final latestAudioVideoCategory = realm.all<Category>().query("key == 'LatestAudioVideo'").query("language == '$languageSymbol'").firstOrNull;
 
-    if (latestAudiosVideos.isEmpty) {
+    if (latestAudioVideoCategory != null && latestAudioVideoCategory.media.isNotEmpty) {
+      for (String mediaKey in latestAudioVideoCategory.media) {
+        // Rechercher le MediaItem correspondant
+        final mediaItem = realm.all<MediaItem>().query("naturalKey == '$mediaKey'").firstOrNull;
+
+        if (mediaItem != null) {
+          latestAudiosVideos.add(mediaItem);
+        }
+      }
+    }
+    else {
+      // Traiter le cas où la catégorie ou les médias sont introuvables
       print("LatestAudioVideo category or media is missing.");
     }
   }
@@ -114,7 +122,8 @@ class RealmLibrary {
             localizedName: data['name'],
             type: data['type'],
             media: data.containsKey('media') ? List<String>.from(data['media']) : [],
-            subcategories: data.containsKey('subcategories') ? (data['subcategories'] as List<dynamic>).map((subCategoryData) {
+            subcategories: data.containsKey('subcategories')
+                ? (data['subcategories'] as List<dynamic>).map((subCategoryData) {
               if (subCategoryData is Map<String, dynamic>) {
                 return Category(
                     key: subCategoryData['key'],
@@ -133,12 +142,13 @@ class RealmLibrary {
                         );
                       }
                       return null;
-                    }).whereType<Category>().toList() : [],
+                    }).whereType<Category>().toList()
+                        : [],
                     persistedImages: subCategoryData.containsKey('images') ? Images(
                       squareImageUrl: subCategoryData['images'].containsKey('sqr') ? subCategoryData['images']['sqr']['lg'] : null,
-                      squareFullSizeImageUrl: subCategoryData['images'].containsKey('sqr') ? subCategoryData['images']['sqr']['xml'] : null,
+                      squareFullSizeImageUrl: subCategoryData['images'].containsKey('sqr') ? subCategoryData['images']['sqr']['xl'] : null,
                       wideImageUrl: subCategoryData['images'].containsKey('lsr') ? subCategoryData['images']['lsr']['md'] : null,
-                      wideFullSizeImageUrl: subCategoryData['images'].containsKey('lsr') ? subCategoryData['images']['lsr']['xml'] : null,
+                      wideFullSizeImageUrl: subCategoryData['images'].containsKey('lsr') ? subCategoryData['images']['lsr']['xl'] : null,
                       extraWideFullSizeImageUrl: subCategoryData['images'].containsKey('pnr') ? subCategoryData['images']['pnr']['lg'] : null,
                     ) : null,
                     language: languageCode
@@ -193,14 +203,11 @@ class RealmLibrary {
   }
 
   static Future<Images> getImage(Map<String, dynamic> images) async {
-    String? squareImageUrl = images.containsKey('sqr') ? images['sqr']['lg'] : null;
-    squareImageUrl ??= images.containsKey('cvr') ? images['cvr']['lg'] : null;
-
     return Images(
-      squareImageUrl: squareImageUrl,
-      squareFullSizeImageUrl: images.containsKey('sqr') ? images['sqr']['xml'] : null,
+      squareImageUrl: images.containsKey('sqr') ? images['sqr']['lg'] : null,
+      squareFullSizeImageUrl: images.containsKey('sqr') ? images['sqr']['xl'] : null,
       wideImageUrl: images.containsKey('lsr') ? images['lsr']['md'] : null,
-      wideFullSizeImageUrl: images.containsKey('lsr') ? images['lsr']['xml'] : null,
+      wideFullSizeImageUrl: images.containsKey('lsr') ? images['lsr']['xl'] : null,
       extraWideFullSizeImageUrl: images.containsKey('pnr') ? images['pnr']['lg'] : null,
     );
   }

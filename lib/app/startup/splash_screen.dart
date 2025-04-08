@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 
 class SplashScreen extends StatelessWidget {
   const SplashScreen({super.key});
@@ -11,12 +10,11 @@ class SplashScreen extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
-            // Remplacer l'image par un SVG avec la couleur principale du thème
-            SvgPicture.asset(
-              'assets/icons/jw_life.svg',
+            // Logo de votre application
+            Image.asset(
+              'assets/icons/jw_life.png',
               width: 160,
               height: 160,
-              color: Theme.of(context).primaryColor,  // Appliquer la couleur principale du thème
             ),
             const SizedBox(height: 5),
             // Indicateur de progression avec une hauteur plus petite

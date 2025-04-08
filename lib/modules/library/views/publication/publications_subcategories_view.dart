@@ -5,14 +5,13 @@ import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/core/utils/files_helper.dart';
-import 'package:jwlife/data/databases/PublicationCategory.dart';
 import 'package:jwlife/widgets/dialog/language_dialog.dart';
 import 'package:sqflite/sqflite.dart';
 
 import 'publications_items_view.dart';
 
 class PublicationSubcategoriesView extends StatefulWidget {
-  final PublicationCategory category;
+  final Map<String, dynamic> category;
 
   PublicationSubcategoriesView({Key? key, required this.category}) : super(key: key);
 
@@ -32,14 +31,16 @@ class _PublicationSubcategoriesViewState extends State<PublicationSubcategoriesV
   }
 
   void loadItems() async {
-    String langVernacular = JwLifeApp.settings.currentLanguage.vernacular;
-    int langId = JwLifeApp.settings.currentLanguage.id;
+    String langVernacular = JwLifeApp.currentLanguage.vernacular;
+    int langId = JwLifeApp.currentLanguage.id;
 
     File catalogFile = await getCatalogFile();
     File mepsFile = await getMepsFile();
 
     if (await catalogFile.exists() && await mepsFile.exists()) {
       Database catalogDB = await openDatabase(catalogFile.path);
+      await catalogDB.execute("ATTACH DATABASE '${mepsFile.path}' AS meps");
+
       List<Map<String, dynamic>> result = await catalogDB.rawQuery(''' 
     SELECT DISTINCT
       p.Year
@@ -47,40 +48,33 @@ class _PublicationSubcategoriesViewState extends State<PublicationSubcategoriesV
       Publication p
     WHERE p.MepsLanguageId = ? AND p.PublicationTypeId = ?
     ORDER BY p.Year DESC
-    ''', [langId, widget.category.id]);
+    ''', [langId, widget.category['id']]);
 
       setState(() {
-        categoryName = widget.category.getName(context);
+        categoryName = widget.category['name'];
         language = langVernacular;
         years = result;
       });
 
+      await catalogDB.execute("DETACH DATABASE meps");
       await catalogDB.close();
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final textStyleTitle = const TextStyle(fontSize: 20, fontWeight: FontWeight.bold);
-    final textStyleSubtitle = TextStyle(
-      fontSize: 14,
-      color: Theme.of(context).brightness == Brightness.dark
-          ? const Color(0xFFc3c3c3)
-          : const Color(0xFF626262),
-    );
-
     return Scaffold(
       appBar: AppBar(
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              widget.category.getName(context),
-              style: textStyleTitle,
+              widget.category['name']!,
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             Text(
               language,
-              style: textStyleSubtitle,
+              style: const TextStyle(fontSize: 14, color: Colors.grey),
             ),
           ],
         ),
@@ -107,7 +101,7 @@ class _PublicationSubcategoriesViewState extends State<PublicationSubcategoriesV
         padding: EdgeInsets.symmetric(vertical: 7.0, horizontal: 8.0),
         itemCount: years.length,
         itemBuilder: (context, index) {
-          int year = years[index]['Year'];
+          final year = years[index]['Year'].toString();
 
           // Déterminer la couleur de fond en fonction du thème
           Color backgroundColor = Theme.of(context).brightness == Brightness.dark ? Color(0xFF292929) : Colors.white;
@@ -133,17 +127,17 @@ class _PublicationSubcategoriesViewState extends State<PublicationSubcategoriesV
     );
   }
 
-  Widget _buildCategoryButton(BuildContext context, int year, Color textColor) {
+  Widget _buildCategoryButton(BuildContext context, String year, Color textColor) {
     return ListTile(
       contentPadding: EdgeInsets.all(12.0),
       leading: Padding(
         padding: const EdgeInsets.only(left: 10.0),
-        child: Icon(widget.category.icon, size: 38.0, color: textColor),
+        child: Icon(widget.category['icon'], size: 38.0, color: textColor),
       ),
       title: Row(
         children: [
           SizedBox(width: 15.0), // Ajouter plus d'espace entre leading et title
-          Text(year.toString(), style: TextStyle(color: textColor)),
+          Text(year, style: TextStyle(color: textColor)),
         ],
       ),
     );

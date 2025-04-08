@@ -1,7 +1,7 @@
 import 'package:flutter/cupertino.dart';
 
 class JwIcons {
-  static const _kFontFam = 'jw-icons';
+  static const _kFontFam = 'jw-icons-external';
 
   static const IconData airplay = IconData(0xe600, fontFamily: _kFontFam);
   static const IconData arena = IconData(0xe601, fontFamily: _kFontFam);

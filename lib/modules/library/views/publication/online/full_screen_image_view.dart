@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/utils_video.dart';
-import 'package:jwlife/data/realm/catalog.dart';
-import 'package:jwlife/data/realm/realm_library.dart';
-import 'package:realm/realm.dart';
 
 class FullScreenImageView extends StatefulWidget {
   final List<Map<String, String>> images;
@@ -75,11 +72,7 @@ class _FullScreenImageViewState extends State<FullScreenImageView> {
                       GestureDetector(
                         onTap: () {
                           final uri = Uri.parse(image['videoUrl']!);
-                          String lank = uri.queryParameters['lank']!;
-                          String lang = uri.queryParameters['wtlocale']!;
-
-                          MediaItem mediaItem = getVideoItemFromLank(lank, lang);
-                          showFullScreenVideo(context, mediaItem);
+                          showFullScreenVideo(context, uri.queryParameters['lank']!, uri.queryParameters['wtlocale']!);
                         },
                         child: Icon(
                           JwIcons.play_circle, // Icône de lecture

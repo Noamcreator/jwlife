@@ -1,112 +1,105 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
 import 'package:http/http.dart' as http;
 import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/core/api.dart';
-import 'package:jwlife/core/utils/common_ui.dart';
-import 'package:jwlife/core/utils/utils_document.dart';
-import 'package:jwlife/modules/home/views/search_views/search_view.dart';
-
-import 'search_model.dart';
 
 class BibleSearchTab extends StatefulWidget {
-  final SearchModel model;
+  final String query;
 
-  const BibleSearchTab({super.key, required this.model});
+  const BibleSearchTab({
+    Key? key,
+    required this.query,
+  }) : super(key: key);
 
   @override
   _BibleSearchTabState createState() => _BibleSearchTabState();
 }
 
 class _BibleSearchTabState extends State<BibleSearchTab> {
+  List<Map<String, dynamic>> results = [];
+
   @override
   void initState() {
     super.initState();
+    fetchApiJw(widget.query);
+  }
+
+  Future<void> fetchApiJw(String query) async {
+    final queryParams = {'q': query};
+    final url = Uri.https('b.jw-cdn.org', '/apis/search/results/${JwLifeApp.currentLanguage.symbol}/bible', queryParams);
+
+    try {
+      Map<String, String> headers = {
+        'Authorization': 'Bearer ${Api.currentJwToken}',
+      };
+
+      http.Response alertResponse = await http.get(url, headers: headers);
+      if (alertResponse.statusCode == 200) {
+        Map<String, dynamic> data = jsonDecode(alertResponse.body);
+        setState(() {
+          results = (data['results'] as List).map((item) {
+            return {
+              'title': item['title'] ?? '',
+              'snippet': item['snippet'] ?? '',
+              'lank': item['lank'] ?? '',
+              'jwLink': item['links']['jw.org'] ?? '',
+            };
+          }).toList();
+        });
+      }
+      else {
+        print('Erreur de requête HTTP: ${alertResponse.statusCode}');
+      }
+    }
+    catch (e) {
+      print('Erreur lors de la récupération des données de l\'API: $e');
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: FutureBuilder<List<Map<String, dynamic>>>(
-        future: widget.model.fetchVerses(), // appel async
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          } else if (snapshot.hasError) {
-            return Center(child: Text('Erreur : ${snapshot.error}'));
-          } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return const Center(child: Text('Aucun résultat trouvé.'));
-          }
-
-          final results = snapshot.data!;
-
-          return ListView.builder(
-            padding: const EdgeInsets.all(10.0),
-            itemCount: results.length,
-            itemBuilder: (context, index) {
-              final item = results[index];
-
-              return GestureDetector(
-                onTap: () async {
-                  String itemString = item['lank']; // "bv-62004016_nwtsty"
-                  String itemString2 = itemString.split("-")[1].split("_")[0]; // "62004016"
-
-                  int bookNumber = int.parse(itemString2.substring(0, 2));  // 62
-                  int chapterNumber = int.parse(itemString2.substring(2, 5));  // 4
-                  int verseNumber = int.parse(itemString2.substring(5, 8));  // 16
-
-                  String query = JwLifeApp.bibleCluesInfo.getVerses(
-                    bookNumber,
-                    chapterNumber,
-                    verseNumber,
-                    bookNumber,
-                    chapterNumber,
-                    verseNumber,
-                  );
-
-                  showPage(context, SearchView(query: query));
-                },
-                child: Card(
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? const Color(0xFF292929)
-                      : Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(0)),
-                  margin: const EdgeInsets.symmetric(vertical: 5),
-                  child: Padding(
-                    padding: const EdgeInsets.all(13),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        HtmlWidget(
-                          item['title'],
-                          textStyle: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 18,
-                            color: Theme.of(context).brightness == Brightness.dark
-                                ? const Color(0xFFa0b9e2)
-                                : const Color(0xFF4a6da7),
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        HtmlWidget(
-                            item['snippet'],
-                            textStyle: const TextStyle(
-                              fontSize: 18,
-                            ),
-                            customStylesBuilder: (element) {
-                              if (element.localName == 'strong') {
-                                return {'background': Theme.of(context).brightness == Brightness.dark ? '#86761e' : '#fff9bb'};
-                              }
-                              return null;
-                            }
-                        ),
-                      ],
-                    ),
-                  )
-                ),
-              );
+      body: ListView.builder(
+        itemCount: results.length,
+        itemBuilder: (context, index) {
+          final item = results[index];
+          return GestureDetector(
+            onTap: () async {
+              // Define the action on tapping the verse
             },
+            child: Card(
+              color: Theme.of(context).brightness == Brightness.dark ? Color(0xFF292929) : Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
+              margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  /*
+                  Padding(
+                    padding: const EdgeInsets.all(10.0),
+                    child: HtmlWidget(
+                      item['title'],
+                      textStyle: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 22,
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(10.0),
+                    child: HtmlWidget(
+                      item['snippet'],
+                      textStyle: TextStyle(
+                        fontSize: 18,
+                      ),
+                    ),
+                  ),
+
+                   */
+                ],
+              ),
+            ),
           );
         },
       ),
