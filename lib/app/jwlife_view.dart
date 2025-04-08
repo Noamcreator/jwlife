@@ -1,8 +1,6 @@
 import 'package:beamer/beamer.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:jwlife/app/startup/login_view.dart';
-import 'package:jwlife/modules/bible/views/bible_verse_recognizer.dart';
+import 'package:jwlife/modules/bible/views/bible_view.dart';
 import 'package:jwlife/modules/congregation/views/congregation_view.dart';
 import 'package:jwlife/modules/home/views/home_view.dart';
 import 'package:jwlife/modules/library/views/library_view.dart';
@@ -12,7 +10,7 @@ import 'package:jwlife/modules/predication/views/predication_view.dart';
 
 import '../audio/audio_player_widget.dart';
 import '../core/icons.dart';
-import '../l10n/localization.dart';
+import 'package:jwlife/i18n/localization.dart';
 
 class JwLifeView extends StatefulWidget {
   final Function(ThemeMode) toggleTheme;
@@ -36,13 +34,12 @@ class JwLifeView extends StatefulWidget {
 }
 
 class _JwLifeViewState extends State<JwLifeView> {
-  bool _isNavBarHasBody = false;
   bool _isPersistentTabViewVisible = true;
   bool _isAudioWidgetVisible = false;
   bool _persistentBarIsBlack = false;
-  late int _currentIndex;
+  int _currentIndex = 0;
 
-  // Declare and initialize Beamer delegates for /home and /library
+  // Declare and initialize Beamer delegates for different sections of the app
   late List<BeamerDelegate> _routerDelegates;
 
   @override
@@ -50,12 +47,11 @@ class _JwLifeViewState extends State<JwLifeView> {
     super.initState();
 
     // Initialize static methods for nav bar and audio widget visibility
-    JwLifeView.toggleNavBarBody = _toggleBottomBarBody;
     JwLifeView.toggleNavBarVisibility = _toggleBottomBarVisibility;
     JwLifeView.toggleNavBarBlack = _toggleBottomBarBlack;
     JwLifeView.toggleAudioWidgetVisibility = _toggleAudioWidgetVisibility;
 
-    // Initialize the Beamer delegates for home and library
+    // Initialize the Beamer delegates for various sections (home, bible, etc.)
     _routerDelegates = [
       BeamerDelegate(
         initialPath: '/home',
@@ -64,8 +60,8 @@ class _JwLifeViewState extends State<JwLifeView> {
             return SimpleLocation(
               routeInformation,
               HomeView(
-                  toggleTheme: widget.toggleTheme,
-                  changeLocale: widget.changeLocale
+                toggleTheme: widget.toggleTheme,
+                changeLocale: widget.changeLocale,
               ),
             );
           }
@@ -76,7 +72,7 @@ class _JwLifeViewState extends State<JwLifeView> {
         initialPath: '/bible',
         locationBuilder: (routeInformation, _) {
           if (routeInformation.location.contains('/bible')) {
-            return SimpleLocation(routeInformation, SpeechToTextScreen());
+            return SimpleLocation(routeInformation, BibleView());
           }
           return NotFound(path: routeInformation.location);
         },
@@ -129,21 +125,6 @@ class _JwLifeViewState extends State<JwLifeView> {
     ];
   }
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final uriString = Beamer.of(context).configuration.location;
-    _currentIndex = ["/home", "/bible", "/library", "/meetings", "/predication", "/congregation", "/personal"]
-        .indexWhere((path) => uriString.contains(path));
-  }
-
-  void _toggleBottomBarBody(bool isBody) {
-    JwLifeView.hasBody = isBody;
-    setState(() {
-      _isNavBarHasBody = isBody;
-    });
-  }
-
   void _toggleBottomBarVisibility(bool isVisible) {
     JwLifeView.isPersistentTabViewVisible = isVisible;
     setState(() {
@@ -159,7 +140,6 @@ class _JwLifeViewState extends State<JwLifeView> {
   }
 
   void _toggleBottomBarBlack(int index, bool black) {
-    _toggleBottomBarBody(!black);
     JwLifeView.persistentBarIsBlack[index] = black;
     setState(() {
       _persistentBarIsBlack = black;
@@ -168,29 +148,31 @@ class _JwLifeViewState extends State<JwLifeView> {
 
   @override
   Widget build(BuildContext context) {
-    return Stack(children: <Widget>[
-      Scaffold(
-        body: Column(
-          children: [
-            Expanded(
-              child: Stack(
-                children: <Widget>[
-                  IndexedStack(
-                    index: _currentIndex,
-                    children: _routerDelegates.map((delegate) =>
-                        Beamer(routerDelegate: delegate)).toList(),
-                  ),
-                ],
+    return Stack(
+      children: <Widget>[
+        Scaffold(
+          body: Column(
+            children: [
+              Expanded(
+                child: Stack(
+                  children: <Widget>[
+                    IndexedStack(
+                      index: _currentIndex,
+                      children: _routerDelegates.map((delegate) =>
+                          Beamer(routerDelegate: delegate)).toList(),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            // Positionner le player audio tout en bas avec un espace dédié
-            AudioPlayerWidget(
-              visible: _isAudioWidgetVisible && !_persistentBarIsBlack,
-            ),
-          ],
-        ), // Pour gérer l'orientation paysage, on ne fait rien ici
-        extendBody: _persistentBarIsBlack,
-        bottomNavigationBar: Visibility(
+              // Audio widget displayed at the bottom if conditions are met
+              AudioPlayerWidget(
+                visible: _isAudioWidgetVisible && !_persistentBarIsBlack,
+              ),
+            ],
+          ),
+          extendBody: _persistentBarIsBlack,
+          bottomNavigationBar: _isPersistentTabViewVisible
+              ? Visibility(
             visible: _isPersistentTabViewVisible,
             child: Theme(
               data: Theme.of(context).copyWith(
@@ -209,31 +191,59 @@ class _JwLifeViewState extends State<JwLifeView> {
                 unselectedItemColor: Theme.of(context).bottomNavigationBarTheme.unselectedItemColor,
                 landscapeLayout: BottomNavigationBarLandscapeLayout.linear,
                 items: [
-                  BottomNavigationBarItem(label: localization(context).navigation_home, icon: const Icon(JwIcons.home)),
-                  BottomNavigationBarItem(label: localization(context).navigation_bible, icon: Icon(JwIcons.bible)),
-                  BottomNavigationBarItem(label: localization(context).navigation_library, icon: Icon(JwIcons.publication_video_music)),
-                  BottomNavigationBarItem(label: localization(context).navigation_meetings, icon: Icon(JwIcons.speaker_audience)),
-                  BottomNavigationBarItem(label: localization(context).navigation_predication, icon: Icon(JwIcons.persons_doorstep)),
-                  BottomNavigationBarItem(label: localization(context).navigation_congregations, icon: Icon(JwIcons.kingdom_hall)),
-                  BottomNavigationBarItem(label: localization(context).navigation_personal, icon: Icon(JwIcons.person_studying)),
+                  BottomNavigationBarItem(
+                    label: localization(context).navigation_home,
+                    icon: const Icon(JwIcons.home),
+                  ),
+                  BottomNavigationBarItem(
+                    label: localization(context).navigation_bible,
+                    icon: Icon(JwIcons.bible),
+                  ),
+                  BottomNavigationBarItem(
+                    label: localization(context).navigation_library,
+                    icon: Icon(JwIcons.publication_video_music),
+                  ),
+                  BottomNavigationBarItem(
+                    label: localization(context).navigation_meetings,
+                    icon: Icon(JwIcons.speaker_audience),
+                  ),
+                  BottomNavigationBarItem(
+                    label: localization(context).navigation_predication,
+                    icon: Icon(JwIcons.persons_doorstep),
+                  ),
+                  BottomNavigationBarItem(
+                    label: localization(context).navigation_congregations,
+                    icon: Icon(JwIcons.kingdom_hall),
+                  ),
+                  BottomNavigationBarItem(
+                    label: localization(context).navigation_personal,
+                    icon: Icon(JwIcons.person_studying),
+                  ),
                 ],
                 onTap: (index) {
+                  if (index == _currentIndex) {
+                    Navigator.pop(context);
+                  }
                   setState(() {
                     _currentIndex = index;
                     _routerDelegates[_currentIndex].update(rebuild: false);
                   });
                 },
               ),
-            )
+            ),
+          )
+              : Container(),
         ),
-      ),
-      Visibility(
-        visible: FirebaseAuth.instance.currentUser == null,
-        child: Scaffold(
-          body: LoginView(update: setState, fromSettings: false),
+        /*
+        Visibility(
+          visible: FirebaseAuth.instance.currentUser == null,
+          child: Scaffold(
+            body: LoginView(update: setState, fromSettings: false),
+          ),
         ),
-      )
-    ]);
+         */
+      ],
+    );
   }
 }
 
@@ -250,8 +260,7 @@ class SimpleLocation extends BeamLocation<BeamState> {
     BeamPage(
       key: ValueKey(page.runtimeType.toString()),
       title: page.runtimeType.toString(),
-      type: BeamPageType.noTransition,
       child: page,
-    )
+    ),
   ];
 }

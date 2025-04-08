@@ -1,5 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:jwlife/app/jwlife_app.dart';
@@ -37,6 +35,7 @@ class _PreachingReportPageState extends State<PreachingReportPage> {
 
   // Charger les données depuis Firestore
   Future<void> _loadReports() async {
+    /*
     // Charger les rapports depuis Firestore
     // Enregistrer ou mettre à jour le rapport dans Firestore
     DocumentReference userDoc = await getUserCollection();
@@ -54,10 +53,13 @@ class _PreachingReportPageState extends State<PreachingReportPage> {
         };
       });
     }
+
+     */
   }
 
   // Enregistrer les données dans Firestore
   Future<void> _updateReport() async {
+    /*
     if (_selectedDay != null) {
       final dateString = _selectedDay!.toIso8601String();
 
@@ -79,6 +81,8 @@ class _PreachingReportPageState extends State<PreachingReportPage> {
         };
       });
     }
+
+     */
   }
 
   void _incrementController(TextEditingController controller, int value) {
@@ -124,7 +128,7 @@ class _PreachingReportPageState extends State<PreachingReportPage> {
               ),
             ),
             TableCalendar(
-              locale: JwLifeApp.locale.languageCode,
+              locale: JwLifeApp.settings.locale.languageCode,
               firstDay: DateTime.utc(2020, 1, 1),
               lastDay: DateTime.utc(2030, 12, 31),
               focusedDay: _focusedDay,
@@ -170,7 +174,7 @@ class _PreachingReportPageState extends State<PreachingReportPage> {
             const SizedBox(height: 20),
             if (_selectedDay != null) ...[
               Text(
-                DateFormat("EEEE d MMMM", JwLifeApp.locale.languageCode).format(_selectedDay!),
+                DateFormat("EEEE d MMMM", JwLifeApp.settings.locale.languageCode).format(_selectedDay!),
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 10),

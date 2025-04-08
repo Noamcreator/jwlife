@@ -31,6 +31,22 @@ class Category extends _Category
 
   Category._();
 
+  // Ajout de la méthode copyWith
+  Category copyWith({
+    List<String>? media,
+    List<Category>? subcategories,
+  }) {
+    return Category(
+      key: this.key,
+      localizedName: this.localizedName,
+      type: this.type,
+      media: media ?? this.media,
+      subcategories: subcategories ?? this.subcategories,
+      persistedImages: this.persistedImages,
+      language: this.language,
+    );
+  }
+
   @override
   String? get key => RealmObjectBase.get<String>(this, 'key') as String?;
   @override

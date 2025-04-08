@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
+import 'package:jwlife/core/utils/utils_note_tag.dart';
 import 'package:jwlife/data/userdata/Note.dart';
 import 'note_view.dart';
 
@@ -15,17 +16,19 @@ class CategoryView extends StatefulWidget {
 }
 
 class _CategoryViewState extends State<CategoryView> {
+  late Map<String, dynamic> _category;
   List<Map<String, dynamic>> _filteredNotes = [];
 
   @override
   void initState() {
     super.initState();
+    _category = Map<String, dynamic>.from(widget.category);
     notesByCategory();
   }
 
   Future<void> notesByCategory() async {
     // Fetch notes by category first
-    List<Map<String, dynamic>> notes = await JwLifeApp.userdata.getNotesByCategory(widget.category['TagId']);
+    List<Map<String, dynamic>> notes = await JwLifeApp.userdata.getNotesByCategory(_category['TagId']);
 
     // Now update the state with the fetched notes
     setState(() {
@@ -40,13 +43,13 @@ class _CategoryViewState extends State<CategoryView> {
         leading: IconButton(
           icon: Icon(Icons.arrow_back),
           onPressed: () {
-            Navigator.pop(context, widget.category);
+            Navigator.pop(context, _category);
           },
         ),
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(widget.category['TagName']),
+            Text(_category['Name']),
             Text(
               '${_filteredNotes.length} notes',
               style: TextStyle(
@@ -58,14 +61,29 @@ class _CategoryViewState extends State<CategoryView> {
         actions: <Widget>[
           IconButton(
             icon: Icon(JwIcons.note_plus),
-            onPressed: () {
-              // Action to perform when the add note button is pressed
+            onPressed: () async {
+              var note = await JwLifeApp.userdata.addNote("", "", null, [_category['TagId']], null, null, null, null);
+              showPage(context, NoteView(note: note));
+            },
+          ),
+          IconButton(
+            icon: Icon(JwIcons.pencil),
+            onPressed: () async {
+              // Utiliser await à l'extérieur du setState
+              var updatedCategory = await showEditTagDialog(context, _category);
+
+              // Si la catégorie a été mise à jour, on applique le setState
+              if (updatedCategory != null) {
+                setState(() {
+                  _category = updatedCategory;
+                });
+              }
             },
           ),
           IconButton(
             icon: Icon(JwIcons.tag_crossed),
-            onPressed: () {
-              // Action to perform when the delete category button is pressed
+            onPressed: () async {
+               await showDeleteTagDialog(context, _category).then((value) => setState(() {}));
             },
           ),
         ],
@@ -93,23 +111,23 @@ class _CategoryViewState extends State<CategoryView> {
                       ? Colors.grey[850]!
                       : Colors.grey[300]!,
                       width: 1),
-                  color: Note.getColor(context, note['NoteColorIndex'] == null ? 0 : note['NoteColorIndex']),
+                  color: Note.getColor(context, note['ColorIndex'] ?? 0),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      Note.dateTodayToCreated(note['NoteLastModified']),
+                      Note.dateTodayToCreated(note['LastModified']),
                       style: TextStyle(fontSize: 10),
                     ),
                     Text(
-                      note['NoteTitle'] ?? '',
+                      note['Title'] ?? '',
                       style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
                     ),
                     SizedBox(height: 10),
                     Text(
-                      note['NoteContent'] ?? '',
+                      note['Content'] ?? '',
                       style: TextStyle(fontSize: 16),
                     ),
                     SizedBox(height: 8),
@@ -125,11 +143,11 @@ class _CategoryViewState extends State<CategoryView> {
                           // Créer la Map avec la conversion en int
                           Map<String, dynamic> category = {
                             "TagId": int.parse(categoriesId[index]), // Conversion en int
-                            "TagName": categoryName,
+                            "Name": categoryName,
                           };
                           return ElevatedButton(
                             onPressed: () {
-                              if (category['TagId'] != widget.category['TagId']) {
+                              if (category['TagId'] != _category['TagId']) {
                                 showPage(context, CategoryView(category: category));
                               }
                             },

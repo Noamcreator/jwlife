@@ -1,22 +1,20 @@
 import 'dart:io';
-import 'package:archive/archive.dart';
-import 'package:file_picker/file_picker.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:intl/intl.dart';
-import 'package:jwlife/app/startup/login_view.dart';
+import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
-import 'package:jwlife/core/utils/directory_helper.dart';
 import 'package:jwlife/core/utils/shared_preferences_helper.dart';
 import 'package:jwlife/data/meps/language.dart';
-import 'package:jwlife/l10n/localization.dart';
+import 'package:jwlife/i18n/app_localizations.dart';
+import 'package:jwlife/i18n/localization.dart';
 import 'package:jwlife/modules/home/views/home_view.dart';
 import 'package:jwlife/modules/library/views/library_view.dart';
 import 'package:jwlife/widgets/dialog/utils_dialog.dart';
+import 'package:sqflite/sqflite.dart';
 import '../app/jwlife_app.dart';
-
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import '../core/utils/files_helper.dart';
 
 class SettingsView extends StatefulWidget {
   final Function(ThemeMode) toggleTheme;
@@ -35,8 +33,9 @@ class SettingsView extends StatefulWidget {
 class _SettingsViewState extends State<SettingsView> {
   ThemeMode _theme = ThemeMode.system;
   Locale _selectedLocale = Locale('en');
+  String _selectedLocaleVernacular = 'English';
   Color? _selectedColor = Colors.blue;
-  MepsLanguage _selectedLanguage = JwLifeApp.currentLanguage;
+  MepsLanguage _selectedLanguage = JwLifeApp.settings.currentLanguage;
 
   final String appVersion = '1.0.0';
   String catalogDate = '';
@@ -52,11 +51,28 @@ class _SettingsViewState extends State<SettingsView> {
     ThemeMode themeMode = theme == 'dark' ? ThemeMode.dark : theme == 'light' ? ThemeMode.light : ThemeMode.system;
     String selectedLanguage = await getLocale();
     Color primaryColor = await getPrimaryColor(themeMode);
+
+    _getVernacularName();
+
     setState(() {
       _theme = themeMode;
       _selectedLocale = Locale(selectedLanguage);
       _selectedColor = primaryColor;
       _getCatalogDate();
+    });
+  }
+
+  Future<void> _getVernacularName() async {
+    File mepsFile = await getMepsFile();
+    Database database = await openDatabase(mepsFile.path);
+
+    List<Map<String, dynamic>> result = await database.rawQuery('''
+      SELECT VernacularName FROM Language
+      WHERE PrimaryIetfCode = ?
+    ''', [_selectedLocale.languageCode]);
+
+    setState(() {
+      _selectedLocaleVernacular = result.first['VernacularName'];
     });
   }
 
@@ -68,10 +84,10 @@ class _SettingsViewState extends State<SettingsView> {
   }
 
   String _formatDate(String dateString) {
-    DateTime dateTime = DateTime.parse(dateString);
+    DateTime dateTime = DateTime.parse(dateString).toLocal(); // Convertir en heure locale
     return DateFormat(
       'EEEE d MMMM yyyy HH:mm:ss',
-      JwLifeApp.currentLanguage.primaryIetfCode,
+      JwLifeApp.settings.currentLanguage.primaryIetfCode,
     ).format(dateTime);
   }
 
@@ -82,54 +98,162 @@ class _SettingsViewState extends State<SettingsView> {
     widget.toggleTheme(theme);
   }
 
-  _updateLocale(Locale locale) async {
+  _updateLocale(Locale locale, String vernacular) async {
     setState(() {
       _selectedLocale = locale;
+      _selectedLocaleVernacular = vernacular;
     });
     widget.changeLanguage(locale);
   }
 
-  _exportBackup() {
-    // Logique pour exporter une sauvegarde
+  void showThemeSelectionDialog() {
+    showJwDialog(
+      context: context,
+      title: Text(
+        localization(context).settings_appearance,
+        style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+      ),
+      buttonAxisAlignment: MainAxisAlignment.end,
+      content: Column(
+        spacing: 0,
+        mainAxisAlignment: MainAxisAlignment.start,
+        children: [
+          RadioListTile<ThemeMode>(
+            title: Text(localization(context).settings_appearance_system),
+            value: ThemeMode.system,
+            groupValue: _theme,
+            onChanged: (ThemeMode? value) {
+              if (value != null) _updateTheme(value);
+              Navigator.pop(context); // Fermer la boîte de dialogue
+            },
+          ),
+          RadioListTile<ThemeMode>(
+            title: Text(localization(context).settings_appearance_light),
+            value: ThemeMode.light,
+            groupValue: _theme,
+            onChanged: (ThemeMode? value) {
+              if (value != null) _updateTheme(value);
+              Navigator.pop(context); // Fermer la boîte de dialogue
+            },
+          ),
+          RadioListTile<ThemeMode>(
+            title: Text(localization(context).settings_appearance_dark),
+            value: ThemeMode.dark,
+            groupValue: _theme,
+            onChanged: (ThemeMode? value) {
+              Navigator.of(context).pop();
+              if (value != null) _updateTheme(value);
+              Navigator.pop(context); // Fermer la boîte de dialogue
+            },
+          ),
+        ],
+      ),
+      buttons: [
+        JwDialogButton(
+          label: localization(context).action_cancel.toUpperCase(),
+        ),
+      ],
+    );
   }
 
-  Future<void> _importBackup() async {
-    try {
-      FilePickerResult? result = await FilePicker.platform.pickFiles(
-        type: FileType.any,
-      );
+  void showColorSelectionDialog() {
+    showJwDialog(
+      context: context,
+      title: Text(
+        'Couleur Principale',
+        style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+      ),
+      buttonAxisAlignment: MainAxisAlignment.end,
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ColorPicker(
+            pickerColor: _selectedColor!, // La couleur actuellement sélectionnée
+            onColorChanged: (Color color) {
+              setState(() {
+                _selectedColor = color; // Met à jour la couleur sélectionnée
+              });
+            },
+          ),
+        ],
+      ),
+      buttons: [
+        JwDialogButton(
+          label: localization(context).action_cancel.toUpperCase(),
+        ),
+        JwDialogButton(
+          label: localization(context).action_save.toUpperCase(),
+          onPressed: (buildContext) {
+            JwLifeApp.togglePrimaryColor(_selectedColor!); // Applique la nouvelle couleur
+          },
+        ),
+      ],
+    );
+  }
 
-      if (result != null) {
-        PlatformFile file = result.files.first;
+  Future<void> showLanguageSelectionDialog() async {
+    // Récupérer le fichier MEPS
+    File mepsFile = await getMepsFile();
 
-        try {
-          Directory userDataDir = await getAppUserDataDirectory();
-          if (await userDataDir.exists()) {
-            await userDataDir.delete(recursive: true);
-          }
-          await userDataDir.create(recursive: true);
+    // Ouvrir la base de données
+    Database database = await openDatabase(mepsFile.path);
 
-          List<int> bytes = File(file.path!).readAsBytesSync();
-          Archive archive = ZipDecoder().decodeBytes(bytes);
-          for (ArchiveFile archiveFile in archive) {
-            File newFile = File('${userDataDir.path}/${archiveFile.name}');
-            await newFile.writeAsBytes(archiveFile.content);
-          }
+    // Créer une liste des codes IETF (codes de langue) supportés par l'application
+    List<String> languageCodes = AppLocalizations.supportedLocales.map((locale) => locale.languageCode).toList();
 
-          File userDataFile = File('${userDataDir.path}/userData.db');
-          if (await userDataFile.exists()) {
-            print('Importation du fichier UserData');
-            await JwLifeApp.userdata.reload_db();
-            HomeView.setStateFavorites;
-            Navigator.pop(context);
-          }
-        } catch (e) {
-          print('Erreur lors du traitement du fichier UserData : $e');
-        }
-      }
-    } catch (e) {
-      print('Erreur lors de l\'importation du fichier UserData : $e');
-    }
+    // Récupérer les langues avec la requête SQL
+    List<Map<String, dynamic>> languages = await database.rawQuery('''
+    SELECT 
+      Language.VernacularName,
+      Language.PrimaryIetfCode,
+      LanguageName.Name
+    FROM Language
+    JOIN LocalizedLanguageName ON LocalizedLanguageName.TargetLanguageId = Language.LanguageId
+    JOIN LanguageName ON LocalizedLanguageName.LanguageNameId = LanguageName.LanguageNameId
+    JOIN Language SourceL ON LocalizedLanguageName.SourceLanguageId = SourceL.LanguageId
+    WHERE Language.PrimaryIetfCode IN (${languageCodes.map((code) => "'$code'").join(',')}) AND SourceL.PrimaryIetfCode = '${_selectedLocale.languageCode}';
+    '''
+    );
+
+    // Fermer la base de données
+    database.close();
+
+    // Affichage de la boîte de dialogue avec showJwDialog
+    showJwDialog(
+      context: context,
+      title: Text(
+        localization(context).settings_languages,
+        style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+      ),
+      buttonAxisAlignment: MainAxisAlignment.end,
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.start,
+        children: languages.map((language) {
+          String vernacularName = language['VernacularName'] ?? '';
+          String name = language['Name'] ?? '';
+          String languageCode = language['PrimaryIetfCode'] ?? '';
+          Locale locale = Locale(languageCode);
+
+          return RadioListTile<Locale>(
+            title: Text(name),
+            subtitle: Text(vernacularName),
+            value: locale,
+            groupValue: _selectedLocale,
+            onChanged: (Locale? value) {
+              if (value != null) {
+                _updateLocale(value, vernacularName); // Mise à jour du locale sélectionné
+              }
+            },
+          );
+        }).toList(),
+      ),
+      buttons: [
+        JwDialogButton(
+          label: localization(context).action_cancel.toUpperCase(),
+        ),
+      ],
+    );
   }
 
   @override
@@ -167,54 +291,8 @@ class _SettingsViewState extends State<SettingsView> {
                 ),
             ),
             onTap: () {
-              showDialog(
-                context: context,
-                builder: (BuildContext context) {
-                  return AlertDialog(
-                    title: Text(localization(context).settings_appearance),
-                    content: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      mainAxisAlignment: MainAxisAlignment.start,
-                      children: [
-                        RadioListTile<ThemeMode>(
-                          title: Text(localization(context).settings_appearance_system),
-                          value: ThemeMode.system,
-                          groupValue: _theme,
-                          onChanged: (ThemeMode? value) {
-                            if (value != null) _updateTheme(value);
-                            Navigator.pop(context); // Fermer la boîte de dialogue
-                          },
-                        ),
-                        RadioListTile<ThemeMode>(
-                          title: Text(localization(context).settings_appearance_light),
-                          value: ThemeMode.light,
-                          groupValue: _theme,
-                          onChanged: (ThemeMode? value) {
-                            if (value != null) _updateTheme(value);
-                            Navigator.pop(context);
-                          },
-                        ),
-                        RadioListTile<ThemeMode>(
-                          title: Text(localization(context).settings_appearance_dark),
-                          value: ThemeMode.dark,
-                          groupValue: _theme,
-                          onChanged: (ThemeMode? value) {
-                            if (value != null) _updateTheme(value);
-                            Navigator.pop(context);
-                          },
-                        ),
-                      ],
-                    ),
-                    actions: <Widget>[
-                      TextButton(
-                        child: Text(localization(context).action_cancel),
-                        onPressed: () => Navigator.pop(context),
-                      ),
-                    ],
-                  );
-                },
-              );
-            },
+              showThemeSelectionDialog();
+            }
           ),
           InkWell(
             child: Padding(
@@ -229,35 +307,7 @@ class _SettingsViewState extends State<SettingsView> {
               ),
             ),
             onTap: () {
-              showDialog(
-                context: context,
-                builder: (BuildContext context) {
-                  return AlertDialog(
-                    title: Text('Couleur Principale'),
-                    content: ColorPicker(
-                      pickerColor: _selectedColor!,
-                      onColorChanged: (Color color) {
-                        setState(() {
-                          _selectedColor = color;
-                        });
-                      },
-                    ),
-                    actions: <Widget>[
-                      TextButton(
-                        child: Text(localization(context).action_cancel),
-                        onPressed: () => Navigator.pop(context),
-                      ),
-                      TextButton(
-                        child: Text(localization(context).action_save),
-                        onPressed: () {
-                          JwLifeApp.togglePrimaryColor(_selectedColor!);
-                          Navigator.pop(context);
-                        }
-                      )
-                    ],
-                  );
-                },
-              );
+              showColorSelectionDialog();
             },
           ),
           Divider(),
@@ -278,42 +328,14 @@ class _SettingsViewState extends State<SettingsView> {
                   children: [
                     Text(localization(context).settings_language_app, style: TextStyle(fontWeight: FontWeight.bold)),
                     Text(
-                      _selectedLocale.languageCode,
+                      _selectedLocaleVernacular,
                       style: TextStyle(color: Colors.grey),
                     ),
                   ],
                 ),
             ),
             onTap: () {
-              showDialog(
-                context: context,
-                builder: (BuildContext context) {
-                  return AlertDialog(
-                    title: Text(localization(context).settings_languages),
-                    content: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      mainAxisAlignment: MainAxisAlignment.start,
-                      children: AppLocalizations.supportedLocales.map((locale) {
-                        return RadioListTile<Locale>(
-                          title: Text(locale.languageCode),
-                          value: locale,
-                          groupValue: _selectedLocale,
-                          onChanged: (Locale? value) {
-                            if (value != null) _updateLocale(value);
-                            Navigator.pop(context); // Fermer la boîte de dialogue
-                          },
-                        );
-                      }).toList(),
-                    ),
-                    actions: <Widget>[
-                      TextButton(
-                        child: Text(localization(context).action_cancel),
-                        onPressed: () => Navigator.pop(context),
-                      ),
-                    ],
-                  );
-                },
-              );
+              showLanguageSelectionDialog();
             },
           ),
           const SizedBox(height: 10),
@@ -333,7 +355,7 @@ class _SettingsViewState extends State<SettingsView> {
             ),
             onTap: () {
               showLibraryLanguageDialog(context).then((value) async {
-                if (value['Symbol'] != JwLifeApp.currentLanguage.symbol) {
+                if (value['Symbol'] != JwLifeApp.settings.currentLanguage.symbol) {
                   setState(() {
                     _selectedLanguage = MepsLanguage(id: value['LanguageId'], symbol: value['Symbol'], vernacular: value['VernacularName'], primaryIetfCode: value['PrimaryIetfCode']);
                   });
@@ -359,16 +381,37 @@ class _SettingsViewState extends State<SettingsView> {
           ),
           ListTile(
             title: Text(localization(context).settings_userdata_import),
-            trailing: Icon(Icons.download),
-            onTap: _importBackup,
+            trailing: Icon(JwIcons.cloud_arrow_down),
+              onTap: () async {
+                JwLifeApp.userdata.importBackup();
+                setState(() {
+                  Navigator.pop(context);
+                });
+              }
           ),
           ListTile(
             title: Text(localization(context).settings_userdata_export),
-            trailing: Icon(Icons.upload),
-            onTap: _exportBackup,
+            trailing: Icon(JwIcons.cloud_arrow_up),
+              onTap: () async {
+                JwLifeApp.userdata.exportBackup();
+                setState(() {
+                  Navigator.pop(context);
+                });
+              }
+          ),
+          ListTile(
+            title: Text('Rénitialiser cette sauvegarde'),
+            trailing: Icon(JwIcons.trash),
+            onTap: () async {
+              JwLifeApp.userdata.deleteBackup();
+              setState(() {
+                Navigator.pop(context);
+              });
+            }
           ),
           Divider(),
 
+          /*
           // Section À propos
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
@@ -412,6 +455,8 @@ class _SettingsViewState extends State<SettingsView> {
               ],
             ),
           ),
+
+           */
 
           Divider(),
 

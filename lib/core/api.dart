@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/core/utils/shared_preferences_helper.dart';
 import 'package:realm/realm.dart';
 import '../data/realm/catalog.dart';
@@ -16,7 +17,6 @@ class Api {
   static const String catalogInfoUrl = 'https://app.jw-cdn.org/catalogs/publications/$version/{currentVersion}/catalog.info.json.gz';
   static const String catalogUrl = 'https://app.jw-cdn.org/catalogs/publications/$version/{currentVersion}/catalog.db.gz';
   static const String langCatalogUrl = 'https://app.jw-cdn.org/catalogs/media/{language_code}.json.gz';
-  static const String allLanguagesUrl = 'https://www.jw.org/fr/languages';
 
   // Variables pour stocker la version et le token JW.org
   static String currentVersion = '';
@@ -51,13 +51,12 @@ class Api {
       final response = await http.get(Uri.parse(url));
 
       if (response.statusCode == 200) {
-        final decompressedBytes = await decompressGZip(response.bodyBytes);
-        final catalogInfo = json.decode(decompressedBytes!);
+        final json = await decompressJSONGZip(response.bodyBytes);
 
         // Enregistrer la date dans les préférences partagées
-        await setCatalogDate(catalogInfo['created']);
+        await setCatalogDate(json['created']);
 
-        return catalogInfo['created'];
+        return json['created'];
       }
     } catch (e) {
       debugPrint('Erreur lors de la récupération de la date du catalogue : $e');
@@ -76,7 +75,8 @@ class Api {
         debugPrint('Une mise à jour de catalog.db est disponible.');
         return true;
       }
-    } catch (e) {
+    }
+    catch (e) {
       debugPrint('Erreur lors de la vérification de mise à jour du catalogue : $e');
     }
     return false;
@@ -104,7 +104,9 @@ class Api {
   }
 
   /// Vérifie si une mise à jour de la bibliothèque pour une langue donnée est disponible.
-  static Future<bool> isLibraryUpdateAvailable(String languageSymbol) async {
+  static Future<bool> isLibraryUpdateAvailable() async {
+    String languageSymbol = JwLifeApp.settings.currentLanguage.symbol;
+
     try {
       final url = langCatalogUrl.replaceFirst('{language_code}', languageSymbol);
       final response = await http.get(Uri.parse(url));

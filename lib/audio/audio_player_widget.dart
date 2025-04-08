@@ -1,10 +1,11 @@
 import 'dart:async';
-import 'dart:convert';
+import 'dart:io';
+import 'dart:typed_data';
+
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
-import 'package:http/http.dart' as http;
-import 'package:html/parser.dart' as html;
+import 'package:palette_generator/palette_generator.dart';
 import '../app/jwlife_app.dart';
 
 import '../core/icons.dart';
@@ -25,8 +26,8 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
   JwAudioPlayer jwAudioPlayer = JwLifeApp.jwAudioPlayer;
   bool _isPlaying = false;
   String _currentTitle = "";
+  String _currentAlbum = "";
   ImageCachedWidget? _currentImageWidget;
-  String _currentSubtitles = "";
   Duration _position = Duration.zero;
   Duration _duration = Duration.zero;
 
@@ -49,12 +50,12 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
       setState(() {
         _currentTitle = tag.title;
         _currentImageWidget = ImageCachedWidget(
-          imageUrl: tag.artUri.toString(),
+          imageUrl: tag.artUri!.toString(),
           pathNoImage: 'pub_type_audio',
           width: 60,
           height: 60,
         );
-        _currentSubtitles = tag.displaySubtitle ?? "";
+        _currentAlbum = tag.album!;
       });
     });
 
@@ -79,8 +80,7 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
   Widget build(BuildContext context) {
     return widget.visible && _currentTitle.isNotEmpty ? GestureDetector(
       onTap: () {
-        showPage(context, SubtitleView(
-            titre: _currentTitle, subtitleKey: _currentSubtitles),
+        showPage(context, FullAudioView(),
         );
       },
       child: Stack(
@@ -128,7 +128,12 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
                             iconSize: 18,
                             icon: const Icon(JwIcons.triangle_to_bar_left),
                             onPressed: () {
-                              jwAudioPlayer.previous();
+                              if (jwAudioPlayer.player.hasPrevious) {
+                                jwAudioPlayer.previous();
+                              }
+                              else {
+                                jwAudioPlayer.player.seek(Duration.zero);
+                              }
                             },
                           ),
                           IconButton(
@@ -147,10 +152,11 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
                           ),
                           IconButton(
                             iconSize: 18,
-                            icon: const Icon(JwIcons.triangle_to_bar_right),
-                            onPressed: () {
-                              jwAudioPlayer.next();
-                            },
+                            icon: Icon(
+                              JwIcons.triangle_to_bar_right,
+                              color: jwAudioPlayer.player.hasNext ? null : Colors.grey, // Applique la couleur gris si désactivé
+                            ),
+                            onPressed: jwAudioPlayer.player.hasNext ? () => jwAudioPlayer.next() : () {},
                           ),
                           IconButton(
                             iconSize: 18,
@@ -271,6 +277,13 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
                             icon: const Icon(JwIcons.x),
                             onPressed: () {
                               jwAudioPlayer.close();
+                              setState(() {
+                                _currentImageWidget = null;
+                                _currentTitle = "";
+                                _currentAlbum = "";
+                                _position = Duration.zero;
+                                _duration = Duration.zero;
+                              });
                             },
                           ),
                         ],
@@ -305,7 +318,10 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
           Positioned(
             top: 20,
             left: 15,
-            child: _currentImageWidget ?? Container()
+            child: _currentImageWidget == null ? Container() : ClipRRect(
+                borderRadius: BorderRadius.circular(5),
+                child: _currentImageWidget
+            )
           ),
         ],
       ),
@@ -313,62 +329,262 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
   }
 }
 
-
-class SubtitleView extends StatefulWidget {
-  final String titre;
-  final String subtitleKey;
-
-  const SubtitleView({Key? key, required this.titre, required this.subtitleKey}) : super(key: key);
+class FullAudioView extends StatefulWidget {
+  const FullAudioView({super.key});
 
   @override
-  _SubtitleViewState createState() => _SubtitleViewState();
+  _FullAudioViewState createState() => _FullAudioViewState();
 }
 
-class _SubtitleViewState extends State<SubtitleView> {
-  String? _subtitles;
-  String? _pdfPath;
+class _FullAudioViewState extends State<FullAudioView> {
+  JwAudioPlayer jwAudioPlayer = JwLifeApp.jwAudioPlayer;
+  bool _isPlaying = false;
+  String _currentTitle = "";
+  String _currentAlbum = "";
+  ImageCachedWidget? _currentImageWidget;
+  Duration _position = Duration.zero;
+  Duration _duration = Duration.zero;
+  Color _dominantColor = Colors.black;
+
+  late StreamSubscription<PlayerState> _playerStateSubscription;
+  late StreamSubscription<SequenceState?> _sequenceStateSubscription;
+  late StreamSubscription<Duration?> _durationSubscription;
+  late StreamSubscription<Duration> _positionSubscription;
 
   @override
   void initState() {
     super.initState();
-    _loadSubtitles();
+
+    _playerStateSubscription =
+        jwAudioPlayer.player.playerStateStream.listen((state) {
+          setState(() {
+            _isPlaying = state.playing;
+          });
+        });
+
+    _sequenceStateSubscription =
+        jwAudioPlayer.player.sequenceStateStream.listen((state) {
+          if (state != null) {
+            int currentIndex = state.currentIndex;
+            ProgressiveAudioSource source = state
+                .sequence[currentIndex] as ProgressiveAudioSource;
+            var tag = source.tag as MediaItem;
+
+            setState(() {
+              _currentTitle = tag.title;
+              _currentAlbum = tag.album ?? "";
+              _currentImageWidget = ImageCachedWidget(
+                imageUrl: tag.artUri!.toString(),
+                pathNoImage: 'pub_type_audio',
+                width: 60,
+                height: 60,
+              );
+            });
+
+            _updateBackgroundColor();
+          }
+        });
+
+    _durationSubscription =
+        jwAudioPlayer.player.durationStream.listen((duration) {
+          setState(() {
+            _duration = duration ?? Duration.zero;
+          });
+        });
+
+    _positionSubscription =
+        jwAudioPlayer.player.positionStream.listen((position) {
+          setState(() {
+            _position = position;
+          });
+        });
+
+    _updateBackgroundColor();
   }
 
-  Future<void> _loadSubtitles() async {
-    try {
-      final response = await http.get(Uri.parse(widget.subtitleKey));
-      if (response.statusCode == 200) {
-        var document = html.parse(utf8.decode(response.bodyBytes));
-        setState(() {
-          _subtitles = document.body?.text ?? "Aucun sous-titre disponible";
-        });
-      }
-    } catch (e) {
-      setState(() {
-        _subtitles = "Erreur lors du chargement des sous-titres.";
-      });
+  @override
+  void dispose() {
+    _playerStateSubscription.cancel();
+    _sequenceStateSubscription.cancel();
+    _durationSubscription.cancel();
+    _positionSubscription.cancel();
+    super.dispose();
+  }
+
+  Future<void> _updateBackgroundColor() async {
+    ImageProvider imageProvider;
+    if (_currentImageWidget!.imageUrl!.startsWith('https')) {
+      imageProvider = NetworkImage(_currentImageWidget!.imageUrl!);
     }
+    else if (_currentImageWidget!.imageUrl!.startsWith('file')) {
+      imageProvider =
+          FileImage(File.fromUri(Uri.parse(_currentImageWidget!.imageUrl!)));
+    }
+    else {
+      imageProvider =
+          FileImage(File.fromUri(Uri.parse(_currentImageWidget!.pathNoImage)));
+    }
+
+    final palette = await PaletteGenerator.fromImageProvider(imageProvider);
+
+    setState(() {
+      _dominantColor = palette.dominantColor?.color ?? Colors.black;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.titre),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(8.0),
+      body: Container(
+        decoration: BoxDecoration(
+          color: _dominantColor,
+        ),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (_subtitles != null) Text(_subtitles!) else const CircularProgressIndicator(),
-            const SizedBox(height: 20),
-            if (_pdfPath != null)
-              SizedBox(
-                height: 400
-              )
-            else
-              const Text('Partition PDF non disponible.'),
+            // Partie avec padding
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    AppBar(
+                      backgroundColor: Colors.transparent,
+                      elevation: 0,
+                      leading: IconButton(
+                        icon: Icon(
+                            Icons.keyboard_arrow_down, color: Colors.white,
+                            size: 32),
+                        onPressed: () {
+                          _playerStateSubscription.cancel();
+                          _sequenceStateSubscription.cancel();
+                          _durationSubscription.cancel();
+                          _positionSubscription.cancel();
+                          Navigator.pop(context);
+                        },
+                      ),
+                      actions: [
+                        IconButton(
+                          icon: Icon(Icons.more_vert, color: Colors.white,
+                              size: 32),
+                          onPressed: () {},
+                        ),
+                      ],
+                    ),
+                    Expanded(
+                      child: Center(
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: _currentImageWidget != null
+                              ? ImageCachedWidget(
+                            imageUrl: _currentImageWidget!.imageUrl!,
+                            pathNoImage: _currentImageWidget!.pathNoImage,
+                            width: 380,
+                            height: 380,
+                          )
+                              : Container(),
+                        ),
+                      ),
+                    ),
+                    // Alignement à gauche
+                    Text(
+                      _currentTitle,
+                      style: TextStyle(color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      _currentAlbum,
+                      style: TextStyle(color: Colors.white70, fontSize: 16),
+                    ),
+                    SizedBox(height: 5),
+                  ],
+                ),
+              ),
+            ),
+
+            // Partie du slider sans padding, bien centré
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 0),
+              child: Column(
+                children: [
+                  SliderTheme(
+                    data: SliderThemeData(
+                      trackHeight: 2.0,
+                      thumbColor: Colors.white,
+                      activeTrackColor: Colors.white,
+                      inactiveTrackColor: Colors.white30,
+                    ),
+                    child: Slider(
+                      value: _position.inSeconds.toDouble(),
+                      max: _duration.inSeconds.toDouble(),
+                      onChanged: (value) {
+                        jwAudioPlayer.player.seek(Duration(seconds: value
+                            .toInt()));
+                      },
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(formatDuration(_position.inSeconds.toDouble()),
+                            style: TextStyle(color: Colors.white)),
+                        Text(formatDuration(_duration.inSeconds.toDouble()),
+                            style: TextStyle(color: Colors.white)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Contrôles audio
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 20.0, vertical: 10),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  IconButton(
+                    icon: Icon(
+                        Icons.skip_previous, color: Colors.white, size: 40),
+                    onPressed: () {
+                      jwAudioPlayer.previous();
+                    },
+                  ),
+                  SizedBox(width: 20),
+                  IconButton(
+                    icon: Icon(
+                      _isPlaying ? Icons.pause_circle_filled : Icons
+                          .play_circle_filled,
+                      color: Colors.white,
+                      size: 80,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        if (_isPlaying) {
+                          jwAudioPlayer.pause();
+                        } else {
+                          jwAudioPlayer.play();
+                        }
+                      });
+                    },
+                  ),
+                  SizedBox(width: 20),
+                  IconButton(
+                    icon: Icon(Icons.skip_next, color: Colors.white, size: 40),
+                    onPressed: () {
+                      jwAudioPlayer.next();
+                    },
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(height: 40),
           ],
         ),
       ),

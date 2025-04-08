@@ -5,36 +5,148 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/core/utils/files_helper.dart';
-import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'package:sqflite/sqflite.dart';
 
 import 'language_dialog.dart';
 
-void showNoConnectionDialog(BuildContext context) {
-  showDialog(
+class JwDialogButton {
+  final String label;
+  final bool closeDialog;
+  final Function(BuildContext)? onPressed;
+  final dynamic result;
+
+  JwDialogButton({
+    required this.label,
+    this.closeDialog = true,
+    this.onPressed,
+    this.result,
+  });
+}
+
+
+Future<T?> showJwDialog<T>({
+  required BuildContext context,
+  Widget? title,
+  String? titleText,
+  Widget? content,
+  String? contentText,
+  List<JwDialogButton> buttons = const [],
+  MainAxisAlignment buttonAxisAlignment = MainAxisAlignment.spaceBetween,
+}) {
+  return showDialog<T>(
     context: context,
     builder: (BuildContext context) {
-      return AlertDialog(
-        content: const Text('Connectez-vous à Internet.'),
-        actions: [
-          TextButton(
-            child: const Text('OK'),
-            onPressed: () {
-              Navigator.of(context).pop();
-            },
+      return Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(3),
+        ),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Theme.of(context).brightness == Brightness.dark
+                ? const Color(0xFF353535)
+                : const Color(0xFFFFFFFF),
+            borderRadius: BorderRadius.circular(3),
           ),
-          TextButton(
-            child: const Text('PARAMÈTRES'),
-            onPressed: () {
-              AppSettings.openAppSettings(type: AppSettingsType.wifi);
-            },
+          margin: const EdgeInsets.all(0.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.start,
+            children: [
+              if (title != null || titleText != null)
+                const SizedBox(height: 20),
+              if (title != null)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 25),
+                  child: title
+                ),
+              if (titleText != null)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 25),
+                  child: Text(
+                    titleText,
+                    style: TextStyle(
+                      color: Theme.of(context).brightness == Brightness.dark ? Color(0xFFFFFFFF) : Color(0xFF212121),
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              if (content != null || contentText != null)
+                SizedBox(height: (title == null && titleText == null) ? 18 : 15),
+              if (content != null)
+                content,
+              if (contentText != null)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 25),
+                  child: Text(
+                    contentText,
+                    style: TextStyle(
+                      color: Theme.of(context).brightness == Brightness.dark ? Color(0xFFB1B1B1) : Color(0xFF676767),
+                      fontSize: 16,
+                    ),
+                  ),
+                ),
+              if (contentText != null)
+                const SizedBox(height: 10),
+              if (buttons.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  child: Row(
+                    mainAxisAlignment: buttonAxisAlignment,
+                    children: buttons.map((btn) {
+                      return TextButton(
+                        onPressed: () {
+                          if (btn.closeDialog) {
+                            Navigator.of(context).pop(btn.result);
+                          }
+                          btn.onPressed?.call(context);
+                        },
+                        child: Text(
+                          btn.label,
+                          style: TextStyle(
+                            fontFamily: 'Roboto',
+                            letterSpacing: 1,
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).primaryColor,
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+              const SizedBox(height: 5),
+            ],
           ),
-        ],
+        ),
       );
     },
   );
 }
 
-Future<String> showWeekSelectionDialog(BuildContext context) async {
+void showNoConnectionDialog(BuildContext context) {
+  showJwDialog(
+    context: context,
+    contentText: 'Connectez-vous à Internet.',
+    buttonAxisAlignment: MainAxisAlignment.end,
+    buttons: [
+      JwDialogButton(
+        label: 'OK',
+        onPressed: (buildContext) {
+          Navigator.of(buildContext).pop();
+        },
+      ),
+      JwDialogButton(
+        label: 'PARAMÈTRES',
+        onPressed: (buildContext) {
+          AppSettings.openAppSettings(type: AppSettingsType.wifi);
+        },
+      ),
+    ],
+  );
+}
+
+Future<DateTime> showWeekSelectionDialog(BuildContext context, DateTime initialDate) async {
   // Requête SQL pour récupérer la dernière date
   String query = '''
   SELECT End
@@ -49,7 +161,7 @@ Future<String> showWeekSelectionDialog(BuildContext context) async {
   File catalogFile = await getCatalogFile();
   Database db = await openReadOnlyDatabase(catalogFile.path);
 
-  List<Map<String, dynamic>> result = await db.rawQuery(query, [JwLifeApp.currentLanguage.id]);
+  List<Map<String, dynamic>> result = await db.rawQuery(query, [JwLifeApp.settings.currentLanguage.id]);
 
   db.close();
 
@@ -73,7 +185,7 @@ Future<String> showWeekSelectionDialog(BuildContext context) async {
     DateTime currentWeekEnd = currentWeekStart.add(Duration(days: 6));
 
     // Formater les dates pour afficher la semaine au format "6-12 janvier", "13-19 janvier", etc.
-    String weekRange = '${DateFormat('d', JwLifeApp.locale.languageCode).format(currentWeekStart)}-${DateFormat('d MMMM', JwLifeApp.locale.languageCode).format(currentWeekEnd)}';
+    String weekRange = '${DateFormat('d', JwLifeApp.settings.locale.languageCode).format(currentWeekStart)}-${DateFormat('d MMMM', JwLifeApp.settings.locale.languageCode).format(currentWeekEnd)}';
     weeksList.add(weekRange);
     weeksStartDates.add(currentWeekStart);
 
@@ -81,8 +193,12 @@ Future<String> showWeekSelectionDialog(BuildContext context) async {
     currentWeekStart = currentWeekStart.add(Duration(days: 7));
   }
 
-  // Trouver l'index de la semaine actuelle
-  int currentWeekIndex = weeksStartDates.indexWhere((weekStart) => weekStart.isAtSameMomentAs(currentDate.subtract(Duration(days: currentDate.weekday - 1))));
+  // Trouver l'index de la semaine où initialDate se trouve
+  int selectedWeekIndex = weeksStartDates.indexWhere((weekStart) {
+    // Vérifier si initialDate est dans cette semaine (du lundi au dimanche)
+    DateTime currentWeekEnd = weekStart.add(Duration(days: 6));
+    return initialDate.isAfter(weekStart.subtract(Duration(days: 1))) && initialDate.isBefore(currentWeekEnd.add(Duration(days: 1)));
+  });
 
   // Afficher un dialogue pour la sélection de la semaine
   String? selectedWeek = await showDialog<String>(
@@ -117,7 +233,7 @@ Future<String> showWeekSelectionDialog(BuildContext context) async {
                               title: Text(week),
                               leading: Radio<String>(
                                 value: week,
-                                groupValue: weeksList[currentWeekIndex],
+                                groupValue: weeksList[selectedWeekIndex],
                                 onChanged: (String? value) {
                                   Navigator.pop(context, value);
                                 },
@@ -144,11 +260,10 @@ Future<String> showWeekSelectionDialog(BuildContext context) async {
   // Si une semaine a été sélectionnée, retourner la date du lundi de cette semaine
   if (selectedWeek != null && selectedWeek.isNotEmpty) {
     int selectedIndex = weeksList.indexOf(selectedWeek);
-    DateTime selectedWeekStart = weeksStartDates[selectedIndex];
-    return DateFormat('yyyyMMdd').format(selectedWeekStart);  // Retourne le premier jour de la semaine au format 'yyyy-MM-dd'
+    return weeksStartDates[selectedIndex];
   }
 
-  return '';  // Retourne une chaîne vide si aucune semaine n'est sélectionnée
+  return DateTime.now();  // Retourne une chaîne vide si aucune semaine n'est sélectionnée
 }
 
 Future showLibraryLanguageDialog(BuildContext context) {

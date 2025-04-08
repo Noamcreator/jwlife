@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/core/icons.dart';
-import 'package:jwlife/data/firebase/firebase.dart';
-import 'package:jwlife/l10n/localization.dart';
+import 'package:jwlife/i18n/localization.dart';
 import 'dart:convert';
 import 'package:searchfield/searchfield.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -26,9 +24,10 @@ class _CongregationsViewState extends State<CongregationsView> {
   @override
   void initState() {
     super.initState();
-    _fetchCongregationsFromFirestore();
+    //_fetchCongregationsFromFirestore();
   }
 
+  /*
   Future<CollectionReference> getCongregationCollection() async {
     DocumentReference userDoc = await getUserCollection();
     return userDoc.collection('congregations');
@@ -69,13 +68,16 @@ class _CongregationsViewState extends State<CongregationsView> {
     }
   }
 
+   */
+
   Future<List<dynamic>> _fetchCongregations(String query) async {
+    /*
     final queryParams = {
       'includeSuggestions': 'true',
       'keywords': query,
       'latitude': '0',
       'longitude': '0',
-      'searchLanguageCode': JwLifeApp.currentLanguage.symbol
+      'searchLanguageCode': JwLifeApp.settings.currentLanguage.symbol
     };
 
     final url = Uri.https(
@@ -91,6 +93,7 @@ class _CongregationsViewState extends State<CongregationsView> {
         return data['geoLocationList'].map((item) => _convertSuggestionToCongregation(item)).toList();
       }
     }
+     */
     return [];
   }
 
@@ -127,6 +130,7 @@ class _CongregationsViewState extends State<CongregationsView> {
   }
 
   Future<void> _saveCongregationToFirestore(dynamic data) async {
+    /*
     try {
       CollectionReference congregationCollection = await getCongregationCollection();
 
@@ -142,6 +146,8 @@ class _CongregationsViewState extends State<CongregationsView> {
     } catch (e) {
       debugPrint('Erreur lors de l\'enregistrement : $e');
     }
+
+     */
   }
 
   void _showEditDialog(Map<String, dynamic> congregation) {
@@ -175,6 +181,7 @@ class _CongregationsViewState extends State<CongregationsView> {
             ),
             ElevatedButton(
               onPressed: () async {
+                /*
                 try {
                   CollectionReference congregationCollection = await getCongregationCollection();
 
@@ -191,6 +198,8 @@ class _CongregationsViewState extends State<CongregationsView> {
                 } catch (e) {
                   debugPrint('Erreur lors de la mise à jour : $e');
                 }
+
+                 */
               },
               child: const Text('Enregistrer'),
             ),
@@ -201,6 +210,7 @@ class _CongregationsViewState extends State<CongregationsView> {
   }
 
   Future<void> _updateCongregation(Map<String, dynamic> congregation) async {
+    /*
     try {
       List<dynamic> congregations = await _fetchCongregations(congregation['name']);
       dynamic data = congregations.first;
@@ -231,6 +241,8 @@ class _CongregationsViewState extends State<CongregationsView> {
     } catch (e) {
       debugPrint('Erreur lors de la mise à jour : $e');
     }
+
+     */
   }
 
   // Fonction pour obtenir le nom du jour localisé
@@ -239,7 +251,7 @@ class _CongregationsViewState extends State<CongregationsView> {
     final now = DateTime.now();
     final date = now.add(Duration(days: (weekday - now.weekday)));
     // Formatage avec intl pour obtenir le jour localisé
-    return DateFormat.EEEE(JwLifeApp.locale.languageCode).format(date);
+    return DateFormat.EEEE(JwLifeApp.settings.locale.languageCode).format(date);
   }
 
   @override
@@ -381,6 +393,7 @@ class _CongregationsViewState extends State<CongregationsView> {
                                 IconButton(
                                   icon: const Icon(JwIcons.trash, color: Colors.red),
                                   onPressed: () async {
+                                    /*
                                     try {
                                       CollectionReference congregationCollection = await getCongregationCollection();
                                       congregationCollection
@@ -392,6 +405,8 @@ class _CongregationsViewState extends State<CongregationsView> {
                                     } catch (e) {
                                       debugPrint('Erreur lors de la suppression : $e');
                                     }
+
+                                     */
                                   },
                                 ),
                               ],

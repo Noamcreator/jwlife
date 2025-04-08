@@ -1,69 +1,31 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
 import 'package:http/http.dart' as http;
 import 'package:jwlife/app/jwlife_app.dart';
-import 'package:jwlife/app/jwlife_view.dart';
 import 'package:jwlife/core/api.dart';
-import 'package:jwlife/core/utils/common_ui.dart';
+import 'package:jwlife/core/utils/utils_audio.dart';
 import 'package:jwlife/core/utils/utils_document.dart';
-import 'package:jwlife/core/utils/utils_publication.dart';
+import 'package:jwlife/core/utils/utils_video.dart';
+import 'package:jwlife/data/databases/Publication.dart';
 import 'package:jwlife/data/databases/catalog.dart';
-import 'package:jwlife/video/video_player_view.dart';
-import 'package:jwlife/widgets/dialog/language_dialog.dart';
-import 'package:share_plus/share_plus.dart';
+import 'package:jwlife/data/realm/catalog.dart';
+import 'package:jwlife/modules/home/views/search_views/search_model.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class AllSearchTab extends StatefulWidget {
-  final String query;
+  final SearchModel model;
 
-  const AllSearchTab({
-    Key? key,
-    required this.query,
-  }) : super(key: key);
+  const AllSearchTab({super.key, required this.model});
 
   @override
   _AllSearchTabState createState() => _AllSearchTabState();
 }
 
 class _AllSearchTabState extends State<AllSearchTab> {
-  List<Map<String, dynamic>> results = [];
-
   @override
   void initState() {
     super.initState();
-    fetchApiJw(widget.query);
-  }
-
-  Future<void> fetchApiJw(String query) async {
-    final queryParams = {'q': query};
-    final url = Uri.https('b.jw-cdn.org', '/apis/search/results/${JwLifeApp.currentLanguage.symbol}/all', queryParams);
-
-    try {
-      Map<String, String> headers = {
-        'Authorization': 'Bearer ${Api.currentJwToken}',
-      };
-
-      http.Response alertResponse = await http.get(url, headers: headers);
-      if (alertResponse.statusCode == 200) {
-        Map<String, dynamic> data = jsonDecode(alertResponse.body);
-        setState(() {
-          results = (data['results'] as List).map((item) {
-            return {
-              'type': item['type'] ?? '',
-              'label': item['label'] ?? '',
-              'links': item['links'] ?? [],
-              'layout': item['layout'] ?? [],
-              'results': item['results'] ?? [],
-            };
-          }).toList();
-        });
-      }
-      else {
-        print('Erreur de requête HTTP: ${alertResponse.statusCode}');
-      }
-    } catch (e) {
-      print('Erreur lors de la récupération des données de l\'API: $e');
-    }
   }
 
   Widget _buildVerseList(dynamic result) {
@@ -110,6 +72,73 @@ class _AllSearchTabState extends State<AllSearchTab> {
     );
   }
 
+  Widget _buildIndexList(dynamic result) {
+    return SizedBox(
+      height: 120, // Hauteur pour les éléments horizontaux
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        itemCount: result['results'].length,
+        itemBuilder: (context, publicationIndex) {
+          final item = result['results'][publicationIndex];
+          return GestureDetector(
+            child: Card(
+              color: Theme.of(context).brightness == Brightness.dark ? Color(0xFF292929) : Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
+              margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
+              child: SizedBox(
+                width: 250, // Garde la hauteur de la Card
+                child: Row(
+                  children: [
+                    // Texte à droite
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.all(10.0), // Ajoute un peu de padding autour du texte
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              item['title'],
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              item['context'],
+                              style: TextStyle(
+                                color: Colors.grey,
+                                fontSize: 14,
+                              ),
+                              maxLines: 3, // Limite le texte à 3 lignes
+                              overflow: TextOverflow.ellipsis, // Si le texte est trop long, il sera tronqué
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            onTap: () async {
+              if (item['links'] != null && item['links']['wol'] != null) {
+                String lank = item['lank'];
+                int docId = int.parse(lank.replaceAll("pa-", ""));
+
+                showDocumentView(context, docId, JwLifeApp.settings.currentLanguage.id);
+              }
+              else {
+                print(item['links']['jw.org']);
+              }
+            },
+          );
+        },
+      ),
+    );
+  }
+
   Widget _buildVideosList(dynamic result) {
     return SizedBox(
       height: 200, // Hauteur pour les éléments horizontaux
@@ -118,14 +147,10 @@ class _AllSearchTabState extends State<AllSearchTab> {
         itemCount: result['results'].length,
         itemBuilder: (context, videoIndex) {
           final item = result['results'][videoIndex];
+          MediaItem mediaItem = getVideoItemFromLank(item['lank'], JwLifeApp.settings.currentLanguage.symbol);
           return GestureDetector(
             onTap: () async {
-              JwLifeView.toggleNavBarBlack.call(JwLifeView.currentTabIndex, true);
-
-              showPage(context, VideoPlayerView(
-                lank: item['lank'],
-                lang: JwLifeApp.currentLanguage.symbol,
-              ));
+              showFullScreenVideo(context, mediaItem);
             },
             child: Card(
               color: Theme.of(context).brightness == Brightness.dark ? Color(0xFF292929) : Colors.white,
@@ -169,58 +194,17 @@ class _AllSearchTabState extends State<AllSearchTab> {
                       Positioned(
                         top: 2,
                         right: 0,
-                        child: PopupMenuButton<String>(
-                          icon: Icon(Icons.more_vert, color: Colors.white, size: 30),
-                          itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-                            PopupMenuItem(
-                              child: const Text('Envoyer le lien'),
-                              onTap: () {
-                                Share.share(
-                                  'https://www.jw.org/finder?srcid=jwlshare&wtlocale=${JwLifeApp.currentLanguage.symbol}&lank=${item['lank']}',
-                                );
-                              },
-                            ),
-                            PopupMenuItem(
-                              child: const Text('Ajouter à la liste de lecture'),
-                              onTap: () {
-                                // Action à effectuer lors de l'appui sur le bouton de suppression
-                              },
-                            ),
-                            PopupMenuItem(
-                              child: const Text('Autres langues'),
-                              onTap: () async {
-                                String link = 'https://b.jw-cdn.org/apis/mediator/v1/media-item-availability/${item['lank']}?clientType=www';
-                                final response = await http.get(Uri.parse(link));
-                                if (response.statusCode == 200) {
-                                  final jsonFile = response.body;
-                                  final jsonData = json.decode(jsonFile);
-
-                                  LanguageDialog languageDialog = LanguageDialog(languagesListJson: jsonData['languages']);
-                                  showDialog(
-                                    context: context,
-                                    builder: (context) => languageDialog,
-                                  );
-                                }
-                              },
-                            ),
-                            PopupMenuItem(
-                              child: const Text('Ajouter aux favoris'),
-                              onTap: () {
-                                // Action à effectuer lors de l'appui sur le bouton de suppression
-                              },
-                            ),
-                            PopupMenuItem(
-                              child: const Text('Télécharger la vidéo'),
-                              onTap: () {
-                                // Action à effectuer lors de l'appui sur le bouton de suppression
-                              },
-                            ),
-                            PopupMenuItem(
-                              child: const Text('Copier les sous-titres'),
-                              onTap: () {
-                                // Action à effectuer lors de l'appui sur le bouton de suppression
-                              },
-                            ),
+                        child: PopupMenuButton(
+                          icon: const Icon(Icons.more_vert, color: Colors.white, shadows: [Shadow(color: Colors.black, blurRadius: 5)]),
+                          shadowColor: Colors.black,
+                          elevation: 8,
+                          itemBuilder: (context) => [
+                            getVideoShareItem(mediaItem),
+                            getVideoLanguagesItem(context, mediaItem),
+                            getVideoFavoriteItem(mediaItem),
+                            getVideoDownloadItem(context, mediaItem),
+                            getShowSubtitlesItem(context, mediaItem),
+                            getCopySubtitlesItem(context, mediaItem),
                           ],
                         ),
                       ),
@@ -258,11 +242,10 @@ class _AllSearchTabState extends State<AllSearchTab> {
         itemCount: result['results'].length,
         itemBuilder: (context, audioIndex) {
           final item = result['results'][audioIndex];
+          MediaItem mediaItem = getVideoItemFromLank(item['lank'], JwLifeApp.settings.currentLanguage.symbol);
           return GestureDetector(
             onTap: () async {
-              JwLifeApp.jwAudioPlayer.setRandomMode(false);
-              JwLifeApp.jwAudioPlayer.fetchAudioData(item['lank'], JwLifeApp.currentLanguage.symbol);
-              JwLifeApp.jwAudioPlayer.play();
+              showAudioPlayer(context, mediaItem);
             },
             child: Card(
               color: Theme.of(context).brightness == Brightness.dark ? Color(0xFF292929) : Colors.white,
@@ -306,58 +289,17 @@ class _AllSearchTabState extends State<AllSearchTab> {
                       Positioned(
                         top: 2,
                         right: 0,
-                        child: PopupMenuButton<String>(
-                          icon: Icon(Icons.more_vert, color: Colors.white, size: 30),
-                          itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-                            PopupMenuItem(
-                              child: const Text('Envoyer le lien'),
-                              onTap: () {
-                                Share.share(
-                                  'https://www.jw.org/finder?srcid=jwlshare&wtlocale=${JwLifeApp.currentLanguage.symbol}&lank=${item['lank']}',
-                                );
-                              },
-                            ),
-                            PopupMenuItem(
-                              child: const Text('Ajouter à la liste de lecture'),
-                              onTap: () {
-                                // Action à effectuer lors de l'appui sur le bouton de suppression
-                              },
-                            ),
-                            PopupMenuItem(
-                              child: const Text('Autres langues'),
-                              onTap: () async {
-                                String link = 'https://b.jw-cdn.org/apis/mediator/v1/media-item-availability/${item['lank']}?clientType=www';
-                                final response = await http.get(Uri.parse(link));
-                                if (response.statusCode == 200) {
-                                  final jsonFile = response.body;
-                                  final jsonData = json.decode(jsonFile);
-
-                                  LanguageDialog languageDialog = LanguageDialog(languagesListJson: jsonData['languages']);
-                                  showDialog(
-                                    context: context,
-                                    builder: (context) => languageDialog,
-                                  );
-                                }
-                              },
-                            ),
-                            PopupMenuItem(
-                              child: const Text('Ajouter aux favoris'),
-                              onTap: () {
-                                // Action à effectuer lors de l'appui sur le bouton de suppression
-                              },
-                            ),
-                            PopupMenuItem(
-                              child: const Text('Télécharger la vidéo'),
-                              onTap: () {
-                                // Action à effectuer lors de l'appui sur le bouton de suppression
-                              },
-                            ),
-                            PopupMenuItem(
-                              child: const Text('Copier les sous-titres'),
-                              onTap: () {
-                                // Action à effectuer lors de l'appui sur le bouton de suppression
-                              },
-                            ),
+                        child: PopupMenuButton(
+                          icon: const Icon(Icons.more_vert, color: Colors.white, shadows: [Shadow(color: Colors.black, blurRadius: 5)]),
+                          shadowColor: Colors.black,
+                          elevation: 8,
+                          itemBuilder: (context) => [
+                            getVideoShareItem(mediaItem),
+                            getVideoLanguagesItem(context, mediaItem),
+                            getVideoFavoriteItem(mediaItem),
+                            getVideoDownloadItem(context, mediaItem),
+                            getShowSubtitlesItem(context, mediaItem),
+                            getCopySubtitlesItem(context, mediaItem),
                           ],
                         ),
                       ),
@@ -477,9 +419,9 @@ class _AllSearchTabState extends State<AllSearchTab> {
                   }
                 }
 
-                Map<String, dynamic>? publication = await PublicationsCatalog.searchPub(keySymbol, issueTagNumber);
+                Publication? publication = await PubCatalog.searchPub(keySymbol, int.parse(issueTagNumber), JwLifeApp.settings.currentLanguage.id);
                 if (publication != null) {
-                  showPublicationMenu(context, publication);
+                  publication.showMenu(context, update: null);
                 }
                 else {
                   print('Publication not found for lank: $lank');
@@ -501,139 +443,109 @@ class _AllSearchTabState extends State<AllSearchTab> {
 
   @override
   Widget build(BuildContext context) {
-    return ListView.builder(
-      itemCount: results.length,
-      itemBuilder: (context, index) {
-        final result = results[index];
-        if (result['type'] == 'group' && result['results'].isNotEmpty) {
-          return Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                result['label'] != null && result['label'] != '' ? Text(result['label'], style: TextStyle(fontSize: 25, fontWeight: FontWeight.bold)) : Container(),
-                if (result['layout'].contains('bible')) // Pour les vidéos et audios
-                  _buildVerseList(result)
-                else if (result['layout'].contains('videos')) // Pour les vidéos et audios
-                    _buildVideosList(result)
-                else if (result['layout'].contains('audio')) // Pour les vidéos et audios
-                    _buildAudioList(result)
-                else if (result['layout'].contains('publications')) // Pour les vidéos et audios
-                    _buildPublicationsList(result)
-                else if (result['layout'].contains('linkGroup')) // Pour les articles
-                      Column(
-                        children: result['results'].map<Widget>((index) {
-                          return GestureDetector(
-                            onTap: () async {
-                              if (index['links'] != null && index['links']['wol'] != null) {
-                                String lank = index['lank'];
-                                int docId = int.parse(lank.replaceAll("pa-", ""));
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: widget.model.fetchAllSearch(), // Appel de la méthode fetchAllSearch
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          // Affiche un indicateur de chargement pendant l'attente de la réponse
+          return Center(child: CircularProgressIndicator());
+        } else if (snapshot.hasError) {
+          // Affiche un message d'erreur si la récupération des données échoue
+          return Center(child: Text('Erreur: ${snapshot.error}'));
+        } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          // Affiche un message si aucune donnée n'a été trouvée
+          return Center(child: Text('Aucun résultat trouvé.'));
+        } else {
+          // Si les données sont récupérées avec succès, on affiche la liste
+          final results = snapshot.data!;
+          return ListView.builder(
+            itemCount: results.length,
+            itemBuilder: (context, index) {
+              final result = results[index];
+              if (result['type'] == 'group' && result['results'].isNotEmpty) {
+                return Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      result['label'] != null && result['label'] != ''
+                          ? Text(result['label'], style: TextStyle(fontSize: 25, fontWeight: FontWeight.bold))
+                          : Container(),
+                      if (result['layout'].contains('bible')) // Pour les vidéos et audios
+                        _buildVerseList(result)
+                      else if (result['layout'].contains('videos')) // Pour les vidéos et audios
+                        _buildVideosList(result)
+                      else if (result['layout'].contains('audio')) // Pour les vidéos et audios
+                          _buildAudioList(result)
+                        else if (result['layout'].contains('publications')) // Pour les vidéos et audios
+                            _buildPublicationsList(result)
+                          else if (result['layout'].contains('linkGroup')) // Pour les articles
+                              _buildIndexList(result)
+                            else if (result['layout'].contains('flat')) // Pour les articles
+                                Column(
+                                  children: result['results'].map<Widget>((article) {
+                                    return GestureDetector(
+                                      onTap: () {
+                                        if (article['links'] != null && article['links']['wol'] != null) {
+                                          String lank = article['lank'];
+                                          int docId = int.parse(lank.replaceAll("pa-", ""));
 
-                                showDocumentView(context, docId);
-                              }
-                              else {
-                                print(index['links']['jw.org']);
-                              }
-                            },
-                            child: Card(
-                              color: Theme.of(context).brightness == Brightness.dark ? Colors.black : Colors.white,
-                              margin: EdgeInsets.symmetric(vertical: 5.0),
-                              child: Padding(
-                                padding: const EdgeInsets.all(8.0),
-                                child: Row(
-                                  children: [
-                                    // Image à gauche
-                                    Container(
-                                      width: 80, // Définit la largeur fixe pour l'image en mode portrait
-                                      height: 80, // Garde la hauteur pour correspondre à la Card
-                                      color: Colors.grey,
-                                    ),
-                                    SizedBox(width: 10), // Espacement entre l'image et le texte
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start, // Alignement à gauche
-                                        children: [
-                                          // Titre en haut à droite
-                                          Text(
-                                            index['title'],
-                                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                                            maxLines: 1, // Limiter à une ligne
-                                            overflow: TextOverflow.ellipsis, // Ajouter des points de suspension si le texte est trop long
+                                          print('docId: $docId');
+
+                                          showDocumentView(context, docId, JwLifeApp.settings.currentLanguage.id);
+                                        }
+                                        else {
+                                          print(article['links']['jw.org']);
+                                        }
+                                      },
+                                      child: Card(
+                                        color: Theme.of(context).brightness == Brightness.dark ? Colors.black : Colors.white,
+                                        margin: EdgeInsets.symmetric(vertical: 5.0),
+                                        child: Padding(
+                                          padding: const EdgeInsets.all(8.0),
+                                          child: Row(
+                                            children: [
+                                              // Image à gauche
+                                              article['image'] != null && article['image']['url'] != null
+                                                  ? Image.network(
+                                                article['image']['url'],
+                                                width: 70,
+                                                height: 70,
+                                                fit: BoxFit.cover,
+                                              )
+                                                  : Container(width: 70, height: 70, color: Colors.grey),
+                                              SizedBox(width: 10), // Espacement entre l'image et le texte
+                                              Expanded(
+                                                child: Column(
+                                                  crossAxisAlignment: CrossAxisAlignment.start, // Alignement à gauche
+                                                  children: [
+                                                    // Titre en haut à droite
+                                                    Text(
+                                                      article['title'] ?? '',
+                                                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                                                      maxLines: 1, // Limiter à une ligne
+                                                      overflow: TextOverflow.ellipsis, // Ajouter des points de suspension si le texte est trop long
+                                                    ),
+                                                    // Snippet en dessous du titre
+                                                    HtmlWidget(article['snippet'] ?? '', textStyle: TextStyle(fontSize: 13, color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black)),
+                                                  ],
+                                                ),
+                                              ),
+                                            ],
                                           ),
-                                        ],
+                                        ),
                                       ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ));
-                        }).toList(),
-                      )
-                else if (result['layout'].contains('flat')) // Pour les articles
-                    Column(
-                      children: result['results'].map<Widget>((article) {
-                        return GestureDetector(
-                          onTap: () {
-                            if (article['links'] != null && article['links']['wol'] != null) {
-                              String lank = article['lank'];
-                              int docId = int.parse(lank.replaceAll("pa-", ""));
-
-                              print('docId: $docId');
-
-                              showDocumentView(context, docId);
-                            }
-                            else {
-                              print(article['links']['jw.org']);
-                            }
-                          },
-                          child: Card(
-                            color: Theme.of(context).brightness == Brightness.dark ? Colors.black : Colors.white,
-                            margin: EdgeInsets.symmetric(vertical: 5.0),
-                            child: Padding(
-                              padding: const EdgeInsets.all(8.0),
-                              child: Row(
-                                children: [
-                                  // Image à gauche
-                                  article['image'] != null && article['image']['url'] != null ? Image.network(
-                                    article['image']['url'],
-                                    width: 70,
-                                    height: 70,
-                                    fit: BoxFit.cover,
-                                  ) : Container(width: 70, height: 70, color: Colors.grey),
-                                  SizedBox(width: 10), // Espacement entre l'image et le texte
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start, // Alignement à gauche
-                                      children: [
-                                        // Titre en haut à droite
-                                        Text(
-                                          article['title'] ?? '',
-                                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                                          maxLines: 1, // Limiter à une ligne
-                                          overflow: TextOverflow.ellipsis, // Ajouter des points de suspension si le texte est trop long
-                                        ),
-                                        // Snippet en dessous du titre
-                                        Text(
-                                          article['snippet'] ?? '',
-                                          style: TextStyle(fontSize: 14),
-                                          maxLines: 2, // Limiter à deux lignes
-                                          overflow: TextOverflow.ellipsis, // Ajouter des points de suspension si le texte est trop long
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        );
-                      }).toList(),
-                    )
-              ],
-            ),
+                                    );
+                                  }).toList(),
+                                )
+                    ],
+                  ),
+                );
+              }
+              return Container(); // Pour les types non gérés
+            },
           );
         }
-        return Container(); // Pour les types non gérés
       },
     );
   }

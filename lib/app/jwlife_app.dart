@@ -1,23 +1,22 @@
-import 'dart:io';
-
 import 'package:beamer/beamer.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:jwlife/app/jw_settings.dart';
 import 'package:jwlife/app/startup/create_database.dart';
 import 'package:jwlife/app/startup/splash_screen.dart';
 import 'package:jwlife/audio/audio_player_model.dart';
+import 'package:jwlife/core/BibleCluesInfo.dart';
 import 'package:jwlife/core/api.dart';
 import 'package:jwlife/core/constants.dart';
 import 'package:jwlife/core/theme.dart';
-import 'package:jwlife/core/utils/files_helper.dart';
+import 'package:jwlife/core/utils/font_downloader.dart';
 import 'package:jwlife/core/utils/shared_preferences_helper.dart';
 import 'package:jwlife/core/utils/utils.dart';
-import 'package:jwlife/core/utils/webview_data.dart';
-import 'package:jwlife/data/meps/language.dart';
+import 'package:jwlife/data/databases/MediaCollections.dart';
+import 'package:jwlife/data/databases/PubCollections.dart';
+import 'package:jwlife/data/databases/PublicationCategory.dart';
+import 'package:jwlife/data/databases/catalog.dart';
 import 'package:jwlife/data/userdata/Userdata.dart';
-import 'package:sqflite_common_ffi/sqflite_ffi.dart';
-
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:jwlife/i18n/app_localizations.dart';
 
 import 'jwlife_view.dart';
 import 'startup/copy_assets.dart';
@@ -25,16 +24,14 @@ import 'startup/copy_assets.dart';
 class JwLifeApp extends StatefulWidget {
   static late Function(Color) togglePrimaryColor;
 
-  static ThemeMode theme = ThemeMode.system;
-  static ThemeData lightData = AppTheme.getLightTheme(Color(0xFF295568));
-  static ThemeData darkData = AppTheme.getDarkTheme(Color.lerp(Color(0xFF295568), Colors.white, 0.3)!);
-  static Locale locale = Locale('en');
-  static JwAudioPlayer jwAudioPlayer = JwAudioPlayer();
+  static JwSettings settings = JwSettings();
+  static PubCollections pubCollections = PubCollections();
+  static MediaCollections mediaCollections = MediaCollections();
   static Userdata userdata = Userdata();
-  static MepsLanguage currentLanguage = MepsLanguage(id: 3, symbol: 'F', vernacular: 'Français', primaryIetfCode: 'fr', rsConf: 'r30', lib: 'lp-f');
-  static WebViewData webviewData = WebViewData();
-  static List<dynamic> bibles = [];
+  static JwAudioPlayer jwAudioPlayer = JwAudioPlayer();
+  static BibleCluesInfo bibleCluesInfo = BibleCluesInfo(bibleBookNames: []);
 
+  // Le constructeur prend settings comme paramètre nommé
   const JwLifeApp({super.key});
 
   @override
@@ -69,46 +66,26 @@ class _JwLifeAppState extends State<JwLifeApp> {
 
   Future<void> _togglePrimaryColor(Color color) async {
     setState(() {
-      JwLifeApp.lightData = AppTheme.getLightTheme(color);
-      JwLifeApp.darkData = AppTheme.getDarkTheme(color);
+      JwLifeApp.settings.lightData = AppTheme.getLightTheme(color);
+      JwLifeApp.settings.darkData = AppTheme.getDarkTheme(color);
     });
-    setPrimaryColor(JwLifeApp.theme, color);
+    setPrimaryColor(JwLifeApp.settings.themeMode, color);
   }
 
   void _toggleTheme(ThemeMode themeMode) {
     setState(() {
-      JwLifeApp.theme = themeMode;
+      JwLifeApp.settings.themeMode = themeMode;
     });
-    JwLifeApp.webviewData.update(themeMode);
+    JwLifeApp.settings.webViewData.update(themeMode);
     final theme = themeMode == ThemeMode.dark ? 'dark' : themeMode == ThemeMode.light ? 'light' : 'system';
     setTheme(theme);
   }
 
   void _changeLocale(Locale locale) {
     setState(() {
-      JwLifeApp.locale = locale;
+      JwLifeApp.settings.locale = locale;
     });
     setLocale(locale.languageCode);
-  }
-
-  Future<void> loadBibles() async {
-    File pubCollectionsFile = await getPubCollectionsFile();
-
-    if (await pubCollectionsFile.exists()) {
-      Database pubCollectionsDB = await openReadOnlyDatabase(pubCollectionsFile.path);
-
-      List<Map<String, dynamic>> result = await pubCollectionsDB.rawQuery('''
-    SELECT DISTINCT
-      Publication.*
-    FROM 
-      Publication
-    WHERE Publication.PublicationCategorySymbol = 'bi'
-''');
-
-      JwLifeApp.bibles = result;
-
-      pubCollectionsDB.close();
-    }
   }
 
   @override
@@ -118,9 +95,9 @@ class _JwLifeAppState extends State<JwLifeApp> {
       return MaterialApp(
         title: Constants.appName,
         debugShowCheckedModeBanner: false,
-        themeMode: JwLifeApp.theme,
-        theme: JwLifeApp.lightData,
-        darkTheme: JwLifeApp.darkData,
+        themeMode: JwLifeApp.settings.themeMode,
+        theme: JwLifeApp.settings.lightData,
+        darkTheme: JwLifeApp.settings.darkData,
         home: Scaffold(
           body: SplashScreen()
         ),
@@ -131,10 +108,10 @@ class _JwLifeAppState extends State<JwLifeApp> {
     return MaterialApp.router(
       title: Constants.appName,
       debugShowCheckedModeBanner: false,
-      themeMode: JwLifeApp.theme,
-      theme: JwLifeApp.lightData,
-      darkTheme: JwLifeApp.darkData,
-      locale: JwLifeApp.locale,
+      themeMode: JwLifeApp.settings.themeMode,
+      theme: JwLifeApp.settings.lightData,
+      darkTheme: JwLifeApp.settings.darkData,
+      locale: JwLifeApp.settings.locale,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
       routerDelegate: routerDelegate!,
@@ -146,12 +123,17 @@ class _JwLifeAppState extends State<JwLifeApp> {
   }
 
   Future<void> initializeData() async {
-    sqfliteFfiInit();
+    PublicationCategory.initializeCategories();
+
     await CopyAssets.copy();
+    await FontDownloader.downloadFonts();
     await CreateDatabase.create();
+    await JwLifeApp.pubCollections.init();
+    await JwLifeApp.mediaCollections.init();
     await JwLifeApp.userdata.init();
-    await JwLifeApp.webviewData.init(JwLifeApp.theme);
-    await loadBibles();
+    await JwLifeApp.settings.webViewData.init();
+
+    await PubCatalog.loadHomePage();
 
     if (await hasInternetConnection()) {
       await Api.fetchCurrentVersion();
