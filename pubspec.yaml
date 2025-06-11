@@ -74,6 +74,8 @@ flutter:
   assets:
     - assets/db/
     - assets/icons/
+    - assets/icons/bookmarks/dark/
+    - assets/icons/bookmarks/light/
     - assets/images/
     - assets/userData/
 

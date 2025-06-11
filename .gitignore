@@ -1,0 +1,10 @@
+# Fichiers de build courants
+/.dart_tool
+/build
+/.idea
+
+# Fichiers temporaires
+*.log
+*.tmp
+*.temp
+*.swp

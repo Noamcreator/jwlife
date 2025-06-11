@@ -627,7 +627,7 @@ class _HomeViewState extends State<HomeView> {
                       ],
                     ),
                     SizedBox(height: 4),
-                    verseOfTheDay != ''
+                    verseOfTheDay != '' || !dailyTextPub.isDownloaded
                         ? Text(
                       dailyTextPub.isDownloaded
                           ? verseOfTheDay
@@ -1448,292 +1448,379 @@ class _HomeViewState extends State<HomeView> {
             }
           },
           child: SingleChildScrollView(
-            child: Stack(
-              children: <Widget>[
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _isRefreshing ? LinearProgressIndicator(
-                      valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).primaryColor),
-                      backgroundColor: Colors.grey[300]) : SizedBox(height: 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _isRefreshing ? LinearProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).primaryColor),
+                    backgroundColor: Colors.grey[300]) : SizedBox(height: 8),
 
-                  /* Afficher le banner */
-                  _buildAlertBannerWidget(),
+                /* Afficher le banner */
+                _buildAlertBannerWidget(),
 
-                  /* Afficher le texte du jour */
-                  _buildDailyTextWidget(),
+                /* Afficher le texte du jour */
+                _buildDailyTextWidget(),
 
-                  /* Afficher l'article en page d'accueil */
-                  _buildArticleWidget(),
+                /* Afficher l'article en page d'accueil */
+                _buildArticleWidget(),
 
-                  Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 10),
-                      child: Column(
-                          children: [
-                            const SizedBox(height: 20),
-                            if (JwLifeApp.userdata.favorites.isNotEmpty)
-                              Text(
-                                localization(context).navigation_favorites,
-                                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                              ),
-                            if (JwLifeApp.userdata.favorites.isNotEmpty)
-                              const SizedBox(height: 4),
-                            if (JwLifeApp.userdata.favorites.isNotEmpty)
-                              SizedBox(
-                                height: 130, // Hauteur à ajuster selon votre besoin
-                                child: ListView.builder(
-                                  scrollDirection: Axis.horizontal,
-                                  itemCount: JwLifeApp.userdata.favorites.length,
-                                  itemBuilder: (context, index) {
-                                    Publication publication = JwLifeApp.pubCollections.getPublication(JwLifeApp.userdata.favorites[index]);
-
-                                    return Padding(
-                                      padding: EdgeInsets.only(left: 2.0, right: 2.0),
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          GestureDetector(
-                                            onTap: () {
-                                              publication.showMenu(context, update: (progress) {setState(() {});});
-                                            },
-                                            child: Stack(
-                                              children: [
-                                                ClipRRect(
-                                                  borderRadius: BorderRadius.circular(2.0),
-                                                  child: ImageCachedWidget(
-                                                      imageUrl: publication.imageSqr,
-                                                      pathNoImage: publication.category.image,
-                                                      height: 80,
-                                                      width: 80
-                                                  ),
-                                                ),
-                                                Positioned(
-                                                  top: -8,
-                                                  right: -10,
-                                                  child: PopupMenuButton(
-                                                    popUpAnimationStyle: AnimationStyle.lerp(AnimationStyle(curve: Curves.ease), AnimationStyle(curve: Curves.ease), 0.5),
-                                                    icon: const Icon(Icons.more_vert, color: Colors.white, shadows: [Shadow(color: Colors.black, blurRadius: 5)]),
-                                                    shadowColor: Colors.black,
-                                                    elevation: 8,
-                                                    itemBuilder: (context) => [
-                                                      getPubShareMenuItem(publication),
-                                                      getPubLanguagesItem(context, "Autres langues", publication),
-                                                      getPubFavoriteItem(publication),
-                                                      getPubDownloadItem(context, publication),
-                                                    ],
-                                                  ),
-                                                ),
-                                                publication.isDownloading ? Positioned(
-                                                    bottom: -4,
-                                                    right: -8,
-                                                    height: 40,
-                                                    child: IconButton(
-                                                      padding: const EdgeInsets.all(0),
-                                                      onPressed: () {
-                                                        publication.cancelDownload(context, update: (progress) {setState(() {});});
-                                                      },
-                                                      icon: const Icon(JwIcons.x, color: Colors.white, shadows: [Shadow(color: Colors.black, blurRadius: 5)]),
-                                                    )) :
-                                                JwLifeApp.userdata.favorites[index].hasUpdate(publication) ? Positioned(
-                                                    bottom: -4,
-                                                    right: -8,
-                                                    height: 40,
-                                                    child: IconButton(
-                                                      padding: const EdgeInsets.all(0),
-                                                      onPressed: () {
-                                                        publication.download(context, update: (progress) {setState(() {});});
-                                                      },
-                                                      icon: const Icon(JwIcons.arrows_circular, color: Colors.white, shadows: [Shadow(color: Colors.black, blurRadius: 5)]),
-                                                    )) :
-                                                !publication.isDownloaded ? Positioned(
-                                                  bottom: -4,
-                                                  right: -8,
-                                                  height: 40,
-                                                  child: IconButton(
-                                                    padding: const EdgeInsets.all(0),
-                                                    onPressed: () {
-                                                      publication.download(context, update: (progress) {setState(() {});});
-                                                    },
-                                                    icon: const Icon(JwIcons.cloud_arrow_down, color: Colors.white, shadows: [Shadow(color: Colors.black, blurRadius: 5)]),
-                                                  ),
-                                                ): Container(),
-                                                Positioned(
-                                                  bottom: 0,
-                                                  right: 0,
-                                                  height: 2,
-                                                  width: 80,
-                                                  child: publication.isDownloading
-                                                      ? LinearProgressIndicator(
-                                                    value: publication.downloadProgress == -1 ? null : publication.downloadProgress,
-                                                    valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).primaryColor),
-                                                    backgroundColor: Colors.grey, // Fond gris
-                                                    minHeight: 2, // Assure que la hauteur est bien prise en compte
-                                                  )
-                                                      : Container(),
-                                                )
-                                              ],
-                                            ),
-                                          ),
-                                          SizedBox(height: 2),
-                                          SizedBox(
-                                            width: 75,
-                                            child: Text(
-                                              publication.title,
-                                              style: TextStyle(
-                                                  fontSize: 9.0, height: 1.2
-                                              ),
-                                              maxLines: 3,
-                                              overflow: TextOverflow.ellipsis,
-                                              textAlign: TextAlign.start,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    );
-                                  },
-                                ),
-                              ),
-                            const SizedBox(height: 20),
-                            if (PubCatalog.recentPublications.isNotEmpty)
-                              Text(
-                                'Publications récentes',
-                                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                              ),
-                            if (PubCatalog.recentPublications.isNotEmpty)
-                              const SizedBox(height: 4),
-                            if (PubCatalog.recentPublications.isNotEmpty)
-                              SizedBox(
-                                height: 130, // Hauteur à ajuster selon votre besoin
-                                child: ListView.builder(
-                                  scrollDirection: Axis.horizontal,
-                                  itemCount: PubCatalog.recentPublications.length,
-                                  itemBuilder: (context, index) {
-                                    Publication publication = JwLifeApp.pubCollections.getPublication(PubCatalog.recentPublications[index]);
-
-                                    return Padding(
-                                      padding: EdgeInsets.only(left: 2.0, right: 2.0),
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          GestureDetector(
-                                            onTap: () {
-                                              publication.showMenu(context, update: (progress) {setState(() {});});
-                                            },
-                                            child: Stack(
-                                              children: [
-                                                ClipRRect(
-                                                  borderRadius: BorderRadius.circular(2.0),
-                                                  child: ImageCachedWidget(
-                                                      imageUrl: publication.imageSqr,
-                                                      pathNoImage: publication.category.image,
-                                                      height: 80,
-                                                      width: 80
-                                                  ),
-                                                ),
-                                                Positioned(
-                                                  top: -8,
-                                                  right: -10,
-                                                  child: PopupMenuButton(
-                                                    popUpAnimationStyle: AnimationStyle.lerp(AnimationStyle(curve: Curves.ease), AnimationStyle(curve: Curves.ease), 0.5),
-                                                    icon: const Icon(Icons.more_vert, color: Colors.white, shadows: [Shadow(color: Colors.black, blurRadius: 5)]),
-                                                    shadowColor: Colors.black,
-                                                    elevation: 8,
-                                                    itemBuilder: (context) => [
-                                                      getPubShareMenuItem(publication),
-                                                      getPubLanguagesItem(context, "Autres langues", publication),
-                                                      getPubFavoriteItem(publication),
-                                                      getPubDownloadItem(context, publication),
-                                                    ],
-                                                  ),
-                                                ),
-                                                publication.isDownloading ? Positioned(
-                                                    bottom: -4,
-                                                    right: -8,
-                                                    height: 40,
-                                                    child: IconButton(
-                                                      padding: const EdgeInsets.all(0),
-                                                      onPressed: () {
-                                                        publication.cancelDownload(context, update: (progress) {setState(() {});});
-                                                      },
-                                                      icon: const Icon(JwIcons.x, color: Colors.white, shadows: [Shadow(color: Colors.black, blurRadius: 5)]),
-                                                    )) :
-                                                PubCatalog.recentPublications[index].hasUpdate(publication) ? Positioned(
-                                                    bottom: -4,
-                                                    right: -8,
-                                                    height: 40,
-                                                    child: IconButton(
-                                                      padding: const EdgeInsets.all(0),
-                                                      onPressed: () {
-                                                        publication.download(context, update: (progress) {setState(() {});});
-                                                      },
-                                                      icon: const Icon(JwIcons.arrows_circular, color: Colors.white, shadows: [Shadow(color: Colors.black, blurRadius: 5)]),
-                                                    )) :
-                                                !publication.isDownloaded ? Positioned(
-                                                  bottom: -4,
-                                                  right: -8,
-                                                  height: 40,
-                                                  child: IconButton(
-                                                    padding: const EdgeInsets.all(0),
-                                                    onPressed: () {
-                                                      publication.download(context, update: (progress) {setState(() {});});
-                                                    },
-                                                    icon: const Icon(JwIcons.cloud_arrow_down, color: Colors.white, shadows: [Shadow(color: Colors.black, blurRadius: 5)]),
-                                                  ),
-                                                ): Container(),
-                                                Positioned(
-                                                  bottom: 0,
-                                                  right: 0,
-                                                  height: 2,
-                                                  width: 80,
-                                                  child: publication.isDownloading
-                                                      ? LinearProgressIndicator(
-                                                    value: publication.downloadProgress == -1 ? null : publication.downloadProgress,
-                                                    valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).primaryColor),
-                                                    backgroundColor: Colors.grey, // Fond gris
-                                                    minHeight: 2, // Assure que la hauteur est bien prise en compte
-                                                  )
-                                                      : Container(),
-                                                )
-                                              ],
-                                            ),
-                                          ),
-                                          SizedBox(height: 2),
-                                          SizedBox(
-                                            width: 75,
-                                            child: Text(
-                                              publication.title,
-                                              style: TextStyle(
-                                                  fontSize: 9.0, height: 1.2
-                                              ),
-                                              maxLines: 3,
-                                              overflow: TextOverflow.ellipsis,
-                                              textAlign: TextAlign.start,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    );
-                                  },
-                                ),
-                              ),
+                Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 10),
+                    child: Column(
+                        children: [
+                          const SizedBox(height: 20),
+                          if (JwLifeApp.userdata.favorites.isNotEmpty)
                             Text(
-                              localization(context).navigation_ministry,
+                              localization(context).navigation_favorites,
                               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                             ),
+                          if (JwLifeApp.userdata.favorites.isNotEmpty)
                             const SizedBox(height: 4),
-
+                          if (JwLifeApp.userdata.favorites.isNotEmpty)
                             SizedBox(
-                              height: 130,
+                              height: 130, // Hauteur à ajuster selon votre besoin
                               child: ListView.builder(
                                 scrollDirection: Axis.horizontal,
-                                itemCount: RealmLibrary.teachingToolboxVideos.length + PubCatalog.teachingToolBoxPublications.length,
+                                itemCount: JwLifeApp.userdata.favorites.length,
                                 itemBuilder: (context, index) {
-                                  // Déterminer si l'élément est une vidéo ou une publication
-                                  if (index < RealmLibrary.teachingToolboxVideos.length) {
-                                    // Partie des vidéos
-                                    MediaItem mediaItem = RealmLibrary.teachingToolboxVideos[index];
-                                    bool isAudio = mediaItem.type == "AUDIO";
+                                  Publication publication = JwLifeApp.pubCollections.getPublication(JwLifeApp.userdata.favorites[index]);
 
+                                  return Padding(
+                                    padding: EdgeInsets.only(left: 2.0, right: 2.0),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        GestureDetector(
+                                          onTap: () {
+                                            publication.showMenu(context, update: (progress) {setState(() {});});
+                                          },
+                                          child: Stack(
+                                            children: [
+                                              ClipRRect(
+                                                borderRadius: BorderRadius.circular(2.0),
+                                                child: ImageCachedWidget(
+                                                    imageUrl: publication.imageSqr,
+                                                    pathNoImage: publication.category.image,
+                                                    height: 80,
+                                                    width: 80
+                                                ),
+                                              ),
+                                              Positioned(
+                                                top: -8,
+                                                right: -10,
+                                                child: PopupMenuButton(
+                                                  popUpAnimationStyle: AnimationStyle.lerp(AnimationStyle(curve: Curves.ease), AnimationStyle(curve: Curves.ease), 0.5),
+                                                  icon: const Icon(Icons.more_vert, color: Colors.white, shadows: [Shadow(color: Colors.black, blurRadius: 5)]),
+                                                  shadowColor: Colors.black,
+                                                  elevation: 8,
+                                                  itemBuilder: (context) => [
+                                                    getPubShareMenuItem(publication),
+                                                    getPubLanguagesItem(context, "Autres langues", publication),
+                                                    getPubFavoriteItem(publication),
+                                                    getPubDownloadItem(context, publication),
+                                                  ],
+                                                ),
+                                              ),
+                                              publication.isDownloading ? Positioned(
+                                                  bottom: -4,
+                                                  right: -8,
+                                                  height: 40,
+                                                  child: IconButton(
+                                                    padding: const EdgeInsets.all(0),
+                                                    onPressed: () {
+                                                      publication.cancelDownload(context, update: (progress) {setState(() {});});
+                                                    },
+                                                    icon: const Icon(JwIcons.x, color: Colors.white, shadows: [Shadow(color: Colors.black, blurRadius: 5)]),
+                                                  )) :
+                                              JwLifeApp.userdata.favorites[index].hasUpdate(publication) ? Positioned(
+                                                  bottom: -4,
+                                                  right: -8,
+                                                  height: 40,
+                                                  child: IconButton(
+                                                    padding: const EdgeInsets.all(0),
+                                                    onPressed: () {
+                                                      publication.download(context, update: (progress) {setState(() {});});
+                                                    },
+                                                    icon: const Icon(JwIcons.arrows_circular, color: Colors.white, shadows: [Shadow(color: Colors.black, blurRadius: 5)]),
+                                                  )) :
+                                              !publication.isDownloaded ? Positioned(
+                                                bottom: -4,
+                                                right: -8,
+                                                height: 40,
+                                                child: IconButton(
+                                                  padding: const EdgeInsets.all(0),
+                                                  onPressed: () {
+                                                    publication.download(context, update: (progress) {setState(() {});});
+                                                  },
+                                                  icon: const Icon(JwIcons.cloud_arrow_down, color: Colors.white, shadows: [Shadow(color: Colors.black, blurRadius: 5)]),
+                                                ),
+                                              ): Container(),
+                                              Positioned(
+                                                bottom: 0,
+                                                right: 0,
+                                                height: 2,
+                                                width: 80,
+                                                child: publication.isDownloading
+                                                    ? LinearProgressIndicator(
+                                                  value: publication.downloadProgress == -1 ? null : publication.downloadProgress,
+                                                  valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).primaryColor),
+                                                  backgroundColor: Colors.grey, // Fond gris
+                                                  minHeight: 2, // Assure que la hauteur est bien prise en compte
+                                                )
+                                                    : Container(),
+                                              )
+                                            ],
+                                          ),
+                                        ),
+                                        SizedBox(height: 2),
+                                        SizedBox(
+                                          width: 75,
+                                          child: Text(
+                                            publication.title,
+                                            style: TextStyle(
+                                                fontSize: 9.0, height: 1.2
+                                            ),
+                                            maxLines: 3,
+                                            overflow: TextOverflow.ellipsis,
+                                            textAlign: TextAlign.start,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                          const SizedBox(height: 20),
+                          if (PubCatalog.recentPublications.isNotEmpty)
+                            Text(
+                              'Publications récentes',
+                              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                            ),
+                          if (PubCatalog.recentPublications.isNotEmpty)
+                            const SizedBox(height: 4),
+                          if (PubCatalog.recentPublications.isNotEmpty)
+                            SizedBox(
+                              height: 130, // Hauteur à ajuster selon votre besoin
+                              child: ListView.builder(
+                                scrollDirection: Axis.horizontal,
+                                itemCount: PubCatalog.recentPublications.length,
+                                itemBuilder: (context, index) {
+                                  Publication publication = JwLifeApp.pubCollections.getPublication(PubCatalog.recentPublications[index]);
+
+                                  return Padding(
+                                    padding: EdgeInsets.only(left: 2.0, right: 2.0),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        GestureDetector(
+                                          onTap: () {
+                                            publication.showMenu(context, update: (progress) {setState(() {});});
+                                          },
+                                          child: Stack(
+                                            children: [
+                                              ClipRRect(
+                                                borderRadius: BorderRadius.circular(2.0),
+                                                child: ImageCachedWidget(
+                                                    imageUrl: publication.imageSqr,
+                                                    pathNoImage: publication.category.image,
+                                                    height: 80,
+                                                    width: 80
+                                                ),
+                                              ),
+                                              Positioned(
+                                                top: -8,
+                                                right: -10,
+                                                child: PopupMenuButton(
+                                                  popUpAnimationStyle: AnimationStyle.lerp(AnimationStyle(curve: Curves.ease), AnimationStyle(curve: Curves.ease), 0.5),
+                                                  icon: const Icon(Icons.more_vert, color: Colors.white, shadows: [Shadow(color: Colors.black, blurRadius: 5)]),
+                                                  shadowColor: Colors.black,
+                                                  elevation: 8,
+                                                  itemBuilder: (context) => [
+                                                    getPubShareMenuItem(publication),
+                                                    getPubLanguagesItem(context, "Autres langues", publication),
+                                                    getPubFavoriteItem(publication),
+                                                    getPubDownloadItem(context, publication),
+                                                  ],
+                                                ),
+                                              ),
+                                              publication.isDownloading ? Positioned(
+                                                  bottom: -4,
+                                                  right: -8,
+                                                  height: 40,
+                                                  child: IconButton(
+                                                    padding: const EdgeInsets.all(0),
+                                                    onPressed: () {
+                                                      publication.cancelDownload(context, update: (progress) {setState(() {});});
+                                                    },
+                                                    icon: const Icon(JwIcons.x, color: Colors.white, shadows: [Shadow(color: Colors.black, blurRadius: 5)]),
+                                                  )) :
+                                              PubCatalog.recentPublications[index].hasUpdate(publication) ? Positioned(
+                                                  bottom: -4,
+                                                  right: -8,
+                                                  height: 40,
+                                                  child: IconButton(
+                                                    padding: const EdgeInsets.all(0),
+                                                    onPressed: () {
+                                                      publication.download(context, update: (progress) {setState(() {});});
+                                                    },
+                                                    icon: const Icon(JwIcons.arrows_circular, color: Colors.white, shadows: [Shadow(color: Colors.black, blurRadius: 5)]),
+                                                  )) :
+                                              !publication.isDownloaded ? Positioned(
+                                                bottom: -4,
+                                                right: -8,
+                                                height: 40,
+                                                child: IconButton(
+                                                  padding: const EdgeInsets.all(0),
+                                                  onPressed: () {
+                                                    publication.download(context, update: (progress) {setState(() {});});
+                                                  },
+                                                  icon: const Icon(JwIcons.cloud_arrow_down, color: Colors.white, shadows: [Shadow(color: Colors.black, blurRadius: 5)]),
+                                                ),
+                                              ): Container(),
+                                              Positioned(
+                                                bottom: 0,
+                                                right: 0,
+                                                height: 2,
+                                                width: 80,
+                                                child: publication.isDownloading
+                                                    ? LinearProgressIndicator(
+                                                  value: publication.downloadProgress == -1 ? null : publication.downloadProgress,
+                                                  valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).primaryColor),
+                                                  backgroundColor: Colors.grey, // Fond gris
+                                                  minHeight: 2, // Assure que la hauteur est bien prise en compte
+                                                )
+                                                    : Container(),
+                                              )
+                                            ],
+                                          ),
+                                        ),
+                                        SizedBox(height: 2),
+                                        SizedBox(
+                                          width: 75,
+                                          child: Text(
+                                            publication.title,
+                                            style: TextStyle(
+                                                fontSize: 9.0, height: 1.2
+                                            ),
+                                            maxLines: 3,
+                                            overflow: TextOverflow.ellipsis,
+                                            textAlign: TextAlign.start,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                          Text(
+                            localization(context).navigation_ministry,
+                            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 4),
+
+                          SizedBox(
+                            height: 130,
+                            child: ListView.builder(
+                              scrollDirection: Axis.horizontal,
+                              itemCount: RealmLibrary.teachingToolboxVideos.length + PubCatalog.teachingToolBoxPublications.length,
+                              itemBuilder: (context, index) {
+                                // Déterminer si l'élément est une vidéo ou une publication
+                                if (index < RealmLibrary.teachingToolboxVideos.length) {
+                                  // Partie des vidéos
+                                  MediaItem mediaItem = RealmLibrary.teachingToolboxVideos[index];
+                                  bool isAudio = mediaItem.type == "AUDIO";
+
+                                  return Padding(
+                                    padding: EdgeInsets.symmetric(horizontal: 2.0),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        GestureDetector(
+                                          onTap: () {
+                                            if (isAudio) {
+                                              showAudioPlayer(context, mediaItem);
+                                            }
+                                            else {
+                                              showFullScreenVideo(context, mediaItem);
+                                            }
+                                          },
+                                          child: Stack(
+                                            children: [
+                                              ClipRRect(
+                                                borderRadius: BorderRadius.circular(2.0),
+                                                child: ImageCachedWidget(
+                                                  imageUrl: mediaItem.realmImages?.squareImageUrl ?? '',
+                                                  pathNoImage: "pub_type_video",
+                                                  height: 80,
+                                                  width: 80,
+                                                ),
+                                              ),
+                                              Positioned(
+                                                top: -8,
+                                                right: -10,
+                                                child: PopupMenuButton(
+                                                  icon: const Icon(Icons.more_vert, color: Colors.white, shadows: [Shadow(color: Colors.black, blurRadius: 5)]),
+                                                  shadowColor: Colors.black,
+                                                  elevation: 8,
+                                                  itemBuilder: (context) => [
+                                                    getVideoShareItem(mediaItem),
+                                                    getVideoLanguagesItem(context, mediaItem),
+                                                    getVideoFavoriteItem(mediaItem),
+                                                    getVideoDownloadItem(context, mediaItem),
+                                                    getShowSubtitlesItem(context, mediaItem),
+                                                    getCopySubtitlesItem(context, mediaItem),
+                                                  ],
+                                                ),
+                                              ),
+                                              Positioned(
+                                                top: 0,
+                                                left: 0,
+                                                child: Container(
+                                                  color: Colors.black.withOpacity(0.8),
+                                                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.2),
+                                                  child: Row(
+                                                    children: [
+                                                      Icon(
+                                                        isAudio ? JwIcons.headphones_simple : JwIcons.play,
+                                                        size: 10,
+                                                        color: Colors.white,
+                                                      ),
+                                                      const SizedBox(width: 4),
+                                                      Text(
+                                                        formatDuration(mediaItem.duration ?? 0),
+                                                        style: const TextStyle(color: Colors.white, fontSize: 9),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        SizedBox(height: 2),
+                                        SizedBox(
+                                          width: 75,
+                                          child: Text(
+                                            mediaItem.title ?? '',
+                                            style: TextStyle(fontSize: 9.0, height: 1.2),
+                                            maxLines: 3,
+                                            overflow: TextOverflow.ellipsis,
+                                            textAlign: TextAlign.start,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                }
+                                else {
+                                  int pubIndex = index - RealmLibrary.teachingToolboxVideos.length;
+                                  Publication? pub = PubCatalog.teachingToolBoxPublications[pubIndex];
+
+                                  // Vérifier si la valeur est présente dans availableTeachingToolBoxInt
+                                  if (pub != null) {
+                                    Publication? publication = JwLifeApp.pubCollections.getPublication(pub);
                                     return Padding(
                                       padding: EdgeInsets.symmetric(horizontal: 2.0),
                                       child: Column(
@@ -1741,20 +1828,15 @@ class _HomeViewState extends State<HomeView> {
                                         children: [
                                           GestureDetector(
                                             onTap: () {
-                                              if (isAudio) {
-                                                showAudioPlayer(context, mediaItem);
-                                              }
-                                              else {
-                                                showFullScreenVideo(context, mediaItem);
-                                              }
+                                              publication.showMenu(context, update: (progress) {setState(() {});});
                                             },
                                             child: Stack(
                                               children: [
                                                 ClipRRect(
                                                   borderRadius: BorderRadius.circular(2.0),
                                                   child: ImageCachedWidget(
-                                                    imageUrl: mediaItem.realmImages?.squareImageUrl ?? '',
-                                                    pathNoImage: "pub_type_video",
+                                                    imageUrl: publication.imageSqr,
+                                                    pathNoImage: publication.category.image,
                                                     height: 80,
                                                     width: 80,
                                                   ),
@@ -1767,36 +1849,39 @@ class _HomeViewState extends State<HomeView> {
                                                     shadowColor: Colors.black,
                                                     elevation: 8,
                                                     itemBuilder: (context) => [
-                                                      getVideoShareItem(mediaItem),
-                                                      getVideoLanguagesItem(context, mediaItem),
-                                                      getVideoFavoriteItem(mediaItem),
-                                                      getVideoDownloadItem(context, mediaItem),
-                                                      getShowSubtitlesItem(context, mediaItem),
-                                                      getCopySubtitlesItem(context, mediaItem),
+                                                      getPubShareMenuItem(publication),
+                                                      getPubLanguagesItem(context, "Autres langues", publication),
+                                                      getPubFavoriteItem(publication),
+                                                      getPubDownloadItem(context, publication),
                                                     ],
                                                   ),
                                                 ),
-                                                Positioned(
-                                                  top: 0,
-                                                  left: 0,
-                                                  child: Container(
-                                                    color: Colors.black.withOpacity(0.8),
-                                                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.2),
-                                                    child: Row(
-                                                      children: [
-                                                        Icon(
-                                                          isAudio ? JwIcons.headphones_simple : JwIcons.play,
-                                                          size: 10,
-                                                          color: Colors.white,
-                                                        ),
-                                                        const SizedBox(width: 4),
-                                                        Text(
-                                                          formatDuration(mediaItem.duration ?? 0),
-                                                          style: const TextStyle(color: Colors.white, fontSize: 9),
-                                                        ),
-                                                      ],
+                                                if (!publication.isDownloaded && publication.downloadProgress == 0)
+                                                  Positioned(
+                                                    bottom: -4,
+                                                    right: -8,
+                                                    height: 40,
+                                                    child: IconButton(
+                                                      padding: const EdgeInsets.all(0),
+                                                      onPressed: () {
+                                                        publication.download(context, update: (progress) {setState(() {});});
+                                                      },
+                                                      icon: const Icon(JwIcons.cloud_arrow_down, color: Colors.white, shadows: [Shadow(color: Colors.black, blurRadius: 5)]),
                                                     ),
                                                   ),
+                                                Positioned(
+                                                  bottom: 0,
+                                                  right: 0,
+                                                  height: 2,
+                                                  width: 80,
+                                                  child: publication.downloadProgress != 0
+                                                      ? LinearProgressIndicator(
+                                                    value: publication.downloadProgress == -1 ? null : publication.downloadProgress,
+                                                    valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).primaryColor),
+                                                    backgroundColor: Colors.grey,
+                                                    minHeight: 2,
+                                                  )
+                                                      : Container(),
                                                 ),
                                               ],
                                             ),
@@ -1805,7 +1890,7 @@ class _HomeViewState extends State<HomeView> {
                                           SizedBox(
                                             width: 75,
                                             child: Text(
-                                              mediaItem.title ?? '',
+                                              publication.title,
                                               style: TextStyle(fontSize: 9.0, height: 1.2),
                                               maxLines: 3,
                                               overflow: TextOverflow.ellipsis,
@@ -1817,238 +1902,151 @@ class _HomeViewState extends State<HomeView> {
                                     );
                                   }
                                   else {
-                                    int pubIndex = index - RealmLibrary.teachingToolboxVideos.length;
-                                    Publication? pub = PubCatalog.teachingToolBoxPublications[pubIndex];
-
-                                    // Vérifier si la valeur est présente dans availableTeachingToolBoxInt
-                                    if (pub != null) {
-                                      Publication? publication = JwLifeApp.pubCollections.getPublication(pub);
-                                      return Padding(
-                                        padding: EdgeInsets.symmetric(horizontal: 2.0),
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            GestureDetector(
-                                              onTap: () {
-                                                publication.showMenu(context, update: (progress) {setState(() {});});
-                                              },
-                                              child: Stack(
-                                                children: [
-                                                  ClipRRect(
-                                                    borderRadius: BorderRadius.circular(2.0),
-                                                    child: ImageCachedWidget(
-                                                      imageUrl: publication.imageSqr,
-                                                      pathNoImage: publication.category.image,
-                                                      height: 80,
-                                                      width: 80,
-                                                    ),
-                                                  ),
-                                                  Positioned(
-                                                    top: -8,
-                                                    right: -10,
-                                                    child: PopupMenuButton(
-                                                      icon: const Icon(Icons.more_vert, color: Colors.white, shadows: [Shadow(color: Colors.black, blurRadius: 5)]),
-                                                      shadowColor: Colors.black,
-                                                      elevation: 8,
-                                                      itemBuilder: (context) => [
-                                                        getPubShareMenuItem(publication),
-                                                        getPubLanguagesItem(context, "Autres langues", publication),
-                                                        getPubFavoriteItem(publication),
-                                                        getPubDownloadItem(context, publication),
-                                                      ],
-                                                    ),
-                                                  ),
-                                                  if (!publication.isDownloaded && publication.downloadProgress == 0)
-                                                    Positioned(
-                                                      bottom: -4,
-                                                      right: -8,
-                                                      height: 40,
-                                                      child: IconButton(
-                                                        padding: const EdgeInsets.all(0),
-                                                        onPressed: () {
-                                                          publication.download(context, update: (progress) {setState(() {});});
-                                                        },
-                                                        icon: const Icon(JwIcons.cloud_arrow_down, color: Colors.white, shadows: [Shadow(color: Colors.black, blurRadius: 5)]),
-                                                      ),
-                                                    ),
-                                                  Positioned(
-                                                    bottom: 0,
-                                                    right: 0,
-                                                    height: 2,
-                                                    width: 80,
-                                                    child: publication.downloadProgress != 0
-                                                        ? LinearProgressIndicator(
-                                                      value: publication.downloadProgress == -1 ? null : publication.downloadProgress,
-                                                      valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).primaryColor),
-                                                      backgroundColor: Colors.grey,
-                                                      minHeight: 2,
-                                                    )
-                                                        : Container(),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                            SizedBox(height: 2),
-                                            SizedBox(
-                                              width: 75,
-                                              child: Text(
-                                                publication.title,
-                                                style: TextStyle(fontSize: 9.0, height: 1.2),
-                                                maxLines: 3,
-                                                overflow: TextOverflow.ellipsis,
-                                                textAlign: TextAlign.start,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      );
-                                    }
-                                    else {
-                                      return Padding(
+                                    return Padding(
                                         padding: EdgeInsets.symmetric(horizontal: 2.0),
                                         child: SizedBox(
-                                          width: 30
+                                            width: 30
                                         )
-                                      );
-                                    }
+                                    );
                                   }
-                                },
-                              ),
+                                }
+                              },
                             ),
+                          ),
 
-                            Text(
-                              localization(context).navigation_whats_new,
-                              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                            ),
-                            const SizedBox(height: 4),
-                            SizedBox(
-                              height: 85, // Adjust height as needed
-                              child: PubCatalog.lastPublications.isEmpty ? getLoadingWidget() : ListView.builder(
-                                scrollDirection: Axis.horizontal, // Définit le scroll en horizontal
-                                itemCount: PubCatalog.lastPublications.length,
-                                itemBuilder: (context, index) {
-                                  Publication pub = PubCatalog.lastPublications[index];
+                          Text(
+                            localization(context).navigation_whats_new,
+                            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 4),
+                          SizedBox(
+                            height: 85, // Adjust height as needed
+                            child: PubCatalog.lastPublications.isEmpty ? getLoadingWidget() : ListView.builder(
+                              scrollDirection: Axis.horizontal, // Définit le scroll en horizontal
+                              itemCount: PubCatalog.lastPublications.length,
+                              itemBuilder: (context, index) {
+                                Publication pub = PubCatalog.lastPublications[index];
 
-                                  Publication publication = JwLifeApp.pubCollections.getPublication(pub);
+                                Publication publication = JwLifeApp.pubCollections.getPublication(pub);
 
-                                  return GestureDetector(
-                                    onTap: () {
-                                      publication.showMenu(context, update: (progress) {setState(() {});});
-                                    },
-                                    child: Container(
-                                      margin: EdgeInsets.symmetric(horizontal: 2.0), // Espacement supplémentaire entre chaque ListTile
-                                      decoration: BoxDecoration(
-                                          color: Theme.of(context).brightness == Brightness.dark ? Color(0xFF292929) : Colors.white
-                                      ),
-                                      child: SizedBox(
-                                        height: 85,
-                                        width: 340,
-                                        child: Stack(
-                                          children: [
-                                            Row(
-                                              children: [
-                                                ClipRRect(
-                                                  child: ImageCachedWidget(
-                                                    imageUrl: publication.imageSqr,
-                                                    pathNoImage: publication.category.image,
-                                                    height: 85,
-                                                    width: 85,
+                                return GestureDetector(
+                                  onTap: () {
+                                    publication.showMenu(context, update: (progress) {setState(() {});});
+                                  },
+                                  child: Container(
+                                    margin: EdgeInsets.symmetric(horizontal: 2.0), // Espacement supplémentaire entre chaque ListTile
+                                    decoration: BoxDecoration(
+                                        color: Theme.of(context).brightness == Brightness.dark ? Color(0xFF292929) : Colors.white
+                                    ),
+                                    child: SizedBox(
+                                      height: 85,
+                                      width: 340,
+                                      child: Stack(
+                                        children: [
+                                          Row(
+                                            children: [
+                                              ClipRRect(
+                                                child: ImageCachedWidget(
+                                                  imageUrl: publication.imageSqr,
+                                                  pathNoImage: publication.category.image,
+                                                  height: 85,
+                                                  width: 85,
+                                                ),
+                                              ),
+                                              Expanded(
+                                                flex: 1,
+                                                child: Padding(
+                                                  padding: const EdgeInsets.only(left: 7.0, right: 25.0, top: 4.0, bottom: 4.0),
+                                                  child: Column(
+                                                    mainAxisAlignment: MainAxisAlignment.center,
+                                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                                    children: [
+                                                      Text(
+                                                        publication.issueTagNumber == 0 ? publication.category.getName(context) : publication.issueTitle,
+                                                        maxLines: 1,
+                                                        overflow: TextOverflow.ellipsis,
+                                                        style: TextStyle(
+                                                          fontSize: 11,
+                                                          color: Theme.of(context).brightness == Brightness.dark
+                                                              ? const Color(0xFFc3c3c3)
+                                                              : const Color(0xFF626262),
+                                                        ),
+                                                      ),
+                                                      Text(
+                                                        publication.issueTagNumber == 0 ? publication.title : publication.coverTitle,
+                                                        style: TextStyle(
+                                                          fontSize: 14,
+                                                          color: Theme.of(context).secondaryHeaderColor,
+                                                        ),
+                                                        maxLines: 2, // Limite à deux lignes
+                                                        overflow: TextOverflow.ellipsis, // Tronque le texte avec des points de suspension
+                                                      ),
+                                                      const Spacer(),
+                                                      Text(
+                                                        pub.getRelativeDateText(),
+                                                        style: TextStyle(
+                                                          fontSize: 11,
+                                                          color: Theme.of(context).brightness == Brightness.dark
+                                                              ? const Color(0xFFc3c3c3)
+                                                              : const Color(0xFF626262),
+                                                        ),
+                                                      ),
+                                                    ],
                                                   ),
                                                 ),
-                                                Expanded(
-                                                  flex: 1,
-                                                  child: Padding(
-                                                    padding: const EdgeInsets.only(left: 7.0, right: 25.0, top: 4.0, bottom: 4.0),
-                                                    child: Column(
-                                                      mainAxisAlignment: MainAxisAlignment.center,
-                                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                                      children: [
-                                                        Text(
-                                                          publication.issueTagNumber == 0 ? publication.category.getName(context) : publication.issueTitle,
-                                                          maxLines: 1,
-                                                          overflow: TextOverflow.ellipsis,
-                                                          style: TextStyle(
-                                                            fontSize: 11,
-                                                            color: Theme.of(context).brightness == Brightness.dark
-                                                                ? const Color(0xFFc3c3c3)
-                                                                : const Color(0xFF626262),
-                                                          ),
-                                                        ),
-                                                        Text(
-                                                          publication.issueTagNumber == 0 ? publication.title : publication.coverTitle,
-                                                          style: TextStyle(
-                                                            fontSize: 14,
-                                                            color: Theme.of(context).secondaryHeaderColor,
-                                                          ),
-                                                          maxLines: 2, // Limite à deux lignes
-                                                          overflow: TextOverflow.ellipsis, // Tronque le texte avec des points de suspension
-                                                        ),
-                                                        const Spacer(),
-                                                        Text(
-                                                          pub.getRelativeDateText(),
-                                                          style: TextStyle(
-                                                            fontSize: 11,
-                                                            color: Theme.of(context).brightness == Brightness.dark
-                                                                ? const Color(0xFFc3c3c3)
-                                                                : const Color(0xFF626262),
-                                                          ),
-                                                        ),
-                                                      ],
-                                                    ),
-                                                  ),
-                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          Positioned(
+                                            top: -5,
+                                            right: -15,
+                                            child: PopupMenuButton(
+                                              popUpAnimationStyle: AnimationStyle.lerp(AnimationStyle(curve: Curves.ease), AnimationStyle(curve: Curves.ease), 0.5),
+                                              icon: Icon(Icons.more_vert, color: Color(0xFF9d9d9d)),
+                                              itemBuilder: (context) => [
+                                                getPubShareMenuItem(publication),
+                                                getPubLanguagesItem(context, "Autres langues", publication),
+                                                getPubFavoriteItem(publication),
+                                                getPubDownloadItem(context, publication, update: (progress) {
+                                                  setState(() {});
+                                                }),
                                               ],
                                             ),
-                                            Positioned(
-                                              top: -5,
-                                              right: -15,
-                                              child: PopupMenuButton(
-                                                popUpAnimationStyle: AnimationStyle.lerp(AnimationStyle(curve: Curves.ease), AnimationStyle(curve: Curves.ease), 0.5),
-                                                icon: Icon(Icons.more_vert, color: Color(0xFF9d9d9d)),
-                                                itemBuilder: (context) => [
-                                                  getPubShareMenuItem(publication),
-                                                  getPubLanguagesItem(context, "Autres langues", publication),
-                                                  getPubFavoriteItem(publication),
-                                                  getPubDownloadItem(context, publication, update: (progress) {
-                                                    setState(() {});
-                                                  }),
-                                                ],
-                                              ),
-                                            ),
-                                            publication.isDownloading ? Positioned(
-                                                bottom: -2,
-                                                right: -8,
-                                                height: 40,
-                                                child: IconButton(
-                                                  padding: const EdgeInsets.all(0),
-                                                  onPressed: () {
-                                                    publication.cancelDownload(context, update: (progress) {setState(() {});});
-                                                  },
-                                                  icon: Icon(JwIcons.x, color: Color(0xFF9d9d9d)),
-                                                )) : pub.hasUpdate(publication) ? Positioned(
-                                                bottom: 5,
-                                                right: -8,
-                                                height: 40,
-                                                child: IconButton(
-                                                  padding: const EdgeInsets.all(0),
-                                                  onPressed: () {
-                                                    publication.update(context, update: (progress) {setState(() {});});
-                                                  },
-                                                  icon: Icon(JwIcons.arrows_circular, color: Color(0xFF9d9d9d)),
-                                                )) :
-                                            !publication.isDownloaded ? Positioned(
+                                          ),
+                                          publication.isDownloading ? Positioned(
+                                              bottom: -2,
+                                              right: -8,
+                                              height: 40,
+                                              child: IconButton(
+                                                padding: const EdgeInsets.all(0),
+                                                onPressed: () {
+                                                  publication.cancelDownload(context, update: (progress) {setState(() {});});
+                                                },
+                                                icon: Icon(JwIcons.x, color: Color(0xFF9d9d9d)),
+                                              )) : pub.hasUpdate(publication) ? Positioned(
                                               bottom: 5,
                                               right: -8,
                                               height: 40,
                                               child: IconButton(
                                                 padding: const EdgeInsets.all(0),
                                                 onPressed: () {
-                                                  publication.download(context, update: (progress) {setState(() {});});
+                                                  publication.update(context, update: (progress) {setState(() {});});
                                                 },
-                                                icon: Icon(JwIcons.cloud_arrow_down, color: Color(0xFF9d9d9d)),
-                                              ),
-                                            ): Container(),
-                                            (!publication.isDownloaded || pub.hasUpdate(publication)) && !publication.isDownloading ? Positioned(
+                                                icon: Icon(JwIcons.arrows_circular, color: Color(0xFF9d9d9d)),
+                                              )) :
+                                          !publication.isDownloaded ? Positioned(
+                                            bottom: 5,
+                                            right: -8,
+                                            height: 40,
+                                            child: IconButton(
+                                              padding: const EdgeInsets.all(0),
+                                              onPressed: () {
+                                                publication.download(context, update: (progress) {setState(() {});});
+                                              },
+                                              icon: Icon(JwIcons.cloud_arrow_down, color: Color(0xFF9d9d9d)),
+                                            ),
+                                          ): Container(),
+                                          (!publication.isDownloaded || pub.hasUpdate(publication)) && !publication.isDownloading ? Positioned(
                                               bottom: 0,
                                               right: -5,
                                               width: 50,
@@ -2062,59 +2060,57 @@ class _HomeViewState extends State<HomeView> {
                                                       : const Color(0xFF626262),
                                                 ),
                                               )
-                                            ) : Container(),
-                                            Positioned(
-                                              bottom: 0,
-                                              right: 0,
-                                              height: 2,
-                                              width: 340-85,
-                                                child: publication.isDownloading
-                                                    ? LinearProgressIndicator(
-                                                  value: publication.downloadProgress == -1 ? null : publication.downloadProgress,
-                                                  valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).primaryColor),
-                                                  backgroundColor: Colors.grey, // Fond gris
-                                                  minHeight: 2, // Assure que la hauteur est bien prise en compte
-                                                )
-                                                    : Container(),
+                                          ) : Container(),
+                                          Positioned(
+                                            bottom: 0,
+                                            right: 0,
+                                            height: 2,
+                                            width: 340-85,
+                                            child: publication.isDownloading
+                                                ? LinearProgressIndicator(
+                                              value: publication.downloadProgress == -1 ? null : publication.downloadProgress,
+                                              valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).primaryColor),
+                                              backgroundColor: Colors.grey, // Fond gris
+                                              minHeight: 2, // Assure que la hauteur est bien prise en compte
                                             )
-                                          ],
-                                        ),
+                                                : Container(),
+                                          )
+                                        ],
                                       ),
                                     ),
-                                  );
-                                },
-                              ),
+                                  ),
+                                );
+                              },
                             ),
+                          ),
 
-                            _buildLatestVideosWidget(),
+                          _buildLatestVideosWidget(),
 
-                            Text(
-                              localization(context).navigation_online,
-                              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                          Text(
+                            localization(context).navigation_online,
+                            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                          ),
+                          SizedBox(height: 4),
+                          SizedBox(
+                            height: 120, // Augmenté pour tenir compte du texte sur 2 lignes
+                            child: ListView.builder(
+                              scrollDirection: Axis.horizontal,
+                              itemCount: _iconLinks(context).length,
+                              itemBuilder: (context, index) {
+                                final iconLinkInfo = _iconLinks(context)[index];
+                                return Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 2.0), // Espacement entre chaque icône
+                                  child: IconLink(
+                                    imagePath: iconLinkInfo.imagePath,
+                                    url: iconLinkInfo.url,
+                                    description: iconLinkInfo.description,
+                                  ),
+                                );
+                              },
                             ),
-                            SizedBox(height: 4),
-                            SizedBox(
-                              height: 120, // Augmenté pour tenir compte du texte sur 2 lignes
-                              child: ListView.builder(
-                                scrollDirection: Axis.horizontal,
-                                itemCount: _iconLinks(context).length,
-                                itemBuilder: (context, index) {
-                                  final iconLinkInfo = _iconLinks(context)[index];
-                                  return Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: 2.0), // Espacement entre chaque icône
-                                    child: IconLink(
-                                      imagePath: iconLinkInfo.imagePath,
-                                      url: iconLinkInfo.url,
-                                      description: iconLinkInfo.description,
-                                    ),
-                                  );
-                                },
-                              ),
-                            ),
-                          ]
-                      )
-                    ),
-                  ],
+                          ),
+                        ]
+                    )
                 ),
               ],
             ),

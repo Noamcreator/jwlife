@@ -107,6 +107,8 @@ class DocumentsManager {
 
     String searchColor = isDarkMode ? '#d09828' : '#ffc757';
 
+    String theme = isDarkMode ? 'dark' : 'light';
+
     return '''
 <!DOCTYPE html>
 <html style="overflow-x: hidden; height: 100%;">
@@ -169,8 +171,9 @@ class DocumentsManager {
       let currentIndex = $documentIndex;
       let container = document.getElementById("container");
       let cachedPages = {};
-      const bookmarkAssets = Array.from({ length: 10 }, (_, i) => `images/bookmark\${i}_margin.png`);
-      const highlightAssets = Array.from({ length: 10 }, (_, i) => `images/bookmark\${i}_margin.png`);
+      const bookmarkAssets = Array.from({ length: 10 }, (_, i) => `bookmarks/$theme/bookmark\${i + 1}.png`);
+      const highlightAssets = Array.from({ length: 6 }, (_, i) => `highlights/$theme/highlight\${i + 1}.png`);
+      const highlightSelectedAssets = Array.from({ length: 6 }, (_, i) => `highlights/$theme/highlight\${i + 1}.png`);
 
       const maxIndex = ${documents.length - 1};
 
@@ -528,14 +531,7 @@ function isStandalonePunctuation(text, index) {
       // Scroll vertical
       const pageCenter = document.getElementById("page-center");
       let lastScrollTop = 0;
-
-      pageCenter.addEventListener("scroll", () => {
-        const scrollTop = pageCenter.scrollTop;
-        const scrollDirection = scrollTop > lastScrollTop ? "down" : scrollTop < lastScrollTop ? "up" : "none";
-        lastScrollTop = scrollTop;
-        window.flutter_inappwebview.callHandler('onScroll', scrollTop, scrollDirection);
-      });
-      
+ 
       function restoreOpacity() {
         selector = isBible() ? '.v' : '[data-pid]';
         pageCenter.querySelectorAll(selector).forEach(e => e.style.opacity = '1');
@@ -578,6 +574,7 @@ function isStandalonePunctuation(text, index) {
 
       function showToolbar(paragraphs, id, selector, isHighlighted, hasAudio, type) {
         const paragraph = paragraphs[0];
+        const isSelected = paragraph.classList.contains('selected');
         restoreOpacity();
         const existingToolbar = document.querySelector('.toolbar');
         if (existingToolbar && paragraph) {
@@ -585,6 +582,7 @@ function isStandalonePunctuation(text, index) {
           setTimeout(() => existingToolbar.remove(), 300);
           if (existingToolbar.getAttribute('data-id') === id) return;
         }
+       
 
         if(!isHighlighted) {
           dimOthers(paragraphs, selector);
@@ -615,10 +613,10 @@ function isStandalonePunctuation(text, index) {
         if (isHighlighted) {
           buttons = [
             ['&#xE688;', () => {}],
-            ['&#xE6DD;', () => removeHighlight(paragraph, selector)],
-            ['&#xE652;', () => callHandler('copyText', { text: paragraph.innerText }, selector)],
-            ['&#xE67D;', () => callHandler('search', { query: paragraph.innerText }, selector)],
-            ['&#xE6A4;', () => callHandler('copyText', { text: paragraph.innerText }, selector)],
+            ...(!isSelected ? [['&#xE6DD;', () => removeHighlight(paragraphs, selector)]] : []),
+            ['&#xE652;', () => callHandler('copyText', { text: paragraphs.map(p => p.innerText).join(' ') }, selector)],
+            ['&#xE67D;', () => callHandler('search', { query: paragraphs.map(p => p.innerText).join(' ') }, selector)],
+            ['&#xE6A4;', () => callHandler('copyText', { text: paragraphs.map(p => p.innerText).join(' ') }, selector)],
           ];
         } 
         else {
@@ -659,9 +657,9 @@ function isStandalonePunctuation(text, index) {
       function whenClickOnParagraph(target, selector, idAttr, classFilter) {
         // Remonte dans le DOM pour détecter un lien cliquable
         let isLink = false;
-        let current = target;
+        let current = target[0];
         
-        const hasHighlightClass = Array.from(target.classList).some(cls =>
+        const hasHighlightOrSelectedClass = Array.from(current.classList).some(cls =>
            cls.includes('highlight-') || cls.includes('selected')
         );
         
@@ -682,9 +680,10 @@ function isStandalonePunctuation(text, index) {
           const id = current?.getAttribute(idAttr);
           
           if (!isLink && id) {
-            if(hasHighlightClass) {
-              showToolbar([target], 'data-pid', '[data-pid]', true, false, 'paragraph');
-            } else {
+            if(hasHighlightOrSelectedClass) {
+              showToolbar(target, 'data-pid', '[data-pid]', true, false, 'paragraph');
+            } 
+            else {
               const hasAudio = cachedPages[currentIndex] && cachedPages[currentIndex].audiosMarkers? cachedPages[currentIndex].audiosMarkers.some(m => String(m.mepsParagraphId) === String(id)) : false;
               showToolbar([current], id, selector, false, hasAudio, classFilter);
             }
@@ -735,7 +734,7 @@ function isStandalonePunctuation(text, index) {
           // Afficher la toolbar sur le premier élément du verset
           if (verseElements.length > 0) {
               if(hasHighlightClass) {
-                showToolbar([target], 'data-pid', '[data-pid]', true, false, 'paragraph');
+                showToolbar(target, 'data-pid', '[data-pid]', true, false, 'paragraph');
               } else {
                 showToolbar(verseElements, id, selector, false, false, classFilter);
               }
@@ -857,7 +856,13 @@ function isStandalonePunctuation(text, index) {
 
       // Clics images et références
       pageCenter.addEventListener('click', (event) => {
-        let target = event.target;        
+        let target = event.target;   
+        
+        closeToolbar();
+        
+        if(target.tagName === 'TEXTAREA' || target.tagName === 'INPUT') {
+          return;
+        }     
 
         if (target.tagName === 'IMG') {
           window.flutter_inappwebview.callHandler('onImageClick', target.src);
@@ -874,48 +879,105 @@ function isStandalonePunctuation(text, index) {
         }
         
         if(isBible()) {
-          whenClickOnParagraph(target, '.v', 'id', 'verse');
+          whenClickOnParagraph([target], '.v', 'id', 'verse');
         }
         else {
-          whenClickOnParagraph(target, '[data-pid]', 'data-pid', 'paragraph');
+          whenClickOnParagraph([target], '[data-pid]', 'data-pid', 'paragraph');
         }
       });
       
       let pressTimer;
-      let longPressTarget = null;
-
-      pageCenter.addEventListener('touchstart', (event) => {
-        longPressTarget = event.target; // Capture l'élément touché
-        pressTimer = setTimeout(() => {
-          onLongPress(longPressTarget);
-        }, 500); // Délai en millisecondes
-      });
-
-      pageCenter.addEventListener('touchend', () => {
-        clearTimeout(pressTimer);
-      });
-
-      function onLongPress(target) {
-        if(target.classList.contains('word')) {
-          target.classList.add('selected');
-          
-          if(isBible()) {
-            whenClickOnParagraph(target, '.v', 'id', 'verse');
-          }
-          else {
-            whenClickOnParagraph(target, '[data-pid]', 'data-pid', 'paragraph');
-          }
-        } 
-      }
-
-      // Swipe handling
+      let firstLongPressTarget = null;
+      let lastLongPressTarget = null;
+      let isLongTouchFix = false;
+      let isLongPressing = false;
       let startX = 0;
       let startY = 0;
       let currentTranslate = -100;
       let isDragging = false;
       let isVerticalScroll = false;
-   
+      
+      function setLongPressing(value) {
+        isLongPressing = value;
+        if (isLongPressing) {
+          pageCenter.style.overflow = 'hidden'; // bloque le scroll
+        } else {
+          pageCenter.style.overflow = 'auto'; // rétablit le scroll
+        }
+      }
+      
+      pageCenter.addEventListener("scroll", () => {
+        if (isLongPressing) return;
+        const scrollTop = pageCenter.scrollTop;
+        const scrollDirection = scrollTop > lastScrollTop ? "down" : scrollTop < lastScrollTop ? "up" : "none";
+        lastScrollTop = scrollTop;
+        window.flutter_inappwebview.callHandler('onScroll', scrollTop, scrollDirection);
+      });
+      
+      pageCenter.addEventListener('touchstart', (event) => {
+        firstLongPressTarget = event.target; // Capture l'élément touché
+        pressTimer = setTimeout(() => {
+          setLongPressing(true);
+          isLongTouchFix = true;
+        }, 300); // Délai en millisecondes
+      });
+      
+      pageCenter.addEventListener('touchmove', (event) => {
+        isLongTouchFix = false;
+        clearTimeout(pressTimer);
+      });
+
+      pageCenter.addEventListener('touchend', (event) => {
+          const touch = event.changedTouches[0];
+          const x = touch.clientX;
+          const y = touch.clientY;
+
+          lastLongPressTarget = document.elementFromPoint(x, y);
+          
+          clearTimeout(pressTimer);
+          if(isLongPressing) {
+            onLongPressEnd();
+          }
+          isLongTouchFix = false;
+      });
+      
+      function onLongPressEnd() {
+        let firstTarget = firstLongPressTarget;
+        let lastTarget = lastLongPressTarget;
+        let allTargets = null;
+        
+        if (isLongTouchFix) {
+            lastTarget.classList.add('selected');
+            allTargets = [lastTarget];
+        }
+        else {
+          const parent = firstTarget.parentElement;
+          const id = parent.getAttribute('data-pid');
+          const allWords = Array.from(parent.querySelectorAll('.word, .punctuation'));
+      
+          // Trouver les indices des deux cibles
+          const startIndex = allWords.indexOf(firstTarget);
+          const endIndex = allWords.indexOf(lastTarget);
+          
+          allTargets = allWords.slice(startIndex, endIndex + 1);
+          
+          if (startIndex === -1 || endIndex === -1) return;
+
+          // S'assurer que l'index de départ est inférieur à celui de fin
+          const [from, to] = startIndex < endIndex ? [startIndex, endIndex] : [endIndex, startIndex];
+
+          addHighlight(parent, 1, id, startIndex, endIndex, 1);
+        }
+        // Appeler la fonction selon le type de texte
+        if (isBible()) {
+          whenClickOnParagraph(allTargets, '.v', 'id', 'verse');
+        } else {
+          whenClickOnParagraph(allTargets, '[data-pid]', 'data-pid', 'paragraph');
+        }
+      }
+
       container.addEventListener('touchstart', (e) => {
+        if (isLongPressing) return;
         startX = e.touches[0].clientX;
         startY = e.touches[0].clientY;
         isDragging = true;
@@ -924,6 +986,7 @@ function isStandalonePunctuation(text, index) {
       });
 
       container.addEventListener('touchmove', (e) => {
+        if (isLongPressing) return;
         if (!isDragging) return;
         const x = e.touches[0].clientX;
         const y = e.touches[0].clientY;
@@ -947,6 +1010,12 @@ function isStandalonePunctuation(text, index) {
       });
 
       container.addEventListener('touchend', async (e) => {
+        isLongTouchFix = false;
+        if (isLongPressing) {
+          setLongPressing(false);
+          return;
+        }
+
         if (!isDragging) return;
         isDragging = false;
 

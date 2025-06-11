@@ -5,7 +5,7 @@ import 'package:jwlife/core/utils/directory_helper.dart';
 import 'package:http/http.dart' as http;
 
 class AssetsDownload {
-  static final String webappFileUrl = 'https://github.com/Noamcreator/jwlife/raw/refs/heads/master/webapp.zip';
+  static final String webappFileUrl = 'https://github.com/Noamcreator/jwlife/raw/refs/heads/main/webapp.zip';
 
   // Télécharge et enregistre les polices localement
   static Future<void> download() async {
