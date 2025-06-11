@@ -95,6 +95,7 @@ class DocumentsManager {
     final webViewData = JwLifeApp.settings.webViewData;
     final fontSize = webViewData.fontSize;
     final backgroundColor = webViewData.backgroundColor;
+    final colorIndex = webViewData.colorIndex;
     bool isDarkMode = webViewData.theme == 'cc-theme--dark';
 
     String wordSelectingColor = isDarkMode ? '#215457' : '#c5f8fa';
@@ -171,6 +172,7 @@ class DocumentsManager {
       let currentIndex = $documentIndex;
       let container = document.getElementById("container");
       let cachedPages = {};
+      let highlightColorIndex = $colorIndex;
       const bookmarkAssets = Array.from({ length: 10 }, (_, i) => `bookmarks/$theme/bookmark\${i + 1}.png`);
       const highlightAssets = Array.from({ length: 6 }, (_, i) => `highlights/$theme/highlight\${i + 1}.png`);
       const highlightSelectedAssets = Array.from({ length: 6 }, (_, i) => `highlights/$theme/highlight\${i + 1}.png`);
@@ -559,6 +561,121 @@ function isStandalonePunctuation(text, index) {
         button.addEventListener('click', onClick);
         return button;
       }
+      
+      function createToolbarButtonColor(paragraphs, type) {
+  const button = document.createElement('button');
+
+  // Créer l'élément image
+  const img = document.createElement('img');
+  img.src = `highlights/$theme/highlight.png`;
+  img.style.cssText = `
+    width: 40px;
+    height: 24px;
+    display: block;
+  `;
+
+  // Ajouter l'image au bouton
+  button.appendChild(img);
+
+  button.style.cssText = `
+    padding: 3px;
+    border-radius: 5px;
+    margin: 0 7px;
+  `;
+
+  // Créer la toolbar de couleurs
+  function createColorToolbar(paragraphs, type) {
+    const paragraph = paragraphs[0];
+    const colorToolbar = document.createElement('div');
+    colorToolbar.classList.add('toolbar-colors');
+    colorToolbar.style.cssText = `
+      position: absolute;
+      top: \${paragraph.getBoundingClientRect().top + window.scrollY - 90}px;
+      left: \${(type === 'paragraph') ? '90px' : '50px'};
+      background-color: \${${webViewData.theme == 'cc-theme--dark'} ? '#424242' : '#ffffff'};
+      padding: 1px;
+      border-radius: 6px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+      white-space: nowrap;
+      display: flex;
+      opacity: 0;
+      transition: opacity 0.1s ease;
+    `;
+
+    // Créer un bouton pour chaque couleur
+    highlightAssets.forEach((assetPath, index) => {
+      const colorButton = document.createElement('button');
+      const colorImg = document.createElement('img');
+      
+      colorImg.src = assetPath;
+      colorImg.style.cssText = `
+        width: 24px;
+        height: 24px;
+        display: block;
+      `;
+      
+      colorButton.appendChild(colorImg);
+      colorButton.style.cssText = `
+        padding: 3px;
+        border-radius: 5px;
+        margin: 0 7px;
+      `;
+
+      // Ajouter l'événement de clic pour chaque couleur
+      colorButton.addEventListener('click', (e) => {
+        e.stopPropagation();
+        highlightColorIndex = index+1;
+        changeHighlightColor(paragraph.getAttribute('data-highlight-id'), highlightColorIndex);
+        colorToolbar.remove();
+        closeToolbar();
+      });
+
+      colorToolbar.appendChild(colorButton);
+    });
+
+    return colorToolbar;
+  }
+
+  // Événement de clic sur le bouton principal
+  button.addEventListener('click', (e) => {
+    e.stopPropagation();
+    
+    // Vérifier s'il y a déjà une toolbar-colors ouverte
+    const existingColorToolbar = document.querySelector('.toolbar-colors');
+    if (existingColorToolbar) {
+      existingColorToolbar.remove();
+      return;
+    }
+
+    // Créer et afficher la toolbar de couleurs
+    const colorToolbar = createColorToolbar(paragraphs, type);
+    document.body.appendChild(colorToolbar);
+
+    // Afficher avec animation
+    setTimeout(() => {
+      colorToolbar.style.opacity = '1';
+    }, 10);
+
+    // Fermer la toolbar si on clique ailleurs
+    const closeColorToolbar = (event) => {
+      if (!colorToolbar.contains(event.target) && !button.contains(event.target)) {
+        colorToolbar.style.opacity = '0';
+        setTimeout(() => {
+          if (colorToolbar.parentNode) {
+            colorToolbar.remove();
+          }
+        }, 100);
+        document.removeEventListener('click', closeColorToolbar);
+      }
+    };
+
+    setTimeout(() => {
+      document.addEventListener('click', closeColorToolbar);
+    }, 10);
+  });
+  
+  return button;
+}
 
       function closeToolbar() {
         restoreOpacity();
@@ -597,7 +714,7 @@ function isStandalonePunctuation(text, index) {
           left: \${(type === 'paragraph') ? '90px' : '50px'};
           background-color: \${${webViewData.theme == 'cc-theme--dark'} ? '#424242' : '#ffffff'};
           padding: 1px;
-          border-radius: 5px;
+          border-radius: 6px;
           box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
           white-space: nowrap;
           display: flex;
@@ -611,44 +728,50 @@ function isStandalonePunctuation(text, index) {
         let buttons = [];
 
         if (isHighlighted) {
+          toolbar.appendChild(createToolbarButtonColor(paragraphs, type));
           buttons = [
             ['&#xE688;', () => {}],
-            ...(!isSelected ? [['&#xE6DD;', () => removeHighlight(paragraphs, selector)]] : []),
-            ['&#xE652;', () => callHandler('copyText', { text: paragraphs.map(p => p.innerText).join(' ') }, selector)],
-            ['&#xE67D;', () => callHandler('search', { query: paragraphs.map(p => p.innerText).join(' ') }, selector)],
-            ['&#xE6A4;', () => callHandler('copyText', { text: paragraphs.map(p => p.innerText).join(' ') }, selector)],
+            ...(!isSelected ? [['&#xE6DD;', () => removeHighlight(paragraph.getAttribute('data-highlight-id'))]] : []),
+            ['&#xE652;', () => callHandler('copyText', { text: paragraphs.map(p => p.innerText).join(' ') })],
+            ['&#xE67D;', () => callHandler('search', { query: paragraphs.map(p => p.innerText).join(' ') })],
+            ['&#xE6A4;', () => callHandler('copyText', { text: paragraphs.map(p => p.innerText).join(' ') })],
           ];
         } 
         else {
           if (type === 'verse') {
             buttons = [
-              ['&#xE65C;', () => callHandler('showVerse', { paragraphId: id }, selector)],
-              ['&#xE688;', () => callHandler('addNote', { paragraphId: id, isBible: true }, selector)],
-              ['&#xE621;', () => callHandler('showOtherTranslations', { paragraphId: id }, selector)],
-              ['&#xE62C;', () => callHandler('bookmark', { snippet: paragraph.innerText, paragraphId: id, isBible: true }, selector)],
-              ['&#xE652;', () => callHandler('copyText', { text: paragraph.innerText }, selector)],
-              ['&#xE67D;', () => callHandler('searchVerse', { query: id }, selector)],
-              ['&#xE6BA;', () => callHandler('share', { paragraphId: id, isBible: true }, selector)],
+              ['&#xE65C;', () => callHandler('showVerse', { paragraphId: id })],
+              ['&#xE688;', () => callHandler('addNote', { paragraphId: id, isBible: true })],
+              ['&#xE621;', () => callHandler('showOtherTranslations', { paragraphId: id })],
+              ['&#xE62C;', () => callHandler('bookmark', { snippet: paragraph.innerText, paragraphId: id, isBible: true })],
+              ['&#xE652;', () => callHandler('copyText', { text: paragraph.innerText })],
+              ['&#xE67D;', () => callHandler('searchVerse', { query: id })],
+              ['&#xE6BA;', () => callHandler('share', { paragraphId: id, isBible: true })],
             ];
           } 
           else {
             buttons = [
-              ['&#xE688;', () => callHandler('addNote', { paragraphId: id, isBible: false }, selector)],
-              ['&#xE62C;', () => callHandler('bookmark', { snippet: paragraph.innerText, paragraphId: id }, selector)],
-              ['&#xE6BA;', () => callHandler('share', { paragraphId: id, isBible: false }, selector)],
-              ['&#xE652;', () => callHandler('copyText', { text: paragraph.innerText }, selector)],
+              ['&#xE688;', () => callHandler('addNote', { paragraphId: id, isBible: false })],
+              ['&#xE62C;', () => callHandler('bookmark', { snippet: paragraph.innerText, paragraphId: id })],
+              ['&#xE6BA;', () => callHandler('share', { paragraphId: id, isBible: false })],
+              ['&#xE652;', () => callHandler('copyText', { text: paragraph.innerText })],
             ];
           }
        }
-
         buttons.forEach(([icon, handler]) => toolbar.appendChild(createToolbarButton(icon, handler)));
 
         if (!isHighlighted && hasAudio) {
           toolbar.appendChild(createToolbarButton('&#xE662;', () => callHandler('playAudio', { paragraphId: id })));
         }
       }
+      
+      function removeHighlight(uuid) {
+        removeHighlightByGuid(uuid);
+        closeToolbar();
+        removeAllSelected();
+      }
 
-      function callHandler(name, args, selector) {
+      function callHandler(name, args) {
         window.flutter_inappwebview.callHandler(name, args);
         closeToolbar();
         removeAllSelected();
@@ -775,7 +898,7 @@ function isStandalonePunctuation(text, index) {
           
           const matchingHighlights = highlights.filter(highlight => Number(highlight?.Identifier) === Number(id));
           matchingHighlights.forEach(highlight => {
-            addHighlight(p, highlight.BlockType, highlight.Identifier, highlight.StartToken, highlight.EndToken, highlight.ColorIndex);
+            addHighlight(p, highlight.BlockType, highlight.Identifier, highlight.StartToken, highlight.EndToken, highlight.UserMarkGuid, highlight.ColorIndex);
           });
         });
         
@@ -820,39 +943,69 @@ function isStandalonePunctuation(text, index) {
             img.src = imgSrc;
             img.classList.add('bookmark-icon');
             img.style.position = 'absolute';
-            img.style.left = '-13px';
+            img.style.left = '-16px';
             img.style.top = '5px';
-            img.style.width = '9px';
-            img.style.height = '18px';
+            img.style.width = '18px';
+            img.style.height = '25px';
 
-            target.parentElement.style.position = 'relative'; 
-            target.parentElement.insertBefore(img, target);
+            target.style.position = 'relative'; 
+            target.appendChild(img);
         }
       }
       
-      function addHighlight(target, blockType, blockIdentifier, startToken, endToken, colorIndex) {
-        if (!target) {
-          target = pageCenter.querySelector(`[data-pid="\${blockIdentifier}"]`);
-        }
+      function addHighlight(target, blockType, blockIdentifier, startToken, endToken, guid, colorIndex) {
+  if (!target) {
+    target = pageCenter.querySelector(`[data-pid="\${blockIdentifier}"]`);
+  }
 
-        const highlightClass = `highlight-\${["transparent", "yellow", "green", "blue", "pink", "orange", "purple"][colorIndex]}`;
+  const highlightClass = `highlight-${["transparent", "yellow", "green", "blue", "pink", "orange", "purple"][colorIndex]}`;
 
-        // Récupérer tous les enfants word + punctuation dans le bon ordre
-        const tokens = Array.from(target.querySelectorAll('.word, .punctuation'));
+  // Récupérer tous les enfants word + punctuation dans le bon ordre
+  const tokens = Array.from(target.querySelectorAll('.word, .punctuation'));
 
-        // Récupérer les éléments à surligner
-        const selectedTokens = tokens.slice(startToken, endToken + 1);
+  // Récupérer les éléments à surligner
+  const selectedTokens = tokens.slice(startToken, endToken + 1);
 
-        selectedTokens.forEach((token, index) => {
-          token.classList.add(highlightClass);
+  selectedTokens.forEach((token, index) => {
+    token.classList.add(highlightClass);
+    // Ajouter l'UUID comme attribut data pour identifier le surlignage
+    token.setAttribute('data-highlight-id', guid);
 
-          // On surligne l'espace juste après sauf si c’est le dernier token
-          const next = token.nextElementSibling;
-          if (next && next.classList.contains('escape') && index !== selectedTokens.length - 1) {
-            next.classList.add(highlightClass);
-          }
-        });
-      }
+    // On surligne l'espace juste après sauf si c'est le dernier token
+    const next = token.nextElementSibling;
+    if (next && next.classList.contains('escape') && index !== selectedTokens.length - 1) {
+      next.classList.add(highlightClass);
+      // Ajouter l'UUID à l'espace aussi
+      next.setAttribute('data-highlight-id', guid);
+    }
+  });
+}
+
+// Fonction utilitaire pour supprimer un surlignage spécifique par son UUID
+function removeHighlightByGuid(guid) {
+  const highlightedElements = document.querySelectorAll(`[data-highlight-id="\${guid}"]`);
+  highlightedElements.forEach(element => {
+    // Supprimer toutes les classes de surlignage
+    element.classList.remove('highlight-transparent', 'highlight-yellow', 'highlight-green', 
+                             'highlight-blue', 'highlight-pink', 'highlight-orange', 'highlight-purple');
+    // Supprimer l'attribut UUID
+    element.removeAttribute('data-highlight-id');
+  });
+}
+
+// Fonction utilitaire pour changer la couleur d'un surlignage spécifique
+function changeHighlightColor(guid, newColorIndex) {
+  const highlightedElements = document.querySelectorAll(`[data-highlight-id="\${guid}"]`);
+  const newHighlightClass = `highlight-\${["transparent", "yellow", "green", "blue", "pink", "orange", "purple"][newColorIndex]}`;
+  
+  highlightedElements.forEach(element => {
+    // Supprimer toutes les classes de surlignage existantes
+    element.classList.remove('highlight-transparent', 'highlight-yellow', 'highlight-green', 
+                             'highlight-blue', 'highlight-pink', 'highlight-orange', 'highlight-purple');
+    // Ajouter la nouvelle classe de couleur
+    element.classList.add(newHighlightClass);
+  });
+}
 
       // Clics images et références
       pageCenter.addEventListener('click', (event) => {
@@ -941,7 +1094,7 @@ function isStandalonePunctuation(text, index) {
           isLongTouchFix = false;
       });
       
-      function onLongPressEnd() {
+      async function onLongPressEnd() {
         let firstTarget = firstLongPressTarget;
         let lastTarget = lastLongPressTarget;
         let allTargets = null;
@@ -965,8 +1118,10 @@ function isStandalonePunctuation(text, index) {
 
           // S'assurer que l'index de départ est inférieur à celui de fin
           const [from, to] = startIndex < endIndex ? [startIndex, endIndex] : [endIndex, startIndex];
-
-          addHighlight(parent, 1, id, startIndex, endIndex, 1);
+          
+          const guid = await window.flutter_inappwebview.callHandler('getGuid');
+          const uuid = guid.uuid;
+          addHighlight(parent, 1, id, startIndex, endIndex, uuid, highlightColorIndex);
         }
         // Appeler la fonction selon le type de texte
         if (isBible()) {

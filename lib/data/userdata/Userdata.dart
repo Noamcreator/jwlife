@@ -275,7 +275,7 @@ class Userdata {
     try {
       // Joining Location, UserMark, and BlockRange tables to get all required data in one query
       List<Map<String, dynamic>> highlights = await _database.rawQuery('''
-            SELECT BlockRange.BlockType, BlockRange.Identifier, BlockRange.StartToken, BlockRange.EndToken, UserMark.ColorIndex
+            SELECT BlockRange.BlockType, BlockRange.Identifier, BlockRange.StartToken, BlockRange.EndToken, UserMark.ColorIndex, UserMark.UserMarkGuid
             FROM Location
             LEFT JOIN UserMark ON Location.LocationId = UserMark.LocationId
             LEFT JOIN BlockRange ON UserMark.UserMarkId = BlockRange.UserMarkId
@@ -295,7 +295,7 @@ class Userdata {
     try {
       // Joining Location, UserMark, and BlockRange tables to get all required data in one query
       List<Map<String, dynamic>> highlights = await _database.rawQuery('''
-            SELECT BlockRange.BlockType, BlockRange.Identifier, BlockRange.StartToken, BlockRange.EndToken, UserMark.ColorIndex
+            SELECT BlockRange.BlockType, BlockRange.Identifier, BlockRange.StartToken, BlockRange.EndToken, UserMark.ColorIndex, UserMark.UserMarkGuid
             FROM Location
             LEFT JOIN UserMark ON Location.LocationId = UserMark.LocationId
             LEFT JOIN BlockRange ON UserMark.UserMarkId = BlockRange.UserMarkId

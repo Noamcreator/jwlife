@@ -8,6 +8,7 @@ class WebViewData {
   //late String dialogBackgroundColor;
   late String cssCode;
   late double fontSize;
+  late int colorIndex;
 
   // Méthode privée pour charger le CSS
   Future<void> init() async {
@@ -26,6 +27,7 @@ class WebViewData {
     backgroundColor = isDark ? '#121212' : '#ffffff';
     //dialogBackgroundColor = isDark ? '#1d1d1d' : '#f7f7f5';
     fontSize = await getFontSize();
+    colorIndex = await getLastHighlightColorIndex();
   }
 
   void update(ThemeMode themeMode) {

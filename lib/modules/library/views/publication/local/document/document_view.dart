@@ -34,6 +34,7 @@ import 'package:jwlife/widgets/dialog/publication_dialogs.dart';
 import 'package:jwlife/widgets/image_widget.dart';
 import 'package:jwlife/widgets/responsive_appbar_actions.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../../../../../core/utils/directory_helper.dart';
 import '../full_screen_image_view_local.dart';
@@ -961,6 +962,17 @@ document.body.appendChild(dialog);
                       }
                     }
                   }
+                },
+              );
+
+              // Gestionnaire pour les clics sur les images
+              controller.addJavaScriptHandler(
+                handlerName: 'getGuid',
+                callback: (args) {
+                  var uuid = Uuid();
+                  return {
+                    'uuid': uuid.v4()
+                  };
                 },
               );
 
