@@ -393,7 +393,7 @@
     },
     {
       "name": "flutter_launcher_icons",
-      "rootUri": "file:///C:/Users/noamb/AppData/Local/Pub/Cache/hosted/pub.dev/flutter_launcher_icons-0.14.3",
+      "rootUri": "file:///C:/Users/noamb/AppData/Local/Pub/Cache/hosted/pub.dev/flutter_launcher_icons-0.14.4",
       "packageUri": "lib/",
       "languageVersion": "3.0"
     },
@@ -1131,9 +1131,9 @@
     },
     {
       "name": "vector_graphics",
-      "rootUri": "file:///C:/Users/noamb/AppData/Local/Pub/Cache/hosted/pub.dev/vector_graphics-1.1.18",
+      "rootUri": "file:///C:/Users/noamb/AppData/Local/Pub/Cache/hosted/pub.dev/vector_graphics-1.1.19",
       "packageUri": "lib/",
-      "languageVersion": "3.4"
+      "languageVersion": "3.6"
     },
     {
       "name": "vector_graphics_codec",

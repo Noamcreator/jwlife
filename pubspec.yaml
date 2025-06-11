@@ -56,7 +56,7 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
-  flutter_launcher_icons: ^0.14.3
+  flutter_launcher_icons: ^0.14.4
   #flutter_asset_generator: ^1.2.0
 
 flutter_launcher_icons:
@@ -74,10 +74,6 @@ flutter:
   assets:
     - assets/db/
     - assets/icons/
-    - assets/icons/bookmarks/dark/
-    - assets/icons/bookmarks/light/
-    - assets/icons/highlights/dark/
-    - assets/icons/highlights/light/
     - assets/images/
     - assets/userData/
 
