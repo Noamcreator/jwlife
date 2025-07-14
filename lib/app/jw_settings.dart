@@ -7,15 +7,11 @@ import '../data/meps/language.dart';
 
 class JwSettings {
   ThemeMode themeMode = ThemeMode.system;
-  ThemeData lightData = AppTheme.getLightTheme(Color(0xFF295568));
-  ThemeData darkData = AppTheme.getDarkTheme(Color.lerp(Color(0xFF295568), Colors.white, 0.3)!);
+  ThemeData lightData = AppTheme.getLightTheme(Color(0xFF646496));
+  ThemeData darkData = AppTheme.getDarkTheme(Color.lerp(Color(0xFF646496), Colors.white, 0.3)!);
   Locale locale = Locale('en');
   MepsLanguage currentLanguage = MepsLanguage(id: 3, symbol: 'F', vernacular: 'Français', primaryIetfCode: 'fr', rsConf: 'r30', lib: 'lp-f');
   WebViewData webViewData = WebViewData();
-
-  JwSettings() {
-    loadFromSharedPreferences();
-  }
 
   Future<void> loadFromSharedPreferences() async {
     // Récupère les préférences utilisateur (thème, couleur principale et langue)

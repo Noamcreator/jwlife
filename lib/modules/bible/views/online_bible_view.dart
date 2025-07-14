@@ -5,6 +5,7 @@ import 'package:html/dom.dart' as html;
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
 
+import '../../../core/api.dart';
 import 'bible_chapter.dart';
 
 class BiblePage extends StatefulWidget {
@@ -28,7 +29,7 @@ class _BiblePageState extends State<BiblePage> {
   }
 
   Future<void> _fetchHtmlContent() async {
-    final response = await http.get(Uri.parse(publicationLink));
+    final response = await Api.httpGetWithHeaders(publicationLink);
     if (response.statusCode == 200) {
       _parseHtml(response.body);
     } else {

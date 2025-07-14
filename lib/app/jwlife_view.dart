@@ -1,5 +1,6 @@
 import 'package:beamer/beamer.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:jwlife/modules/bible/views/bible_view.dart';
 import 'package:jwlife/modules/congregation/views/congregation_view.dart';
 import 'package:jwlife/modules/home/views/home_view.dart';
@@ -12,20 +13,25 @@ import '../audio/audio_player_widget.dart';
 import '../core/icons.dart';
 import 'package:jwlife/i18n/localization.dart';
 
+import '../widgets/custom_bottom_navigation_item.dart';
+
 class JwLifeView extends StatefulWidget {
   final Function(ThemeMode) toggleTheme;
   final Function(Locale) changeLocale;
 
-  static late Function(bool) toggleNavBarBody;
   static late Function(bool) toggleNavBarVisibility;
-  static late Function(int, bool) toggleNavBarBlack;
+  static late Function(bool) toggleNavBarBlack;
+  static late Function(bool) toggleNavBarPositioned;
+  static late Function(bool) toggleNavBarSystemUiMode;
   static late Function(bool) toggleAudioWidgetVisibility;
 
-  static int currentTabIndex = 0;
-  static bool hasBody = true;
-  static bool isPersistentTabViewVisible = true;
-  static bool isAudioWidgetVisible = false;
-  static List<bool> persistentBarIsBlack = [false, false, false, false, false, false, false];
+  static late Function() getNavBarVisibility;
+
+  static List<bool> navBarVisible = [true, true, true, true, true, true, true];
+  static List<bool> navBarIsBlack = [false, false, false, false, false, false, false];
+  static List<bool> navBarIsPositioned = [false, false, false, false, false, false, false];
+  static bool audioWidgetVisible = false;
+  static int currentIndex = 0;
 
   const JwLifeView({super.key, required this.toggleTheme, required this.changeLocale});
 
@@ -34,9 +40,10 @@ class JwLifeView extends StatefulWidget {
 }
 
 class _JwLifeViewState extends State<JwLifeView> {
-  bool _isPersistentTabViewVisible = true;
-  bool _isAudioWidgetVisible = false;
-  bool _persistentBarIsBlack = false;
+  final List<bool> _navBarVisible = [true, true, true, true, true, true, true];
+  final List<bool> _navBarIsBlack = [false, false, false, false, false, false, false];
+  final List<bool> _navBarIsPositioned = [false, false, false, false, false, false, false];
+  bool _audioWidgetVisible = false;
   int _currentIndex = 0;
 
   // Declare and initialize Beamer delegates for different sections of the app
@@ -47,224 +54,259 @@ class _JwLifeViewState extends State<JwLifeView> {
     super.initState();
 
     // Initialize static methods for nav bar and audio widget visibility
-    JwLifeView.toggleNavBarVisibility = _toggleBottomBarVisibility;
-    JwLifeView.toggleNavBarBlack = _toggleBottomBarBlack;
+    JwLifeView.toggleNavBarVisibility = _toggleNavBarVisibility;
+    JwLifeView.toggleNavBarBlack = _toggleNavBarBlack;
+    JwLifeView.toggleNavBarPositioned = _toggleNavBarPositioned;
     JwLifeView.toggleAudioWidgetVisibility = _toggleAudioWidgetVisibility;
+
+    JwLifeView.getNavBarVisibility = getNavBarVisibility;
 
     // Initialize the Beamer delegates for various sections (home, bible, etc.)
     _routerDelegates = [
       BeamerDelegate(
         initialPath: '/home',
-        locationBuilder: (routeInformation, _) {
-          if (routeInformation.location.contains('/home')) {
-            return SimpleLocation(
-              routeInformation,
-              HomeView(
-                toggleTheme: widget.toggleTheme,
-                changeLocale: widget.changeLocale,
-              ),
-            );
-          }
-          return NotFound(path: routeInformation.location);
-        },
+        locationBuilder: getRouteLocation(
+          HomeView(
+            toggleTheme: widget.toggleTheme,
+            changeLocale: widget.changeLocale,
+          ),
+          'home',
+        ).call,
       ),
       BeamerDelegate(
         initialPath: '/bible',
-        locationBuilder: (routeInformation, _) {
-          if (routeInformation.location.contains('/bible')) {
-            return SimpleLocation(routeInformation, BibleView());
-          }
-          return NotFound(path: routeInformation.location);
-        },
+        locationBuilder:  getRouteLocation(
+          BibleView(),
+          'bible',
+        ).call,
       ),
       BeamerDelegate(
         initialPath: '/library',
-        locationBuilder: (routeInformation, _) {
-          if (routeInformation.location.contains('/library')) {
-            return SimpleLocation(routeInformation, LibraryView());
-          }
-          return NotFound(path: routeInformation.location);
-        },
+        locationBuilder: getRouteLocation(
+          LibraryView(),
+          'library',
+        ).call,
       ),
       BeamerDelegate(
         initialPath: '/meetings',
-        locationBuilder: (routeInformation, _) {
-          if (routeInformation.location.contains('/meetings')) {
-            return SimpleLocation(routeInformation, MeetingsView());
-          }
-          return NotFound(path: routeInformation.location);
-        },
+        locationBuilder: getRouteLocation(
+          MeetingsView(),
+          'meetings',
+        ).call,
       ),
       BeamerDelegate(
         initialPath: '/predication',
-        locationBuilder: (routeInformation, _) {
-          if (routeInformation.location.contains('/predication')) {
-            return SimpleLocation(routeInformation, PredicationView());
-          }
-          return NotFound(path: routeInformation.location);
-        },
+        locationBuilder: getRouteLocation(
+          PredicationView(),
+          'predication',
+        ).call,
       ),
       BeamerDelegate(
         initialPath: '/congregation',
-        locationBuilder: (routeInformation, _) {
-          if (routeInformation.location.contains('/congregation')) {
-            return SimpleLocation(routeInformation, CongregationView());
-          }
-          return NotFound(path: routeInformation.location);
-        },
+        locationBuilder: getRouteLocation(
+          CongregationView(),
+          'congregation',
+        ).call,
       ),
       BeamerDelegate(
         initialPath: '/personal',
-        locationBuilder: (routeInformation, _) {
-          if (routeInformation.location.contains('/personal')) {
-            return SimpleLocation(routeInformation, PersonalView());
-          }
-          return NotFound(path: routeInformation.location);
-        },
+        locationBuilder: getRouteLocation(
+          PersonalView(),
+          'personal',
+        ).call,
       ),
     ];
   }
 
-  void _toggleBottomBarVisibility(bool isVisible) {
-    JwLifeView.isPersistentTabViewVisible = isVisible;
+  bool getNavBarVisibility() {
+    return JwLifeView.navBarVisible[_currentIndex];
+  }
+
+  void _toggleNavBarVisibility(bool isVisible) {
+    JwLifeView.navBarVisible[_currentIndex] = isVisible;
     setState(() {
-      _isPersistentTabViewVisible = isVisible;
+      _navBarVisible[_currentIndex] = isVisible;
     });
+  }
+
+  void _toggleNavBarBlack(bool isBlack) {
+    JwLifeView.navBarIsBlack[_currentIndex] = isBlack;
+    setState(() {
+      _navBarIsBlack[_currentIndex] = isBlack;
+    });
+    if (isBlack) {
+      SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky, overlays: []);
+    }
+    else {
+      SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge, overlays: SystemUiOverlay.values);
+    }
+  }
+
+  void _toggleNavBarPositioned(bool isPositioned) {
+    JwLifeView.navBarIsPositioned[_currentIndex] = isPositioned;
+    setState(() {
+      _navBarIsPositioned[_currentIndex] = isPositioned;
+      _navBarVisible[_currentIndex] = !isPositioned;
+    });
+    if (isPositioned) {
+      SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky, overlays: []);
+    }
+    else {
+      SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge, overlays: SystemUiOverlay.values);
+    }
   }
 
   void _toggleAudioWidgetVisibility(bool isVisible) {
-    JwLifeView.isAudioWidgetVisible = isVisible;
+    JwLifeView.audioWidgetVisible = isVisible;
     setState(() {
-      _isAudioWidgetVisible = isVisible;
-    });
-  }
-
-  void _toggleBottomBarBlack(int index, bool black) {
-    JwLifeView.persistentBarIsBlack[index] = black;
-    setState(() {
-      _persistentBarIsBlack = black;
+      _audioWidgetVisible = isVisible;
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: <Widget>[
-        Scaffold(
-          body: Column(
-            children: [
-              Expanded(
-                child: Stack(
-                  children: <Widget>[
-                    IndexedStack(
-                      index: _currentIndex,
-                      children: _routerDelegates.map((delegate) =>
-                          Beamer(routerDelegate: delegate)).toList(),
-                    ),
-                  ],
-                ),
-              ),
-              // Audio widget displayed at the bottom if conditions are met
-              AudioPlayerWidget(
-                visible: _isAudioWidgetVisible && !_persistentBarIsBlack,
-              ),
-            ],
-          ),
-          extendBody: _persistentBarIsBlack,
-          bottomNavigationBar: _isPersistentTabViewVisible
-              ? Visibility(
-            visible: _isPersistentTabViewVisible,
-            child: Theme(
-              data: Theme.of(context).copyWith(
-                splashFactory: NoSplash.splashFactory,
-                highlightColor: Colors.grey.withOpacity(0.1),
-              ),
-              child: BottomNavigationBar(
-                unselectedFontSize: 8.0,
-                selectedFontSize: 8.5,
-                selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold),
-                backgroundColor: _persistentBarIsBlack
-                    ? Colors.transparent
-                    : Theme.of(context).bottomNavigationBarTheme.backgroundColor,
-                currentIndex: _currentIndex,
-                type: BottomNavigationBarType.fixed,
-                selectedIconTheme: IconThemeData(
-                  color: Theme.of(context).bottomNavigationBarTheme.selectedItemColor,
-                  fill: 0.0,
-                ),
-                unselectedItemColor: _persistentBarIsBlack ? Colors.white : Theme.of(context).bottomNavigationBarTheme.unselectedItemColor,
-                landscapeLayout: BottomNavigationBarLandscapeLayout.linear,
-                items: [
-                  BottomNavigationBarItem(
-                    label: localization(context).navigation_home,
-                    icon: const Icon(JwIcons.home),
-                  ),
-                  BottomNavigationBarItem(
-                    label: localization(context).navigation_bible,
-                    icon: Icon(JwIcons.bible),
-                  ),
-                  BottomNavigationBarItem(
-                    label: localization(context).navigation_library,
-                    icon: Icon(JwIcons.publication_video_music),
-                  ),
-                  BottomNavigationBarItem(
-                    label: localization(context).navigation_meetings,
-                    icon: Icon(JwIcons.speaker_audience),
-                  ),
-                  BottomNavigationBarItem(
-                    label: localization(context).navigation_predication,
-                    icon: Icon(JwIcons.persons_doorstep),
-                  ),
-                  BottomNavigationBarItem(
-                    label: localization(context).navigation_congregations,
-                    icon: Icon(JwIcons.kingdom_hall),
-                  ),
-                  BottomNavigationBarItem(
-                    label: localization(context).navigation_personal,
-                    icon: Icon(JwIcons.person_studying),
-                  ),
-                ],
-                onTap: (index) {
-                  if (index == _currentIndex) {
-                    Navigator.pop(context);
-                  }
-                  setState(() {
-                    _currentIndex = index;
-                    _routerDelegates[_currentIndex].update(rebuild: false);
-                  });
-                },
-              ),
-            ),
-          )
-              : Container(),
+    final bool isKeyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0;
+
+    final Widget content = IndexedStack(
+      index: _currentIndex,
+      children: _routerDelegates
+          .map((delegate) => Beamer(routerDelegate: delegate))
+          .toList(),
+    );
+
+    final Widget audioWidget = AnimatedSwitcher(
+      duration: const Duration(milliseconds: 200),
+      child: !isKeyboardOpen
+          ? AudioPlayerWidget(
+        key: const ValueKey('audio'),
+        visible: _audioWidgetVisible && !_navBarIsBlack[_currentIndex],
+      )
+          : const SizedBox.shrink(key: ValueKey('no-audio')),
+    );
+
+    final Widget bottomNav = _navBarVisible[_currentIndex]
+        ? CustomBottomNavigation(
+      currentIndex: _currentIndex,
+      selectedFontSize: 8.5,
+      unselectedFontSize: 8.0,
+      selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold),
+      backgroundColor: _navBarIsBlack[_currentIndex]
+          ? Colors.transparent
+          : Theme.of(context)
+          .bottomNavigationBarTheme
+          .backgroundColor,
+      selectedIconTheme: IconThemeData(
+        color:
+        Theme.of(context).bottomNavigationBarTheme.selectedItemColor,
+        fill: 0.0,
+      ),
+      selectedItemColor:
+      Theme.of(context).bottomNavigationBarTheme.selectedItemColor,
+      unselectedItemColor: _navBarIsBlack[_currentIndex]
+          ? Colors.white
+          : Theme.of(context)
+          .bottomNavigationBarTheme
+          .unselectedItemColor,
+      items: [
+        CustomBottomNavigationItem(
+          label: localization(context).navigation_home,
+          icon: const Icon(JwIcons.home),
         ),
-        /*
-        Visibility(
-          visible: FirebaseAuth.instance.currentUser == null,
-          child: Scaffold(
-            body: LoginView(update: setState, fromSettings: false),
-          ),
+        CustomBottomNavigationItem(
+          label: localization(context).navigation_bible,
+          icon: const Icon(JwIcons.bible),
         ),
-         */
+        CustomBottomNavigationItem(
+          label: localization(context).navigation_library,
+          icon: const Icon(JwIcons.publication_video_music),
+        ),
+        CustomBottomNavigationItem(
+          label: localization(context).navigation_meetings,
+          icon: const Icon(JwIcons.speaker_audience),
+        ),
+        CustomBottomNavigationItem(
+          label: localization(context).navigation_predication,
+          icon: const Icon(JwIcons.persons_doorstep),
+        ),
+        CustomBottomNavigationItem(
+          label: localization(context).navigation_congregations,
+          icon: const Icon(JwIcons.kingdom_hall),
+        ),
+        CustomBottomNavigationItem(
+          label: localization(context).navigation_personal,
+          icon: const Icon(JwIcons.person_studying),
+        ),
       ],
+      onTap: (index) async {
+        final delegate = _routerDelegates[index];
+
+        if (index == _currentIndex) {
+          await popToRoot(delegate);
+        }
+        else {
+          setState(() {
+            _currentIndex = index;
+            _routerDelegates[index].update(rebuild: true);
+          });
+          JwLifeView.currentIndex = index;
+        }
+
+        if (_navBarIsBlack[index] || _navBarIsPositioned[index]) {
+          SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky, overlays: []);
+        }
+        else {
+          SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge, overlays: SystemUiOverlay.values);
+        }
+      },
+    ) : const SizedBox.shrink();
+
+    return _navBarIsPositioned[_currentIndex] || _navBarIsBlack[_currentIndex] ? Scaffold(
+      resizeToAvoidBottomInset: false,
+      body: Stack(
+        children: [
+          Positioned.fill(child: content),
+          if (!isKeyboardOpen)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: _navBarVisible[_currentIndex] ? 56.0 : 0,
+              child: audioWidget,
+            ),
+          if (_navBarVisible[_currentIndex])
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: bottomNav,
+            ),
+        ],
+      )
+    ) :
+    Scaffold(
+      resizeToAvoidBottomInset: true,
+      body: Column(
+        children: [
+          Expanded(child: content),
+          audioWidget,
+        ],
+      ),
+      bottomNavigationBar: bottomNav
     );
   }
 }
 
-class SimpleLocation extends BeamLocation<BeamState> {
-  SimpleLocation(RouteInformation super.routeInformation, this.page);
+Future<void> popToRoot(BeamerDelegate delegate) async {
+  bool canPop = true;
+  while (canPop) {
+    canPop = await delegate.popRoute();
+  }
+}
 
-  final Widget page;
 
-  @override
-  List<String> get pathPatterns => ['/*'];
-
-  @override
-  List<BeamPage> buildPages(BuildContext context, BeamState state) => [
-    BeamPage(
-      key: ValueKey(page.runtimeType.toString()),
-      title: page.runtimeType.toString(),
-      child: page,
-    ),
-  ];
+RoutesLocationBuilder getRouteLocation(Widget page, String path) {
+  return RoutesLocationBuilder(
+    routes: {
+      '/$path': (context, state, data) => page,
+    },
+  );
 }

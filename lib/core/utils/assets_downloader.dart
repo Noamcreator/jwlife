@@ -3,6 +3,10 @@ import 'dart:typed_data';
 import 'package:archive/archive.dart';
 import 'package:jwlife/core/utils/directory_helper.dart';
 import 'package:http/http.dart' as http;
+import 'package:jwlife/core/utils/shared_preferences_helper.dart';
+import 'package:jwlife/core/utils/utils.dart';
+
+import '../api.dart';
 
 class AssetsDownload {
   static final String webappFileUrl = 'https://github.com/Noamcreator/jwlife/raw/refs/heads/main/webapp.zip';
@@ -11,13 +15,18 @@ class AssetsDownload {
   static Future<void> download() async {
     final directory = await getAppWebViewDirectory();
     final webappDir = Directory('${directory.path}/webapp');
+    final webappDirDownloaded = await getWebAppDownload();
 
-    if (!await webappDir.exists()) {
+    if (!await webappDir.exists() || !webappDirDownloaded) {
       await webappDir.create(recursive: true);
+      printTime('Downloading webapp...');
       try {
-        final response = await http.get(Uri.parse(webappFileUrl));
+        final response = await Api.httpGetWithHeaders(webappFileUrl);
         if (response.statusCode == 200) {
-          extractWebAppZip(webappDir, response.bodyBytes);
+          printTime('Extracting webapp...');
+          await extractWebAppZip(webappDir, response.bodyBytes);
+          await setWebAppDownload(true);
+          printTime('webapp downloaded');
         }
         else {
           print('Failed to download webapp: $webappFileUrl');

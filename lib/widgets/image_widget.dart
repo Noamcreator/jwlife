@@ -28,49 +28,65 @@ class _ImageCachedWidgetState extends State<ImageCachedWidget> {
   @override
   void initState() {
     super.initState();
-    _imageFuture = JwLifeApp.tilesCache.getOrDownloadImage(widget.imageUrl);
-  }
-
-  @override
-  void didUpdateWidget(covariant ImageCachedWidget oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    // Si l'URL a changé, recharger l'image
-    if (widget.imageUrl != oldWidget.imageUrl) {
+    if (widget.imageUrl == null || widget.imageUrl!.isEmpty) {
+      _imageFuture = Future.value(null);
+    } else {
       _imageFuture = JwLifeApp.tilesCache.getOrDownloadImage(widget.imageUrl);
     }
   }
 
   @override
+  void didUpdateWidget(covariant ImageCachedWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.imageUrl != oldWidget.imageUrl) {
+      if (widget.imageUrl == null || widget.imageUrl!.isEmpty) {
+        _imageFuture = Future.value(null);
+      } else {
+        _imageFuture = JwLifeApp.tilesCache.getOrDownloadImage(widget.imageUrl);
+      }
+    }
+  }
+
+  Widget _buildPlaceholder(bool isDark) {
+    return Image.asset(
+      'assets/images/${widget.pathNoImage}${isDark ? "_gray" : ""}.png',
+      height: widget.height,
+      width: widget.width,
+      fit: widget.fit,
+    );
+  }
+
+  int? safeToInt(double? value) {
+    if (value == null || value.isInfinite || value.isNaN) {
+      return null;
+    }
+    return value.toInt();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    bool isDark = Theme.of(context).brightness == Brightness.dark;
+
     return FutureBuilder<Tile?>(
-      future: _imageFuture, // Utilisation de _imageFuture pour éviter de relancer la tâche
+      future: _imageFuture,
       builder: (context, snapshot) {
-        bool isDark = Theme.of(context).brightness == Brightness.dark;
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return Image.asset(
-            isDark ? 'assets/images/${widget.pathNoImage}_gray.png' : 'assets/images/${widget.pathNoImage}.png',
-            height: widget.height,
-            width: widget.width,
-            fit: widget.fit,
-          );
-        }
-        else if (snapshot.hasError || snapshot.data == null) {
-          return Image.asset(
-            isDark ? 'assets/images/${widget.pathNoImage}_gray.png' : 'assets/images/${widget.pathNoImage}.png',
-            height: widget.height,
-            width: widget.width,
-            fit: widget.fit,
-          );
-        }
-        else {
+          return _buildPlaceholder(isDark);
+        } else if (snapshot.hasError || snapshot.data == null) {
+          return _buildPlaceholder(isDark);
+        } else {
+          final pixelRatio = MediaQuery.of(context).devicePixelRatio;
           return Image.file(
             snapshot.data!.file,
-            height: widget.height,
             width: widget.width,
+            height: widget.height,
+            cacheWidth: safeToInt(widget.width != null ? widget.width! * pixelRatio : null),
+            cacheHeight: safeToInt(widget.height != null ? widget.height! * pixelRatio : null),
             fit: widget.fit,
           );
         }
       },
     );
   }
+
 }

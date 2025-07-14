@@ -21,6 +21,8 @@ import 'package:jwlife/widgets/dialog/language_dialog_pub.dart';
 import 'package:jwlife/widgets/responsive_appbar_actions.dart';
 import 'package:sqflite/sqflite.dart';
 
+import '../../../data/userdata/Bookmark.dart';
+
 class LocalChapterBiblePage extends StatefulWidget {
   final Publication bible;
   final int book;
@@ -161,7 +163,7 @@ WHERE meps.BibleCluesInfo.LanguageId = ?
 
       final decodedHtml = decodeBlobContent(
         contentBlob,
-        widget.bible.hash,
+        widget.bible.hash!,
       );
 
       String htmlContent = createHtmlContent(
@@ -195,7 +197,6 @@ WHERE meps.BibleCluesInfo.LanguageId = ?
 
     return Scaffold(
       appBar: AppBar(
-        //backgroundColor: _books[_currentIndex]['HasCommentary'] == 1 ? Colors.transparent : Theme.of(context).appBarTheme.backgroundColor,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -232,18 +233,29 @@ WHERE meps.BibleCluesInfo.LanguageId = ?
                 text: "Marque-pages",
                 icon: Icon(JwIcons.bookmark),
                 onPressed: () async {
-                  Map<String, dynamic>? bookmark = await showBookmarkDialog(context, widget.bible);
+                  Bookmark? bookmark = await showBookmarkDialog(context, widget.bible);
                   if (bookmark != null) {
-                    if(bookmark['BookNumber'] != null && bookmark['ChapterNumber'] != null) {
-                      showPage(context, DocumentView.bible(bible: widget.bible, book: bookmark['BookNumber'], chapter: bookmark['ChapterNumber'], audios: _audios));
+                    if(bookmark.bookNumber!= null && bookmark.chapterNumber != null) {
+                        showPage(context, DocumentView.bible(
+                            bible: widget.bible,
+                            book: bookmark.bookNumber!,
+                            chapter: bookmark.chapterNumber!,
+                            firstVerse: bookmark.blockIdentifier,
+                            lastVerse: bookmark.blockIdentifier,
+                            audios: _audios
+                        )
+                      );
                     }
-                    showPage(context, DocumentView(
-                        publication: widget.bible,
-                        audios: [],
-                        mepsDocumentId: bookmark['DocumentId'],
-                        startParagraphId: bookmark['BlockIdentifier']
-                      )
-                    );
+                    else if(bookmark.mepsDocumentId != null) {
+                        showPage(context, DocumentView(
+                          publication: widget.bible,
+                          audios: [],
+                          mepsDocumentId: bookmark.mepsDocumentId!,
+                          startParagraphId: bookmark.blockIdentifier,
+                          endParagraphId: bookmark.blockIdentifier
+                        )
+                      );
+                    }
                   }
                 },
               ),

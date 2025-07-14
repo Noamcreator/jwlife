@@ -5,6 +5,7 @@ import 'package:html/parser.dart';
 import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/core/utils/utils_document.dart';
 import 'package:jwlife/data/databases/Publication.dart';
+import 'package:jwlife/data/databases/PublicationRepository.dart';
 import 'package:jwlife/data/databases/catalog.dart';
 import 'package:jwlife/widgets/image_widget.dart';
 import 'package:sqflite/sqflite.dart';
@@ -89,9 +90,9 @@ class _VersesSearchTabState extends State<VersesSearchTab> {
                 paragraphText = parse(paragraphHtml).body?.text ?? '';
               }
 
-              Publication downloadPub = JwLifeApp.pubCollections.getPublications().firstWhere((pub) => pub.symbol == item['Symbol'] && pub.year == item['Year'] && pub.mepsLanguage.id == item['MepsLanguageIndex'] && (pub.issueTagNumber == int.parse(item['IssueTagNumber'] ?? '0')));
+              Publication? downloadPub = PublicationRepository().getByCompositeKey(item['Symbol'], item['IssueTagNumber'], item['MepsLanguageIndex']);
 
-              return item['Content'] == null ? null : GestureDetector(
+              return item['Content'] == null || downloadPub == null ? null : GestureDetector(
                 onTap: () async {
                   showDocumentView(context, item['MepsDocumentId'], item['MepsLanguageIndex'], startParagraphId: item['ParagraphOrdinal'], endParagraphId: item['ParagraphOrdinal']);
                 },

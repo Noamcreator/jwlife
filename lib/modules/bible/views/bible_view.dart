@@ -5,6 +5,7 @@ import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/widgets_utils.dart';
 import 'package:jwlife/data/databases/Publication.dart';
+import 'package:jwlife/data/databases/PublicationRepository.dart';
 import 'package:jwlife/data/databases/catalog.dart';
 import 'package:jwlife/data/firebase/firebase.dart';
 import 'package:jwlife/i18n/localization.dart';
@@ -34,14 +35,16 @@ class _BibleViewState extends State<BibleView> {
 
   @override
   Widget build(BuildContext context) {
+    List<Publication> bibles = PublicationRepository().getAllBibles();
     if (HomeView.isRefreshing) {
-      return getLoadingWidget();
+      return getLoadingWidget(Theme.of(context).primaryColor);
     }
-    else if (JwLifeApp.pubCollections.getBibles().isNotEmpty) {
-      return PublicationMenuView(publication: JwLifeApp.pubCollections.getBibles().first);
+    else if (bibles.isNotEmpty) {
+      return PublicationMenuView(publication: bibles.first);
     }
     else {
       return Scaffold(
+        resizeToAvoidBottomInset: false,
         appBar: AppBar(
           title: Text(localization(context).navigation_bible),
         ),
@@ -69,8 +72,8 @@ class _BibleViewState extends State<BibleView> {
                         if (value != null) {
                           Publication? publication = await PubCatalog.searchPub(value['KeySymbol'], value['IssueTagNumber'], value['MepsLanguageId']);
                           if(publication != null) {
-                            if(!publication.isDownloaded) {
-                              await publication.download(context, update: (progress) => setState(() {}));
+                            if(!publication.isDownloadedNotifier.value) {
+                              await publication.download(context);
                             }
                           }
                         }

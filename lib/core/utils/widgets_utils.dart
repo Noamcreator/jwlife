@@ -1,3 +1,3 @@
 import 'package:flutter/material.dart';
 
-Widget getLoadingWidget() => const Center(child: CircularProgressIndicator());
+Widget getLoadingWidget(Color color) => Center(child: CircularProgressIndicator(color: color));

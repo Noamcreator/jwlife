@@ -8,6 +8,9 @@ import 'dart:convert';
 import 'package:searchfield/searchfield.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/api.dart';
+import '../../../data/userdata/Congregation.dart';
+
 class CongregationsView extends StatefulWidget {
   const CongregationsView({super.key});
 
@@ -16,62 +19,47 @@ class CongregationsView extends StatefulWidget {
 }
 
 class _CongregationsViewState extends State<CongregationsView> {
-  List<dynamic> _suggestions = [];
-  List<Map<String, dynamic>> _congregations = [];
+  List<Congregation> _suggestions = [];
+  List<Congregation> _congregations = [];
+  final SearchController _searchController = SearchController();
   bool _isLoading = true;
   bool _showSearchBar = false;
 
   @override
   void initState() {
     super.initState();
-    //_fetchCongregationsFromFirestore();
+    _fetchCongregationsFromDatabase();
   }
 
-  /*
-  Future<CollectionReference> getCongregationCollection() async {
-    DocumentReference userDoc = await getUserCollection();
-    return userDoc.collection('congregations');
-  }
+  Future<void> _fetchCongregationsFromDatabase() async {
+    setState(() => _isLoading = true);
 
-  Future<void> _fetchCongregationsFromFirestore() async {
     try {
-      // Récupérer la collection des congrégations
-      CollectionReference congregationCollection = await getCongregationCollection();
+      // Récupérer les données depuis la base SQLite
+      final fetchedCongregations = await JwLifeApp.userdata.getCongregations();
 
-      // Effectuer la requête pour obtenir les documents
-      final querySnapshot = await congregationCollection.get();
+      // Tri par nom (champ 'Name' dans ta table)
+      fetchedCongregations.sort((a, b) {
+        final nameA = (a.name ?? '').toString().toLowerCase();
+        final nameB = (b.name ?? '').toString().toLowerCase();
+        return nameA.compareTo(nameB);
+      });
 
       setState(() {
-        // Récupérer les données et ajouter l'ID du document à chaque item
-        _congregations = querySnapshot.docs.map((doc) {
-          final data = doc.data() as Map<String, dynamic>;
-          return {
-            ...data,
-            'id': doc.id,
-          };
-        }).toList();
-
-        // Tri des congrégations par nom (si le champ 'name' existe)
-        _congregations.sort((a, b) {
-          String nameA = a['name']?.toString().toLowerCase() ?? '';
-          String nameB = b['name']?.toString().toLowerCase() ?? '';
-          return nameA.compareTo(nameB);
-        });
+        _congregations = fetchedCongregations;
       });
-    } catch (e) {
+    } catch (e, stackTrace) {
       debugPrint('Erreur lors du chargement des congrégations : $e');
-    } finally {
-      // Mettre à jour l'état de chargement une fois l'opération terminée
+      debugPrintStack(stackTrace: stackTrace);
+    }
+    finally {
       setState(() {
         _isLoading = false;
       });
     }
   }
 
-   */
-
-  Future<List<dynamic>> _fetchCongregations(String query) async {
-    /*
+  Future<List<Congregation>> _fetchCongregations(String query) async {
     final queryParams = {
       'includeSuggestions': 'true',
       'keywords': query,
@@ -86,14 +74,17 @@ class _CongregationsViewState extends State<CongregationsView> {
         queryParams
     );
 
-    final response = await http.get(url);
+    final response = await Api.httpGetWithHeadersUri(url);
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
       if(data['geoLocationList'] is List) {
-        return data['geoLocationList'].map((item) => _convertSuggestionToCongregation(item)).toList();
+        List<Congregation> congregations = data['geoLocationList']
+            .map((item) => _convertSuggestionToCongregation(item))
+            .toList()
+            .cast<Congregation>();
+        return congregations;
       }
     }
-     */
     return [];
   }
 
@@ -105,59 +96,59 @@ class _CongregationsViewState extends State<CongregationsView> {
       return;
     }
 
-    List<dynamic> congregations = await _fetchCongregations(query);
+    List<Congregation> congregations = await _fetchCongregations(query);
+
+    for(var cong in congregations) {
+      print('Congregation: ${cong}');
+    }
 
     setState(() {
       _suggestions = congregations;
     });
   }
 
-  dynamic _convertSuggestionToCongregation(dynamic suggestion) {
+  Congregation _convertSuggestionToCongregation(dynamic suggestion) {
     final properties = suggestion['properties'];
     final location = suggestion['location'];
 
-    return {
-      'name': properties['orgName'],
-      'address': properties['address'].replaceAll('\r\n', ' '),
-      'languageCode': properties['languageCode'],
-      'schedule': properties['schedule']['current'],
-      'phone': properties['phones'][0]['phone'],
-      'location': {
-        'latitude': location['latitude'],
-        'longitude': location['longitude'],
-      },
-    };
+    return Congregation.fromMap({
+      'Guid': properties['orgGuid'],
+      'Name': properties['orgName'],
+      'Address': properties['address'].replaceAll('\r\n', ' '),
+      'LanguageCode': properties['languageCode'],
+      'Latitude': location['latitude'],
+      'Longitude': location['longitude'],
+      'WeekendWeekday': properties['schedule']['current']['weekend']['weekday'],
+      'WeekendTime': properties['schedule']['current']['weekend']['time'],
+      'MidweekWeekday': properties['schedule']['current']['midweek']['weekday'],
+      'MidweekTime': properties['schedule']['current']['midweek']['time'],
+      //'phone': properties['phones'][0]['phone'],
+    });
   }
 
-  Future<void> _saveCongregationToFirestore(dynamic data) async {
-    /*
+  Future<void> _saveCongregationToDatabase(Congregation data) async {
     try {
-      CollectionReference congregationCollection = await getCongregationCollection();
+      await JwLifeApp.userdata.insertCongregation(data);
 
-      final docRef = await congregationCollection.add(data);
       setState(() {
-        _congregations.add({
-          ...data,
-          'id': docRef.id,
-        });
+        _congregations.add(data);
         _showSearchBar = false;
       });
+
       debugPrint('Congrégation enregistrée avec succès.');
     } catch (e) {
       debugPrint('Erreur lors de l\'enregistrement : $e');
     }
-
-     */
   }
 
-  void _showEditDialog(Map<String, dynamic> congregation) {
+  void _showEditDialog(Congregation congregation) {
     showDialog(
       context: context,
       builder: (context) {
         final TextEditingController nameController =
-        TextEditingController(text: congregation['name']);
+        TextEditingController(text: congregation.name);
         final TextEditingController addressController =
-        TextEditingController(text: congregation['address']);
+        TextEditingController(text: congregation.address);
 
         return AlertDialog(
           title: const Text('Modifier la congrégation'),
@@ -181,25 +172,25 @@ class _CongregationsViewState extends State<CongregationsView> {
             ),
             ElevatedButton(
               onPressed: () async {
-                /*
                 try {
-                  CollectionReference congregationCollection = await getCongregationCollection();
+                  congregation.name = nameController.text;
+                  congregation.address = addressController.text;
 
-                  congregationCollection.doc(congregation['id'])
-                      .update({
-                    'name': nameController.text,
-                    'address': addressController.text,
-                  });
+                  // Mise à jour en base SQLite
+                  await JwLifeApp.userdata.updateCongregation(congregation.guid, congregation);
+
+                  // Mettre à jour la liste locale et l'UI
                   setState(() {
-                    congregation['name'] = nameController.text;
-                    congregation['address'] = addressController.text;
+                    int index = _congregations.indexWhere((item) => item.guid == congregation.guid);
+                    if (index != -1) {
+                      _congregations[index] = congregation;
+                    }
                   });
+
                   Navigator.pop(context);
                 } catch (e) {
                   debugPrint('Erreur lors de la mise à jour : $e');
                 }
-
-                 */
               },
               child: const Text('Enregistrer'),
             ),
@@ -209,40 +200,22 @@ class _CongregationsViewState extends State<CongregationsView> {
     );
   }
 
-  Future<void> _updateCongregation(Map<String, dynamic> congregation) async {
-    /*
+  Future<void> _updateCongregation(Congregation congregation) async {
     try {
-      List<dynamic> congregations = await _fetchCongregations(congregation['name']);
-      dynamic data = congregations.first;
+      await JwLifeApp.userdata.updateCongregation(congregation.guid, congregation);
 
-      // Mise à jour des champs dans Firestore
-      CollectionReference congregationCollection = await getCongregationCollection();
-
-      congregationCollection
-          .doc(congregation['id'])
-          .update({
-        'name': data['name'],
-        'address': data['address'],
-        'languageCode': data['languageCode'],
-        'schedule': data['schedule'],
-        'phone': data['phone'],
-        'location': data['location'],
-      });
-
-      // Mise à jour de l'UI pour refléter les changements
+      // Mettre à jour la liste locale pour refléter la modification
       setState(() {
-        // Recherche de la congrégation mise à jour et remplacement dans la liste
-        int index = _congregations.indexWhere((item) => item['id'] == congregation['id']);
+        int index = _congregations.indexWhere((item) => item.guid == congregation.guid);
         if (index != -1) {
-          _congregations[index] = data; // Mise à jour de la congrégation dans la liste locale
+          _congregations[index] = congregation;
         }
       });
+
       debugPrint('Congrégation mise à jour avec succès.');
     } catch (e) {
       debugPrint('Erreur lors de la mise à jour : $e');
     }
-
-     */
   }
 
   // Fonction pour obtenir le nom du jour localisé
@@ -254,169 +227,206 @@ class _CongregationsViewState extends State<CongregationsView> {
     return DateFormat.EEEE(JwLifeApp.settings.locale.languageCode).format(date);
   }
 
+  /// Méthode réutilisable pour construire chaque élément de suggestion
+  SearchFieldListItem<Congregation> _buildCongregationItem(Congregation item) {
+    return SearchFieldListItem<Congregation>(
+      item.name,
+      item: item,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 5),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              item.name,
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Theme.of(context).primaryColor),
+              overflow: TextOverflow.ellipsis,
+            ),
+            if (item.address!.isNotEmpty ?? false)
+              Text(
+                item.address!,
+                style: const TextStyle(fontSize: 14, color: Colors.grey),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       body: Column(
         children: [
           if ((_showSearchBar || _congregations.isEmpty) && !_isLoading)
             Padding(
               padding: const EdgeInsets.all(16.0),
-              child: SearchField<dynamic>(
-                autofocus: true,
-                offset: Offset(0, 58),
+              child: SearchField<Congregation>(
+                controller: _searchController,
+                animationDuration: Duration(milliseconds: 300),
+                autofocus: false,
+                offset: Offset(-8, 58),
                 itemHeight: 55,
-                textInputAction: TextInputAction.search,
+                maxSuggestionsInViewPort: 7,
+                maxSuggestionBoxHeight: 200,
+                suggestionState: Suggestion.expand,
                 searchInputDecoration: SearchInputDecoration(
-                  searchStyle: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black),
-                  fillColor: Theme.of(context).brightness == Brightness.dark ? Color(0xFF1f1f1f) : Colors.white,
-                  filled: true,
-                  hintText: localization(context).search_hint,
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: BorderSide(color: Theme.of(context).primaryColor),
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-                onSearchTextChanged: (text) {
-                  setState(() {
-                    _fetchCongregationSuggestions(text);
-                  });
-                  return null;
-                },
-                onSuggestionTap: (suggestion) {
-                  _saveCongregationToFirestore(suggestion.item);
-                },
-                suggestionsDecoration: SuggestionDecoration(
-                  color: Theme.of(context).brightness == Brightness.dark ? Color(0xFF1f1f1f) : Colors.white,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                suggestions: _suggestions
-                    .map((item) => SearchFieldListItem<dynamic>(item['name'],
-                  item: item,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 10),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(item['name'], style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Theme.of(context).primaryColor), maxLines: 1),
-                        Text(item['address'], style: TextStyle(fontSize: 10), maxLines: 1),
-                      ],
+                    hintText: localization(context).search_hint,
+                    searchStyle: TextStyle(
+                      color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black,
                     ),
-                  ),
+                    fillColor: Theme.of(context).brightness == Brightness.dark
+                        ? const Color(0xFF1f1f1f)
+                        : const Color(0xFFf1f1f1),
+                    filled: true,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    cursorColor: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black,
+                    border: const OutlineInputBorder(
+                      borderRadius: BorderRadius.zero,
+                      borderSide: BorderSide.none,
+                    ),
+                    suffixIcon: GestureDetector(
+                      child: Container(
+                          color: Color(0xFF345996),
+                          margin: const EdgeInsets.only(left: 2),
+                          child: Icon(JwIcons.magnifying_glass, color: Colors.white)
+                      ),
+                      onTap: () {
+                        //showPage(context, SearchView(query: _searchController.text));
+                      },
+                    )
                 ),
-                ).toList(),
+                suggestionsDecoration: SuggestionDecoration(
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? const Color(0xFF1f1f1f)
+                      : Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  width: MediaQuery.of(context).size.width-15,
+                ),
+                suggestions: _suggestions.map(_buildCongregationItem).toList(),
+                onSearchTextChanged: (text) async {
+                  _fetchCongregationSuggestions(text);
+                  return [];
+                },
+                onSuggestionTap: (item) async {
+                  final selected = item.item!;
+                  _saveCongregationToDatabase(selected);
+                  setState(() {
+                    _showSearchBar = false;
+                  });
+                },
+                onTapOutside: (event) {
+                  setState(() {
+                    _showSearchBar = false;
+                  });
+                },
               ),
             ),
           Expanded(
-            child: SingleChildScrollView(
-              child: Column(
-                children: [
-                  for (final congregation in _congregations)
-                    GestureDetector(
-                      onTap: () async {
-                        _showEditDialog(congregation);
-                      },
-                      child: Container(
-                        margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).brightness == Brightness.dark ? Color(0xFF1f1f1f) : Colors.white,
-                          borderRadius: BorderRadius.circular(8),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.grey.withOpacity(0.3),
-                              blurRadius: 5,
-                              offset: const Offset(0, 3),
-                            ),
-                          ],
+            child: ListView.builder(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              itemCount: _congregations.length,
+              itemBuilder: (context, index) {
+                final congregation = _congregations[index];
+                return GestureDetector(
+                  onTap: () async {
+                    _showEditDialog(congregation);
+                  },
+                  child: Container(
+                    margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF1f1f1f) : Colors.white,
+                      borderRadius: BorderRadius.circular(8),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.grey.withOpacity(0.3),
+                          blurRadius: 5,
+                          offset: const Offset(0, 3),
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.center,
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Text(
+                          congregation.name,
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          congregation.address!,
+                          style: const TextStyle(fontSize: 16),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          "Horaires des réunions :",
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 5),
+                        Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Text(
-                              congregation['name'],
-                              style: const TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                            const SizedBox(height: 10),
-                            Text(
-                              congregation['address'],
+                              "${_getLocalizedWeekday(congregation.weekendWeekday!)}: ${congregation.weekendTime}",
                               style: const TextStyle(fontSize: 16),
                               textAlign: TextAlign.center,
                             ),
-                            const SizedBox(height: 16),
                             Text(
-                              "Horaires des réunions :",
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 5),
-                            Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  "${_getLocalizedWeekday(congregation['schedule']['midweek']['weekday'])}: ${congregation['schedule']['midweek']['time']}",
-                                  style: const TextStyle(fontSize: 16),
-                                  textAlign: TextAlign.center,
-                                ),
-                                Text(
-                                  "${_getLocalizedWeekday(congregation['schedule']['weekend']['weekday'])}: ${congregation['schedule']['weekend']['time']}",
-                                  style: const TextStyle(fontSize: 16),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 20),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                IconButton(
-                                  icon: const Icon(Icons.location_on, color: Colors.blue),
-                                  onPressed: () {
-                                    String url =
-                                        'https://www.google.com/maps/dir/?api=1&destination=${congregation['location']['latitude']},${congregation['location']['longitude']}&travelmode=driving';
-                                    launchUrl(Uri.parse(url));
-                                  },
-                                ),
-                                IconButton(
-                                  icon: const Icon(JwIcons.arrows_circular, color: Colors.deepPurple),
-                                  onPressed: () => _updateCongregation(congregation),
-                                ),
-                                IconButton(
-                                  icon: const Icon(JwIcons.trash, color: Colors.red),
-                                  onPressed: () async {
-                                    /*
-                                    try {
-                                      CollectionReference congregationCollection = await getCongregationCollection();
-                                      congregationCollection
-                                          .doc(congregation['id'])
-                                          .delete();
-                                      setState(() {
-                                        _congregations.remove(congregation);
-                                      });
-                                    } catch (e) {
-                                      debugPrint('Erreur lors de la suppression : $e');
-                                    }
-
-                                     */
-                                  },
-                                ),
-                              ],
+                              "${_getLocalizedWeekday(congregation.midweekWeekday!)}: ${congregation.midweekTime}",
+                              style: const TextStyle(fontSize: 16),
+                              textAlign: TextAlign.center,
                             ),
                           ],
                         ),
-                      ),
+                        const SizedBox(height: 20),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.location_on, color: Colors.blue),
+                              onPressed: () {
+                                String url = 'https://www.google.com/maps/dir/?api=1&destination=${congregation.latitude},${congregation.longitude}&travelmode=driving';
+                                launchUrl(Uri.parse(url));
+                              },
+                            ),
+                            IconButton(
+                              icon: const Icon(JwIcons.arrows_circular, color: Colors.deepPurple),
+                              onPressed: () => _updateCongregation(congregation),
+                            ),
+                            IconButton(
+                              icon: const Icon(JwIcons.trash, color: Colors.red),
+                              onPressed: () async {
+                                try {
+                                  final guid = congregation.guid;
+                                  await JwLifeApp.userdata.deleteCongregation(guid);
+                                  setState(() {
+                                    _congregations.removeWhere((item) => item.guid == guid);
+                                  });
+                                } catch (e) {
+                                  debugPrint('Erreur lors de la suppression : $e');
+                                }
+                              },
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
-                ],
-              ),
+                  ),
+                );
+              },
             ),
           )
         ],

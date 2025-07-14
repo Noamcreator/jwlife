@@ -89,7 +89,7 @@ class _ArticlePageState extends State<ArticlePage> {
             initialSettings: InAppWebViewSettings(
               javaScriptEnabled: true,
               transparentBackground: true,
-              useHybridComposition: false,
+              useHybridComposition: true,
               cacheEnabled: false,
               clearCache: true,
               cacheMode: CacheMode.LOAD_NO_CACHE,

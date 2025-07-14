@@ -9,7 +9,7 @@ Future<void> main() async {
   // Assure l'initialisation correcte des widgets Flutter
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Configure le mode d'affichage du système (utilisation de la zone complète de l'écran)
+  // On met la barre de navigation en mode edgeToEdge
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
 
   // Initialise le service de lecture audio avec une notification persistante sur Android
@@ -20,8 +20,9 @@ Future<void> main() async {
   );
 
   // Initialise les configurations de l'application
-  JwLifeApp jwLifeApp = JwLifeApp();
+  JwSettings jwSettings = JwSettings();
+  await jwSettings.loadFromSharedPreferences();
 
   // Lance l'application Flutter
-  runApp(jwLifeApp);
+  runApp(JwLifeApp(jwSettings));
 }

@@ -7,6 +7,7 @@ import 'package:jwlife/core/utils/utils_document.dart';
 import 'package:jwlife/core/utils/utils_jwpub.dart';
 import 'package:jwlife/data/databases/Publication.dart';
 import 'package:jwlife/data/databases/history.dart';
+import 'package:jwlife/data/userdata/Bookmark.dart';
 import 'package:jwlife/modules/library/views/publication/local/document/multimedia.dart';
 import 'package:jwlife/modules/library/views/publication/local/document/documents_manager.dart';
 import 'package:share_plus/share_plus.dart';
@@ -62,8 +63,9 @@ class Document {
 
   List<Multimedia> multimedias;
   List<Map<String, dynamic>> svgs = [];
-  List<Map<String, dynamic>> inputFields = [];
   List<Map<String, dynamic>> highlights = [];
+  List<Map<String, dynamic>> notes = [];
+  List<Map<String, dynamic>> inputFields = [];
   List<Map<String, dynamic>> bookmarks = [];
 
   bool hasAlreadyBeenRead = false;
@@ -141,7 +143,6 @@ class Document {
       featureSubtitle: map['FeatureSubtitle'],
       featureSubtitleRich: map['FeatureSubtitleRich'],
       content: map['Content'],
-      //htmlContent: ,
       firstFootnoteId: map['FirstFootnoteId'],
       lastFootnoteId: map['LastFootnoteId'],
       firstBibleCitationId: map['FirstBibleCitationId'],
@@ -167,13 +168,9 @@ class Document {
     );
   }
 
-  Future<void> changePageAt(DocumentsManager? documentsManager) async {
-    if (type == 2) {
-      if (!hasAlreadyBeenRead) {
-        if (documentsManager != null) {
-          History.insertBibleChapter("$displayTitle $chapterNumber", publication, bookNumber!, chapterNumber!);
-        }
-      }
+  Future<void> changePageAt() async {
+    if (isBibleChapter()) {
+      History.insertBibleChapter("$displayTitle $chapterNumber", publication, bookNumber!, chapterNumber!);
     }
     else {
       if (!hasAlreadyBeenRead) {
@@ -181,14 +178,13 @@ class Document {
           fetchMedias(),
           fetchSvgs(),
         ]);
-
-        if (documentsManager != null) {
-          History.insertDocument(title, publication, mepsDocumentId);
-        }
       }
+      History.insertDocument(title, publication, mepsDocumentId);
     }
 
-    await loadUserdata();
+    if(!hasAlreadyBeenRead) {
+      await loadUserdata();
+    }
 
     /*
     // On charge les pages de gauche et de droite
@@ -211,15 +207,19 @@ class Document {
     try {
       // Récupérer les données de la base
       List<Map<String, dynamic>> response = await database.rawQuery('''
-    SELECT 
-    Multimedia.*
-  FROM Document
-  INNER JOIN DocumentMultimedia ON Document.DocumentId = DocumentMultimedia.DocumentId
-  INNER JOIN Multimedia ON DocumentMultimedia.MultimediaId = Multimedia.MultimediaId
-  WHERE Document.DocumentId = ? AND (Multimedia.CategoryType = 8 OR Multimedia.CategoryType = 15 OR Multimedia.CategoryType = 26 OR Multimedia.MimeType = 'video/mp4');
-    ''', [documentId]);
+            SELECT DISTINCT m.*, dm.BeginParagraphOrdinal, dm.EndParagraphOrdinal
+            FROM Multimedia m
+            JOIN DocumentMultimedia dm ON dm.MultimediaId = m.MultimediaId
+            WHERE m.MimeType IN ('image/jpeg', 'video/mp4')
+              AND m.CategoryType != 25
+              AND dm.DocumentId = ?
+              AND (dm.BeginParagraphOrdinal IS NOT NULL
+                   OR dm.EndParagraphOrdinal IS NOT NULL);
+      ''', [documentId]);
 
-      multimedias = response.map((e) => Multimedia.fromMap(e)).toList();
+      List<Multimedia> medias = response.map((e) => Multimedia.fromMap(e)).toList();
+      medias.sort((a, b) => a.beginParagraphOrdinal.compareTo(b.beginParagraphOrdinal));
+      multimedias = medias;
     }
     catch (e) {
       print('Error: $e');
@@ -230,12 +230,12 @@ class Document {
     try {
       // Récupérer les données de la base
       List<Map<String, dynamic>> response = await database.rawQuery('''
-  SELECT Multimedia.*
-  FROM Document
-  INNER JOIN DocumentMultimedia ON Document.DocumentId = DocumentMultimedia.DocumentId
-  INNER JOIN Multimedia ON DocumentMultimedia.MultimediaId = Multimedia.MultimediaId
-  WHERE Document.DocumentId = ? AND Multimedia.MimeType = 'image/svg+xml'
-''', [documentId]);
+        SELECT Multimedia.*
+        FROM Document
+        INNER JOIN DocumentMultimedia ON Document.DocumentId = DocumentMultimedia.DocumentId
+        INNER JOIN Multimedia ON DocumentMultimedia.MultimediaId = Multimedia.MultimediaId
+        WHERE Document.DocumentId = ? AND Multimedia.MimeType = 'image/svg+xml'
+      ''', [documentId]);
 
       svgs = response;
     }
@@ -246,24 +246,30 @@ class Document {
 
   Future<void> loadUserdata() async {
     List<List<Map<String, dynamic>>> results;
-    if(isBibleChapter()) {
+    if(type == 2) {
       results = await Future.wait([
-        JwLifeApp.userdata.getInputFieldsFromDocId(mepsDocumentId, mepsLanguageId),
         JwLifeApp.userdata.getHighlightsFromChapterNumber(bookNumber!, chapterNumberBible!, mepsLanguageId),
+        JwLifeApp.userdata.getNotesFromChapterNumber(bookNumber!, chapterNumberBible!, mepsLanguageId),
         JwLifeApp.userdata.getBookmarksFromChapterNumber(bookNumber!, chapterNumberBible!, mepsLanguageId),
       ]);
+
+      highlights = results[0].map((item) => Map<String, dynamic>.from(item)).toList();
+      notes = results[1].map((item) => Map<String, dynamic>.from(item)).toList();
+      bookmarks = results[2].map((item) => Map<String, dynamic>.from(item)).toList();
     }
     else {
       results = await Future.wait([
-        JwLifeApp.userdata.getInputFieldsFromDocId(mepsDocumentId, mepsLanguageId),
         JwLifeApp.userdata.getHighlightsFromDocId(mepsDocumentId, mepsLanguageId),
+        JwLifeApp.userdata.getNotesFromDocId(mepsDocumentId, mepsLanguageId),
+        JwLifeApp.userdata.getInputFieldsFromDocId(mepsDocumentId, mepsLanguageId),
         JwLifeApp.userdata.getBookmarksFromDocId(mepsDocumentId, mepsLanguageId),
       ]);
-    }
 
-    inputFields = results[0];
-    highlights = results[1];
-    bookmarks = results[2];
+      highlights = results[0].map((item) => Map<String, dynamic>.from(item)).toList();
+      notes = results[1].map((item) => Map<String, dynamic>.from(item)).toList();
+      inputFields = results[2].map((item) => Map<String, dynamic>.from(item)).toList();
+      bookmarks = results[3].map((item) => Map<String, dynamic>.from(item)).toList();
+    }
   }
 
   Future<WebResourceResponse?> getImagePathFromDatabase(String url) async {
@@ -353,5 +359,92 @@ class Document {
 
   bool isBibleChapter() {
     return bookNumber != null && chapterNumberBible != null;
+  }
+
+  void addBookmark(Bookmark bookmark) {
+    bookmarks.add({
+      'Slot': bookmark.slot,
+      'BlockType': bookmark.blockType,
+      'BlockIdentifier': bookmark.blockIdentifier
+    });
+  }
+
+  void removeBookmark(Bookmark bookmark) {
+    bookmarks.removeWhere((item) =>
+        item['Slot'] == bookmark.slot &&
+        item['BlockType'] == bookmark.blockType &&
+        item['BlockIdentifier'] == bookmark.blockIdentifier
+    );
+  }
+
+  void addHighlight(int blockType, int identifier, int startToken, int endToken, String uuid, int color) {
+    highlights.add({
+      'UserMarkGuid': uuid,
+      'ColorIndex': color,
+      'BlockType': blockType,
+      'Identifier': identifier,
+      'StartToken': startToken,
+      'EndToken': endToken
+    });
+    JwLifeApp.userdata.addHighlightToDocId(publication, mepsDocumentId, blockType, identifier, startToken, endToken, uuid, color);
+  }
+
+  void removeHighlight(String uuid) {
+    highlights.removeWhere((highlight) => highlight['UserMarkGuid'] == uuid);
+    JwLifeApp.userdata.removeHighlightWithGuid(uuid);
+  }
+
+  void changeHighlightColor(String uuid, int color) {
+    highlights.where((highlight) => highlight['UserMarkGuid'] == uuid).forEach((highlight) {
+      highlight['ColorIndex'] = color;
+    });
+
+    JwLifeApp.userdata.changeColorHighlightWithGuid(uuid, color);
+  }
+
+  void addNoteWithUserMarkGuid(int blockType, int identifier, String title, String uuid, String? userMarkGuid, int colorIndex) {
+    notes.add({
+      'Guid': uuid,
+      'Title': title,
+      'Content': '',
+      'BlockType': blockType,
+      'BlockIdentifier': identifier,
+      'UserMarkGuid': userMarkGuid,
+      'ColorIndex': colorIndex
+    });
+    JwLifeApp.userdata.addNoteToDocId(this, blockType, identifier, title, uuid, userMarkGuid);
+  }
+
+  void updateNote(String uuid, String title, String content) {
+    notes.where((note) => note['Guid'] == uuid).forEach((note) {
+      note['Title'] = title;
+      note['Content'] = content;
+    });
+
+    JwLifeApp.userdata.updateNoteWithGuid(uuid, title, content);
+  }
+
+
+  void removeNote(String guid) {
+    notes.removeWhere((note) => note['Guid'] == guid);
+    JwLifeApp.userdata.removeNoteWithGuid(guid);
+  }
+
+  void updateOrInsertInputFieldValue(String tag, String value) {
+    bool updated = false;
+
+    for (var field in inputFields) {
+      if (field['TextTag'] == tag) {
+        field['Value'] = value;
+        updated = true;
+        break;
+      }
+    }
+
+    if (!updated) {
+      inputFields.add({'TextTag': tag, 'Value': value});
+    }
+
+    JwLifeApp.userdata.updateOrInsertInputField(this, tag, value);
   }
 }

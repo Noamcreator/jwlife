@@ -1,3 +1,4 @@
+import 'package:collection/collection.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:async/async.dart';
@@ -6,6 +7,7 @@ import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/core/utils/utils_document.dart';
 import 'package:jwlife/core/utils/utils_jwpub.dart';
+import 'package:jwlife/data/databases/PublicationAttribute.dart';
 import 'package:jwlife/data/databases/PublicationCategory.dart';
 import 'package:jwlife/data/databases/catalog.dart';
 import 'package:jwlife/data/meps/language.dart';
@@ -13,14 +15,18 @@ import 'package:jwlife/modules/bible/views/bible_view.dart';
 import 'package:jwlife/modules/home/views/home_view.dart';
 import 'package:jwlife/modules/library/views/publication/local/document/documents_manager.dart';
 import 'package:jwlife/modules/library/views/publication/local/publication_menu_view.dart';
+import 'package:jwlife/modules/library/views/publication/online/publication_menu.dart';
 import 'package:jwlife/modules/meetings/views/meeting_view.dart';
 import 'package:jwlife/widgets/dialog/utils_dialog.dart';
 import 'package:share_plus/share_plus.dart';
+
+import 'PublicationRepository.dart';
 
 class Publication {
   final int id;
   MepsLanguage mepsLanguage;
   PublicationCategory category;
+  PublicationAttribute attribute;
   String title;
   String issueTitle;
   String shortTitle;
@@ -34,32 +40,36 @@ class Publication {
   int reserved;
   int size;
   int expandedSize;
-  String attribute;
-  int attributeId;
   int schemaVersion;
   String catalogedOn;
   String lastUpdated;
   String? lastModified;
   String? imageSqr;
   String? imageLsr;
-  bool isDownloaded;
-  CancelableOperation? _downloadOperation;
-  CancelableOperation? _updateOperation;
-  CancelToken? _cancelToken;
-  double downloadProgress;
-  bool isDownloading;
-  String hash;
-  String timeStamp;
-  String path;
-  String databasePath;
+  String? networkImageSqr;
+  String? networkImageLsr;
+  String? hash;
+  String? timeStamp;
+  String? path;
+  String? databasePath;
   bool hasTopics = false;
   bool hasCommentary = false;
   DocumentsManager? documentsManager;
+
+  CancelableOperation? _downloadOperation;
+  CancelableOperation? _updateOperation;
+  CancelToken? _cancelToken;
+
+  final ValueNotifier<double> progressNotifier;
+  final ValueNotifier<bool> isDownloadingNotifier;
+  final ValueNotifier<bool> isDownloadedNotifier;
+  final ValueNotifier<bool> isFavoriteNotifier;
 
   Publication({
     required this.id,
     required this.mepsLanguage,
     required this.category,
+    required this.attribute,
     this.title = '',
     this.issueTitle = '',
     this.shortTitle = '',
@@ -71,8 +81,6 @@ class Publication {
     this.symbol = '',
     this.keySymbol = '',
     this.reserved = 0,
-    this.attribute = '',
-    this.attributeId = -1,
     this.size = 0,
     this.expandedSize = 0,
     this.schemaVersion = 0,
@@ -81,19 +89,54 @@ class Publication {
     this.lastModified,
     this.imageSqr,
     this.imageLsr,
-    this.isDownloaded = false,
-    this.isDownloading = false,
-    this.downloadProgress = 0,
-    this.hash = '',
-    this.timeStamp = '',
-    this.path = '',
-    this.databasePath = '',
+    this.networkImageSqr,
+    this.networkImageLsr,
+
+    ValueNotifier<double>? progressNotifier,
+    ValueNotifier<bool>? isDownloadingNotifier,
+    ValueNotifier<bool>? isDownloadedNotifier,
+    ValueNotifier<bool>? isFavoriteNotifier,
+
+    this.hash,
+    this.timeStamp,
+    this.path,
+    this.databasePath,
     this.hasTopics = false,
     this.hasCommentary = false,
-  });
+  }) : progressNotifier = progressNotifier ?? ValueNotifier(0.0),
+        isDownloadingNotifier = isDownloadingNotifier ?? ValueNotifier(false),
+        isDownloadedNotifier = isDownloadedNotifier ?? ValueNotifier(false),
+        isFavoriteNotifier = isFavoriteNotifier ?? ValueNotifier(false);
 
   factory Publication.fromJson(Map<String, dynamic> json) {
-    return Publication(
+    final symbol = json['Symbol'] ?? '';
+    final issueTagNumber = json['IssueTagNumber'] ?? 0;
+    final mepsLanguageId = json['MepsLanguageId'] ?? 0;
+
+    // Recherche dans le repository une publication existante
+    Publication? existing = PublicationRepository().getByCompositeKey(symbol, issueTagNumber, mepsLanguageId);
+
+    if (existing != null) {
+      if(!existing.isDownloadedNotifier.value) {
+        existing.hash = json['Hash'] ?? existing.hash;
+        existing.timeStamp = json['Timestamp'] ?? existing.timeStamp;
+        existing.path = json['Path'] ?? existing.path;
+        existing.databasePath = json['DatabasePath'];
+        existing.imageSqr = json['ImageSqr'] != null ? json['ImageSqr'].toString().startsWith("/data") ? json['ImageSqr'] : "https://app.jw-cdn.org/catalogs/publications/${json['ImageSqr']}" : existing.imageSqr;
+        existing.imageLsr = json['ImageLsr'] != null ? json['ImageLsr'].toString().startsWith("/data") ? json['ImageLsr'] : "https://app.jw-cdn.org/catalogs/publications/${json['ImageLsr']}" : existing.imageLsr;
+      }
+      existing.reserved = json['Reserved'] ?? existing.reserved;
+      existing.size = json['Size'] ?? existing.size;
+      existing.expandedSize = json['ExpandedSize'] ?? existing.expandedSize;
+      existing.schemaVersion = json['SchemaVersion'] ?? existing.schemaVersion;
+      existing.catalogedOn = json['CatalogedOn'] ?? existing.catalogedOn;
+      existing.lastUpdated = json['LastUpdated'] ?? existing.lastUpdated;
+      existing.lastModified = json['LastModified'] ?? existing.lastModified;
+      return existing;
+    }
+
+    // Sinon, en créer une nouvelle
+    Publication publication = Publication(
       id: json['Id'] ?? json['PublicationId'] ?? 0,
       mepsLanguage: json['LanguageSymbol'] != null ? MepsLanguage(id: json['MepsLanguageId'], symbol: json['LanguageSymbol'], vernacular: json['LanguageVernacularName'], primaryIetfCode: json['LanguagePrimaryIetfCode']) : JwLifeApp.settings.currentLanguage,
       title: json['Title'] ?? '',
@@ -108,32 +151,33 @@ class Publication {
       keySymbol: json['UndatedSymbol'] ?? json['KeySymbol'] ?? '',
       reserved: json['Reserved'] ?? 0,
       category: json['PublicationTypeId'] != null ? PublicationCategory.getCategories().firstWhere((element) => element.id == json['PublicationTypeId']) : json['PublicationType'] != null ? PublicationCategory.getCategories().firstWhere((element) => element.type == json['PublicationType'] || element.type2 == json['PublicationType']) : PublicationCategory.getCategories().first,
-      attribute: json['Attribute'] ?? '',
-      attributeId: json['PublicationAttributeId'] ?? -1,
+      attribute: json['PublicationAttributeId'] != null ? PublicationAttribute.getAttributes().firstWhere((element) => element.id == json['PublicationAttributeId']) : json['Attribute'] != null ? PublicationAttribute.getAttributes().firstWhere((element) => element.type == json['Attribute']) : PublicationAttribute.getAttributes().first,
       size: json['Size'] ?? 0,
       expandedSize: json['ExpandedSize'] ?? 0,
       schemaVersion: json['SchemaVersion'] ?? 0,
       catalogedOn: json['CatalogedOn'] ?? '',
       lastUpdated: json['LastUpdated'] ?? '',
-      lastModified: json['LastModified'] ?? '',
+      lastModified: json['LastModified'],
       imageSqr: json['ImageSqr'] != null ? json['ImageSqr'].toString().startsWith("/data") ? json['ImageSqr'] : "https://app.jw-cdn.org/catalogs/publications/${json['ImageSqr']}" : null,
       imageLsr: json['ImageLsr'] != null ? json['ImageLsr'].toString().startsWith("/data") ? json['ImageLsr'] : "https://app.jw-cdn.org/catalogs/publications/${json['ImageLsr']}" : null,
-      isDownloaded: json['Hash'] != null && json['Hash'] != '' && json['DatabasePath'] != null && json['DatabasePath'] != '' ? true : false,
-      hash: json['Hash'] ?? '',
-      timeStamp: json['Timestamp'] ?? '',
-      path: json['Path'] ?? '',
-      databasePath: json['DatabasePath'] ?? '',
-      hasTopics: json['TopicSearch'] == 1 ? true : false,
-      hasCommentary: json['VerseCommentary'] == 1 ? true : false,
-    );
-  }
+      networkImageSqr: json['ImageSqr'] != null ? json['ImageSqr'].toString().startsWith("/data") ? null : "https://app.jw-cdn.org/catalogs/publications/${json['ImageSqr']}" : null,
+      networkImageLsr: json['ImageLsr'] != null ? json['ImageLsr'].toString().startsWith("/data") ? null : "https://app.jw-cdn.org/catalogs/publications/${json['ImageLsr']}" : null,
+      hash: json['Hash'],
+      timeStamp: json['Timestamp'],
+      path: json['Path'],
+      databasePath: json['DatabasePath'],
+      hasTopics: json['TopicSearch'] == 1,
+      hasCommentary: json['VerseCommentary'] == 1,
 
-  void setDownload(dynamic json) {
-    isDownloaded = true;
-    hash = json['Hash'];
-    timeStamp = json['Timestamp'];
-    path = json['Path'];
-    databasePath = json['DatabasePath'];
+      progressNotifier: ValueNotifier(0.0),
+      isDownloadingNotifier: ValueNotifier(false),
+      isDownloadedNotifier: ValueNotifier(json['Hash'] != null && json['DatabasePath'] != null && json['Path'] != null),
+      isFavoriteNotifier: ValueNotifier(JwLifeApp.userdata.favorites.any((p) => p.symbol == symbol && p.mepsLanguage.id == mepsLanguageId && p.issueTagNumber == issueTagNumber)),
+    );
+
+    PublicationRepository().addPublication(publication);
+
+    return publication;
   }
 
   void setCategory(PublicationCategory category) {
@@ -164,57 +208,55 @@ class Publication {
     );
   }
 
-  Future<void> download(BuildContext context, {void Function(double progress)? update}) async {
-    if (!isDownloading) {
-      isDownloading = true;
+  Future<void> download(BuildContext context) async {
+    if (!isDownloadingNotifier.value) {
+      isDownloadingNotifier.value = true;
+      progressNotifier.value = 0;
 
-      _cancelToken = CancelToken();
+      final cancelToken = CancelToken();
+      _cancelToken = cancelToken;
+
+      final messenger = ScaffoldMessenger.of(context);   // ✅ capture en avance
+      final theme = Theme.of(context); // ✅ capture en avance
+
       _downloadOperation = CancelableOperation.fromFuture(
-        downloadJwpubFile(this, context, _cancelToken, update: update),
+        downloadJwpubFile(this, context, cancelToken),
         onCancel: () {
-          isDownloading = false;
-          isDownloaded = false;
-          downloadProgress = 0;
-          showBottomMessage(context, 'Téléchargement annulé');
+          isDownloadingNotifier.value = false;
+          isDownloadedNotifier.value = false;
+          progressNotifier.value = 0;
         },
       );
 
       Publication? pubDownloaded = await _downloadOperation!.valueOrCancellation();
 
       if (pubDownloaded != null) {
-        if (PubCatalog.datedPublications.any((element) => element.keySymbol == keySymbol)) {
-          HomeView.setStateHomePage();
-        }
+        isDownloadedNotifier.value = true;
 
         if (category.id == 1) {
           BibleView.refreshBibleView();
         }
 
-        if (update != null) {
-          update(downloadProgress);
-        }
+        progressNotifier.value = 1.0;
 
-        showBottomMessageWithAction(
-          context,
-          '${getTitle()} téléchargée',
-          SnackBarAction(
+        showBottomMessageWithActionState(messenger, theme.brightness == Brightness.dark, '« ${getTitle()} » téléchargée', SnackBarAction(
             label: 'Ouvrir',
-            textColor: Theme.of(context).primaryColor,
+            textColor: theme.primaryColor,
             onPressed: () {
-              ScaffoldMessenger.of(context).hideCurrentSnackBar();
-              pubDownloaded.showMenu(context, update: update);
+              messenger.clearSnackBars();
+              pubDownloaded.showMenu(context);
             },
           ),
         );
       }
 
-      isDownloading = false;
+      isDownloadingNotifier.value = false;
     }
   }
 
   Future<void> cancelDownload(BuildContext context, {void Function(double progress)? update}) async {
-    if (isDownloading && _cancelToken != null && _downloadOperation != null) {
-      _cancelToken!.cancel('Téléchargement annulé par l\'utilisateur');
+    if (isDownloadingNotifier.value && _cancelToken != null && _downloadOperation != null) {
+      _cancelToken!.cancel();
       _downloadOperation!.cancel();
       _cancelToken = null;
       _downloadOperation = null;
@@ -222,95 +264,103 @@ class Publication {
     }
   }
 
-  Future<void> update(BuildContext context, {void Function(double progress)? update}) async {
-    if (!isDownloading) {
-      isDownloading = true;
-      downloadProgress = -1;
-
-      if (update != null) {
-        update(downloadProgress);
-      }
+  Future<void> update(BuildContext context) async {
+    if (!isDownloadingNotifier.value) {
+      progressNotifier.value = -1;
+      isDownloadingNotifier.value = true;
+      isDownloadedNotifier.value = false;
 
       await removeJwpubFile(this);
 
-      // Création du token d'annulation pour l'opération de téléchargement
-      _cancelToken = CancelToken();
+      final cancelToken = CancelToken();
+      _cancelToken = cancelToken;
 
-      // Encapsuler l'opération de téléchargement dans une CancelableOperation
+      final messenger = ScaffoldMessenger.of(context);   // ✅ capture en avance
+      final theme = Theme.of(context); // ✅ capture en avance
+
       _updateOperation = CancelableOperation.fromFuture(
-        downloadJwpubFile(this, context, _cancelToken, update: update),
+        downloadJwpubFile(this, context, cancelToken),
         onCancel: () {
-          isDownloading = false;
-          isDownloaded = false;
-          downloadProgress = 0;
-          showBottomMessage(context, 'Téléchargement annulé');
+          isDownloadingNotifier.value = false;
+          isDownloadedNotifier.value = false;
+          progressNotifier.value = 0;
         },
       );
 
-      // Attente de l'opération de téléchargement avec possibilité d'annulation
-      Publication? pubDownloaded = await _updateOperation!.valueOrCancellation();
+      Publication? pubDownloaded = await _downloadOperation!.valueOrCancellation();
 
       if (pubDownloaded != null) {
-        if (PubCatalog.datedPublications.any((element) => element.keySymbol == keySymbol)) {
-          HomeView.setStateHomePage();
-        }
+        isDownloadedNotifier.value = true;
 
         if (category.id == 1) {
           BibleView.refreshBibleView();
         }
 
-        if (update != null) {
-          update(downloadProgress);
-        }
+        progressNotifier.value = 1.0;
 
-        showBottomMessageWithAction(
-          context,
-          '${getTitle()} mis à jour',
-          SnackBarAction(
-            label: 'Ouvrir',
-            textColor: Theme.of(context).primaryColor,
-            onPressed: () {
-              ScaffoldMessenger.of(context).hideCurrentSnackBar();
-              pubDownloaded.showMenu(context, update: update);
+        // ✅ Utilise messenger capturé
+        showBottomMessageWithActionState(messenger, theme.brightness == Brightness.dark, '« ${getTitle()} » mis à jour', SnackBarAction(
+          label: 'Ouvrir',
+          textColor: theme.primaryColor,
+          onPressed: () {
+              messenger.clearSnackBars();
+              pubDownloaded.showMenu(context);
             },
           ),
         );
       }
 
-      isDownloading = false;
+      isDownloadingNotifier.value = false;
     }
   }
 
   Future<void> cancelUpdate(BuildContext context, {void Function(double progress)? update}) async {
-    if (isDownloading && _cancelToken != null && _updateOperation != null) {
-      _cancelToken!.cancel('Téléchargement annulé par l\'utilisateur');
+    if (isDownloadingNotifier.value && _cancelToken != null && _updateOperation != null) {
+      _cancelToken!.cancel();
       _updateOperation!.cancel();
       _cancelToken = null;
       _updateOperation = null;
-      showBottomMessage(context, 'Téléchargement annulé');
+      showBottomMessage(context, 'Mis à jour annulée');
     }
   }
 
-
-  Future<void> remove(BuildContext context, {void Function(double progress)? update}) async {
+  Future<void> remove(BuildContext context) async {
+    progressNotifier.value = -1;
     await removeJwpubFile(this);
-
-    if(PubCatalog.datedPublications.any((element) => element.keySymbol == keySymbol)) {
-      HomeView.setStateHomePage();
-    }
 
     if (category.id == 1) {
       BibleView.refreshBibleView();
     }
 
-    if (update != null) {
-      update(downloadProgress);
-    }
-
     showBottomMessage(context, 'Publication supprimée');
+
+    documentsManager = null;
+    hash = null;
+    path = null;
+    databasePath = null;
+    path = null;
+    timeStamp = null;
+    imageSqr = networkImageSqr;
+    imageLsr = networkImageLsr;
+    isDownloadingNotifier.value = false;
+    isDownloadedNotifier.value = false;
+    progressNotifier.value = 0;
   }
 
-  void showMenu(BuildContext context, {int? mepsLanguage, void Function(double progress)? update}) async {
+  void showMenu(BuildContext context, {int? mepsLanguage}) async {
+    if(isDownloadedNotifier.value && !isDownloadingNotifier.value) {
+      showPage(context, PublicationMenuView(publication: this));
+    }
+    else {
+      if(await hasInternetConnection()) {
+        showPage(context, PublicationMenu(publication: this));
+        //await download(context);
+      }
+      else {
+        showNoConnectionDialog(context);
+      }
+    }
+    /*
     if(update != null) {
       if(isDownloaded) {
         showPage(context, PublicationMenuView(publication: this));
@@ -342,19 +392,21 @@ class Publication {
         }
       }
     }
+
+     */
   }
 
   bool isBible() {
     return category.id == 1 || schemaVersion == 9;
   }
 
-  bool hasUpdate(Publication pub) {
-    if (lastModified == null || lastModified!.isEmpty || pub.timeStamp.isEmpty) {
+  bool hasUpdate() {
+    if (lastModified == null || timeStamp == null) {
       return false;
     }
 
     DateTime lastModDate = DateTime.parse(lastModified!);
-    DateTime pubDate = DateTime.parse(pub.timeStamp);
+    DateTime pubDate = DateTime.parse(timeStamp!);
 
     if (lastModDate.isAtSameMomentAs(pubDate)) {
       return false;
@@ -369,6 +421,15 @@ class Publication {
     }
     else {
       return title;
+    }
+  }
+
+  String getShortTitle() {
+    if(issueTitle.isNotEmpty) {
+      return issueTitle;
+    }
+    else {
+      return shortTitle;
     }
   }
 
@@ -389,8 +450,7 @@ class Publication {
           ? "Hier"
           : "Il y a $days jours";
 
-      Publication publication = JwLifeApp.pubCollections.getPublication(this);
-      return "${publication.mepsLanguage.vernacular} · $textToShow";
+      return "${mepsLanguage.vernacular} · $textToShow";
     } catch (e) {
       return "";
     }

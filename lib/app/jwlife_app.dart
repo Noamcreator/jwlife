@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:beamer/beamer.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:jwlife/app/jw_settings.dart';
 import 'package:jwlife/core/utils/files_helper.dart';
 import 'package:jwlife/app/startup/create_database.dart';
@@ -16,6 +17,7 @@ import 'package:jwlife/core/utils/shared_preferences_helper.dart';
 import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/data/databases/MediaCollections.dart';
 import 'package:jwlife/data/databases/PubCollections.dart';
+import 'package:jwlife/data/databases/PublicationAttribute.dart';
 import 'package:jwlife/data/databases/PublicationCategory.dart';
 import 'package:jwlife/data/databases/catalog.dart';
 import 'package:jwlife/data/userdata/Userdata.dart';
@@ -29,17 +31,25 @@ import 'startup/copy_assets.dart';
 class JwLifeApp extends StatefulWidget {
   static late Function(Color) togglePrimaryColor;
 
-  static JwSettings settings = JwSettings();
-  static PubCollections pubCollections = PubCollections();
-  static MediaCollections mediaCollections = MediaCollections();
-  static TilesCache tilesCache = TilesCache();
-  static Userdata userdata = Userdata();
-  static JwAudioPlayer jwAudioPlayer = JwAudioPlayer();
-  static BibleCluesInfo bibleCluesInfo = BibleCluesInfo(bibleBookNames: []);
-  static List<PublicationCategory> categories = []; // Initialise une catégorie vide
+  // Champs statiques modifiables plus tard
+  static late JwSettings settings;
+  static late PubCollections pubCollections;
+  static late MediaCollections mediaCollections;
+  static late TilesCache tilesCache;
+  static late Userdata userdata;
+  static late JwAudioPlayer jwAudioPlayer;
+  static late BibleCluesInfo bibleCluesInfo;
 
-  // Le constructeur prend settings comme paramètre nommé
-  const JwLifeApp({super.key});
+  // Constructeur
+  JwLifeApp(JwSettings jwSettings, {super.key}) {
+    settings = jwSettings;
+    pubCollections = PubCollections();
+    mediaCollections = MediaCollections();
+    tilesCache = TilesCache();
+    userdata = Userdata();
+    jwAudioPlayer = JwAudioPlayer();
+    bibleCluesInfo = BibleCluesInfo(bibleBookNames: []);
+  }
 
   @override
   _JwLifeAppState createState() => _JwLifeAppState();
@@ -105,9 +115,15 @@ class _JwLifeAppState extends State<JwLifeApp> {
         themeMode: JwLifeApp.settings.themeMode,
         theme: JwLifeApp.settings.lightData,
         darkTheme: JwLifeApp.settings.darkData,
-        home: Scaffold(
-          body: SplashScreen()
-        ),
+        home: AnnotatedRegion<SystemUiOverlayStyle>(
+          value: SystemUiOverlayStyle(
+            statusBarColor: Colors.transparent,
+            systemNavigationBarColor: Colors.white,
+          ),
+          child: Scaffold(
+            body: SplashScreen(),
+          ),
+        )
       );
     }
 
@@ -121,17 +137,16 @@ class _JwLifeAppState extends State<JwLifeApp> {
       locale: JwLifeApp.settings.locale,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
-      routerDelegate: routerDelegate!,
       routeInformationParser: BeamerParser(),
-      backButtonDispatcher: BeamerBackButtonDispatcher(
-        delegate: routerDelegate!,
-      ),
+      routerDelegate: routerDelegate!,
+      backButtonDispatcher: BeamerBackButtonDispatcher(fallbackToBeamBack: false, delegate: routerDelegate!),
     );
   }
 
   Future<void> initializeData() async {
     printTime('Start: PublicationCategory.initializeCategories');
     PublicationCategory.initializeCategories();
+    PublicationAttribute.initializeAttributes();
     printTime('End: PublicationCategory.initializeCategories');
 
     printTime('Start: Initializing database...');
@@ -144,18 +159,19 @@ class _JwLifeAppState extends State<JwLifeApp> {
     printTime('Start: Initializing collections...');
     await Future.wait([
       JwLifeApp.pubCollections.init(),
-      JwLifeApp.mediaCollections.init(),
+      //JwLifeApp.mediaCollections.init(),
       JwLifeApp.tilesCache.init(),
-      JwLifeApp.userdata.init(),
     ]);
     printTime('End: Initializing collections...');
+
+    await JwLifeApp.userdata.init();
+
+    JwLifeApp.settings.webViewData.init();
 
     printTime('Start: Copying assets, downloading, loading homepage, and fetching API data...');
 
     final futures = <Future>[
-      AssetsDownload.download(),
-      JwLifeApp.settings.webViewData.init(),
-      PubCatalog.loadHomePage(),
+      PubCatalog.loadPublicationsInHomePage()
     ];
 
     if (await hasInternetConnection()) {
@@ -168,5 +184,8 @@ class _JwLifeAppState extends State<JwLifeApp> {
     await Future.wait(futures);
 
     printTime('End: Copying assets, downloading, loading homepage, and fetching API data...');
+
+
+    AssetsDownload.download();
   }
 }

@@ -13,6 +13,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:video_player/video_player.dart';
 import 'package:http/http.dart' as http;
 
+import '../core/api.dart';
 import 'subtitles.dart';
 
 class VideoPlayerView extends StatefulWidget {
@@ -38,13 +39,13 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
   Timer? _timer; // Variable pour le Timer
   bool _controlsVisible = true; // Variable pour contrôler la visibilité des contrôles
   bool _showSubtitle = false;
-  final bool _audioWidgetVisible = JwLifeView.isAudioWidgetVisible; // Variable pour contrôler la visibilité de l'audio widget
+  final bool _audioWidgetVisible = JwLifeView.audioWidgetVisible; // Variable pour contrôler la visibilité de l'audio widget
 
   @override
   void initState() {
     super.initState();
     // Met le mode plein écran en masquant les barres système
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky, overlays: []);
 
     setState(() {
       _title = widget.mediaItem.title ?? '';
@@ -68,7 +69,7 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
   }
 
   Future<void> toggleAudioWidgetVisibility() async {
-    if(JwLifeView.isAudioWidgetVisible) {
+    if(JwLifeView.audioWidgetVisible) {
       JwLifeView.toggleAudioWidgetVisibility(false);
     }
   }
@@ -81,7 +82,7 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
       final apiUrl = 'https://b.jw-cdn.org/apis/mediator/v1/media-items/$lang/$lank?clientType=www';
       print('apiUrl: $apiUrl');
       try {
-        final response = await http.get(Uri.parse(apiUrl));
+        final response = await Api.httpGetWithHeaders(apiUrl);
 
         if (response.statusCode == 200) {
           final data = json.decode(response.body);
@@ -133,12 +134,12 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
             }
             if(_controller!.value.position >= _controller!.value.duration) {
               JwLifeView.toggleNavBarVisibility.call(true);
-              JwLifeView.toggleNavBarBlack.call(JwLifeView.currentTabIndex, false);
+              JwLifeView.toggleNavBarBlack.call(false);
               Navigator.pop(context);
             }
           });
           Timer(Duration(seconds: 2), () {
-            if(JwLifeView.persistentBarIsBlack[JwLifeView.currentTabIndex] == true) {
+            if(JwLifeView.navBarIsBlack[JwLifeView.currentIndex] == true) {
               setState(() {
                 _controlsVisible = !_controlsVisible; // Toggle visibility
                 JwLifeView.toggleNavBarVisibility.call(_controlsVisible); // Appeler la fonction pour modifier la visibilité de la barre de navigation
@@ -169,12 +170,12 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
             }
             if(_controller!.value.position >= _controller!.value.duration) {
               JwLifeView.toggleNavBarVisibility.call(true);
-              JwLifeView.toggleNavBarBlack.call(JwLifeView.currentTabIndex, false);
+              JwLifeView.toggleNavBarBlack.call(false);
               Navigator.pop(context);
             }
           });
           Timer(Duration(seconds: 2), () {
-            if(JwLifeView.persistentBarIsBlack[JwLifeView.currentTabIndex] == true) {
+            if(JwLifeView.navBarIsBlack[JwLifeView.currentIndex] == true) {
               setState(() {
                 _controlsVisible = !_controlsVisible; // Toggle visibility
                 JwLifeView.toggleNavBarVisibility.call(_controlsVisible); // Appeler la fonction pour modifier la visibilité de la barre de navigation
@@ -263,7 +264,7 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
                       SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
 
                       JwLifeView.toggleNavBarVisibility.call(true);
-                      JwLifeView.toggleNavBarBlack.call(JwLifeView.currentTabIndex, false);
+                      JwLifeView.toggleNavBarBlack.call(false);
                       Navigator.pop(context);
                     },
                   ),
@@ -464,7 +465,7 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
                                               }
                                               else {
                                                 String link = 'https://b.jw-cdn.org/apis/mediator/v1/media-items/${widget.mediaItem.languageSymbol}/${widget.mediaItem.languageAgnosticNaturalKey}';
-                                                final response = await http.get(Uri.parse(link));
+                                                final response = await Api.httpGetWithHeaders(link);
                                                 if (response.statusCode == 200) {
                                                   final jsonFile = response.body;
                                                   jsonData = json.decode(jsonFile)['media'][0];
@@ -549,7 +550,7 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
     _controller?.dispose();
     _timer?.cancel(); // Annulez le Timer
     JwLifeView.toggleNavBarVisibility.call(true);
-    JwLifeView.toggleNavBarBlack.call(JwLifeView.currentTabIndex, false);
+    JwLifeView.toggleNavBarBlack.call(false);
     if(_audioWidgetVisible) {
       JwLifeView.toggleAudioWidgetVisibility(true);
     }

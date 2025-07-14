@@ -1,27 +1,26 @@
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:html/parser.dart' as htmlParser;
 import 'package:jwlife/core/icons.dart';
-import 'package:jwlife/core/utils/common_ui.dart';
-import 'package:jwlife/modules/library/views/publication/online/pages_document_view.dart';
-import 'package:jwlife/widgets/image_widget.dart';
+import 'package:jwlife/data/databases/Publication.dart';
+
+import '../../../../../core/api.dart';
 
 class PublicationMenu extends StatefulWidget {
-  final Map<String, dynamic> publication;
-  final Map<String, dynamic> publicationLanguage;
+  final Publication publication;
 
   const PublicationMenu({
-    Key? key,
-    required this.publication,
-    this.publicationLanguage = const {},
-  }) : super(key: key);
+    super.key,
+    required this.publication
+  });
 
   @override
   _PublicationMenuState createState() => _PublicationMenuState();
 }
 
 class _PublicationMenuState extends State<PublicationMenu> with SingleTickerProviderStateMixin {
-  late Map<String, dynamic> _publicationData;
+  String wolLink = 'https://wol.jw.org';
+  String wolLinkJwOrg = 'https://www.jw.org';
+  String description = '';
   List<Map<String, String>> _tabItems = [];
   List<List<Map<String, dynamic>>> _navigationCards = [];
   final List<Map<String, dynamic>> _allNavigationCards = []; // all navigation cards for page the publication
@@ -31,45 +30,45 @@ class _PublicationMenuState extends State<PublicationMenu> with SingleTickerProv
   @override
   void initState() {
     super.initState();
-    _publicationData = Map.from(widget.publication);
     _setupLanguageAndLoadContent();
   }
 
   Future<void> _setupLanguageAndLoadContent() async {
-    Map<String, dynamic> languageData = widget.publicationLanguage;
-    if (languageData.isNotEmpty) {
-      _publicationData['LanguageSymbol'] = languageData['LanguageSymbol'];
-      _publicationData['Title'] = languageData['Title'];
-      _publicationData['ShortTitle'] = languageData['ShortTitle'];
-    }
+    //Map<String, dynamic> languageData = widget.publicationLanguage;
+    //if (languageData.isNotEmpty) {
+    // //_publicationData['LanguageSymbol'] = languageData['LanguageSymbol'];
+      //_publicationData['Title'] = languageData['Title'];
+      //_publicationData['ShortTitle'] = languageData['ShortTitle'];
+    //}
 
-    if (_publicationData['IssueTagNumber'] != 0) {
-      int issueTagNumber = _publicationData['IssueTagNumber'];
+    if (widget.publication.issueTagNumber != 0) {
+      int issueTagNumber = widget.publication.issueTagNumber;
       int year = int.parse(issueTagNumber.toString().substring(0, 4));
       int month = int.parse(issueTagNumber.toString().substring(4, 6));
       int day = int.parse(issueTagNumber.toString().substring(6, 8));
 
-      if (_publicationData['KeySymbol'] == 'km') {
-        _publicationData['Symbol'] = 'km' + issueTagNumber.toString().substring(2, 4);
-      }
+      //if (widget.publication.keySymbol == 'km') {
+      //  _publicationData['Symbol'] = 'km' + issueTagNumber.toString().substring(2, 4);
+      //}
 
-      _publicationData['PublicationLink'] = 'https://wol.jw.org/wol/finder?wtlocale=${_publicationData['LanguageSymbol']}&pub=${_publicationData['Symbol']}&year=$year&month=$month&day=$day';
+      wolLink = 'https://wol.jw.org/wol/finder?wtlocale=${widget.publication.mepsLanguage.symbol}&pub=${widget.publication.symbol}&year=$year&month=$month&day=$day';
     } else {
-      _publicationData['PublicationLink'] = 'https://wol.jw.org/wol/finder?wtlocale=${_publicationData['LanguageSymbol']}&pub=${_publicationData['KeySymbol']}';
+      wolLink = 'https://wol.jw.org/wol/finder?wtlocale=${widget.publication.mepsLanguage.symbol}&pub=${widget.publication.symbol}';
     }
 
-    _publicationData['PublicationLinkJwOrg'] = 'https://www.jw.org/finder?wtlocale=${_publicationData['LanguageSymbol']}&pub=${_publicationData['KeySymbol']}';
+    wolLinkJwOrg = 'https://www.jw.org/finder?wtlocale=${widget.publication.mepsLanguage.symbol}&pub=${widget.publication.symbol}';
 
-    print(_publicationData['PublicationLink']);
+    print(wolLink);
     _fetchHtmlContent();
   }
 
   Future<void> _fetchHtmlContent() async {
     try {
-      final response = await http.get(Uri.parse(_publicationData['PublicationLink']));
+      final response = await Api.httpGetWithHeaders(wolLink);
       if (response.statusCode == 200) {
         _extractHtmlContent(response.body);
-      } else {
+      }
+      else {
         throw Exception('Failed to load publication content');
       }
     } catch (e) {
@@ -79,9 +78,9 @@ class _PublicationMenuState extends State<PublicationMenu> with SingleTickerProv
       });
     }
 
-    if (_publicationData['IssueTagNumber'] == 0) {
+    if (widget.publication.issueTagNumber == 0) {
       try {
-        final response = await http.get(Uri.parse(_publicationData['PublicationLinkJwOrg']));
+        final response = await Api.httpGetWithHeaders(wolLinkJwOrg);
         if (response.statusCode == 200) {
           _extractPublicationDescription(response.body);
         }
@@ -103,7 +102,7 @@ class _PublicationMenuState extends State<PublicationMenu> with SingleTickerProv
 
     if (metaDescription != null) {
       setState(() {
-        _publicationData['Description'] = metaDescription.attributes['content']?.trim() ?? '';
+        description = metaDescription.attributes['content']?.trim() ?? '';
       });
     }
   }
@@ -137,7 +136,7 @@ class _PublicationMenuState extends State<PublicationMenu> with SingleTickerProv
       if (tabs.isNotEmpty) {
         _tabController = TabController(length: tabs.length, vsync: this);
         for (var tab in tabs) {
-          _fetchTabContent('https://wol.jw.org' + tab['link']!, tabs.indexOf(tab));
+          _fetchTabContent('https://wol.jw.org${tab['link']!}', tabs.indexOf(tab));
         }
       }
     } else {
@@ -152,7 +151,7 @@ class _PublicationMenuState extends State<PublicationMenu> with SingleTickerProv
 
   Future<void> _fetchTabContent(String tabLink, int tabIndex) async {
     try {
-      final response = await http.get(Uri.parse(tabLink));
+      final response = await Api.httpGetWithHeaders(tabLink);
       if (response.statusCode == 200) {
         _extractTabHtml(response.body, tabIndex);
       } else {
@@ -305,7 +304,7 @@ class _PublicationMenuState extends State<PublicationMenu> with SingleTickerProv
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(_publicationData['ShortTitle'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 19)),
+        title: Text(widget.publication.shortTitle, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 19)),
         actions: [
           IconButton(
             icon: const Icon(JwIcons.magnifying_glass),
@@ -331,14 +330,14 @@ class _PublicationMenuState extends State<PublicationMenu> with SingleTickerProv
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Image en haut
-                  _publicationData['ImageLsr'] == null ? Container() :
-                  ImageCachedWidget(imageUrl: 'https://app.jw-cdn.org/catalogs/publications/' + _publicationData['ImageLsr'], fit: BoxFit.fill, width: double.infinity, pathNoImage: ''),
+                  //widget.publication.imageLsr == null ? Container() :
+                  //ImageCachedWidget(imageUrl: widget.publication.imageLsr, fit: BoxFit.fill, width: double.infinity, pathNoImage: ''),
                   Padding(
                     padding: EdgeInsets.only(left: 12.0, right: 12.0, bottom: 10.0, top: 10.0),
                     child: Column(
                         children: [
                           Text(
-                            _publicationData['Title'],
+                            widget.publication.title,
                             style: TextStyle(
                               fontSize: 25.0,
                               fontWeight: FontWeight.bold,
@@ -348,13 +347,13 @@ class _PublicationMenuState extends State<PublicationMenu> with SingleTickerProv
                         ]
                     ),
                   ),
-                  if (_publicationData['Description'] != null)
+                  if (description.isNotEmpty)
                     Padding(
                         padding: EdgeInsets.only(left: 12.0, right: 12.0, bottom: 10.0),
                         child: Column(
                             children: [
                               Text(
-                                _publicationData['Description'],
+                                description,
                                 style: TextStyle(
                                   fontSize: 16.0,
                                   height: 1.2,
@@ -363,14 +362,15 @@ class _PublicationMenuState extends State<PublicationMenu> with SingleTickerProv
                             ]
                         )
                     ),
-                  if (_publicationData['Description'] != null)
+
+                  if (description.isNotEmpty)
                     Divider(
                       indent: 10,
                       endIndent: 10,
                       color: Color(0xFFa7a7a7),
                       height: 1,
                     ),
-                  if (_publicationData['Description'] != null)
+                  if (description.isNotEmpty)
                     SizedBox(height: 15),
                 ],
               ),
@@ -436,12 +436,15 @@ class _PublicationMenuState extends State<PublicationMenu> with SingleTickerProv
                 print('Grid card clicked: ${gridCard['title']}');
                 ScrollController _scrollController = ScrollController();
 
+                /*
                 showPage(context, PagesDocumentView(
                   publication: _publicationData,
                   currentIndex: gridCard['id'],
                   navCards: _allNavigationCards,
                   scrollController: _scrollController,
                 ));
+
+                 */
               },
               child: Container(
                 color: Color(0xFF8e8e8e),
@@ -504,11 +507,11 @@ class _PublicationMenuState extends State<PublicationMenu> with SingleTickerProv
                           child: card['thumbnail']!.isNotEmpty
                               ? ClipRRect(
                             child: Image.network(
-                              'https://wol.jw.org/' + card['thumbnail']!,
+                              'https://wol.jw.org/${card['thumbnail']!}',
+                              headers: Api.getHeaders(),
                               fit: BoxFit.cover, // Force l'image à s'adapter à la zone et la rendre carrée
                             ),
-                          )
-                              : Container(
+                          ) : Container(
                             color: Color(0xFF8e8e8e),
                           ),
                         ),

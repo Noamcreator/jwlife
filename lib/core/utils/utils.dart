@@ -1,5 +1,6 @@
 
 import 'dart:io';
+import 'dart:math';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:crypto/crypto.dart';
@@ -69,6 +70,34 @@ String formatFileSize(int bytes) {
     return '$roundedGb Go'; // Retourne la taille en gigaoctets
   }
 }
+
+String timeAgo(DateTime dateTime) {
+  final Duration diff = DateTime.now().difference(dateTime);
+  if (diff.inMinutes < 1) return 'il y a quelques secondes';
+  if (diff.inMinutes < 60) return 'il y a ${diff.inMinutes} minutes';
+  if (diff.inHours < 24) return 'il y a ${diff.inHours} heures';
+  return 'il y a ${diff.inDays} jours';
+}
+
+Future<int> getDirectorySize(Directory dir) async {
+  int size = 0;
+  if (await dir.exists()) {
+    await for (var entity in dir.list(recursive: true, followLinks: false)) {
+      if (entity is File) {
+        size += await entity.length();
+      }
+    }
+  }
+  return size;
+}
+
+String formatBytes(int bytes, [int decimals = 2]) {
+  if (bytes <= 0) return "0 B";
+  const suffixes = ["B", "KB", "MB", "GB", "TB"];
+  int i = (log(bytes) / log(1024)).floor();
+  return ((bytes / pow(1024, i)).toStringAsFixed(decimals)) + ' ' + suffixes[i];
+}
+
 
 
 String convertHtmlToText(String html) {

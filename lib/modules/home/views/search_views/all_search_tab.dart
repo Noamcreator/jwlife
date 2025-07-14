@@ -410,7 +410,7 @@ class _AllSearchTabState extends State<AllSearchTab> {
                 );
 
                 if (publication != null) {
-                  publication.showMenu(context, update: null);
+                  publication.showMenu(context);
                 }
                 else {
                   print('Publication not found for lank: $lank');

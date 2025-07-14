@@ -13,6 +13,8 @@ import 'package:jwlife/video/video_player_view.dart';
 import 'package:jwlife/video/subtitles.dart';
 import 'package:http/http.dart' as http;
 
+import '../core/api.dart';
+
 class SubtitlesView extends StatefulWidget {
   final MediaItem? mediaItem;
   final String query;
@@ -52,7 +54,7 @@ class _SubtitlesViewState extends State<SubtitlesView> {
   void fetchOnlineSubtitles() async {
     String link = 'https://b.jw-cdn.org/apis/mediator/v1/media-items/${widget.mediaItem!.languageSymbol}/${widget.mediaItem!.languageAgnosticNaturalKey}';
 
-    final response = await http.get(Uri.parse(link));
+    final response = await Api.httpGetWithHeaders(link);
     if (response.statusCode == 200) {
       final jsonData = json.decode(response.body);
       _mediaData = jsonData['media'][0];
@@ -174,7 +176,7 @@ class _SubtitlesViewState extends State<SubtitlesView> {
           final subtitle = _searchResults[index];
           return GestureDetector(
             onTap: () {
-              JwLifeView.toggleNavBarBlack.call(JwLifeView.currentTabIndex, true);
+              JwLifeView.toggleNavBarBlack.call(true);
               if (widget.localVideo != null) {
                 MediaItem? mediaItem = getVideoItem(widget.localVideo!.keySymbol, widget.localVideo!.track, widget.localVideo!.documentId, widget.localVideo!.issueTagNumber, JwLifeApp.settings.currentLanguage.id);
                 showPage(context, VideoPlayerView(mediaItem: mediaItem!, localVideo: widget.localVideo, startPosition: subtitle.startTime));

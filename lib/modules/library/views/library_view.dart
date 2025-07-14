@@ -16,6 +16,7 @@ import 'package:jwlife/widgets/dialog/language_dialog.dart';
 import 'package:realm/realm.dart';
 import 'package:sqflite/sqflite.dart';
 
+import '../../../data/databases/catalog.dart';
 import 'audio/audio_view.dart';
 import 'download/download_view.dart';
 import 'pending_update/pending_updates_view.dart';
@@ -23,7 +24,8 @@ import 'publication/publications_view.dart';
 import 'video/video_view.dart';
 
 class LibraryView extends StatefulWidget {
-  static late Future<void> Function() setStateLibraryPage;
+  static late void Function() refreshLibraryCategories;
+  static late void Function(List<PublicationCategory>) refreshCatalogCategories;
 
   LibraryView({Key? key}) : super(key: key);
 
@@ -33,20 +35,29 @@ class LibraryView extends StatefulWidget {
 
 class _LibraryViewState extends State<LibraryView> {
   String language = '';
-  late Category? video = Category(); // Initialise une catégorie vide
-  late Category? audio = Category();
+  List<PublicationCategory> catalogCategories = [];
+  late Category? video; // Initialise une catégorie vide
+  late Category? audio;
   bool _isMediaLoading = true;
 
   @override
   void initState() {
     super.initState();
-    LibraryView.setStateLibraryPage = _reloadPage;
-    _reloadPage();
+    LibraryView.refreshLibraryCategories = _refreshLibraryCategories;
+    LibraryView.refreshCatalogCategories = _refreshCatalogCategories;
+    _refreshLibraryCategories();
+    PubCatalog.updateCatalogCategories();
   }
 
-  Future<void> _reloadPage() async {
+  void _refreshLibraryCategories() {
     setLanguage();
     getCategories();
+  }
+
+  void _refreshCatalogCategories(List<PublicationCategory> categories) async {
+    setState(() {
+      catalogCategories = categories;
+    });
   }
 
   void setLanguage() {
@@ -60,11 +71,10 @@ class _LibraryViewState extends State<LibraryView> {
     String languageSymbol = JwLifeApp.settings.currentLanguage.symbol;
 
     Realm realm = Realm(config);
+    final videoResults = realm.all<Category>().query("key == 'VideoOnDemand' AND language == '$languageSymbol'");
+    final audioResults = realm.all<Category>().query("key == 'Audio' AND language == '$languageSymbol'");
 
     setState(() {
-      final videoResults = realm.all<Category>().query("key == 'VideoOnDemand' AND language == '$languageSymbol'");
-      final audioResults = realm.all<Category>().query("key == 'Audio' AND language == '$languageSymbol'");
-
       video = videoResults.isNotEmpty ? videoResults.first : null;
       audio = audioResults.isNotEmpty ? audioResults.first : null;
 
@@ -76,7 +86,7 @@ class _LibraryViewState extends State<LibraryView> {
   Widget build(BuildContext context) {
     int length = 5;
 
-    if(JwLifeApp.categories.isEmpty) {
+    if(catalogCategories.isEmpty) {
       length = length - 1;
     }
     if(!_isMediaLoading && video == null) {
@@ -99,6 +109,7 @@ class _LibraryViewState extends State<LibraryView> {
     return DefaultTabController(
       length: length,
       child: Scaffold(
+        resizeToAvoidBottomInset: false,
         appBar: AppBar(
           title: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -116,11 +127,10 @@ class _LibraryViewState extends State<LibraryView> {
                   context: context,
                   builder: (context) => languageDialog,
                 );
-
                 if (value != null) {
-                  await setLibraryLanguage(value);
-                  _reloadPage();
-                  HomeView.setStateHomePage();
+                  setLibraryLanguage(value);
+                  _refreshLibraryCategories();
+                  HomeView.refreshChangeLanguage();
                 }
               },
             ),
@@ -136,7 +146,7 @@ class _LibraryViewState extends State<LibraryView> {
             TabBar(
               isScrollable: true,
               tabs: [
-                if (JwLifeApp.categories.isNotEmpty)
+                if (catalogCategories.isNotEmpty)
                   Tab(text: localization(context).navigation_publications.toUpperCase()),
                 if (_isMediaLoading || video != null)
                   Tab(text: localization(context).navigation_videos.toUpperCase()),
@@ -149,12 +159,12 @@ class _LibraryViewState extends State<LibraryView> {
             Expanded(
               child: TabBarView(
                 children: [
-                  if (JwLifeApp.categories.isNotEmpty)
-                    PublicationsView(categories: JwLifeApp.categories),
+                  if (catalogCategories.isNotEmpty)
+                    PublicationsView(categories: catalogCategories),
                   if (_isMediaLoading || video != null)
-                    _isMediaLoading ? getLoadingWidget() : VideoView(video: video!),
+                    _isMediaLoading ? getLoadingWidget(Theme.of(context).primaryColor) : VideoView(video: video!),
                   if (_isMediaLoading || audio != null)
-                    _isMediaLoading ? getLoadingWidget() : AudioView(audio: audio!),
+                    _isMediaLoading ? getLoadingWidget(Theme.of(context).primaryColor) : AudioView(audio: audio!),
                   DownloadView(),
                   PendingUpdatesView(),
                 ],

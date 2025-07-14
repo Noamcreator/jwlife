@@ -18,6 +18,7 @@ import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/widgets/dialog/language_dialog.dart';
 
 import '../../video/subtitles.dart';
+import '../api.dart';
 import 'common_ui.dart';
 import 'utils_media.dart';
 
@@ -104,7 +105,7 @@ PopupMenuItem getAudioLanguagesItem(BuildContext context, MediaItem item) {
     ),
     onTap: () async {
       String link = 'https://b.jw-cdn.org/apis/mediator/v1/media-item-availability/${item.languageAgnosticNaturalKey}?clientType=www';
-      final response = await http.get(Uri.parse(link));
+      final response = await Api.httpGetWithHeaders(link);
       if (response.statusCode == 200) {
         final jsonFile = response.body;
         final jsonData = json.decode(jsonFile);
@@ -156,7 +157,7 @@ PopupMenuItem getAudioDownloadItem(BuildContext context, MediaItem item) {
       else {
         if(await hasInternetConnection()) {
           String link = 'https://b.jw-cdn.org/apis/mediator/v1/media-items/${item.languageSymbol}/${item.languageAgnosticNaturalKey}';
-          final response = await http.get(Uri.parse(link));
+          final response = await Api.httpGetWithHeaders(link);
           if (response.statusCode == 200) {
             final jsonFile = response.body;
             final jsonData = json.decode(jsonFile);
@@ -205,7 +206,7 @@ PopupMenuItem getCopyLyricsItem(MediaItem item) {
     ),
     onTap: () async {
       String link = 'https://b.jw-cdn.org/apis/mediator/v1/media-items/${item.languageSymbol}/${item.languageAgnosticNaturalKey}';
-      final response = await http.get(Uri.parse(link));
+      final response = await Api.httpGetWithHeaders(link);
       if (response.statusCode == 200) {
         final jsonFile = response.body;
         final jsonData = json.decode(jsonFile);

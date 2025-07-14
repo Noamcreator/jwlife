@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:flutter/cupertino.dart';
 import 'package:http/http.dart' as http;
 
+import '../core/api.dart';
+
 class Subtitles {
   late List<Subtitle> subtitles = [];
 
@@ -11,7 +13,7 @@ class Subtitles {
     String subtitlesUrl = jsonData['files'][0]['subtitles']['url'];
     print('subtitlesUrl: $subtitlesUrl');
     try {
-      final response = await http.get(Uri.parse(subtitlesUrl));
+      final response = await Api.httpGetWithHeaders(subtitlesUrl);
       if (response.statusCode == 200) {
         String decodedBody = utf8.decode(response.bodyBytes);
         final vttContent = _removeWebvttHeader(decodedBody);

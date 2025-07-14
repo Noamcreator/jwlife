@@ -49,4 +49,8 @@ class WebViewData {
   void updateFontSize(double size) {
     fontSize = size;
   }
+
+  void updateColorIndex(int index) {
+    colorIndex = index;
+  }
 }

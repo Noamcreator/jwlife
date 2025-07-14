@@ -3,8 +3,10 @@ import 'dart:io';
 import 'package:collection/collection.dart';
 import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/core/utils/files_helper.dart';
+import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/core/utils/utils_jwpub.dart';
 import 'package:jwlife/data/databases/Publication.dart';
+import 'package:jwlife/data/databases/PublicationRepository.dart';
 import 'package:jwlife/data/meps/language.dart';
 import 'package:sqflite/sqflite.dart';
 
@@ -12,7 +14,6 @@ import 'catalog.dart';
 
 class PubCollections {
   late Database _database;
-  List<Publication> publications = [];
 
   Future<void> init() async {
     final pubCollections = await getPubCollectionsFile();
@@ -20,101 +21,50 @@ class PubCollections {
     await fetchDownloadPublications();
   }
 
-  void clearPublications() {
-    publications.clear();
-  }
-
   Future<void> fetchDownloadPublications() async {
-    clearPublications();
-
     final mepsFile = await getMepsFile();
 
-    await _database.execute("ATTACH DATABASE '${mepsFile.path}' AS meps");
+    printTime('fetchDownloadPublications start');
 
-    final result = await _database.rawQuery('''
-    WITH ImageData AS (
-    SELECT 
-        PublicationId,
-        MAX(CASE WHEN Type = 't' AND Width = 270 AND Height = 270 THEN Path END) AS ImageSqr,
-        MAX(CASE WHEN Type = 'lsr' AND Width = 1200 AND Height = 600 THEN Path END) AS ImageLsr
-    FROM Image 
-    WHERE (Type = 't' AND Width = 270 AND Height = 270) 
-       OR (Type = 'lsr' AND Width = 1200 AND Height = 600)
-    GROUP BY PublicationId
-)
-SELECT DISTINCT 
-    p.*,
-    pa.Attribute,
-    pip.Title AS IssueTitle,
-    pip.CoverTitle,
-    pip.UndatedSymbol,
-    img.ImageSqr,
-    img.ImageLsr
-FROM Publication p
-LEFT JOIN PublicationAttribute pa ON pa.PublicationId = p.PublicationId
-LEFT JOIN PublicationIssueProperty pip ON pip.PublicationId = p.PublicationId
-LEFT JOIN ImageData img ON img.PublicationId = p.PublicationId;
+    await _database.transaction((txn) async {
+      await txn.execute("ATTACH DATABASE '${mepsFile.path}' AS meps");
 
-SELECT DISTINCT 
-    p.*,
-    pa.Attribute,
-    pip.Title AS IssueTitle,
-    pip.CoverTitle,
-    pip.UndatedSymbol,
-    img_sqr.Path AS ImageSqr,
-    img_lsr.Path AS ImageLsr,
-	l.Symbol AS LanguageSymbol,
-    l.VernacularName AS LanguageVernacularName,
-    l.PrimaryIetfCode AS LanguagePrimaryIetfCode,
-FROM Publication p
-LEFT JOIN PublicationAttribute pa ON pa.PublicationId = p.PublicationId
-LEFT JOIN PublicationIssueProperty pip ON pip.PublicationId = p.PublicationId
-LEFT JOIN meps.Language l ON p.MepsLanguageId = l.LanguageId
-LEFT JOIN (
-    SELECT DISTINCT PublicationId, Path
-    FROM Image 
-    WHERE Type = 't' AND Width = 270 AND Height = 270
-) img_sqr ON img_sqr.PublicationId = p.PublicationId
-LEFT JOIN (
-    SELECT DISTINCT PublicationId, Path
-    FROM Image 
-    WHERE Type = 'lsr' AND Width = 1200 AND Height = 600
-) img_lsr ON img_lsr.PublicationId = p.PublicationId;
-  ''');
+      final result = await txn.rawQuery('''
+      WITH ImageData AS (
+        SELECT 
+            PublicationId,
+            MAX(CASE WHEN Type = 't' AND Width = 270 AND Height = 270 THEN Path END) AS ImageSqr,
+            MAX(CASE WHEN Type = 'lsr' AND Width = 1200 AND Height = 600 THEN Path END) AS ImageLsr
+        FROM Image 
+        WHERE (Type = 't' AND Width = 270 AND Height = 270) 
+           OR (Type = 'lsr' AND Width = 1200 AND Height = 600)
+        GROUP BY PublicationId
+      )
+      SELECT DISTINCT 
+          p.*,
+          pa.Attribute,
+          pip.Title AS IssueTitle,
+          pip.CoverTitle,
+          pip.UndatedSymbol,
+          img.ImageSqr,
+          img.ImageLsr,
+          l.Symbol AS LanguageSymbol,
+          l.VernacularName AS LanguageVernacularName,
+          l.PrimaryIetfCode AS LanguagePrimaryIetfCode
+      FROM Publication p
+      LEFT JOIN PublicationAttribute pa ON pa.PublicationId = p.PublicationId
+      LEFT JOIN PublicationIssueProperty pip ON pip.PublicationId = p.PublicationId
+      LEFT JOIN meps.Language l ON p.MepsLanguageId = l.LanguageId
+      LEFT JOIN ImageData img ON img.PublicationId = p.PublicationId;
+    ''');
+
+      // On consomme pleinement les résultats avant de détacher
+      result.map((row) => Publication.fromJson(row)).toList();
+    });
+
+    printTime('fetchDownloadPublications end');
 
     await _database.execute("DETACH DATABASE meps");
-
-    if (result.isNotEmpty) {
-      publications = result.map((row) => Publication.fromJson(row)).toList();
-    }
-  }
-
-  List<Publication> getPublications() {
-    return publications;
-  }
-
-  List<Publication> getPublicationsFromLanguage(MepsLanguage language) {
-    return publications.where((p) => p.mepsLanguage.id == language.id).toList();
-  }
-
-  List<Publication> getBibles() {
-    return publications.where((p) => p.category.id == 1).toList();
-  }
-
-  Publication getPublication(Publication pub) {
-    Publication? publication = publications.firstWhereOrNull((p) => p.symbol == pub.symbol && p.issueTagNumber == pub.issueTagNumber && p.mepsLanguage.id == pub.mepsLanguage.id);
-    if (publication != null) {
-      return publication;
-    }
-    return pub;
-  }
-
-  void addPublication(Publication publication) {
-    publications.add(publication);
-  }
-
-  void removePublication(Publication publication) {
-    publications.remove(publication);
   }
 
   Future<void> open() async {
@@ -125,25 +75,33 @@ LEFT JOIN (
   }
 
   Future<Publication> insertPublicationFromManifest(dynamic manifestData, String path, {Publication? publication}) async {
-    open();
+    await open();
 
     dynamic pub = manifestData['publication'];
 
-    Database publicationDb = await openDatabase("$path/${pub['fileName']}", version: 1);
+    Database publicationDb = await openDatabase("$path/${pub['fileName']}", version: manifestData['schemaVersion']);
 
-    // Vérifier si la table Topic existe et n'est pas vide
-    List<Map<String, dynamic>> topicExists = await publicationDb.rawQuery("""
+    bool hasTopicsTable = false;
+    bool hasVerseCommentaryTable = false;
+
+    if(await tableExists(publicationDb, 'sqlite_stat1')) {
+      // Vérifier si la table Topic existe et n'est pas vide
+      List<Map<String, dynamic>> topicExists = await publicationDb.rawQuery("""
       SELECT stat
       FROM sqlite_stat1
       WHERE tbl = 'Topic'
   """);
 
-    // Vérifier si la table Topic existe et n'est pas vide
-    List<Map<String, dynamic>> verseCommentaryExists = await publicationDb.rawQuery("""
+      // Vérifier si la table Topic existe et n'est pas vide
+      List<Map<String, dynamic>> verseCommentaryExists = await publicationDb.rawQuery("""
       SELECT stat
       FROM sqlite_stat1
       WHERE tbl = 'VerseCommentary'
   """);
+
+      hasTopicsTable = topicExists.isNotEmpty;
+      hasVerseCommentaryTable = verseCommentaryExists.isNotEmpty;
+    }
 
     int languageId = pub['language'];
     String symbol = pub['symbol'];
@@ -173,8 +131,8 @@ LEFT JOIN (
       'DatabasePath': "$path/${pub['fileName']}",
       'ExpandedSize': manifestData['expandedSize'],
       'MepsBuildNumber': manifestData['mepsBuildNumber'],
-      'TopicSearch': topicExists.isEmpty ? 0 : 1,
-      'VerseCommentary': verseCommentaryExists.isEmpty ? 0 : 1,
+      'TopicSearch': hasTopicsTable ? 0 : 1,
+      'VerseCommentary': hasVerseCommentaryTable ? 0 : 1,
     };
 
     int publicationId = await _database.insert('Publication', pubDb);
@@ -314,24 +272,40 @@ LEFT JOIN (
       pubDb['ImageLsr'] = null;  // Aucune image trouvée
     }
 
-
-    Publication p = Publication.fromJson(pubDb);
-    addPublication(p);
-    return p;
+    return Publication.fromJson(pubDb);
   }
 
   Future<void> deletePublication(Publication publication) async {
-    open();
+    await open(); // Assure-toi que la base est ouverte
 
-    int publicationId = await _database.delete('Publication', where: 'Symbol = ? AND IssueTagNumber = ? AND MepsLanguageId = ?', whereArgs: [publication.symbol, publication.issueTagNumber, publication.mepsLanguage.id]);
-    _database.delete('Document', where: 'PublicationId = ?', whereArgs: [publicationId]);
-    _database.delete('Image', where: 'PublicationId = ?', whereArgs: [publicationId]);
-    _database.delete('PublicationAttribute', where: 'PublicationId = ?', whereArgs: [publicationId]);
-    _database.delete('PublicationIssueAttribute', where: 'PublicationId = ?', whereArgs: [publicationId]);
-    _database.delete('PublicationIssueProperty', where: 'PublicationId = ?', whereArgs: [publicationId]);
+    await _database.transaction((txn) async {
+      // 1. Récupérer l'ID de la publication à supprimer
+      final List<Map<String, dynamic>> results = await txn.query(
+        'Publication',
+        columns: ['PublicationId'],
+        where: 'Symbol = ? AND IssueTagNumber = ? AND MepsLanguageId = ?',
+        whereArgs: [publication.symbol, publication.issueTagNumber, publication.mepsLanguage.id],
+      );
 
-    removePublication(publication);
+      if (results.isEmpty) {
+        // La publication n'existe pas, rien à faire
+        return;
+      }
+
+      int publicationId = results.first['PublicationId'] as int;
+
+      // 2. Supprimer les enregistrements liés dans les autres tables
+      await txn.delete('Document', where: 'PublicationId = ?', whereArgs: [publicationId]);
+      await txn.delete('Image', where: 'PublicationId = ?', whereArgs: [publicationId]);
+      await txn.delete('PublicationAttribute', where: 'PublicationId = ?', whereArgs: [publicationId]);
+      await txn.delete('PublicationIssueAttribute', where: 'PublicationId = ?', whereArgs: [publicationId]);
+      await txn.delete('PublicationIssueProperty', where: 'PublicationId = ?', whereArgs: [publicationId]);
+
+      // 3. Supprimer la publication elle-même
+      await txn.delete('Publication', where: 'PublicationId = ?', whereArgs: [publicationId]);
+    });
   }
+
 
   Future<void> createDbPubCollection(Database db) async {
     return await db.transaction((txn) async {
@@ -442,11 +416,12 @@ LEFT JOIN (
       FROM Publication p
       LEFT JOIN Document d ON p.PublicationId = d.PublicationId
       WHERE d.MepsDocumentId = ? AND p.MepsLanguageId = ?
+      LIMIT 1
     ''', [mepsDocId, currentLanguageId]);
 
-    if (result.isEmpty) {
-      return null;
+    if (result.isNotEmpty) {
+      return PublicationRepository().getPublicationWithSymbol(result.first['Symbol'], result.first['IssueTagNumber'], result.first['MepsLanguageId']);
     }
-    return publications.firstWhereOrNull((element) => element.symbol == result.first['Symbol'] && element.issueTagNumber == result.first['IssueTagNumber'] && element.mepsLanguage.id == result.first['MepsLanguageId']);
+    return null;
   }
 }

@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:searchfield/searchfield.dart';
 
+import '../../../../core/api.dart';
+
 class SearchBiblePage extends StatefulWidget {
   final String query;
 
@@ -27,11 +29,8 @@ class _SearchBiblePageState extends State<SearchBiblePage> {
   }
 
   Future<void> fetchApiBible(String query) async {
-    String newQuery = Uri.encodeComponent(query);
-    final url = Uri.parse("https://wol.jw.org/wol/l/r30/lp-f?q=$newQuery");
-
     try {
-      http.Response response = await http.get(url);
+      http.Response response = await Api.httpGetWithHeaders("https://wol.jw.org/wol/l/r30/lp-f?q=$query");
 
       if (response.statusCode == 200) {
         Map<String, dynamic> data = jsonDecode(response.body);
@@ -70,7 +69,7 @@ class _SearchBiblePageState extends State<SearchBiblePage> {
 
     String newQuery = Uri.encodeComponent(query);
     final String url = "https://wol.jw.org/wol/sg/r30/lp-f?q=$newQuery";
-    final response = await http.get(Uri.parse(url));
+    final response = await Api.httpGetWithHeaders(url);
 
     if (response.statusCode == 200) {
       var jsonResponse = json.decode(response.body);

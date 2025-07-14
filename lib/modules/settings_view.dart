@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import 'package:archive/archive.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:intl/intl.dart';
@@ -12,9 +14,18 @@ import 'package:jwlife/i18n/localization.dart';
 import 'package:jwlife/modules/home/views/home_view.dart';
 import 'package:jwlife/modules/library/views/library_view.dart';
 import 'package:jwlife/widgets/dialog/utils_dialog.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:realm/realm.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:sqflite/sqflite.dart';
 import '../app/jwlife_app.dart';
 import '../core/utils/files_helper.dart';
+import '../core/utils/utils.dart';
+import '../core/utils/widgets_utils.dart';
+import '../data/realm/catalog.dart';
+import '../data/realm/realm_library.dart';
+import '../data/userdata/Userdata.dart';
+import '../widgets/settings_widget.dart';
 
 class SettingsView extends StatefulWidget {
   final Function(ThemeMode) toggleTheme;
@@ -39,6 +50,12 @@ class _SettingsViewState extends State<SettingsView> {
 
   final String appVersion = '1.0.0';
   String catalogDate = '';
+  String libraryDate = '';
+  String cacheSize = '';
+
+  // vue web
+  double _fontSize = 16;
+  int _colorIndex = 1;
 
   @override
   void initState() {
@@ -52,13 +69,28 @@ class _SettingsViewState extends State<SettingsView> {
     String selectedLanguage = await getLocale();
     Color primaryColor = await getPrimaryColor(themeMode);
 
+    double fontSize = await getFontSize();
+    int colorIndex = await getLastHighlightColorIndex();
+
     _getVernacularName();
 
     setState(() {
       _theme = themeMode;
       _selectedLocale = Locale(selectedLanguage);
       _selectedColor = primaryColor;
+      _fontSize = fontSize;
+      _colorIndex = colorIndex;
       _getCatalogDate();
+      _getLibraryDate();
+      _loadCacheSize();
+    });
+  }
+
+  Future<void> _loadCacheSize() async {
+    Directory cacheDir = await getTemporaryDirectory();
+    int sizeInBytes = await getDirectorySize(cacheDir);
+    setState(() {
+      cacheSize = formatBytes(sizeInBytes);
     });
   }
 
@@ -77,18 +109,44 @@ class _SettingsViewState extends State<SettingsView> {
   }
 
   Future<void> _getCatalogDate() async {
-    String date = await getCatalogDate();
+    String dateStr = await getCatalogDate();
+
+    // Si vide ou nul, on arrête
+    if (dateStr.isEmpty) return;
+
+    // Parser la date HTTP
+    DateTime parsedDate = DateTime.parse(dateStr);
+
+    // Mettre à jour l'interface
     setState(() {
-      catalogDate = _formatDate(date);
+      catalogDate = _formatDate(parsedDate);
     });
   }
 
-  String _formatDate(String dateString) {
-    DateTime dateTime = DateTime.parse(dateString).toLocal(); // Convertir en heure locale
+  Future<void> _getLibraryDate() async {
+    final results = RealmLibrary.realm
+        .all<Language>()
+        .query("symbol == '${JwLifeApp.settings.currentLanguage.symbol}'");
+    String? date = results.isNotEmpty ? results.first.lastModified : null;
+
+    if (date == null || date.isEmpty) return;
+
+    // Parse la date HTTP
+    DateTime parsedDate = HttpDate.parse(date);
+
+    setState(() {
+      libraryDate = _formatDate(parsedDate);
+    });
+  }
+
+// Corrigé pour prendre un DateTime au lieu d'une String
+  String _formatDate(DateTime dateTime) {
+    // Convertir en heure locale si nécessaire
+    final localDate = dateTime.toLocal();
     return DateFormat(
       'EEEE d MMMM yyyy HH:mm:ss',
       JwLifeApp.settings.currentLanguage.primaryIetfCode,
-    ).format(dateTime);
+    ).format(localDate);
   }
 
   _updateTheme(ThemeMode theme) async {
@@ -117,36 +175,19 @@ class _SettingsViewState extends State<SettingsView> {
       content: Column(
         spacing: 0,
         mainAxisAlignment: MainAxisAlignment.start,
-        children: [
-          RadioListTile<ThemeMode>(
-            title: Text(localization(context).settings_appearance_system),
-            value: ThemeMode.system,
+        children: ThemeMode.values.map((mode) {
+          return RadioListTile<ThemeMode>(
+            title: Text(getThemeLabel(mode)),
+            value: mode,
             groupValue: _theme,
             onChanged: (ThemeMode? value) {
-              if (value != null) _updateTheme(value);
-              Navigator.pop(context); // Fermer la boîte de dialogue
+              if (value != null) {
+                _updateTheme(value);
+                Navigator.of(context, rootNavigator: true).pop(); // Ferme uniquement la dialog
+              }
             },
-          ),
-          RadioListTile<ThemeMode>(
-            title: Text(localization(context).settings_appearance_light),
-            value: ThemeMode.light,
-            groupValue: _theme,
-            onChanged: (ThemeMode? value) {
-              if (value != null) _updateTheme(value);
-              Navigator.pop(context); // Fermer la boîte de dialogue
-            },
-          ),
-          RadioListTile<ThemeMode>(
-            title: Text(localization(context).settings_appearance_dark),
-            value: ThemeMode.dark,
-            groupValue: _theme,
-            onChanged: (ThemeMode? value) {
-              Navigator.of(context).pop();
-              if (value != null) _updateTheme(value);
-              Navigator.pop(context); // Fermer la boîte de dialogue
-            },
-          ),
-        ],
+          );
+        }).toList(),
       ),
       buttons: [
         JwDialogButton(
@@ -156,7 +197,21 @@ class _SettingsViewState extends State<SettingsView> {
     );
   }
 
+  String getThemeLabel(ThemeMode mode) {
+    switch (mode) {
+      case ThemeMode.system:
+        return localization(context).settings_appearance_system;
+      case ThemeMode.light:
+        return localization(context).settings_appearance_light;
+      case ThemeMode.dark:
+        return localization(context).settings_appearance_dark;
+    }
+  }
+
+
   void showColorSelectionDialog() {
+    Color tempColor = _selectedColor!;
+
     showJwDialog(
       context: context,
       title: Text(
@@ -168,11 +223,9 @@ class _SettingsViewState extends State<SettingsView> {
         mainAxisSize: MainAxisSize.min,
         children: [
           ColorPicker(
-            pickerColor: _selectedColor!, // La couleur actuellement sélectionnée
+            pickerColor: tempColor,
             onColorChanged: (Color color) {
-              setState(() {
-                _selectedColor = color; // Met à jour la couleur sélectionnée
-              });
+              tempColor = color;
             },
           ),
         ],
@@ -183,8 +236,12 @@ class _SettingsViewState extends State<SettingsView> {
         ),
         JwDialogButton(
           label: localization(context).action_save.toUpperCase(),
-          onPressed: (buildContext) {
-            JwLifeApp.togglePrimaryColor(_selectedColor!); // Applique la nouvelle couleur
+          onPressed: (dialogContext) {
+            Navigator.of(dialogContext).pop(); // Fermer seulement la boîte de dialogue
+            setState(() {
+              _selectedColor = tempColor;
+            });
+            JwLifeApp.togglePrimaryColor(_selectedColor!);
           },
         ),
       ],
@@ -192,16 +249,11 @@ class _SettingsViewState extends State<SettingsView> {
   }
 
   Future<void> showLanguageSelectionDialog() async {
-    // Récupérer le fichier MEPS
     File mepsFile = await getMepsFile();
-
-    // Ouvrir la base de données
     Database database = await openDatabase(mepsFile.path);
 
-    // Créer une liste des codes IETF (codes de langue) supportés par l'application
     List<String> languageCodes = AppLocalizations.supportedLocales.map((locale) => locale.languageCode).toList();
 
-    // Récupérer les langues avec la requête SQL
     List<Map<String, dynamic>> languages = await database.rawQuery('''
     SELECT 
       Language.VernacularName,
@@ -212,13 +264,10 @@ class _SettingsViewState extends State<SettingsView> {
     JOIN LanguageName ON LocalizedLanguageName.LanguageNameId = LanguageName.LanguageNameId
     JOIN Language SourceL ON LocalizedLanguageName.SourceLanguageId = SourceL.LanguageId
     WHERE Language.PrimaryIetfCode IN (${languageCodes.map((code) => "'$code'").join(',')}) AND SourceL.PrimaryIetfCode = '${_selectedLocale.languageCode}';
-    '''
-    );
+  ''');
 
-    // Fermer la base de données
-    database.close();
+    await database.close();
 
-    // Affichage de la boîte de dialogue avec showJwDialog
     showJwDialog(
       context: context,
       title: Text(
@@ -228,7 +277,6 @@ class _SettingsViewState extends State<SettingsView> {
       buttonAxisAlignment: MainAxisAlignment.end,
       content: Column(
         mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.start,
         children: languages.map((language) {
           String vernacularName = language['VernacularName'] ?? '';
           String name = language['Name'] ?? '';
@@ -242,7 +290,8 @@ class _SettingsViewState extends State<SettingsView> {
             groupValue: _selectedLocale,
             onChanged: (Locale? value) {
               if (value != null) {
-                _updateLocale(value, vernacularName); // Mise à jour du locale sélectionné
+                Navigator.of(context, rootNavigator: true).pop(); // Fermer uniquement la boîte de dialogue
+                _updateLocale(value, vernacularName);
               }
             },
           );
@@ -258,224 +307,420 @@ class _SettingsViewState extends State<SettingsView> {
 
   @override
   Widget build(BuildContext context) {
+    final textStyleSubtitle = TextStyle(
+      fontSize: 14,
+      color: Theme.of(context).brightness == Brightness.dark
+          ? const Color(0xFFc3c3c3)
+          : const Color(0xFF626262),
+
+    );
+
     return Scaffold(
       appBar: AppBar(
-        title: Text(localization(context).navigation_settings),
+        title: Text(localization(context).navigation_settings, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
       ),
       body: ListView(
         children: [
-          // Section Affichage
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-            child: Text(
-              localization(context).settings_appearance_display.toUpperCase(),
-              style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(context).primaryColor),
-            ),
+          SettingsSectionHeader(localization(context).settings_appearance_display),
+          SettingsTile(
+            title: localization(context).settings_appearance,
+            subtitle: _theme == ThemeMode.system
+                ? localization(context).settings_appearance_system
+                : _theme == ThemeMode.light
+                ? localization(context).settings_appearance_light
+                : localization(context).settings_appearance_dark,
+            onTap: showThemeSelectionDialog,
           ),
-          InkWell(
-            child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(localization(context).settings_appearance, style: TextStyle(fontWeight: FontWeight.bold)),
-                    Text(
-                      _theme == ThemeMode.system
-                          ? localization(context).settings_appearance_system
-                          : _theme == ThemeMode.light
-                          ? localization(context).settings_appearance_light
-                          : localization(context).settings_appearance_dark,
-                      style: TextStyle(color: Colors.grey),
-                    ),
-                  ],
-                ),
-            ),
-            onTap: () {
-              showThemeSelectionDialog();
-            }
+          SettingsColorTile(
+            title: 'Couleur Principale',
+            color: Theme.of(context).primaryColor,
+            onTap: showColorSelectionDialog,
           ),
-          InkWell(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Couleur Principale', style: TextStyle(fontWeight: FontWeight.bold)),
-                  SizedBox(height: 4),
-                  ColoredBox(color: Theme.of(context).primaryColor, child: Container(height: 50)),
-                ],
-              ),
-            ),
-            onTap: () {
-              showColorSelectionDialog();
-            },
-          ),
-          Divider(),
+          const Divider(),
 
-          // Section Langues
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-            child: Text(
-              localization(context).settings_languages.toUpperCase(),
-              style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(context).primaryColor),
-            ),
+          SettingsSectionHeader(localization(context).settings_languages),
+          SettingsTile(
+            title: localization(context).settings_language_app,
+            subtitle: _selectedLocaleVernacular,
+            onTap: showLanguageSelectionDialog,
           ),
-          InkWell(
-            child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(localization(context).settings_language_app, style: TextStyle(fontWeight: FontWeight.bold)),
-                    Text(
-                      _selectedLocaleVernacular,
-                      style: TextStyle(color: Colors.grey),
-                    ),
-                  ],
-                ),
-            ),
-            onTap: () {
-              showLanguageSelectionDialog();
-            },
-          ),
-          const SizedBox(height: 10),
-          InkWell(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(localization(context).settings_language_library, style: TextStyle(fontWeight: FontWeight.bold)),
-                  Text(
-                    _selectedLanguage.vernacular,
-                    style: TextStyle(color: Colors.grey),
-                  ),
-                ],
-              ),
-            ),
+          SettingsTile(
+            title: localization(context).settings_language_library,
+            subtitle: _selectedLanguage.vernacular,
             onTap: () {
               showLibraryLanguageDialog(context).then((value) async {
                 if (value['Symbol'] != JwLifeApp.settings.currentLanguage.symbol) {
                   setState(() {
-                    _selectedLanguage = MepsLanguage(id: value['LanguageId'], symbol: value['Symbol'], vernacular: value['VernacularName'], primaryIetfCode: value['PrimaryIetfCode']);
+                    _selectedLanguage = MepsLanguage(
+                      id: value['LanguageId'],
+                      symbol: value['Symbol'],
+                      vernacular: value['VernacularName'],
+                      primaryIetfCode: value['PrimaryIetfCode'],
+                    );
                   });
-                  await setLibraryLanguage(value);
-                  HomeView.setStateHomePage();
+                  setLibraryLanguage(value);
+                  HomeView.refreshChangeLanguage();
                 }
-              }).catchError((error) {
-                // Gérer les erreurs ici si nécessaire
-                print('Erreur : $error');
               });
-            }
+            },
           ),
-          Divider(),
+          const Divider(),
 
-          // Section À propos
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-            child: Text(
-              localization(context).settings_userdata.toUpperCase(),
-              style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(context).primaryColor),
-            ),
-          ),
-          ListTile(
-            title: Text(localization(context).settings_userdata_import),
-            trailing: Icon(JwIcons.cloud_arrow_down),
-              onTap: () async {
-                JwLifeApp.userdata.importBackup();
-                setState(() {
-                  Navigator.pop(context);
-                });
-              }
-          ),
-          ListTile(
-            title: Text(localization(context).settings_userdata_export),
-            trailing: Icon(JwIcons.cloud_arrow_up),
-              onTap: () async {
-                JwLifeApp.userdata.exportBackup();
-                setState(() {
-                  Navigator.pop(context);
-                });
-              }
-          ),
-          ListTile(
-            title: Text('Rénitialiser cette sauvegarde'),
-            trailing: Icon(JwIcons.trash),
+          SettingsSectionHeader(localization(context).settings_userdata),
+          SettingsTile(
+            title: localization(context).settings_userdata_import,
+            trailing: const Icon(JwIcons.cloud_arrow_down),
             onTap: () async {
-              JwLifeApp.userdata.deleteBackup();
-              setState(() {
-                Navigator.pop(context);
-              });
-            }
-          ),
+              FilePickerResult? result = await FilePicker.platform.pickFiles(
+                type: FileType.any,
+              );
 
-          /*
-          Divider(),
+              if (result != null) {
+                PlatformFile file = result.files.first;
+                final String filePath = file.path ?? '';
 
-          // Section À propos
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  localization(context).settings_account.toUpperCase(),
-                  style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(context).primaryColor),
-                ),
-                const SizedBox(height: 16.0),
-                if (FirebaseAuth.instance.currentUser != null) ...[
-                  Text('${localization(context).settings_user_name}: ${FirebaseAuth.instance.currentUser!.displayName}'),
-                  const SizedBox(height: 8.0),
-                  Text("${localization(context).settings_user_email}: ${FirebaseAuth.instance.currentUser!.email}"),
-                  const SizedBox(height: 8.0),
-                  ElevatedButton(
-                      style: ButtonStyle(shape: MaterialStateProperty.all<RoundedRectangleBorder>(const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(8.0))))),
-                      child: Text(localization(context).action_sign_out),
-                      onPressed: () async {
-                        await FirebaseAuth.instance.signOut();
-                        setState(() {});
-                      }
+                // Vérifie l'extension
+                final allowedExtensions = ['jwlife', 'jwlibrary'];
+                final fileExtension = filePath.split('.').last.toLowerCase();
+
+                if (!allowedExtensions.contains(fileExtension)) {
+                  await showJwDialog(
+                    context: context,
+                    titleText: 'Fichier invalide',
+                    contentText: 'Le fichier doit avoir une extension .jwlife ou .jwlibrary.',
+                    buttons: [
+                      JwDialogButton(
+                        label: 'OK',
+                        closeDialog: true,
+                      ),
+                    ],
+                    buttonAxisAlignment: MainAxisAlignment.end,
+                  );
+                  return;
+                }
+
+                // Teste que c'est bien une archive ZIP valide
+                bool isValidZip = false;
+                try {
+                  final bytes = File(filePath).readAsBytesSync();
+                  ZipDecoder().decodeBytes(bytes);
+                  isValidZip = true;
+                } catch (_) {
+                  isValidZip = false;
+                }
+
+                if (!isValidZip) {
+                  await showJwDialog(
+                    context: context,
+                    titleText: 'Fichier invalide',
+                    contentText: 'Le fichier sélectionné n’est pas une archive valide.',
+                    buttons: [
+                      JwDialogButton(
+                        label: 'OK',
+                        closeDialog: true,
+                      ),
+                    ],
+                    buttonAxisAlignment: MainAxisAlignment.end,
+                  );
+                  return;
+                }
+
+                // Récupération des infos de sauvegarde
+                final info = await getBackupInfo(File(filePath));
+                if (info == null) {
+                  await showJwDialog(
+                    context: context,
+                    titleText: 'Erreur',
+                    contentText: 'Le fichier de sauvegarde est invalide ou corrompu. Veuillez choisir un autre fichier.',
+                    buttons: [
+                      JwDialogButton(
+                        label: 'OK',
+                        closeDialog: true,
+                      ),
+                    ],
+                    buttonAxisAlignment: MainAxisAlignment.end,
+                  );
+                  return;
+                }
+
+                // Confirmation avant restauration
+                final shouldRestore = await showJwDialog<bool>(
+                  context: context,
+                  titleText: 'Importer une sauvegarde',
+                  content: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 25),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 10),
+                        const Text(
+                          'Les données de votre étude individuelle sur cet appareil seront écrasées.',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Color(0xFF676767),
+                          ),
+                        ),
+                        const SizedBox(height: 15),
+                        Text(
+                          'Appareil : ${info.deviceName}',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 5),
+                        Text('Dernière modification : ${timeAgo(info.lastModified)}'),
+                      ],
+                    ),
                   ),
-                  const SizedBox(height: 8.0),
-                  ElevatedButton(
-                    style: ButtonStyle(shape: MaterialStateProperty.all<RoundedRectangleBorder>(const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(8.0))))),
-                    child: Text(localization(context).action_delete),
-                    onPressed: () => FirebaseAuth.instance.currentUser!.delete(),
+                  buttons: [
+                    JwDialogButton(
+                      label: 'ANNULER',
+                      closeDialog: true,
+                      result: false,
+                    ),
+                    JwDialogButton(
+                      label: 'RESTAURER',
+                      closeDialog: true,
+                      result: true,
+                    ),
+                  ],
+                  buttonAxisAlignment: MainAxisAlignment.end,
+                );
+
+                if (shouldRestore == true) {
+                  BuildContext? dialogContext;
+
+                  showJwDialog(
+                    context: context,
+                    titleText: 'Importation en cours…',
+                    content: Builder(
+                      builder: (ctx) {
+                        dialogContext = ctx;
+                        return Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 25),
+                          child: SizedBox(
+                            height: 50,
+                            child: getLoadingWidget(Theme.of(context).primaryColor),
+                          ),
+                        );
+                      },
+                    ),
+                  );
+
+                  await JwLifeApp.userdata.importBackup(File(filePath));
+
+                  await showJwDialog(
+                    context: context,
+                    titleText: 'Sauvegarde importée',
+                    contentText: 'La sauvegarde a bien été importée.',
+                    buttons: [
+                      JwDialogButton(
+                        label: 'OK',
+                        closeDialog: true,
+                      ),
+                    ],
+                    buttonAxisAlignment: MainAxisAlignment.end,
+                  );
+
+                  if (dialogContext != null) Navigator.of(dialogContext!).pop();
+                  setState(() => Navigator.pop(context));
+                }
+              }
+            },
+          ),
+          SettingsTile(
+            title: localization(context).settings_userdata_export,
+            trailing: const Icon(JwIcons.cloud_arrow_up),
+            onTap: () async {
+              // On crée une variable pour contrôler le contexte du dialog
+              BuildContext? dialogContext;
+
+              // Affiche le dialog de chargement et garde son contexte pour le fermer plus tard
+              showJwDialog(
+                context: context,
+                titleText: 'Exportation…',
+                content: Builder(
+                  builder: (ctx) {
+                    dialogContext = ctx;
+                    return Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 25),
+                      child: SizedBox(
+                        height: 50,
+                        child: getLoadingWidget(Theme.of(context).primaryColor),
+                      ),
+                    );
+                  },
+                ),
+              );
+
+              // Exporte la sauvegarde
+              File? backupFile = await JwLifeApp.userdata.exportBackup();
+
+              // Ferme le dialog de chargement
+              if (dialogContext != null) Navigator.of(dialogContext!).pop();
+
+              // Si le fichier est bien exporté, on le partage
+              if (backupFile != null) {
+                await Share.shareXFiles(
+                  [XFile(backupFile.path)]
+                );
+              }
+
+              // Retour à l'écran précédent
+              Navigator.pop(context);
+            },
+          ),
+          SettingsTile(
+            title: 'Réinitialiser cette sauvegarde',
+            trailing: const Icon(JwIcons.trash),
+            onTap: () async {
+              // 1. Dialog de confirmation
+              final confirm = await showJwDialog<bool>(
+                context: context,
+                titleText: 'Confirmer la réinitialisation',
+                contentText: 'Voulez-vous vraiment réinitialiser cette sauvegarde ? Vous perdrez toutes vos données de votre étude individuelle. Cette action est irréversible.',
+                buttons: [
+                  JwDialogButton(
+                    label: 'ANNULER',
+                    closeDialog: true,
+                    result: false,
+                  ),
+                  JwDialogButton(
+                    label: 'RÉINITIALISER',
+                    closeDialog: true,
+                    result: true,
                   ),
                 ],
-                if (FirebaseAuth.instance.currentUser == null) ...[
-                  ElevatedButton(
-                    style: ButtonStyle(shape: MaterialStateProperty.all<RoundedRectangleBorder>(const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(8.0))))),
-                    child: Text(localization(context).action_sign_in),
-                    onPressed: () {
-                      showPage(context, LoginView(update: setState, fromSettings: true));
-                    }
-                  ),
-                ],
-              ],
-            ),
+                buttonAxisAlignment: MainAxisAlignment.end,
+              );
+
+              if (confirm != true) return; // L’utilisateur annule
+
+              // 2. Dialog de chargement pendant la suppression
+              BuildContext? dialogContext;
+              showJwDialog(
+                context: context,
+                titleText: 'Suppression de la sauvegarde…',
+                content: Builder(
+                  builder: (ctx) {
+                    dialogContext = ctx;
+                    return const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 25),
+                      child: SizedBox(
+                        height: 50,
+                        child: Center(child: CircularProgressIndicator()),
+                      ),
+                    );
+                  },
+                ),
+              );
+
+              // 3. Supprimer la sauvegarde
+              await JwLifeApp.userdata.deleteBackup();
+
+              // 4. Fermer le dialog de chargement et revenir à l’écran précédent
+              if (dialogContext != null) Navigator.of(dialogContext!).pop();
+              setState(() => Navigator.pop(context));
+            },
+          ),
+          const Divider(),
+
+          SettingsSectionHeader('Cache'),
+          SettingsTile(
+            title: 'Vider le cache',
+            trailing: Text(cacheSize),
+            onTap: () async {
+              BuildContext? dialogContext;
+
+              // Afficher dialog de chargement
+              showJwDialog(
+                context: context,
+                titleText: 'Suppression du cache…',
+                content: Builder(
+                  builder: (ctx) {
+                    dialogContext = ctx;
+                    return const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 25),
+                      child: SizedBox(
+                        height: 50,
+                        child: Center(child: CircularProgressIndicator()),
+                      ),
+                    );
+                  },
+                ),
+              );
+
+              // Suppression du cache
+              Directory cacheDir = await getTemporaryDirectory();
+              if (await cacheDir.exists()) {
+                await cacheDir.delete(recursive: true);
+              }
+
+              // Fermer le dialog
+              if (dialogContext != null) Navigator.of(dialogContext!).pop();
+
+              // Recalculer et mettre à jour la taille du cache
+              await _loadCacheSize();
+            },
           ),
 
-           */
+          const Divider(),
 
-          Divider(),
+          SettingsSectionHeader('Document'),
 
-          // Section À propos
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  localization(context).settings_about.toUpperCase(),
-                  style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(context).primaryColor),
-                ),
-                const SizedBox(height: 16.0),
-                Text('${localization(context).settings_application_version}: $appVersion'),
-                const SizedBox(height: 8.0),
-                Text("${localization(context).settings_catalog_date}: $catalogDate"),
-              ],
-            ),
+          SettingsTile(
+            title: 'Taille de la police',
+            subtitle: '$_fontSize px',
+            trailing: Icon(JwIcons.device_text),
+            onTap: () async {
+              final fontSize = await showJwChoiceDialog<double>(
+                context: context,
+                titleText: 'Taille de la police',
+                contentText: 'Choisissez la taille de la police',
+                choices: List.generate(50, (i) => i + 10),
+                initialSelection: _fontSize,
+              );
+              if (fontSize != null) {
+                await setFontSize(fontSize);
+                JwLifeApp.settings.webViewData.updateFontSize(fontSize);
+                setState(() => _fontSize = fontSize);
+              }
+            },
+          ),
+
+          SettingsTile(
+            title: 'Couleur du surlignage',
+            subtitle: '$_colorIndex',
+            trailing: Icon(JwIcons.device_text),
+            onTap: () async {
+              final selectedColor = await showJwChoiceDialog<int>(
+                context: context,
+                titleText: 'Couleur de surlignage',
+                contentText: 'Choisissez une couleur',
+                choices: List.generate(8, (i) => i),
+                initialSelection: _colorIndex,
+                display: (i) => "Couleur $i", // ou un widget couleur si tu préfères
+              );
+              if (selectedColor != null) {
+                await setLastHighlightColor(selectedColor);
+                JwLifeApp.settings.webViewData.updateColorIndex(selectedColor);
+                setState(() => _colorIndex = selectedColor);
+              }
+            },
+          ),
+
+          const Divider(),
+
+          SettingsSectionHeader(localization(context).settings_about),
+          SettingsTile(
+            title: localization(context).settings_application_version,
+            subtitle: appVersion,
+          ),
+          SettingsTile(
+            title: localization(context).settings_catalog_date,
+            subtitle: catalogDate,
+          ),
+          SettingsTile(
+            title: 'Date de la bibliothèque',
+            subtitle: libraryDate,
           ),
         ],
       ),

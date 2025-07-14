@@ -24,6 +24,7 @@ import 'package:sqflite/sqflite.dart';
 import '../../app/jwlife_view.dart';
 import '../../data/realm/catalog.dart';
 import '../../data/realm/realm_library.dart';
+import '../api.dart';
 import 'common_ui.dart';
 import 'files_helper.dart';
 
@@ -31,7 +32,7 @@ void showFullScreenVideo(BuildContext context, MediaItem mediaItem) async {
   Video? video = JwLifeApp.mediaCollections.getVideo(mediaItem);
 
   if (video != null) {
-    JwLifeView.toggleNavBarBlack.call(JwLifeView.currentTabIndex, true);
+    JwLifeView.toggleNavBarBlack.call(true);
 
     showPage(context, VideoPlayerView(
       mediaItem: mediaItem,
@@ -40,7 +41,7 @@ void showFullScreenVideo(BuildContext context, MediaItem mediaItem) async {
   }
   else {
     if(await hasInternetConnection()) {
-      JwLifeView.toggleNavBarBlack.call(JwLifeView.currentTabIndex, true);
+      JwLifeView.toggleNavBarBlack.call(true);
 
       showPage(context, VideoPlayerView(
         mediaItem: mediaItem
@@ -112,7 +113,7 @@ PopupMenuItem getVideoLanguagesItem(BuildContext context, MediaItem item) {
 
       if(connectivityResult.contains(ConnectivityResult.wifi) || connectivityResult.contains(ConnectivityResult.mobile) || connectivityResult.contains(ConnectivityResult.ethernet)) {
         String link = 'https://b.jw-cdn.org/apis/mediator/v1/media-item-availability/${item.languageAgnosticNaturalKey}?clientType=www';
-        final response = await http.get(Uri.parse(link));
+        final response = await Api.httpGetWithHeaders(link);
         if (response.statusCode == 200) {
           final jsonFile = response.body;
           final jsonData = json.decode(jsonFile);
@@ -158,7 +159,7 @@ PopupMenuItem getVideoDownloadItem(BuildContext context, MediaItem item) {
     onTap: () async {
       if(await hasInternetConnection()) {
         String link = 'https://b.jw-cdn.org/apis/mediator/v1/media-items/${item.languageSymbol}/${item.languageAgnosticNaturalKey}';
-        final response = await http.get(Uri.parse(link));
+        final response = await Api.httpGetWithHeaders(link);
         if (response.statusCode == 200) {
           final jsonFile = response.body;
           final jsonData = json.decode(jsonFile);
@@ -237,7 +238,7 @@ PopupMenuItem getCopySubtitlesItem(BuildContext context, MediaItem item) {
 
         if(connectivityResult.contains(ConnectivityResult.wifi) || connectivityResult.contains(ConnectivityResult.mobile) || connectivityResult.contains(ConnectivityResult.ethernet)) {
           String link = 'https://b.jw-cdn.org/apis/mediator/v1/media-items/${item.languageSymbol}/${item.languageAgnosticNaturalKey}';
-          final response = await http.get(Uri.parse(link));
+          final response = await Api.httpGetWithHeaders(link);
 
           if (response.statusCode == 200) {
             final jsonFile = response.body;

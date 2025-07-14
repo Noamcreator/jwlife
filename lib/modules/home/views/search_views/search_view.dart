@@ -160,7 +160,7 @@ class _SearchViewState extends State<SearchView> with SingleTickerProviderStateM
         if (item.item!['type'] == 2) {
           Publication? publication = await PubCatalog.searchPub(item.item!['query'], 0, JwLifeApp.settings.currentLanguage.id);
           if (publication != null) {
-            publication.showMenu(context, update: null);
+            publication.showMenu(context);
           }
         }
         else if(item.item!['type'] == 1) {

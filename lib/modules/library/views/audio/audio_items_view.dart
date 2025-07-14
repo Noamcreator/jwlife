@@ -159,9 +159,9 @@ class _AudioItemsViewState extends State<AudioItemsView> {
                 context: context,
                 builder: (context) => languageDialog,
               ).then((value) async {
-                await setLibraryLanguage(value);
+                setLibraryLanguage(value);
                 loadItems(value['Symbol']);
-                HomeView.setStateHomePage();
+                HomeView.refreshChangeLanguage();
               });
             },
           ),

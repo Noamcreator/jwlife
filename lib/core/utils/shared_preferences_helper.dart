@@ -24,58 +24,75 @@ Future<void> setTheme(String theme) async {
   prefs.setString('theme', theme);
 }
 
-// Extension pour convertir une couleur en chaîne hexadécimale
+/// Extension pour convertir une couleur en chaîne hexadécimale
 extension ColorHexString on Color {
   String toHex() {
-    return '#${this.value.toRadixString(16).padLeft(8, '0').toUpperCase()}';
+    return '#${value.toRadixString(16).padLeft(8, '0').toUpperCase()}';
   }
 }
 
-// Extension pour créer une couleur à partir d'une chaîne hexadécimale
+/// Extension pour créer une couleur à partir d'une chaîne hexadécimale
 extension HexStringColor on String {
   Color fromHex() {
-    return Color(int.parse(this.replaceFirst('#', '0xFF')));
+    final hex = replaceFirst('#', '').toUpperCase();
+    if (hex.isEmpty || (hex.length != 6 && hex.length != 8)) {
+      throw FormatException('Invalid hex color string: $this');
+    }
+
+    final normalizedHex = hex.length == 6 ? 'FF$hex' : hex;
+    return Color(int.parse('0x$normalizedHex'));
   }
 }
 
-/* PRIMARY COLOR */
+/// Couleurs par défaut
+const Color _defaultPrimaryLight = Color(0xFF646496);
+final Color _defaultPrimaryDark = Color.lerp(_defaultPrimaryLight, Colors.white, 0.3)!;
+
+/// Clé pour SharedPreferences
+const String _primaryColorKey = 'primary_color';
+
+/// Récupère la couleur primaire en fonction du thème actuel
 Future<Color> getPrimaryColor(ThemeMode theme) async {
-  SharedPreferences prefs = await SharedPreferences.getInstance();
-  int index = WidgetsBinding.instance.window.platformBrightness == Brightness.dark
+  final prefs = await SharedPreferences.getInstance();
+  final index = WidgetsBinding.instance.window.platformBrightness == Brightness.dark
       ? ThemeMode.dark.index
       : ThemeMode.light.index;
 
-  // Si la clé 'primary_color' existe, on récupère la couleur correspondant à l'index
-  if (prefs.containsKey('primary_color')) {
-    List<String> colors = prefs.getStringList('primary_color')!;
-    if (colors.isNotEmpty && colors.length > index) {
-      return colors[index].fromHex();
+  if (prefs.containsKey(_primaryColorKey)) {
+    final colors = prefs.getStringList(_primaryColorKey)!;
+    if (colors.length > index) {
+      try {
+        return colors[index].fromHex();
+      } catch (e) {
+        debugPrint('Erreur lors de la conversion de la couleur : $e');
+      }
     }
   }
 
-  // Valeurs par défaut
-  Color primaryColorLight = Color(0xFF295568);
-  Color primaryColorDark = Color.lerp(primaryColorLight, Colors.white, 0.3)!;
-
-  return WidgetsBinding.instance.window.platformBrightness == Brightness.dark
-      ? primaryColorDark
-      : primaryColorLight;
+  return index == ThemeMode.dark.index ? _defaultPrimaryDark : _defaultPrimaryLight;
 }
 
+/// Sauvegarde une couleur primaire pour un thème donné
 Future<void> setPrimaryColor(ThemeMode theme, Color color) async {
-  SharedPreferences prefs = await SharedPreferences.getInstance();
-  int index = WidgetsBinding.instance.window.platformBrightness == Brightness.dark
+  final prefs = await SharedPreferences.getInstance();
+  final index = WidgetsBinding.instance.window.platformBrightness == Brightness.dark
       ? ThemeMode.dark.index
       : ThemeMode.light.index;
 
-  // Récupérer la liste des couleurs existantes ou en créer une nouvelle
-  List<String> colors = prefs.getStringList('primary_color') ?? ['', '', ''];
+  List<String> colors = prefs.getStringList(_primaryColorKey) ?? [
+    _defaultPrimaryLight.toHex(),
+    _defaultPrimaryDark.toHex(),
+    '#FF646496' // Optionnel : une couleur par défaut pour ThemeMode.system
+  ];
 
-  // Mettre à jour la couleur correspondante à l'index
+  // Assure que la liste a au moins 3 éléments
+  while (colors.length < 3) {
+    colors.add('#FF646496');
+  }
+
   colors[index] = color.toHex();
 
-  // Sauvegarder la liste mise à jour
-  await prefs.setStringList('primary_color', colors);
+  await prefs.setStringList(_primaryColorKey, colors);
 }
 
 Future<String> getLocale() async {
@@ -112,21 +129,6 @@ Future<void> setCatalogDate(String catalogDate) async {
   prefs.setString('catalog_date', catalogDate);
 }
 
-/* LIBRARY DATE */
-Future<String> getLibraryDate() async {
-  SharedPreferences prefs = await SharedPreferences.getInstance();
-  if (prefs.containsKey('library_date') == true) {
-    return prefs.getString('library_date')!;
-  }
-  return '';
-}
-
-Future<void> setLibraryDate(String libraryDate) async {
-  SharedPreferences prefs = await SharedPreferences.getInstance();
-  prefs.setString('library_date', libraryDate);
-}
-
-
 /* LIBRARY LANGUAGE */
 Future<String> getLibraryLanguage(int index) async {
   SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -137,10 +139,10 @@ Future<String> getLibraryLanguage(int index) async {
 }
 
 Future<void> setLibraryLanguage(Map<String, dynamic> selectedLanguage) async {
+  JwLifeApp.settings.currentLanguage = MepsLanguage.fromJson(selectedLanguage);
+
   SharedPreferences prefs = await SharedPreferences.getInstance();
   prefs.setStringList('library_language', [selectedLanguage['LanguageId'].toString(), selectedLanguage['Symbol'], selectedLanguage['VernacularName'], selectedLanguage['PrimaryIetfCode']]);
-
-  JwLifeApp.settings.currentLanguage = MepsLanguage.fromJson(selectedLanguage);
 }
 
 
@@ -149,18 +151,18 @@ Future<void> setLibraryLanguageDebug(int id, String code, String vernacular, Str
   prefs.setStringList('library_language', [id.toString(), code, vernacular, locale]);
 }
 
-/* HOME PAGE ARTICLE NUMBER */
-Future<String> getLastArticle() async {
+/* WEB APP FOLDER */
+Future<bool> getWebAppDownload() async {
   SharedPreferences prefs = await SharedPreferences.getInstance();
-  if (prefs.containsKey('last_article_number') == true) {
-    return prefs.getString('last_article_number')!;
+  if (prefs.containsKey('webapp_download') == true) {
+    return prefs.getBool('webapp_download')!;
   }
-  return '';
+  return false;
 }
 
-Future<void> setLastArticle(int lastArticle) async {
+Future<void> setWebAppDownload(bool download) async {
   SharedPreferences prefs = await SharedPreferences.getInstance();
-  prefs.setString('last_article_number', lastArticle.toString());
+  prefs.setBool('webapp_download', download);
 }
 
 /* FONT SIZE PUBLICATION */
@@ -169,7 +171,7 @@ Future<double> getFontSize() async {
   if (prefs.containsKey('font_size') == true) {
     return prefs.getDouble('font_size')!;
   }
-  return 18;
+  return 20;
 }
 
 Future<void> setFontSize(double fontSize) async {

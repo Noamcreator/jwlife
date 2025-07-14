@@ -22,6 +22,7 @@ import 'package:jwlife/data/databases/Audio.dart';
 import 'package:jwlife/data/databases/Media.dart';
 import 'package:jwlife/data/databases/Publication.dart';
 import 'package:jwlife/data/databases/PublicationCategory.dart';
+import 'package:jwlife/data/databases/PublicationRepository.dart';
 import 'package:jwlife/data/databases/catalog.dart';
 import 'package:jwlife/data/databases/history.dart';
 import 'package:jwlife/data/realm/catalog.dart';
@@ -37,12 +38,16 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../../../../core/utils/directory_helper.dart';
+import '../../../../../../core/utils/widgets_utils.dart';
+import '../../../../../../data/userdata/Bookmark.dart';
 import '../full_screen_image_view_local.dart';
 import '../publication_notes_view.dart';
 import 'document.dart';
 import 'document_javascript.dart';
 
 import 'package:audio_service/audio_service.dart' as audio_service;
+
+import 'multimedia.dart';
 
 class DocumentView extends StatefulWidget {
   final Publication publication;
@@ -105,15 +110,16 @@ class _DocumentViewState extends State<DocumentView> with SingleTickerProviderSt
   bool _isSearching = false;
   bool _isFullscreen = true;
 
+  bool _useHybridComposition = false;
+
   /* LOADING */
   bool _isLoadingData = false;
   bool _isLoadingWebView = false;
-
-  bool _jumpToParagraphExecuted = false;
+  bool _isLoadingFonts = false;
 
   /* OTHER VIEW */
-  bool _showNotes = false;
   bool _isProgrammaticScroll = false; // Variable pour éviter l'interférence
+  String _lastDirectionScroll = ''; // Variable pour éviter l'interférence
   bool _controlsVisible = true; // Variable pour contrôler la visibilité des contrôles
   bool _controlsVisibleSave = true; // Variable pour contrôler la visibilité des contrôles
   bool _showDialog = false; // Variable pour contrôler la visibilité des contrôles
@@ -125,6 +131,12 @@ class _DocumentViewState extends State<DocumentView> with SingleTickerProviderSt
   void initState() {
     super.initState();
     init();
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+    _controller.dispose();
   }
 
   Future<void> init() async {
@@ -150,22 +162,22 @@ class _DocumentViewState extends State<DocumentView> with SingleTickerProviderSt
       _isLoadingData = true;
     });
 
-    await widget.publication.documentsManager!.getCurrentDocument().changePageAt(widget.publication.documentsManager!);
+    await widget.publication.documentsManager!.getCurrentDocument().changePageAt();
 
     _isFullscreen = await getFullscreen();
+
+    JwLifeView.toggleNavBarPositioned.call(true);
+    JwLifeView.toggleNavBarVisibility.call(true);
   }
 
-  Future<void> onSwipe(String direction) async {
-    setState(() {
-      if (direction == 'next' && widget.publication.documentsManager!.documentIndex < widget.publication.documentsManager!.documents.length - 1) {
-        widget.publication.documentsManager!.documentIndex++;
-      }
-      else if (direction == 'prev' && widget.publication.documentsManager!.documentIndex > 0) {
-        widget.publication.documentsManager!.documentIndex--;
-      }
-    });
+  Future<void> changePageAt(int index) async {
+    if (index <= widget.publication.documentsManager!.documents.length - 1 && index >= 0) {
+      setState(() {
+        widget.publication.documentsManager!.documentIndex = index;
+      });
 
-    await widget.publication.documentsManager!.getCurrentDocument().changePageAt(widget.publication.documentsManager!);
+      await widget.publication.documentsManager!.getCurrentDocument().changePageAt();
+    }
   }
 
   Future<void> _jumpToParagraph(int beginParagraphOrdinal, int endParagraphOrdinal) async {
@@ -191,9 +203,14 @@ class _DocumentViewState extends State<DocumentView> with SingleTickerProviderSt
     });
     await _controller.evaluateJavascript(source: 'jumpToPage($page);');
 
+    setControlsVisible(true);
+  }
+
+  void setControlsVisible(bool visible) {
     setState(() {
-      _controlsVisible = true;
+      _controlsVisible = visible;
     });
+    JwLifeView.toggleNavBarVisibility(visible);
   }
 
   bool _handleBackPress() {
@@ -258,7 +275,7 @@ class _DocumentViewState extends State<DocumentView> with SingleTickerProviderSt
      */
 
     try {
-      for (var bible in JwLifeApp.pubCollections.getBibles()) {
+      for (var bible in PublicationRepository().getAllBibles()) {
         List<Map<String, dynamic>> results = await bible.documentsManager!.database.rawQuery("""
         WITH Chapitre1 AS (
             SELECT FirstVerseId, LastVerseId 
@@ -285,7 +302,7 @@ class _DocumentViewState extends State<DocumentView> with SingleTickerProviderSt
           htmlContent += row['Label'];
           final decodedHtml = decodeBlobContent(
             row['Content'] as Uint8List,
-            bible.hash,
+            bible.hash!,
           );
           htmlContent += decodedHtml;
         }
@@ -345,7 +362,7 @@ class _DocumentViewState extends State<DocumentView> with SingleTickerProviderSt
 
         /// Décoder le contenu
         final decodedHtml = decodeBlobContent(
-            extract['Content'] as Uint8List, widget.publication.hash);
+            extract['Content'] as Uint8List, widget.publication.hash!);
         var doc = parse(extract['Caption']);
         String caption = doc.querySelector('.etitle')?.text ?? '';
 
@@ -425,7 +442,9 @@ class _DocumentViewState extends State<DocumentView> with SingleTickerProviderSt
         }
       }
       else {
-        showDocumentView(context, mepsDocumentId, widget.publication.mepsLanguage.id, startParagraphId: startParagraph, endParagraphId: endParagraph);
+        await showDocumentView(context, mepsDocumentId, widget.publication.mepsLanguage.id, startParagraphId: startParagraph, endParagraphId: endParagraph);
+        JwLifeView.toggleNavBarVisibility(_controlsVisible);
+        JwLifeView.toggleNavBarPositioned(true);
       }
     }
   }
@@ -465,7 +484,7 @@ class _DocumentViewState extends State<DocumentView> with SingleTickerProviderSt
       /// Décoder le contenu
       final decodedHtml = decodeBlobContent(
           footNote['Content'] as Uint8List,
-          widget.publication.hash
+          widget.publication.hash!
       );
 
       dynamic document = {
@@ -513,7 +532,7 @@ class _DocumentViewState extends State<DocumentView> with SingleTickerProviderSt
         htmlContent += verse['Label'];
         final decodedHtml = decodeBlobContent(
           verse['Content'] as Uint8List,
-          widget.publication.hash
+          widget.publication.hash!
         );
         htmlContent += decodedHtml;
 
@@ -534,7 +553,7 @@ class _DocumentViewState extends State<DocumentView> with SingleTickerProviderSt
           'bookNumber': verse['BookNumber'],
           'chapterNumber': verse['ChapterNumber'],
           'verseNumber': verse['VerseNumber'],
-          'mepsLanguageId': JwLifeApp.pubCollections.getBibles().first.mepsLanguage.id,
+          'mepsLanguageId': PublicationRepository().getAllBibles().first.mepsLanguage.id,
           'verse': verse['ElementNumber'],
         });
       }
@@ -550,253 +569,255 @@ class _DocumentViewState extends State<DocumentView> with SingleTickerProviderSt
   }
 
   Future<void> injectHtmlDialog(dynamic content) async {
-    // Encodez le contenu HTML en échappant les caractères spéciaux
-    await _controller.evaluateJavascript(source: """
-  {
-    // Création d'une variable locale document pour accéder facilement aux données
-    const json = ${json.encode(content)};
-    
-    // Supprimez le dialogue existant s'il y en a un
-    const existingDialog = document.getElementById('customDialog');
-    if (existingDialog) {
-      existingDialog.remove(); // Supprimez le dialogue existant
-    }
-    
-    let isFullscreen = false; // Flag de statut
-    
-    // Créez un nouveau dialogue
-    const dialog = document.createElement('div');
-    dialog.id = 'customDialog';
-    dialog.style.cssText = 'position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: ${JwLifeApp.settings.webViewData.backgroundColor}; padding: 0; border-radius: 0px; box-shadow: 0 4px 20px rgba(0.8,0.8,1,1); z-index: 1000; width: 80%; max-width: 800px;';
-    
-    // Définir les thèmes en fonction de la variable isDark
-    const isDark = ${Theme.of(context).brightness == Brightness.dark}; // Cette variable doit être passée depuis Flutter
-    
-    // Créer le header (barre supérieure du dialogue)
-    const header = document.createElement('div');
-    
-    // Style pour le theme
-    const headerStyle = isDark ? 'background: #333; color: white;' : 'background: #d8d7d5; color: #333333;';
-    // Appliquer le style à l'en-tête
-    header.style.cssText = `\${headerStyle} padding: 5px; padding-left: 10px; padding-right: 10px; font-size: 18px; font-weight: bold; display: flex; align-items: center; border-top-left-radius: 0px; border-top-right-radius: 0px; height: 40px;`;
-    
-    // **Création du conteneur pour déplacer**
-    const dragArea = document.createElement('div');
-    dragArea.style.cssText = 'flex-grow: 1; cursor: move;';
-    // Ajout du titre du verset
-    dragArea.innerHTML = json.title;
-    
-    // **Variables pour le déplacement**
-    let isDragging = false;
-    let offsetX = 0, offsetY = 0;
-    function startDrag(event) {
-      if (isFullscreen) return;
-      event.preventDefault();
-      isDragging = true;
-      let clientX = event.clientX ?? event.touches[0].clientX;
-      let clientY = event.clientY ?? event.touches[0].clientY;
-      offsetX = clientX - dialog.getBoundingClientRect().left;
-      offsetY = clientY - dialog.getBoundingClientRect().top;
-    }
-    function onDrag(event) {
-      if (!isDragging) return;
-      event.preventDefault();
-      let clientX = event.clientX ?? event.touches[0].clientX;
-      let clientY = event.clientY ?? event.touches[0].clientY;
-      let left = clientX - offsetX;
-      let top = clientY - offsetY;
-      dialog.style.left = left + 'px';
-      dialog.style.top = top + 'px';
-      dialog.style.transform = 'none';
-    }
-    function stopDrag() {
-      isDragging = false;
-    }
-    
-    // **Événements pour déplacer le dialog uniquement via dragArea**
-    dragArea.addEventListener('mousedown', startDrag);
-    document.addEventListener('mousemove', onDrag);
-    document.addEventListener('mouseup', stopDrag);
-    dragArea.addEventListener('touchstart', startDrag);
-    document.addEventListener('touchmove', onDrag);
-    document.addEventListener('touchend', stopDrag);
-    
-    // **Création du conteneur des boutons**
-    const buttonContainer = document.createElement('div');
-    buttonContainer.style.cssText = 'display: flex; align-items: center; margin-left: auto;';
-    
-    // **Bouton plein écran**
-    const fullscreenButton = document.createElement('button');
-    fullscreenButton.innerHTML = '&#xE6C7;';
-    fullscreenButton.style.cssText = 'font-family: jw-icons-external; font-size: 20px; padding: 6px;';
-    fullscreenButton.onclick = function(event) {
-      event.stopPropagation();
-      event.preventDefault();
-      if (isFullscreen) {
-        // Sortie du plein écran
-        if (window.flutter_inappwebview) {
-          window.flutter_inappwebview.callHandler('showFullscreenDialog', {'isFullscreen': false, 'closeDialog': false});
-        } 
-        isFullscreen = false;
-        dialog.style.position = 'fixed';
-        dialog.style.top = '50%';
-        dialog.style.left = '50%';
-        dialog.style.transform = 'translate(-50%, -50%)';
-        dialog.style.width = '80%';
-        dialog.style.height = 'auto';
-        dialog.style.marginTop = '0';
+      // Encodez le contenu HTML en échappant les caractères spéciaux
+      await _controller.evaluateJavascript(source: """
+        {
+          // Création d'une variable locale document pour accéder facilement aux données
+          const json = ${json.encode(content)};
+          
+          // Supprimez le dialogue existant s'il y en a un
+          const existingDialog = document.getElementById('customDialog');
+          if (existingDialog) {
+            existingDialog.remove(); // Supprimez le dialogue existant
+          }
+          
+          let isFullscreen = false; // Flag de statut
+          
+          // Créez un nouveau dialogue
+          const dialog = document.createElement('div');
+          dialog.id = 'customDialog';
+          dialog.style.cssText = 'position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: ${JwLifeApp.settings.webViewData.backgroundColor}; padding: 0; border-radius: 0px; box-shadow: 0 4px 20px rgba(0.8,0.8,1,1); z-index: 1000; width: 80%; max-width: 800px;';
+          
+          // Définir les thèmes en fonction de la variable isDark
+          const isDark = ${Theme.of(context).brightness == Brightness.dark}; // Cette variable doit être passée depuis Flutter
+          
+          // Créer le header (barre supérieure du dialogue)
+          const header = document.createElement('div');
+          
+          // Style pour le theme
+          const headerStyle = isDark ? 'background: #333; color: white;' : 'background: #d8d7d5; color: #333333;';
+          // Appliquer le style à l'en-tête
+          header.style.cssText = `\${headerStyle} padding: 5px; padding-left: 10px; padding-right: 10px; font-size: 18px; font-weight: bold; display: flex; align-items: center; border-top-left-radius: 0px; border-top-right-radius: 0px; height: 40px;`;
+          
+          // **Création du conteneur pour déplacer**
+          const dragArea = document.createElement('div');
+          dragArea.style.cssText = 'flex-grow: 1; cursor: move;';
+          // Ajout du titre du verset
+          dragArea.innerHTML = json.title;
+          
+          // **Variables pour le déplacement**
+          let isDragging = false;
+          let offsetX = 0, offsetY = 0;
+          function startDrag(event) {
+            if (isFullscreen) return;
+            event.preventDefault();
+            isDragging = true;
+            let clientX = event.clientX ?? event.touches[0].clientX;
+            let clientY = event.clientY ?? event.touches[0].clientY;
+            offsetX = clientX - dialog.getBoundingClientRect().left;
+            offsetY = clientY - dialog.getBoundingClientRect().top;
+          }
+          function onDrag(event) {
+            if (!isDragging) return;
+            event.preventDefault();
+            let clientX = event.clientX ?? event.touches[0].clientX;
+            let clientY = event.clientY ?? event.touches[0].clientY;
+            let left = clientX - offsetX;
+            let top = clientY - offsetY;
+            dialog.style.left = left + 'px';
+            dialog.style.top = top + 'px';
+            dialog.style.transform = 'none';
+          }
+          function stopDrag() {
+            isDragging = false;
+          }
+          
+          // **Événements pour déplacer le dialog uniquement via dragArea**
+          dragArea.addEventListener('mousedown', startDrag);
+          document.addEventListener('mousemove', onDrag);
+          document.addEventListener('mouseup', stopDrag);
+          dragArea.addEventListener('touchstart', startDrag);
+          document.addEventListener('touchmove', onDrag);
+          document.addEventListener('touchend', stopDrag);
+          
+          // **Création du conteneur des boutons**
+          const buttonContainer = document.createElement('div');
+          buttonContainer.style.cssText = 'display: flex; align-items: center; margin-left: auto;';
+          
+          // **Bouton plein écran**
+          const fullscreenButton = document.createElement('button');
+          fullscreenButton.innerHTML = '&#xE6AF;';
+          fullscreenButton.style.cssText = 'font-family: jw-icons-external; font-size: 20px; padding: 6px;';
+          fullscreenButton.onclick = function(event) {
+            event.stopPropagation();
+            event.preventDefault();
+            if (isFullscreen) {
+              // Sortie du plein écran
+              if (window.flutter_inappwebview) {
+                window.flutter_inappwebview.callHandler('showFullscreenDialog', {'isFullscreen': false, 'closeDialog': false});
+              } 
+              isFullscreen = false;
+              dialog.style.position = 'fixed';
+              dialog.style.top = '50%';
+              dialog.style.left = '50%';
+              dialog.style.transform = 'translate(-50%, -50%)';
+              dialog.style.width = '80%';
+              dialog.style.height = 'auto';
+              dialog.style.marginTop = '0';
+              fullscreenButton.innerHTML = '&#xE6AF;';
+              
+              contentContainer.style.cssText = 'max-height: 50vh; overflow-y: auto; background-color: ${JwLifeApp.settings.webViewData.backgroundColor};';
+            } else {
+              // Passage en plein écran
+              if (window.flutter_inappwebview) {
+                window.flutter_inappwebview.callHandler('showFullscreenDialog', {'isFullscreen': true, 'closeDialog': false});
+              } 
+              isFullscreen = true;
+              dialog.style.position = 'fixed';
+              dialog.style.top = '0';
+              dialog.style.left = '0';
+              dialog.style.width = '100vw';
+              dialog.style.height = '100vh';
+              dialog.style.transform = 'none';
+              dialog.style.marginTop = '90px';
+              fullscreenButton.innerHTML = '&#xE6B3;';
+              
+              // Calcul de la hauteur disponible pour le content
+              const dialogTopMargin = 190; // en pixels
+              contentContainer.style.cssText = `
+                overflow-y: auto;
+                background-color: ${JwLifeApp.settings.webViewData.backgroundColor};
+                max-height: calc(100vh - \${dialogTopMargin}px);`;
+            }
+          };
+          
+          // **Bouton fermer**
+          const closeButton = document.createElement('button');
+          closeButton.innerHTML = '&#xE6D8;';
+          closeButton.style.cssText = 'font-family: jw-icons-external; font-size: 20px; padding: 6px;';
+          closeButton.onclick = function(event) {
+            event.stopPropagation();
+            event.preventDefault();
+            dialog.remove();
+            if (window.flutter_inappwebview) {
+              window.flutter_inappwebview.callHandler('showFullscreenDialog', {'isFullscreen': false, 'closeDialog': true});
+            }
+          };
+          
+          // **Ajout des boutons dans le conteneur**
+          buttonContainer.appendChild(fullscreenButton);
+          buttonContainer.appendChild(closeButton);
+          
+          // **Ajout du dragArea et du buttonContainer dans le header**
+          header.appendChild(dragArea);
+          header.appendChild(buttonContainer);
+          
+          // **Ajout du header au dialog**
+          dialog.appendChild(header);
+          
+          // Créer un conteneur pour tous les contenus
+          const contentContainer = document.createElement('div');
+          contentContainer.style.cssText = 'max-height: 50vh; overflow-y: auto; background-color: ${JwLifeApp.settings.webViewData.backgroundColor};';
+          
+          // Style commun pour les thèmes
+      const infoBarStyle = isDark 
+        ? 'background: black; color: white;' 
+        : 'background: #f2f1ef; color: black;';
+      
+      // Parcourir tous les items et créer une barre d'info et un contenu pour chacun
+      json.items.forEach((item, index) => {
+        // Créer la barre d'information (infoBar)
+        const infoBar = document.createElement('div');
+        infoBar.style.cssText = 'display: flex; align-items: center; ' + infoBarStyle;
+      
+        // Créer l'image pour la barre d'information
+        const img = document.createElement('img');
+        img.src = 'file://' + item.imageUrl;
+        img.style.cssText = 'height: 50px; margin: 0; padding: 0;';
+      
+        // Créer le conteneur de texte pour la barre d'information
+        const textContainer = document.createElement('div');
+        textContainer.style.cssText = 'text-align: left; margin-left: 10px;';
+      
+        const pubText = document.createElement('div');
+        pubText.textContent = item.publicationTitle;
+        pubText.style.cssText = 'font-size: 16px; font-weight: bold;';
+      
+        // Créer le texte du sous-titre
+        const subtitleText = document.createElement('div');
+        subtitleText.textContent = item.subtitle;
+        subtitleText.style.cssText = 'font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;';
+      
+        textContainer.appendChild(pubText);
+        textContainer.appendChild(subtitleText);
+      
+        // Ajouter l'image et le texte à la barre d'information
+        infoBar.appendChild(img);
+        infoBar.appendChild(textContainer);
+      
+        // Créer un bouton audio à droite de la barre d'information
+        const audioButton = document.createElement('button');
+        audioButton.innerHTML = '&#xE69D;'; // Icône ou texte pour le bouton audio
+        audioButton.style.cssText = `
+        font-family: jw-icons-external;
+        font-size: 25px;
+        padding: 5px 10px;
+        margin-left: auto;
+        cursor: pointer;
+        border: 1.5px solid #ccc; /* Ajoute un encadré de 2px de couleur gris clair */
+        background-color: transparent; /* Fond transparent */
+      `;
         
-        contentContainer.style.cssText = 'max-height: 50vh; overflow-y: auto; background-color: ${JwLifeApp.settings.webViewData.backgroundColor};';
-      } else {
-        // Passage en plein écran
-        if (window.flutter_inappwebview) {
-          window.flutter_inappwebview.callHandler('showFullscreenDialog', {'isFullscreen': true, 'closeDialog': false});
-        } 
-        isFullscreen = true;
-        dialog.style.position = 'fixed';
-        dialog.style.top = '0';
-        dialog.style.left = '0';
-        dialog.style.width = '100vw';
-        dialog.style.height = '100vh';
-        dialog.style.transform = 'none';
-        dialog.style.marginTop = '90px';
-        
-        // Calcul de la hauteur disponible pour le content
-        const dialogTopMargin = 190; // en pixels
-        contentContainer.style.cssText = `
-          overflow-y: auto;
-          background-color: ${JwLifeApp.settings.webViewData.backgroundColor};
-          max-height: calc(100vh - \${dialogTopMargin}px);`;
-      }
-    };
-    
-    // **Bouton fermer**
-    const closeButton = document.createElement('button');
-    closeButton.innerHTML = '&#xE6F0;';
-    closeButton.style.cssText = 'font-family: jw-icons-external; font-size: 20px; padding: 6px;';
-    closeButton.onclick = function(event) {
-      event.stopPropagation();
-      event.preventDefault();
-      dialog.remove();
-      if (window.flutter_inappwebview) {
-        window.flutter_inappwebview.callHandler('showFullscreenDialog', {'isFullscreen': false, 'closeDialog': true});
-      }
-    };
-    
-    // **Ajout des boutons dans le conteneur**
-    buttonContainer.appendChild(fullscreenButton);
-    buttonContainer.appendChild(closeButton);
-    
-    // **Ajout du dragArea et du buttonContainer dans le header**
-    header.appendChild(dragArea);
-    header.appendChild(buttonContainer);
-    
-    // **Ajout du header au dialog**
-    dialog.appendChild(header);
-    
-    // Créer un conteneur pour tous les contenus
-    const contentContainer = document.createElement('div');
-    contentContainer.style.cssText = 'max-height: 50vh; overflow-y: auto; background-color: ${JwLifeApp.settings.webViewData.backgroundColor};';
-    
-    // Style commun pour les thèmes
-const infoBarStyle = isDark 
-  ? 'background: black; color: white;' 
-  : 'background: #f2f1ef; color: black;';
-
-// Parcourir tous les items et créer une barre d'info et un contenu pour chacun
-json.items.forEach((item, index) => {
-  // Créer la barre d'information (infoBar)
-  const infoBar = document.createElement('div');
-  infoBar.style.cssText = 'display: flex; align-items: center; ' + infoBarStyle;
-
-  // Créer l'image pour la barre d'information
-  const img = document.createElement('img');
-  img.src = 'file://' + item.imageUrl;
-  img.style.cssText = 'height: 50px; margin: 0; padding: 0;';
-
-  // Créer le conteneur de texte pour la barre d'information
-  const textContainer = document.createElement('div');
-  textContainer.style.cssText = 'text-align: left; margin-left: 10px;';
-
-  const pubText = document.createElement('div');
-  pubText.textContent = item.publicationTitle;
-  pubText.style.cssText = 'font-size: 16px; font-weight: bold;';
-
-  // Créer le texte du sous-titre
-  const subtitleText = document.createElement('div');
-  subtitleText.textContent = item.subtitle;
-  subtitleText.style.cssText = 'font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;';
-
-  textContainer.appendChild(pubText);
-  textContainer.appendChild(subtitleText);
-
-  // Ajouter l'image et le texte à la barre d'information
-  infoBar.appendChild(img);
-  infoBar.appendChild(textContainer);
-
-  // Créer un bouton audio à droite de la barre d'information
-  const audioButton = document.createElement('button');
-  audioButton.innerHTML = '&#xE69D;'; // Icône ou texte pour le bouton audio
-  audioButton.style.cssText = `
-  font-family: jw-icons-external;
-  font-size: 25px;
-  padding: 5px 10px;
-  margin-left: auto;
-  cursor: pointer;
-  border: 1.5px solid #ccc; /* Ajoute un encadré de 2px de couleur gris clair */
-  background-color: transparent; /* Fond transparent */
-`;
-  
-  // Ajouter un événement au bouton audio pour jouer l'audio
-  audioButton.addEventListener('click', function() {
-    // Empêche la propagation de l'événement au parent (infoBar)
-    event.stopPropagation();
-    
-    if (window.flutter_inappwebview) {
-      window.flutter_inappwebview.callHandler('playVerseAudio', {'verse': item, 'audio': item.audio});
-    } 
-  });
-
-  // Ajouter le bouton audio à la barre d'info
-  infoBar.appendChild(audioButton);
-
-  // Ajout d'un écouteur d'événements pour ouvrir une fenêtre Flutter
-  infoBar.addEventListener('click', function() {
-    if (window.flutter_inappwebview) {
-      window.flutter_inappwebview.callHandler('openMepsDocument', item);
-    } else {
-      console.log('Flutter handler non disponible');
-    }
-  });
-
-  // Créer le contenu pour l'item
-  const content = document.createElement('div');
-  content.innerHTML = item.content;
-  content.style.cssText = 'padding: 10px;';
-
-  // Ajouter la barre d'information et le contenu au conteneur
-  if(item.type !== 'note') {
-    contentContainer.appendChild(infoBar);
-  }
-  contentContainer.appendChild(content);
-});
-
-// Ajouter le conteneur de contenu au dialogue
-dialog.appendChild(contentContainer);
-
-// Ajouter le dialogue au body
-document.body.appendChild(dialog);
-  }
+        // Ajouter un événement au bouton audio pour jouer l'audio
+        audioButton.addEventListener('click', function() {
+          // Empêche la propagation de l'événement au parent (infoBar)
+          event.stopPropagation();
+          
+          if (window.flutter_inappwebview) {
+            window.flutter_inappwebview.callHandler('playVerseAudio', {'verse': item, 'audio': item.audio});
+          } 
+        });
+      
+        // Ajouter le bouton audio à la barre d'info
+        // infoBar.appendChild(audioButton);
+      
+        // Ajout d'un écouteur d'événements pour ouvrir une fenêtre Flutter
+        infoBar.addEventListener('click', function() {
+          if (window.flutter_inappwebview) {
+            window.flutter_inappwebview.callHandler('openMepsDocument', item);
+          } else {
+            console.log('Flutter handler non disponible');
+          }
+        });
+      
+        // Créer le contenu pour l'item
+        const content = document.createElement('div');
+        content.innerHTML = item.content;
+        content.style.cssText = 'padding: 10px;';
+      
+        // Ajouter la barre d'information et le contenu au conteneur
+        if(item.type !== 'note') {
+          contentContainer.appendChild(infoBar);
+        }
+        contentContainer.appendChild(content);
+      });
+      
+      // Ajouter le conteneur de contenu au dialogue
+      dialog.appendChild(contentContainer);
+      
+      // Ajouter le dialogue au body
+      document.body.appendChild(dialog);
+        }
 """);
   }
 
   void _openFullScreenImageView(String path) {
-    String newPath = path.split('//').last.toLowerCase();
+    String newPath = path.split('//').last.toLowerCase().trim();
 
-    int indexImage = widget.publication.documentsManager!.getCurrentDocument().multimedias.indexWhere((img) => img.filePath.toLowerCase() == newPath);
+    int indexImage = widget.publication.documentsManager!.getCurrentDocument().multimedias.indexWhere((img) => img.filePath.toLowerCase().contains(newPath));
 
     if (!widget.publication.documentsManager!.getCurrentDocument().multimedias.elementAt(indexImage).hasSuppressZoom) {
-      JwLifeView.toggleNavBarBlack.call(JwLifeView.currentTabIndex, true);
+      JwLifeView.toggleNavBarBlack.call(true);
 
       showPage(context, FullScreenImageViewLocal(
           publication: widget.publication,
@@ -835,18 +856,6 @@ document.body.appendChild(dialog);
     }
   }
 
-  Future<void> loadJavascriptData(InAppWebViewController controller) async {
-    final document = widget.publication.documentsManager!.getCurrentDocument();
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-
-    await Future.wait([
-      loadJavascriptToolBars(controller, widget.audios, document, isDarkMode),
-      //loadJavascriptUserdata(controller, document, isDarkMode),
-      // loadJavascriptHighlight(controller, document, isDarkMode),
-    ]);
-  }
-
-
   @override
   Widget build(BuildContext context) {
     final textStyleTitle = TextStyle(fontSize: 20, fontWeight: FontWeight.bold);
@@ -858,541 +867,684 @@ document.body.appendChild(dialog);
     );
 
     return Scaffold(
-      backgroundColor: Theme.of(context).brightness == Brightness.dark
-          ? const Color(0xFF111111)
-          : Colors.white,
+      resizeToAvoidBottomInset: false,
+      backgroundColor: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF111111) : Colors.white,
       body: Stack(children: [
-        _isLoadingData
-            ? InAppWebView(
-            initialSettings: InAppWebViewSettings(
-              cacheMode: CacheMode.LOAD_DEFAULT,
-              cacheEnabled: true,
-              useOnLoadResource: true,
-              clearCache: false,
-              allowUniversalAccessFromFileURLs: true,
-            ),
-            initialData: InAppWebViewInitialData(
-              data: widget.publication.documentsManager!.createReaderHtmlShell(),
-              mimeType: 'text/html',
-              baseUrl: WebUri('file://$webappPath/'),
-            ),
-            onWebViewCreated: (controller) async {
-              _controller = controller;
+        Visibility(
+            visible: _isLoadingWebView,
+            maintainState: true,
+            child: _isLoadingData ? InAppWebView(
+                initialSettings: InAppWebViewSettings(
+                  disableContextMenu: true,
+                  useShouldOverrideUrlLoading: true,
+                  mediaPlaybackRequiresUserGesture: false,
+                  disableDefaultErrorPage: true,
+                  useOnLoadResource: false,         // À désactiver sauf si tu surveilles les requêtes
+                  allowUniversalAccessFromFileURLs: true,
+                  allowFileAccess: true,
+                  allowContentAccess: true,
+                  loadWithOverviewMode: true,
+                  useHybridComposition: true,
+                  offscreenPreRaster: true,
+                  hardwareAcceleration: true,
+                  databaseEnabled: false,
+                  domStorageEnabled: true,
+                ),
+                initialData: InAppWebViewInitialData(
+                    data: widget.publication.documentsManager!.createReaderHtmlShell(widget),
+                    baseUrl: WebUri('file://$webappPath/')
+                ),
+                onWebViewCreated: (controller) async {
+                  _controller = controller;
 
-              controller.addJavaScriptHandler(
-                handlerName: 'getPage',
-                callback: (args) async {
-                  final index = args[0] as int;
-                  if (index < 0 || index >= widget.publication.documentsManager!.documents.length) {
-                    return {'html': '', 'className': '', 'audiosMarkers': ''};
-                  }
-                  final doc = widget.publication.documentsManager!.documents[index];
-
-                  String html = '';
-                  if(doc.isBibleChapter()) {
-                    List<Uint8List> contentBlob = doc.getChapterContent();
-
-                    for(dynamic content in contentBlob) {
-                      html += decodeBlobContent(
-                        content,
-                        widget.publication.hash,
-                      );
+                  controller.addJavaScriptHandler(
+                    handlerName: 'fontsLoaded',
+                    callback: (args) {
+                      setState(() {
+                        _isLoadingFonts = true;
+                      });
                     }
-                  }
-                  else {
-                    html = decodeBlobContent(doc.content!, widget.publication.hash);
-                  }
-                  final className = getArticleClass(doc);
-
-                  List<Map<String, dynamic>> audioMarkersJson = [];
-
-                  if (widget.audios.isNotEmpty) {
-                    final audio = widget.audios.firstWhereOrNull((a) => a.documentId == doc.mepsDocumentId);;
-                    if (audio != null && audio.markers.isNotEmpty) {
-                      audioMarkersJson = audio.markers.map((m) => m.toJson()).toList();
-                    }
-                  }
-
-                  return {
-                    'html': html,
-                    'className': className,
-                    'audiosMarkers': audioMarkersJson,
-                  };
-                },
-              );
-
-              controller.addJavaScriptHandler(
-                handlerName: 'onSwipe',
-                callback: (args) async {
-                  await onSwipe(args[0] as String);
-                },
-              );
-
-              controller.addJavaScriptHandler(
-                handlerName: 'getUserdata',
-                callback: (args) {
-                  return {
-                    'bookmarks': widget.publication.documentsManager!.getCurrentDocument().bookmarks,
-                    'inputFields': widget.publication.documentsManager!.getCurrentDocument().inputFields,
-                    'highlights': widget.publication.documentsManager!.getCurrentDocument().highlights
-                  };
-                },
-              );
-
-              controller.addJavaScriptHandler(
-                handlerName: 'onScroll',
-                callback: (args) {
-                  if(!_showDialog) {
-                    if (!_isProgrammaticScroll) {
-                      if (args[1] == "down") {
-                        if (_controlsVisible) {
-                          setState(() {
-                            _controlsVisible = false;
-                            _controlsVisibleSave = false;
-                          });
-                        }
-                      }
-                      else if (args[1] == "up") {
-                        if (!_controlsVisible) {
-                          setState(() {
-                            _controlsVisible = true;
-                            _controlsVisibleSave = true;
-                          });
-                        }
-                      }
-                    }
-                  }
-                },
-              );
-
-              // Gestionnaire pour les clics sur les images
-              controller.addJavaScriptHandler(
-                handlerName: 'getGuid',
-                callback: (args) {
-                  var uuid = Uuid();
-                  return {
-                    'uuid': uuid.v4()
-                  };
-                },
-              );
-
-              // Gestionnaire pour les clics sur les images
-              controller.addJavaScriptHandler(
-                handlerName: 'onImageClick',
-                callback: (args) {
-                  _openFullScreenImageView(args[0]); // Gérer l'affichage de l'image
-                },
-              );
-
-              // Gestionnaire pour les clics sur les images
-              controller.addJavaScriptHandler(
-                handlerName: 'fetchFootnote',
-                callback: (args) {
-                  fetchFootnote(args[0]);
-                },
-              );
-
-              // Gestionnaire pour les clics sur les images
-              controller.addJavaScriptHandler(
-                handlerName: 'fetchVersesReference',
-                callback: (args) {
-                  fetchVersesReference(args[0]);
-                },
-              );
-
-              controller.addJavaScriptHandler(
-                handlerName: 'openMepsDocument',
-                callback: (args) {
-                  Map<String, dynamic>? document = args[0];
-                  if (document != null) {
-                    if (document['mepsDocumentId'] != null) {
-                      showDocumentView(context, document['mepsDocumentId'], document['mepsLanguageId'], startParagraphId: document['startParagraphId'], endParagraphId: document['endParagraphId']);
-                    }
-                    else if (document['bookNumber'] != null && document['chapterNumber'] != null) {
-                      showChapterView(
-                        context,
-                        'nwtsty',
-                        document["mepsLanguageId"],
-                        document["bookNumber"],
-                        document["chapterNumber"],
-                        firstVerseNumber: document["firstVerseNumber"],
-                        lastVerseNumber: document["lastVerseNumber"],
-                      );
-                    }
-                  }
-                },
-              );
-
-              // Gestionnaire pour les modifications des champs de formulaire
-              controller.addJavaScriptHandler(
-                handlerName: 'onInputChange',
-                callback: (args) async {
-                  updateFieldValue(widget.publication, widget.publication.documentsManager!.getCurrentDocument().mepsDocumentId, args[0]); // Fonction pour mettre à jour la liste _textInputs
-                },
-              );
-
-              controller.addJavaScriptHandler(
-                handlerName: 'bookmark',
-                callback: (args) async {
-                  final arg = args[0];
-                  final String paragraphNumber = arg['paragraphId'];
-
-                  final String snippet = arg['snippet'];
-
-                  final docManager = widget.publication.documentsManager!;
-                  final currentDoc = docManager.getCurrentDocument();
-
-                  int? blockIdentifier;
-                  int blockType = 0;
-
-                  if (paragraphNumber.contains('v')) {
-                    // Cas d’un verset
-                    final parts = paragraphNumber.split('-');
-                    int? blockIdentifier = int.tryParse(parts[2]);
-                    blockType = blockIdentifier != null ? 2 : 0;
-
-                    print('blockIdentifier: $blockIdentifier');
-                    print('blockType: $blockType');
-                    print('bookNumber: ${currentDoc.bookNumber}');
-                    print('chapterNumber: ${currentDoc.chapterNumber}');
-
-                    final bookmark = await showBookmarkDialog(
-                      context,
-                      widget.publication,
-                      webViewController: _controller,
-                      bookNumber: currentDoc.bookNumber,
-                      chapterNumber: currentDoc.chapterNumber,
-                      title: '${currentDoc.displayTitle} ${currentDoc.chapterNumber}',
-                      snippet: snippet,
-                      blockType: blockType,
-                      blockIdentifier: blockIdentifier,
-                    );
-
-                    if(bookmark != null) {
-                      if (bookmark['BookNumber'] != null && bookmark['ChapterNumber'] != null) {
-                        final page = docManager.documents.indexWhere((doc) => doc.bookNumber == bookmark['BookNumber'] && doc.chapterNumberBible == bookmark['ChapterNumber']);
-
-                        if (page != widget.publication.documentsManager!.documentIndex) {
-                          await _jumpToPage(page);
-                        }
-
-                        if(bookmark['BlockIdentifier'] != null) {
-                          _jumpToVerse(bookmark['BlockIdentifier'], bookmark['BlockIdentifier']);
-                        }
-                      }
-                    }
-                  }
-                  else {
-                    // Cas d’un paragraphe classique
-                    blockIdentifier = int.tryParse(paragraphNumber);
-                    blockType = blockIdentifier != null ? 1 : 0;
-
-                    print('blockIdentifier: $blockIdentifier');
-                    print('blockType: $blockType');
-                    print('mepsDocumentId: ${currentDoc.mepsDocumentId}');
-                    print('title: ${currentDoc.displayTitle}');
-
-                    final bookmark = await showBookmarkDialog(
-                      context,
-                      widget.publication,
-                      webViewController: _controller,
-                      mepsDocumentId: currentDoc.mepsDocumentId,
-                      title: currentDoc.displayTitle,
-                      snippet: snippet,
-                      blockType: blockType,
-                      blockIdentifier: blockIdentifier,
-                    );
-
-                    if(bookmark != null) {
-                      if (bookmark['MepsDocumentId'] != currentDoc.mepsDocumentId) {
-                        final page = docManager.documents.indexWhere(
-                              (doc) => doc.mepsDocumentId == bookmark['DocumentId'],
-                        );
-                        if (page != widget.publication.documentsManager!.documentIndex) {
-                          await _jumpToPage(page);
-                        }
-                      }
-
-                      // Aller au paragraphe dans la même page
-                      if (bookmark['BlockIdentifier'] != null) {
-                        _jumpToParagraph(bookmark['BlockIdentifier'], bookmark['BlockIdentifier']);
-                      }
-                    }
-                  }
-                },
-              );
-
-              // Gestionnaire pour les modifications des champs de formulaire
-              controller.addJavaScriptHandler(
-                handlerName: 'addNote',
-                callback: (args) async {
-                  bool isBible = args[0]['isBible'];
-                  if(isBible) {
-                    //int verseId = int.parse(args[0]['paragraphId']);
-                    //Map<String, dynamic> note = await JwLifeApp.userdata.addNote('', '', 0, [], widget.publication.documentsManager!.getCurrentDocument().mepsDocumentId, widget.publication.issueTagNumber, widget.publication.keySymbol, widget.publication.mepsLanguage.id, blockType: 1, blockIdentifier: paragraphId);
-                    //showPage(context, NoteView(note: note));
-                  }
-                  else {
-                    int paragraphId = int.parse(args[0]['paragraphId']);
-                    Map<String, dynamic> note = await JwLifeApp.userdata.addNote('', '', 0, [], widget.publication.documentsManager!.getCurrentDocument().mepsDocumentId, widget.publication.issueTagNumber, widget.publication.keySymbol, widget.publication.mepsLanguage.id, blockType: 1, blockIdentifier: paragraphId);
-                    showPage(context, NoteView(note: note));
-                  }
-                },
-              );
-
-              // Gestionnaire pour les modifications des champs de formulaire
-              controller.addJavaScriptHandler(
-                handlerName: 'showFullscreenDialog',
-                callback: (args) async {
-                  bool isFullscreen = args[0]['isFullscreen'];
-                  bool closeDialog = args[0]['closeDialog'];
-                  setState(() {
-                    if(closeDialog) {
-                      _controlsVisible = _controlsVisibleSave;
-                    }
-                    else {
-                      _controlsVisible = true;
-                    }
-                    _showDialog = isFullscreen;
-                  });
-                },
-              );
-
-              // Gestionnaire pour les modifications des champs de formulaire
-              controller.addJavaScriptHandler(
-                handlerName: 'share',
-                callback: (args) async {
-                  bool isBible = args[0]['isBible'];
-                  widget.publication.documentsManager!.getCurrentDocument().share(isBible, paragraphId: args[0]['paragraphId']);
-                },
-              );
-
-              // Gestionnaire pour les modifications des champs de formulaire
-              controller.addJavaScriptHandler(
-                handlerName: 'copyText',
-                callback: (args) async {
-                  Clipboard.setData(ClipboardData(text: args[0]['text']));
-                  showBottomMessage(context, 'Texte copié dans le presse-papier');
-                },
-              );
-
-              controller.addJavaScriptHandler(
-                handlerName: 'playAudio',
-                callback: (args) async {
-                  try {
-                    // Trouver l'audio correspondant au document dans une liste
-                    Audio? audio = widget.audios.firstWhereOrNull((audio) => audio.documentId == widget.publication.documentsManager!.getCurrentDocument().mepsDocumentId);
-
-                    if(audio != null) {
-                      // Trouver le marqueur correspondant au paragraphId dans la liste des marqueurs
-                      Marker marker = audio.markers.firstWhere((marker) => marker.mepsParagraphId == int.tryParse(args[0]['paragraphId'].toString()));
-
-                      // Extraire le startTime du marqueur et vérifier s'il est valide
-                      String startTime = marker.startTime;
-                      if (startTime.isEmpty) {
-                        print('Le startTime est invalide');
-                        return;
-                      }
-
-                      // Analyser la durée
-                      Duration duration = parseDuration(startTime);
-
-                      print('duration: $duration');
-
-                      // Trouver l'index du document
-                      int? index = widget.audios.indexWhere((audio) =>
-                      audio.documentId == widget.publication.documentsManager!.getCurrentDocument().mepsDocumentId);
-
-                      if (index != -1) {
-                        // Afficher le lien du lecteur audio et se positionner au bon startTime
-                        showAudioPlayerLink(context, widget.publication, widget.audios, index, start: duration);
-                      }
-                    }
-                  }
-                  catch (e) {
-                    print('Erreur lors de la lecture de l\'audio : $e');
-                  }
-                },
-              );
-
-              controller.addJavaScriptHandler(
-                handlerName: 'playVerseAudio',
-                callback: (args) async {
-                  dynamic audio = args[0]['audio'];
-                  dynamic verse = args[0]['verse'];
-
-                  int verseNumber = verse['verseNumber'];
-                  String url = audio['url'];
-                  Duration startDuration = Duration.zero;
-                  Duration? endDuration;
-
-                  dynamic markers = audio['markers'];
-
-                  if (markers != null) {
-                    for (int i = 0; i < markers.length; i++) {
-                      if (markers[i]['verseNumber'] == verseNumber) {
-                        startDuration = parseDuration(markers[i]['startTime']);
-                        Duration duration = parseDuration(markers[i]['duration']);
-                        endDuration = startDuration + duration;
-                        break;
-                      }
-                    }
-                  }
-
-                  audio_service.MediaItem mediaItem = audio_service.MediaItem(
-                      id: '0',
-                      album: JwLifeApp.pubCollections.getBibles().first.title,
-                      title: JwLifeApp.bibleCluesInfo.getVerse(verse['bookNumber'], verse['chapterNumber'], verseNumber),
-                      artUri: Uri.file(JwLifeApp.pubCollections.getBibles().first.imageSqr!)
                   );
 
-                  showAudioPlayerForLink(context, url, mediaItem, initialPosition: startDuration, endPosition: endDuration);
-                },
-              );
-              // Gestionnaire pour les modifications des champs de formulaire
-              controller.addJavaScriptHandler(
-                handlerName: 'search',
-                callback: (args) async {
-                  String query = args[0]['query'];
-                  showPage(context, SearchView(query: query));
-                },
-              );
-
-              // Gestionnaire pour les modifications des champs de formulaire
-              controller.addJavaScriptHandler(
-                handlerName: 'searchVerse',
-                callback: (args) async {
-                  String verse = args[0]['query'].toString().substring(1);
-                  String book = verse.split(('-'))[0];
-                  String chapter = verse.split(('-'))[1];
-                  String verseNumber = verse.split(('-'))[2];
-
-                  String query = JwLifeApp.bibleCluesInfo.getVerse(int.parse(book), int.parse(chapter), int.parse(verseNumber));
-                  showPage(context, SearchView(query: query));
-                },
-              );
-
-              // Gestionnaire pour les modifications des champs de formulaire
-              controller.addJavaScriptHandler(
-                handlerName: 'onVideoClick',
-                callback: (args) async {
-                  String link = args[0];
-
-                  print('Link: $link');
-                  // Extraire les paramètres
-                  Uri uri = Uri.parse(link);
-                  String? pub = uri.queryParameters['pub'];
-                  int? docId = uri.queryParameters['docid'] != null ? int.parse(uri.queryParameters['docid']!) : null;
-                  String track = uri.queryParameters['track'] ?? '';
-
-                  MediaItem? mediaItem = getVideoItem(pub, int.parse(track), docId, null, null);
-
-                  if(mediaItem != null) {
-                    showVideoDialog(context, mediaItem).then((result) {
-                      if (result == 'play') { // Vérifiez si le résultat est 'play'
-                        showFullScreenVideo(context, mediaItem);
+                  controller.addJavaScriptHandler(
+                    handlerName: 'showDialog',
+                    callback: (args) {
+                      bool isShowDialog = args[0] as bool;
+                      if(isShowDialog) {
+                        setState(() {
+                          _showDialog = true;
+                        });
                       }
-                    });
-                  }
-                  else {
+                      else {
+                        setControlsVisible(_controlsVisibleSave);
+                        setState(() {
+                          _showDialog = false;
+                        });
+                      }
+                    },
+                  );
 
-                  }
+                  controller.addJavaScriptHandler(
+                    handlerName: 'showFullscreenPopup',
+                    callback: (args) {
+                      bool isMaximized = args[0] as bool;
+                      if(isMaximized) {
+                        setControlsVisible(true);
+                      }
+                      else {
+                        setControlsVisible(_controlsVisibleSave);
+                      }
+                    },
+                  );
+
+                  controller.addJavaScriptHandler(
+                    handlerName: 'getPage',
+                    callback: (args) async {
+                      final index = args[0] as int;
+                      if (index < 0 || index >= widget.publication.documentsManager!.documents.length) {
+                        return {'html': '', 'className': '', 'audiosMarkers': '', 'isBibleChapter': false};
+                      }
+                      final doc = widget.publication.documentsManager!.documents[index];
+
+                      String html = '';
+                      if(doc.isBibleChapter()) {
+                        List<Uint8List> contentBlob = doc.getChapterContent();
+
+                        for(dynamic content in contentBlob) {
+                          html += decodeBlobContent(
+                            content,
+                            widget.publication.hash!,
+                          );
+                        }
+                      }
+                      else {
+                        html = decodeBlobContent(doc.content!, widget.publication.hash!);
+                      }
+                      final className = getArticleClass(doc);
+
+                      List<Map<String, dynamic>> audioMarkersJson = [];
+
+                      if (widget.audios.isNotEmpty) {
+                        final audio = widget.audios.firstWhereOrNull((a) => a.documentId == doc.mepsDocumentId);;
+                        if (audio != null && audio.markers.isNotEmpty) {
+                          audioMarkersJson = audio.markers.map((m) => m.toJson()).toList();
+                        }
+                      }
+
+                      return {
+                        'html': html,
+                        'className': className,
+                        'audiosMarkers': audioMarkersJson,
+                        'isBibleChapter': doc.isBibleChapter(),
+                      };
+                    },
+                  );
+
+                  controller.addJavaScriptHandler(
+                    handlerName: 'changePageAt',
+                    callback: (args) async {
+                      await changePageAt(args[0] as int);
+                    },
+                  );
+
+                  controller.addJavaScriptHandler(
+                    handlerName: 'getUserdata',
+                    callback: (args) {
+                      for(var note in widget.publication.documentsManager!.getCurrentDocument().notes) {
+                        print('note: $note');
+                      }
+                      return {
+                        'highlights': widget.publication.documentsManager!.getCurrentDocument().highlights,
+                        'notes': widget.publication.documentsManager!.getCurrentDocument().notes,
+                        'inputFields': widget.publication.documentsManager!.getCurrentDocument().inputFields,
+                        'bookmarks': widget.publication.documentsManager!.getCurrentDocument().bookmarks,
+                      };
+                    },
+                  );
+
+                  /*
+
+                  controller.addJavaScriptHandler(
+                    handlerName: 'onScrollStart',
+                    callback: (args) async {
+                      printTime('onScrollStart');
+                      if(!_useHybridComposition) {
+                        InAppWebViewSettings? settings = await _controller.getSettings();
+                        if (settings != null) {
+                          printTime('onScrollStart to true');
+                          settings.useHybridComposition = true;
+                          _useHybridComposition = true;
+                        }
+                      }
+                    }
+                  );
+
+                  controller.addJavaScriptHandler(
+                      handlerName: 'onScrollEnd',
+                      callback: (args) async {
+                        printTime('onScrollStart');
+                        if(_useHybridComposition) {
+                          InAppWebViewSettings? settings = await _controller.getSettings();
+                          if (settings != null) {
+                            printTime('onScrollEnd to false');
+                            settings.useHybridComposition = false;
+                            _useHybridComposition = false;
+                          }
+                        }
+                      }
+                  );
+
+                   */
+
+                  controller.addJavaScriptHandler(
+                    handlerName: 'onScroll',
+                    callback: (args) async {
+                      InAppWebViewSettings? settings = await _controller.getSettings();
+                      if (settings != null) {
+                        settings.hardwareAcceleration = true;
+                      }
+
+                      if(!_showDialog) {
+                        if (!_isProgrammaticScroll) {
+                          if (args[1] == "down" && _lastDirectionScroll != "down") {
+                            setState(() {
+                              _controlsVisible = false;
+                              _controlsVisibleSave = false;
+                            });
+                            // enelever la barre de noti en haut de l'ecran
+                            //SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual, overlays: []);
+                            JwLifeView.toggleNavBarVisibility.call(false);
+                          }
+                          else if (args[1] == "up" && _lastDirectionScroll != "up") {
+                            setState(() {
+                              _controlsVisible = true;
+                              _controlsVisibleSave = true;
+                            });
+                            // remettre la barre de noti en haut de l'ecran
+                            //SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual, overlays: SystemUiOverlay.values);
+                            JwLifeView.toggleNavBarVisibility.call(true);
+                          }
+                          _lastDirectionScroll = args[1];
+                        }
+                      }
+                    },
+                  );
+
+                  // Gestionnaire pour les clics sur les images
+                  controller.addJavaScriptHandler(
+                    handlerName: 'getHighlightGuid',
+                    callback: (args) {
+                      var uuid = Uuid();
+                      return {
+                        'guid': uuid.v4()
+                      };
+                    },
+                  );
+
+                  // Gestionnaire pour les clics sur les images
+                  controller.addJavaScriptHandler(
+                    handlerName: 'addHighlight',
+                    callback: (args) {
+                      print('addHighlight: ${args[0]}');
+                      widget.publication.documentsManager!.getCurrentDocument().addHighlight(
+                          args[0]['blockType'],
+                          int.parse(args[0]['identifier']),
+                          args[0]['startToken'],
+                          args[0]['endToken'],
+                          args[0]['guid'],
+                          args[0]['colorIndex']
+                      );
+                    },
+                  );
+
+                  // Quand on clique supprime le highlight
+                  controller.addJavaScriptHandler(
+                      handlerName: 'removeHighlight',
+                      callback: (args) {
+                        widget.publication.documentsManager!.getCurrentDocument().removeHighlight(args[0]['guid']);
+                      }
+                  );
+
+                  // Quand on change le color index d'un highlight
+                  controller.addJavaScriptHandler(
+                      handlerName: 'changeHighlightColor',
+                      callback: (args) {
+                        widget.publication.documentsManager!.getCurrentDocument().changeHighlightColor(args[0]['guid'], args[0]['newColorIndex']);
+                      }
+                  );
+
+
+                  // Gestionnaire pour les clics sur les images
+                  controller.addJavaScriptHandler(
+                    handlerName: 'addNote',
+                    callback: (args) {
+                      var uuid = Uuid();
+                      String uuidV4 = uuid.v4();
+
+                      widget.publication.documentsManager!.getCurrentDocument().addNoteWithUserMarkGuid(
+                        args[0]['blockType'],
+                        int.parse(args[0]['identifier']),
+                        args[0]['title'],
+                        uuidV4,
+                        args[0]['userMarkGuid'],
+                        args[0]['colorIndex'],
+                      );
+                      return {
+                        'uuid': uuidV4
+                      };
+                    },
+                  );
+
+                  // Gestionnaire pour les clics sur les images
+                  controller.addJavaScriptHandler(
+                    handlerName: 'removeNote',
+                    callback: (args) {
+                      String guid = args[0]['guid'];
+                      widget.publication.documentsManager!.getCurrentDocument().removeNote(guid);
+                    },
+                  );
+
+                  // Gestionnaire pour les clics sur les images
+                  controller.addJavaScriptHandler(
+                    handlerName: 'onImageClick',
+                    callback: (args) {
+                      _openFullScreenImageView(args[0]); // Gérer l'affichage de l'image
+                    },
+                  );
+
+                  // Gestionnaire pour les clics sur les images
+                  controller.addJavaScriptHandler(
+                    handlerName: 'fetchFootnote',
+                    callback: (args) {
+                      fetchFootnote(args[0]);
+                    },
+                  );
+
+                  // Gestionnaire pour les clics sur les images
+                  controller.addJavaScriptHandler(
+                    handlerName: 'fetchVersesReference',
+                    callback: (args) {
+                      fetchVersesReference(args[0]);
+                    },
+                  );
+
+                  controller.addJavaScriptHandler(
+                    handlerName: 'openMepsDocument',
+                    callback: (args) async {
+                      Map<String, dynamic>? document = args[0];
+                      if (document != null) {
+                        if (document['mepsDocumentId'] != null) {
+                          await showDocumentView(context, document['mepsDocumentId'], document['mepsLanguageId'], startParagraphId: document['startParagraphId'], endParagraphId: document['endParagraphId']);
+                          JwLifeView.toggleNavBarVisibility(_controlsVisible);
+                          JwLifeView.toggleNavBarPositioned(true);
+                        }
+                        else if (document['bookNumber'] != null && document['chapterNumber'] != null) {
+                          await showChapterView(
+                            context,
+                            'nwtsty',
+                            document["mepsLanguageId"],
+                            document["bookNumber"],
+                            document["chapterNumber"],
+                            firstVerseNumber: document["firstVerseNumber"],
+                            lastVerseNumber: document["lastVerseNumber"],
+                          );
+                          JwLifeView.toggleNavBarVisibility(_controlsVisible);
+                          JwLifeView.toggleNavBarPositioned(true);
+                        }
+                      }
+                    },
+                  );
+
+                  // Gestionnaire pour les modifications des champs de formulaire
+                  controller.addJavaScriptHandler(
+                    handlerName: 'onInputChange',
+                    callback: (args) {
+                      String tag = args[0]['tag'];
+                      String value = args[0]['value'];
+                      widget.publication.documentsManager!.getCurrentDocument().updateOrInsertInputFieldValue(tag, value);
+                    },
+                  );
+
+                  controller.addJavaScriptHandler(
+                    handlerName: 'updateNote',
+                    callback: (args) {
+                      String uuid = args[0]['noteGuid'];
+                      String title = args[0]['title'];
+                      String content = args[0]['content'];
+                      widget.publication.documentsManager!.getCurrentDocument().updateNote(uuid, title, content);
+                    },
+                  );
+
+                  controller.addJavaScriptHandler(
+                    handlerName: 'bookmark',
+                    callback: (args) async {
+                      final arg = args[0];
+                      final String paragraphNumber = arg['paragraphId'];
+
+                      final String snippet = arg['snippet'];
+
+                      final docManager = widget.publication.documentsManager!;
+                      final currentDoc = docManager.getCurrentDocument();
+
+                      int? blockIdentifier;
+                      int blockType = 0;
+
+                      if (paragraphNumber.contains('v')) {
+                        // Cas d’un verset
+                        final parts = paragraphNumber.split('-');
+                        int? blockIdentifier = int.tryParse(parts[2]);
+                        blockType = blockIdentifier != null ? 2 : 0;
+
+                        print('blockIdentifier: $blockIdentifier');
+                        print('blockType: $blockType');
+                        print('bookNumber: ${currentDoc.bookNumber}');
+                        print('chapterNumber: ${currentDoc.chapterNumber}');
+
+                        Bookmark? bookmark = await showBookmarkDialog(
+                          context,
+                          widget.publication,
+                          webViewController: _controller,
+                          bookNumber: currentDoc.bookNumber,
+                          chapterNumber: currentDoc.chapterNumber,
+                          title: '${currentDoc.displayTitle} ${currentDoc.chapterNumber}',
+                          snippet: snippet,
+                          blockType: blockType,
+                          blockIdentifier: blockIdentifier,
+                        );
+
+                        if(bookmark != null) {
+                          if (bookmark.bookNumber != null && bookmark.chapterNumber != null) {
+                            final page = docManager.documents.indexWhere((doc) => doc.bookNumber == bookmark.bookNumber && doc.chapterNumberBible == bookmark.chapterNumber);
+
+                            if (page != widget.publication.documentsManager!.documentIndex) {
+                              await _jumpToPage(page);
+                            }
+
+                            if(bookmark.blockIdentifier != null) {
+                              _jumpToVerse(bookmark.blockIdentifier!, bookmark.blockIdentifier!);
+                            }
+                          }
+                        }
+                      }
+                      else {
+                        // Cas d’un paragraphe classique
+                        blockIdentifier = int.tryParse(paragraphNumber);
+                        blockType = blockIdentifier != null ? 1 : 0;
+
+                        print('blockIdentifier: $blockIdentifier');
+                        print('blockType: $blockType');
+                        print('mepsDocumentId: ${currentDoc.mepsDocumentId}');
+                        print('title: ${currentDoc.displayTitle}');
+
+                        Bookmark? bookmark = await showBookmarkDialog(
+                          context,
+                          widget.publication,
+                          webViewController: _controller,
+                          mepsDocumentId: currentDoc.mepsDocumentId,
+                          title: currentDoc.displayTitle,
+                          snippet: snippet,
+                          blockType: blockType,
+                          blockIdentifier: blockIdentifier,
+                        );
+
+                        if(bookmark != null) {
+                          if (bookmark.mepsDocumentId != null) {
+                            final page = docManager.documents.indexWhere((doc) => doc.mepsDocumentId == bookmark.mepsDocumentId);
+                            if (page != widget.publication.documentsManager!.documentIndex) {
+                              await _jumpToPage(page);
+                            }
+                          }
+
+                          // Aller au paragraphe dans la même page
+                          if (bookmark.blockIdentifier != null) {
+                            _jumpToParagraph(bookmark.blockIdentifier!, bookmark.blockIdentifier!);
+                          }
+                        }
+                      }
+                    },
+                  );
+
+                  // Gestionnaire pour les modifications des champs de formulaire
+                  controller.addJavaScriptHandler(
+                    handlerName: 'showFullscreenDialog',
+                    callback: (args) async {
+                      bool isFullscreen = args[0]['isFullscreen'];
+                      bool closeDialog = args[0]['closeDialog'];
+                      setState(() {
+                        if(closeDialog) {
+                          setControlsVisible(_controlsVisibleSave);
+                        }
+                        else {
+                          setControlsVisible(true);
+                        }
+                        _showDialog = isFullscreen;
+                      });
+                    },
+                  );
+
+                  // Gestionnaire pour les modifications des champs de formulaire
+                  controller.addJavaScriptHandler(
+                    handlerName: 'share',
+                    callback: (args) async {
+                      bool isBible = args[0]['isBible'];
+                      widget.publication.documentsManager!.getCurrentDocument().share(isBible, paragraphId: args[0]['paragraphId']);
+                    },
+                  );
+
+                  // Gestionnaire pour les modifications des champs de formulaire
+                  controller.addJavaScriptHandler(
+                    handlerName: 'copyText',
+                    callback: (args) async {
+                      Clipboard.setData(ClipboardData(text: args[0]['text']));
+                      showBottomMessage(context, 'Texte copié dans le presse-papier');
+                    },
+                  );
+
+                  controller.addJavaScriptHandler(
+                    handlerName: 'playAudio',
+                    callback: (args) async {
+                      try {
+                        // Trouver l'audio correspondant au document dans une liste
+                        Audio? audio = widget.audios.firstWhereOrNull((audio) => audio.documentId == widget.publication.documentsManager!.getCurrentDocument().mepsDocumentId);
+
+                        if(audio != null) {
+                          // Trouver le marqueur correspondant au paragraphId dans la liste des marqueurs
+                          Marker marker = audio.markers.firstWhere((marker) => marker.mepsParagraphId == int.tryParse(args[0]['paragraphId'].toString()));
+
+                          // Extraire le startTime du marqueur et vérifier s'il est valide
+                          String startTime = marker.startTime;
+                          if (startTime.isEmpty) {
+                            print('Le startTime est invalide');
+                            return;
+                          }
+
+                          // Analyser la durée
+                          Duration duration = parseDuration(startTime);
+
+                          print('duration: $duration');
+
+                          // Trouver l'index du document
+                          int? index = widget.audios.indexWhere((audio) =>
+                          audio.documentId == widget.publication.documentsManager!.getCurrentDocument().mepsDocumentId);
+
+                          if (index != -1) {
+                            // Afficher le lien du lecteur audio et se positionner au bon startTime
+                            showAudioPlayerLink(context, widget.publication, widget.audios, index, start: duration);
+                          }
+                        }
+                      }
+                      catch (e) {
+                        print('Erreur lors de la lecture de l\'audio : $e');
+                      }
+                    },
+                  );
+
+                  controller.addJavaScriptHandler(
+                    handlerName: 'playVerseAudio',
+                    callback: (args) async {
+                      dynamic audio = args[0]['audio'];
+                      dynamic verse = args[0]['verse'];
+
+                      int verseNumber = verse['verseNumber'];
+                      String url = audio['url'];
+                      Duration startDuration = Duration.zero;
+                      Duration? endDuration;
+
+                      dynamic markers = audio['markers'];
+
+                      if (markers != null) {
+                        for (int i = 0; i < markers.length; i++) {
+                          if (markers[i]['verseNumber'] == verseNumber) {
+                            startDuration = parseDuration(markers[i]['startTime']);
+                            Duration duration = parseDuration(markers[i]['duration']);
+                            endDuration = startDuration + duration;
+                            break;
+                          }
+                        }
+                      }
+
+                      Publication bible = PublicationRepository().getAllBibles().first;
+
+                      audio_service.MediaItem mediaItem = audio_service.MediaItem(
+                          id: '0',
+                          album: bible.title,
+                          title: JwLifeApp.bibleCluesInfo.getVerse(verse['bookNumber'], verse['chapterNumber'], verseNumber),
+                          artUri: Uri.file(bible.imageSqr!)
+                      );
+
+                      showAudioPlayerForLink(context, url, mediaItem, initialPosition: startDuration, endPosition: endDuration);
+                    },
+                  );
+                  // Gestionnaire pour les modifications des champs de formulaire
+                  controller.addJavaScriptHandler(
+                    handlerName: 'search',
+                    callback: (args) async {
+                      String query = args[0]['query'];
+                      showPage(context, SearchView(query: query));
+                    },
+                  );
+
+                  // Gestionnaire pour les modifications des champs de formulaire
+                  controller.addJavaScriptHandler(
+                    handlerName: 'searchVerse',
+                    callback: (args) async {
+                      String verse = args[0]['query'].toString().substring(1);
+                      String book = verse.split(('-'))[0];
+                      String chapter = verse.split(('-'))[1];
+                      String verseNumber = verse.split(('-'))[2];
+
+                      String query = JwLifeApp.bibleCluesInfo.getVerse(int.parse(book), int.parse(chapter), int.parse(verseNumber));
+                      showPage(context, SearchView(query: query));
+                    },
+                  );
+
+                  // Gestionnaire pour les modifications des champs de formulaire
+                  controller.addJavaScriptHandler(
+                    handlerName: 'onVideoClick',
+                    callback: (args) async {
+                      String link = args[0];
+
+                      print('Link: $link');
+                      // Extraire les paramètres
+                      Uri uri = Uri.parse(link);
+                      String? pub = uri.queryParameters['pub'];
+                      int? docId = uri.queryParameters['docid'] != null ? int.parse(uri.queryParameters['docid']!) : null;
+                      String track = uri.queryParameters['track'] ?? '';
+
+                      MediaItem? mediaItem = getVideoItem(pub, int.parse(track), docId, null, null);
+
+                      if(mediaItem != null) {
+                        showVideoDialog(context, mediaItem).then((result) {
+                          if (result == 'play') { // Vérifiez si le résultat est 'play'
+                            showFullScreenVideo(context, mediaItem);
+                          }
+                        });
+                      }
+                      else {
+
+                      }
+                    },
+                  );
                 },
-              );
-            },
-            shouldInterceptRequest: (controller, request) async {
-              String requestedUrl = '${request.url}';
+                shouldInterceptRequest: (controller, request) async {
+                  String requestedUrl = '${request.url}';
 
-              if (requestedUrl.startsWith('jwpub-media://')) {
-                final filePath = requestedUrl.replaceFirst('jwpub-media://', '');
-                return await widget.publication.documentsManager!.getCurrentDocument().getImagePathFromDatabase(filePath);
-              }
+                  if (requestedUrl.startsWith('jwpub-media://')) {
+                    final filePath = requestedUrl.replaceFirst('jwpub-media://', '');
+                    return await widget.publication.documentsManager!.getCurrentDocument().getImagePathFromDatabase(filePath);
+                  }
 
-              return null;
-            },
-            shouldOverrideUrlLoading: (controller, navigationAction) async {
-              WebUri uri = navigationAction.request.url!;
-              String url = uri.uriValue.toString();
+                  return null;
+                },
+                shouldOverrideUrlLoading: (controller, navigationAction) async {
+                  WebUri uri = navigationAction.request.url!;
+                  String url = uri.uriValue.toString();
 
-              if(url.startsWith('jwpub://')) {
-                fetchHyperlink(url);
-                return NavigationActionPolicy.CANCEL;
-              }
-              else if (url.startsWith('webpubdl://'))  {
-                final docId = uri.queryParameters['docid'];
-                final track = uri.queryParameters['track'];
-                final langwritten = uri.queryParameters.containsKey('langwritten') ? uri.queryParameters['langwritten'] : widget.publication.mepsLanguage.symbol;
-                final fileformat = uri.queryParameters['fileformat'];
+                  if(url.startsWith('jwpub://')) {
+                    fetchHyperlink(url);
+                    return NavigationActionPolicy.CANCEL;
+                  }
+                  else if (url.startsWith('webpubdl://'))  {
+                    final docId = uri.queryParameters['docid'];
+                    final track = uri.queryParameters['track'];
+                    final langwritten = uri.queryParameters.containsKey('langwritten') ? uri.queryParameters['langwritten'] : widget.publication.mepsLanguage.symbol;
+                    final fileformat = uri.queryParameters['fileformat'];
 
-                showDocumentDialog(context, docId!, track!, langwritten!, fileformat!);
+                    showDocumentDialog(context, docId!, track!, langwritten!, fileformat!);
 
-                return NavigationActionPolicy.CANCEL;
-              }
-              else if (uri.host == 'www.jw.org' && uri.path == '/finder') {
-                if(uri.queryParameters.containsKey('wtlocale')) {
-                  final wtlocale = uri.queryParameters['wtlocale'];
-                  if (uri.queryParameters.containsKey('lank')) {
-                    MediaItem? mediaItem;
-                    if(uri.queryParameters.containsKey('lank')) {
-                      final lank = uri.queryParameters['lank'];
-                      mediaItem = getVideoItemFromLank(lank!, wtlocale!);
+                    return NavigationActionPolicy.CANCEL;
+                  }
+                  else if (uri.host == 'www.jw.org' && uri.path == '/finder') {
+                    if(uri.queryParameters.containsKey('wtlocale')) {
+                      final wtlocale = uri.queryParameters['wtlocale'];
+                      if (uri.queryParameters.containsKey('lank')) {
+                        MediaItem? mediaItem;
+                        if(uri.queryParameters.containsKey('lank')) {
+                          final lank = uri.queryParameters['lank'];
+                          mediaItem = getVideoItemFromLank(lank!, wtlocale!);
+                        }
+
+                        showVideoDialog(context, mediaItem!).then((result) {
+                          if (result ==
+                              'play') { // Vérifiez si le résultat est 'play'
+                            showFullScreenVideo(context, mediaItem!);
+                          }
+                        });
+                      }
+                      else if (uri.queryParameters.containsKey('pub')) {
+                        // Récupère les paramètres
+                        final pub = uri.queryParameters['pub'];
+                        final issueTagNumber = uri.queryParameters.containsKey('issueTagNumber') ? int.parse(uri.queryParameters['issueTagNumber']!) : 0;
+
+                        Publication? publication = await PubCatalog.searchPub(pub!, issueTagNumber, wtlocale!);
+                        if (publication != null) {
+                          publication.showMenu(context);
+                        }
+                      }
                     }
 
-                    showVideoDialog(context, mediaItem!).then((result) {
-                      if (result ==
-                          'play') { // Vérifiez si le résultat est 'play'
-                        showFullScreenVideo(context, mediaItem!);
-                      }
+                    // Annule la navigation pour gérer le lien manuellement
+                    return NavigationActionPolicy.CANCEL;
+                  }
+
+                  // Permet la navigation pour tous les autres liens
+                  return NavigationActionPolicy.ALLOW;
+                },
+                onProgressChanged: (controller, progress) {
+                  if(progress == 100) {
+                    setState(() {
+                      _isLoadingWebView = true;
                     });
                   }
-                  else if (uri.queryParameters.containsKey('pub')) {
-                    // Récupère les paramètres
-                    final pub = uri.queryParameters['pub'];
-                    final issueTagNumber = uri.queryParameters.containsKey('issueTagNumber') ? int.parse(uri.queryParameters['issueTagNumber']!) : 0;
-
-                    Publication? publication = await PubCatalog.searchPub(pub!, issueTagNumber, wtlocale!);
-                    if (publication != null) {
-                      publication.showMenu(context);
-                    }
-                  }
                 }
+            ) : Container(),
+        ),
 
-                // Annule la navigation pour gérer le lien manuellement
-                return NavigationActionPolicy.CANCEL;
-              }
+        if (!_isLoadingFonts)
+          getLoadingWidget(Theme.of(context).primaryColor),
 
-              // Permet la navigation pour tous les autres liens
-              return NavigationActionPolicy.ALLOW;
-            },
-            onLoadStop: (controller, url) async {
-              if(!_jumpToParagraphExecuted) {
-                if (widget.startParagraphId != null && widget.endParagraphId != null) {
-                  await _jumpToParagraph(widget.startParagraphId!, widget.endParagraphId!);
-                }
 
-                if(widget.firstVerse != null && widget.lastVerse != null) {
-                  await _jumpToVerse(widget.firstVerse!, widget.lastVerse!);
-                }
-                setState(() {
-                  _jumpToParagraphExecuted = true;
-                });
-
-                if(widget.wordsSelected.isNotEmpty) {
-                  await _controller.evaluateJavascript(source: 'selectWords(${jsonEncode(widget.wordsSelected)});');
-                }
-              }
-            },
-            onProgressChanged: (controller, progress) async {
-              if (progress == 100) {
-                setState(() {
-                  _isLoadingWebView = true;
-                });
-              }
-            }
-        ) : Container(),
-        if (_showNotes) PublicationNotesView(docId: widget.publication.documentsManager!.getCurrentDocument().mepsDocumentId),
-        if (!_isLoadingData || !_isLoadingWebView) const Center(child: CircularProgressIndicator()),
-        if (!_isFullscreen || (_isFullscreen && _controlsVisible) || _showNotes)
+        if (!_isFullscreen || (_isFullscreen && _controlsVisible))
           Positioned(
               top: 0,
               left: 0,
@@ -1458,11 +1610,12 @@ document.body.appendChild(dialog);
                         }
                       """);
                     }
-                    else if (_showNotes) {
-                      _toggleNotesView();
-                    }
                     else {
                       if (_handleBackPress()) {
+                        setState(() {
+                          _isLoadingWebView = false;
+                        });
+                        JwLifeView.toggleNavBarPositioned.call(false);
                         Navigator.pop(context);
                       }
                     }
@@ -1496,29 +1649,29 @@ document.body.appendChild(dialog);
                           text: "Marque-pages",
                           icon: Icon(JwIcons.bookmark),
                           onPressed: () async {
-                            Map<String, dynamic>? bookmark = await showBookmarkDialog(context, widget.publication, mepsDocumentId: widget.publication.documentsManager!.getCurrentDocument().mepsDocumentId, title: widget.publication.documentsManager!.getCurrentDocument().displayTitle, snippet: '', blockType: 0, blockIdentifier: null);
+                            Bookmark? bookmark = await showBookmarkDialog(context, widget.publication, webViewController: _controller, mepsDocumentId: widget.publication.documentsManager!.getCurrentDocument().mepsDocumentId, title: widget.publication.documentsManager!.getCurrentDocument().displayTitle, snippet: '', blockType: 0, blockIdentifier: null);
                             if (bookmark != null) {
-                              if(bookmark['BookNumber'] != null && bookmark['ChapterNumber'] != null) {
-                                int page = widget.publication.documentsManager!.documents.indexWhere((doc) => doc.bookNumber == bookmark['BookNumber'] && doc.chapterNumber == bookmark['ChapterNumber']);
+                              if(bookmark.bookNumber != null && bookmark.chapterNumber != null) {
+                                int page = widget.publication.documentsManager!.documents.indexWhere((doc) => doc.bookNumber == bookmark.bookNumber && doc.chapterNumber == bookmark.chapterNumber);
 
                                 if (page != widget.publication.documentsManager!.documentIndex) {
                                   await _jumpToPage(page);
                                 }
 
-                                if (bookmark['BlockIdentifier'] != null) {
-                                   _jumpToVerse(bookmark['BlockIdentifier'], bookmark['BlockIdentifier']);
+                                if (bookmark.blockIdentifier != null) {
+                                   _jumpToVerse(bookmark.blockIdentifier!, bookmark.blockIdentifier!);
                                 };
                               }
                               else {
-                                if(bookmark['MepsDocumentId'] != widget.publication.documentsManager!.getCurrentDocument().mepsDocumentId) {
-                                  int page = widget.publication.documentsManager!.documents.indexWhere((doc) => doc.mepsDocumentId == bookmark['DocumentId']);
+                                if(bookmark.mepsDocumentId != widget.publication.documentsManager!.getCurrentDocument().mepsDocumentId) {
+                                  int page = widget.publication.documentsManager!.documents.indexWhere((doc) => doc.mepsDocumentId == bookmark.mepsDocumentId);
 
                                   if (page != widget.publication.documentsManager!.documentIndex) {
                                     await _jumpToPage(page);
                                   }
 
-                                  if (bookmark['BlockIdentifier'] != null) {
-                                    _jumpToParagraph(bookmark['BlockIdentifier'], bookmark['BlockIdentifier']);
+                                  if (bookmark.blockIdentifier != null) {
+                                    _jumpToParagraph(bookmark.blockIdentifier!, bookmark.blockIdentifier!);
                                   }
                                 }
                               }
@@ -1535,7 +1688,7 @@ document.body.appendChild(dialog);
                               builder: (context) => languageDialog,
                             ).then((value) {
                               if (value != null) {
-                                widget.publication.showMenu(context, mepsLanguage: value, update: null);
+                                widget.publication.showMenu(context, mepsLanguage: value);
                               }
                             });
                           },
@@ -1552,7 +1705,6 @@ document.body.appendChild(dialog);
                                 widget.publication.keySymbol,
                                 widget.publication.mepsLanguage.id, blockType: 0, blockIdentifier: null
                             );
-                            showPage(context, NoteView(note: note));
                           },
                         ),
                         if(widget.publication.documentsManager!.getCurrentDocument().hasMediaLinks)
@@ -1608,10 +1760,10 @@ document.body.appendChild(dialog);
                           onPressed: () async {
                             Document document = widget.publication.documentsManager!.getCurrentDocument();
                             if(document.isBibleChapter()) {
-                              await showHtmlDialog(context, decodeBlobContent(document.chapterContent!, widget.publication.hash));
+                              await showHtmlDialog(context, decodeBlobContent(document.chapterContent!, widget.publication.hash!));
                             }
                             else {
-                              await showHtmlDialog(context, decodeBlobContent(document.content!, widget.publication.hash));
+                              await showHtmlDialog(context, decodeBlobContent(document.content!, widget.publication.hash!));
                             }
                           },
                         ),
@@ -1621,27 +1773,7 @@ document.body.appendChild(dialog);
               )
           ),
       ]),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _toggleNotesView,
-        elevation: 6.0,
-        shape: const CircleBorder(),
-        child: Icon(
-          _showNotes ? JwIcons.arrow_to_bar_right : JwIcons.gem,
-          color: Theme.of(context).brightness == Brightness.dark ? Colors.black : Colors.white,
-        ),
-      ),
     );
-  }
-
-  void _toggleNotesView() {
-    if (_isImageMode) {
-      switchImageMode();
-    }
-    else {
-      setState(() {
-        _showNotes = !_showNotes;
-      });
-    }
   }
 
   String getArticleClass(Document document) {

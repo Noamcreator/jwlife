@@ -15,6 +15,7 @@ import 'package:realm/realm.dart';
 
 import '../app/jwlife_app.dart';
 import '../app/jwlife_view.dart';
+import '../core/api.dart';
 import '../data/databases/Audio.dart';
 
 class JwAudioPlayer {
@@ -33,7 +34,7 @@ class JwAudioPlayer {
       album = '';
       final apiUrl = 'https://b.jw-cdn.org/apis/mediator/v1/media-items/$lang/$lank';
       try {
-        final response = await http.get(Uri.parse(apiUrl));
+        final response = await Api.httpGetWithHeaders(apiUrl);
 
         if (response.statusCode == 200) {
           final data = json.decode(response.body);
@@ -70,7 +71,7 @@ class JwAudioPlayer {
         print('URL: $url');
 
         // Requête HTTP pour récupérer le JSON
-        final response = await http.get(Uri.parse(url));
+        final response = await Api.httpGetWithHeaders(url);
 
         if (response.statusCode == 200) {
           // Conversion de la réponse en JSON
@@ -153,6 +154,7 @@ class JwAudioPlayer {
         } else {
           audioSource = AudioSource.uri(
             Uri.parse(audio.fileUrl),
+            headers: Api.getHeaders(),
             tag: MediaItem(
               id: '${mediaId++}',
               album: pub?.title ?? album,
@@ -208,6 +210,7 @@ class JwAudioPlayer {
 
     AudioSource audioSource = AudioSource.uri(
       Uri.parse(link),
+      headers: Api.getHeaders(),
       tag: mediaItem,
     );
 
@@ -232,7 +235,7 @@ class JwAudioPlayer {
 
   Future<void> play({Duration? start}) async {
     if (start != null) await player.seek(start);
-    if (!JwLifeView.isAudioWidgetVisible) {
+    if (!JwLifeView.audioWidgetVisible) {
       JwLifeView.toggleAudioWidgetVisibility(true);
     }
     await player.play();

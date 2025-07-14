@@ -216,11 +216,11 @@ class _PendingUpdatesViewState extends State<PendingUpdatesView> {
       }
     }
 
-// Gestion des dates : Version téléchargée
+    // Gestion des dates : Version téléchargée
     String? downloadedDateStr = publication.timeStamp;  // Par exemple, publication.downloadedDate
     String downloadedDate = "N/A";  // Valeur par défaut
 
-    downloadedDateStr = downloadedDateStr.replaceAll('+00:00', 'Z'); // Normalisation du format
+    downloadedDateStr = downloadedDateStr!.replaceAll('+00:00', 'Z'); // Normalisation du format
     try {
       downloadedDate = DateFormat('dd/MM/yyyy').format(DateTime.parse(downloadedDateStr));  // Formatage de la date
     } catch (e) {
@@ -321,14 +321,14 @@ class _PendingUpdatesViewState extends State<PendingUpdatesView> {
               },
             ),
           ),
-          publication.downloadProgress == 0 ? Positioned(
+          publication.progressNotifier.value == 0 ? Positioned(
             bottom: 5,
             right: -8,
             height: 45,
             child: IconButton(
               padding: const EdgeInsets.all(0),
               onPressed: () async {
-                await publication.update(context, update: (progress) {setState(() {});});
+                await publication.update(context);
                 setState(() {
                   groupedPublications[publication.category.getName(context)]?.remove(publication);
                   if(groupedPublications[publication.category.getName(context)]!.isEmpty) groupedPublications.remove(publication.category.getName(context));
@@ -337,7 +337,7 @@ class _PendingUpdatesViewState extends State<PendingUpdatesView> {
               icon: Icon(JwIcons.arrows_circular, color: Color(0xFF9d9d9d)),
             ),
           ) : Container(),
-          publication.downloadProgress == 0 ? Positioned(
+          publication.progressNotifier.value == 0 ? Positioned(
               bottom: 0,
               right: -5,
               width: 50,
@@ -357,9 +357,9 @@ class _PendingUpdatesViewState extends State<PendingUpdatesView> {
             right: 0,
             height: 2,
             width: 340-40,
-            child: publication.downloadProgress != 0
+            child: publication.progressNotifier.value != 0
                 ? LinearProgressIndicator(
-              value: publication.downloadProgress == -1 ? null : publication.downloadProgress,
+              value: publication.progressNotifier.value == -1 ? null : publication.progressNotifier.value,
               valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).primaryColor),
               backgroundColor: Colors.grey, // Fond gris
               minHeight: 2, // Assure que la hauteur est bien prise en compte

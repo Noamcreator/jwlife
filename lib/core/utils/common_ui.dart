@@ -1,3 +1,4 @@
+import 'package:beamer/beamer.dart';
 import 'package:flutter/material.dart';
 
 Future<void> showPage(BuildContext context, Widget page) {
@@ -21,21 +22,39 @@ Future<void> showPage(BuildContext context, Widget page) {
       },
       transitionDuration: const Duration(milliseconds: 300),
       reverseTransitionDuration: const Duration(milliseconds: 200),
-      maintainState: true,
+    ),
+  );
+}
+
+void showBottomMessageWithActionState(ScaffoldMessengerState messenger, bool isDark, String message, SnackBarAction? action) {
+  messenger.clearSnackBars();
+  messenger.showSnackBar(
+    SnackBar(
+      action: action,
+      duration: const Duration(seconds: 2),
+      content: Text(message, style: TextStyle(color: isDark ? Colors.black : Colors.white, fontSize: 15)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10.0),
+      ),
+      //margin: const EdgeInsets.only(bottom: 60),
+      behavior: SnackBarBehavior.floating,
+      backgroundColor: isDark ? Color(0xFFf1f1f1) : Color(0xFF3c3c3c),
     ),
   );
 }
 
 void showBottomMessageWithAction(BuildContext context, String message, SnackBarAction? action) {
   bool isDark = Theme.of(context).brightness == Brightness.dark;
-  ScaffoldMessenger.of(context).hideCurrentSnackBar();
+  ScaffoldMessenger.of(context).clearSnackBars();
   ScaffoldMessenger.of(context).showSnackBar(
     SnackBar(
       action: action,
+      duration: const Duration(seconds: 2),
       content: Text(message, style: TextStyle(color: isDark ? Colors.black : Colors.white, fontSize: 15)),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(10.0),
       ),
+      //margin: const EdgeInsets.only(bottom: 60),
       behavior: SnackBarBehavior.floating,
       backgroundColor: isDark ? Color(0xFFf1f1f1) : Color(0xFF3c3c3c),
     ),

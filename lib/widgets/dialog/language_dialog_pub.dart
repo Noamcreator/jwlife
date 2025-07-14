@@ -1,9 +1,12 @@
 import 'dart:io';
 
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/core/utils/files_helper.dart';
 import 'package:jwlife/data/databases/Publication.dart';
+import 'package:jwlife/data/databases/PublicationRepository.dart';
+import 'package:jwlife/data/databases/catalog.dart';
 import 'package:sqflite/sqflite.dart';
 
 class LanguagesPubDialog extends StatefulWidget {
@@ -253,8 +256,9 @@ class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
             // Liste combinée des langues
             Expanded(
               child: ListView.separated(
+                padding: EdgeInsets.zero,
                 itemCount: combinedLanguages.length,
-                separatorBuilder: (context, index) => Divider(color: dividerColor),
+                separatorBuilder: (context, index) => Divider(color: dividerColor, height: 1),
                 itemBuilder: (BuildContext context, int index) {
                   final languageData = combinedLanguages[index];
                   final isFavorite = languageData['isFavorite'] as bool;
@@ -276,7 +280,7 @@ class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
                         ),
                       if (!isFavorite && index == favoriteLanguages.length)
                         Padding(
-                          padding: EdgeInsets.only(left: 20, bottom: 8, top: 10),
+                          padding: EdgeInsets.only(left: 20),
                           child: Text(
                             'Autres langues',
                             style: TextStyle(
@@ -286,74 +290,7 @@ class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
                             ),
                           ),
                         ),
-                      InkWell(
-                        onTap: () {
-                          setState(() {
-                            selectedLanguage = languageData['LanguageSymbol'];
-                            Navigator.of(context).pop(languageData);
-                          });
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.only(left: 10, right: 5),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              Radio(
-                                value: languageData['LanguageSymbol'],
-                                activeColor: Theme.of(context).primaryColor,
-                                groupValue: selectedLanguage,
-                                onChanged: (value) {
-                                  setState(() {
-                                    selectedLanguage = languageData['LanguageSymbol'];
-                                  });
-                                },
-                              ),
-                              SizedBox(width: 20), // Espacement entre l'icône et le texte
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      languageData['LanguageName'],
-                                      style: TextStyle(
-                                        color: Theme.of(context).secondaryHeaderColor,
-                                        fontFamily: 'Roboto',
-                                        fontWeight: FontWeight.w400,
-                                      ),
-                                    ),
-                                    SizedBox(height: 2),
-                                    Text(
-                                      languageData['ShortTitle'],
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: Theme.of(context).brightness == Brightness.dark
-                                            ? const Color(0xFFc3c3c3)
-                                            : const Color(0xFF626262),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              PopupMenuButton(
-                                icon: Icon(
-                                  Icons.more_vert,
-                                  color: Color(0xFF9d9d9d),
-                                ),
-                                itemBuilder: (context) {
-                                  return [
-                                    PopupMenuItem(
-                                      onTap: () async {
-
-                                      },
-                                      child: Text('Télécharger'),
-                                    ),
-                                  ];
-                                },
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
+                      _buildLanguageItem(context, languageData, dividerColor),
                     ],
                   );
                 },
@@ -380,6 +317,204 @@ class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+// Variable pour suivre quelle langue est en cours de téléchargement
+  String? _downloadingLanguage;
+
+  Widget _buildLanguageItem(BuildContext context, Map<String, dynamic> languageData, Color dividerColor) {
+    final String languageSymbol = languageData['LanguageSymbol'];
+
+    return InkWell(
+      onTap: () async {
+        setState(() {
+          selectedLanguage = languageSymbol;
+        });
+
+        Publication? publication = PublicationRepository()
+            .getAllPublications()
+            .firstWhereOrNull((p) =>
+        p.mepsLanguage.symbol == selectedLanguage &&
+            p.symbol == widget.publication!.symbol &&
+            p.issueTagNumber == widget.publication!.issueTagNumber);
+
+        publication ??= await PubCatalog.searchPub(
+            widget.publication!.keySymbol,
+            widget.publication!.issueTagNumber,
+            selectedLanguage);
+
+        if (publication != null) {
+          if (publication.isDownloadedNotifier.value == false) {
+            // Démarrer le téléchargement et rafraîchir l'UI
+            setState(() {
+              _downloadingLanguage = languageSymbol;
+            });
+
+            try {
+              await publication.download(context);
+              Navigator.of(context).pop(publication);
+            } catch (error) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Erreur lors du téléchargement: $error'),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            } finally {
+              setState(() {
+                _downloadingLanguage = null;
+              });
+            }
+          } else {
+            Navigator.of(context).pop(publication);
+          }
+        }
+      },
+      child: Container(
+        padding: const EdgeInsets.only(left: 8, right: 5, top: 5, bottom: 5),
+        child: Stack(
+          children: [
+            // Contenu principal (Row avec Radio + Textes)
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Radio(
+                  value: languageSymbol,
+                  activeColor: Theme.of(context).primaryColor,
+                  groupValue: selectedLanguage,
+                  onChanged: (value) {
+                    setState(() {
+                      selectedLanguage = languageSymbol;
+                    });
+                  },
+                ),
+                SizedBox(width: 20),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        languageData['LanguageName'],
+                        style: TextStyle(
+                          color: Theme.of(context).secondaryHeaderColor,
+                          fontFamily: 'Roboto',
+                          fontWeight: FontWeight.w400,
+                        ),
+                      ),
+                      SizedBox(height: 2),
+                      Text(
+                        languageData['ShortTitle'],
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? const Color(0xFFc3c3c3)
+                              : const Color(0xFF626262),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(width: 35), // pour laisser la place au bouton
+              ],
+            ),
+
+            // PopupMenuButton (positionné à droite)
+            if (_downloadingLanguage != languageSymbol)
+              Positioned(
+                right: 0,
+                top: 0,
+                child: PopupMenuButton(
+                  icon: Icon(
+                    Icons.more_vert,
+                    color: Color(0xFF9d9d9d),
+                  ),
+                  itemBuilder: (context) {
+                    return [
+                      PopupMenuItem(
+                        onTap: () async {
+                          Publication? publication = PublicationRepository()
+                              .getAllPublications()
+                              .firstWhereOrNull((p) =>
+                          p.mepsLanguage.symbol == languageSymbol &&
+                              p.symbol == widget.publication!.symbol &&
+                              p.issueTagNumber == widget.publication!.issueTagNumber);
+
+                          publication ??= await PubCatalog.searchPub(
+                              widget.publication!.keySymbol,
+                              widget.publication!.issueTagNumber,
+                              languageSymbol);
+
+                          if (publication != null && publication.isDownloadedNotifier.value == false) {
+                            setState(() {
+                              selectedLanguage = languageSymbol;
+                              _downloadingLanguage = languageSymbol;
+                            });
+
+                            try {
+                              await publication.download(context);
+                            } catch (error) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Erreur lors du téléchargement: $error'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            } finally {
+                              setState(() {
+                                _downloadingLanguage = null;
+                              });
+                            }
+                          }
+                        },
+                        child: Text('Télécharger'),
+                      ),
+                    ];
+                  },
+                ),
+              ),
+
+            // ProgressBar (positionné en bas à gauche, sous les textes)
+            if (_downloadingLanguage == languageSymbol)
+              Positioned(
+                left: 60, // pour laisser de l’espace au Radio
+                right: 35, // pour éviter d’écraser le menu
+                bottom: -2,
+                child: _buildProgressBar(context, languageSymbol),
+              ),
+          ],
+        ),
+      )
+
+    );
+  }
+
+  Widget _buildProgressBar(BuildContext context, String languageSymbol) {
+    // Trouver la publication en cours de téléchargement
+    Publication? publication = PublicationRepository()
+        .getAllPublications()
+        .firstWhereOrNull((p) =>
+    p.mepsLanguage.symbol == languageSymbol &&
+        p.symbol == widget.publication!.symbol &&
+        p.issueTagNumber == widget.publication!.issueTagNumber);
+
+    if (publication == null) return Container();
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: ValueListenableBuilder<double>(
+        valueListenable: publication.progressNotifier,
+        builder: (context, progress, child) {
+          return LinearProgressIndicator(
+            value: progress,
+            backgroundColor: Colors.grey[300],
+            valueColor: AlwaysStoppedAnimation<Color>(
+              Theme.of(context).primaryColor,
+            ),
+            minHeight: 3,
+          );
+        },
       ),
     );
   }

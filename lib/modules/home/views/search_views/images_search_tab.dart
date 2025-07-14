@@ -5,6 +5,7 @@ import 'package:html/parser.dart';
 import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/core/utils/utils_document.dart';
 import 'package:jwlife/data/databases/Publication.dart';
+import 'package:jwlife/data/databases/PublicationRepository.dart';
 import 'package:jwlife/data/databases/catalog.dart';
 import 'package:jwlife/widgets/image_widget.dart';
 import 'package:sqflite/sqflite.dart';
@@ -52,8 +53,8 @@ class _ImagesSearchTabState extends State<ImagesSearchTab> {
               spacing: 10,
               runSpacing: 10,
               children: images.map((item) {
-                Publication downloadPub = JwLifeApp.pubCollections
-                    .getPublications()
+                Publication downloadPub = PublicationRepository()
+                    .getAllDownloadedPublications()
                     .firstWhere((pub) =>
                 pub.symbol == item['Symbol'] &&
                     pub.year == item['Year'] &&

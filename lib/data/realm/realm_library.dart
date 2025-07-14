@@ -8,45 +8,44 @@ import 'catalog.dart';
 class RealmLibrary {
   static Realm realm = Realm(Configuration.local([MediaItem.schema, Language.schema, Images.schema, Category.schema]));
 
-  static List<MediaItem> latestAudiosVideos = [];
-  static List<MediaItem> teachingToolboxVideos = [];
-
-  static Future<void> loadTeachingToolboxVideos() async {
+  static List<MediaItem> loadTeachingToolboxVideos() {
+    List<MediaItem> teachingToolboxVideos = [];
     teachingToolboxVideos.clear();
     String languageSymbol = JwLifeApp.settings.currentLanguage.symbol;
 
     // Rechercher les médias associés à la catégorie 'TeachingToolbox' dans la langue correspondante
     teachingToolboxVideos.addAll(
-      realm
-          .all<Category>()
+      realm.all<Category>()
           .query("key == 'TeachingToolbox' AND language == '$languageSymbol'")
           .expand((category) => category.media)
           .map((mediaKey) => realm.all<MediaItem>().query("naturalKey == '$mediaKey'").firstOrNull)
           .whereType<MediaItem>(), // Filtrer les valeurs nulles
     );
 
-    if (teachingToolboxVideos.isEmpty) {
-      print("TeachingToolbox category or media is missing.");
+    if (teachingToolboxVideos.isNotEmpty) {
+      return teachingToolboxVideos;
     }
+    return [];
   }
 
-  static Future<void> loadLatestVideos() async {
+  static List<MediaItem> loadLatestVideos() {
+    List<MediaItem> latestAudiosVideos = [];
     latestAudiosVideos.clear();
     String languageSymbol = JwLifeApp.settings.currentLanguage.symbol;
 
     // Rechercher les médias associés à la catégorie 'LatestAudioVideo' dans la langue correspondante
     latestAudiosVideos.addAll(
-      realm
-          .all<Category>()
+      realm.all<Category>()
           .query("key == 'LatestAudioVideo' AND language == '$languageSymbol'")
           .expand((category) => category.media)
           .map((mediaKey) => realm.all<MediaItem>().query("naturalKey == '$mediaKey'").firstOrNull)
-          .whereType<MediaItem>(), // Filtrer les valeurs null
+          .whereType<MediaItem>(),
     );
 
-    if (latestAudiosVideos.isEmpty) {
-      print("LatestAudioVideo category or media is missing.");
+    if (latestAudiosVideos.isNotEmpty) {
+      return latestAudiosVideos;
     }
+    return [];
   }
 
   static Future<void> convertMediaJsonToRealm(var bodyBytes) async {

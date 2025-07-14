@@ -10,6 +10,7 @@ import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/modules/personal/views/note_view.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../../../../core/api.dart';
 import 'publication_media_items_view.dart';
 import '../local/publication_notes_view.dart';
 import 'publication_svg_view.dart';
@@ -75,7 +76,7 @@ class _PagesDocumentViewState extends State<PagesDocumentView> {
       final pathSegments = uri.pathSegments;
       final newPath = pathSegments.skip(1).join('/');
 
-      final response = await http.get(Uri.parse('https://wol.jw.org/' + newPath));
+      final response = await Api.httpGetWithHeaders('https://wol.jw.org/$newPath');
       if (response.statusCode == 200) {
 
         final json = jsonDecode(response.body);
@@ -356,7 +357,7 @@ class _PagesDocumentViewState extends State<PagesDocumentView> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _imageMode ? PublicationSvgView(svgUrls: svgUrls) : _showNotes
-          ? PublicationNotesView(docId: widget.navCards[_currentIndex]['docId']!)
+          ? PublicationNotesView(document: widget.navCards[_currentIndex]['docId']!)
           : PageView.builder(
         controller: PageController(initialPage: _currentIndex),
         onPageChanged: _onPageChanged,

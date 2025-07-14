@@ -124,7 +124,105 @@ Future<T?> showJwDialog<T>({
   );
 }
 
-void showNoConnectionDialog(BuildContext context) {
+Future<T?> showJwChoiceDialog<T>({
+  required BuildContext context,
+  required String titleText,
+  required String contentText,
+  required List<T> choices,
+  required T initialSelection,
+  String Function(T)? display,
+}) {
+  return showDialog<T>(
+    context: context,
+    builder: (BuildContext context) {
+      T? selected = initialSelection;
+
+      return StatefulBuilder(
+        builder: (context, setState) {
+          return Dialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(3),
+            ),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? const Color(0xFF353535)
+                    : const Color(0xFFFFFFFF),
+                borderRadius: BorderRadius.circular(3),
+              ),
+              constraints: const BoxConstraints(maxHeight: 400),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(height: 20),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 25),
+                    child: Text(
+                      titleText,
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.white
+                            : Colors.black,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 25),
+                    child: Text(
+                      contentText,
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.grey[300]
+                            : Colors.grey[800],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Expanded(
+                    child: ListView.builder(
+                      itemCount: choices.length,
+                      itemBuilder: (context, index) {
+                        final item = choices[index];
+                        final isSelected = item == selected;
+                        return RadioListTile<T>(
+                          title: Text(display?.call(item) ?? item.toString()),
+                          value: item,
+                          groupValue: selected,
+                          onChanged: (val) => setState(() => selected = val),
+                        );
+                      },
+                    ),
+                  ),
+                  const Divider(height: 1),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        child: const Text('ANNULER'),
+                        onPressed: () => Navigator.pop(context, null),
+                      ),
+                      TextButton(
+                        child: const Text('OK'),
+                        onPressed: () => Navigator.pop(context, selected),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+    },
+  );
+}
+
+
+Future<void> showNoConnectionDialog(BuildContext context) async{
   showJwDialog(
     context: context,
     contentText: 'Connectez-vous à Internet.',

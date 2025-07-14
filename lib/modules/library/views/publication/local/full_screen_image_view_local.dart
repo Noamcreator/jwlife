@@ -49,6 +49,7 @@ class _FullScreenImageViewLocalState extends State<FullScreenImageViewLocal> {
           _multimedias.add(multimedia);
         }
       }
+     // _multimedias.sort((a, b) => a.beginParagraphOrdinal.compareTo(b.beginParagraphOrdinal));
     });
 
     _pageController = PageController(initialPage: _currentIndex);
@@ -203,7 +204,7 @@ class _FullScreenImageViewLocalState extends State<FullScreenImageViewLocal> {
           icon: Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () {
             JwLifeView.toggleNavBarVisibility.call(true);
-            JwLifeView.toggleNavBarBlack.call(JwLifeView.currentTabIndex, false);
+            JwLifeView.toggleNavBarBlack.call(false);
             Navigator.pop(context);
           },
         ),

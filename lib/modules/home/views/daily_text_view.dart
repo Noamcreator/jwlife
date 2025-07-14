@@ -74,7 +74,7 @@ class _DailyTextPageState extends State<DailyTextPage> with SingleTickerProvider
 
     final decodedHtml = decodeBlobContent(
       document!['Content'] as Uint8List,
-      widget.publication.hash,
+      widget.publication.hash!,
     );
 
     _htmlContent = createHtmlContent(

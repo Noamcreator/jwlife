@@ -22,6 +22,7 @@ class _PersonalViewState extends State<PersonalView> {
     return DefaultTabController(
         length: 5,
         child: Scaffold(
+            resizeToAvoidBottomInset: false,
             appBar: AppBar(
               title: Text(
                 localization(context).navigation_personal,

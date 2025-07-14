@@ -70,7 +70,10 @@ class _PublicationMediasViewState extends State<PublicationMediasView> {
                 itemBuilder: (context, index) {
                   final media = videos[index];
                   MediaItem? mediaItem = getVideoItem(media.keySymbol, media.track, media.mepsDocumentId, media.issueTagNumber, media.mepsLanguageId);
-                  return videoTile(context, mediaItem!);
+                  if (mediaItem == null) {
+                    return Container();
+                  }
+                  return videoTile(context, mediaItem);
                 },
               ),
             ],
@@ -141,7 +144,7 @@ class _PublicationMediasViewState extends State<PublicationMediasView> {
                     child: Row(
                       children: [
                         Icon(
-                          isAudio ? JwIcons.headphones_simple : JwIcons.play,
+                          isAudio ? JwIcons.headphones__simple : JwIcons.play,
                           size: 12,
                           color: Colors.white,
                         ),
@@ -212,7 +215,7 @@ class _PublicationMediasViewState extends State<PublicationMediasView> {
   Widget imageTile(BuildContext context, Multimedia media) {
     return GestureDetector(
       onTap: () {
-        JwLifeView.toggleNavBarBlack.call(JwLifeView.currentTabIndex, true);
+        JwLifeView.toggleNavBarBlack.call(true);
 
         int index = widget.document.multimedias.indexWhere((img) => img.filePath.toLowerCase() == media.filePath.toLowerCase());
         showPage(context, FullScreenImageViewLocal(publication: widget.document.publication, multimedias: widget.document.multimedias, index: index));

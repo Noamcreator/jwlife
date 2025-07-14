@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:html/parser.dart' as html_parser;
 
+import '../../../core/api.dart';
 import 'online_bible_view.dart';
 
 class ChapterBiblePage extends StatefulWidget {
@@ -26,7 +27,7 @@ class _ChapterBiblePageState extends State<ChapterBiblePage> {
 
   Future<void> _fetchHtmlContent() async {
     try {
-      final response = await http.get(Uri.parse(publicationLink));
+      final response = await Api.httpGetWithHeaders(publicationLink);
       if (response.statusCode == 200) {
         _parseHtml(response.body);
       }

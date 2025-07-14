@@ -24,6 +24,8 @@ import 'package:jwlife/core/utils/utils_pub.dart';
 import 'package:jwlife/core/utils/utils_video.dart';
 import 'package:jwlife/core/utils/widgets_utils.dart';
 import 'package:jwlife/data/databases/Publication.dart';
+import 'package:jwlife/data/databases/PublicationCategory.dart';
+import 'package:jwlife/data/databases/PublicationRepository.dart';
 import 'package:jwlife/data/databases/Video.dart';
 import 'package:jwlife/data/databases/catalog.dart';
 import 'package:jwlife/data/databases/history.dart';
@@ -33,8 +35,10 @@ import 'package:jwlife/i18n/localization.dart';
 import 'package:jwlife/modules/bible/views/bible_view.dart';
 import 'package:jwlife/modules/home/views/alert_banner.dart';
 import 'package:jwlife/modules/home/views/search_views/suggestion.dart';
+import 'package:jwlife/modules/home/widgets/HomeRectanglePublicationItem.dart';
 import 'package:jwlife/modules/library/views/library_view.dart';
 import 'package:jwlife/modules/meetings/views/meeting_view.dart';
+import 'package:jwlife/modules/home/widgets/HomeSquarePublicationItem.dart';
 import 'package:jwlife/widgets/dialog/publication_dialogs.dart';
 import 'package:jwlife/widgets/dialog/utils_dialog.dart';
 import 'package:realm/realm.dart';
@@ -53,7 +57,7 @@ import 'search_views/bible_search_page.dart';
 import 'search_views/search_view.dart';
 
 class HomeView extends StatefulWidget {
-  static late Future<void> Function() setStateHomePage;
+  static late Future<void> Function() refreshChangeLanguage;
   static late Function() refreshHomeView;
   static late bool isRefreshing;
   final Function(ThemeMode) toggleTheme;
@@ -66,9 +70,13 @@ class HomeView extends StatefulWidget {
 }
 
 class _HomeViewState extends State<HomeView> {
-  dynamic alerts = {};
+  List<dynamic> alerts = [];
   String verseOfTheDay = '';
   List<Map<String, dynamic>> _articles = [];
+
+  List<MediaItem> teachingToolboxVideos = [];
+  List<MediaItem> latestAudiosVideos = [];
+
   List<SuggestionItem> suggestions = [];
   final TextEditingController _searchController = TextEditingController();
 
@@ -80,10 +88,13 @@ class _HomeViewState extends State<HomeView> {
   @override
   void initState() {
     super.initState();
-    HomeView.setStateHomePage = _setStateHomePage;
+    HomeView.refreshChangeLanguage = _refreshChangeLanguage;
     HomeView.refreshHomeView = _refreshView;
     HomeView.isRefreshing = _isRefreshing;
-    _init();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _init();
+    });
   }
 
   Future<void> _init({bool first = true}) async {
@@ -98,29 +109,44 @@ class _HomeViewState extends State<HomeView> {
     await _loadBibleCluesInfo();
     await PubCatalog.fetchAssemblyPublications();
 
-    MeetingsView.refreshMeetingsView();
+    printTime("Refresh MeetingsView start");
+    MeetingsView.refreshConventionsPubs();
   }
 
-  Future<void> _setStateHomePage({bool first = true}) async {
-    await PubCatalog.loadHomePage();
+  Future<void> _refreshChangeLanguage() async {
+    printTime("Refresh change language start");
+    LibraryView.refreshLibraryCategories();
+    PubCatalog.updateCatalogCategories();
 
-    LibraryView.setStateLibraryPage();
+    // Enveloppe toute la première séquence dans un Future synchronisé
+    PubCatalog.loadPublicationsInHomePage().then((_) async {
+      printTime("Refresh Homepage start");
+      setState(() {});
+
+      MeetingsView.refreshMeetingsPubs();
+
+      await _loadBibleCluesInfo();
+      await PubCatalog.fetchAssemblyPublications();
+
+      printTime("Refresh MeetingsView start");
+      MeetingsView.refreshConventionsPubs();
+
+      fetchVerseOfTheDay();
+    });
 
     _initPage();
-    _refresh(first: first);
-
-    await _loadBibleCluesInfo();
-    await PubCatalog.fetchAssemblyPublications();
-
-    MeetingsView.refreshMeetingsView();
+    _refresh(first: true);
   }
 
   Future<void> _initPage() async {
     fetchVerseOfTheDay();
     fetchAlertInfo();
     fetchArticleInHomePage();
-    RealmLibrary.loadTeachingToolboxVideos();
-    RealmLibrary.loadLatestVideos();
+
+    setState(() {
+      teachingToolboxVideos = RealmLibrary.loadTeachingToolboxVideos();
+      latestAudiosVideos = RealmLibrary.loadLatestVideos();
+    });
   }
 
   Future<void> _loadBibleCluesInfo() async {
@@ -139,6 +165,7 @@ class _HomeViewState extends State<HomeView> {
   }
 
   Future<void> _refresh({bool first = false}) async {
+    printTime("Refresh start");
     if (!await hasInternetConnection()) {
       showBottomMessage(context, 'Aucune connexion Internet');
       return;
@@ -172,20 +199,32 @@ class _HomeViewState extends State<HomeView> {
     if (libraryUpdate) {
       updateTasks.add(
         Api.updateLibrary(JwLifeApp.settings.currentLanguage.symbol).then((_) {
-          return Future.wait([
-            RealmLibrary.loadLatestVideos(),
-            RealmLibrary.loadTeachingToolboxVideos(),
-          ]);
+          setState(() {
+            teachingToolboxVideos = RealmLibrary.loadTeachingToolboxVideos();
+            latestAudiosVideos = RealmLibrary.loadLatestVideos();
+          });
+          LibraryView.refreshLibraryCategories();
         }),
       );
     }
 
     if (catalogUpdate) {
       updateTasks.add(
-        Api.updateCatalog().then((_) {
-          return Future.wait([
-            PubCatalog.loadHomePage(),
-          ]);
+        Api.updateCatalog().then((_) async {
+          await PubCatalog.loadPublicationsInHomePage().then((_) async {
+            printTime("Refresh Homepage start");
+            setState(() {});
+
+            PubCatalog.updateCatalogCategories();
+            MeetingsView.refreshMeetingsPubs();
+
+            await PubCatalog.fetchAssemblyPublications();
+
+            printTime("Refresh MeetingsView start");
+            MeetingsView.refreshConventionsPubs();
+
+            fetchVerseOfTheDay();
+          });
         }),
       );
     }
@@ -201,6 +240,7 @@ class _HomeViewState extends State<HomeView> {
   }
 
   _refreshView() {
+    printTime("Refresh view start");
     setState(() {});
   }
 
@@ -227,7 +267,7 @@ class _HomeViewState extends State<HomeView> {
 
       if (alertResponse.statusCode == 200) {
         // La requête a réussi, traiter la réponse JSON
-        Map<String, dynamic> data = jsonDecode(alertResponse.body);
+        final data = jsonDecode(alertResponse.body);
 
         setState(() {
           alerts = data['alerts'];
@@ -248,15 +288,36 @@ class _HomeViewState extends State<HomeView> {
 
   Future<void> fetchVerseOfTheDay() async {
     printTime("fetchVerseOfTheDay");
-    Publication? verseOfTheDayPub = PubCatalog.datedPublications.firstWhereOrNull((element) => element.keySymbol.contains('es'));
-    if (verseOfTheDayPub!= null) {
-      Publication pub = JwLifeApp.pubCollections.getPublication(verseOfTheDayPub);
-      if (pub.isDownloaded) {
-        Map<String, dynamic>? document = await PubCatalog.getDatedDocumentForToday(pub);
+
+    Publication? verseOfTheDayPub = PubCatalog.datedPublications.firstWhereOrNull(
+          (element) => element.keySymbol.contains('es'),
+    );
+
+    if (verseOfTheDayPub != null) {
+      VoidCallback? listener;
+
+      listener = () async {
+        if (verseOfTheDayPub.isDownloadedNotifier.value) {
+          // Supprimer le listener après exécution pour éviter boucle
+          verseOfTheDayPub.isDownloadedNotifier.removeListener(listener!);
+          await fetchVerseOfTheDay();
+        }
+      };
+
+      // Ajouter le listener une seule fois
+      verseOfTheDayPub.isDownloadedNotifier.addListener(listener);
+
+      if (verseOfTheDayPub.isDownloadedNotifier.value) {
+        // Si déjà téléchargé, retirer le listener car on n'en aura pas besoin
+        verseOfTheDayPub.isDownloadedNotifier.removeListener(listener);
+
+        printTime("fetchVerseOfTheDay document start");
+        Map<String, dynamic>? document = await PubCatalog.getDatedDocumentForToday(verseOfTheDayPub);
+        printTime("fetchVerseOfTheDay document end");
 
         final decodedHtml = decodeBlobContent(
           document!['Content'] as Uint8List,
-          pub.hash,
+          verseOfTheDayPub.hash!,
         );
 
         final htmlDocument = html_parser.parse(decodedHtml);
@@ -318,17 +379,20 @@ class _HomeViewState extends State<HomeView> {
   ''', [languageSymbol]);
 
     if (articles.isNotEmpty) {
-      _articles = List<Map<String, dynamic>>.from(articles);
-      _currentArticleIndex = _articles.length - 1;
-      setState(() {}); // Mise à jour unique
+      setState(() {
+        _articles = List<Map<String, dynamic>>.from(articles);
+        _currentArticleIndex = _articles.length - 1;
+      }); // Mise à jour unique
     }
 
-    // Récupération de l'article le plus récent depuis le réseau
-    final response = await http.get(Uri.parse('https://jw.org/${JwLifeApp.settings.currentLanguage.primaryIetfCode}'));
+    final response = await Api.httpGetWithHeaders('https://jw.org/${JwLifeApp.settings.currentLanguage.primaryIetfCode}');
+
     if (response.statusCode != 200) {
       throw Exception('Failed to load content');
     }
-
+    else {
+      printTime("fetchArticleInHomePage document start");
+    }
     final document = html_parser.parse(response.body);
 
     String getImageUrl(String className) {
@@ -347,7 +411,7 @@ class _HomeViewState extends State<HomeView> {
     final imageUrlPnr = getImageUrl('.billboard-media.pnr');
 
     // Si aucun article ou titre différent, on ajoute le nouvel article
-    if (articles.isEmpty || title != articles.first['Title']) {
+    if (articles.isEmpty || !articles.any((article) => article['Title'] == title) ) {
       final appTileDirectory = await getAppTileDirectory();
 
       // Télécharger les images en parallèle
@@ -373,15 +437,17 @@ class _HomeViewState extends State<HomeView> {
         'ImagePathPnr': imagePathPnr,
       };
 
-      _articles.add(newArticle);
-      _currentArticleIndex = _articles.length - 1;
-      setState(() {}); // Mise à jour unique
+      setState(() {
+        _articles.add(newArticle);
+        _currentArticleIndex = _articles.length - 1;
+      }); // Mise à jour unique
 
       // Enregistrement en base
       final articleId = await saveArticleToDatabase(db, newArticle);
       await saveImagesToDatabase(db, articleId, newArticle);
     }
 
+    await db.close();
     printTime("fetchArticleInHomePage end");
   }
 
@@ -424,7 +490,7 @@ class _HomeViewState extends State<HomeView> {
   Future<String> downloadAndSaveImage(String imageUrl, Directory appTileDirectory) async {
     if (imageUrl.isEmpty) return '';
     try {
-      final response = await http.get(Uri.parse(imageUrl));
+      final response = await Api.httpGetWithHeaders(imageUrl);
       if (response.statusCode == 200) {
         final filename = Uri.parse(imageUrl).pathSegments.last;
         final file = File('${appTileDirectory.path}/$filename');
@@ -573,234 +639,282 @@ class _HomeViewState extends State<HomeView> {
     String formattedDate = capitalize(DateFormat('EEEE d MMMM yyyy', locale).format(now));
 
     Publication? verseOfTheDayPub = PubCatalog.datedPublications.firstWhereOrNull((element) => element.keySymbol.contains('es'));
-    Publication? dailyTextPub = JwLifeApp.pubCollections.getPublication(verseOfTheDayPub!);
+
+    if (verseOfTheDayPub == null) {
+      return Column(
+        children: [
+          Container(
+            color: Theme.of(context).brightness == Brightness.dark
+                ? Color(0xFF121212)
+                : Colors.white,
+            height: 128,
+            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            alignment: Alignment.center,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Text(
+                  'Bienvenue sur JW Life',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).primaryColor,
+                  ),
+                  textAlign: TextAlign.center, // ← Optionnel pour s’assurer
+                ),
+                SizedBox(height: 8),
+                Text(
+                  "Une application pour la vie d'un Témoin de Jéhovah",
+                  style: TextStyle(
+                    fontSize: 16,
+                  ),
+                  textAlign: TextAlign.center, // ← Optionnel aussi
+                ),
+              ],
+            ),
+          ),
+          SizedBox(height: 10),
+        ],
+      );
+    }
+
+    Publication publication = PublicationRepository().getPublication(verseOfTheDayPub);
 
     return Column(
       children: [
         GestureDetector(
           onTap: () {
-            if (dailyTextPub.isDownloaded) {
-              showPage(context, DailyTextPage(publication: dailyTextPub));
+            if (publication.isDownloadedNotifier.value) {
+              showPage(context, DailyTextPage(publication: publication));
+            } else {
+              publication.download(context);
             }
-            else {
-              dailyTextPub.download(context, update: (progress) => setState(() {}));
-            }
-          },
+                    },
           child: Stack(
             children: [
               Container(
-                color: Theme.of(context).brightness == Brightness.dark ? Color(0xFF121212) : Colors.white,
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? Color(0xFF121212)
+                    : Colors.white,
                 height: 128,
                 padding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    verseOfTheDay != '' && dailyTextPub.isDownloaded
-                        ? Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(JwIcons.calendar, size: 24),
-                        SizedBox(width: 8),
-                        Text(
-                          formattedDate,
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: Theme.of(context).primaryColor,
-                          ),
-                        ),
-                        SizedBox(width: 8),
-                        Icon(JwIcons.chevron_right, size: 24),
-                      ],
-                    )
-                        : Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          'Bienvenue sur JW Life',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: Theme.of(context).primaryColor,
-                          ),
-                        ),
-                      ],
+                    ValueListenableBuilder<bool>(
+                      valueListenable: publication.isDownloadedNotifier,
+                      builder: (context, isDownloaded, _) {
+                        return Column(
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: isDownloaded && verseOfTheDay.isNotEmpty ? [
+                                Icon(JwIcons.calendar, size: 24),
+                                SizedBox(width: 8),
+                                Text(
+                                  formattedDate,
+                                  style: TextStyle(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                    color: Theme.of(context).primaryColor,
+                                  ),
+                                ),
+                                SizedBox(width: 8),
+                                Icon(JwIcons.chevron_right, size: 24),
+                              ]
+                                  : [
+                                Text(
+                                  'Bienvenue sur JW Life',
+                                  style: TextStyle(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                    color: Theme.of(context).primaryColor,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            SizedBox(height: 4),
+                            ValueListenableBuilder<bool>(
+                              valueListenable: publication.isDownloadedNotifier,
+                              builder: (context, isDownloaded, _) {
+                                if (isDownloaded) {
+                                  return verseOfTheDay.isNotEmpty ? Text(
+                                    verseOfTheDay,
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(fontSize: 16, height: 1.2),
+                                    maxLines: 4,
+                                  ) : getLoadingWidget(Theme.of(context).primaryColor);
+                                }
+                                else {
+                                  return Text(
+                                    "Télécharger le Texte du Jour de l'année ${DateFormat('yyyy').format(now)}",
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(fontSize: 16, height: 1.2),
+                                    maxLines: 4,
+                                  );
+                                }
+                              },
+                            ),
+                          ],
+                        );
+                      },
                     ),
-                    SizedBox(height: 4),
-                    verseOfTheDay != '' || !dailyTextPub.isDownloaded
-                        ? Text(
-                      dailyTextPub.isDownloaded
-                          ? verseOfTheDay
-                          : "Télécharger le Texte du Jour de l'année ${DateFormat('yyyy').format(now)}",
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 16, height: 1.2),
-                      maxLines: 4,
-                    )
-                        : Center(child: CircularProgressIndicator(color: Theme.of(context).primaryColor)),
                   ],
                 ),
               ),
-              if (verseOfTheDayPub.downloadProgress != 0)
-                Positioned(
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  child: verseOfTheDayPub.downloadProgress == -1
-                      ? LinearProgressIndicator(
-                    valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).primaryColor),
-                  )
-                      : LinearProgressIndicator(
-                    value: verseOfTheDayPub.downloadProgress,
-                    valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).primaryColor),
-                    backgroundColor: Colors.grey[300],
-                  ),
-                ),
+              ValueListenableBuilder<bool>(
+                valueListenable: publication.isDownloadingNotifier,
+                builder: (context, isDownloading, _) {
+                  if (!isDownloading) return SizedBox.shrink();
+                  return Positioned(
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    child: ValueListenableBuilder<double>(
+                      valueListenable: publication.progressNotifier,
+                      builder: (context, progress, _) {
+                        return LinearProgressIndicator(
+                          value: progress == -1.0 ? null : progress,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Theme.of(context).primaryColor,
+                          ),
+                          backgroundColor: Colors.grey[300],
+                        );
+                      },
+                    ),
+                  );
+                },
+              ),
             ],
           ),
         ),
-        SizedBox(height: 10), // Espace après le texte du jour
+        SizedBox(height: 10),
       ],
     );
   }
 
   Widget _buildArticleWidget() {
     if (_articles.isEmpty || _articles[_currentArticleIndex]['Title'] == null) {
-      return SizedBox.shrink(); // Retourner un widget vide si aucune donnée n'est disponible
+      return const SizedBox.shrink();
     }
 
-    // Récupérer les données de l'article
-    var currentArticle = _articles[_currentArticleIndex];
-
-    return Stack(
-      children: [
-        // Image en arrière-plan
-        _getImageContainer(currentArticle),
-
-        // Flèche gauche
-        if (_currentArticleIndex < _articles.length - 1)
-          Positioned(
-            right: 10,
-            top: 60, // Ajuste la position verticale
-            child: GestureDetector(
-              onTap: () {
-                setState(() {
-                  _currentArticleIndex = (_currentArticleIndex + 1) % _articles.length;
-                });
-              },
-              child: _buildArrowButton(JwIcons.chevron_right),
-            ),
-          ),
-
-        // Flèche droite
-        if (_currentArticleIndex > 0)
-          Positioned(
-            left: 10,
-            top: 60, // Ajuste la position verticale
-            child: GestureDetector(
-              onTap: () {
-                setState(() {
-                  _currentArticleIndex = (_currentArticleIndex - 1) % _articles.length;
-                });
-              },
-              child: _buildArrowButton(JwIcons.chevron_left),
-            ),
-          ),
-
-        // Conteneur avec texte qui dépasse légèrement sur l'image
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10),
-          child: Container(
-            margin: EdgeInsets.only(top: 145), // Décale le conteneur vers le haut
-            padding: EdgeInsets.all(18),
-            color: Colors.grey[900]!.withOpacity(0.7), // Couleur du conteneur noir
-            child: IntrinsicHeight(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildTextTitle(currentArticle['ContextTitle'], 15, FontWeight.bold),
-                  _buildTextTitle(currentArticle['Title'], 26, FontWeight.bold),
-                  _buildTextDescription(currentArticle['Description']),
-                  SizedBox(height: 10),
-                  _buildReadMoreButton(context, currentArticle),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  final Map<String, Size> _imageSizeCache = {};
-
-  Widget _getImageContainer(Map<String, dynamic> currentArticle) {
+    final currentArticle = _articles[_currentArticleIndex];
     final screenSize = MediaQuery.of(context).size;
     final isLandscape = screenSize.width > screenSize.height;
     final imagePath = isLandscape
         ? currentArticle['ImagePathPnr'] ?? ''
         : currentArticle['ImagePathLsr'] ?? '';
 
-    final imageProvider = FileImage(File(imagePath));
+    return Stack(
+      children: [
+        // Image en arrière-plan
+        _buildImageContainer(imagePath, screenSize.width),
 
-    if (_imageSizeCache.containsKey(imagePath)) {
-      return _buildImageContainer(imageProvider, screenSize.width, _imageSizeCache[imagePath]!);
-    }
+        // Flèches de navigation
+        ..._buildNavigationArrows(),
 
-    return FutureBuilder<Size>(
-      future: _getImageSize(imageProvider).then((size) {
-        _imageSizeCache[imagePath] = size;
-        return size;
-      }),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState != ConnectionState.done) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        if (snapshot.hasError || !snapshot.hasData) {
-          return const Center(child: Text('Erreur de chargement de l\'image'));
-        }
-
-        return _buildImageContainer(imageProvider, screenSize.width, snapshot.data!);
-      },
+        // Conteneur avec texte
+        _buildContentContainer(currentArticle, screenSize),
+      ],
     );
   }
 
-  Widget _buildImageContainer(ImageProvider imageProvider, double screenWidth, Size imageSize) {
-    final aspectRatio = imageSize.width / imageSize.height;
-    final containerHeight = screenWidth / aspectRatio;
-
+  Widget _buildImageContainer(String imagePath, double screenWidth) {
     return Container(
       width: double.infinity,
-      height: containerHeight,
+      height: 200, // Hauteur fixe pour éviter le calcul d'aspect ratio
       decoration: BoxDecoration(
         image: DecorationImage(
-          image: imageProvider,
+          image: FileImage(File(imagePath)),
           fit: BoxFit.cover,
         ),
       ),
     );
   }
 
-// Méthode utilitaire pour obtenir la taille de l'image
-  Future<Size> _getImageSize(ImageProvider imageProvider) async {
-    final completer = Completer<Size>();
-    final stream = imageProvider.resolve(const ImageConfiguration());
-    stream.addListener(ImageStreamListener((ImageInfo info, bool _) {
-      completer.complete(Size(
-        info.image.width.toDouble(),
-        info.image.height.toDouble(),
-      ));
-    }, onError: (dynamic error, StackTrace? stackTrace) {
-      completer.completeError(error, stackTrace);
-    }));
-    return completer.future;
+  List<Widget> _buildNavigationArrows() {
+    final arrows = <Widget>[];
+
+    if (_currentArticleIndex < _articles.length - 1) {
+      arrows.add(
+        Positioned(
+          right: 10,
+          top: 60,
+          child: GestureDetector(
+            onTap: () => _navigateArticle(1),
+            child: _buildArrowButton(JwIcons.chevron_right),
+          ),
+        ),
+      );
+    }
+
+    if (_currentArticleIndex > 0) {
+      arrows.add(
+        Positioned(
+          left: 10,
+          top: 60,
+          child: GestureDetector(
+            onTap: () => _navigateArticle(-1),
+            child: _buildArrowButton(JwIcons.chevron_left),
+          ),
+        ),
+      );
+    }
+
+    return arrows;
+  }
+
+  void _navigateArticle(int direction) {
+    setState(() {
+      _currentArticleIndex = (_currentArticleIndex + direction).clamp(0, _articles.length - 1);
+    });
+  }
+
+  Widget _buildContentContainer(Map<String, dynamic> article, Size screenSize) {
+    return Center(
+      child: Container(
+        width: screenSize.width * 0.9, // 90% de la largeur de l'écran
+        constraints: BoxConstraints(
+          maxWidth: 600, // Largeur maximale pour les grands écrans
+          maxHeight: screenSize.height * 0.7, // Maximum 70% de la hauteur
+        ),
+        margin: EdgeInsets.only(top: 140), // Décale le conteneur vers le haut
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.grey[900]!.withOpacity(0.70),
+          borderRadius: BorderRadius.circular(8),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.3),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (article['ContextTitle']?.isNotEmpty == true)
+              _buildText(article['ContextTitle'], 15, FontWeight.bold),
+            _buildText(article['Title'], 26, FontWeight.bold),
+            if (article['Description']?.isNotEmpty == true)
+              _buildDescription(article['Description']),
+            const SizedBox(height: 10),
+            _buildReadMoreButton(article),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildArrowButton(IconData icon) {
     return Container(
       height: 50,
-      width: 50, // Ajout pour garder une surface cliquable correcte
-      alignment: Alignment.center, // Centre l'icône
-      color: Colors.grey[900]!.withOpacity(0.7), // Couleur du conteneur noir
+      width: 50,
+      alignment: Alignment.center,
+      color: Colors.grey[900]!.withOpacity(0.7),
       child: Icon(
         icon,
         color: Colors.white,
@@ -809,59 +923,68 @@ class _HomeViewState extends State<HomeView> {
     );
   }
 
-  Widget _buildTextTitle(String? text, double fontSize, FontWeight fontWeight) {
-    return text != '' ? Text(
-      text ?? '',
+  Widget _buildText(String? text, double fontSize, FontWeight fontWeight) {
+    if (text?.isEmpty != false) return const SizedBox.shrink();
+
+    return Text(
+      text!,
       style: TextStyle(
         fontSize: fontSize,
         fontWeight: fontWeight,
-        color: Colors.white, // Couleur du texte en blanc
+        color: Colors.white,
       ),
-      maxLines: 1, // Limite à 1 ligne si nécessaire
+      maxLines: fontSize > 20 ? 2 : 1,
       overflow: TextOverflow.ellipsis,
-    ) : Container();
-  }
-
-  Widget _buildTextDescription(String? text) {
-    return text != '' ? Padding(
-      padding: const EdgeInsets.only(top: 4),
-      child: Text(
-        text ?? '',
-        style: TextStyle(
-          fontSize: 15,
-          color: Colors.white, // Couleur du texte en blanc
-        ),
-        maxLines: 3, // Limite à 3 lignes si nécessaire
-        overflow: TextOverflow.ellipsis,
-      ),
-    ) : Container();
-  }
-
-  Widget _buildReadMoreButton(BuildContext context, var currentArticle) {
-    return ElevatedButton(
-      onPressed: () {
-        showPage(
-          context,
-          ArticlePage(
-            title: currentArticle['Title'] ?? '',
-            link: currentArticle['Link'] ?? '',
-          ),
-        );
-      },
-      style: ElevatedButton.styleFrom(
-        backgroundColor: Theme.of(context).primaryColor,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(0),
-        ),
-        textStyle: const TextStyle(fontSize: 22),
-      ),
-      child: Text(currentArticle['ButtonText'] ?? '', style: TextStyle(color: Colors.white)),
     );
   }
 
+  Widget _buildDescription(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Text(
+        text,
+        style: const TextStyle(
+          fontSize: 15,
+          color: Colors.white,
+        ),
+        maxLines: 3,
+        overflow: TextOverflow.ellipsis,
+      ),
+    );
+  }
+
+  Widget _buildReadMoreButton(Map<String, dynamic> article) {
+    final buttonText = article['ButtonText'];
+    if (buttonText?.isEmpty != false) return const SizedBox.shrink();
+
+    return ElevatedButton(
+      onPressed: () => _navigateToArticle(article),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Theme.of(context).primaryColor,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.zero,
+        ),
+        textStyle: const TextStyle(fontSize: 22),
+      ),
+      child: Text(
+        buttonText!,
+        style: const TextStyle(color: Colors.white),
+      ),
+    );
+  }
+
+  void _navigateToArticle(Map<String, dynamic> article) {
+    showPage(
+      context,
+      ArticlePage(
+        title: article['Title'] ?? '',
+        link: article['Link'] ?? '',
+      ),
+    );
+  }
 
   Widget _buildLatestVideosWidget() {
-    if (RealmLibrary.latestAudiosVideos.isEmpty) {
+    if (latestAudiosVideos.isEmpty) {
       return const SizedBox(height: 15);
     }
 
@@ -872,7 +995,7 @@ class _HomeViewState extends State<HomeView> {
           height: 150,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
-            itemCount: RealmLibrary.latestAudiosVideos.length,
+            itemCount: latestAudiosVideos.length,
             itemBuilder: (context, mediaIndex) {
               return _buildMediaItemWidget(context, mediaIndex);
             },
@@ -883,7 +1006,7 @@ class _HomeViewState extends State<HomeView> {
   }
 
   Widget _buildMediaItemWidget(BuildContext context, int mediaIndex) {
-    MediaItem mediaItem = RealmLibrary.latestAudiosVideos[mediaIndex];
+    MediaItem mediaItem = latestAudiosVideos[mediaIndex];
     DateTime firstPublished = DateTime.parse(mediaItem.firstPublished!);
     DateTime publishedDate = DateTime(firstPublished.year, firstPublished.month, firstPublished.day);
     DateTime today = DateTime.now();
@@ -987,7 +1110,7 @@ class _HomeViewState extends State<HomeView> {
         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
         child: Row(
           children: [
-            Icon(isAudio ? JwIcons.headphones_simple : JwIcons.play, size: 12, color: Colors.white),
+            Icon(isAudio ? JwIcons.headphones__simple : JwIcons.play, size: 12, color: Colors.white),
             const SizedBox(width: 4),
             Text(
               formatDuration(mediaItem.duration!),
@@ -1054,7 +1177,7 @@ class _HomeViewState extends State<HomeView> {
         onPressed: () async {
           if(await hasInternetConnection()) {
             String link = 'https://b.jw-cdn.org/apis/mediator/v1/media-items/${mediaItem.languageSymbol}/${mediaItem.languageAgnosticNaturalKey}';
-            final response = await http.get(Uri.parse(link));
+            final response = await Api.httpGetWithHeaders(link);
             if (response.statusCode == 200) {
               final jsonFile = response.body;
               final jsonData = json.decode(jsonFile);
@@ -1093,13 +1216,13 @@ class _HomeViewState extends State<HomeView> {
     }
 
     // Rechercher dans les bases de données avec des sujets (topics)
-    final List<Publication> pubsWithTopics = JwLifeApp.pubCollections
-        .getPublications()
+    final List<Publication> pubsWithTopics = PublicationRepository()
+        .getAllDownloadedPublications()
         .where((pub) => pub.hasTopics)
         .toList();
 
     for (final pub in pubsWithTopics) {
-      final db = await openReadOnlyDatabase(pub.databasePath);
+      final db = await openReadOnlyDatabase(pub.databasePath!);
       final topics = await db.rawQuery(
         '''
       SELECT 
@@ -1293,7 +1416,18 @@ class _HomeViewState extends State<HomeView> {
 
   @override
   Widget build(BuildContext context) {
+    // Styles partagés
+    final textStyleTitle = const TextStyle(fontSize: 20, fontWeight: FontWeight.bold);
+    final textStyleSubtitle = TextStyle(
+      fontSize: 14,
+      color: Theme.of(context).brightness == Brightness.dark
+          ? const Color(0xFFc3c3c3)
+          : const Color(0xFF626262),
+
+    );
+
     return Scaffold(
+        resizeToAvoidBottomInset: false,
         appBar: _isSearching
             ? AppBar(
             leading: IconButton(
@@ -1306,7 +1440,7 @@ class _HomeViewState extends State<HomeView> {
             ),
           title: SearchField<SuggestionItem>(
             controller: _searchController,
-            animationDuration: Duration.zero,
+            animationDuration: Duration(milliseconds: 300),
             itemHeight: 53,
             autofocus: true,
             offset: const Offset(-65, 55),
@@ -1364,7 +1498,7 @@ class _HomeViewState extends State<HomeView> {
                 case 2:
                   final publication = await PubCatalog.searchPub(selected.query, 0, JwLifeApp.settings.currentLanguage.id);
                   if (publication != null) {
-                    publication.showMenu(context, update: null);
+                    publication.showMenu(context);
                   } else {
                     showErrorDialog(context, "Aucune publication ${selected.query} n'a pu être trouvée.");
                   }
@@ -1386,7 +1520,13 @@ class _HomeViewState extends State<HomeView> {
             },
             onTapOutside: (_) => setState(() => _isSearching = false),
           )) : AppBar(
-          title: Text(localization(context).navigation_home, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
+          title: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(localization(context).navigation_home, style: textStyleTitle),
+              Text(JwLifeApp.settings.currentLanguage.vernacular, style: textStyleSubtitle),
+            ],
+          ),
           actions: [
             IconButton(
               disabledColor: Colors.grey,
@@ -1415,8 +1555,8 @@ class _HomeViewState extends State<HomeView> {
                   if(value != null) {
                     setState(() async {
                       if (value['Symbol'] != JwLifeApp.settings.currentLanguage.symbol) {
-                        await setLibraryLanguage(value);
-                        await _setStateHomePage();
+                        setLibraryLanguage(value);
+                        _refreshChangeLanguage();
                       }
                     });
                   }
@@ -1478,120 +1618,17 @@ class _HomeViewState extends State<HomeView> {
                             const SizedBox(height: 4),
                           if (JwLifeApp.userdata.favorites.isNotEmpty)
                             SizedBox(
-                              height: 130, // Hauteur à ajuster selon votre besoin
+                              height: 130,
                               child: ListView.builder(
                                 scrollDirection: Axis.horizontal,
                                 itemCount: JwLifeApp.userdata.favorites.length,
                                 itemBuilder: (context, index) {
-                                  Publication publication = JwLifeApp.pubCollections.getPublication(JwLifeApp.userdata.favorites[index]);
-
-                                  return Padding(
-                                    padding: EdgeInsets.only(left: 2.0, right: 2.0),
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        GestureDetector(
-                                          onTap: () {
-                                            publication.showMenu(context, update: (progress) {setState(() {});});
-                                          },
-                                          child: Stack(
-                                            children: [
-                                              ClipRRect(
-                                                borderRadius: BorderRadius.circular(2.0),
-                                                child: ImageCachedWidget(
-                                                    imageUrl: publication.imageSqr,
-                                                    pathNoImage: publication.category.image,
-                                                    height: 80,
-                                                    width: 80
-                                                ),
-                                              ),
-                                              Positioned(
-                                                top: -8,
-                                                right: -10,
-                                                child: PopupMenuButton(
-                                                  popUpAnimationStyle: AnimationStyle.lerp(AnimationStyle(curve: Curves.ease), AnimationStyle(curve: Curves.ease), 0.5),
-                                                  icon: const Icon(Icons.more_vert, color: Colors.white, shadows: [Shadow(color: Colors.black, blurRadius: 5)]),
-                                                  shadowColor: Colors.black,
-                                                  elevation: 8,
-                                                  itemBuilder: (context) => [
-                                                    getPubShareMenuItem(publication),
-                                                    getPubLanguagesItem(context, "Autres langues", publication),
-                                                    getPubFavoriteItem(publication),
-                                                    getPubDownloadItem(context, publication),
-                                                  ],
-                                                ),
-                                              ),
-                                              publication.isDownloading ? Positioned(
-                                                  bottom: -4,
-                                                  right: -8,
-                                                  height: 40,
-                                                  child: IconButton(
-                                                    padding: const EdgeInsets.all(0),
-                                                    onPressed: () {
-                                                      publication.cancelDownload(context, update: (progress) {setState(() {});});
-                                                    },
-                                                    icon: const Icon(JwIcons.x, color: Colors.white, shadows: [Shadow(color: Colors.black, blurRadius: 5)]),
-                                                  )) :
-                                              JwLifeApp.userdata.favorites[index].hasUpdate(publication) ? Positioned(
-                                                  bottom: -4,
-                                                  right: -8,
-                                                  height: 40,
-                                                  child: IconButton(
-                                                    padding: const EdgeInsets.all(0),
-                                                    onPressed: () {
-                                                      publication.download(context, update: (progress) {setState(() {});});
-                                                    },
-                                                    icon: const Icon(JwIcons.arrows_circular, color: Colors.white, shadows: [Shadow(color: Colors.black, blurRadius: 5)]),
-                                                  )) :
-                                              !publication.isDownloaded ? Positioned(
-                                                bottom: -4,
-                                                right: -8,
-                                                height: 40,
-                                                child: IconButton(
-                                                  padding: const EdgeInsets.all(0),
-                                                  onPressed: () {
-                                                    publication.download(context, update: (progress) {setState(() {});});
-                                                  },
-                                                  icon: const Icon(JwIcons.cloud_arrow_down, color: Colors.white, shadows: [Shadow(color: Colors.black, blurRadius: 5)]),
-                                                ),
-                                              ): Container(),
-                                              Positioned(
-                                                bottom: 0,
-                                                right: 0,
-                                                height: 2,
-                                                width: 80,
-                                                child: publication.isDownloading
-                                                    ? LinearProgressIndicator(
-                                                  value: publication.downloadProgress == -1 ? null : publication.downloadProgress,
-                                                  valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).primaryColor),
-                                                  backgroundColor: Colors.grey, // Fond gris
-                                                  minHeight: 2, // Assure que la hauteur est bien prise en compte
-                                                )
-                                                    : Container(),
-                                              )
-                                            ],
-                                          ),
-                                        ),
-                                        SizedBox(height: 2),
-                                        SizedBox(
-                                          width: 75,
-                                          child: Text(
-                                            publication.title,
-                                            style: TextStyle(
-                                                fontSize: 9.0, height: 1.2
-                                            ),
-                                            maxLines: 3,
-                                            overflow: TextOverflow.ellipsis,
-                                            textAlign: TextAlign.start,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  );
+                                  Publication publication = JwLifeApp.userdata.favorites[index];
+                                  return HomeSquarePublicationItem(pub: publication);
                                 },
                               ),
                             ),
-                          const SizedBox(height: 20),
+
                           if (PubCatalog.recentPublications.isNotEmpty)
                             Text(
                               'Publications récentes',
@@ -1606,114 +1643,13 @@ class _HomeViewState extends State<HomeView> {
                                 scrollDirection: Axis.horizontal,
                                 itemCount: PubCatalog.recentPublications.length,
                                 itemBuilder: (context, index) {
-                                  Publication publication = JwLifeApp.pubCollections.getPublication(PubCatalog.recentPublications[index]);
-
-                                  return Padding(
-                                    padding: EdgeInsets.only(left: 2.0, right: 2.0),
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        GestureDetector(
-                                          onTap: () {
-                                            publication.showMenu(context, update: (progress) {setState(() {});});
-                                          },
-                                          child: Stack(
-                                            children: [
-                                              ClipRRect(
-                                                borderRadius: BorderRadius.circular(2.0),
-                                                child: ImageCachedWidget(
-                                                    imageUrl: publication.imageSqr,
-                                                    pathNoImage: publication.category.image,
-                                                    height: 80,
-                                                    width: 80
-                                                ),
-                                              ),
-                                              Positioned(
-                                                top: -8,
-                                                right: -10,
-                                                child: PopupMenuButton(
-                                                  popUpAnimationStyle: AnimationStyle.lerp(AnimationStyle(curve: Curves.ease), AnimationStyle(curve: Curves.ease), 0.5),
-                                                  icon: const Icon(Icons.more_vert, color: Colors.white, shadows: [Shadow(color: Colors.black, blurRadius: 5)]),
-                                                  shadowColor: Colors.black,
-                                                  elevation: 8,
-                                                  itemBuilder: (context) => [
-                                                    getPubShareMenuItem(publication),
-                                                    getPubLanguagesItem(context, "Autres langues", publication),
-                                                    getPubFavoriteItem(publication),
-                                                    getPubDownloadItem(context, publication),
-                                                  ],
-                                                ),
-                                              ),
-                                              publication.isDownloading ? Positioned(
-                                                  bottom: -4,
-                                                  right: -8,
-                                                  height: 40,
-                                                  child: IconButton(
-                                                    padding: const EdgeInsets.all(0),
-                                                    onPressed: () {
-                                                      publication.cancelDownload(context, update: (progress) {setState(() {});});
-                                                    },
-                                                    icon: const Icon(JwIcons.x, color: Colors.white, shadows: [Shadow(color: Colors.black, blurRadius: 5)]),
-                                                  )) :
-                                              PubCatalog.recentPublications[index].hasUpdate(publication) ? Positioned(
-                                                  bottom: -4,
-                                                  right: -8,
-                                                  height: 40,
-                                                  child: IconButton(
-                                                    padding: const EdgeInsets.all(0),
-                                                    onPressed: () {
-                                                      publication.download(context, update: (progress) {setState(() {});});
-                                                    },
-                                                    icon: const Icon(JwIcons.arrows_circular, color: Colors.white, shadows: [Shadow(color: Colors.black, blurRadius: 5)]),
-                                                  )) :
-                                              !publication.isDownloaded ? Positioned(
-                                                bottom: -4,
-                                                right: -8,
-                                                height: 40,
-                                                child: IconButton(
-                                                  padding: const EdgeInsets.all(0),
-                                                  onPressed: () {
-                                                    publication.download(context, update: (progress) {setState(() {});});
-                                                  },
-                                                  icon: const Icon(JwIcons.cloud_arrow_down, color: Colors.white, shadows: [Shadow(color: Colors.black, blurRadius: 5)]),
-                                                ),
-                                              ): Container(),
-                                              Positioned(
-                                                bottom: 0,
-                                                right: 0,
-                                                height: 2,
-                                                width: 80,
-                                                child: publication.isDownloading
-                                                    ? LinearProgressIndicator(
-                                                  value: publication.downloadProgress == -1 ? null : publication.downloadProgress,
-                                                  valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).primaryColor),
-                                                  backgroundColor: Colors.grey, // Fond gris
-                                                  minHeight: 2, // Assure que la hauteur est bien prise en compte
-                                                )
-                                                    : Container(),
-                                              )
-                                            ],
-                                          ),
-                                        ),
-                                        SizedBox(height: 2),
-                                        SizedBox(
-                                          width: 75,
-                                          child: Text(
-                                            publication.title,
-                                            style: TextStyle(
-                                                fontSize: 9.0, height: 1.2
-                                            ),
-                                            maxLines: 3,
-                                            overflow: TextOverflow.ellipsis,
-                                            textAlign: TextAlign.start,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  );
+                                  Publication publication = PubCatalog.recentPublications[index];
+                                  return HomeSquarePublicationItem(pub: publication);
                                 },
                               ),
                             ),
+
+                          /// Teaching Toolbox
                           Text(
                             localization(context).navigation_ministry,
                             style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
@@ -1724,12 +1660,12 @@ class _HomeViewState extends State<HomeView> {
                             height: 130,
                             child: ListView.builder(
                               scrollDirection: Axis.horizontal,
-                              itemCount: RealmLibrary.teachingToolboxVideos.length + PubCatalog.teachingToolBoxPublications.length,
+                              itemCount: teachingToolboxVideos.length + PubCatalog.teachingToolBoxPublications.length,
                               itemBuilder: (context, index) {
                                 // Déterminer si l'élément est une vidéo ou une publication
-                                if (index < RealmLibrary.teachingToolboxVideos.length) {
+                                if (index < teachingToolboxVideos.length) {
                                   // Partie des vidéos
-                                  MediaItem mediaItem = RealmLibrary.teachingToolboxVideos[index];
+                                  MediaItem mediaItem = teachingToolboxVideos[index];
                                   bool isAudio = mediaItem.type == "AUDIO";
 
                                   return Padding(
@@ -1783,7 +1719,7 @@ class _HomeViewState extends State<HomeView> {
                                                   child: Row(
                                                     children: [
                                                       Icon(
-                                                        isAudio ? JwIcons.headphones_simple : JwIcons.play,
+                                                        isAudio ? JwIcons.headphones__simple : JwIcons.play,
                                                         size: 10,
                                                         color: Colors.white,
                                                       ),
@@ -1815,97 +1751,18 @@ class _HomeViewState extends State<HomeView> {
                                   );
                                 }
                                 else {
-                                  int pubIndex = index - RealmLibrary.teachingToolboxVideos.length;
+                                  int pubIndex = index - teachingToolboxVideos.length;
                                   Publication? pub = PubCatalog.teachingToolBoxPublications[pubIndex];
 
                                   // Vérifier si la valeur est présente dans availableTeachingToolBoxInt
                                   if (pub != null) {
-                                    Publication? publication = JwLifeApp.pubCollections.getPublication(pub);
-                                    return Padding(
-                                      padding: EdgeInsets.symmetric(horizontal: 2.0),
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          GestureDetector(
-                                            onTap: () {
-                                              publication.showMenu(context, update: (progress) {setState(() {});});
-                                            },
-                                            child: Stack(
-                                              children: [
-                                                ClipRRect(
-                                                  borderRadius: BorderRadius.circular(2.0),
-                                                  child: ImageCachedWidget(
-                                                    imageUrl: publication.imageSqr,
-                                                    pathNoImage: publication.category.image,
-                                                    height: 80,
-                                                    width: 80,
-                                                  ),
-                                                ),
-                                                Positioned(
-                                                  top: -8,
-                                                  right: -10,
-                                                  child: PopupMenuButton(
-                                                    icon: const Icon(Icons.more_vert, color: Colors.white, shadows: [Shadow(color: Colors.black, blurRadius: 5)]),
-                                                    shadowColor: Colors.black,
-                                                    elevation: 8,
-                                                    itemBuilder: (context) => [
-                                                      getPubShareMenuItem(publication),
-                                                      getPubLanguagesItem(context, "Autres langues", publication),
-                                                      getPubFavoriteItem(publication),
-                                                      getPubDownloadItem(context, publication),
-                                                    ],
-                                                  ),
-                                                ),
-                                                if (!publication.isDownloaded && publication.downloadProgress == 0)
-                                                  Positioned(
-                                                    bottom: -4,
-                                                    right: -8,
-                                                    height: 40,
-                                                    child: IconButton(
-                                                      padding: const EdgeInsets.all(0),
-                                                      onPressed: () {
-                                                        publication.download(context, update: (progress) {setState(() {});});
-                                                      },
-                                                      icon: const Icon(JwIcons.cloud_arrow_down, color: Colors.white, shadows: [Shadow(color: Colors.black, blurRadius: 5)]),
-                                                    ),
-                                                  ),
-                                                Positioned(
-                                                  bottom: 0,
-                                                  right: 0,
-                                                  height: 2,
-                                                  width: 80,
-                                                  child: publication.downloadProgress != 0
-                                                      ? LinearProgressIndicator(
-                                                    value: publication.downloadProgress == -1 ? null : publication.downloadProgress,
-                                                    valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).primaryColor),
-                                                    backgroundColor: Colors.grey,
-                                                    minHeight: 2,
-                                                  )
-                                                      : Container(),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                          SizedBox(height: 2),
-                                          SizedBox(
-                                            width: 75,
-                                            child: Text(
-                                              publication.title,
-                                              style: TextStyle(fontSize: 9.0, height: 1.2),
-                                              maxLines: 3,
-                                              overflow: TextOverflow.ellipsis,
-                                              textAlign: TextAlign.start,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    );
+                                    return HomeSquarePublicationItem(pub: pub);
                                   }
                                   else {
                                     return Padding(
                                         padding: EdgeInsets.symmetric(horizontal: 2.0),
                                         child: SizedBox(
-                                            width: 30
+                                            width: 25
                                         )
                                     );
                                   }
@@ -1921,165 +1778,11 @@ class _HomeViewState extends State<HomeView> {
                           const SizedBox(height: 4),
                           SizedBox(
                             height: 85, // Adjust height as needed
-                            child: PubCatalog.lastPublications.isEmpty ? getLoadingWidget() : ListView.builder(
+                            child: PubCatalog.lastPublications.isEmpty ? getLoadingWidget(Theme.of(context).primaryColor) : ListView.builder(
                               scrollDirection: Axis.horizontal, // Définit le scroll en horizontal
                               itemCount: PubCatalog.lastPublications.length,
                               itemBuilder: (context, index) {
-                                Publication pub = PubCatalog.lastPublications[index];
-
-                                Publication publication = JwLifeApp.pubCollections.getPublication(pub);
-
-                                return GestureDetector(
-                                  onTap: () {
-                                    publication.showMenu(context, update: (progress) {setState(() {});});
-                                  },
-                                  child: Container(
-                                    margin: EdgeInsets.symmetric(horizontal: 2.0), // Espacement supplémentaire entre chaque ListTile
-                                    decoration: BoxDecoration(
-                                        color: Theme.of(context).brightness == Brightness.dark ? Color(0xFF292929) : Colors.white
-                                    ),
-                                    child: SizedBox(
-                                      height: 85,
-                                      width: 340,
-                                      child: Stack(
-                                        children: [
-                                          Row(
-                                            children: [
-                                              ClipRRect(
-                                                child: ImageCachedWidget(
-                                                  imageUrl: publication.imageSqr,
-                                                  pathNoImage: publication.category.image,
-                                                  height: 85,
-                                                  width: 85,
-                                                ),
-                                              ),
-                                              Expanded(
-                                                flex: 1,
-                                                child: Padding(
-                                                  padding: const EdgeInsets.only(left: 7.0, right: 25.0, top: 4.0, bottom: 4.0),
-                                                  child: Column(
-                                                    mainAxisAlignment: MainAxisAlignment.center,
-                                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                                    children: [
-                                                      Text(
-                                                        publication.issueTagNumber == 0 ? publication.category.getName(context) : publication.issueTitle,
-                                                        maxLines: 1,
-                                                        overflow: TextOverflow.ellipsis,
-                                                        style: TextStyle(
-                                                          fontSize: 11,
-                                                          color: Theme.of(context).brightness == Brightness.dark
-                                                              ? const Color(0xFFc3c3c3)
-                                                              : const Color(0xFF626262),
-                                                        ),
-                                                      ),
-                                                      Text(
-                                                        publication.issueTagNumber == 0 ? publication.title : publication.coverTitle,
-                                                        style: TextStyle(
-                                                          fontSize: 14,
-                                                          color: Theme.of(context).secondaryHeaderColor,
-                                                        ),
-                                                        maxLines: 2, // Limite à deux lignes
-                                                        overflow: TextOverflow.ellipsis, // Tronque le texte avec des points de suspension
-                                                      ),
-                                                      const Spacer(),
-                                                      Text(
-                                                        pub.getRelativeDateText(),
-                                                        style: TextStyle(
-                                                          fontSize: 11,
-                                                          color: Theme.of(context).brightness == Brightness.dark
-                                                              ? const Color(0xFFc3c3c3)
-                                                              : const Color(0xFF626262),
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                          Positioned(
-                                            top: -5,
-                                            right: -15,
-                                            child: PopupMenuButton(
-                                              popUpAnimationStyle: AnimationStyle.lerp(AnimationStyle(curve: Curves.ease), AnimationStyle(curve: Curves.ease), 0.5),
-                                              icon: Icon(Icons.more_vert, color: Color(0xFF9d9d9d)),
-                                              itemBuilder: (context) => [
-                                                getPubShareMenuItem(publication),
-                                                getPubLanguagesItem(context, "Autres langues", publication),
-                                                getPubFavoriteItem(publication),
-                                                getPubDownloadItem(context, publication, update: (progress) {
-                                                  setState(() {});
-                                                }),
-                                              ],
-                                            ),
-                                          ),
-                                          publication.isDownloading ? Positioned(
-                                              bottom: -2,
-                                              right: -8,
-                                              height: 40,
-                                              child: IconButton(
-                                                padding: const EdgeInsets.all(0),
-                                                onPressed: () {
-                                                  publication.cancelDownload(context, update: (progress) {setState(() {});});
-                                                },
-                                                icon: Icon(JwIcons.x, color: Color(0xFF9d9d9d)),
-                                              )) : pub.hasUpdate(publication) ? Positioned(
-                                              bottom: 5,
-                                              right: -8,
-                                              height: 40,
-                                              child: IconButton(
-                                                padding: const EdgeInsets.all(0),
-                                                onPressed: () {
-                                                  publication.update(context, update: (progress) {setState(() {});});
-                                                },
-                                                icon: Icon(JwIcons.arrows_circular, color: Color(0xFF9d9d9d)),
-                                              )) :
-                                          !publication.isDownloaded ? Positioned(
-                                            bottom: 5,
-                                            right: -8,
-                                            height: 40,
-                                            child: IconButton(
-                                              padding: const EdgeInsets.all(0),
-                                              onPressed: () {
-                                                publication.download(context, update: (progress) {setState(() {});});
-                                              },
-                                              icon: Icon(JwIcons.cloud_arrow_down, color: Color(0xFF9d9d9d)),
-                                            ),
-                                          ): Container(),
-                                          (!publication.isDownloaded || pub.hasUpdate(publication)) && !publication.isDownloading ? Positioned(
-                                              bottom: 0,
-                                              right: -5,
-                                              width: 50,
-                                              child: Text(
-                                                textAlign: TextAlign.center,
-                                                formatFileSize(publication.expandedSize),
-                                                style: TextStyle(
-                                                  fontSize: 11,
-                                                  color: Theme.of(context).brightness == Brightness.dark
-                                                      ? const Color(0xFFc3c3c3)
-                                                      : const Color(0xFF626262),
-                                                ),
-                                              )
-                                          ) : Container(),
-                                          Positioned(
-                                            bottom: 0,
-                                            right: 0,
-                                            height: 2,
-                                            width: 340-85,
-                                            child: publication.isDownloading
-                                                ? LinearProgressIndicator(
-                                              value: publication.downloadProgress == -1 ? null : publication.downloadProgress,
-                                              valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).primaryColor),
-                                              backgroundColor: Colors.grey, // Fond gris
-                                              minHeight: 2, // Assure que la hauteur est bien prise en compte
-                                            )
-                                                : Container(),
-                                          )
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                );
+                                return HomeRectanglePublicationItem(pub: PubCatalog.lastPublications[index]);
                               },
                             ),
                           ),

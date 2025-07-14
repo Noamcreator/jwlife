@@ -7,6 +7,7 @@ import 'package:jwlife/video/subtitles.dart';
 import 'package:http/http.dart' as http;
 
 import '../app/jwlife_app.dart';
+import '../core/api.dart';
 import '../core/icons.dart';
 
 class LyricsPage extends StatefulWidget {
@@ -33,7 +34,7 @@ class _LyricsPageState extends State<LyricsPage> {
   }
 
   void fetchLyrics(String apiVideoUrl) async {
-    final response = await http.get(Uri.parse(apiVideoUrl));
+    final response = await Api.httpGetWithHeaders(apiVideoUrl);
     if (response.statusCode == 200) {
       // Parse le contenu HTML
       var document = parse(response.body);

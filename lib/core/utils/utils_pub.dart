@@ -1,9 +1,14 @@
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/data/databases/Publication.dart';
+import 'package:jwlife/data/databases/PublicationRepository.dart';
 import 'package:jwlife/modules/home/views/home_view.dart';
+import 'package:jwlife/modules/library/views/publication/local/publication_menu_view.dart';
 import 'package:jwlife/widgets/dialog/language_dialog_pub.dart';
+
+import 'common_ui.dart';
 
 
 PopupMenuItem getPubShareMenuItem(Publication publication) {
@@ -32,12 +37,12 @@ PopupMenuItem getPubLanguagesItem(BuildContext context, String title, Publicatio
     ),
     onTap: () {
       LanguagesPubDialog languageDialog = LanguagesPubDialog(publication: publication);
-      showDialog(
+      showDialog<Publication>(
         context: context,
         builder: (context) => languageDialog,
-      ).then((value) {
-          if (value != null) {
-            //showPage(context, PublicationMenu(publication: publication, publicationLanguage: value));
+      ).then((languagePub) {
+          if (languagePub != null) {
+            languagePub.showMenu(context);
           }
         }
       );
@@ -46,25 +51,25 @@ PopupMenuItem getPubLanguagesItem(BuildContext context, String title, Publicatio
 }
 
 PopupMenuItem getPubFavoriteItem(Publication pub) {
-  bool isFavorite = JwLifeApp.userdata.isPubFavorite(pub);
-
   return PopupMenuItem(
     child: Row(
       children: [
-        isFavorite ? Icon(JwIcons.star_fill) : Icon(JwIcons.star),
+        pub.isFavoriteNotifier.value ? Icon(JwIcons.star__fill) : Icon(JwIcons.star),
         SizedBox(width: 8),
-        isFavorite ? Text('Supprimer des favoris') : Text('Ajouter aux favoris')
+        pub.isFavoriteNotifier.value ? Text('Supprimer des favoris') : Text('Ajouter aux favoris')
       ],
     ),
     onTap: () async {
-      if (isFavorite) {
+      if (pub.isFavoriteNotifier.value) {
         await JwLifeApp.userdata.removePubFavorite(pub);
+        pub.isFavoriteNotifier.value = false;
       }
       else {
         await JwLifeApp.userdata.addPubFavorite(pub);
+        pub.isFavoriteNotifier.value = true;
       }
 
-      HomeView.refreshHomeView();
+      //HomeView.refreshHomeView();
     },
   );
 }
@@ -73,17 +78,17 @@ PopupMenuItem getPubDownloadItem(BuildContext context, Publication publication, 
   return PopupMenuItem(
     child: Row(
       children: [
-        publication.isDownloaded ? Icon(JwIcons.trash) : Icon(JwIcons.cloud_arrow_down),
+        publication.isDownloadedNotifier.value ? Icon(JwIcons.trash) : Icon(JwIcons.cloud_arrow_down),
         SizedBox(width: 8),
-        publication.isDownloaded ? Text('Supprimer') : Text('Télécharger'),
+        publication.isDownloadedNotifier.value ? Text('Supprimer') : Text('Télécharger'),
       ],
     ),
     onTap: () async {
-      if (publication.isDownloaded) {
-         publication.remove(context, update: update);
+      if (publication.isDownloadedNotifier.value) {
+         publication.remove(context);
       }
       else {
-        publication.download(context, update: update);
+        publication.download(context);
       }
     },
   );

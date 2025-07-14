@@ -8,9 +8,13 @@ import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/core/utils/utils_pub.dart';
 import 'package:jwlife/data/databases/Publication.dart';
 import 'package:jwlife/data/databases/PublicationCategory.dart';
+import 'package:jwlife/data/databases/PublicationRepository.dart';
 import 'package:jwlife/data/databases/catalog.dart';
+import 'package:jwlife/modules/library/widgets/RectanglePublicationItem.dart';
 import 'package:jwlife/widgets/dialog/language_dialog.dart';
 import 'package:jwlife/widgets/image_widget.dart';
+
+import '../../../../data/databases/PublicationAttribute.dart';
 
 class PublicationsItemsView extends StatefulWidget {
   final PublicationCategory category;
@@ -23,7 +27,7 @@ class PublicationsItemsView extends StatefulWidget {
 }
 
 class _PublicationsItemsViewState extends State<PublicationsItemsView> {
-  Map<int, List<Publication>> publications = {};
+  Map<PublicationAttribute, List<Publication>> publications = {};
 
   @override
   void initState() {
@@ -32,7 +36,7 @@ class _PublicationsItemsViewState extends State<PublicationsItemsView> {
   }
 
   void loadItems() async {
-    Map<int, List<Publication>> publications;
+    Map<PublicationAttribute, List<Publication>> publications;
 
     if (widget.year != null) {
       // Récupération des publications pour une année spécifique
@@ -50,29 +54,14 @@ class _PublicationsItemsViewState extends State<PublicationsItemsView> {
     this.publications = publications;
 
     // Ajoute les publications manquantes provenant des collections personnelles
-    for (var pub in JwLifeApp.pubCollections.publications) {
-      if (pub.category.id == widget.category.id && pub.mepsLanguage.id == JwLifeApp.settings.currentLanguage.id && (widget.year == null || pub.year == widget.year) && !this.publications.values.expand((list) => list).any((p) => p.keySymbol == pub.keySymbol && p.issueTagNumber == pub.issueTagNumber)) {
-        if (pub.attribute.isNotEmpty) {
-          String attribute = pub.attribute;
-          int? attributeId = attributes.entries
-              .firstWhere((entry) => entry.value['attribute'] == attribute, orElse: () => MapEntry(0, {}))
-              .key;
-
-          if (attributeId != 0) {
-            publications.putIfAbsent(attributeId, () => []).add(pub);
-          }
-          else {
-            this.publications.putIfAbsent(pub.attributeId, () => []).add(pub);
-          }
-        }
-        else {
-          this.publications.putIfAbsent(pub.attributeId, () => []).add(pub); // Ajout à l'année 0 si aucune année spécifique
-        }
+    for (var pub in PublicationRepository().getAllDownloadedPublications()) {
+      if (pub.category.id == widget.category.id && pub.mepsLanguage.id == JwLifeApp.settings.currentLanguage.id && (widget.year == null || pub.year == widget.year) && !this.publications.values.expand((list) => list).any((p) => p.symbol == pub.symbol && p.issueTagNumber == pub.issueTagNumber)) {
+        this.publications.putIfAbsent(pub.attribute, () => []).add(pub);
       }
     }
 
     var sortedEntries = this.publications.keys.toList()
-      ..sort((a, b) => a.compareTo(b)); // Trie par ordre croissant des clés
+      ..sort((a, b) => a.id.compareTo(b.id)); // Trie par ordre croissant des clés
 
     // Rafraîchit l'interface
     setState(() {
@@ -130,20 +119,20 @@ class _PublicationsItemsViewState extends State<PublicationsItemsView> {
           child: ListView.builder(
             itemCount: publications.length,
             itemBuilder: (context, index) {
-              int categorySymbol = publications.keys.elementAt(index);
-              List<Publication> categoryPublications = publications[categorySymbol]!;
+              PublicationAttribute attribute = publications.keys.elementAt(index);
+              List<Publication> publicationsFromAttribute = publications[attribute]!;
 
               // Tri des publications selon la logique appropriée
               if (widget.category.hasYears) {
-                categoryPublications.sort((a, b) => a.issueTagNumber.compareTo(b.issueTagNumber));
+                publicationsFromAttribute.sort((a, b) => a.issueTagNumber.compareTo(b.issueTagNumber));
               }
               else {
-                bool shouldSortByYear = categorySymbol != -1 && attributes[categorySymbol]!['order'] == 1;
+                bool shouldSortByYear = attribute.id != -1 && attribute.order == 1;
 
                 if (shouldSortByYear) {
-                  categoryPublications.sort((a, b) => b.year.compareTo(a.year));
+                  publicationsFromAttribute.sort((a, b) => b.year.compareTo(a.year));
                 } else {
-                  categoryPublications.sort((a, b) {
+                  publicationsFromAttribute.sort((a, b) {
                     String titleA = a.title.toLowerCase();
                     String titleB = b.title.toLowerCase();
                     bool isSpecialA = RegExp(r'^[^a-zA-Z]').hasMatch(titleA);
@@ -156,11 +145,11 @@ class _PublicationsItemsViewState extends State<PublicationsItemsView> {
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (categorySymbol != -1)
+                  if (attribute.id != 0)
                     Padding(
                       padding: EdgeInsets.only(top: index == 0 ? 0.0 : 40.0, bottom: 5.0),
                       child: Text(
-                        attributes[categorySymbol]!['name'],
+                        attribute.name,
                         style: TextStyle(
                           fontSize: 22,
                           fontWeight: FontWeight.bold,
@@ -173,21 +162,8 @@ class _PublicationsItemsViewState extends State<PublicationsItemsView> {
                   Wrap(
                     spacing: 3.0,
                     runSpacing: 3.0,
-                    children: categoryPublications.map((pub) {
-                      Publication downloadPublication = JwLifeApp.pubCollections.getPublication(pub);
-                      return GestureDetector(
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: Theme.of(context).brightness == Brightness.dark
-                                ? const Color(0xFF292929)
-                                : Colors.white,
-                          ),
-                          child: _buildCategoryButton(context, downloadPublication, pub),
-                        ),
-                        onTap: () {
-                          downloadPublication.showMenu(context, update: (progress) => setState(() {}));
-                        },
-                      );
+                    children: publicationsFromAttribute.map((publication) {
+                      return RectanglePublicationItem(pub: publication);
                     }).toList(),
                   ),
                 ],
@@ -195,166 +171,6 @@ class _PublicationsItemsViewState extends State<PublicationsItemsView> {
             },
           ),
         )
-    );
-  }
-
-  Widget _buildCategoryButton(BuildContext context, Publication downloadPub, Publication pub) {
-    return SizedBox(
-      height: 80,
-      child: Stack(
-        children: [
-          Row(
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(0),
-                child: ImageCachedWidget(
-                    imageUrl: downloadPub.imageSqr,
-                    pathNoImage: widget.category.image,
-                    height: 80,
-                    width: 80
-                ),
-              ),
-              Expanded(
-                flex: 1,
-                child: Padding(
-                  padding: const EdgeInsets.only(left: 10.0, right: 20.0, top: 4.0, bottom: 4.0),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (downloadPub.issueTitle.isNotEmpty)
-                        Text(
-                          downloadPub.issueTitle,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Theme.of(context).brightness == Brightness.dark
-                                ? const Color(0xFFc3c3c3)
-                                : const Color(0xFF626262),
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      if (downloadPub.coverTitle.isNotEmpty)
-                        Text(
-                          downloadPub.coverTitle,
-                          style: TextStyle(
-                            fontSize: 14,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      if (downloadPub.issueTitle.isEmpty && downloadPub.coverTitle.isEmpty)
-                        Text(
-                          downloadPub.title,
-                          style: TextStyle(fontSize: 14),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      Spacer(),
-                      Text(
-                        '${downloadPub.year} - ${downloadPub.symbol}',
-                        style: TextStyle(fontSize: 12, color: Theme.of(context).brightness == Brightness.dark
-                            ? const Color(0xFFc3c3c3)
-                            : const Color(0xFF626262),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-          Positioned(
-            top: -5,
-            right: -10,
-            child: PopupMenuButton(
-              icon: Icon(Icons.more_vert, color: Theme.of(context).brightness == Brightness.dark ?
-              const Color(0xFFc3c3c3)
-                  : const Color(0xFF626262),
-              ),
-              itemBuilder: (BuildContext context) {
-                return [
-                  getPubShareMenuItem(downloadPub),
-                  getPubLanguagesItem(context, "Autres langues", downloadPub),
-                  getPubFavoriteItem(downloadPub),
-                  getPubDownloadItem(context, downloadPub, update: (progress) {
-                    setState(() {});
-                  }),
-                ];
-              },
-            ),
-          ),
-          JwLifeApp.userdata.isPubFavorite(downloadPub) ? Positioned(
-              bottom: -2,
-              right: 3,
-              height: 40,
-              child: Icon(
-                  JwIcons.star,
-                  color: Color(0xFF9d9d9d)
-              )) : downloadPub.isDownloading ? Positioned(
-              bottom: -2,
-              right: -8,
-              height: 40,
-              child: IconButton(
-                padding: const EdgeInsets.all(0),
-                onPressed: () {
-                  downloadPub.cancelDownload(context, update: (progress) {setState(() {});});
-                },
-                icon: Icon(JwIcons.x, color: Color(0xFF9d9d9d)),
-              )) : pub.hasUpdate(downloadPub) ? Positioned(
-              bottom: 5,
-              right: -8,
-              height: 40,
-              child: IconButton(
-                padding: const EdgeInsets.all(0),
-                onPressed: () {
-                  downloadPub.update(context, update: (progress) {setState(() {});});
-                },
-                icon: Icon(JwIcons.arrows_circular, color: Color(0xFF9d9d9d)),
-              )) :
-          !downloadPub.isDownloaded ? Positioned(
-            bottom: 5,
-            right: -8,
-            height: 40,
-            child: IconButton(
-              padding: const EdgeInsets.all(0),
-              onPressed: () {
-                downloadPub.download(context, update: (progress) {setState(() {});});
-              },
-              icon: Icon(JwIcons.cloud_arrow_down, color: Color(0xFF9d9d9d)),
-            ),
-          ): Container(),
-          (!downloadPub.isDownloaded || pub.hasUpdate(downloadPub)) && !downloadPub.isDownloading ? Positioned(
-              bottom: 0,
-              right: -5,
-              width: 50,
-              child: Text(
-                textAlign: TextAlign.center,
-                formatFileSize(downloadPub.expandedSize),
-                style: TextStyle(
-                  fontSize: 11,
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? const Color(0xFFc3c3c3)
-                      : const Color(0xFF626262),
-                ),
-              )
-          ) : Container(),
-          Positioned(
-            bottom: 0,
-            right: 0,
-            height: 2,
-            width: 386-85,
-            child: downloadPub.isDownloading
-                ? LinearProgressIndicator(
-              value: downloadPub.downloadProgress == -1 ? null : downloadPub.downloadProgress,
-              valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).primaryColor),
-              backgroundColor: Colors.grey, // Fond gris
-              minHeight: 2, // Assure que la hauteur est bien prise en compte
-            )
-                : Container(),
-          )
-        ],
-      ),
     );
   }
 }

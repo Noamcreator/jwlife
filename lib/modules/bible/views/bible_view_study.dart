@@ -4,6 +4,8 @@ import 'package:html/parser.dart' as html_parser;
 import 'package:html/dom.dart' as html;
 import 'package:jwlife/core/icons.dart';
 
+import '../../../core/api.dart';
+
 class BibleView extends StatefulWidget {
   final String link;
 
@@ -30,8 +32,7 @@ class _BibleViewState extends State<BibleView> {
     });
 
     try {
-      final response =
-      await http.get(Uri.parse('https://wol.jw.org/' + widget.link));
+      final response = await Api.httpGetWithHeaders('https://wol.jw.org/${widget.link}');
       if (response.statusCode == 200) {
         final document = html_parser.parse(response.body);
 

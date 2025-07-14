@@ -120,6 +120,7 @@ class _PredicationViewState extends State<PredicationView>
     return DefaultTabController(
         length: 4,
         child: Scaffold(
+          resizeToAvoidBottomInset: false,
           appBar: AppBar(
             title: Text('Prédication',
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),

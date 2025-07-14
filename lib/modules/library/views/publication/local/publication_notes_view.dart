@@ -2,13 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/data/userdata/Note.dart';
+import 'package:jwlife/modules/library/views/publication/local/document/document.dart';
 import 'package:jwlife/modules/personal/views/category_view.dart';
 import 'package:jwlife/modules/personal/views/note_view.dart';
 
 class PublicationNotesView extends StatefulWidget {
-  final int docId;
+  final Document document;
 
-  PublicationNotesView({Key? key, required this.docId}) : super(key: key);
+  PublicationNotesView({Key? key, required this.document}) : super(key: key);
 
   @override
   _PublicationNotesViewState createState() => _PublicationNotesViewState();
@@ -33,7 +34,7 @@ class _PublicationNotesViewState extends State<PublicationNotesView> {
 
   Future<List<Map<String, dynamic>>> _loadLanguageAndFetchNotes() async {
     lang = JwLifeApp.settings.currentLanguage.id;
-    return JwLifeApp.userdata.getNotesFromDocId(widget.docId, lang);
+    return widget.document.notes;
   }
 
   @override

@@ -10,6 +10,7 @@ import 'package:jwlife/data/databases/Publication.dart';
 import 'dart:typed_data';
 import 'package:encrypt/encrypt.dart' as encrypt;
 
+import '../api.dart';
 import 'directory_helper.dart';
 
 Future<Publication?> downloadJwpubFile(Publication publication, BuildContext context, CancelToken? cancelToken, {void Function(double downloadProgress)? update}) async {
@@ -18,41 +19,53 @@ Future<Publication?> downloadJwpubFile(Publication publication, BuildContext con
     'issue': publication.issueTagNumber.toString(),
     'langwritten': publication.mepsLanguage.symbol,
     'fileformat': 'jwpub',
+    //'jwlversion':
   };
+
+  /*
+  headers: {
+    'User-Agent': 'jwlibrary-android',
+  'Accept-Encoding': 'identity',
+  'Host': host
+},
+
+   */
 
   final url = Uri.https('b.jw-cdn.org', '/apis/pub-media/GETPUBMEDIALINKS', queryParams);
   print('Generated URL: $url');
 
   try {
     final response = await Dio().getUri(url);
-
     if (response.statusCode == 200) {
       final data = response.data;
       final downloadUrl = data['files'][publication.mepsLanguage.symbol]['JWPUB'][0]['file']['url'];
       print('downloadUrl: $downloadUrl');
 
+      Map<String, String> headers = Api.getHeaders();
+
       Dio dio = Dio();
       final responseBytes = await dio.get(
         downloadUrl,
-        options: Options(responseType: ResponseType.bytes),
-        cancelToken: cancelToken, // Ajouter le cancelToken ici
+        options: Options(
+          responseType: ResponseType.bytes,
+          headers: headers
+        ),
+        cancelToken: cancelToken,
         onReceiveProgress: (received, total) {
           if (total != -1) {
             double progress = (received / total);
-            publication.downloadProgress = progress > 1 ? -1 : progress;
-            update?.call(publication.downloadProgress);
+            publication.progressNotifier.value = progress > 1 ? -1 : progress;
           }
         },
       );
 
-      publication.downloadProgress = -1;
-      update?.call(publication.downloadProgress);
-
-      publication.downloadProgress = 0;
-      update?.call(publication.downloadProgress);
-
-      return await jwpubUnzip(responseBytes.data, context, publication: publication);
-    } else {
+      if (responseBytes.statusCode == 200) {
+        publication.progressNotifier.value = -1;
+        return await jwpubUnzip(responseBytes.data, context, publication: publication);
+      }
+      return null;
+    }
+    else {
       throw Exception('Erreur lors de la récupération des données');
     }
   }
@@ -117,7 +130,7 @@ Future<Publication> jwpubUnzip(List<int> bytes, BuildContext context, {Publicati
 }
 
 Future<void> removeJwpubFile(Publication pub) async {
-  Directory path = Directory(pub.path);
+  Directory path = Directory(pub.path!);
   if (await path.exists()) {
     try {
       await path.delete(recursive: true); // Deletes the directory and all its contents

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/core/api.dart';
 import 'package:http/http.dart' as http;
+import 'package:jwlife/data/databases/PublicationRepository.dart';
 import 'package:jwlife/modules/library/views/publication/local/document/documents_manager.dart';
 import 'package:sqflite/sqflite.dart';
 
@@ -69,7 +70,7 @@ class SearchModel {
         'Authorization': 'Bearer ${Api.currentJwToken}',
       };
 
-      final response = await http.get(url, headers: headers);
+      final response = await Api.httpGetWithHeadersUri(url, headers: headers);
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -153,9 +154,7 @@ class SearchModel {
 
     List<Future<List<Map<String, dynamic>>>> futures = [];
 
-    for (Publication publication in JwLifeApp.pubCollections.getPublications()) {
-      if (publication.mepsLanguage.id != JwLifeApp.settings.currentLanguage.id) continue;
-
+    for (Publication publication in PublicationRepository().getPublicationsFromLanguage(JwLifeApp.settings.currentLanguage)) {
       futures.add(_fetchVerseFromPublication(publication, verseId));
     }
 
@@ -171,7 +170,7 @@ class SearchModel {
 
   Future<List<Map<String, dynamic>>> _fetchVerseFromPublication(Publication publication, int verseId) async {
     DocumentsManager? documentsManager = publication.documentsManager;
-    Database db = documentsManager != null ? documentsManager.database : await openDatabase(publication.databasePath);
+    Database db = documentsManager != null ? documentsManager.database : await openDatabase(publication.databasePath!);
 
     Future<bool> tableExists(String name) async {
       final result = await db.rawQuery(
@@ -255,9 +254,7 @@ class SearchModel {
 
     final List<Future<List<Map<String, dynamic>>>> futures = [];
 
-    for (Publication pub in JwLifeApp.pubCollections.getPublications()) {
-      if (pub.mepsLanguage.id != JwLifeApp.settings.currentLanguage.id) continue;
-
+    for (Publication pub in PublicationRepository().getPublicationsFromLanguage(JwLifeApp.settings.currentLanguage)) {
       futures.add(_fetchImagesFromPublication(pub, query));
     }
 
@@ -273,7 +270,7 @@ class SearchModel {
     DocumentsManager? documentsManager = pub.documentsManager;
     Database db = documentsManager != null
         ? documentsManager.database
-        : await openDatabase(pub.databasePath);
+        : await openDatabase(pub.databasePath!);
 
     Future<bool> tableExists(Database db, String name) async {
       final result = await db.rawQuery(
@@ -348,7 +345,7 @@ class SearchModel {
 
     // Ouvre la base de données
     Database bibleDatabase = await openDatabase(
-      JwLifeApp.pubCollections.getBibles().first.databasePath,
+      PublicationRepository().getAllBibles().first.databasePath!,
     );
 
     // Récupère le BibleVerseId

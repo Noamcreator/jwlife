@@ -14,6 +14,9 @@ import 'package:jwlife/modules/library/views/publication/local/publication_menu_
 import 'package:jwlife/widgets/image_widget.dart';
 import 'package:sqflite/sqflite.dart';
 
+import '../../../../data/databases/PublicationRepository.dart';
+import '../../../../data/databases/catalog.dart';
+
 
 class DownloadView extends StatefulWidget {
   const DownloadView({Key? key}) : super(key: key);
@@ -86,7 +89,7 @@ class _DownloadViewState extends State<DownloadView> {
           case 0:
             return OutlinedButton.icon(
               onPressed: _importJwpub,
-              icon: const Icon(JwIcons.document_plus_circle),
+              icon: const Icon(JwIcons.publications_pile),
               label: Text(localization(context).import_jwpub.toUpperCase()),
               style: OutlinedButton.styleFrom(shape: const RoundedRectangleBorder()),
             );
@@ -103,7 +106,7 @@ class _DownloadViewState extends State<DownloadView> {
 
   Widget buildPublicationSections(double itemWidth) {
     // On trie d'abord les publications par category.id
-    List<Publication> sortedPublications = List.from(JwLifeApp.pubCollections.publications)
+    List<Publication> sortedPublications = List.from(PublicationRepository().getAllDownloadedPublications())
       ..sort((a, b) => a.category.id.compareTo(b.category.id));
 
     // On les groupe ensuite par nom de catégorie
@@ -275,7 +278,7 @@ class _DownloadViewState extends State<DownloadView> {
 
     return SizedBox(
       width: itemWidth,
-      height: 85,
+      height: 80,
       child: Stack(
         children: [
           Row(
@@ -285,8 +288,8 @@ class _DownloadViewState extends State<DownloadView> {
                 child: ImageCachedWidget(
                   imageUrl: imageSqr,
                   pathNoImage: '',
-                  height: 85,
-                  width: 85,
+                  height: 80,
+                  width: 80,
                 ),
               ),
               Expanded(
@@ -348,6 +351,7 @@ class _DownloadViewState extends State<DownloadView> {
           if(file.path.endsWith('.jwpub')) {
             Publication jwpub = await jwpubUnzip(file.readAsBytesSync(), context);
             if (f == result.files.last) {
+              PubCatalog.updateCatalogCategories();
               loadItems();
               showPage(context, PublicationMenuView(publication: jwpub));
             }

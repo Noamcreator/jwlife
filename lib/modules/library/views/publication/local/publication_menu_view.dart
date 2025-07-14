@@ -14,6 +14,7 @@ import 'package:jwlife/core/utils/utils_media.dart';
 import 'package:jwlife/data/databases/Audio.dart';
 import 'package:jwlife/data/databases/Publication.dart';
 import 'package:jwlife/data/databases/history.dart';
+import 'package:jwlife/data/userdata/Bookmark.dart';
 import 'package:jwlife/modules/bible/views/local_bible_chapter.dart';
 import 'package:jwlife/modules/library/views/publication/local/document/document.dart';
 import 'package:jwlife/modules/library/views/publication/local/document/document_view.dart';
@@ -144,17 +145,22 @@ class _PublicationMenuViewState extends State<PublicationMenuView> with SingleTi
           pvi.PublicationViewItemId,
           pvi.Title,
           COALESCE(
-            CASE 
-              WHEN pvi.ChildTemplateSchemaType != pvi.SchemaType THEN cvs.DataType
-              ELSE NULL
+              CASE 
+                  WHEN pvi.ChildTemplateSchemaType != pvi.SchemaType 
+                  THEN cvs.DataType
               END,
               vs.DataType
-            ) AS DataType
-          FROM PublicationViewItem pvi
-          LEFT JOIN PublicationViewSchema vs ON pvi.SchemaType = vs.SchemaType
-          LEFT JOIN PublicationViewSchema cvs ON pvi.ChildTemplateSchemaType = cvs.SchemaType
-          LEFT JOIN PublicationView pv ON pvi.PublicationViewId = pv.PublicationViewId
-          WHERE pv.Symbol = 'jwpub' AND pvi.ParentPublicationViewItemId = -1;
+          ) AS DataType
+      FROM PublicationView pv
+      INNER JOIN PublicationViewItem pvi 
+          ON pvi.PublicationViewId = pv.PublicationViewId
+          AND pvi.ParentPublicationViewItemId = -1
+      LEFT JOIN PublicationViewSchema vs 
+          ON pvi.SchemaType = vs.SchemaType
+      LEFT JOIN PublicationViewSchema cvs 
+          ON pvi.ChildTemplateSchemaType = cvs.SchemaType
+          AND pvi.ChildTemplateSchemaType != pvi.SchemaType  -- Condition déplacée ici
+      WHERE pv.Symbol = 'jwpub';
       ''');
 
       // Récupérer les items et sous-items pour chaque onglet
@@ -223,122 +229,168 @@ class _PublicationMenuViewState extends State<PublicationMenuView> with SingleTi
   }
 
   Future<String> getVersionSchema8() async {
-    bool multimediaExists = await _checkIfTableExists('Multimedia');
-    bool documentMultimediaExists = await _checkIfTableExists('DocumentMultimedia');
-    List<String> multimediaColumns = multimediaExists ? await _getColumnsForTable('Multimedia') : [];
+    // Vérifications en parallèle
+    final futures = await Future.wait([
+      _checkIfTableExists('Multimedia'),
+      _checkIfTableExists('DocumentMultimedia'),
+    ]);
 
-    // Vérifier si les colonnes nécessaires existent
-    bool hasMultimediaColumns = multimediaColumns.contains('Width') && multimediaColumns.contains('Height') && multimediaColumns.contains('CategoryType');
+    final multimediaExists = futures[0];
+    final documentMultimediaExists = futures[1];
 
-    String query = '''
-  SELECT
-    PublicationViewItem.PublicationViewItemId,
-    PublicationViewItem.ParentPublicationViewItemId,
-    PublicationViewItem.Title AS DisplayTitle,
-    PublicationViewItem.DefaultDocumentId,
-    PublicationViewSchema.DataType,
-  ''';
-
-    // Ajouter la colonne FilePath seulement si les colonnes nécessaires existent
-    if (hasMultimediaColumns) {
-      query += '''
-    MAX(CASE 
-        WHEN Multimedia.Width = 600 AND Multimedia.Height = 600 AND Multimedia.CategoryType = 9 
-        THEN Multimedia.FilePath 
-        ELSE NULL 
-    END) AS FilePath
-    ''';
-    }
-    else {
-      query += "NULL AS FilePath";  // Retourne NULL si les colonnes n'existent pas
+    // Vérification des colonnes seulement si nécessaire
+    bool hasMultimediaColumns = false;
+    if (multimediaExists) {
+      final columns = await _getColumnsForTable('Multimedia');
+      hasMultimediaColumns = ['Width', 'Height', 'CategoryType'].every(columns.contains);
     }
 
-    query += '''
-  FROM PublicationViewItem
-  LEFT JOIN PublicationViewSchema ON PublicationViewItem.SchemaType = PublicationViewSchema.SchemaType
-  ''';
+    // Construction optimisée de la requête avec StringBuffer
+    final buffer = StringBuffer('''
+SELECT
+  PublicationViewItem.PublicationViewItemId,
+  PublicationViewItem.ParentPublicationViewItemId,
+  PublicationViewItem.Title AS DisplayTitle,
+  PublicationViewItem.DefaultDocumentId,
+  PublicationViewSchema.DataType,
+  ''');
 
-    // Ajouter la jointure avec Multimedia uniquement si la table et les colonnes existent
+    // Ajout conditionnel de FilePath
+    buffer.write(hasMultimediaColumns ? '''
+  MAX(CASE 
+      WHEN Multimedia.Width = 600 AND Multimedia.Height = 600 AND Multimedia.CategoryType = 9 
+      THEN Multimedia.FilePath 
+      ELSE NULL 
+  END) AS FilePath
+''' : '  NULL AS FilePath\n');
+
+    buffer.write('''
+FROM PublicationViewItem
+LEFT JOIN PublicationViewSchema ON PublicationViewItem.SchemaType = PublicationViewSchema.SchemaType
+''');
+
+    // Jointures conditionnelles
     if (documentMultimediaExists) {
-      query += "LEFT JOIN DocumentMultimedia ON DocumentMultimedia.DocumentId = PublicationViewItem.DefaultDocumentId ";
+      buffer.write('LEFT JOIN DocumentMultimedia ON DocumentMultimedia.DocumentId = PublicationViewItem.DefaultDocumentId\n');
     }
 
-    // Ajouter la jointure avec Multimedia uniquement si la table et les colonnes existent
     if (multimediaExists && documentMultimediaExists) {
-      query += "LEFT JOIN Multimedia ON DocumentMultimedia.MultimediaId = Multimedia.MultimediaId ";
+      buffer.write('LEFT JOIN Multimedia ON DocumentMultimedia.MultimediaId = Multimedia.MultimediaId\n');
     }
 
-    query += '''
-  WHERE PublicationViewItem.ParentPublicationViewItemId = ?
-  GROUP BY 
-    PublicationViewItem.PublicationViewItemId,
-    PublicationViewItem.ParentPublicationViewItemId,
-    PublicationViewItem.Title,
-    PublicationViewItem.DefaultDocumentId
-  ''';
+    buffer.write('''
+WHERE PublicationViewItem.ParentPublicationViewItemId = ?
+GROUP BY 
+  PublicationViewItem.PublicationViewItemId,
+  PublicationViewItem.ParentPublicationViewItemId,
+  PublicationViewItem.Title,
+  PublicationViewItem.DefaultDocumentId
+''');
 
-    return query;
+    return buffer.toString();
   }
 
   Future<List<Map<String, dynamic>>> getVersionSchema9(int parentId) async {
-    String query = '''
-  SELECT
-    PublicationViewItem.PublicationViewItemId,
-    PublicationViewItem.ParentPublicationViewItemId,
-    PublicationViewItem.Title AS DisplayTitle,
-    PublicationViewItem.DefaultDocumentId,
-    PublicationViewSchema.DataType,
-    Document.Type,
-    BibleBook.BibleBookId,
-    MAX(CASE 
-        WHEN Multimedia.Width = 600 AND Multimedia.Height = 600 AND Multimedia.CategoryType = 9 
-        THEN Multimedia.FilePath 
-        ELSE NULL 
-    END) AS FilePath
-    FROM PublicationViewItem
-    LEFT JOIN PublicationViewSchema ON PublicationViewItem.SchemaType = PublicationViewSchema.SchemaType
-    LEFT JOIN DocumentMultimedia ON DocumentMultimedia.DocumentId = PublicationViewItem.DefaultDocumentId
-    LEFT JOIN Multimedia ON DocumentMultimedia.MultimediaId = Multimedia.MultimediaId
-    LEFT JOIN Document ON Document.DocumentId = PublicationViewItem.DefaultDocumentId
-    LEFT JOIN BibleBook ON Document.ChapterNumber = BibleBook.BibleBookId
-    WHERE PublicationViewItem.ParentPublicationViewItemId = ?
-    GROUP BY 
-      PublicationViewItem.PublicationViewItemId,
-      PublicationViewItem.ParentPublicationViewItemId,
-      PublicationViewItem.Title,
-      PublicationViewItem.DefaultDocumentId;
-  ''';
+    const query = '''
+SELECT
+  PublicationViewItem.PublicationViewItemId,
+  PublicationViewItem.ParentPublicationViewItemId,
+  PublicationViewItem.Title AS DisplayTitle,
+  PublicationViewItem.DefaultDocumentId,
+  PublicationViewSchema.DataType,
+  Document.Type,
+  BibleBook.BibleBookId,
+  MAX(CASE 
+      WHEN Multimedia.Width = 600 AND Multimedia.Height = 600 AND Multimedia.CategoryType = 9 
+      THEN Multimedia.FilePath 
+      ELSE NULL 
+  END) AS FilePath
+FROM PublicationViewItem
+LEFT JOIN PublicationViewSchema ON PublicationViewItem.SchemaType = PublicationViewSchema.SchemaType
+LEFT JOIN DocumentMultimedia ON DocumentMultimedia.DocumentId = PublicationViewItem.DefaultDocumentId
+LEFT JOIN Multimedia ON DocumentMultimedia.MultimediaId = Multimedia.MultimediaId
+LEFT JOIN Document ON Document.DocumentId = PublicationViewItem.DefaultDocumentId
+LEFT JOIN BibleBook ON Document.ChapterNumber = BibleBook.BibleBookId
+WHERE PublicationViewItem.ParentPublicationViewItemId = ?
+GROUP BY 
+  PublicationViewItem.PublicationViewItemId,
+  PublicationViewItem.ParentPublicationViewItemId,
+  PublicationViewItem.Title,
+  PublicationViewItem.DefaultDocumentId''';
 
-    List<Map<String, dynamic>> result = await _documentsManager.database.rawQuery(query, [parentId]);
+    final result = await _documentsManager.database.rawQuery(query, [parentId]);
 
-    List<Map<String, dynamic>> items = [];
-    for(var item in result) {
-      if(item['Type'] == 2) {
-        Map<String, dynamic> book = Map<String, dynamic>.from(item);
-        File mepsFile = await getMepsFile();
-        Database mepsDatabase = await openDatabase(mepsFile.path);
-        List<Map<String, dynamic>> name = await mepsDatabase.rawQuery("""
-          SELECT 
-            bbn.StandardBookName,
-            bbn.OfficialBookAbbreviation,
-            bbg.GroupId
-          FROM 
-            BibleBookName bbn
-          JOIN BibleCluesInfo bci ON bbn.BibleCluesInfoId = bci.BibleCluesInfoId
-          JOIN BibleBookGroup bbg ON bbg.BookNumber = bbn.BookNumber
-          WHERE 
-            bbn.BookNumber = ? AND bci.LanguageId = ?
-          """, [item['BibleBookId'], widget.publication.mepsLanguage.id]);
+    // Séparation des éléments bibliques et non-bibliques
+    final items = <Map<String, dynamic>>[];
+    final bibleItems = <Map<String, dynamic>>[];
 
-        book.addAll(name.first);
-        items.add(book);
-      }
-      else {
+    for (final item in result) {
+      if (item['Type'] == 2) {
+        bibleItems.add(item);
+      } else {
         items.add(item);
       }
     }
 
+    // Traitement optimisé des éléments bibliques
+    if (bibleItems.isNotEmpty) {
+      final processedBibleItems = await _processBibleItems(bibleItems);
+      items.addAll(processedBibleItems);
+    }
+
     return items;
+  }
+
+// Méthode helper pour traiter les éléments bibliques en batch
+  Future<List<Map<String, dynamic>>> _processBibleItems(List<Map<String, dynamic>> bibleItems) async {
+    final mepsFile = await getMepsFile();
+    final mepsDatabase = await openDatabase(mepsFile.path);
+
+    try {
+      // Collecte des IDs uniques
+      final bookIds = bibleItems
+          .map((item) => item['BibleBookId'])
+          .where((id) => id != null)
+          .toSet()
+          .toList();
+
+      if (bookIds.isEmpty) return bibleItems;
+
+      // Requête unique pour tous les livres
+      final placeholders = List.filled(bookIds.length, '?').join(',');
+      final bookNamesQuery = '''
+SELECT 
+  bbn.BookNumber,
+  bbn.StandardBookName,
+  bbn.OfficialBookAbbreviation,
+  bbg.GroupId
+FROM BibleBookName bbn
+JOIN BibleCluesInfo bci ON bbn.BibleCluesInfoId = bci.BibleCluesInfoId
+JOIN BibleBookGroup bbg ON bbg.BookNumber = bbn.BookNumber
+WHERE bbn.BookNumber IN ($placeholders) AND bci.LanguageId = ?''';
+
+      final bookNames = await mepsDatabase.rawQuery(
+        bookNamesQuery,
+        [...bookIds, widget.publication.mepsLanguage.id],
+      );
+
+      // Map pour accès rapide
+      final bookNamesMap = <int, Map<String, dynamic>>{
+        for (final book in bookNames) book['BookNumber'] as int: book
+      };
+
+      // Application des données
+      return bibleItems.map((item) {
+        final bookId = item['BibleBookId'] as int?;
+        if (bookId != null && bookNamesMap.containsKey(bookId)) {
+          return {...item, ...bookNamesMap[bookId]!};
+        }
+        return item;
+      }).toList();
+
+    } finally {
+      await mepsDatabase.close();
+    }
   }
 
   ListItem _mapToListItem(Map<String, dynamic> item) {
@@ -371,26 +423,24 @@ class _PublicationMenuViewState extends State<PublicationMenuView> with SingleTi
           ));
         },
         child: Row(
+          spacing: 8.0,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Affichage de l'image ou d'un conteneur de remplacement
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8.0),
-              child: showImage ? SizedBox(
-                width: 65.0, // Largeur fixe
-                height: 65.0, // Hauteur fixe égale à la largeur
-                child: item.imageFilePath.isNotEmpty == true
-                    ? ClipRRect(
-                  child: Image.file(
-                    File('${widget.publication.path}/${item.imageFilePath}'),
-                    fit: BoxFit.cover,
-                  ),
-                )
-                    : Container(
-                  color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF4f4f4f) : const Color(0xFF8e8e8e), // Couleur de fond par défaut
+            showImage ? SizedBox(
+              width: 60.0, // Largeur fixe
+              height: 60.0, // Hauteur fixe égale à la largeur
+              child: item.imageFilePath.isNotEmpty == true
+                  ? ClipRRect(
+                child: Image.file(
+                  File('${widget.publication.path}/${item.imageFilePath}'),
+                  fit: BoxFit.cover,
                 ),
-              ) : Container(),
-            ),
+              )
+                  : Container(
+                color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF4f4f4f) : const Color(0xFF8e8e8e), // Couleur de fond par défaut
+              ),
+            ) : Container(),
             // Affichage du texte
             Expanded(
               child: Column(
@@ -416,7 +466,7 @@ class _PublicationMenuViewState extends State<PublicationMenuView> with SingleTi
                       color: Theme.of(context).brightness == Brightness.dark
                           ? const Color(0xFF9fb9e3)
                           : const Color(0xFF4a6da7),
-                      fontSize: 15.0,
+                      fontSize: showSubTitle ? 15.0 : 16.0,
                       height: 1.2, // Espacement vertical des lignes
                     ),
                     maxLines: 2,
@@ -502,7 +552,7 @@ class _PublicationMenuViewState extends State<PublicationMenuView> with SingleTi
                       child: Row(
                         children: [
                           Icon(
-                            JwIcons.headphones_simple,
+                            JwIcons.headphones__simple,
                             color: Theme.of(context).brightness == Brightness.dark
                                 ? Colors.white
                                 : Colors.black,
@@ -597,7 +647,6 @@ class _PublicationMenuViewState extends State<PublicationMenuView> with SingleTi
 
         return GridView.builder(
           shrinkWrap: true,
-          padding: const EdgeInsets.all(8.0),
           physics: NeverScrollableScrollPhysics(),
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: crossAxisCount,
@@ -624,8 +673,7 @@ class _PublicationMenuViewState extends State<PublicationMenuView> with SingleTi
                   isLandscape ? items[index].landscapeDisplayTitle : items[index].title,
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+                    fontSize: 20,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -635,113 +683,6 @@ class _PublicationMenuViewState extends State<PublicationMenuView> with SingleTi
           },
         );
       },
-    );
-  }
-
-  Widget buildMenusColumns() {
-    return Column(
-      children: [
-        // TabBar
-        if (_tabsWithItems.isNotEmpty && _tabsWithItems.length > 1)
-          widget.publication.schemaVersion == 9
-              ? TabBar(
-            isScrollable: true,
-            controller: _tabController,
-            tabs: _tabsWithItems
-                .map((tabWithItems) =>
-                Tab(text: tabWithItems.tab['Title'] ?? 'Tab'))
-                .toList(),
-          )
-              : TabBar(
-            tabAlignment: TabAlignment.start,
-            isScrollable: true,
-            dividerColor: Colors.transparent,
-            indicatorSize: TabBarIndicatorSize.label,
-            indicatorPadding: EdgeInsets.symmetric(vertical: 5.0),
-            labelPadding: EdgeInsets.symmetric(horizontal: 8.0),
-            labelColor: Theme.of(context).brightness == Brightness.dark
-                ? Colors.white
-                : Colors.black,
-            labelStyle: TextStyle(
-              fontSize: 15,
-              letterSpacing: 2,
-              fontWeight: FontWeight.bold,
-            ),
-            unselectedLabelColor:
-            Theme.of(context).brightness == Brightness.dark
-                ? Colors.grey[600]
-                : Colors.black,
-            unselectedLabelStyle: TextStyle(
-              fontSize: 15,
-              letterSpacing: 2,
-            ),
-            controller: _tabController,
-            tabs: _tabsWithItems
-                .map((tabWithItems) =>
-                Tab(text: tabWithItems.tab['Title'] ?? 'Tab'))
-                .toList(),
-          ),
-        // Contenu des onglets
-        Expanded(
-          child: TabBarView(
-            controller: _tabController,
-            children: _tabsWithItems.map((tabWithItems) {
-              return tabWithItems.tab['DataType'] == 'number'
-                  ? buildNumberList(context, tabWithItems.items)
-                  : ListView.builder(
-                itemCount: tabWithItems.items.length,
-                itemBuilder: (context, index) {
-                  final item = tabWithItems.items[index];
-
-                  bool hasImageFilePath = tabWithItems.items.any((item) => item.imageFilePath != '');
-
-                  if (item.isTitle) {
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.only(
-                              left: 8.0, right: 8.0, top: 20.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                item.title,
-                                style: TextStyle(
-                                    color: Theme.of(context).brightness ==
-                                        Brightness.dark
-                                        ? Colors.white
-                                        : Colors.black,
-                                    fontSize: 19.0,
-                                    fontWeight: FontWeight.bold),
-                              ),
-                              SizedBox(height: 2),
-                              Divider(
-                                color: Color(0xFFa7a7a7),
-                                height: 1,
-                              ),
-                              SizedBox(height: 10),
-                            ],
-                          ),
-                        ),
-                        if (item.isBibleBooks)
-                          buildBibleBooksList(context, item.subItems),
-                        if (!item.isBibleBooks)
-                          ...item.subItems.map<Widget>((subItem) {
-                            return buildNameItem(context, hasImageFilePath, subItem);
-                          }),
-                      ],
-                    );
-                  }
-                  else {
-                    return buildNameItem(context, hasImageFilePath, item);
-                  }
-                },
-              );
-            }).toList(),
-          ),
-        ),
-      ],
     );
   }
 
@@ -841,6 +782,8 @@ class _PublicationMenuViewState extends State<PublicationMenuView> with SingleTi
     return !widget.showAppBar
         ? _buildCircuitMenu()
         : Scaffold(
+      backgroundColor: Theme.of(context).brightness == Brightness.dark ? Colors.black : Color(0xFFf1f1f1),
+      resizeToAvoidBottomInset: false,
       appBar: _isSearching
           ? AppBar(
         leading: IconButton(
@@ -927,30 +870,29 @@ class _PublicationMenuViewState extends State<PublicationMenuView> with SingleTi
                 text: "Marque-pages",
                 icon: Icon(JwIcons.bookmark),
                 onPressed: () async {
-                  Map<String, dynamic>? bookmark =
-                  await showBookmarkDialog(context, widget.publication);
+                  Bookmark? bookmark = await showBookmarkDialog(context, widget.publication);
                   if (bookmark != null) {
-                    if (bookmark['BookNumber'] != null && bookmark['ChapterNumber'] != null) {
+                    if (bookmark.bookNumber != null && bookmark.chapterNumber != null) {
                       showPage(
                           context,
                           DocumentView.bible(
                               bible: widget.publication,
-                              book: bookmark['BookNumber'],
-                              chapter: bookmark['ChapterNumber'],
-                              firstVerse: bookmark['BlockIdentifier'],
-                              lastVerse: bookmark['BlockIdentifier']
+                              book: bookmark.bookNumber!,
+                              chapter: bookmark.chapterNumber!,
+                              firstVerse: bookmark.blockIdentifier,
+                              lastVerse: bookmark.blockIdentifier
                           )
                       );
                     }
-                    else {
+                    else if(bookmark.mepsDocumentId != null) {
                       showPage(
                           context,
                           DocumentView(
                               publication: widget.publication,
                               audios: _audios,
-                              mepsDocumentId: bookmark['DocumentId'],
-                              startParagraphId: bookmark['BlockIdentifier'],
-                              endParagraphId: bookmark['BlockIdentifier']
+                              mepsDocumentId: bookmark.mepsDocumentId!,
+                              startParagraphId: bookmark.blockIdentifier,
+                              endParagraphId: bookmark.blockIdentifier
                           )
                       );
                     }
@@ -1012,47 +954,225 @@ class _PublicationMenuViewState extends State<PublicationMenuView> with SingleTi
   }
 
   Widget _buildPublication() {
-    return widget.publication.schemaVersion == 9 && _isLoading ? Center(child: CircularProgressIndicator()) : widget.publication.schemaVersion == 9 ? buildMenusColumns() :
-    NestedScrollView(
-        headerSliverBuilder: (context, innerBoxIsScrolled) {
-          return [
-            SliverToBoxAdapter(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Image en haut
-                  widget.publication.imageLsr == null
-                      ? Container()
-                      : Image.file(
-                    File('${widget.publication.path}/${widget.publication.imageLsr!.split('/').last}'),
-                    fit: BoxFit.fill,
-                    width: double.infinity,
-                  ),
-                  // Titre de la publication
-                  Padding(
-                    padding: EdgeInsets.only(left: 12.0, right: 12.0, bottom: 10.0, top: 10.0),
-                    child: Column(
-                      children: [
-                        Text(
-                          widget.publication.coverTitle.isNotEmpty ? widget.publication.coverTitle : widget.publication.title,
-                          style: TextStyle(
-                            color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black,
-                            fontSize: 25.0,
-                            fontWeight: FontWeight.bold,
-                            height: 1.2,
-                          ),
+    if (_isLoading) {
+      return Center(child: CircularProgressIndicator());
+    }
+
+    // Cas 1 : Aucune tab
+    if (_tabsWithItems.isEmpty) {
+      return Center(child: Text("Aucun contenu disponible ou la publication a un problème."));
+    }
+
+    // Cas 2 : Une seule tab → on affiche directement son contenu dans une ListView
+    if (_tabsWithItems.length == 1) {
+      final tabWithItems = _tabsWithItems.first;
+
+      bool hasImageFilePath = tabWithItems.items.any((item) => item.imageFilePath != '');
+
+      return ListView(
+        children: [
+          if (widget.publication.schemaVersion != 9) ...[
+            if (widget.publication.imageLsr != null)
+              Image.file(
+                File('${widget.publication.path}/${widget.publication.imageLsr!.split('/').last}'),
+                fit: BoxFit.fill,
+                width: double.infinity,
+              ),
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Text(
+                widget.publication.coverTitle.isNotEmpty
+                    ? widget.publication.coverTitle
+                    : widget.publication.title,
+                style: TextStyle(
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.white
+                      : Colors.black,
+                  fontSize: 25,
+                  fontWeight: FontWeight.bold,
+                  height: 1.2,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ],
+          if (tabWithItems.tab['DataType'] == 'number')
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: buildNumberList(context, tabWithItems.items)
+            )
+          else
+            ...tabWithItems.items.map((item) {
+              if (item.isTitle) {
+                return Padding(
+                  padding: const EdgeInsets.only(left: 8.0, right: 8.0, top: 16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        item.title,
+                        style: TextStyle(
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? Colors.white
+                              : Colors.black,
+                          fontSize: 20.0,
+                          fontWeight: FontWeight.bold,
                         ),
-                      ],
+                      ),
+                      SizedBox(height: 2),
+                      Divider(color: Color(0xFFa7a7a7), height: 1),
+                      SizedBox(height: 10),
+                      if (item.isBibleBooks)
+                        buildBibleBooksList(context, item.subItems),
+                      if (!item.isBibleBooks)
+                        ...item.subItems.map((subItem) =>
+                            buildNameItem(context, hasImageFilePath, subItem)),
+                    ],
+                  ),
+                );
+              }
+              else {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                  child: buildNameItem(context, hasImageFilePath, item),
+                );
+              }
+            }),
+        ],
+      );
+    }
+
+    // Cas 3 : Plusieurs tabs → affichage complet avec TabBar + TabBarView
+    return DefaultTabController(
+      length: _tabsWithItems.length,
+      child: NestedScrollView(
+        headerSliverBuilder: (context, innerBoxIsScrolled) => [
+          SliverToBoxAdapter(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (widget.publication.schemaVersion != 9) ...[
+                  if (widget.publication.imageLsr != null)
+                    Image.file(
+                      File('${widget.publication.path}/${widget.publication.imageLsr!.split('/').last}'),
+                      fit: BoxFit.fill,
+                      width: double.infinity,
+                    ),
+                  Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Text(
+                      widget.publication.coverTitle.isNotEmpty
+                          ? widget.publication.coverTitle
+                          : widget.publication.title,
+                      style: TextStyle(
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.white
+                            : Colors.black,
+                        fontSize: 25,
+                        fontWeight: FontWeight.bold,
+                        height: 1.2,
+                      ),
+                      textAlign: TextAlign.center,
                     ),
                   ),
                 ],
-              ),
+                // TabBar (si plus d'un onglet)
+                widget.publication.schemaVersion != 9 ? TabBar(
+                  controller: _tabController,
+                  isScrollable: true,
+                  labelColor: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.white
+                      : Colors.black,
+                  unselectedLabelColor: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.grey[600]
+                      : Colors.black,
+                  dividerHeight: 0,
+                  labelStyle: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, letterSpacing: 2),
+                  unselectedLabelStyle: TextStyle(fontSize: 15, letterSpacing: 2),
+                  indicatorSize: TabBarIndicatorSize.label,
+                  indicatorPadding: EdgeInsets.symmetric(vertical: 5.0),
+                  labelPadding: EdgeInsets.symmetric(horizontal: 8.0),
+                  tabs: _tabsWithItems.map((tabWithItems) {
+                    return Tab(text: tabWithItems.tab['Title'] ?? 'Tab');
+                  }).toList(),
+                ) : Container(
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.black
+                      : Colors.white,
+                  child: TabBar(
+                    controller: _tabController,
+                    isScrollable: true,
+                    dividerHeight: 0,
+                    tabs: _tabsWithItems.map((tabWithItems) {
+                      return Tab(text: tabWithItems.tab['Title'] ?? 'Tab');
+                    }).toList(),
+                  ),
+                ),
+              ],
             ),
-          ];
-        },
-        body: _isLoading ? Center(child: CircularProgressIndicator()) : buildMenusColumns()
+          ),
+        ],
+        body: TabBarView(
+          controller: _tabController,
+          children: _tabsWithItems.map((tabWithItems) {
+            if (tabWithItems.tab['DataType'] == 'number') {
+              return buildNumberList(context, tabWithItems.items);
+            }
+
+            bool hasImageFilePath = tabWithItems.items.any((item) => item.imageFilePath != '');
+
+            return ListView.builder(
+              padding: EdgeInsets.only(left: 8.0, right: 8.0),
+              itemCount: tabWithItems.items.length,
+              itemBuilder: (context, index) {
+                final item = tabWithItems.items[index];
+
+                if (item.isTitle) {
+                  return Padding(
+                      padding: const EdgeInsets.only(top: 16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            item.title,
+                            style: TextStyle(
+                              color: Theme.of(context).brightness == Brightness.dark
+                                  ? Colors.white
+                                  : Colors.black,
+                              fontSize: 20.0,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          SizedBox(height: 2),
+                          Divider(color: Color(0xFFa7a7a7), height: 1),
+                          SizedBox(height: 10),
+                          if (item.isBibleBooks)
+                            buildBibleBooksList(context, item.subItems),
+                          if (!item.isBibleBooks)
+                            ...item.subItems.map((subItem) =>
+                                buildNameItem(context, hasImageFilePath, subItem)),
+                        ],
+                      ));
+                }
+                else {
+                  if (tabWithItems.items.indexOf(item) == 0) {
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 8.0),
+                      child: buildNameItem(context, hasImageFilePath, item),
+                    );
+                  }
+                  return buildNameItem(context, hasImageFilePath, item);
+                }
+              },
+            );
+          }).toList(),
+        ),
+      ),
     );
   }
+
+
+
 
   Future<void> fetchSuggestions(String text) async {
     List<Map<String, dynamic>> suggestionsForWord = [];

@@ -7,8 +7,11 @@ import 'package:jwlife/core/utils/shared_preferences_helper.dart';
 import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/core/utils/webview_data.dart';
 import 'package:jwlife/data/databases/Publication.dart';
+import 'package:jwlife/data/databases/PublicationRepository.dart';
 import 'package:jwlife/data/databases/catalog.dart';
+import 'package:jwlife/data/userdata/Bookmark.dart';
 import 'package:jwlife/modules/library/views/publication/local/document/document_view.dart';
+import 'package:jwlife/modules/library/views/publication/local/document/documents_manager.dart';
 import 'package:jwlife/widgets/dialog/utils_dialog.dart';
 
 import '../../app/jwlife_app.dart';
@@ -70,14 +73,8 @@ class __DownloadDialogContentState extends State<_DownloadDialogContent> {
   }
 
   Future<void> init() async {
-    await widget.publication.download(context, update: (double newProgress) {
-      if (mounted) {
-        setState(() {
-          progress = newProgress;
-        });
-      }
-    });
-
+    // TODO : Gestion de la progression pour le dialog de téléchargement
+    await widget.publication.download(context);
     Navigator.pop(context);
   }
 
@@ -105,23 +102,22 @@ class __DownloadDialogContentState extends State<_DownloadDialogContent> {
   }
 }
 
-void showDocumentView(BuildContext context, int mepsDocId, int currentLanguageId, {int? startParagraphId, int? endParagraphId}) async {
+Future<void> showDocumentView(BuildContext context, int mepsDocId, int currentLanguageId, {int? startParagraphId, int? endParagraphId}) async {
   Publication? publication = await JwLifeApp.pubCollections.getDocumentFromMepsDocumentId(mepsDocId, currentLanguageId);
 
   if (publication != null) {
-    showPage(context, DocumentView(publication: publication, mepsDocumentId: mepsDocId, startParagraphId: startParagraphId, endParagraphId: endParagraphId));
+    await showPage(context, DocumentView(publication: publication, mepsDocumentId: mepsDocId, startParagraphId: startParagraphId, endParagraphId: endParagraphId));
   }
   else {
     if(await hasInternetConnection()) {
       publication = await PubCatalog.searchPubFromMepsDocumentId(mepsDocId, currentLanguageId);
       if (publication != null) {
         await showDownloadPublicationDialog(context, publication);
-        Publication pub = JwLifeApp.pubCollections.getPublication(publication);
-        if (pub.isDownloaded) {
+        if (publication.isDownloadedNotifier.value) {
           showPage(
             context,
             DocumentView(
-              publication: pub,
+              publication: publication,
               mepsDocumentId: mepsDocId,
               startParagraphId: startParagraphId,
               endParagraphId: endParagraphId,
@@ -131,23 +127,23 @@ void showDocumentView(BuildContext context, int mepsDocId, int currentLanguageId
       }
     }
     else {
-      showNoConnectionDialog(context);
+      await showNoConnectionDialog(context);
     }
   }
 }
 
-void showChapterView(BuildContext context, String keySymbol, int currentLanguageId, int bookNumber, int chapterNumber, {int? firstVerseNumber, int? lastVerseNumber}) async {
-  Publication? bible = JwLifeApp.pubCollections.publications.firstWhereOrNull((p) => p.keySymbol == keySymbol && p.mepsLanguage.id == currentLanguageId);
+Future<void> showChapterView(BuildContext context, String keySymbol, int currentLanguageId, int bookNumber, int chapterNumber, {int? firstVerseNumber, int? lastVerseNumber}) async {
+  Publication? bible = PublicationRepository().getAllBibles().firstWhereOrNull((p) => p.keySymbol == keySymbol && p.mepsLanguage.id == currentLanguageId);
 
   if (bible != null) {
-    showPage(context, DocumentView.bible(bible: bible, book: bookNumber, chapter: chapterNumber, firstVerse: firstVerseNumber, lastVerse: lastVerseNumber));
+    await showPage(context, DocumentView.bible(bible: bible, book: bookNumber, chapter: chapterNumber, firstVerse: firstVerseNumber, lastVerse: lastVerseNumber));
   }
   else {
     if(await hasInternetConnection()) {
       //showPage(context, PublicationMenu(publication: publication));
     }
     else {
-      showNoConnectionDialog(context);
+      await showNoConnectionDialog(context);
     }
   }
 }
@@ -365,7 +361,7 @@ Future<void> showFontSizeDialog(BuildContext context, InAppWebViewController? co
                           });
 
                           // Mise à jour en temps réel dans la WebView
-                          controller?.evaluateJavascript(source: "document.body.style.fontSize = '${fontSize}px';");
+                          controller?.evaluateJavascript(source: "resizeFont($fontSize);");
                           JwLifeApp.settings.webViewData.updateFontSize(fontSize);
                           setFontSize(fontSize);
                         },
@@ -540,14 +536,15 @@ Future<void> showHtmlDialog(BuildContext context, String html) async {
   );
 }
 
-Future<Map<String, dynamic>?> showBookmarkDialog(BuildContext context, Publication publication, {InAppWebViewController? webViewController, int? mepsDocumentId, int? bookNumber, int? chapterNumber, String? title, String? snippet, int? blockType, int? blockIdentifier}) async {
-  List<Map<String, dynamic>> bookmarks = List<Map<String, dynamic>>.from(await JwLifeApp.userdata.getBookmarksFromPub(publication));
+Future<Bookmark?> showBookmarkDialog(BuildContext context, Publication publication, {InAppWebViewController? webViewController, int? mepsDocumentId, int? bookNumber, int? chapterNumber, String? title, String? snippet, int? blockType, int? blockIdentifier}) async {
+  List<Bookmark> bookmarks = await JwLifeApp.userdata.getBookmarksFromPub(publication);
+
   bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
   String bookmarkPath = isDarkMode
       ? 'assets/icons/bookmarks/dark/bookmark{number}.png'
       : 'assets/icons/bookmarks/light/bookmark{number}.png';
 
-  return showDialog<Map<String, dynamic>?>(
+  return await showDialog<Bookmark?>(
     context: context,
     builder: (BuildContext context) {
       return StatefulBuilder(
@@ -562,7 +559,7 @@ Future<Map<String, dynamic>?> showBookmarkDialog(BuildContext context, Publicati
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 20),
                     child: Text(
-                      'Marque-pages - ${publication.shortTitle}',
+                      'Marque-pages - ${publication.getShortTitle()}',
                       style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                     ),
                   ),
@@ -575,10 +572,7 @@ Future<Map<String, dynamic>?> showBookmarkDialog(BuildContext context, Publicati
                         mainAxisSize: MainAxisSize.min,
                         children: List.generate(10, (index) {
                           int bookmarkNumber = index + 1;
-                          Map<String, dynamic> bookmark = bookmarks.firstWhere(
-                                (b) => b['Slot'] == index,
-                            orElse: () => {},
-                          );
+                          Bookmark? bookmark = bookmarks.firstWhereOrNull((b) => b.slot == index);
 
                           return Column(
                             children: [
@@ -586,21 +580,36 @@ Future<Map<String, dynamic>?> showBookmarkDialog(BuildContext context, Publicati
                                 Divider(color: isDarkMode ? Colors.black : Color(0xFFf1f1f1)),
                               InkWell(
                                 onTap: () async {
-                                  if (bookmark.isNotEmpty) {
+                                  if (bookmark != null) {
                                     Navigator.pop(context, bookmark); // Retourne le bookmark sélectionné
                                   }
                                   else if (mepsDocumentId != null) {
-                                    Map<String, dynamic> bookmark = await JwLifeApp.userdata.addBookmark(publication, mepsDocumentId, null, null, title!, snippet!, index, blockType!, blockIdentifier);
-                                    setState(() {
-                                      bookmarks.add(bookmark);
-                                    });
-                                    webViewController?.evaluateJavascript(source: 'addBookmark(null, ${bookmark['BlockType']}, ${bookmark['BlockIdentifier']}, ${bookmark['Slot']})');
+                                    Bookmark? bookmark = await JwLifeApp.userdata.addBookmark(publication, mepsDocumentId, null, null, title!, snippet!, index, blockType!, blockIdentifier);
+                                    if(bookmark != null) {
+                                      setState(() {
+                                        bookmarks.add(bookmark);
+                                      });
+                                      if(publication.documentsManager != null) {
+                                        publication.documentsManager!.getCurrentDocument().addBookmark(bookmark);
+                                      }
+                                      if(webViewController != null) {
+                                        webViewController.evaluateJavascript(source: 'addBookmark(null, ${bookmark.blockType}, ${bookmark.blockIdentifier}, ${bookmark.slot})');
+                                      }
+                                    }
                                   }
                                   else if (bookNumber != null && chapterNumber != null) {
-                                    Map<String, dynamic> bookmark = await JwLifeApp.userdata.addBookmark(publication, null, bookNumber, chapterNumber, title!, snippet!, index, blockType!, blockIdentifier);
-                                    setState(() {
-                                      bookmarks.add(bookmark);
-                                    });
+                                    Bookmark? bookmark = await JwLifeApp.userdata.addBookmark(publication, null, bookNumber, chapterNumber, title!, snippet!, index, blockType!, blockIdentifier);
+                                    if(bookmark != null) {
+                                      setState(() {
+                                        bookmarks.add(bookmark);
+                                      });
+                                      if(publication.documentsManager != null) {
+                                        publication.documentsManager!.getCurrentDocument().addBookmark(bookmark);
+                                      }
+                                      if(webViewController != null) {
+                                        webViewController.evaluateJavascript(source: 'addBookmark(null, ${bookmark.blockType}, ${bookmark.blockIdentifier}, ${bookmark.slot})');
+                                      }
+                                    }
                                   }
                                 },
                                 child: Padding(
@@ -618,36 +627,38 @@ Future<Map<String, dynamic>?> showBookmarkDialog(BuildContext context, Publicati
                                           fit: BoxFit.fill,
                                         ),
                                         const SizedBox(width: 20),
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            mainAxisAlignment: MainAxisAlignment.center, // Centre le contenu verticalement
-                                            children: [
-                                              Text(
-                                                bookmark['Title'] ?? '',
-                                                style: TextStyle(
-                                                  color: isDarkMode ? Colors.white : Colors.black,
-                                                  fontSize: 17,
-                                                ),
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                              if (bookmark['Snippet'] != null && bookmark['Snippet'].isNotEmpty)
+                                        if(bookmark != null)
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              mainAxisAlignment: MainAxisAlignment.center, // Centre le contenu verticalement
+                                              children: [
                                                 Text(
-                                                  bookmark['Snippet'] ?? '',
+                                                  bookmark.title,
                                                   style: TextStyle(
-                                                    color: Theme.of(context).brightness == Brightness.dark
-                                                        ? Color(0xFFc2c2c2)
-                                                        : Color(0xFF626262),
-                                                    fontSize: 14,
+                                                    color: isDarkMode ? Colors.white : Colors.black,
+                                                    fontSize: 17,
                                                   ),
                                                   maxLines: 1,
                                                   overflow: TextOverflow.ellipsis,
                                                 ),
-                                            ],
+
+                                                if(bookmark.snippet.isNotEmpty)
+                                                  Text(
+                                                    bookmark.snippet,
+                                                    style: TextStyle(
+                                                      color: Theme.of(context).brightness == Brightness.dark
+                                                          ? Color(0xFFc2c2c2)
+                                                          : Color(0xFF626262),
+                                                      fontSize: 14,
+                                                    ),
+                                                    maxLines: 1,
+                                                    overflow: TextOverflow.ellipsis,
+                                                  ),
+                                              ],
+                                            ),
                                           ),
-                                        ),
-                                        if (bookmark.isNotEmpty)
+                                        if (bookmark != null)
                                           PopupMenuButton(
                                             icon: Icon(
                                               Icons.more_vert,
@@ -657,24 +668,40 @@ Future<Map<String, dynamic>?> showBookmarkDialog(BuildContext context, Publicati
                                               return [
                                                 PopupMenuItem(
                                                   onTap: () async {
-                                                    Map<String, dynamic> bookmark = bookmarks.firstWhere((b) => b['Slot'] == index);
-                                                    await JwLifeApp.userdata.removeBookmark(publication, bookmark);
-
-                                                    setState(() {
-                                                      bookmarks.remove(bookmark);
-                                                    });
+                                                    bool deleted = await JwLifeApp.userdata.removeBookmark(publication, bookmark);
+                                                    if(deleted) {
+                                                      setState(() {
+                                                        bookmarks.remove(bookmark);
+                                                      });
+                                                      if(publication.documentsManager != null) {
+                                                        publication.documentsManager!.getCurrentDocument().removeBookmark(bookmark);
+                                                      }
+                                                      if(webViewController != null) {
+                                                        webViewController.evaluateJavascript(source: 'removeBookmark(${bookmark.blockIdentifier}, ${bookmark.slot})');
+                                                      }
+                                                    }
                                                   },
                                                   child: Text('Supprimer'),
                                                 ),
                                                 if (mepsDocumentId != null)
                                                   PopupMenuItem(
                                                     onTap: () async {
-                                                      Map<String, dynamic> updatedBookmark = await JwLifeApp.userdata.updateBookmark(publication, index, mepsDocumentId, title!, snippet!, blockType!, blockIdentifier);
+                                                      Bookmark? updatedBookmark = await JwLifeApp.userdata.updateBookmark(publication, index, mepsDocumentId, title!, snippet!, blockType!, blockIdentifier);
 
-                                                      setState(() {
-                                                        bookmarks.remove(bookmark);
-                                                        bookmarks.add(updatedBookmark);
-                                                      });
+                                                      if(updatedBookmark != null) {
+                                                        setState(() {
+                                                          bookmarks.remove(bookmark);
+                                                          bookmarks.add(updatedBookmark);
+                                                        });
+                                                        if(publication.documentsManager != null) {
+                                                          publication.documentsManager!.getCurrentDocument().removeBookmark(bookmark);
+                                                          publication.documentsManager!.getCurrentDocument().addBookmark(updatedBookmark);
+                                                        }
+                                                        if(webViewController != null) {
+                                                          webViewController.evaluateJavascript(source: 'removeBookmark(${bookmark.blockIdentifier}, ${bookmark.slot})');
+                                                          webViewController.evaluateJavascript(source: 'addBookmark(null, ${updatedBookmark.blockType}, ${updatedBookmark.blockIdentifier}, ${updatedBookmark.slot})');
+                                                        }
+                                                      }
                                                     },
                                                     child: Text('Remplacer'),
                                                   ),
@@ -721,20 +748,4 @@ Future<Map<String, dynamic>?> showBookmarkDialog(BuildContext context, Publicati
       );
     },
   );
-}
-
-Future<void> updateFieldValue(Publication publication, int docId, dynamic updatedField) async {
-  try {
-    // Extraire le tag et la valeur
-    final String tag = updatedField['tag']?.toString() ?? '';
-    final String value = updatedField['value']?.toString() ?? '';
-
-    // Appel à la mise à jour ou insertion
-    await JwLifeApp.userdata.updateOrInsertInputField(publication, docId, tag, value);
-  }
-  catch (e, stacktrace) {
-    // Log l'erreur pour le debug
-    print('Error in _updateFieldValue: $e');
-    print('Stacktrace: $stacktrace');
-  }
 }

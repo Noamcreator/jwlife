@@ -16,6 +16,8 @@ import 'package:open_file/open_file.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
 
+import '../../core/api.dart';
+
 // Fonction pour afficher le dialogue de téléchargement
 Future<String?> showVideoDialog(BuildContext context, MediaItem mediaItem) async {
   File mediaCollectionFile = await getMediaCollectionsFile();
@@ -241,7 +243,7 @@ Future<String?> showDocumentDialog(BuildContext context, String docId, String tr
 
   try {
     // Effectuer la requête HTTP
-    final response = await http.get(url);
+    final response = await Api.httpGetWithHeadersUri(url);
 
     // Vérifier si la requête a réussi (code 200)
     if (response.statusCode == 200) {

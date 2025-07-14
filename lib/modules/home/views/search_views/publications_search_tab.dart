@@ -75,7 +75,7 @@ class _PublicationsSearchTabState extends State<PublicationsSearchTab> {
                   );
 
                   if (publication != null) {
-                    publication.showMenu(context, update: null);
+                    publication.showMenu(context);
                   }
                   else {
                     print('Publication not found for lank: $lank');
@@ -164,7 +164,7 @@ class _PublicationsSearchTabState extends State<PublicationsSearchTab> {
                                       onTap: () async {
                                         String link =
                                             'https://b.jw-cdn.org/apis/mediator/v1/media-item-availability/${item['lank']}?clientType=www';
-                                        final response = await http.get(Uri.parse(link));
+                                        final response = await Api.httpGetWithHeaders(link);
                                         if (response.statusCode == 200) {
                                           final jsonData = json.decode(response.body);
                                           LanguageDialog languageDialog = LanguageDialog(

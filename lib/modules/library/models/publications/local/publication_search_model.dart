@@ -251,7 +251,7 @@ class PublicationSearchModel {
 
                 if (beginPosition != null && endPosition != null) {
                   final documentBlob = decodeBlobParagraph(
-                      document['Content'], publication.hash);
+                      document['Content'], publication.hash!);
                   final paragraphBlob = documentBlob.sublist(
                       beginPosition, endPosition);
                   final paragraphHtml = utf8.decode(paragraphBlob);
@@ -382,7 +382,7 @@ class PublicationSearchModel {
         final positions = getWordsPositionsAndParagraphId(verse['TextPositions']);
         final lengths = getWordsLengths(verse['TextLengths']);
 
-        String verseHtml = decodeBlobContent(verse['Content'], publication.hash);
+        String verseHtml = decodeBlobContent(verse['Content'], publication.hash!);
 
         // Utilisation d'une expression régulière pour extraire les numéros
         RegExp regExp = RegExp(r'id="v(\d+)-(\d+)-(\d+)"');

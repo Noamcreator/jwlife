@@ -26,6 +26,8 @@ class Multimedia {
   int issueTagNumber;
   bool hasSuppressZoom;
   String? sizeConstraint;
+  int beginParagraphOrdinal;
+  int endParagraphOrdinal;
 
   Multimedia({
     required this.id,
@@ -53,6 +55,8 @@ class Multimedia {
     this.issueTagNumber = 0,
     this.hasSuppressZoom = false,
     this.sizeConstraint,
+    required this.beginParagraphOrdinal,
+    required this.endParagraphOrdinal,
   });
 
   factory Multimedia.fromMap(Map<String, dynamic> map) {
@@ -82,6 +86,8 @@ class Multimedia {
       issueTagNumber: map['IssueTagNumber'] ?? 0,
       hasSuppressZoom: map['SuppressZoom'] == 1 ? true : false,
       sizeConstraint: map['SizeConstraint'],
+      beginParagraphOrdinal: map['BeginParagraphOrdinal'],
+      endParagraphOrdinal: map['EndParagraphOrdinal'],
     );
   }
 }
