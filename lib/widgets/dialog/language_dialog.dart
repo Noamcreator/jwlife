@@ -6,6 +6,8 @@ import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/files_helper.dart';
 import 'package:sqflite/sqflite.dart';
 
+import '../../app/services/settings_service.dart';
+
 class LanguageDialog extends StatefulWidget {
   final Map<String, dynamic> languagesListJson;
 
@@ -30,7 +32,7 @@ class _LanguageDialogState extends State<LanguageDialog> {
   }
 
   Future<void> initSettings(String searchTerm) async {
-    selectedLanguage = JwLifeApp.settings.currentLanguage.symbol;
+    selectedLanguage = JwLifeSettings().currentLanguage.symbol;
 
     File mepsUnitFile = await getMepsFile(); // mepsUnitFile est .db
 

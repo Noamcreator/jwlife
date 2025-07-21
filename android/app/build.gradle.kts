@@ -43,11 +43,3 @@ android {
 flutter {
     source = "../.."
 }
-
-dependencies {
-    val exoplayer_version = "2.19.1"
-    implementation("com.google.android.exoplayer:exoplayer-core:$exoplayer_version")
-    implementation("com.google.android.exoplayer:exoplayer-dash:$exoplayer_version")
-    implementation("com.google.android.exoplayer:exoplayer-hls:$exoplayer_version")
-    implementation("com.google.android.exoplayer:exoplayer-smoothstreaming:$exoplayer_version")
-}

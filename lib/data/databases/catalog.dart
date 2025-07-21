@@ -2,16 +2,18 @@ import 'package:intl/intl.dart';
 import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/core/utils/files_helper.dart';
 import 'package:jwlife/core/utils/utils_database.dart';
-import 'package:jwlife/data/databases/Publication.dart';
-import 'package:jwlife/data/databases/PublicationAttribute.dart';
-import 'package:jwlife/modules/home/views/home_view.dart';
-import 'package:jwlife/modules/meetings/views/meeting_view.dart';
+import 'package:jwlife/data/databases/publication.dart';
+import 'package:jwlife/data/databases/publication_attribute.dart';
+import 'package:jwlife/data/realm/realm_library.dart';
+import 'package:jwlife/features/library/pages/library_page.dart';
+import 'package:realm/realm.dart';
 import 'package:sqflite/sqflite.dart';
 
+import '../../app/services/settings_service.dart';
 import '../../core/utils/utils.dart';
-import '../../modules/library/views/library_view.dart';
-import 'PublicationCategory.dart';
-import 'PublicationRepository.dart';
+import '../realm/catalog.dart';
+import 'publication_category.dart';
+import '../repositories/PublicationRepository.dart';
 
 class PubCatalog {
   /// Liste des dernières publications chargées.
@@ -29,6 +31,7 @@ class PubCatalog {
     meps.Language.PrimaryIetfCode AS LanguagePrimaryIetfCode, 
     pa.LastModified, 
     pa.CatalogedOn,
+    pa.Size,
     pa.ExpandedSize,
     pa.SchemaVersion,
     pam.PublicationAttributeId,
@@ -77,7 +80,7 @@ class PubCatalog {
           $_publicationQuery
           LEFT JOIN DatedText dt ON p.Id = dt.PublicationId
           WHERE ? BETWEEN dt.Start AND dt.End AND p.MepsLanguageId = ?
-        ''', [formattedDate, JwLifeApp.settings.currentLanguage.id]);
+        ''', [formattedDate, JwLifeSettings().currentLanguage.id]);
 
         await detachDatabases(catalog, ['meps']);
 
@@ -122,24 +125,40 @@ class PubCatalog {
           FROM Publication
           WHERE MepsLanguageId = ?
           GROUP BY PublicationTypeId
-        ''', [JwLifeApp.settings.currentLanguage.id]);
+        ''', [JwLifeSettings().currentLanguage.id]);
+
+        List<Map<String, dynamic>> hasPubForConventionDay = await catalogDB.rawQuery('''
+          SELECT COUNT(*) > 0 AS HasConventionReleaseDayNumber
+          FROM PublicationAsset
+          WHERE ConventionReleaseDayNumber IS NOT NULL AND MepsLanguageId = ?;
+        ''', [JwLifeSettings().currentLanguage.id]);
+
+        final hasConvDay = RealmLibrary.realm.all<Category>().query("language == '${JwLifeSettings().currentLanguage.symbol}'").query("key == 'ConvDay1' OR key == 'ConvDay2' OR key == 'ConvDay3'");
+
+        for(Category convDay in hasConvDay) {
+          printTime('${convDay.key!} : ${convDay.media}');
+        }
 
         // Convertir les résultats SQL en un Set pour une recherche rapide
         Set<int> existingIds = result1.map((e) => e['id'] as int).toSet();
 
         // Récupérer les publications en fonction de la langue actuelle
-        List<Publication> publications = PublicationRepository().getPublicationsFromLanguage(JwLifeApp.settings.currentLanguage);
+        List<Publication> publications = PublicationRepository().getPublicationsFromLanguage(JwLifeSettings().currentLanguage);
 
         // Extraire les IDs des catégories existantes dans les publications
         Set<int> existingTypes = publications.map((e) => e.category.id).toSet();
 
         // Conserver uniquement les catégories existantes tout en respectant l'ordre
-        List<PublicationCategory> matchedCategories = PublicationCategory.getCategories().where((cat) {
+        List<PublicationCategory> matchedCategories = PublicationCategory.all.where((cat) {
           // Vérifier si l'ID de la catégorie correspond à l'un des ID existants
           return existingIds.contains(cat.id) || existingTypes.contains(cat.id);
         }).toList();
 
-        LibraryView.refreshCatalogCategories(matchedCategories);
+        if(hasPubForConventionDay.first['HasConventionReleaseDayNumber'] != 0 || hasConvDay.isNotEmpty) {
+          matchedCategories.add(PublicationCategory.all.firstWhere((cat) => cat.type == 'Convention'));
+        }
+
+        LibraryPage.refreshCatalogCategories(matchedCategories);
 
         printTime('Catégories mis à jour dans LibraryView');
 
@@ -148,7 +167,7 @@ class PubCatalog {
       }
       catch (e) {
         // Gérer les erreurs (par exemple si la base de données est inaccessible)
-        print("Erreur lors de la récupération des catégories : $e");
+        printTime("Erreur lors de la récupération des catégories : $e");
       }
     }
     return [];
@@ -161,7 +180,10 @@ class PubCatalog {
     final historyFile = await getHistoryFile();
 
     if (allFilesExist([mepsFile, historyFile, catalogFile])) {
+      printTime('allExist check');
       final catalogDB = await openReadOnlyDatabase(catalogFile.path);
+
+      printTime('open catalog check');
 
       try {
         List<List<Map<String, Object?>>> results = [];
@@ -171,8 +193,12 @@ class PubCatalog {
           await txn.execute("ATTACH DATABASE '${mepsFile.path}' AS meps");
           await txn.execute("ATTACH DATABASE '${historyFile.path}' AS history");
 
+          printTime('attach databases check');
+
           String formattedDate = DateTime.now().toIso8601String().split('T').first;
-          final languageId = JwLifeApp.settings.currentLanguage.id;
+          final languageId = JwLifeSettings().currentLanguage.id;
+
+          printTime('$formattedDate databases check');
 
           // Exécution des requêtes EN SÉRIE, pas en parallèle
           final result1 = await txn.rawQuery('''
@@ -182,6 +208,8 @@ class PubCatalog {
           LEFT JOIN DatedText dt ON p.Id = dt.PublicationId
           WHERE ? BETWEEN dt.Start AND dt.End AND p.MepsLanguageId = ?
         ''', [formattedDate, languageId]);
+
+          printTime('result1 check');
 
           final result2 = await txn.rawQuery('''
           SELECT
@@ -194,6 +222,8 @@ class PubCatalog {
             LIMIT 10;
         ''');
 
+          printTime('result2 check');
+
           final result3 = await txn.rawQuery('''
           SELECT DISTINCT
             $_publicationQuery
@@ -202,6 +232,8 @@ class PubCatalog {
             ORDER BY pa.CatalogedOn DESC
             LIMIT ?
         ''', [languageId, 12]);
+
+          printTime('result3 check');
 
           final result4 = await txn.rawQuery('''
           SELECT DISTINCT
@@ -213,7 +245,11 @@ class PubCatalog {
             ORDER BY ca.SortOrder;
         ''', [languageId, 2]);
 
+          printTime('result4 check');
+
           results = [result1, result2, result3, result4];
+
+          printTime('$results check');
         });
 
         // DETACH des bases en dehors de la transaction
@@ -326,9 +362,9 @@ class PubCatalog {
       try {
         await attachDatabases(catalog, {'meps': mepsFile.path});
 
-        print('pubSymbol: $pubSymbol');
-        print('issueTagNumber: $issueTagNumber');
-        print('language: $language');
+        printTime('pubSymbol: $pubSymbol');
+        printTime('issueTagNumber: $issueTagNumber');
+        printTime('language: $language');
 
         final publications = await catalog.rawQuery('''
           SELECT
@@ -424,7 +460,7 @@ class PubCatalog {
 
       try {
         // Construction des paramètres de la requête
-        List<dynamic> queryParams = [JwLifeApp.settings.currentLanguage.id, category];
+        List<dynamic> queryParams = [JwLifeSettings().currentLanguage.id, category];
         String yearCondition = '';
 
         if (year != null) {
@@ -435,8 +471,9 @@ class PubCatalog {
         final result = await catalog.rawQuery('''
         SELECT
             p.*,
-            pa.LastModified, 
-            pa.ExpandedSize, 
+            pa.LastModified,
+            pa.Size,
+            pa.ExpandedSize,
             pa.SchemaVersion,
             pam.PublicationAttributeId,
             (SELECT ia.NameFragment 
@@ -488,7 +525,6 @@ class PubCatalog {
     return {};
   }
 
-  /// Charge les publications des assemblies
   static Future<void> fetchAssemblyPublications() async {
     final catalogFile = await getCatalogFile();
     final mepsFile = await getMepsFile();
@@ -499,74 +535,177 @@ class PubCatalog {
       try {
         await attachDatabases(catalog, {'meps': mepsFile.path});
 
-        final circuitAssemblies = await catalog.rawQuery('''
-          WITH RankedPubs AS (
-            SELECT
-              p.*,
-              meps.Language.Symbol AS LanguageSymbol, 
-              meps.Language.VernacularName AS LanguageVernacularName, 
-              meps.Language.PrimaryIetfCode AS LanguagePrimaryIetfCode, 
-              pa.LastModified, 
-              pa.CatalogedOn,
-              pa.ExpandedSize,
-              pa.SchemaVersion,
-              pam.PublicationAttributeId,
-              (
-                SELECT ia2.NameFragment
-                FROM ImageAsset ia2
-                INNER JOIN PublicationAssetImageMap paim2 ON ia2.Id = paim2.ImageAssetId
-                WHERE paim2.PublicationAssetId = pa.Id AND ia2.NameFragment LIKE '%_sqr-%'
-                ORDER BY ia2.Width DESC, ia2.Height DESC
-                LIMIT 1
-              ) AS ImageSqr,
-              (
-                SELECT ia2.NameFragment 
-                FROM ImageAsset ia2
-                INNER JOIN PublicationAssetImageMap paim2 ON ia2.Id = paim2.ImageAssetId
-                WHERE paim2.PublicationAssetId = pa.Id AND ia2.NameFragment LIKE '%_lsr-%'
-                ORDER BY ia2.Width DESC, ia2.Height DESC
-                LIMIT 1
-              ) AS ImageLsr,
-              ROW_NUMBER() OVER (
-                PARTITION BY 
-                  CASE 
-                    WHEN p.KeySymbol LIKE 'CA-copgm%' THEN 'CA-copgm'
-                    WHEN p.KeySymbol LIKE 'CA-brpgm%' THEN 'CA-brpgm'
-                  END
-                ORDER BY p.Year DESC
-              ) as rn
-            FROM Publication p
-            LEFT JOIN PublicationAsset pa ON p.Id = pa.PublicationId
-            LEFT JOIN PublicationAttributeMap pam ON p.Id = pam.PublicationId
-            LEFT JOIN meps.Language ON p.MepsLanguageId = meps.Language.LanguageId
-            LEFT JOIN PublicationAssetImageMap paim ON pa.Id = paim.PublicationAssetId
-            LEFT JOIN ImageAsset ia ON paim.ImageAssetId = ia.Id
-            WHERE p.MepsLanguageId = ?
-              AND (p.KeySymbol LIKE 'CA-copgm%' OR p.KeySymbol LIKE 'CA-brpgm%')
-          )
-          SELECT *
-          FROM RankedPubs
-          WHERE rn = 1;
-        ''', [JwLifeApp.settings.currentLanguage.id]);
+        final langId = JwLifeSettings().currentLanguage.id;
 
+        // Récupération de toutes les publications d'assemblée de circonscription
+        final allCircuitAssemblies = await catalog.rawQuery('''
+        SELECT
+          p.*,
+          meps.Language.Symbol AS LanguageSymbol,
+          meps.Language.VernacularName AS LanguageVernacularName,
+          meps.Language.PrimaryIetfCode AS LanguagePrimaryIetfCode,
+          pa.LastModified,
+          pa.CatalogedOn,
+          pa.Size,
+          pa.ExpandedSize,
+          pa.SchemaVersion,
+          pam.PublicationAttributeId,
+          (
+            SELECT ia2.NameFragment
+            FROM ImageAsset ia2
+            INNER JOIN PublicationAssetImageMap paim2 ON ia2.Id = paim2.ImageAssetId
+            WHERE paim2.PublicationAssetId = pa.Id AND ia2.NameFragment LIKE '%_sqr-%'
+            ORDER BY ia2.Width DESC, ia2.Height DESC
+            LIMIT 1
+          ) AS ImageSqr,
+          (
+            SELECT ia2.NameFragment
+            FROM ImageAsset ia2
+            INNER JOIN PublicationAssetImageMap paim2 ON ia2.Id = paim2.ImageAssetId
+            WHERE paim2.PublicationAssetId = pa.Id AND ia2.NameFragment LIKE '%_lsr-%'
+            ORDER BY ia2.Width DESC, ia2.Height DESC
+            LIMIT 1
+          ) AS ImageLsr
+        FROM Publication p
+        LEFT JOIN PublicationAsset pa ON p.Id = pa.PublicationId
+        LEFT JOIN PublicationAttributeMap pam ON p.Id = pam.PublicationId
+        LEFT JOIN meps.Language ON p.MepsLanguageId = meps.Language.LanguageId
+        LEFT JOIN PublicationAssetImageMap paim ON pa.Id = paim.PublicationAssetId
+        LEFT JOIN ImageAsset ia ON paim.ImageAssetId = ia.Id
+        WHERE p.MepsLanguageId = ?
+          AND (p.KeySymbol LIKE 'CA-copgm%' OR p.KeySymbol LIKE 'CA-brpgm%')
+      ''', [langId]);
 
+        // Groupement et tri en Dart pour émuler ROW_NUMBER()
+        final Map<String, List<Map<String, Object?>>> grouped = {};
+        for (var pub in allCircuitAssemblies) {
+          final keySymbol = pub['KeySymbol']?.toString() ?? '';
+          final groupKey = keySymbol.startsWith('CA-copgm')
+              ? 'CA-copgm'
+              : keySymbol.startsWith('CA-brpgm')
+              ? 'CA-brpgm'
+              : 'other';
+          grouped.putIfAbsent(groupKey, () => []).add(pub);
+        }
+
+        final circuitAssemblies = grouped.entries
+            .map((entry) => entry.value
+          ..sort((a, b) => (b['Year'] as int).compareTo(a['Year'] as int)))
+            .map((sortedList) => sortedList.first)
+            .toList();
+
+        // Dernière publication d’assemblée régionale
         final convention = await catalog.rawQuery('''
-          SELECT
-            $_publicationQuery
-          WHERE p.MepsLanguageId = ? AND p.KeySymbol LIKE 'CO-pgm%'
-          ORDER BY p.Year DESC
-          LIMIT 1;
-        ''', [JwLifeApp.settings.currentLanguage.id]);
+        SELECT
+          p.*,
+          meps.Language.Symbol AS LanguageSymbol,
+          meps.Language.VernacularName AS LanguageVernacularName,
+          meps.Language.PrimaryIetfCode AS LanguagePrimaryIetfCode,
+          pa.LastModified,
+          pa.CatalogedOn,
+          pa.Size,
+          pa.ExpandedSize,
+          pa.SchemaVersion,
+          pam.PublicationAttributeId,
+          (
+            SELECT ia2.NameFragment
+            FROM ImageAsset ia2
+            INNER JOIN PublicationAssetImageMap paim2 ON ia2.Id = paim2.ImageAssetId
+            WHERE paim2.PublicationAssetId = pa.Id AND ia2.NameFragment LIKE '%_sqr-%'
+            ORDER BY ia2.Width DESC, ia2.Height DESC
+            LIMIT 1
+          ) AS ImageSqr,
+          (
+            SELECT ia2.NameFragment
+            FROM ImageAsset ia2
+            INNER JOIN PublicationAssetImageMap paim2 ON ia2.Id = paim2.ImageAssetId
+            WHERE paim2.PublicationAssetId = pa.Id AND ia2.NameFragment LIKE '%_lsr-%'
+            ORDER BY ia2.Width DESC, ia2.Height DESC
+            LIMIT 1
+          ) AS ImageLsr
+        FROM Publication p
+        LEFT JOIN PublicationAsset pa ON p.Id = pa.PublicationId
+        LEFT JOIN PublicationAttributeMap pam ON p.Id = pam.PublicationId
+        LEFT JOIN meps.Language ON p.MepsLanguageId = meps.Language.LanguageId
+        LEFT JOIN PublicationAssetImageMap paim ON pa.Id = paim.PublicationAssetId
+        LEFT JOIN ImageAsset ia ON paim.ImageAssetId = ia.Id
+        WHERE p.MepsLanguageId = ?
+          AND p.KeySymbol LIKE 'CO-pgm%'
+        ORDER BY p.Year DESC
+        LIMIT 1;
+      ''', [langId]);
 
+        // Fusion et transformation en objets Publication
         for (var publication in [...circuitAssemblies, ...convention]) {
-          Publication pub = Publication.fromJson(publication);
+          final pub = Publication.fromJson(publication);
           assembliesPublications.add(pub);
         }
-      }
-      finally {
+      } finally {
         await detachDatabases(catalog, ['meps']);
         await catalog.close();
       }
     }
+  }
+
+  /// Rechercher les publications des assemblées régionales
+  static Future<List<Publication>> fetchPubsFromConventionsDays() async {
+    final catalogFile = await getCatalogFile();
+
+    if (allFilesExist([catalogFile])) {
+      final catalog = await openReadOnlyDatabase(catalogFile.path);
+
+      try {
+        final publications = await catalog.rawQuery('''
+        SELECT DISTINCT
+            p.*,
+            pa.LastModified,
+            pa.Size,
+            pa.ExpandedSize, 
+            pa.SchemaVersion,
+            pa.ConventionReleaseDayNumber,
+            pam.PublicationAttributeId,
+            (SELECT ia.NameFragment 
+             FROM PublicationAssetImageMap paim 
+             JOIN ImageAsset ia ON paim.ImageAssetId = ia.Id 
+             WHERE paim.PublicationAssetId = pa.Id 
+               AND (ia.Width = 270 AND ia.Height = 270)
+             LIMIT 1) AS ImageSqr,
+            -- Sous-requête pour l'image rectangulaire ou fallback
+            COALESCE(
+                (SELECT ia.NameFragment 
+                 FROM PublicationAssetImageMap paim 
+                 JOIN ImageAsset ia ON paim.ImageAssetId = ia.Id 
+                 WHERE paim.PublicationAssetId = pa.Id 
+                   AND (ia.NameFragment LIKE '%_lsr-%' OR (ia.Width = 1200 AND ia.Height = 600))
+                 LIMIT 1),
+                -- Fallback : image la plus grande si pas de LSR
+                (SELECT ia.NameFragment 
+                 FROM PublicationAssetImageMap paim 
+                 JOIN ImageAsset ia ON paim.ImageAssetId = ia.Id 
+                 WHERE paim.PublicationAssetId = pa.Id 
+                   AND NOT EXISTS (
+                       SELECT 1 FROM PublicationAssetImageMap paim2 
+                       JOIN ImageAsset ia2 ON paim2.ImageAssetId = ia2.Id 
+                       WHERE paim2.PublicationAssetId = pa.Id 
+                         AND (ia2.NameFragment LIKE '%_lsr-%' OR (ia2.Width = 1200 AND ia2.Height = 600))
+                   )
+                 ORDER BY (ia.Width * ia.Height) DESC
+                 LIMIT 1)
+            ) AS ImageLsr
+        FROM Publication p
+        LEFT JOIN PublicationAsset pa ON p.Id = pa.PublicationId
+        LEFT JOIN PublicationAttributeMap pam ON p.Id = pam.PublicationId
+        WHERE pa.ConventionReleaseDayNumber IS NOT NULL AND pa.MepsLanguageId = ?;
+      ''', [JwLifeSettings().currentLanguage.id]);
+
+        return publications
+            .map((pub) => Publication.fromJson(pub))
+            .toList();
+      } finally {
+        await catalog.close();
+      }
+    }
+
+    return [];
   }
 }

@@ -1,3 +1,4 @@
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:searchfield/searchfield.dart';
@@ -45,10 +46,10 @@ class _SearchFieldWidgetState extends State<SearchFieldWidget> {
       offset: const Offset(0, 50),
       maxSuggestionsInViewPort: 9,
       searchInputDecoration: buildSearchInputDecoration(context),
+      suggestionsDecoration: buildSuggestionsDecoration(context),
       onSearchTextChanged: (text) {
-        // Mettre à jour les suggestions en fonction du texte recherché
         final fetchedSuggestions = widget.onSearchTextChanged(text);
-        return fetchedSuggestions ?? [];  // Si suggestions est null, retourne une liste vide.
+        return fetchedSuggestions ?? [];
       },
       onSuggestionTap: (item) {
         // Appel du callback sur la suggestion sélectionnée
@@ -82,6 +83,12 @@ class _SearchFieldWidgetState extends State<SearchFieldWidget> {
     );
   }
 
+  static SuggestionDecoration buildSuggestionsDecoration(BuildContext context) {
+    return SuggestionDecoration(
+      color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF111111) : const Color(0xFFffffff),
+    );
+  }
+
 
   Widget _buildSuggestionItem(BuildContext context, Map<String, dynamic> item) {
     return Padding(
@@ -93,7 +100,7 @@ class _SearchFieldWidgetState extends State<SearchFieldWidget> {
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              item['query'],
+              item['word'],
               style: TextStyle(fontSize: 16, color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFFb8b8b8) : const Color(0xFF757575)),
               overflow: TextOverflow.ellipsis,
             ),

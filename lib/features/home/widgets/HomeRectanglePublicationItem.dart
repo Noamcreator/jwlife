@@ -1,0 +1,238 @@
+import 'package:flutter/material.dart';
+import 'package:jwlife/data/repositories/PublicationRepository.dart';
+
+import '../../../core/icons.dart';
+import '../../../core/utils/utils.dart';
+import '../../../core/utils/utils_pub.dart';
+import '../../../data/databases/publication.dart';
+import '../../../widgets/image_cached_widget.dart';
+
+class HomeRectanglePublicationItem extends StatelessWidget {
+  final Publication pub;
+
+  const HomeRectanglePublicationItem({super.key, required this.pub});
+
+  @override
+  Widget build(BuildContext context) {
+    final publication = PublicationRepository().getPublication(pub);
+
+    return Material(
+      color: Theme.of(context).brightness == Brightness.dark
+          ? const Color(0xFF292929)
+          : Colors.white,
+      child: InkWell(
+        onTap: () => publication.showMenu(context),
+        child: SizedBox(
+          height: 80,
+          width: 320,
+          child: Stack(
+            children: [
+              Row(
+                children: [
+                  ClipRRect(
+                    child: ImageCachedWidget(
+                      imageUrl: publication.imageSqr,
+                      pathNoImage: publication.category.image,
+                      height: 80,
+                      width: 80,
+                    ),
+                  ),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.only(left: 6.0, right: 25.0, top: 2.0, bottom: 2.0),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            publication.issueTagNumber == 0 ? publication.category.getName(context) : publication.issueTitle,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Theme.of(context).brightness == Brightness.dark
+                                  ? const Color(0xFFc3c3c3)
+                                  : const Color(0xFF585858),
+                            ),
+                          ),
+                          Text(
+                            publication.issueTagNumber == 0
+                                ? publication.title
+                                : publication.coverTitle,
+                            style: TextStyle(
+                              height: 1.2,
+                              fontSize: 14,
+                              color: Theme.of(context).secondaryHeaderColor,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const Spacer(),
+                          Text(
+                            publication.getRelativeDateText(),
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Theme.of(context).brightness == Brightness.dark
+                                  ? const Color(0xFFc3c3c3)
+                                  : const Color(0xFF626262),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              /// Menu
+              Positioned(
+                top: -5,
+                right: -15,
+                child: PopupMenuButton(
+                  icon: const Icon(Icons.more_vert, color: Color(0xFF9d9d9d)),
+                  itemBuilder: (context) => [
+                    getPubShareMenuItem(publication),
+                    getPubLanguagesItem(context, "Autres langues", publication),
+                    getPubFavoriteItem(publication),
+                    getPubDownloadItem(context, publication),
+                  ],
+                ),
+              ),
+
+        // Bouton dynamique
+        ValueListenableBuilder<bool>(
+          valueListenable: publication.isDownloadingNotifier,
+          builder: (context, isDownloading, _) {
+            if (isDownloading) {
+              return Positioned(
+                bottom: -4,
+                right: -8,
+                height: 40,
+                child: IconButton(
+                  padding: EdgeInsets.zero,
+                  onPressed: () {
+                    publication.cancelDownload(context);
+                  },
+                  icon: const Icon(
+                    JwIcons.x,
+                    color: Colors.white,
+                    shadows: [Shadow(color: Colors.black, blurRadius: 5)],
+                  ),
+                ),
+              );
+            }
+
+            return ValueListenableBuilder<bool>(
+              valueListenable: publication.isDownloadedNotifier,
+              builder: (context, isDownloaded, _) {
+                if (!isDownloaded) {
+                  return Stack(
+                    children: [
+                      // Icône de téléchargement
+                      Positioned(
+                        bottom: 5,
+                        right: -10,
+                        height: 40,
+                        child: IconButton(
+                          padding: EdgeInsets.zero,
+                          onPressed: () {
+                            publication.download(context);
+                          },
+                          icon: const Icon(
+                            JwIcons.cloud_arrow_down,
+                            color: Colors.white,
+                            shadows: [Shadow(color: Colors.black, blurRadius: 5)],
+                          ),
+                        ),
+                      ),
+                      // Texte sous l'icône
+                      Positioned(
+                        bottom: 0,
+                        right: 2,
+                        child: Text(
+                          formatFileSize(publication.size),
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Theme.of(context).brightness == Brightness.dark
+                                ? const Color(0xFFc3c3c3)
+                                : const Color(0xFF585858),
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                }
+                else if (publication.hasUpdate()) {
+                  return Positioned(
+                    bottom: -4,
+                    right: -8,
+                    height: 40,
+                    child: IconButton(
+                      padding: EdgeInsets.zero,
+                      onPressed: () {
+                        publication.download(context);
+                      },
+                      icon: const Icon(
+                        JwIcons.arrows_circular,
+                        color: Colors.white,
+                        shadows: [Shadow(color: Colors.black, blurRadius: 5)],
+                      ),
+                    ),
+                  );
+                }
+                return ValueListenableBuilder<bool>(
+                  valueListenable: publication.isFavoriteNotifier,
+                  builder: (context, isFavorite, _) {
+                    if (isFavorite) {
+                      return Positioned(
+                        bottom: -4,
+                        right: 2,
+                        height: 40,
+                        child: const Icon(
+                          JwIcons.star,
+                          color: Colors.white,
+                          shadows: [Shadow(color: Colors.black, blurRadius: 5)],
+                        ),
+                      );
+                    }
+                    else {
+                      return const SizedBox.shrink();
+                    }
+                  },
+                );
+              },
+            );
+          },
+        ),
+
+        // Barre de progression
+        ValueListenableBuilder<bool>(
+          valueListenable: publication.isDownloadingNotifier,
+          builder: (context, isDownloading, _) {
+            return isDownloading
+                ? Positioned(
+              bottom: 0,
+              right: 0,
+              height: 2,
+              width: 320 - 80 - 1,
+              child: ValueListenableBuilder<double>(
+                valueListenable: publication.progressNotifier,
+                builder: (context, progress, _) {
+                  return LinearProgressIndicator(
+                    value: progress == -1 ? null : progress,
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      Theme.of(context).primaryColor,
+                    ),
+                    backgroundColor: Colors.grey,
+                    minHeight: 2,
+                  );
+                },
+              ),
+            )
+                : const SizedBox.shrink();
+          },
+        ),
+      ],
+    ))));
+  }
+}

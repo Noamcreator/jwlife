@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
-import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
+import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/core/utils/utils_audio.dart';
 import 'package:jwlife/core/utils/utils_video.dart';
-import 'package:jwlife/data/databases/Publication.dart';
-import 'package:jwlife/data/databases/Video.dart';
 import 'package:jwlife/data/realm/catalog.dart';
 import 'dart:typed_data';
 import 'dart:io';
@@ -13,12 +11,14 @@ import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 
+import '../../app/services/settings_service.dart';
+import '../api.dart';
 import 'files_helper.dart';
 
 Future<dynamic> getVideoIfDownload(Database db, MediaItem item) async {
   String keySymbol = item.pubSymbol ?? '';
   int documentId = item.documentId ?? 0;
-  String mepsLanguage = item.languageSymbol ?? JwLifeApp.settings.currentLanguage.symbol;
+  String mepsLanguage = item.languageSymbol ?? JwLifeSettings().currentLanguage.symbol;
   int issueTagNumber = item.issueDate ?? 0;
   int? track = item.track ?? 0;
 
@@ -100,7 +100,7 @@ Future<void> downloadAudio(BuildContext context, String? pubSymbol, int? issueTa
         whereArgs: [
           pubSymbol ?? '',
           documentId ?? 0,
-          mepsLanguage ?? JwLifeApp.settings.currentLanguage.symbol,
+          mepsLanguage ?? JwLifeSettings().currentLanguage.symbol,
           issueTagNumber ?? 0,
           track ?? 0,
         ],
@@ -132,7 +132,7 @@ Future<void> downloadAudio(BuildContext context, String? pubSymbol, int? issueTa
             "ImagePath": imagePath,
             "MediaType": 0,
             "DocumentId": documentId ?? 0,
-            "MepsLanguage": mepsLanguage ?? JwLifeApp.settings.currentLanguage.symbol,
+            "MepsLanguage": mepsLanguage ?? JwLifeSettings().currentLanguage.symbol,
             "IssueTagNumber": issueTagNumber ?? 0,
             "Track": track ?? 0,
             "BookNumber": 0,
@@ -157,7 +157,7 @@ Future<void> downloadAudio(BuildContext context, String? pubSymbol, int? issueTa
     }
   }
   catch (e) {
-    print('Erreur lors du téléchargement du fichier média : $e');
+    printTime('Erreur lors du téléchargement du fichier média : $e');
   }
 }
 
@@ -173,7 +173,7 @@ Future<void> deleteAudio(BuildContext context, String? pubSymbol, int? issueTagN
       whereArgs: [
         pubSymbol ?? '',
         documentId ?? 0,
-        mepsLanguage ?? JwLifeApp.settings.currentLanguage.symbol,
+        mepsLanguage ?? JwLifeSettings().currentLanguage.symbol,
         issueTagNumber ?? 0,
         track ?? 0,
       ],
@@ -198,7 +198,11 @@ Future<void> downloadMedia(BuildContext context, MediaItem item, dynamic media, 
   try {
     // Télécharger le fichier avec mise à jour de la progression
     final response = await Dio().get(media['files'][file]['progressiveDownloadURL'],
-      options: Options(responseType: ResponseType.bytes),
+      options: Options(
+        headers: Api.getHeaders(),
+        responseType: ResponseType.bytes,
+        followRedirects: true
+      ),
       onReceiveProgress: (received, total) {
         if (total != -1) {
           progress = received / total;
@@ -256,7 +260,7 @@ Future<void> downloadMedia(BuildContext context, MediaItem item, dynamic media, 
         whereArgs: [
           item.pubSymbol ?? '',
           item.documentId ?? 0,
-          item.languageSymbol ?? JwLifeApp.settings.currentLanguage.symbol,
+          item.languageSymbol ?? JwLifeSettings().currentLanguage.symbol,
           item.issueDate ?? 0,
           item.track ?? 0,
         ],
@@ -289,7 +293,7 @@ Future<void> downloadMedia(BuildContext context, MediaItem item, dynamic media, 
             "ImagePath": imagePath,
             "MediaType": 0,
             "DocumentId": item.documentId ?? 0,
-            "MepsLanguage": item.languageSymbol ?? JwLifeApp.settings.currentLanguage.symbol,
+            "MepsLanguage": item.languageSymbol ?? JwLifeSettings().currentLanguage.symbol,
             "IssueTagNumber": item.issueDate ?? 0,
             "Track": item.track ?? 0,
             "BookNumber": 0,
@@ -332,7 +336,7 @@ Future<void> downloadMedia(BuildContext context, MediaItem item, dynamic media, 
     }
   }
   catch (e) {
-    print('Erreur lors du téléchargement du fichier média : $e');
+    printTime('Erreur lors du téléchargement du fichier média : $e');
     if(item.type == 'VIDEO') {
       Navigator.of(context, rootNavigator: true).pop();
     }
@@ -357,7 +361,7 @@ Future<void> downloadPubAudioFile(BuildContext context, dynamic audio, int media
       "ModifiedDateTime": audio['file']['modifiedDatetime'] ?? "",
     },
   );
-  print('Audio file downloaded successfully: $audioFilePath');
+  printTime('Audio file downloaded successfully: $audioFilePath');
 }
 
 Future<void> deletePubAudioFile(BuildContext context, int mediaKeyId, Database db) async {
@@ -379,7 +383,7 @@ Future<void> deletePubAudioFile(BuildContext context, int mediaKeyId, Database d
     whereArgs: [audioId],
   );
 
-  print('Audio file deleted successfully');
+  printTime('Audio file deleted successfully');
 }
 
 Future<void> downloadAudioFile(BuildContext context, dynamic audio, int mediaKeyId, String audioFilePath, Database db) async {
@@ -422,7 +426,7 @@ Future<void> downloadAudioFile(BuildContext context, dynamic audio, int mediaKey
 
    */
 
-  print('Audio file downloaded successfully: $audioFilePath');
+  printTime('Audio file downloaded successfully: $audioFilePath');
 }
 
 
@@ -464,7 +468,7 @@ Future<void> downloadVideoFile(BuildContext context, MediaItem item, dynamic vid
     );
   }
 
-  print('Video file downloaded successfully: $videoFilePath and $subtitleFilePath');
+  printTime('Video file downloaded successfully: $videoFilePath and $subtitleFilePath');
 }
 
 Future<void> removeMedia(MediaItem item) async {
@@ -478,7 +482,7 @@ Future<void> removeMedia(MediaItem item) async {
     whereArgs: [
       item.pubSymbol ?? '',
       item.documentId ?? 0,
-      item.languageSymbol ?? JwLifeApp.settings.currentLanguage.symbol,
+      item.languageSymbol ?? JwLifeSettings().currentLanguage.symbol,
       item.issueDate ?? 0,
       item.track ?? 0,
     ],

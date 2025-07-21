@@ -1,15 +1,9 @@
-import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/core/icons.dart';
-import 'package:jwlife/data/databases/Publication.dart';
-import 'package:jwlife/data/databases/PublicationRepository.dart';
-import 'package:jwlife/modules/home/views/home_view.dart';
-import 'package:jwlife/modules/library/views/publication/local/publication_menu_view.dart';
+import 'package:jwlife/data/databases/publication.dart';
+import 'package:jwlife/features/home/views/home_page.dart';
 import 'package:jwlife/widgets/dialog/language_dialog_pub.dart';
-
-import 'common_ui.dart';
-
 
 PopupMenuItem getPubShareMenuItem(Publication publication) {
   return PopupMenuItem(
@@ -69,7 +63,7 @@ PopupMenuItem getPubFavoriteItem(Publication pub) {
         pub.isFavoriteNotifier.value = true;
       }
 
-      //HomeView.refreshHomeView();
+      HomePage.refreshHomeView();
     },
   );
 }

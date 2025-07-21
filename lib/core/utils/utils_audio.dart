@@ -1,12 +1,12 @@
 import 'dart:convert';
 
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:jwlife/audio/lyrics_view.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/utils.dart';
-import 'package:jwlife/data/databases/Audio.dart';
-import 'package:jwlife/data/databases/Publication.dart';
+import 'package:jwlife/data/models/audio.dart';
+import 'package:jwlife/data/databases/publication.dart';
 import 'package:jwlife/data/realm/catalog.dart';
 import 'package:jwlife/data/realm/realm_library.dart';
 import 'package:jwlife/widgets/dialog/utils_dialog.dart';
@@ -17,7 +17,9 @@ import 'package:http/http.dart' as http;
 import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/widgets/dialog/language_dialog.dart';
 
-import '../../video/subtitles.dart';
+import '../../app/services/settings_service.dart';
+import '../../features/audio/lyrics_view.dart';
+import '../../features/video/subtitles.dart';
 import '../api.dart';
 import 'common_ui.dart';
 import 'utils_media.dart';
@@ -26,7 +28,7 @@ import 'package:audio_service/audio_service.dart' as audio_service;
 
 void showAudioPlayerForLink(BuildContext context, String url, audio_service.MediaItem mediaItem, {Duration initialPosition = Duration.zero, Duration? endPosition}) async {
   if(await hasInternetConnection()) {
-    JwLifeApp.jwAudioPlayer.playAudioFromLink(url, mediaItem, initialPosition: initialPosition, endPosition: endPosition);
+    JwLifeApp.audioPlayer.playAudioFromLink(url, mediaItem, initialPosition: initialPosition, endPosition: endPosition);
   }
   else {
     showNoConnectionDialog(context);
@@ -37,11 +39,11 @@ void showAudioPlayer(BuildContext context, MediaItem mediaItem) async {
   Audio? audio = JwLifeApp.mediaCollections.getAudioFromMediaItem(mediaItem);
 
   if (audio != null) {
-    JwLifeApp.jwAudioPlayer.playAudio(mediaItem, localAudio: audio);
+    JwLifeApp.audioPlayer.playAudio(mediaItem, localAudio: audio);
   }
   else {
     if(await hasInternetConnection()) {
-      JwLifeApp.jwAudioPlayer.playAudio(mediaItem);
+      JwLifeApp.audioPlayer.playAudio(mediaItem);
     }
     else {
       showNoConnectionDialog(context);
@@ -49,18 +51,21 @@ void showAudioPlayer(BuildContext context, MediaItem mediaItem) async {
   }
 }
 
-void showAudioPlayerLink(BuildContext context, Publication publication, List<Audio> audios, int id, {Duration? start}) async {
-  if(await hasInternetConnection() && audios.isNotEmpty) {
-    await JwLifeApp.jwAudioPlayer.setPlaylist(audios, pub: publication, id: id, position: start, randomm: false);
-    await JwLifeApp.jwAudioPlayer.play();
-  }
-  else {
-    showNoConnectionDialog(context);
+void showAudioPlayerPublicationLink(BuildContext context, Publication publication, List<Audio> audios, int id, {Duration? start}) async {
+  Audio audio = audios.elementAt(id);
+
+  if(audios.isNotEmpty) {
+    if(await hasInternetConnection() || audio.isDownloaded) {
+      JwLifeApp.audioPlayer.playAudioFromPublicationLink(publication, audios, id, start ?? Duration.zero);
+    }
+    else {
+      showNoConnectionDialog(context);
+    }
   }
 }
 
 MediaItem? getAudioItem(String? keySymbol, int? track, int? documentId, int? issueTagNumber, int? mepsLanguageId) {
-  String languageSymbol = JwLifeApp.settings.currentLanguage.symbol;
+  String languageSymbol = JwLifeSettings().currentLanguage.symbol;
   var queryParts = <String>[];
   if (keySymbol != null && keySymbol != '') queryParts.add("pubSymbol == '$keySymbol'");
   if (track != null && track != 0) queryParts.add("track == '$track'");
@@ -73,7 +78,7 @@ MediaItem? getAudioItem(String? keySymbol, int? track, int? documentId, int? iss
   queryParts.add("type == 'AUDIO'");
   String query = queryParts.join(" AND ");
 
-  print("Query: $query");
+  printTime("Query: $query");
   return RealmLibrary.realm.all<MediaItem>().query(query).firstOrNull;
 }
 
@@ -162,7 +167,7 @@ PopupMenuItem getAudioDownloadItem(BuildContext context, MediaItem item) {
             final jsonFile = response.body;
             final jsonData = json.decode(jsonFile);
 
-            print(link);
+            printTime(link);
 
             downloadMedia(context, item, jsonData['media'][0]);
           }

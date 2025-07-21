@@ -2,7 +2,6 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:archive/archive.dart';
 import 'package:jwlife/core/utils/directory_helper.dart';
-import 'package:http/http.dart' as http;
 import 'package:jwlife/core/utils/shared_preferences_helper.dart';
 import 'package:jwlife/core/utils/utils.dart';
 
@@ -29,10 +28,10 @@ class AssetsDownload {
           printTime('webapp downloaded');
         }
         else {
-          print('Failed to download webapp: $webappFileUrl');
+          printTime('Failed to download webapp: $webappFileUrl');
         }
       } catch (e) {
-        print('Error downloading webapp: $e');
+        printTime('Error downloading webapp: $e');
       }
     }
   }
@@ -57,7 +56,7 @@ class AssetsDownload {
         }
       }
     } catch (e) {
-      print("Erreur lors de l'extraction du ZIP : $e");
+      printTime("Erreur lors de l'extraction du ZIP : $e");
     }
   }
 }

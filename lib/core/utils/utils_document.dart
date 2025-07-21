@@ -6,15 +6,15 @@ import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/core/utils/shared_preferences_helper.dart';
 import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/core/utils/webview_data.dart';
-import 'package:jwlife/data/databases/Publication.dart';
-import 'package:jwlife/data/databases/PublicationRepository.dart';
+import 'package:jwlife/data/databases/publication.dart';
+import 'package:jwlife/data/repositories/PublicationRepository.dart';
 import 'package:jwlife/data/databases/catalog.dart';
-import 'package:jwlife/data/userdata/Bookmark.dart';
-import 'package:jwlife/modules/library/views/publication/local/document/document_view.dart';
-import 'package:jwlife/modules/library/views/publication/local/document/documents_manager.dart';
+import 'package:jwlife/data/models/userdata/bookmark.dart';
+import 'package:jwlife/features/publication/views/document/local/document_page.dart';
 import 'package:jwlife/widgets/dialog/utils_dialog.dart';
 
 import '../../app/jwlife_app.dart';
+import '../../app/services/settings_service.dart';
 
 Future<void> showDownloadPublicationDialog(BuildContext context, Publication publication) async {
   String publicationTitle = publication.getTitle();
@@ -106,7 +106,7 @@ Future<void> showDocumentView(BuildContext context, int mepsDocId, int currentLa
   Publication? publication = await JwLifeApp.pubCollections.getDocumentFromMepsDocumentId(mepsDocId, currentLanguageId);
 
   if (publication != null) {
-    await showPage(context, DocumentView(publication: publication, mepsDocumentId: mepsDocId, startParagraphId: startParagraphId, endParagraphId: endParagraphId));
+    await showPage(context, DocumentPage(publication: publication, mepsDocumentId: mepsDocId, startParagraphId: startParagraphId, endParagraphId: endParagraphId));
   }
   else {
     if(await hasInternetConnection()) {
@@ -116,7 +116,7 @@ Future<void> showDocumentView(BuildContext context, int mepsDocId, int currentLa
         if (publication.isDownloadedNotifier.value) {
           showPage(
             context,
-            DocumentView(
+            DocumentPage(
               publication: publication,
               mepsDocumentId: mepsDocId,
               startParagraphId: startParagraphId,
@@ -136,7 +136,7 @@ Future<void> showChapterView(BuildContext context, String keySymbol, int current
   Publication? bible = PublicationRepository().getAllBibles().firstWhereOrNull((p) => p.keySymbol == keySymbol && p.mepsLanguage.id == currentLanguageId);
 
   if (bible != null) {
-    await showPage(context, DocumentView.bible(bible: bible, book: bookNumber, chapter: chapterNumber, firstVerse: firstVerseNumber, lastVerse: lastVerseNumber));
+    await showPage(context, DocumentPage.bible(bible: bible, book: bookNumber, chapter: chapterNumber, firstVerse: firstVerseNumber, lastVerse: lastVerseNumber));
   }
   else {
     if(await hasInternetConnection()) {
@@ -149,7 +149,7 @@ Future<void> showChapterView(BuildContext context, String keySymbol, int current
 }
 
 String createHtmlContent(String html, String articleClasses, Publication publication, bool hasAppBar) {
-  WebViewData webViewData = JwLifeApp.settings.webViewData;
+  WebViewData webViewData = JwLifeSettings().webViewData;
   // Dynamique pour paddingTop
   String headerAdjustmentScript = '''
     <script>
@@ -296,7 +296,7 @@ String createHtmlContent(String html, String articleClasses, Publication publica
 }
 
 String createHtmlDialogContent(String html, String articleClasses) {
-  WebViewData webViewData = JwLifeApp.settings.webViewData;
+  WebViewData webViewData = JwLifeSettings().webViewData;
 
   String htmlContent = '''
     <!DOCTYPE html>
@@ -324,7 +324,7 @@ String createHtmlDialogContent(String html, String articleClasses) {
 }
 
 Future<void> showFontSizeDialog(BuildContext context, InAppWebViewController? controller) async {
-  double fontSize = JwLifeApp.settings.webViewData.fontSize;
+  double fontSize = JwLifeSettings().webViewData.fontSize;
   showDialog(
     context: context,
     builder: (BuildContext context) {
@@ -362,7 +362,7 @@ Future<void> showFontSizeDialog(BuildContext context, InAppWebViewController? co
 
                           // Mise à jour en temps réel dans la WebView
                           controller?.evaluateJavascript(source: "resizeFont($fontSize);");
-                          JwLifeApp.settings.webViewData.updateFontSize(fontSize);
+                          JwLifeSettings().webViewData.updateFontSize(fontSize);
                           setFontSize(fontSize);
                         },
                       ),
@@ -683,11 +683,10 @@ Future<Bookmark?> showBookmarkDialog(BuildContext context, Publication publicati
                                                   },
                                                   child: Text('Supprimer'),
                                                 ),
-                                                if (mepsDocumentId != null)
-                                                  PopupMenuItem(
-                                                    onTap: () async {
-                                                      Bookmark? updatedBookmark = await JwLifeApp.userdata.updateBookmark(publication, index, mepsDocumentId, title!, snippet!, blockType!, blockIdentifier);
-
+                                                PopupMenuItem(
+                                                  onTap: () async {
+                                                    if (mepsDocumentId != null) {
+                                                      Bookmark? updatedBookmark = await JwLifeApp.userdata.updateBookmark(publication, index, mepsDocumentId, null, null, title!, snippet!, blockType!, blockIdentifier);
                                                       if(updatedBookmark != null) {
                                                         setState(() {
                                                           bookmarks.remove(bookmark);
@@ -702,9 +701,27 @@ Future<Bookmark?> showBookmarkDialog(BuildContext context, Publication publicati
                                                           webViewController.evaluateJavascript(source: 'addBookmark(null, ${updatedBookmark.blockType}, ${updatedBookmark.blockIdentifier}, ${updatedBookmark.slot})');
                                                         }
                                                       }
-                                                    },
-                                                    child: Text('Remplacer'),
-                                                  ),
+                                                    }
+                                                    else if (bookNumber != null && chapterNumber != null) {
+                                                      Bookmark? updatedBookmark = await JwLifeApp.userdata.updateBookmark(publication, index, null, bookNumber, chapterNumber, title!, snippet!, blockType!, blockIdentifier);
+                                                      if(updatedBookmark != null) {
+                                                        setState(() {
+                                                          bookmarks.remove(bookmark);
+                                                          bookmarks.add(updatedBookmark);
+                                                        });
+                                                        if(publication.documentsManager != null) {
+                                                          publication.documentsManager!.getCurrentDocument().removeBookmark(bookmark);
+                                                          publication.documentsManager!.getCurrentDocument().addBookmark(updatedBookmark);
+                                                        }
+                                                        if(webViewController != null) {
+                                                          webViewController.evaluateJavascript(source: 'removeBookmark(${bookmark.blockIdentifier}, ${bookmark.slot})');
+                                                          webViewController.evaluateJavascript(source: 'addBookmark(null, ${updatedBookmark.blockType}, ${updatedBookmark.blockIdentifier}, ${updatedBookmark.slot})');
+                                                        }
+                                                      }
+                                                    }
+                                                  },
+                                                  child: Text('Remplacer'),
+                                                ),
                                               ];
                                             },
                                           ),

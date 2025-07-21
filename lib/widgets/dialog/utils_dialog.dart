@@ -7,6 +7,7 @@ import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/core/utils/files_helper.dart';
 import 'package:sqflite/sqflite.dart';
 
+import '../../app/services/settings_service.dart';
 import 'language_dialog.dart';
 
 class JwDialogButton {
@@ -22,7 +23,6 @@ class JwDialogButton {
     this.result,
   });
 }
-
 
 Future<T?> showJwDialog<T>({
   required BuildContext context,
@@ -259,7 +259,7 @@ Future<DateTime> showWeekSelectionDialog(BuildContext context, DateTime initialD
   File catalogFile = await getCatalogFile();
   Database db = await openReadOnlyDatabase(catalogFile.path);
 
-  List<Map<String, dynamic>> result = await db.rawQuery(query, [JwLifeApp.settings.currentLanguage.id]);
+  List<Map<String, dynamic>> result = await db.rawQuery(query, [JwLifeSettings().currentLanguage.id]);
 
   db.close();
 
@@ -283,7 +283,7 @@ Future<DateTime> showWeekSelectionDialog(BuildContext context, DateTime initialD
     DateTime currentWeekEnd = currentWeekStart.add(Duration(days: 6));
 
     // Formater les dates pour afficher la semaine au format "6-12 janvier", "13-19 janvier", etc.
-    String weekRange = '${DateFormat('d', JwLifeApp.settings.locale.languageCode).format(currentWeekStart)}-${DateFormat('d MMMM', JwLifeApp.settings.locale.languageCode).format(currentWeekEnd)}';
+    String weekRange = '${DateFormat('d', JwLifeSettings().locale.languageCode).format(currentWeekStart)}-${DateFormat('d MMMM', JwLifeSettings().locale.languageCode).format(currentWeekEnd)}';
     weeksList.add(weekRange);
     weeksStartDates.add(currentWeekStart);
 

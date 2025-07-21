@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/i18n/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../app/jwlife_app.dart';
-import '../../data/meps/language.dart';
+import '../../app/services/settings_service.dart';
+import '../../data/models/meps_language.dart';
 
 int LANGUAGE_ID = 0;
 int LANGUAGE_CODE = 1;
@@ -124,7 +126,7 @@ Future<String> getCatalogDate() async {
 }
 
 Future<void> setCatalogDate(String catalogDate) async {
-  print('catalogDate: $catalogDate');
+  printTime('catalogDate: $catalogDate');
   SharedPreferences prefs = await SharedPreferences.getInstance();
   prefs.setString('catalog_date', catalogDate);
 }
@@ -139,7 +141,7 @@ Future<String> getLibraryLanguage(int index) async {
 }
 
 Future<void> setLibraryLanguage(Map<String, dynamic> selectedLanguage) async {
-  JwLifeApp.settings.currentLanguage = MepsLanguage.fromJson(selectedLanguage);
+  JwLifeSettings().currentLanguage = MepsLanguage.fromJson(selectedLanguage);
 
   SharedPreferences prefs = await SharedPreferences.getInstance();
   prefs.setStringList('library_language', [selectedLanguage['LanguageId'].toString(), selectedLanguage['Symbol'], selectedLanguage['VernacularName'], selectedLanguage['PrimaryIetfCode']]);

@@ -8,10 +8,7 @@ import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/core/utils/utils_media.dart';
-import 'package:jwlife/data/databases/Video.dart';
-import 'package:jwlife/video/subtitles.dart';
-import 'package:jwlife/video/subtitles_view.dart';
-import 'package:jwlife/video/video_player_view.dart';
+import 'package:jwlife/data/models/video.dart';
 import 'package:jwlife/widgets/dialog/language_dialog.dart';
 import 'package:jwlife/widgets/dialog/utils_dialog.dart';
 import 'package:jwlife/widgets/dialog/publication_dialogs.dart';
@@ -22,8 +19,12 @@ import 'package:http/http.dart' as http;
 import 'package:sqflite/sqflite.dart';
 
 import '../../app/jwlife_view.dart';
+import '../../app/services/settings_service.dart';
 import '../../data/realm/catalog.dart';
 import '../../data/realm/realm_library.dart';
+import '../../features/video/subtitles.dart';
+import '../../features/video/subtitles_view.dart';
+import '../../features/video/video_player_view.dart';
 import '../api.dart';
 import 'common_ui.dart';
 import 'files_helper.dart';
@@ -32,7 +33,7 @@ void showFullScreenVideo(BuildContext context, MediaItem mediaItem) async {
   Video? video = JwLifeApp.mediaCollections.getVideo(mediaItem);
 
   if (video != null) {
-    JwLifeView.toggleNavBarBlack.call(true);
+    JwLifePage.toggleNavBarBlack.call(true);
 
     showPage(context, VideoPlayerView(
       mediaItem: mediaItem,
@@ -41,7 +42,7 @@ void showFullScreenVideo(BuildContext context, MediaItem mediaItem) async {
   }
   else {
     if(await hasInternetConnection()) {
-      JwLifeView.toggleNavBarBlack.call(true);
+      JwLifePage.toggleNavBarBlack.call(true);
 
       showPage(context, VideoPlayerView(
         mediaItem: mediaItem
@@ -70,7 +71,7 @@ MediaItem? getVideoItem(String? keySymbol, int? track, int? documentId, int? iss
     queryParts.add("issueDate == '$issueStr'");
   }
 
-  String languageSymbol = JwLifeApp.settings.currentLanguage.symbol;
+  String languageSymbol = JwLifeSettings().currentLanguage.symbol;
   if(mepsLanguage != null && mepsLanguage is String) {
     languageSymbol = mepsLanguage;
   }
@@ -164,7 +165,7 @@ PopupMenuItem getVideoDownloadItem(BuildContext context, MediaItem item) {
           final jsonFile = response.body;
           final jsonData = json.decode(jsonFile);
 
-          print(link);
+          printTime(link);
 
           showVideoDownloadDialog(context, jsonData['media'][0]['files']).then((value) {
             if (value != null) {
@@ -251,7 +252,7 @@ PopupMenuItem getCopySubtitlesItem(BuildContext context, MediaItem item) {
           return;
         }
       }
-      print(subtitles.toString());
+      printTime(subtitles.toString());
       Clipboard.setData(ClipboardData(text: subtitles.toString())).then((value) => showBottomMessage(context, "Sous-titres copiés dans le presse-papier"));
     },
   );

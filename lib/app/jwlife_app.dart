@@ -1,13 +1,9 @@
-import 'dart:io';
-
 import 'package:beamer/beamer.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:jwlife/app/jw_settings.dart';
-import 'package:jwlife/core/utils/files_helper.dart';
+import 'package:jwlife/app/services/settings_service.dart';
 import 'package:jwlife/app/startup/create_database.dart';
 import 'package:jwlife/app/startup/splash_screen.dart';
-import 'package:jwlife/audio/audio_player_model.dart';
 import 'package:jwlife/core/BibleCluesInfo.dart';
 import 'package:jwlife/core/api.dart';
 import 'package:jwlife/core/constants.dart';
@@ -15,16 +11,16 @@ import 'package:jwlife/core/theme.dart';
 import 'package:jwlife/core/utils/assets_downloader.dart';
 import 'package:jwlife/core/utils/shared_preferences_helper.dart';
 import 'package:jwlife/core/utils/utils.dart';
-import 'package:jwlife/data/databases/MediaCollections.dart';
-import 'package:jwlife/data/databases/PubCollections.dart';
-import 'package:jwlife/data/databases/PublicationAttribute.dart';
-import 'package:jwlife/data/databases/PublicationCategory.dart';
+import 'package:jwlife/data/databases/media_collections.dart';
+import 'package:jwlife/data/databases/pub_collections.dart';
+import 'package:jwlife/data/databases/publication_attribute.dart';
+import 'package:jwlife/data/databases/publication_category.dart';
 import 'package:jwlife/data/databases/catalog.dart';
-import 'package:jwlife/data/userdata/Userdata.dart';
+import 'package:jwlife/data/databases/userdata.dart';
 import 'package:jwlife/i18n/app_localizations.dart';
 
-import '../core/utils/files_helper.dart';
-import '../data/databases/TilesCache.dart';
+import '../data/databases/tiles_cache.dart';
+import '../features/audio/audio_player_model.dart';
 import 'jwlife_view.dart';
 import 'startup/copy_assets.dart';
 
@@ -32,22 +28,20 @@ class JwLifeApp extends StatefulWidget {
   static late Function(Color) togglePrimaryColor;
 
   // Champs statiques modifiables plus tard
-  static late JwSettings settings;
   static late PubCollections pubCollections;
   static late MediaCollections mediaCollections;
   static late TilesCache tilesCache;
   static late Userdata userdata;
-  static late JwAudioPlayer jwAudioPlayer;
+  static late JwLifeAudioPlayer audioPlayer;
   static late BibleCluesInfo bibleCluesInfo;
 
   // Constructeur
-  JwLifeApp(JwSettings jwSettings, {super.key}) {
-    settings = jwSettings;
+  JwLifeApp({super.key}) {
     pubCollections = PubCollections();
     mediaCollections = MediaCollections();
     tilesCache = TilesCache();
     userdata = Userdata();
-    jwAudioPlayer = JwAudioPlayer();
+    audioPlayer = JwLifeAudioPlayer();
     bibleCluesInfo = BibleCluesInfo(bibleBookNames: []);
   }
 
@@ -67,10 +61,10 @@ class _JwLifeAppState extends State<JwLifeApp> {
     initializeData().then((_) {
       setState(() {
         routerDelegate = BeamerDelegate(
-          initialPath: '/home',
+          initialPath: '/app',
           locationBuilder: RoutesLocationBuilder(
             routes: {
-              '*': (context, state, data) => JwLifeView(
+              '/app': (context, state, data) => JwLifePage(
                 toggleTheme: _toggleTheme,
                 changeLocale: _changeLocale,
               ),
@@ -83,24 +77,24 @@ class _JwLifeAppState extends State<JwLifeApp> {
 
   Future<void> _togglePrimaryColor(Color color) async {
     setState(() {
-      JwLifeApp.settings.lightData = AppTheme.getLightTheme(color);
-      JwLifeApp.settings.darkData = AppTheme.getDarkTheme(color);
+      JwLifeSettings().lightData = AppTheme.getLightTheme(color);
+      JwLifeSettings().darkData = AppTheme.getDarkTheme(color);
     });
-    setPrimaryColor(JwLifeApp.settings.themeMode, color);
+    setPrimaryColor(JwLifeSettings().themeMode, color);
   }
 
   void _toggleTheme(ThemeMode themeMode) {
     setState(() {
-      JwLifeApp.settings.themeMode = themeMode;
+      JwLifeSettings().themeMode = themeMode;
     });
-    JwLifeApp.settings.webViewData.update(themeMode);
+    JwLifeSettings().webViewData.update(themeMode);
     final theme = themeMode == ThemeMode.dark ? 'dark' : themeMode == ThemeMode.light ? 'light' : 'system';
     setTheme(theme);
   }
 
   void _changeLocale(Locale locale) {
     setState(() {
-      JwLifeApp.settings.locale = locale;
+      JwLifeSettings().locale = locale;
     });
     setLocale(locale.languageCode);
   }
@@ -112,9 +106,9 @@ class _JwLifeAppState extends State<JwLifeApp> {
       return MaterialApp(
         title: Constants.appName,
         debugShowCheckedModeBanner: false,
-        themeMode: JwLifeApp.settings.themeMode,
-        theme: JwLifeApp.settings.lightData,
-        darkTheme: JwLifeApp.settings.darkData,
+        themeMode: JwLifeSettings().themeMode,
+        theme: JwLifeSettings().lightData,
+        darkTheme: JwLifeSettings().darkData,
         home: AnnotatedRegion<SystemUiOverlayStyle>(
           value: SystemUiOverlayStyle(
             statusBarColor: Colors.transparent,
@@ -131,10 +125,10 @@ class _JwLifeAppState extends State<JwLifeApp> {
     return MaterialApp.router(
       title: Constants.appName,
       debugShowCheckedModeBanner: false,
-      themeMode: JwLifeApp.settings.themeMode,
-      theme: JwLifeApp.settings.lightData,
-      darkTheme: JwLifeApp.settings.darkData,
-      locale: JwLifeApp.settings.locale,
+      themeMode: JwLifeSettings().themeMode,
+      theme: JwLifeSettings().lightData,
+      darkTheme: JwLifeSettings().darkData,
+      locale: JwLifeSettings().locale,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
       routeInformationParser: BeamerParser(),
@@ -145,8 +139,8 @@ class _JwLifeAppState extends State<JwLifeApp> {
 
   Future<void> initializeData() async {
     printTime('Start: PublicationCategory.initializeCategories');
-    PublicationCategory.initializeCategories();
-    PublicationAttribute.initializeAttributes();
+    PublicationCategory.initialize();
+    PublicationAttribute.initialize();
     printTime('End: PublicationCategory.initializeCategories');
 
     printTime('Start: Initializing database...');
@@ -166,7 +160,7 @@ class _JwLifeAppState extends State<JwLifeApp> {
 
     await JwLifeApp.userdata.init();
 
-    JwLifeApp.settings.webViewData.init();
+    JwLifeSettings().webViewData.init();
 
     printTime('Start: Copying assets, downloading, loading homepage, and fetching API data...');
 
@@ -184,7 +178,6 @@ class _JwLifeAppState extends State<JwLifeApp> {
     await Future.wait(futures);
 
     printTime('End: Copying assets, downloading, loading homepage, and fetching API data...');
-
 
     AssetsDownload.download();
   }

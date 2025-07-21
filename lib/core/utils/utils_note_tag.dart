@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:jwlife/app/jwlife_app.dart';
-import 'package:jwlife/modules/personal/views/category_view.dart';
+import 'package:jwlife/features/personal/views/tag_page.dart';
 import 'package:jwlife/widgets/dialog/utils_dialog.dart';
 
+import '../../data/models/userdata/tag.dart';
 import 'common_ui.dart';
 
 void showAddTagDialog(BuildContext context) async {
@@ -28,10 +29,12 @@ void showAddTagDialog(BuildContext context) async {
       JwDialogButton(
         label: "OK",
         onPressed: (buildContext) async {
-          String categoryName = textController.text.trim();
-          if (categoryName.isNotEmpty) {
-            var category = await JwLifeApp.userdata.addCategory(categoryName, 1);
-            showPage(buildContext, CategoryView(category: category));
+          String name = textController.text.trim();
+          if (name.isNotEmpty) {
+            Tag? tag = await JwLifeApp.userdata.addTag(name, 1);
+            if (tag != null) {
+              showPage(buildContext, TagView(tag: tag));
+            }
           }
         },
       ),
@@ -39,11 +42,11 @@ void showAddTagDialog(BuildContext context) async {
   );
 }
 
-Future<Map<String, dynamic>?> showEditTagDialog(BuildContext context, Map<String, dynamic> category) async {
-  TextEditingController textController = TextEditingController(text: category['Name'] ?? '');
+Future<Tag?> showEditTagDialog(BuildContext context, Tag tag) async {
+  TextEditingController textController = TextEditingController(text: tag.name);
 
   // Affichage du dialogue avec la structure showJwDialog
-  Map<String, dynamic>? result = await showJwDialog<Map<String, dynamic>>(
+  Tag? result = await showJwDialog<Tag>(
     context: context,
     titleText: "Renommer",
     content: Padding(
@@ -65,8 +68,10 @@ Future<Map<String, dynamic>?> showEditTagDialog(BuildContext context, Map<String
         onPressed: (buildContext) async {
           String categoryName = textController.text.trim();
           if (categoryName.isNotEmpty) {
-            var updatedCategory = await JwLifeApp.userdata.updateCategory(category, categoryName);
-            Navigator.pop(buildContext, updatedCategory); // Ferme avec la catégorie mise à jour
+            Tag? updatedCategory = await JwLifeApp.userdata.updateTag(tag, categoryName);
+            if (updatedCategory != null) {
+              Navigator.pop(buildContext, updatedCategory); // Ferme avec la catégorie mise à jour
+            }
           }
         },
       ),
@@ -76,12 +81,12 @@ Future<Map<String, dynamic>?> showEditTagDialog(BuildContext context, Map<String
   return result;
 }
 
-Future<Map<String, dynamic>?> showDeleteTagDialog(BuildContext context, Map<String, dynamic> category) async {
+Future<Tag?> showDeleteTagDialog(BuildContext context, Tag tag) async {
   // Affichage du dialogue avec la structure showJwDialog
-  Map<String, dynamic>? result = await showJwDialog<Map<String, dynamic>>(
+  Tag? result = await showJwDialog<Tag>(
     context: context,
     titleText: "Supprimer la catégorie",
-    contentText: "Cette action supprimera la catégorie « ${category['Name']} » mais les notes ne seront pas supprimées.",
+    contentText: "Cette action supprimera la catégorie « ${tag.name} » mais les notes ne seront pas supprimées.",
     buttons: [
       JwDialogButton(
         label: "ANNULER",
@@ -93,7 +98,7 @@ Future<Map<String, dynamic>?> showDeleteTagDialog(BuildContext context, Map<Stri
         label: "SUPPRIMER",
         closeDialog: false, // Ne ferme pas immédiatement
         onPressed: (buildContext) async {
-          await JwLifeApp.userdata.deleteCategory(category);
+          await JwLifeApp.userdata.deleteTag(tag);
           Navigator.pop(buildContext); // Ferme après la suppression
         },
       ),

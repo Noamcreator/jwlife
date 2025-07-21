@@ -10,6 +10,7 @@ class AppTheme {
     //Color primaryColor = color;
 
     return ThemeData(
+      fontFamily: 'Roboto',
       brightness: Brightness.light,
       cardColor: const Color(0xfff1f1f1),
       primaryColor: primaryColor,

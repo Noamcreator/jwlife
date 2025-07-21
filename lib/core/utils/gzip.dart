@@ -3,7 +3,8 @@ import 'dart:io';
 
 import 'package:archive/archive.dart';
 
-import 'package:flutter/foundation.dart'; // pour compute
+import 'package:flutter/foundation.dart';
+import 'package:jwlife/core/utils/utils.dart';
 
 List<int> decompressGZip(List<int> gzipBytes) {
   return GZipDecoder().decodeBytes(gzipBytes);
@@ -24,6 +25,6 @@ Future<Map<String, dynamic>> decompressJSONGZip(List<int> gzipBytes) async {
   // Parser le JSON en Map<String, dynamic>
   final jsonData = jsonDecode(jsonString);
 
-  print('Extraction et parsing JSON terminés');
+  printTime('Extraction et parsing JSON terminés');
   return jsonData;
 }

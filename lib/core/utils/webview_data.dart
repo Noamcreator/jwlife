@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/core/utils/shared_preferences_helper.dart';
 
+import '../../app/services/settings_service.dart';
+
 class WebViewData {
   late String theme;
   late String backgroundColor;
@@ -12,7 +14,7 @@ class WebViewData {
 
   // Méthode privée pour charger le CSS
   Future<void> init() async {
-    ThemeMode themeMode = JwLifeApp.settings.themeMode;
+    ThemeMode themeMode = JwLifeSettings().themeMode;
     bool isDark;
     if (themeMode == ThemeMode.dark) {
       isDark = true;

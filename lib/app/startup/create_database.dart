@@ -17,10 +17,7 @@ class CreateDatabase {
     ]);
   }
 
-  static Future<void> _createDatabase(
-      Future<File> Function() getFile,
-      Future<void> Function(Database db) onCreateCallback,
-      ) async {
+  static Future<void> _createDatabase(Future<File> Function() getFile, Future<void> Function(Database db) onCreateCallback,) async {
     final dbFile = await getFile();
 
     if (!dbFile.existsSync()) {

@@ -1,21 +1,21 @@
 import 'package:beamer/beamer.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:jwlife/modules/bible/views/bible_view.dart';
-import 'package:jwlife/modules/congregation/views/congregation_view.dart';
-import 'package:jwlife/modules/home/views/home_view.dart';
-import 'package:jwlife/modules/library/views/library_view.dart';
-import 'package:jwlife/modules/meetings/views/meeting_view.dart';
-import 'package:jwlife/modules/personal/views/personal_view.dart';
-import 'package:jwlife/modules/predication/views/predication_view.dart';
+import 'package:jwlife/features/bible/views/bible_page.dart';
+import 'package:jwlife/features/congregation/views/congregation_view.dart';
+import 'package:jwlife/features/home/views/home_page.dart';
+import 'package:jwlife/features/library/pages/library_page.dart';
+import 'package:jwlife/features/meetings/views/meeting_page.dart';
+import 'package:jwlife/features/personal/views/personal_page.dart';
+import 'package:jwlife/features/predication/views/predication_page.dart';
 
-import '../audio/audio_player_widget.dart';
 import '../core/icons.dart';
 import 'package:jwlife/i18n/localization.dart';
 
+import '../features/audio/audio_player_widget.dart';
 import '../widgets/custom_bottom_navigation_item.dart';
 
-class JwLifeView extends StatefulWidget {
+class JwLifePage extends StatefulWidget {
   final Function(ThemeMode) toggleTheme;
   final Function(Locale) changeLocale;
 
@@ -33,13 +33,13 @@ class JwLifeView extends StatefulWidget {
   static bool audioWidgetVisible = false;
   static int currentIndex = 0;
 
-  const JwLifeView({super.key, required this.toggleTheme, required this.changeLocale});
+  const JwLifePage({super.key, required this.toggleTheme, required this.changeLocale});
 
   @override
-  State<JwLifeView> createState() => _JwLifeViewState();
+  State<JwLifePage> createState() => _JwLifePageState();
 }
 
-class _JwLifeViewState extends State<JwLifeView> {
+class _JwLifePageState extends State<JwLifePage> {
   final List<bool> _navBarVisible = [true, true, true, true, true, true, true];
   final List<bool> _navBarIsBlack = [false, false, false, false, false, false, false];
   final List<bool> _navBarIsPositioned = [false, false, false, false, false, false, false];
@@ -54,19 +54,19 @@ class _JwLifeViewState extends State<JwLifeView> {
     super.initState();
 
     // Initialize static methods for nav bar and audio widget visibility
-    JwLifeView.toggleNavBarVisibility = _toggleNavBarVisibility;
-    JwLifeView.toggleNavBarBlack = _toggleNavBarBlack;
-    JwLifeView.toggleNavBarPositioned = _toggleNavBarPositioned;
-    JwLifeView.toggleAudioWidgetVisibility = _toggleAudioWidgetVisibility;
+    JwLifePage.toggleNavBarVisibility = _toggleNavBarVisibility;
+    JwLifePage.toggleNavBarBlack = _toggleNavBarBlack;
+    JwLifePage.toggleNavBarPositioned = _toggleNavBarPositioned;
+    JwLifePage.toggleAudioWidgetVisibility = _toggleAudioWidgetVisibility;
 
-    JwLifeView.getNavBarVisibility = getNavBarVisibility;
+    JwLifePage.getNavBarVisibility = getNavBarVisibility;
 
     // Initialize the Beamer delegates for various sections (home, bible, etc.)
     _routerDelegates = [
       BeamerDelegate(
         initialPath: '/home',
         locationBuilder: getRouteLocation(
-          HomeView(
+          HomePage(
             toggleTheme: widget.toggleTheme,
             changeLocale: widget.changeLocale,
           ),
@@ -83,14 +83,14 @@ class _JwLifeViewState extends State<JwLifeView> {
       BeamerDelegate(
         initialPath: '/library',
         locationBuilder: getRouteLocation(
-          LibraryView(),
+          LibraryPage(),
           'library',
         ).call,
       ),
       BeamerDelegate(
         initialPath: '/meetings',
         locationBuilder: getRouteLocation(
-          MeetingsView(),
+          MeetingsPage(),
           'meetings',
         ).call,
       ),
@@ -119,18 +119,18 @@ class _JwLifeViewState extends State<JwLifeView> {
   }
 
   bool getNavBarVisibility() {
-    return JwLifeView.navBarVisible[_currentIndex];
+    return JwLifePage.navBarVisible[_currentIndex];
   }
 
   void _toggleNavBarVisibility(bool isVisible) {
-    JwLifeView.navBarVisible[_currentIndex] = isVisible;
+    JwLifePage.navBarVisible[_currentIndex] = isVisible;
     setState(() {
       _navBarVisible[_currentIndex] = isVisible;
     });
   }
 
   void _toggleNavBarBlack(bool isBlack) {
-    JwLifeView.navBarIsBlack[_currentIndex] = isBlack;
+    JwLifePage.navBarIsBlack[_currentIndex] = isBlack;
     setState(() {
       _navBarIsBlack[_currentIndex] = isBlack;
     });
@@ -143,7 +143,7 @@ class _JwLifeViewState extends State<JwLifeView> {
   }
 
   void _toggleNavBarPositioned(bool isPositioned) {
-    JwLifeView.navBarIsPositioned[_currentIndex] = isPositioned;
+    JwLifePage.navBarIsPositioned[_currentIndex] = isPositioned;
     setState(() {
       _navBarIsPositioned[_currentIndex] = isPositioned;
       _navBarVisible[_currentIndex] = !isPositioned;
@@ -157,7 +157,7 @@ class _JwLifeViewState extends State<JwLifeView> {
   }
 
   void _toggleAudioWidgetVisibility(bool isVisible) {
-    JwLifeView.audioWidgetVisible = isVisible;
+    JwLifePage.audioWidgetVisible = isVisible;
     setState(() {
       _audioWidgetVisible = isVisible;
     });
@@ -242,13 +242,18 @@ class _JwLifeViewState extends State<JwLifeView> {
 
         if (index == _currentIndex) {
           await popToRoot(delegate);
+          setState(() {
+            _navBarVisible[index] = true;
+            _navBarIsBlack[index] = false;
+            _navBarIsPositioned[index] = false;
+          });
         }
         else {
           setState(() {
             _currentIndex = index;
             _routerDelegates[index].update(rebuild: true);
           });
-          JwLifeView.currentIndex = index;
+          JwLifePage.currentIndex = index;
         }
 
         if (_navBarIsBlack[index] || _navBarIsPositioned[index]) {
@@ -283,7 +288,7 @@ class _JwLifeViewState extends State<JwLifeView> {
       )
     ) :
     Scaffold(
-      resizeToAvoidBottomInset: true,
+      resizeToAvoidBottomInset: false,
       body: Column(
         children: [
           Expanded(child: content),

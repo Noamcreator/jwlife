@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:jwlife/app/jwlife_app.dart';
 import 'package:realm/realm.dart';
 
+import '../../app/services/settings_service.dart';
 import 'catalog.dart';
 
 class RealmLibrary {
@@ -11,7 +12,7 @@ class RealmLibrary {
   static List<MediaItem> loadTeachingToolboxVideos() {
     List<MediaItem> teachingToolboxVideos = [];
     teachingToolboxVideos.clear();
-    String languageSymbol = JwLifeApp.settings.currentLanguage.symbol;
+    String languageSymbol = JwLifeSettings().currentLanguage.symbol;
 
     // Rechercher les médias associés à la catégorie 'TeachingToolbox' dans la langue correspondante
     teachingToolboxVideos.addAll(
@@ -31,7 +32,7 @@ class RealmLibrary {
   static List<MediaItem> loadLatestVideos() {
     List<MediaItem> latestAudiosVideos = [];
     latestAudiosVideos.clear();
-    String languageSymbol = JwLifeApp.settings.currentLanguage.symbol;
+    String languageSymbol = JwLifeSettings().currentLanguage.symbol;
 
     // Rechercher les médias associés à la catégorie 'LatestAudioVideo' dans la langue correspondante
     latestAudiosVideos.addAll(
@@ -62,14 +63,11 @@ class RealmLibrary {
     Set<String> existingMediaItemKeys = Set.from(realm.all<MediaItem>().map((item) => item.naturalKey));
     Map<String, Set<String>> existingCategoryKeysByLanguage = {};
 
-    // Initialiser un ensemble pour chaque langue
-    for (var lang in realm.all<Category>()) {
-      // Utiliser une chaîne vide si lang.language est null
-      String langKey = lang.language ?? '';
-      if (lang.key != null) { // Vérifiez si lang.key n'est pas null
-        existingCategoryKeysByLanguage.putIfAbsent(langKey, () => {}).add(lang.key!); // Utilisez ! pour indiquer que key n'est pas null
-      }
-    }
+    // Précharger toutes les catégories existantes dans une map pour éviter les requêtes répétées
+    Map<String, Category> existingCategoryMap = {
+      for (var cat in realm.all<Category>())
+        '${cat.key}_${cat.language ?? ''}': cat
+    };
 
     List<Language> languagesToAdd = [];
     List<Category> categoriesToAdd = [];
@@ -98,9 +96,11 @@ class RealmLibrary {
 
       if (json['type'] == 'category') {
         Map<String, dynamic> data = json['o'];
+        String categoryKey = data['key'];
+        String mapKey = '${categoryKey}_$languageCode';
 
-        // Supprimer la catégorie existante si elle est déjà dans la base de données pour éviter les doublons
-        var existingCategory = realm.all<Category>().query("key == '${data['key']}' AND language == '$languageCode'").firstOrNull;
+        // Supprimer la catégorie existante si elle existe
+        var existingCategory = existingCategoryMap[mapKey];
         if (existingCategory != null) {
           realm.write(() {
             realm.delete(existingCategory);
@@ -109,49 +109,50 @@ class RealmLibrary {
 
         // Ajouter ou recréer la catégorie avec les nouvelles données
         var category = Category(
-            key: data['key'],
-            localizedName: data['name'],
-            type: data['type'],
-            media: data.containsKey('media') ? List<String>.from(data['media']) : [],
-            subcategories: data.containsKey('subcategories') ? (data['subcategories'] as List<dynamic>).map((subCategoryData) {
-              if (subCategoryData is Map<String, dynamic>) {
-                return Category(
-                    key: subCategoryData['key'],
-                    localizedName: subCategoryData['name'],
-                    type: subCategoryData['type'],
-                    media: subCategoryData.containsKey('media') ? List<String>.from(subCategoryData['media']) : [],
-                    subcategories: subCategoryData.containsKey('subcategories')
-                        ? (subCategoryData['subcategories'] as List<dynamic>).map((subSubCategoryData) {
-                      if (subSubCategoryData is Map<String, dynamic>) {
-                        return Category(
-                            key: subSubCategoryData['key'],
-                            localizedName: subSubCategoryData['name'],
-                            type: subSubCategoryData['type'],
-                            media: subSubCategoryData.containsKey('media') ? List<String>.from(subSubCategoryData['media']) : [],
-                            language: languageCode
-                        );
-                      }
-                      return null;
-                    }).whereType<Category>().toList() : [],
-                    persistedImages: subCategoryData.containsKey('images') ? Images(
-                      squareImageUrl: subCategoryData['images'].containsKey('sqr') ? subCategoryData['images']['sqr']['lg'] : null,
-                      squareFullSizeImageUrl: subCategoryData['images'].containsKey('sqr') ? subCategoryData['images']['sqr']['xml'] : null,
-                      wideImageUrl: subCategoryData['images'].containsKey('lsr') ? subCategoryData['images']['lsr']['md'] : null,
-                      wideFullSizeImageUrl: subCategoryData['images'].containsKey('lsr') ? subCategoryData['images']['lsr']['xml'] : null,
-                      extraWideFullSizeImageUrl: subCategoryData['images'].containsKey('pnr') ? subCategoryData['images']['pnr']['lg'] : null,
-                    ) : null,
-                    language: languageCode
-                );
-              }
-              return null;
-            }).whereType<Category>().toList()
-                : [],
-            persistedImages: data.containsKey('images') ? await getImage(data['images']) : null,
-            language: languageCode
+          key: categoryKey,
+          localizedName: data['name'],
+          type: data['type'],
+          media: data.containsKey('media') ? List<String>.from(data['media']) : [],
+          subcategories: data.containsKey('subcategories')
+              ? (data['subcategories'] as List<dynamic>).map((subCategoryData) {
+            if (subCategoryData is Map<String, dynamic>) {
+              return Category(
+                  key: subCategoryData['key'],
+                  localizedName: subCategoryData['name'],
+                  type: subCategoryData['type'],
+                  media: subCategoryData.containsKey('media') ? List<String>.from(subCategoryData['media']) : [],
+                  subcategories: subCategoryData.containsKey('subcategories')
+                      ? (subCategoryData['subcategories'] as List<dynamic>).map((subSubCategoryData) {
+                    if (subSubCategoryData is Map<String, dynamic>) {
+                      return Category(
+                          key: subSubCategoryData['key'],
+                          localizedName: subSubCategoryData['name'],
+                          type: subSubCategoryData['type'],
+                          media: subSubCategoryData.containsKey('media') ? List<String>.from(subSubCategoryData['media']) : [],
+                          language: languageCode
+                      );
+                    }
+                    return null;
+                  }).whereType<Category>().toList() : [],
+                  persistedImages: subCategoryData.containsKey('images') ? Images(
+                    squareImageUrl: subCategoryData['images'].containsKey('sqr') ? subCategoryData['images']['sqr']['lg'] : null,
+                    squareFullSizeImageUrl: subCategoryData['images'].containsKey('sqr') ? subCategoryData['images']['sqr']['xml'] : null,
+                    wideImageUrl: subCategoryData['images'].containsKey('lsr') ? subCategoryData['images']['lsr']['md'] : null,
+                    wideFullSizeImageUrl: subCategoryData['images'].containsKey('lsr') ? subCategoryData['images']['lsr']['xml'] : null,
+                    extraWideFullSizeImageUrl: subCategoryData['images'].containsKey('pnr') ? subCategoryData['images']['pnr']['lg'] : null,
+                  ) : null,
+                  language: languageCode
+              );
+            }
+            return null;
+          }).whereType<Category>().toList()
+              : [],
+          persistedImages: data.containsKey('images') ? await getImage(data['images']) : null,
+          language: languageCode,
         );
 
         categoriesToAdd.add(category);
-        existingCategoryKeysByLanguage.putIfAbsent(languageCode, () => {}).add(data['key']!);
+        existingCategoryKeysByLanguage.putIfAbsent(languageCode, () => {}).add(categoryKey);
       }
 
       if (json['type'] == 'media-item') {

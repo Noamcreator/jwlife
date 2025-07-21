@@ -32,6 +32,13 @@ String formatDuration(double duration) {
   }
 }
 
+DateTime formatDateTime(String isoString) {
+  // Convertir la chaîne ISO 8601 en objet DateTime
+  DateTime dateTime = DateTime.parse(isoString).toLocal();
+  return dateTime;
+}
+
+
 Duration parseDuration(String startTime) {
   // Vérifiez que la chaîne est au bon format
   final RegExp regExp = RegExp(r'(\d{2}):(\d{2}):(\d{2})\.(\d{3})');
@@ -135,7 +142,7 @@ bool isWindows(BuildContext context) {
 Future<bool> hasInternetConnection() async {
   final List<ConnectivityResult> connectivityResult = await (Connectivity().checkConnectivity());
   if (connectivityResult.contains(ConnectivityResult.none)) {
-    print("Aucune connexion Internet !");
+    printTime("Aucune connexion Internet !");
     return false;
   }
   else {

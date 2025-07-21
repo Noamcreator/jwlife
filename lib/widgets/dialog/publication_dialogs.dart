@@ -11,7 +11,7 @@ import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/core/utils/utils_media.dart';
 import 'package:jwlife/data/realm/catalog.dart';
 import 'package:jwlife/widgets/dialog/utils_dialog.dart';
-import 'package:jwlife/widgets/image_widget.dart';
+import 'package:jwlife/widgets/image_cached_widget.dart';
 import 'package:open_file/open_file.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
@@ -41,11 +41,11 @@ Future<String?> showVideoDialog(BuildContext context, MediaItem mediaItem) async
           return _showOnlineVideoDialog(context, mediaItem, data);
         }
         else {
-          print('Loading error: ${response.statusCode}');
+          printTime('Loading error: ${response.statusCode}');
         }
       }
       catch (e) {
-        print('An exception occurred: $e');
+        printTime('An exception occurred: $e');
       }
     }
     else {
@@ -115,11 +115,11 @@ Future<String?> _showLocalVideoDialog(BuildContext context, MediaItem mediaItem,
                             });
                           }
                           else {
-                            print('Loading error: ${response.statusCode}');
+                            printTime('Loading error: ${response.statusCode}');
                           }
                         }
                         catch (e) {
-                          print('An exception occurred: $e');
+                          printTime('An exception occurred: $e');
                         }
                       },
                       child: Text('TÉLÉCHARGER'),
@@ -234,12 +234,12 @@ Future<String?> showDocumentDialog(BuildContext context, String docId, String tr
     'langwritten': langwritten,  // Utiliser langwritten (maintenant défini)
   };
 
-  print("queryParams: $queryParams");
+  printTime("queryParams: $queryParams");
 
   // Construire l'URL avec Uri.https
   final url = Uri.https('b.jw-cdn.org', '/apis/pub-media/GETPUBMEDIALINKS', queryParams);
 
-  print("url: $url");
+  printTime("url: $url");
 
   try {
     // Effectuer la requête HTTP
@@ -254,13 +254,13 @@ Future<String?> showDocumentDialog(BuildContext context, String docId, String tr
     }
     else {
       // Si la requête échoue, afficher un message d'erreur
-      print("Erreur lors de la récupération des données: ${response.statusCode}");
+      printTime("Erreur lors de la récupération des données: ${response.statusCode}");
       // Vous pouvez également afficher un message d'erreur dans l'interface utilisateur
     }
   }
   catch (e) {
     // Gérer les erreurs liées à la requête HTTP
-    print("Erreur de connexion ou de requête: $e");
+    printTime("Erreur de connexion ou de requête: $e");
     // Vous pouvez afficher un message d'erreur ou de débogage
   }
 
@@ -330,7 +330,7 @@ Future<String?> _showPdfDialog(BuildContext context, List<ConnectivityResult> co
 }
 
 Future<void> _downloadAndOpenPdf(String fileUrl) async {
-  print('fileUrl: $fileUrl');
+  printTime('fileUrl: $fileUrl');
   try {
     // Utiliser Dio pour télécharger le fichier PDF
     Dio dio = Dio();
@@ -344,7 +344,7 @@ Future<void> _downloadAndOpenPdf(String fileUrl) async {
     OpenFile.open(filePath);
   }
   catch (e) {
-    print("Erreur lors du téléchargement ou de l'ouverture du fichier: $e");
+    printTime("Erreur lors du téléchargement ou de l'ouverture du fichier: $e");
   }
 }
 
@@ -382,7 +382,7 @@ Future<int?> showVideoDownloadDialog(BuildContext context, List<dynamic> files) 
                     title: Text("Télécharger ${file['label']} ($sizeText)"),
                     onTap: () {
                       // Gérer le téléchargement ici
-                      print("Télécharger: ${file['progressiveDownloadURL']}");
+                      printTime("Télécharger: ${file['progressiveDownloadURL']}");
 
                       Navigator.of(context).pop(files.indexOf(file)); // Retourner l'index du fichier sélectionné
                     },

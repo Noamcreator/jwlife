@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:just_audio_background/just_audio_background.dart';
-import 'package:jwlife/app/jw_settings.dart';
+import 'package:jwlife/app/services/settings_service.dart';
 
 import 'app/jwlife_app.dart';
 
@@ -20,9 +20,8 @@ Future<void> main() async {
   );
 
   // Initialise les configurations de l'application
-  JwSettings jwSettings = JwSettings();
-  await jwSettings.loadFromSharedPreferences();
+  await JwLifeSettings().init();
 
   // Lance l'application Flutter
-  runApp(JwLifeApp(jwSettings));
+  runApp(JwLifeApp());
 }

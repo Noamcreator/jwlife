@@ -1,9 +1,9 @@
 import 'dart:io';
-import 'package:archive/archive.dart';
 import 'package:flutter/services.dart';
 
 import '../../core/assets.dart';
 import '../../core/utils/directory_helper.dart';
+import '../../core/utils/utils.dart';
 
 class CopyAssets {
   static Future<void> copy() async {
@@ -30,7 +30,7 @@ class CopyAssets {
       await targetFile.writeAsBytes(buffer.asUint8List(data.offsetInBytes, data.lengthInBytes));
     }
     catch (e) {
-      print("Erreur lors de la copie du fichier : $assetPath → $e");
+      printTime("Erreur lors de la copie du fichier : $assetPath → $e");
     }
   }
 }

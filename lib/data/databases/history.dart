@@ -7,12 +7,15 @@ import 'package:jwlife/core/utils/utils_audio.dart';
 import 'package:jwlife/core/utils/utils_database.dart';
 import 'package:jwlife/core/utils/utils_document.dart';
 import 'package:jwlife/core/utils/utils_video.dart';
-import 'package:jwlife/data/databases/PublicationCategory.dart';
+import 'package:jwlife/data/databases/publication_category.dart';
 import 'package:jwlife/data/realm/catalog.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:jwlife/core/utils/files_helper.dart';
 
-import 'Publication.dart';
+import '../../app/services/settings_service.dart';
+import '../../core/utils/utils.dart';
+import '../models/audio.dart';
+import 'publication.dart';
 
 class History {
   static Future<void> createDbHistory(Database db) async {
@@ -59,6 +62,7 @@ class History {
   SELECT 
     History.*,
     catalog.Publication.ShortTitle AS PublicationTitle,
+    catalog.Publication.IssueTitle AS PublicationIssueTitle,
     catalog.Publication.PublicationTypeId
   FROM History
   LEFT JOIN catalog.Publication 
@@ -72,7 +76,7 @@ class History {
     await db.close();
 
     for(var history in result) {
-      print(history);
+      printTime(history.toString());
     }
 
     return result;
@@ -156,7 +160,7 @@ class History {
     int? documentId = mediaItem.documentId;
     int? issueTagNumber = mediaItem.issueDate;
     String? displayTitle = mediaItem.title;
-    int mepsLanguageId = JwLifeApp.settings.currentLanguage.id;
+    int mepsLanguageId = JwLifeSettings().currentLanguage.id;
 
     String whereClause = "Type = ?";
     List<dynamic> whereArgs = ["video"];
@@ -214,7 +218,7 @@ class History {
     await db.close();
   }
 
-  static Future<void> insertAudio(MediaItem mediaItem) async {
+  static Future<void> insertAudioMediaItem(MediaItem mediaItem) async {
     final db = await getHistoryDb();
 
     String? keySymbol = mediaItem.pubSymbol;
@@ -222,7 +226,73 @@ class History {
     int? documentId = mediaItem.documentId;
     int? issueTagNumber = mediaItem.issueDate;
     String? displayTitle = mediaItem.title;
-    int mepsLanguageId = JwLifeApp.settings.currentLanguage.id;
+    int mepsLanguageId = JwLifeSettings().currentLanguage.id;
+
+    String whereClause = "Type = ?";
+    List<dynamic> whereArgs = ["audio"];
+
+    if (keySymbol != null) {
+      whereClause += " AND KeySymbol = ?";
+      whereArgs.add(keySymbol);
+    }
+
+    if (track != null) {
+      whereClause += " AND Track = ?";
+      whereArgs.add(track);
+    }
+
+    if (documentId != null) {
+      whereClause += " AND DocumentId = ?";
+      whereArgs.add(documentId);
+    }
+
+    if (issueTagNumber != null) {
+      whereClause += " AND IssueTagNumber = ?";
+      whereArgs.add(issueTagNumber);
+    }
+
+    List<Map<String, dynamic>> existing = await db.query(
+      "History",
+      where: whereClause,
+      whereArgs: whereArgs,
+    );
+
+    if (existing.isNotEmpty) {
+      await db.update(
+        "History",
+        {
+          "VisitCount": (existing.first["VisitCount"] ?? 0) + 1,
+          "LastVisited": DateTime.now().toIso8601String()
+        },
+        where: "HistoryId = ?",
+        whereArgs: [existing.first["HistoryId"]],
+      );
+    }
+    else {
+      await db.insert("History", {
+        "DisplayTitle": displayTitle,
+        "DocumentId": documentId,
+        "KeySymbol": keySymbol,
+        "Track": track,
+        "IssueTagNumber": issueTagNumber ?? 0,
+        "MepsLanguageId": mepsLanguageId,
+        "Type": "audio",
+        "LastVisited": DateTime.now().toIso8601String()
+      });
+    }
+
+    await db.close();
+  }
+
+  static Future<void> insertAudio(Audio audio) async {
+    final db = await getHistoryDb();
+
+    String? keySymbol = audio.keySymbol;
+    int? track = audio.track;
+    int? documentId = audio.documentId;
+    int? issueTagNumber = audio.issueTagNumber;
+    String? displayTitle = audio.title;
+    int mepsLanguageId = JwLifeSettings().currentLanguage.id;
 
     String whereClause = "Type = ?";
     List<dynamic> whereArgs = ["audio"];
@@ -321,8 +391,7 @@ class History {
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   child: Text(
                     "Historique",
-                    style: TextStyle(
-                        fontFamily: 'Roboto', fontSize: 22, fontWeight: FontWeight.bold),
+                    style: TextStyle(fontFamily: 'Roboto', fontSize: 22, fontWeight: FontWeight.bold),
                   ),
                 ),
 
@@ -337,6 +406,9 @@ class History {
                     contentPadding: EdgeInsets.symmetric(vertical: 10, horizontal: 12),
                     prefixIcon: Icon(JwIcons.magnifying_glass),
                   ),
+                  onEditingComplete: () {
+                    filterHistory(_searchController.text);
+                  },
                   onChanged: (value) {
                     filterHistory(value);
                   },
@@ -351,7 +423,7 @@ class History {
                     separatorBuilder: (context, index) => Divider(color: isDarkMode ? Colors.black : Color(0xFFf1f1f1)),
                     itemBuilder: (context, index) {
                       var item = filteredHistory[index];
-                      IconData icon = item["Type"] == 'document' ? item['PublicationTypeId'] != null ? PublicationCategory.getCategories().firstWhere(
+                      IconData icon = item["Type"] == 'document' ? item['PublicationTypeId'] != null ? PublicationCategory.all.firstWhere(
                             (category) => category.id == item['PublicationTypeId']).icon
                           : JwIcons.document : JwIcons.document;
 
@@ -367,7 +439,7 @@ class History {
                               item["IssueTagNumber"],
                               item["MepsLanguageId"],
                             );
-                            print("mediaItem: ${mediaItem!.title}");
+                            printTime("mediaItem: ${mediaItem!.title}");
 
                             showFullScreenVideo(mainContext, mediaItem);
                           }
@@ -382,7 +454,7 @@ class History {
                             showAudioPlayer(mainContext, mediaItem!);
                           }
                           else if (item["Type"] == "chapter") {
-                            print("item: $item");
+                            printTime("item: $item");
                             showChapterView(
                               mainContext,
                               item["KeySymbol"],
@@ -426,7 +498,7 @@ class History {
                                           ? "Vidéo"
                                           : item["Type"] == "audio"
                                           ? "Audio"
-                                          : (item["PublicationTitle"] ?? item['KeySymbol']),
+                                          : (item["PublicationIssueTitle"] ?? item["PublicationTitle"] ?? item['KeySymbol']),
                                       style: TextStyle(
                                         fontSize: 13,
                                         color: Theme.of(context).brightness == Brightness.dark

@@ -4,10 +4,13 @@ import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/core/utils/files_helper.dart';
-import 'package:jwlife/data/databases/Publication.dart';
-import 'package:jwlife/data/databases/PublicationRepository.dart';
+import 'package:jwlife/data/databases/publication.dart';
+import 'package:jwlife/data/repositories/PublicationRepository.dart';
 import 'package:jwlife/data/databases/catalog.dart';
 import 'package:sqflite/sqflite.dart';
+
+import '../../app/services/settings_service.dart';
+import '../../core/utils/utils.dart';
 
 class LanguagesPubDialog extends StatefulWidget {
   final Publication? publication;
@@ -63,7 +66,7 @@ class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
     if (await catalogFile.exists()) {
       Database db = database!;  // Utiliser la base de données déjà initialisée
       await db.execute('ATTACH DATABASE ? AS meps', [mepsUnitFile.path]);
-      print('Database meps attached');
+      printTime('Database meps attached');
 
       List<Map<String, dynamic>> languagesAvailable = [];
       List<dynamic> arguments = [];
@@ -133,7 +136,7 @@ class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
         }
       }
       else {
-        arguments = [JwLifeApp.settings.currentLanguage.id];
+        arguments = [JwLifeSettings().currentLanguage.id];
         if (searchTerm.isNotEmpty) {
           arguments.add('%$searchTerm%');
           arguments.add('%$searchTerm%');
@@ -162,10 +165,10 @@ class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
       }
 
       await db.execute('DETACH DATABASE meps');
-      print('Database meps detached');
+      printTime('Database meps detached');
 
       // Affichage des résultats récupérés
-      print('languagesAvailable: $languagesAvailable');
+      printTime('languagesAvailable: $languagesAvailable');
 
       // Mise à jour de filteredLanguagesList
       List<Map<String, dynamic>> languagesModifiable = List.from(languagesAvailable);
@@ -178,7 +181,7 @@ class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
         filteredLanguagesList.removeWhere((lang) => isFavorite(lang));
       });
     } else {
-      print('Catalog file does not exist.');
+      printTime('Catalog file does not exist.');
     }
   }
 

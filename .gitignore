@@ -1,8 +1,0 @@
-# Fichiers de build courants
-/build
-
-# Fichiers temporaires
-*.log
-*.tmp
-*.temp
-*.swp

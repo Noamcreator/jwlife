@@ -5,7 +5,8 @@ import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:jwlife/app/jwlife_app.dart';
-import 'package:jwlife/data/databases/Publication.dart';
+import 'package:jwlife/core/utils/utils.dart';
+import 'package:jwlife/data/databases/publication.dart';
 
 import 'dart:typed_data';
 import 'package:encrypt/encrypt.dart' as encrypt;
@@ -32,14 +33,14 @@ Future<Publication?> downloadJwpubFile(Publication publication, BuildContext con
    */
 
   final url = Uri.https('b.jw-cdn.org', '/apis/pub-media/GETPUBMEDIALINKS', queryParams);
-  print('Generated URL: $url');
+  printTime('Generated URL: $url');
 
   try {
     final response = await Dio().getUri(url);
     if (response.statusCode == 200) {
       final data = response.data;
       final downloadUrl = data['files'][publication.mepsLanguage.symbol]['JWPUB'][0]['file']['url'];
-      print('downloadUrl: $downloadUrl');
+      printTime('downloadUrl: $downloadUrl');
 
       Map<String, String> headers = Api.getHeaders();
 
@@ -71,7 +72,7 @@ Future<Publication?> downloadJwpubFile(Publication publication, BuildContext con
   }
   catch (e) {
     if (e is DioException && CancelToken.isCancel(e)) {
-      print('Téléchargement annulé');
+      printTime('Téléchargement annulé');
     } else {
       showDialog(
         context: context,
@@ -124,7 +125,7 @@ Future<Publication> jwpubUnzip(List<int> bytes, BuildContext context, {Publicati
     await File(filePath).writeAsBytes(file.content);
   }
 
-  print('Fichiers extraits dans : ${destinationDir.path}');
+  printTime('Fichiers extraits dans : ${destinationDir.path}');
 
   return await JwLifeApp.pubCollections.insertPublicationFromManifest(manifestData, destinationDir.path, publication: publication);
 }
@@ -136,11 +137,11 @@ Future<void> removeJwpubFile(Publication pub) async {
       await path.delete(recursive: true); // Deletes the directory and all its contents
     }
     catch (e) {
-      print('Error while deleting directory ${path.path}: $e');
+      printTime('Error while deleting directory ${path.path}: $e');
     }
   }
   else {
-    print('Directory ${path.path} does not exist.');
+    printTime('Directory ${path.path} does not exist.');
   }
 
   await JwLifeApp.pubCollections.deletePublication(pub);
