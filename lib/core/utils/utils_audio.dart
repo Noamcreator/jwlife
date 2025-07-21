@@ -6,7 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/data/models/audio.dart';
-import 'package:jwlife/data/databases/publication.dart';
+import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/realm/catalog.dart';
 import 'package:jwlife/data/realm/realm_library.dart';
 import 'package:jwlife/widgets/dialog/utils_dialog.dart';
@@ -18,7 +18,7 @@ import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/widgets/dialog/language_dialog.dart';
 
 import '../../app/services/settings_service.dart';
-import '../../features/audio/lyrics_view.dart';
+import '../../features/audio/lyrics_page.dart';
 import '../../features/video/subtitles.dart';
 import '../api.dart';
 import 'common_ui.dart';

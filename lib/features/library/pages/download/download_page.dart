@@ -7,14 +7,14 @@ import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/core/utils/files_helper.dart';
 import 'package:jwlife/core/utils/utils_jwpub.dart';
 import 'package:jwlife/core/utils/utils_pub.dart';
-import 'package:jwlife/data/databases/publication.dart';
+import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/i18n/localization.dart';
 import 'package:jwlife/widgets/image_cached_widget.dart';
 import 'package:sqflite/sqflite.dart';
 
 import '../../../../data/repositories/PublicationRepository.dart';
 import '../../../../data/databases/catalog.dart';
-import '../../../publication/views/menu/local/publication_menu_view.dart';
+import '../../../publication/pages/menu/local/publication_menu_view.dart';
 
 class DownloadPage extends StatefulWidget {
   const DownloadPage({super.key});

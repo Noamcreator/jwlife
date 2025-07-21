@@ -7,16 +7,16 @@ import 'package:jwlife/data/models/userdata/tag.dart';
 import 'package:jwlife/data/models/userdata/note.dart';
 import 'note_page.dart';
 
-class TagView extends StatefulWidget {
+class TagPage extends StatefulWidget {
   final Tag tag;
 
-  const TagView({super.key, required this.tag});
+  const TagPage({super.key, required this.tag});
 
   @override
-  _TagViewState createState() => _TagViewState();
+  _TagPageState createState() => _TagPageState();
 }
 
-class _TagViewState extends State<TagView> {
+class _TagPageState extends State<TagPage> {
   late Tag _tag;
   List<Map<String, dynamic>> _filteredNotes = [];
 
@@ -147,7 +147,7 @@ class _TagViewState extends State<TagView> {
                           return ElevatedButton(
                             onPressed: () {
                               if (tag.id != _tag.id) {
-                                showPage(context, TagView(tag: tag));
+                                showPage(context, TagPage(tag: tag));
                               }
                             },
                             style: ButtonStyle(

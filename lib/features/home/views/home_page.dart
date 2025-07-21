@@ -9,7 +9,7 @@ import 'package:flutter/services.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:intl/intl.dart';
 import 'package:jwlife/app/jwlife_app.dart';
-import 'package:jwlife/core/BibleCluesInfo.dart';
+import 'package:jwlife/core/bible_clues_info.dart';
 import 'package:jwlife/core/api.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
@@ -23,20 +23,22 @@ import 'package:jwlife/core/utils/utils_jwpub.dart';
 import 'package:jwlife/core/utils/utils_media.dart';
 import 'package:jwlife/core/utils/utils_video.dart';
 import 'package:jwlife/core/utils/widgets_utils.dart';
-import 'package:jwlife/data/databases/publication.dart';
+import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/repositories/PublicationRepository.dart';
 import 'package:jwlife/data/models/video.dart';
 import 'package:jwlife/data/databases/catalog.dart';
 import 'package:jwlife/data/databases/history.dart';
 import 'package:jwlife/data/realm/catalog.dart';
 import 'package:jwlife/data/realm/realm_library.dart';
+import 'package:jwlife/features/home/views/search/bible_search_page.dart';
+import 'package:jwlife/features/home/views/search/search_page.dart';
+import 'package:jwlife/features/home/views/search/suggestion.dart';
 import 'package:jwlife/features/library/pages/library_page.dart';
 import 'package:jwlife/i18n/localization.dart';
 import 'package:jwlife/features/home/views/alert_banner.dart';
-import 'package:jwlife/features/home/views/search_views/suggestion.dart';
-import 'package:jwlife/features/home/widgets/HomeRectanglePublicationItem.dart';
+import 'package:jwlife/features/home/widgets/rectangle_publication_item.dart';
 import 'package:jwlife/features/meetings/views/meeting_page.dart';
-import 'package:jwlife/features/home/widgets/HomeSquarePublicationItem.dart';
+import 'package:jwlife/features/home/widgets/square_publication_item.dart';
 import 'package:jwlife/widgets/dialog/publication_dialogs.dart';
 import 'package:jwlife/widgets/dialog/utils_dialog.dart';
 import 'package:realm/realm.dart';
@@ -47,18 +49,17 @@ import 'package:http/http.dart' as http;
 import 'package:html/parser.dart' as html_parser;
 
 import '../../../app/services/settings_service.dart';
+import '../../../data/databases/tiles_cache.dart';
 import '../../../data/models/tile.dart';
 import '../../../widgets/dialog/language_dialog.dart';
 import '../../../widgets/image_cached_widget.dart';
 import 'article_page.dart';
 import '../../settings_page.dart';
 import 'daily_text_page.dart';
-import 'search_views/bible_search_page.dart';
-import 'search_views/search_view.dart';
 
 class HomePage extends StatefulWidget {
   static late Future<void> Function() refreshChangeLanguage;
-  static late Function() refreshHomeView;
+  static late Function() refreshHomePage;
   static late bool isRefreshing;
   final Function(ThemeMode) toggleTheme;
   final Function(Locale) changeLocale;
@@ -89,7 +90,7 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     HomePage.refreshChangeLanguage = _refreshChangeLanguage;
-    HomePage.refreshHomeView = _refreshView;
+    HomePage.refreshHomePage = _refreshView;
     HomePage.isRefreshing = _isRefreshing;
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -1133,7 +1134,7 @@ class _HomePageState extends State<HomePage> {
     }
 
     return FutureBuilder<Tile?>(
-      future: JwLifeApp.tilesCache.getOrDownloadImage(imageUrl),
+      future: TilesCache().getOrDownloadImage(imageUrl),
       builder: (context, snapshot) {
         final tile = snapshot.data;
 
@@ -1583,7 +1584,7 @@ class _HomePageState extends State<HomePage> {
                 ),
                  onTap: () {
                    setState(() => _isSearching = false);
-                   showPage(context, SearchView(query: _searchController.text));
+                   showPage(context, SearchPage(query: _searchController.text));
                 },
               )
             ),
@@ -1622,14 +1623,14 @@ class _HomePageState extends State<HomePage> {
                       : showFullScreenVideo(context, selected.query);
                   break;
                 default:
-                  showPage(context, SearchView(query: selected.query));
+                  showPage(context, SearchPage(query: selected.query));
               }
 
               setState(() => _isSearching = false);
             },
             onSubmit: (text) {
               setState(() => _isSearching = false);
-              showPage(context, SearchView(query: text));
+              showPage(context, SearchPage(query: text));
             },
             onTapOutside: (_) => setState(() => _isSearching = false),
           )) : AppBar(
@@ -1679,7 +1680,7 @@ class _HomePageState extends State<HomePage> {
             IconButton(
               icon: Icon(JwIcons.gear),
               onPressed: () {
-                showPage(context, SettingsView(
+                showPage(context, SettingsPage(
                     toggleTheme: widget.toggleTheme,
                     changeLanguage: widget.changeLocale
                 )).then((value) {
@@ -1696,7 +1697,7 @@ class _HomePageState extends State<HomePage> {
             if (await hasInternetConnection() && !_isRefreshing) {
               await _refresh();
             }
-            else {
+            else if (!_isRefreshing) {
               showNoConnectionDialog(context);
             }
           },

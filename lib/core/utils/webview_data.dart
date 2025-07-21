@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/core/utils/shared_preferences_helper.dart';
 
 import '../../app/services/settings_service.dart';

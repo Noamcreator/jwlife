@@ -5,14 +5,14 @@ import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/core/utils/files_helper.dart';
-import 'package:jwlife/data/databases/publication_category.dart';
+import 'package:jwlife/data/models/publication_category.dart';
 import 'package:jwlife/data/databases/catalog.dart';
 import 'package:jwlife/widgets/dialog/language_dialog.dart';
 import 'package:realm/realm.dart';
 import 'package:sqflite/sqflite.dart';
 
 import '../../../../app/services/settings_service.dart';
-import '../../../../data/databases/publication.dart';
+import '../../../../data/models/publication.dart';
 import '../../../../data/realm/catalog.dart';
 import '../../../../data/realm/realm_library.dart';
 import 'convention_items_page.dart';

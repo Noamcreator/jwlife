@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/core/icons.dart';
-import 'package:jwlife/data/databases/publication.dart';
+import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/features/home/views/home_page.dart';
 import 'package:jwlife/widgets/dialog/language_dialog_pub.dart';
 
@@ -63,7 +63,7 @@ PopupMenuItem getPubFavoriteItem(Publication pub) {
         pub.isFavoriteNotifier.value = true;
       }
 
-      HomePage.refreshHomeView();
+      HomePage.refreshHomePage();
     },
   );
 }

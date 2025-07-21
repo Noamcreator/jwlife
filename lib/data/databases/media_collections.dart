@@ -8,7 +8,7 @@ import 'package:jwlife/data/realm/catalog.dart';
 import 'package:sqflite/sqflite.dart';
 
 import '../../app/services/settings_service.dart';
-import 'publication.dart';
+import '../models/publication.dart';
 
 class MediaCollections {
   late Database _database;

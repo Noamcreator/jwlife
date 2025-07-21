@@ -3,7 +3,7 @@ import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/shared_preferences_helper.dart';
 import 'package:jwlife/core/utils/widgets_utils.dart';
-import 'package:jwlife/data/databases/publication_category.dart';
+import 'package:jwlife/data/models/publication_category.dart';
 import 'package:jwlife/data/databases/history.dart';
 import 'package:jwlife/data/realm/catalog.dart';
 import 'package:jwlife/i18n/localization.dart';

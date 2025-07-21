@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:jwlife/app/jwlife_app.dart';
+import 'package:jwlife/data/databases/tiles_cache.dart';
 import '../data/models/tile.dart';
 
 class ImageCachedWidget extends StatefulWidget {
@@ -31,7 +32,7 @@ class _ImageCachedWidgetState extends State<ImageCachedWidget> {
     if (widget.imageUrl == null || widget.imageUrl!.isEmpty) {
       _imageFuture = Future.value(null);
     } else {
-      _imageFuture = JwLifeApp.tilesCache.getOrDownloadImage(widget.imageUrl);
+      _imageFuture = TilesCache().getOrDownloadImage(widget.imageUrl);
     }
   }
 
@@ -42,7 +43,7 @@ class _ImageCachedWidgetState extends State<ImageCachedWidget> {
       if (widget.imageUrl == null || widget.imageUrl!.isEmpty) {
         _imageFuture = Future.value(null);
       } else {
-        _imageFuture = JwLifeApp.tilesCache.getOrDownloadImage(widget.imageUrl);
+        _imageFuture = TilesCache().getOrDownloadImage(widget.imageUrl);
       }
     }
   }

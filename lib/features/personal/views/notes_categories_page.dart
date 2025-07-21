@@ -4,7 +4,7 @@ import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/core/utils/utils_document.dart';
 import 'package:jwlife/core/utils/utils_note_tag.dart';
-import 'package:jwlife/data/databases/publication_category.dart';
+import 'package:jwlife/data/models/publication_category.dart';
 import 'package:jwlife/data/databases/history.dart';
 import 'package:jwlife/data/models/userdata/tag.dart';
 import 'package:jwlife/data/models/userdata/note.dart';
@@ -129,7 +129,7 @@ class _NotesTagsViewState extends State<NotesTagsView> {
                                               return ListTile(
                                                 title: Text(tag.name),
                                                 onTap: () {
-                                                  showPage(context, TagView(tag: tag));
+                                                  showPage(context, TagPage(tag: tag));
                                                 },
                                               );
                                             }).toList(),
@@ -162,7 +162,7 @@ class _NotesTagsViewState extends State<NotesTagsView> {
                             }
                             return ElevatedButton(
                               onPressed: () {
-                                showPage(context, TagView(tag: category));
+                                showPage(context, TagPage(tag: category));
                               },
                               style: ButtonStyle(
                                 minimumSize: MaterialStateProperty.all<Size>(Size(0, 30)),
@@ -259,7 +259,7 @@ class _NotesTagsViewState extends State<NotesTagsView> {
 
                                 return ElevatedButton(
                                   onPressed: () {
-                                    showPage(context, TagView(tag: tag));
+                                    showPage(context, TagPage(tag: tag));
                                   },
                                   style: ButtonStyle(
                                     minimumSize: MaterialStateProperty.all<Size>(Size(0, 38)),

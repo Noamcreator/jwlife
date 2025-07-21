@@ -14,18 +14,18 @@ import 'package:jwlife/features/video/video_player_view.dart';
 import '../../app/services/settings_service.dart';
 import '../../core/api.dart';
 
-class SubtitlesView extends StatefulWidget {
+class SubtitlesPage extends StatefulWidget {
   final MediaItem? mediaItem;
   final String query;
   final Video? localVideo;
 
-  const SubtitlesView({super.key, this.mediaItem, this.query="", this.localVideo});
+  const SubtitlesPage({super.key, this.mediaItem, this.query="", this.localVideo});
 
   @override
-  _SubtitlesViewState createState() => _SubtitlesViewState();
+  _SubtitlesPageState createState() => _SubtitlesPageState();
 }
 
-class _SubtitlesViewState extends State<SubtitlesView> {
+class _SubtitlesPageState extends State<SubtitlesPage> {
   Subtitles _subtitles = Subtitles(); // Direct list initialization
   dynamic _mediaData = {};
   List<Subtitle> _searchResults = [];
@@ -178,10 +178,10 @@ class _SubtitlesViewState extends State<SubtitlesView> {
               JwLifePage.toggleNavBarBlack.call(true);
               if (widget.localVideo != null) {
                 MediaItem? mediaItem = getVideoItem(widget.localVideo!.keySymbol, widget.localVideo!.track, widget.localVideo!.documentId, widget.localVideo!.issueTagNumber, JwLifeSettings().currentLanguage.id);
-                showPage(context, VideoPlayerView(mediaItem: mediaItem!, localVideo: widget.localVideo, startPosition: subtitle.startTime));
+                showPage(context, VideoPlayerPage(mediaItem: mediaItem!, localVideo: widget.localVideo, startPosition: subtitle.startTime));
               }
               else {
-                showPage(context, VideoPlayerView(mediaItem: widget.mediaItem!, onlineVideo: _mediaData, startPosition: subtitle.startTime));
+                showPage(context, VideoPlayerPage(mediaItem: widget.mediaItem!, onlineVideo: _mediaData, startPosition: subtitle.startTime));
               }
             },
             child: Center( // Centrer horizontalement le texte

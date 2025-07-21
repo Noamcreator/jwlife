@@ -150,7 +150,7 @@ class _StudyTabViewState extends State<StudyTabView> {
               children: JwLifeApp.userdata.tags.map((tag) {
                 return ElevatedButton(
                   onPressed: () {
-                    showPage(context, TagView(tag: tag));
+                    showPage(context, TagPage(tag: tag));
                   },
                   style: ButtonStyle(
                     minimumSize: MaterialStateProperty.all<Size>(Size(0, 36)),

@@ -26,21 +26,21 @@ import '../data/realm/realm_library.dart';
 import '../data/databases/userdata.dart';
 import '../widgets/settings_widget.dart';
 
-class SettingsView extends StatefulWidget {
+class SettingsPage extends StatefulWidget {
   final Function(ThemeMode) toggleTheme;
   final Function(Locale) changeLanguage;
 
-  const SettingsView({
+  const SettingsPage({
     super.key,
     required this.toggleTheme,
     required this.changeLanguage,
   });
 
   @override
-  _SettingsViewState createState() => _SettingsViewState();
+  _SettingsPageState createState() => _SettingsPageState();
 }
 
-class _SettingsViewState extends State<SettingsView> {
+class _SettingsPageState extends State<SettingsPage> {
   ThemeMode _theme = JwLifeSettings().themeMode;
   Locale _selectedLocale = Locale('en');
   String _selectedLocaleVernacular = 'English';

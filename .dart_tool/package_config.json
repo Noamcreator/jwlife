@@ -74,12 +74,6 @@
       "languageVersion": "2.12"
     },
     {
-      "name": "beamer",
-      "rootUri": "file:///C:/Users/noamb/AppData/Local/Pub/Cache/hosted/pub.dev/beamer-1.7.0",
-      "packageUri": "lib/",
-      "languageVersion": "2.12"
-    },
-    {
       "name": "bidi",
       "rootUri": "file:///C:/Users/noamb/AppData/Local/Pub/Cache/hosted/pub.dev/bidi-2.0.13",
       "packageUri": "lib/",

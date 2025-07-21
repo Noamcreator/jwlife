@@ -130,5 +130,4 @@ class Assets {
   static const String lightHighlightSelected = 'assets/icons/highlights/light/highlight_selected.png';
   static const String userDataDefaultThumbnail = 'assets/userData/default_thumbnail.png';
   static const String userDataUserData = 'assets/userData/userData.db';
-
 }

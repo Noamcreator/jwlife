@@ -8,17 +8,26 @@ import 'package:path/path.dart';
 import '../../core/api.dart';
 import '../../core/utils/directory_helper.dart';
 
-import 'package:http/http.dart' as http;
-
 import '../models/tile.dart';
 
 class TilesCache {
+  // Singleton
+  static final TilesCache _instance = TilesCache._internal();
+  factory TilesCache() => _instance;
+  TilesCache._internal();
+
   late Database _database;
-  List<Tile> tiles = [];
+  final List<Tile> tiles = [];
 
   Future<void> init() async {
     File tilesDb = await getTilesDbFile();
-    _database = await openDatabase(tilesDb.path, version: 1);
+    _database = await openDatabase(
+      tilesDb.path,
+      version: 1,
+      onCreate: (db, version) async {
+        await createDbTilesCache(db);
+      },
+    );
     await fetchTilesCache();
   }
 
@@ -32,18 +41,20 @@ class TilesCache {
     final result = await _database.query('TilesCache');
 
     if (result.isNotEmpty) {
-      tiles = result.map((tile) => Tile.fromJson(tile)).toList();
+      tiles.addAll(result.map((tile) => Tile.fromJson(tile)));
     }
   }
 
-  dynamic getImagePath(String imageUrl, String filename) {
-    return tiles.firstWhereOrNull((tile) => tile.fileName.toLowerCase() == filename.toLowerCase());
+  Tile? getImagePath(String imageUrl, String filename) {
+    return tiles.firstWhereOrNull(
+          (tile) => tile.fileName.toLowerCase() == filename.toLowerCase(),
+    );
   }
 
-  void _addImageToDatabase(String filename, File file) {
+  Future<void> _addImageToDatabase(String filename, File file) async {
     tiles.add(Tile(fileName: filename, file: file));
 
-    _database.insert(
+    await _database.insert(
       'TilesCache',
       {'FileName': filename, 'FilePath': file.path},
       conflictAlgorithm: ConflictAlgorithm.replace,
@@ -58,12 +69,10 @@ class TilesCache {
     if (response.statusCode == 200) {
       await file.writeAsBytes(response.bodyBytes);
 
-      // Vérifier que le fichier a bien été écrit
       if (await file.exists()) {
-        _addImageToDatabase(filename, file);
+        await _addImageToDatabase(filename, file);
         return Tile(fileName: filename, file: file);
-      }
-      else {
+      } else {
         throw Exception('Échec de la sauvegarde de l\'image sur le stockage local.');
       }
     } else {
@@ -72,36 +81,31 @@ class TilesCache {
   }
 
   Future<Tile?> getOrDownloadImage(String? imageUrl) async {
-    Tile? tile;
+    if (imageUrl == null || imageUrl.isEmpty) return null;
 
-    if (imageUrl != null && imageUrl.isNotEmpty) {
-      String filename = basename(imageUrl);
-      if (imageUrl.startsWith('https')) {
-        Tile? existingPath = getImagePath(imageUrl, filename);
+    String filename = basename(imageUrl);
 
-        if (existingPath != null) {
-          tile = existingPath;
-        }
-        else {
-          tile = await downloadImage(imageUrl, filename);
-        }
+    if (imageUrl.startsWith('https')) {
+      Tile? existingPath = getImagePath(imageUrl, filename);
+
+      if (existingPath != null) {
+        return existingPath;
+      } else {
+        return await downloadImage(imageUrl, filename);
       }
-      else if (imageUrl.startsWith('file')) {
-        tile = Tile(fileName: filename, file: File.fromUri(Uri.parse(imageUrl)));
-      }
-      else {
-        tile = Tile(fileName: filename, file: File(imageUrl));
-      }
+    } else if (imageUrl.startsWith('file')) {
+      return Tile(fileName: filename, file: File.fromUri(Uri.parse(imageUrl)));
+    } else {
+      return Tile(fileName: filename, file: File(imageUrl));
     }
-    return tile;
   }
 
   Future<void> createDbTilesCache(Database db) async {
     await db.execute('''
-          CREATE TABLE TilesCache (
-            FileName TEXT PRIMARY KEY,
-            FilePath TEXT
-          )
+      CREATE TABLE TilesCache (
+        FileName TEXT PRIMARY KEY,
+        FilePath TEXT
+      )
     ''');
   }
 }

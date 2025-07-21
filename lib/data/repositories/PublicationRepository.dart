@@ -3,7 +3,7 @@ import 'package:jwlife/data/models/meps_language.dart';
 
 import '../../app/jwlife_app.dart';
 import '../../app/services/settings_service.dart';
-import '../databases/publication.dart';
+import '../models/publication.dart';
 
 class PublicationRepository {
   static final PublicationRepository _instance = PublicationRepository._internal();

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
-import 'package:jwlife/data/databases/publication_category.dart';
+import 'package:jwlife/data/models/publication_category.dart';
 
 import 'publications_items_page.dart';
 import 'publications_subcategories_page.dart';

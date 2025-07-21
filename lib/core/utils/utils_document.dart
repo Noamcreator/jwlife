@@ -6,15 +6,15 @@ import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/core/utils/shared_preferences_helper.dart';
 import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/core/utils/webview_data.dart';
-import 'package:jwlife/data/databases/publication.dart';
+import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/repositories/PublicationRepository.dart';
 import 'package:jwlife/data/databases/catalog.dart';
 import 'package:jwlife/data/models/userdata/bookmark.dart';
-import 'package:jwlife/features/publication/views/document/local/document_page.dart';
 import 'package:jwlife/widgets/dialog/utils_dialog.dart';
 
 import '../../app/jwlife_app.dart';
 import '../../app/services/settings_service.dart';
+import '../../features/publication/pages/document/local/document_page.dart';
 
 Future<void> showDownloadPublicationDialog(BuildContext context, Publication publication) async {
   String publicationTitle = publication.getTitle();

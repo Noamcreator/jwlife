@@ -10,14 +10,14 @@ import 'dart:ui' as ui;
 
 import 'visits_view.dart';  // Import for ImageByteFormat
 
-class PredicationView extends StatefulWidget {
-  const PredicationView({super.key});
+class PredicationPage extends StatefulWidget {
+  const PredicationPage({super.key});
 
   @override
-  _PredicationViewState createState() => _PredicationViewState();
+  _PredicationPageState createState() => _PredicationPageState();
 }
 
-class _PredicationViewState extends State<PredicationView>
+class _PredicationPageState extends State<PredicationPage>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final TextEditingController _urlController = TextEditingController();

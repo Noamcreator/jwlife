@@ -6,7 +6,7 @@ import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/core/utils/utils_document.dart';
 import 'package:jwlife/core/utils/widgets_utils.dart';
-import 'package:jwlife/data/databases/publication.dart';
+import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/repositories/PublicationRepository.dart';
 import 'package:jwlife/data/databases/catalog.dart';
 import 'package:jwlife/i18n/localization.dart';
@@ -16,7 +16,7 @@ import 'package:jwlife/widgets/image_cached_widget.dart';
 import 'package:sqflite/sqflite.dart';
 
 import '../../../app/services/settings_service.dart';
-import '../../publication/views/menu/local/publication_menu_view.dart';
+import '../../publication/pages/menu/local/publication_menu_view.dart';
 
 class MeetingsPage extends StatefulWidget {
   static late Function() refreshMeetingsPubs;

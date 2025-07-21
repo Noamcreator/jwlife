@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:jwlife/core/utils/utils_document.dart';
-import 'package:jwlife/data/databases/publication_category.dart';
+import 'package:jwlife/data/models/publication_category.dart';
 import 'package:jwlife/data/models/userdata/note.dart';
 import 'package:jwlife/widgets/image_cached_widget.dart';
 

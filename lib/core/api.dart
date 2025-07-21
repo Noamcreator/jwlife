@@ -8,7 +8,7 @@ import '../app/services/settings_service.dart';
 import '../data/realm/catalog.dart';
 import '../data/realm/realm_library.dart';
 import 'utils/files_helper.dart';
-import 'utils/gzip.dart';
+import 'utils/gzip_helper.dart';
 
 class Api {
   // URLs des API nécessaires
@@ -54,14 +54,11 @@ class Api {
       final response = await httpGetWithHeaders(url);
 
       if (response.statusCode == 200) {
-        final json = await decompressJSONGZip(response.bodyBytes);
-
-        // Enregistrer la date dans les préférences partagées
-        //await setCatalogDate(json['created']);
-
+        final json = await GZipOptimizer.decompressJSONResponse(response.bodyBytes);
         return json['created'];
       }
-    } catch (e) {
+    }
+    catch (e) {
       debugPrint('Erreur lors de la récupération de la date du catalogue : $e');
     }
     return '';
@@ -96,13 +93,13 @@ class Api {
       printTime('Téléchargement de catalog.db en cours... $url');
       final response = await httpGetWithHeaders(url);
       if (response.statusCode == 200) {
-        printTime('catalog.db téléchargé');
+        printTime('Le fichier "catalog.db" a été téléchargé');
 
         printTime('Decompression de catalog.db en cours...');
-        await decompressGZipDb(response.bodyBytes, catalogFile);
-        printTime('catalog.db décompressé dans : $catalogFile');
+        await GZipOptimizer.decompressCatalogDb(response.bodyBytes, catalogFile);
+        printTime('Le fichier "catalog.db" a été décompressé avec succés dans : $catalogFile');
 
-        printTime('On met à jour la date du catalogue dans les préférences');
+        printTime('On met à jour le timestamp ($lastServerCatalogDate) du catalogue dans les préférences');
         setCatalogDate(lastServerCatalogDate);
       }
       else {

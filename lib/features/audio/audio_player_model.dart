@@ -6,7 +6,8 @@ import 'package:audio_service/audio_service.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:http/http.dart' as http;
 import 'package:jwlife/core/utils/utils.dart';
-import 'package:jwlife/data/databases/publication.dart';
+import 'package:jwlife/data/databases/tiles_cache.dart';
+import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/databases/history.dart';
 import 'package:jwlife/data/realm/catalog.dart' as realm_catalog;
 import 'package:jwlife/data/realm/realm_library.dart';
@@ -134,7 +135,7 @@ class JwLifeAudioPlayer {
           return Uri.file(pub.imageSqr!);
         }
         else {
-          final imageFile = await JwLifeApp.tilesCache.getOrDownloadImage(audio.imagePath);
+          final imageFile = await TilesCache().getOrDownloadImage(audio.imagePath);
           return Uri.file(imageFile!.file.path);
         }
       }).toList();

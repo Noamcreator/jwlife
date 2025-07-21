@@ -12,7 +12,7 @@ import 'package:jwlife/core/assets.dart';
 import 'package:jwlife/core/utils/directory_helper.dart';
 import 'package:jwlife/core/utils/files_helper.dart';
 import 'package:jwlife/core/utils/utils.dart';
-import 'package:jwlife/data/databases/publication.dart';
+import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/models/userdata/bookmark.dart';
 import 'package:jwlife/data/models/userdata/tag.dart';
 import 'package:path_provider/path_provider.dart';
@@ -21,7 +21,7 @@ import 'package:sqflite/sqflite.dart';
 import 'package:uuid/uuid.dart';
 import 'package:path/path.dart' as path;
 
-import '../../features/publication/views/document/data/models/document.dart';
+import '../../features/publication/pages/document/data/models/document.dart';
 import '../models/userdata/congregation.dart';
 import '../models/userdata/location.dart';
 

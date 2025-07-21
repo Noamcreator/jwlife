@@ -35,7 +35,7 @@ void showFullScreenVideo(BuildContext context, MediaItem mediaItem) async {
   if (video != null) {
     JwLifePage.toggleNavBarBlack.call(true);
 
-    showPage(context, VideoPlayerView(
+    showPage(context, VideoPlayerPage(
       mediaItem: mediaItem,
       localVideo: video
     ));
@@ -44,7 +44,7 @@ void showFullScreenVideo(BuildContext context, MediaItem mediaItem) async {
     if(await hasInternetConnection()) {
       JwLifePage.toggleNavBarBlack.call(true);
 
-      showPage(context, VideoPlayerView(
+      showPage(context, VideoPlayerPage(
         mediaItem: mediaItem
       ));
     }
@@ -193,7 +193,7 @@ PopupMenuItem getShowSubtitlesItem(BuildContext context, MediaItem item, {String
     onTap: () async {
       Video? video = JwLifeApp.mediaCollections.getVideo(item);
       if (video != null) {
-        showPage(context, SubtitlesView(
+        showPage(context, SubtitlesPage(
             localVideo: video,
             query: query
         ));
@@ -202,7 +202,7 @@ PopupMenuItem getShowSubtitlesItem(BuildContext context, MediaItem item, {String
         final List<ConnectivityResult> connectivityResult = await (Connectivity().checkConnectivity());
 
         if(connectivityResult.contains(ConnectivityResult.wifi) || connectivityResult.contains(ConnectivityResult.mobile) || connectivityResult.contains(ConnectivityResult.ethernet)) {
-          showPage(context, SubtitlesView(
+          showPage(context, SubtitlesPage(
               mediaItem: item,
               query: query
           ));

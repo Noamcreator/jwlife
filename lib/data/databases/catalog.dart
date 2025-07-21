@@ -1,9 +1,8 @@
 import 'package:intl/intl.dart';
-import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/core/utils/files_helper.dart';
 import 'package:jwlife/core/utils/utils_database.dart';
-import 'package:jwlife/data/databases/publication.dart';
-import 'package:jwlife/data/databases/publication_attribute.dart';
+import 'package:jwlife/data/models/publication.dart';
+import 'package:jwlife/data/models/publication_attribute.dart';
 import 'package:jwlife/data/realm/realm_library.dart';
 import 'package:jwlife/features/library/pages/library_page.dart';
 import 'package:realm/realm.dart';
@@ -12,7 +11,7 @@ import 'package:sqflite/sqflite.dart';
 import '../../app/services/settings_service.dart';
 import '../../core/utils/utils.dart';
 import '../realm/catalog.dart';
-import 'publication_category.dart';
+import '../models/publication_category.dart';
 import '../repositories/PublicationRepository.dart';
 
 class PubCatalog {
@@ -203,7 +202,6 @@ class PubCatalog {
           // Exécution des requêtes EN SÉRIE, pas en parallèle
           final result1 = await txn.rawQuery('''
           SELECT DISTINCT
-            dt.Class,
             $_publicationQuery
           LEFT JOIN DatedText dt ON p.Id = dt.PublicationId
           WHERE ? BETWEEN dt.Start AND dt.End AND p.MepsLanguageId = ?
@@ -216,8 +214,8 @@ class PubCatalog {
             SUM(hp.VisitCount) AS TotalVisits,
             $_publicationQuery
             LEFT JOIN history.History hp ON p.KeySymbol = hp.KeySymbol AND p.IssueTagNumber = hp.IssueTagNumber AND p.MepsLanguageId = hp.MepsLanguageId
-            WHERE hp.Type = 'document'
-            GROUP BY p.Id, pa.Id, pam.PublicationAttributeId
+            WHERE hp.Type = 'document' 
+            GROUP BY p.Id
             ORDER BY TotalVisits DESC
             LIMIT 10;
         ''');

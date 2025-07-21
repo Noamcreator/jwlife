@@ -6,8 +6,8 @@ import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/core/utils/utils_pub.dart';
-import 'package:jwlife/data/databases/publication.dart';
-import 'package:jwlife/data/databases/publication_category.dart';
+import 'package:jwlife/data/models/publication.dart';
+import 'package:jwlife/data/models/publication_category.dart';
 import 'package:jwlife/data/repositories/PublicationRepository.dart';
 import 'package:jwlife/data/databases/catalog.dart';
 import 'package:jwlife/data/realm/catalog.dart';
@@ -17,7 +17,7 @@ import 'package:jwlife/widgets/image_cached_widget.dart';
 import 'package:realm/realm.dart';
 
 import '../../../../app/services/settings_service.dart';
-import '../../../../data/databases/publication_attribute.dart';
+import '../../../../data/models/publication_attribute.dart';
 import '../../../../data/realm/realm_library.dart';
 import '../../widgets/RectangleMediaItem.dart';
 

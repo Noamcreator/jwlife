@@ -126,7 +126,6 @@ Future<String> getCatalogDate() async {
 }
 
 Future<void> setCatalogDate(String catalogDate) async {
-  printTime('catalogDate: $catalogDate');
   SharedPreferences prefs = await SharedPreferences.getInstance();
   prefs.setString('catalog_date', catalogDate);
 }

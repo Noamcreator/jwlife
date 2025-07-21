@@ -7,7 +7,7 @@ import 'package:jwlife/core/utils/utils_audio.dart';
 import 'package:jwlife/core/utils/utils_database.dart';
 import 'package:jwlife/core/utils/utils_document.dart';
 import 'package:jwlife/core/utils/utils_video.dart';
-import 'package:jwlife/data/databases/publication_category.dart';
+import 'package:jwlife/data/models/publication_category.dart';
 import 'package:jwlife/data/realm/catalog.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:jwlife/core/utils/files_helper.dart';
@@ -15,7 +15,7 @@ import 'package:jwlife/core/utils/files_helper.dart';
 import '../../app/services/settings_service.dart';
 import '../../core/utils/utils.dart';
 import '../models/audio.dart';
-import 'publication.dart';
+import '../models/publication.dart';
 
 class History {
   static Future<void> createDbHistory(Database db) async {

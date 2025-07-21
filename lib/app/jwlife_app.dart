@@ -4,7 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:jwlife/app/services/settings_service.dart';
 import 'package:jwlife/app/startup/create_database.dart';
 import 'package:jwlife/app/startup/splash_screen.dart';
-import 'package:jwlife/core/BibleCluesInfo.dart';
+import 'package:jwlife/core/bible_clues_info.dart';
 import 'package:jwlife/core/api.dart';
 import 'package:jwlife/core/constants.dart';
 import 'package:jwlife/core/theme.dart';
@@ -13,8 +13,8 @@ import 'package:jwlife/core/utils/shared_preferences_helper.dart';
 import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/data/databases/media_collections.dart';
 import 'package:jwlife/data/databases/pub_collections.dart';
-import 'package:jwlife/data/databases/publication_attribute.dart';
-import 'package:jwlife/data/databases/publication_category.dart';
+import 'package:jwlife/data/models/publication_attribute.dart';
+import 'package:jwlife/data/models/publication_category.dart';
 import 'package:jwlife/data/databases/catalog.dart';
 import 'package:jwlife/data/databases/userdata.dart';
 import 'package:jwlife/i18n/app_localizations.dart';
@@ -30,7 +30,6 @@ class JwLifeApp extends StatefulWidget {
   // Champs statiques modifiables plus tard
   static late PubCollections pubCollections;
   static late MediaCollections mediaCollections;
-  static late TilesCache tilesCache;
   static late Userdata userdata;
   static late JwLifeAudioPlayer audioPlayer;
   static late BibleCluesInfo bibleCluesInfo;
@@ -39,7 +38,6 @@ class JwLifeApp extends StatefulWidget {
   JwLifeApp({super.key}) {
     pubCollections = PubCollections();
     mediaCollections = MediaCollections();
-    tilesCache = TilesCache();
     userdata = Userdata();
     audioPlayer = JwLifeAudioPlayer();
     bibleCluesInfo = BibleCluesInfo(bibleBookNames: []);
@@ -154,7 +152,7 @@ class _JwLifeAppState extends State<JwLifeApp> {
     await Future.wait([
       JwLifeApp.pubCollections.init(),
       //JwLifeApp.mediaCollections.init(),
-      JwLifeApp.tilesCache.init(),
+      TilesCache().init(),
     ]);
     printTime('End: Initializing collections...');
 

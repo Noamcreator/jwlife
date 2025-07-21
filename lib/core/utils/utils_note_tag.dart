@@ -33,7 +33,7 @@ void showAddTagDialog(BuildContext context) async {
           if (name.isNotEmpty) {
             Tag? tag = await JwLifeApp.userdata.addTag(name, 1);
             if (tag != null) {
-              showPage(buildContext, TagView(tag: tag));
+              showPage(buildContext, TagPage(tag: tag));
             }
           }
         },

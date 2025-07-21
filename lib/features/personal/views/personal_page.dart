@@ -4,14 +4,14 @@ import 'package:jwlife/i18n/localization.dart';
 import 'about_me_page.dart';
 import 'study_page.dart';
 
-class PersonalView extends StatefulWidget {
-  const PersonalView({super.key});
+class PersonalPage extends StatefulWidget {
+  const PersonalPage({super.key});
 
   @override
-  _PersonalViewState createState() => _PersonalViewState();
+  _PersonalPageState createState() => _PersonalPageState();
 }
 
-class _PersonalViewState extends State<PersonalView> {
+class _PersonalPageState extends State<PersonalPage> {
   @override
   void initState() {
     super.initState();

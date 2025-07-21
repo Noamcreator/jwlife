@@ -2,7 +2,7 @@ import 'package:beamer/beamer.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:jwlife/features/bible/views/bible_page.dart';
-import 'package:jwlife/features/congregation/views/congregation_view.dart';
+import 'package:jwlife/features/congregation/pages/congregation_page.dart';
 import 'package:jwlife/features/home/views/home_page.dart';
 import 'package:jwlife/features/library/pages/library_page.dart';
 import 'package:jwlife/features/meetings/views/meeting_page.dart';
@@ -76,7 +76,7 @@ class _JwLifePageState extends State<JwLifePage> {
       BeamerDelegate(
         initialPath: '/bible',
         locationBuilder:  getRouteLocation(
-          BibleView(),
+          BiblePage(),
           'bible',
         ).call,
       ),
@@ -97,21 +97,21 @@ class _JwLifePageState extends State<JwLifePage> {
       BeamerDelegate(
         initialPath: '/predication',
         locationBuilder: getRouteLocation(
-          PredicationView(),
+          PredicationPage(),
           'predication',
         ).call,
       ),
       BeamerDelegate(
         initialPath: '/congregation',
         locationBuilder: getRouteLocation(
-          CongregationView(),
+          CongregationPage(),
           'congregation',
         ).call,
       ),
       BeamerDelegate(
         initialPath: '/personal',
         locationBuilder: getRouteLocation(
-          PersonalView(),
+          PersonalPage(),
           'personal',
         ).call,
       ),

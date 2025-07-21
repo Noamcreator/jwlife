@@ -3,10 +3,10 @@ import 'dart:typed_data';
 import 'package:collection/collection.dart';
 import 'package:html/parser.dart';
 import 'package:jwlife/core/utils/utils_jwpub.dart';
-import 'package:jwlife/data/databases/publication.dart';
+import 'package:jwlife/data/models/publication.dart';
 
 import '../../../../core/utils/utils.dart';
-import '../../views/document/local/documents_manager.dart';
+import '../../pages/document/local/documents_manager.dart';
 
 class PublicationSearchModel {
   final Publication publication;

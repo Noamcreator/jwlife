@@ -16,19 +16,19 @@ import 'package:http/http.dart' as http;
 import '../../core/api.dart';
 import 'subtitles.dart';
 
-class VideoPlayerView extends StatefulWidget {
+class VideoPlayerPage extends StatefulWidget {
   final MediaItem mediaItem;
   final dynamic onlineVideo;
   final Video? localVideo;
   final Duration startPosition;
 
-  const VideoPlayerView({super.key, required this.mediaItem, this.onlineVideo, this.localVideo, this.startPosition=Duration.zero});
+  const VideoPlayerPage({super.key, required this.mediaItem, this.onlineVideo, this.localVideo, this.startPosition=Duration.zero});
 
   @override
-  _VideoPlayerViewState createState() => _VideoPlayerViewState();
+  _VideoPlayerPageState createState() => _VideoPlayerPageState();
 }
 
-class _VideoPlayerViewState extends State<VideoPlayerView> {
+class _VideoPlayerPageState extends State<VideoPlayerPage> {
   VideoPlayerController? _controller;
   String _title = '';  // Valeur par défaut pour le titre
   Duration _duration = Duration.zero;  // Valeur par défaut pour la durée

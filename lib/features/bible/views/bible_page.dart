@@ -1,27 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:jwlife/core/utils/widgets_utils.dart';
-import 'package:jwlife/data/databases/publication.dart';
+import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/repositories/PublicationRepository.dart';
 import 'package:jwlife/data/databases/catalog.dart';
 import 'package:jwlife/i18n/localization.dart';
 import 'package:jwlife/features/home/views/home_page.dart';
 import 'package:jwlife/widgets/dialog/language_dialog_pub.dart';
 
-import '../../publication/views/menu/local/publication_menu_view.dart';
+import '../../publication/pages/menu/local/publication_menu_view.dart';
 
-class BibleView extends StatefulWidget {
+class BiblePage extends StatefulWidget {
   static late Function() refreshBibleView;
-  const BibleView({super.key});
+  const BiblePage({super.key});
 
   @override
-  _BibleViewState createState() => _BibleViewState();
+  _BiblePageState createState() => _BiblePageState();
 }
 
-class _BibleViewState extends State<BibleView> {
+class _BiblePageState extends State<BiblePage> {
   @override
   void initState() {
 
-    BibleView.refreshBibleView = () {setState(() {});};
+    BiblePage.refreshBibleView = () {setState(() {});};
 
     super.initState();
   }

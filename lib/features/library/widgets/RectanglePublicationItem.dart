@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/icons.dart';
 import '../../../core/utils/utils.dart';
 import '../../../core/utils/utils_pub.dart';
-import '../../../data/databases/publication.dart';
+import '../../../data/models/publication.dart';
 import '../../../data/repositories/PublicationRepository.dart';
 import '../../../widgets/image_cached_widget.dart';
 

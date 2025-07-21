@@ -8,7 +8,7 @@ import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/core/utils/utils_document.dart';
 import 'package:jwlife/core/utils/utils_jwpub.dart';
-import 'package:jwlife/data/databases/publication.dart';
+import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/databases/catalog.dart';
 
 import '../../../app/jwlife_app.dart';
