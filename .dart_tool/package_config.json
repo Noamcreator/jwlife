@@ -518,12 +518,6 @@
       "languageVersion": "3.2"
     },
     {
-      "name": "keyboard_avoider",
-      "rootUri": "file:///C:/Users/noamb/AppData/Local/Pub/Cache/hosted/pub.dev/keyboard_avoider-0.2.0",
-      "packageUri": "lib/",
-      "languageVersion": "2.12"
-    },
-    {
       "name": "leak_tracker",
       "rootUri": "file:///C:/Users/noamb/AppData/Local/Pub/Cache/hosted/pub.dev/leak_tracker-10.0.9",
       "packageUri": "lib/",
@@ -852,6 +846,12 @@
       "rootUri": "file:///C:/Users/noamb/AppData/Local/Pub/Cache/hosted/pub.dev/realm_generator-20.1.1",
       "packageUri": "lib/",
       "languageVersion": "3.6"
+    },
+    {
+      "name": "reorderables",
+      "rootUri": "file:///C:/Users/noamb/AppData/Local/Pub/Cache/hosted/pub.dev/reorderables-0.6.0",
+      "packageUri": "lib/",
+      "languageVersion": "2.12"
     },
     {
       "name": "rxdart",

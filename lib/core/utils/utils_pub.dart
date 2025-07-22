@@ -55,11 +55,11 @@ PopupMenuItem getPubFavoriteItem(Publication pub) {
     ),
     onTap: () async {
       if (pub.isFavoriteNotifier.value) {
-        await JwLifeApp.userdata.removePubFavorite(pub);
+        await JwLifeApp.userdata.removeAFavorite(pub);
         pub.isFavoriteNotifier.value = false;
       }
       else {
-        await JwLifeApp.userdata.addPubFavorite(pub);
+        await JwLifeApp.userdata.addInFavorite(pub);
         pub.isFavoriteNotifier.value = true;
       }
 

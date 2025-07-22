@@ -83,7 +83,7 @@ class _ConventionItemsViewState extends State<ConventionItemsView> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(widget.category.getName(context), style: textStyleTitle),
+            Text('Jour ${widget.indexDay}', style: textStyleTitle),
             Text(JwLifeSettings().currentLanguage.vernacular, style: textStyleSubtitle),
           ],
         ),

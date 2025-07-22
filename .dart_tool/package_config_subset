@@ -326,10 +326,6 @@ just_audio_web
 3.2
 file:///C:/Users/noamb/AppData/Local/Pub/Cache/hosted/pub.dev/just_audio_web-0.4.16/
 file:///C:/Users/noamb/AppData/Local/Pub/Cache/hosted/pub.dev/just_audio_web-0.4.16/lib/
-keyboard_avoider
-2.12
-file:///C:/Users/noamb/AppData/Local/Pub/Cache/hosted/pub.dev/keyboard_avoider-0.2.0/
-file:///C:/Users/noamb/AppData/Local/Pub/Cache/hosted/pub.dev/keyboard_avoider-0.2.0/lib/
 leak_tracker
 3.2
 file:///C:/Users/noamb/AppData/Local/Pub/Cache/hosted/pub.dev/leak_tracker-10.0.9/
@@ -550,6 +546,10 @@ realm_generator
 3.6
 file:///C:/Users/noamb/AppData/Local/Pub/Cache/hosted/pub.dev/realm_generator-20.1.1/
 file:///C:/Users/noamb/AppData/Local/Pub/Cache/hosted/pub.dev/realm_generator-20.1.1/lib/
+reorderables
+2.12
+file:///C:/Users/noamb/AppData/Local/Pub/Cache/hosted/pub.dev/reorderables-0.6.0/
+file:///C:/Users/noamb/AppData/Local/Pub/Cache/hosted/pub.dev/reorderables-0.6.0/lib/
 rxdart
 2.12
 file:///C:/Users/noamb/AppData/Local/Pub/Cache/hosted/pub.dev/rxdart-0.28.0/

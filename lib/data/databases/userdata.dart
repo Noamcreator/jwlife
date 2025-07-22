@@ -15,20 +15,23 @@ import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/models/userdata/bookmark.dart';
 import 'package:jwlife/data/models/userdata/tag.dart';
+import 'package:jwlife/data/repositories/PublicationRepository.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:sqflite/sqflite.dart';
-import 'package:uuid/uuid.dart';
+import 'package:uuid/uuid.dart' as uuid;
 import 'package:path/path.dart' as path;
 
+import '../../core/utils/utils_video.dart';
 import '../../features/publication/pages/document/data/models/document.dart';
 import '../models/userdata/congregation.dart';
 import '../models/userdata/location.dart';
+import '../realm/catalog.dart';
 
 class Userdata {
   int schemaVersion = 14;
   late Database _database;
-  List<Publication> favorites = [];
+  List<dynamic> favorites = [];
   List<Tag> tags = [];
   List<Map<String, dynamic>> notes = [];
 
@@ -57,70 +60,174 @@ class Userdata {
 
   Future<void> getFavorites() async {
     favorites = [];
+
     try {
-      File catalogFile = await getCatalogFile();
-      File mepsFile = await getMepsFile();
+      final mepsFile = await getMepsFile();
 
-      if (catalogFile.existsSync() && mepsFile.existsSync()) {
-        final catalog = await openReadOnlyDatabase(catalogFile.path);
+      if (!mepsFile.existsSync()) return;
 
-        try {
-          await catalog.transaction((txn) async {
-            await txn.execute("ATTACH DATABASE '${mepsFile.path}' AS meps");
-            await txn.execute("ATTACH DATABASE '${_database.path}' AS userdata");
+      await _database.execute("ATTACH DATABASE '${mepsFile.path}' AS meps");
 
-            final result = await txn.rawQuery('''
-            SELECT DISTINCT
-              p.*,
-              meps.Language.Symbol AS LanguageSymbol,
-              meps.Language.VernacularName AS LanguageVernacularName,
-              meps.Language.PrimaryIetfCode AS LanguagePrimaryIetfCode,
-              pa.LastModified,
-              pa.ExpandedSize,
-              pa.SchemaVersion,
-              (SELECT ia.NameFragment
-               FROM ImageAsset ia
-               JOIN PublicationAssetImageMap paim ON ia.Id = paim.ImageAssetId
-               WHERE paim.PublicationAssetId = pa.Id 
-                 AND (ia.NameFragment LIKE '%_sqr-%' OR (ia.Width = 600 AND ia.Height = 600))
-               ORDER BY ia.Width DESC
-               LIMIT 1) AS ImageSqr,
-              (SELECT ia.NameFragment
-               FROM ImageAsset ia
-               JOIN PublicationAssetImageMap paim ON ia.Id = paim.ImageAssetId
-               WHERE paim.PublicationAssetId = pa.Id 
-                 AND ia.NameFragment LIKE '%_lsr-%'
-               ORDER BY ia.Width DESC
-               LIMIT 1) AS ImageLsr
-            FROM Publication p
-            LEFT JOIN PublicationAsset pa ON p.Id = pa.PublicationId
-            LEFT JOIN meps.Language ON p.MepsLanguageId = meps.Language.LanguageId
-            JOIN userdata.Location loc ON loc.KeySymbol = p.KeySymbol AND loc.MepsLanguage = p.MepsLanguageId AND loc.IssueTagNumber = p.IssueTagNumber
-            JOIN userdata.TagMap tg ON tg.LocationId = loc.LocationId
-            JOIN userdata.Tag ON tg.TagId = userdata.Tag.TagId
-            WHERE userdata.Tag.Name = 'Favorite' AND userdata.Tag.Type = 0
-            ORDER BY tg.Position ASC
-          ''');
+      final userResults = await _database.rawQuery('''
+      SELECT DISTINCT
+        meps.Language.Symbol AS LanguageSymbol,
+        meps.Language.VernacularName AS LanguageVernacularName,
+        meps.Language.PrimaryIetfCode AS LanguagePrimaryIetfCode,
+        loc.BookNumber,
+        loc.ChapterNumber,
+        loc.DocumentId,
+        loc.Track,
+        loc.IssueTagNumber,
+        loc.KeySymbol,
+        loc.MepsLanguage,
+        loc.Type
+      FROM Location loc
+      LEFT JOIN meps.Language ON loc.MepsLanguage = meps.Language.LanguageId
+      LEFT JOIN TagMap tm ON tm.LocationId = loc.LocationId
+      LEFT JOIN Tag tag ON tm.TagId = tag.TagId
+      WHERE tag.Type = 0
+      ORDER BY tm.Position
+    ''');
 
-            if (result.isNotEmpty) {
-              favorites = result.map((row) => Publication.fromJson(row, isFavorite: true)).toList();
-            }
-          });
-        } finally {
-          await catalog.execute("DETACH DATABASE meps");
-          await catalog.execute("DETACH DATABASE userdata");
-          await catalog.close();
+      await _database.execute("DETACH DATABASE meps");
+
+      final allPublications = PublicationRepository().getAllPublications();
+
+      // Préparer la liste à la bonne taille avec des valeurs null
+      final List<dynamic> orderedFavorites = List.filled(userResults.length, null);
+      final List<Map<String, Object?>> publicationsToLoad = [];
+
+      for (int i = 0; i < userResults.length; i++) {
+        final row = userResults[i];
+        final type = row['Type'] as int?;
+
+        if (type == 1) {
+          final match = allPublications.firstWhereOrNull((p) => p.symbol == row['KeySymbol'] && p.issueTagNumber == row['IssueTagNumber'] && p.mepsLanguage.id == row['MepsLanguage']);
+
+          if (match != null) {
+            match.isFavoriteNotifier.value = true;
+            orderedFavorites[i] = match;
+          }
+          else {
+            // Stocker avec l’index pour réinsertion ordonnée
+            publicationsToLoad.add({...row, 'index': i});
+          }
+        }
+        else if (type == 2 || type == 3) {
+          final mediaItem = getVideoItem(
+              row['KeySymbol'] as String?,
+              row['Track'] as int?,
+              row['DocumentId'] as int?,
+              row['IssueTagNumber'] as int?,
+              row['MepsLanguage']
+          );
+
+          orderedFavorites[i] = mediaItem ?? row; // fallback brut si null
+        }
+        else {
+          orderedFavorites[i] = row; // fallback brut
         }
       }
+
+      // Charger les publications manquantes via catalog
+      if (publicationsToLoad.isNotEmpty) {
+        final catalogFile = await getCatalogFile();
+
+        if (catalogFile.existsSync()) {
+          final catalog = await openReadOnlyDatabase(catalogFile.path);
+
+          try {
+            await catalog.transaction((txn) async {
+              await txn.execute("ATTACH DATABASE '${_database.path}' AS userdata");
+
+              final conditions = publicationsToLoad.map((row) =>
+              "(p.KeySymbol = ? AND p.IssueTagNumber = ? AND p.MepsLanguageId = ?)"
+              ).join(" OR ");
+
+              final args = publicationsToLoad.expand((row) => [
+                row['KeySymbol'], row['IssueTagNumber'], row['MepsLanguage']
+              ]).toList();
+
+              final result = await txn.rawQuery('''
+              SELECT DISTINCT
+                p.*,
+                pa.LastModified,
+                pa.Size,
+                pa.ExpandedSize,
+                pa.SchemaVersion,
+                (SELECT ia.NameFragment
+                 FROM ImageAsset ia
+                 JOIN PublicationAssetImageMap paim ON ia.Id = paim.ImageAssetId
+                 WHERE paim.PublicationAssetId = pa.Id
+                   AND (ia.NameFragment LIKE '%_sqr-%' OR (ia.Width = 600 AND ia.Height = 600))
+                 ORDER BY ia.Width DESC
+                 LIMIT 1) AS ImageSqr,
+                (SELECT ia.NameFragment
+                 FROM ImageAsset ia
+                 JOIN PublicationAssetImageMap paim ON ia.Id = paim.ImageAssetId
+                 WHERE paim.PublicationAssetId = pa.Id
+                   AND ia.NameFragment LIKE '%_lsr-%'
+                 ORDER BY ia.Width DESC
+                 LIMIT 1) AS ImageLsr
+              FROM Publication p
+              LEFT JOIN PublicationAsset pa ON p.Id = pa.PublicationId
+              WHERE $conditions
+            ''', args);
+
+              for (final pubRow in publicationsToLoad) {
+                final index = pubRow['index'] as int;
+
+                final match = result.firstWhereOrNull((dbRow) =>
+                dbRow['KeySymbol'] == pubRow['KeySymbol'] &&
+                    dbRow['IssueTagNumber'] == pubRow['IssueTagNumber'] &&
+                    dbRow['MepsLanguageId'] == pubRow['MepsLanguage']
+                );
+
+                orderedFavorites[index] = match != null ? Publication.fromJson(match, isFavorite: true) : pubRow; // fallback brut
+              }
+
+              await txn.execute("DETACH DATABASE userdata");
+            });
+
+            await catalog.close();
+          } catch (e) {
+            printTime('Erreur: $e');
+            throw Exception('Échec de chargement des favoris.');
+          }
+        } else {
+          // Si aucun catalog, fallback brut à l’indice d’origine
+          for (final pubRow in publicationsToLoad) {
+            final index = pubRow['index'] as int;
+            orderedFavorites[index] = pubRow;
+          }
+        }
+      }
+
+      // Supprimer les valeurs null si jamais une ligne a échoué sans fallback
+      favorites = orderedFavorites.whereType<dynamic>().toList();
     } catch (e) {
-      printTime('Erreur: $e');
-      throw Exception('Échec de chargement des favoris.');
+      printTime("Erreur finale: $e");
     }
   }
 
-  Future<void> addPubFavorite(Publication publication) async {
+  Future<void> addInFavorite(dynamic object) async {
     try {
-      int locationId = await insertLocation(null, null, null, publication.issueTagNumber, publication.keySymbol, publication.mepsLanguage.id, type: 1);
+      int locationId;
+      if (object is Publication) {
+        locationId = await insertLocation(null, null, null, null, object.issueTagNumber, object.symbol, object.mepsLanguage.id, type: 1);
+      }
+      else if (object is MediaItem) {
+        if (object.type == 'AUDIO') {
+          //TODO changer pour avoir le bon mepsLanguage ID
+          locationId = await insertLocation(null, null, null, object.track, object.issueDate, object.pubSymbol, 3, type: 2);
+        }
+        else {
+          locationId = await insertLocation(null, null, null, object.track, object.issueDate, object.pubSymbol, 3, type: 3);
+        }
+      }
+      else {
+        return;
+      }
 
       // Récupère la position maximale pour ce LocationId
       var maxPositionResult = await _database.rawQuery('''
@@ -151,7 +258,7 @@ class Userdata {
       VALUES (NULL, ?, 1, ?)
     ''', [locationId, position]);
 
-      favorites.add(publication);
+      favorites.add(object);
     }
     catch (e) {
       printTime('Error: $e');
@@ -159,42 +266,195 @@ class Userdata {
     }
   }
 
-  Future<void> removePubFavorite(Publication publication) async {
+  Future<int?> _getLocationId({
+    int? bookNumber,
+    int? chapterNumber,
+    int? mepsDocumentId,
+    int? track,
+    int? issueTagNumber,
+    String? keySymbol,
+    int? mepsLanguageId,
+    required int type,
+  }) async {
     try {
-      // Récupère les informations nécessaires du Map publication
-      int issueTagNumber = publication.issueTagNumber;
-      String keySymbol = publication.keySymbol;
-      int mepsLanguageId = publication.mepsLanguage.id;
+      Map<String, dynamic> whereClause = {};
 
-      // Récupère l'LocationId correspondant dans la table Location
-      var locationResult = await _database.rawQuery('''
-        SELECT LocationId FROM Location
-        WHERE IssueTagNumber = ? AND KeySymbol = ? AND MepsLanguage = ?
-      ''', [issueTagNumber, keySymbol, mepsLanguageId]);
-
-      // Vérifie si l'LocationId existe
-      if (locationResult.isNotEmpty) {
-        int? locationId = locationResult.first['LocationId'] as int?;
-
-        // Supprime de la table TagMap pour ce LocationId
-        await _database.rawDelete('''
-          DELETE FROM TagMap
-          WHERE LocationId = ?
-        ''', [locationId]);
-
-        // Supprime de la table Location
-        await _database.rawDelete('''
-          DELETE FROM Location
-          WHERE LocationId = ?
-        ''', [locationId]);
+      if (bookNumber != null && chapterNumber != null) {
+        whereClause['BookNumber'] = bookNumber;
+        whereClause['ChapterNumber'] = chapterNumber;
+      } else {
+        if (mepsDocumentId != null) whereClause['DocumentId'] = mepsDocumentId;
+        if (track != null) whereClause['Track'] = track;
       }
 
-      favorites.removeWhere((publication) => publication.keySymbol == keySymbol && publication.issueTagNumber == issueTagNumber && publication.mepsLanguage.id == mepsLanguageId);
+      if (issueTagNumber != null) whereClause['IssueTagNumber'] = issueTagNumber;
+      if (keySymbol != null) whereClause['KeySymbol'] = keySymbol;
+      if (mepsLanguageId != null) whereClause['MepsLanguage'] = mepsLanguageId;
+      whereClause['Type'] = type;
+
+      final whereKeys = whereClause.keys.toList();
+      final whereString = whereKeys.map((k) => '$k = ?').join(' AND ');
+      final whereValues = whereKeys.map((k) => whereClause[k]).toList();
+
+      final result = await _database.query(
+        'Location',
+        columns: ['LocationId'],
+        where: whereString,
+        whereArgs: whereValues,
+      );
+
+      if (result.isNotEmpty) {
+        return result.first['LocationId'] as int;
+      }
+
+      return null;
+    } catch (e) {
+      printTime('Erreur dans _getLocationId: $e');
+      return null;
     }
-    catch (e) {
+  }
+
+
+  Future<void> removeAFavorite(dynamic object) async {
+    try {
+      int? locationId;
+
+      if (object is Publication) {
+        // Pour Publication
+        locationId = await _getLocationId(
+          issueTagNumber: object.issueTagNumber,
+          keySymbol: object.symbol,
+          mepsLanguageId: object.mepsLanguage.id,
+          type: 1,
+        );
+      }
+      else if (object is MediaItem) {
+        // Pour MediaItem (Audio ou Vidéo)
+        final typeCode = object.type == 'AUDIO' ? 2 : 3;
+        locationId = await _getLocationId(
+          track: object.track,
+          issueTagNumber: object.issueDate,
+          keySymbol: object.pubSymbol,
+          mepsLanguageId: 3, // TODO: ajuster dynamiquement si besoin
+          type: typeCode,
+        );
+      }
+      else if (object is Map<String, dynamic>) {
+        // Pour les cas inconnus (Map brute)
+        locationId = await _getLocationId(
+          track: object['Track'],
+          issueTagNumber: object['IssueTagNumber'],
+          keySymbol: object['KeySymbol'],
+          mepsLanguageId: object['MepsLanguage'],
+          type: object['Type'],
+        );
+      } else {
+        throw Exception('Type non reconnu pour suppression');
+      }
+
+      // Supprime les entrées associées
+      if (locationId != null) {
+        await _database.rawDelete('DELETE FROM TagMap WHERE LocationId = ?', [locationId]);
+        await _database.rawDelete('DELETE FROM Location WHERE LocationId = ?', [locationId]);
+      }
+
+      // Supprimer de la mémoire locale favorites
+      favorites.removeWhere((item) {
+        if (object is Publication && item is Publication) {
+          return item.keySymbol == object.keySymbol &&
+              item.issueTagNumber == object.issueTagNumber &&
+              item.mepsLanguage.id == object.mepsLanguage.id;
+        } else if (object is MediaItem && item is MediaItem) {
+          return item.pubSymbol == object.pubSymbol &&
+              item.issueDate == object.issueDate &&
+              item.track == object.track;
+        } else if (object is Map && item is Map) {
+          return item['KeySymbol'] == object['KeySymbol'] &&
+              item['IssueTagNumber'] == object['IssueTagNumber'] &&
+              item['MepsLanguage'] == object['MepsLanguage'];
+        }
+        return false;
+      });
+    } catch (e) {
       printTime('Error: $e');
-      throw Exception('Failed to remove from TagMap and Location.');
+      throw Exception('Failed to remove favorite from database.');
     }
+  }
+
+  Future<void> reorderFavorites(int oldIndex, int newIndex) async {
+    if (oldIndex < 0 || oldIndex >= favorites.length ||
+        newIndex < 0 || newIndex >= favorites.length) {
+      throw Exception('Invalid index');
+    }
+
+    if (oldIndex == newIndex) return;
+
+    // Réordonner la liste en mémoire
+    final Object movedItem = favorites.removeAt(oldIndex);
+    favorites.insert(newIndex, movedItem);
+
+    final batch = _database.batch();
+
+    // Supprimer tous les favoris liés à Tag.Type = 0
+    batch.rawDelete('''
+    DELETE FROM TagMap
+    WHERE TagId IN (
+      SELECT TagId FROM Tag WHERE Type = 0
+    )
+  ''');
+
+    for (int i = 0; i < favorites.length; i++) {
+      final item = favorites[i];
+
+      if (item is Publication) {
+        batch.rawInsert('''
+        INSERT INTO TagMap (TagId, LocationId, Position)
+        SELECT Tag.TagId, Location.LocationId, ?
+        FROM Tag
+        JOIN Location ON Location.IssueTagNumber = ? AND Location.KeySymbol = ? AND Location.MepsLanguage = ? AND Location.Type = ?
+        WHERE Tag.Type = 0
+        ''', [i, item.issueTagNumber, item.symbol, item.mepsLanguage.id, 1]);
+      }
+      else if (item is MediaItem) {
+        batch.rawInsert('''
+        INSERT INTO TagMap (TagId, LocationId, Position)
+        SELECT Tag.TagId, Location.LocationId, ?
+        FROM Tag
+        JOIN Location ON Location.Track = ? AND Location.IssueTagNumber = ? AND Location.KeySymbol = ? AND Location.MepsLanguage = ? AND Location.Type = ?
+        WHERE Tag.Type = 0
+        ''', [i, item.track, item.issueDate ?? 0, item.pubSymbol, 3, item.type == 'AUDIO' ? 2 : 3]);
+      }
+      else {
+        printTime('Unknown item type: $item');
+
+        final track = item['Track'];
+        final issueTagNumber = item['IssueTagNumber'];
+        final keySymbol = item['KeySymbol'];
+        final mepsLanguage = item['MepsLanguage'];
+        final type = item['Type'];
+
+        if (track == null) {
+          batch.rawInsert('''
+            INSERT INTO TagMap (TagId, LocationId, Position)
+            SELECT Tag.TagId, Location.LocationId, ?
+            FROM Tag
+            JOIN Location ON Location.IssueTagNumber = ? AND Location.KeySymbol = ? AND Location.MepsLanguage = ? AND Location.Type = ?
+            WHERE Tag.Type = 0
+          ''', [i, issueTagNumber, keySymbol, mepsLanguage, type]);
+        }
+        else {
+          batch.rawInsert('''
+            INSERT INTO TagMap (TagId, LocationId, Position)
+            SELECT Tag.TagId, Location.LocationId, ?
+            FROM Tag
+            JOIN Location ON Location.Track = ? AND Location.IssueTagNumber = ? AND Location.KeySymbol = ? AND Location.MepsLanguage = ? AND Location.Type = ?
+            WHERE Tag.Type = 0
+          ''', [i, track, issueTagNumber, keySymbol, mepsLanguage, type]);
+        }
+      }
+    }
+
+    await batch.commit(noResult: true);
   }
 
   Future<void> getTags() async {
@@ -287,47 +547,52 @@ class Userdata {
   }
 
   Future<int> insertLocationWithDocument(Publication publication, Document document) async {
-    int locationId = await insertLocation(document.mepsDocumentId, document.bookNumber, document.chapterNumber!, publication.issueTagNumber, publication.keySymbol, publication.mepsLanguage.id);
+    int locationId = await insertLocation(document.bookNumber, document.chapterNumber, document.mepsDocumentId, null, publication.issueTagNumber, publication.keySymbol, publication.mepsLanguage.id);
     return locationId;
   }
 
-  Future<int> insertLocation(int? mepsDocumentId, int? bookNumber, int? chapterNumber, int? issueTagNumber, String? keySymbol, int? mepsLanguageId, {int type = 0}) async {
+  Future<int> insertLocation(int? bookNumber, int? chapterNumber, int? mepsDocumentId, int? track, int? issueTagNumber, String? keySymbol, int? mepsLanguageId, {int type = 0,}) async {
     try {
-      // Définir les critères de recherche en fonction du type de document
-      Map<String, dynamic> whereClause;
+      // Construction dynamique du whereClause sans champs null
+      Map<String, dynamic> whereClause = {};
+
       if (bookNumber != null && chapterNumber != null) {
-        whereClause = {
+        whereClause.addAll({
           'BookNumber': bookNumber,
           'ChapterNumber': chapterNumber,
-          'IssueTagNumber': issueTagNumber,
-          'KeySymbol': keySymbol,
-          'MepsLanguage': mepsLanguageId,
-          'Type': type
-        };
+        });
       }
       else {
-        whereClause = {
-          'DocumentId': mepsDocumentId,
-          'IssueTagNumber': issueTagNumber,
-          'KeySymbol': keySymbol,
-          'MepsLanguage': mepsLanguageId,
-          'Type': type,
-        };
+        if (mepsDocumentId != null) whereClause['DocumentId'] = mepsDocumentId;
+        if (track != null) whereClause['track'] = track;
       }
 
-      // Vérifie si l'entrée existe déjà
+      if (issueTagNumber != null) whereClause['IssueTagNumber'] = issueTagNumber;
+      if (keySymbol != null) whereClause['KeySymbol'] = keySymbol;
+      if (mepsLanguageId != null) whereClause['MepsLanguage'] = mepsLanguageId;
+
+      // Le champ Type est toujours requis
+      whereClause['Type'] = type;
+
+      // Construction de la requête
+      final whereKeys = whereClause.keys.toList();
+      final whereString = whereKeys.map((k) => '$k = ?').join(' AND ');
+      final whereValues = whereKeys.map((k) => whereClause[k]).toList();
+
       final List<Map<String, dynamic>> existing = await _database.query(
         'Location',
         columns: ['LocationId'],
-        where: whereClause.keys.map((k) => '$k = ?').join(' AND '),
-        whereArgs: whereClause.values.toList(),
+        where: whereString,
+        whereArgs: whereValues,
       );
+
+      printTime('Existing location count: $existing');
 
       if (existing.isNotEmpty) {
         return existing.first['LocationId'] as int;
       }
 
-      // Sinon, insère la nouvelle entrée
+      // Insertion : seules les clés avec des valeurs non nulles sont insérées
       final locationId = await _database.insert('Location', whereClause);
       return locationId;
     }
@@ -336,7 +601,6 @@ class Userdata {
       throw Exception('Échec de l\'insertion ou de la récupération de la Location');
     }
   }
-
 
   Future<List<Map<String, dynamic>>> getInputFieldsFromDocId(int docId, int mepsLang) async {
     try {
@@ -454,6 +718,8 @@ class Userdata {
       // Étape 1 : Obtenir ou insérer le LocationId via insertLocation
       final locationId = await insertLocationWithDocument(publication, document);
 
+      printTime('locationId: $locationId');
+
       // Étape 2 : Insérer dans la table UserMark
       final userMarkId = await _database.insert('UserMark', {
         'ColorIndex': colorIndex,
@@ -476,7 +742,7 @@ class Userdata {
 
     } catch (e) {
       printTime('Erreur dans addHighlightToDoc: $e');
-      throw Exception('Échec de l\'ajout du surlignage pour ce document.');
+      throw Exception('Échec de l\'ajout du surlignage pour ce webview.');
     }
   }
 
@@ -584,17 +850,14 @@ class Userdata {
           Note.BlockIdentifier,
           UserMark.ColorIndex,
           UserMark.UserMarkGuid,
-          GROUP_CONCAT(Tag.TagId) AS CategoriesId,
-          GROUP_CONCAT(Tag.Name) AS CategoriesName
+          GROUP_CONCAT(Tag.TagId) AS TagsId
         FROM Location
         INNER JOIN Note ON Location.LocationId = Note.LocationId
         LEFT JOIN TagMap ON Note.NoteId = TagMap.NoteId
         LEFT JOIN Tag ON TagMap.TagId = Tag.TagId
         LEFT JOIN UserMark ON Note.UserMarkId = UserMark.UserMarkId
-        WHERE Location.DocumentId = ? 
-          AND Location.MepsLanguage = ?
+        WHERE Location.DocumentId = ? AND Location.MepsLanguage = ?
         GROUP BY Note.NoteId
-        ORDER BY Note.BlockIdentifier ASC
     ''', [docId, mepsLang]);
 
       return notesData;
@@ -617,8 +880,7 @@ class Userdata {
           Note.BlockIdentifier,
           UserMark.ColorIndex,
           UserMark.UserMarkGuid,
-          GROUP_CONCAT(Tag.TagId) AS CategoriesId,
-          GROUP_CONCAT(Tag.Name) AS CategoriesName
+          GROUP_CONCAT(Tag.TagId) AS TagsId
         FROM Location
         INNER JOIN Note ON Location.LocationId = Note.LocationId
         LEFT JOIN TagMap ON Note.NoteId = TagMap.NoteId
@@ -626,7 +888,6 @@ class Userdata {
         LEFT JOIN UserMark ON Note.UserMarkId = UserMark.UserMarkId
         WHERE Location.BookNumber = ? AND Location.ChapterNumber = ? AND Location.MepsLanguage = ?
         GROUP BY Note.NoteId
-        ORDER BY Note.BlockIdentifier ASC
     ''', [bookId, chapterId, mepsLang]);
 
       return notesData;
@@ -697,11 +958,11 @@ class Userdata {
 
   Future<Map<String, dynamic>> addNote(String title, String content, int? colorIndex, List<int> categoryIds, int? mepsDocumentId, int? bookNumber, int? chapterNumber, int? issueTagNumber, String? keySymbol, int? mepsLanguageId, {int blockType = 0, int? blockIdentifier}) async {
     try {
-      final int locationId = await insertLocation(mepsDocumentId, bookNumber, chapterNumber, issueTagNumber, keySymbol, mepsLanguageId);
+      final int locationId = await insertLocation(bookNumber, chapterNumber, mepsDocumentId, null, issueTagNumber, keySymbol, mepsLanguageId);
 
       int? userMarkId;
       if (colorIndex != null) {
-        final userMarkGuid = Uuid().v4(); // Generates a version 4 UUID
+        final userMarkGuid = uuid.Uuid().v4(); // Generates a version 4 UUID
 
         // Insérer une nouvelle entrée dans la table UserMark avec un LocationId valide
         userMarkId = await _database.insert('UserMark', {
@@ -713,7 +974,7 @@ class Userdata {
         });
       }
 
-      final guidNote = Uuid().v4(); // Generates a version 4 UUID
+      final guidNote = uuid.Uuid().v4(); // Generates a version 4 UUID
 
       // Insérer la nouvelle note dans la table Note, en liant UserMarkId
       int noteId = await _database.insert('Note', {
@@ -777,6 +1038,80 @@ class Userdata {
     catch (e) {
       printTime('Error: $e');
       throw Exception('Failed to change color for highlight with UserMarkGuid.');
+    }
+  }
+
+  Future<void> addTagToNoteWithGuid(String guid, int tagId) async {
+    String datetime = formattedTimestamp;
+
+    try {
+      // Récupérer le NoteId depuis le Guid
+      final noteIdResult = await _database.rawQuery('''
+      SELECT NoteId FROM Note WHERE Guid = ?
+    ''', [guid]);
+
+      if (noteIdResult.isEmpty) {
+        throw Exception('Note avec le Guid $guid introuvable.');
+      }
+
+      final noteId = noteIdResult.first['NoteId'] as int;
+
+      // Récupérer la position max actuelle pour ce TagId
+      final positionResult = await _database.rawQuery('''
+      SELECT MAX(Position) as maxPosition FROM TagMap WHERE TagId = ?
+    ''', [tagId]);
+
+      final maxPosition = positionResult.first['maxPosition'] as int? ?? -1;
+      final newPosition = maxPosition + 1;
+
+      // Mettre à jour la date de modification de la note
+      await _database.rawUpdate('''
+      UPDATE Note 
+      SET LastModified = ?
+      WHERE NoteId = ?
+    ''', [datetime, noteId]);
+
+      // Insérer le nouveau TagMap avec la position calculée
+      await _database.rawInsert('''
+      INSERT INTO TagMap (NoteId, TagId, Position)
+      VALUES (?, ?, ?)
+    ''', [noteId, tagId, newPosition]);
+    } catch (e) {
+      printTime('Error: $e');
+      throw Exception('Failed to add tag to note with Guid $guid.');
+    }
+  }
+
+  Future<void> removeTagFromNoteWithGuid(String guid, int tagId) async {
+    String datetime = formattedTimestamp;
+
+    try {
+      // Récupérer le NoteId depuis le Guid
+      final noteIdResult = await _database.rawQuery('''
+      SELECT NoteId FROM Note WHERE Guid = ?
+    ''', [guid]);
+
+      if (noteIdResult.isEmpty) {
+        throw Exception('Note avec le Guid $guid introuvable.');
+      }
+
+      final noteId = noteIdResult.first['NoteId'] as int;
+
+      // Supprimer l'association dans TagMap
+      await _database.rawDelete('''
+      DELETE FROM TagMap
+      WHERE NoteId = ? AND TagId = ?
+    ''', [noteId, tagId]);
+
+      // Mettre à jour la date de modification de la note
+      await _database.rawUpdate('''
+      UPDATE Note 
+      SET LastModified = ?
+      WHERE NoteId = ?
+    ''', [datetime, noteId]);
+    } catch (e) {
+      printTime('Error: $e');
+      throw Exception('Failed to remove tag from note with Guid $guid.');
     }
   }
 
@@ -874,8 +1209,7 @@ class Userdata {
            Note.Guid,
            Note.Created,
            Note.LastModified,
-           GROUP_CONCAT(Tag.TagId) AS CategoriesId,
-           GROUP_CONCAT(Tag.Name) AS CategoriesName
+           GROUP_CONCAT(Tag.TagId) AS TagsId
     FROM Note
     LEFT JOIN TagMap ON Note.NoteId = TagMap.NoteId
     LEFT JOIN Tag ON TagMap.TagId = Tag.TagId

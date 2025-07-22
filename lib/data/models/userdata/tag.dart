@@ -16,4 +16,12 @@ class Tag {
       name: map['Name'],
     );
   }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'TagId': id,
+      'Type': type,
+      'Name': name,
+    };
+  }
 }

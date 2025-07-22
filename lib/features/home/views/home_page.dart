@@ -24,6 +24,7 @@ import 'package:jwlife/core/utils/utils_media.dart';
 import 'package:jwlife/core/utils/utils_video.dart';
 import 'package:jwlife/core/utils/widgets_utils.dart';
 import 'package:jwlife/data/models/publication.dart';
+import 'package:jwlife/data/models/publication_category.dart';
 import 'package:jwlife/data/repositories/PublicationRepository.dart';
 import 'package:jwlife/data/models/video.dart';
 import 'package:jwlife/data/databases/catalog.dart';
@@ -33,11 +34,11 @@ import 'package:jwlife/data/realm/realm_library.dart';
 import 'package:jwlife/features/home/views/search/bible_search_page.dart';
 import 'package:jwlife/features/home/views/search/search_page.dart';
 import 'package:jwlife/features/home/views/search/suggestion.dart';
+import 'package:jwlife/features/home/widgets/square_mediaitem_item.dart';
 import 'package:jwlife/features/library/pages/library_page.dart';
 import 'package:jwlife/i18n/localization.dart';
 import 'package:jwlife/features/home/views/alert_banner.dart';
 import 'package:jwlife/features/home/widgets/rectangle_publication_item.dart';
-import 'package:jwlife/features/meetings/views/meeting_page.dart';
 import 'package:jwlife/features/home/widgets/square_publication_item.dart';
 import 'package:jwlife/widgets/dialog/publication_dialogs.dart';
 import 'package:jwlife/widgets/dialog/utils_dialog.dart';
@@ -49,10 +50,12 @@ import 'package:http/http.dart' as http;
 import 'package:html/parser.dart' as html_parser;
 
 import '../../../app/services/settings_service.dart';
+import '../../../core/utils/utils_pub.dart';
 import '../../../data/databases/tiles_cache.dart';
 import '../../../data/models/tile.dart';
 import '../../../widgets/dialog/language_dialog.dart';
 import '../../../widgets/image_cached_widget.dart';
+import '../../meetings/pages/meeting_page.dart';
 import 'article_page.dart';
 import '../../settings_page.dart';
 import 'daily_text_page.dart';
@@ -312,9 +315,9 @@ class _HomePageState extends State<HomePage> {
         // Si déjà téléchargé, retirer le listener car on n'en aura pas besoin
         verseOfTheDayPub.isDownloadedNotifier.removeListener(listener);
 
-        printTime("fetchVerseOfTheDay document start");
+        printTime("fetchVerseOfTheDay webview start");
         Map<String, dynamic>? document = await PubCatalog.getDatedDocumentForToday(verseOfTheDayPub);
-        printTime("fetchVerseOfTheDay document end");
+        printTime("fetchVerseOfTheDay webview end");
 
         final decodedHtml = decodeBlobContent(
           document!['Content'] as Uint8List,
@@ -392,7 +395,7 @@ class _HomePageState extends State<HomePage> {
       throw Exception('Failed to load content');
     }
     else {
-      printTime("fetchArticleInHomePage document start");
+      printTime("fetchArticleInHomePage webview start");
     }
     final document = html_parser.parse(response.body);
 
@@ -1043,7 +1046,7 @@ class _HomePageState extends State<HomePage> {
                   _buildMediaImage(mediaItem, isAudio),
                   _buildPopupMenu(mediaItem, isAudio),
                   _buildMediaInfoOverlay(mediaItem, isAudio),
-                  _buildDownloadButton(mediaItem),
+                  _buildRightBottom(mediaItem),
                 ],
               ),
               const SizedBox(height: 4),
@@ -1279,10 +1282,19 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildDownloadButton(MediaItem mediaItem) {
+  Widget _buildRightBottom(MediaItem mediaItem) {
     Video? video = JwLifeApp.mediaCollections.getVideo(mediaItem);
 
-    return video != null && video.isDownloaded == true ? Container() : Positioned(
+    return video != null && video.isDownloaded == true ? JwLifeApp.userdata.favorites.contains(mediaItem)
+        ? Positioned(
+        bottom: 4,
+        right: 4,
+        child: const Icon(
+            JwIcons.star,
+            color: Colors.white,
+            shadows: [Shadow(color: Colors.black, blurRadius: 10)]
+        ),
+      ) : const SizedBox() :Positioned(
       bottom: -7,
       right: -7,
       child: IconButton(
@@ -1733,17 +1745,102 @@ class _HomePageState extends State<HomePage> {
                           if (JwLifeApp.userdata.favorites.isNotEmpty)
                             SizedBox(
                               height: 120,
-                              child: ListView.builder(
+                              child: ReorderableListView(
                                 scrollDirection: Axis.horizontal,
-                                itemCount: JwLifeApp.userdata.favorites.length,
-                                itemBuilder: (context, index) {
-                                  Publication publication = JwLifeApp.userdata.favorites[index];
-                                  return Padding(
-                                    padding: const EdgeInsets.only(right: 2.0), // Espacement entre les items
-                                    child: HomeSquarePublicationItem(pub: publication),
-                                  );
+                                children: [
+                                  for (int index = 0; index < JwLifeApp.userdata.favorites.length; index++)
+                                    Padding(
+                                      key: ValueKey(JwLifeApp.userdata.favorites[index]), // Clé nécessaire pour le reorder
+                                      padding: const EdgeInsets.only(right: 2.0),
+                                      child: JwLifeApp.userdata.favorites[index] is Publication ? HomeSquarePublicationItem(pub: JwLifeApp.userdata.favorites[index])
+                                          : JwLifeApp.userdata.favorites[index] is MediaItem ? HomeSquareMediaItemItem(mediaItem: JwLifeApp.userdata.favorites[index])
+                                          : InkWell(
+                                        child: SizedBox(
+                                          width: 80,
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Stack(
+                                                children: [
+                                                  ClipRRect(
+                                                    borderRadius: BorderRadius.circular(2.0),
+                                                    child: Container(
+                                                      color: Color(0xFF757575),
+                                                      height: 80,
+                                                      width: 80,
+                                                      child: Center(
+                                                        child: Icon(
+                                                          JwIcons.publication_video_music,
+                                                          size: 40,
+                                                          color: Colors.white,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  // Menu contextuel
+                                                  Positioned(
+                                                    top: -8,
+                                                    right: -10,
+                                                    child: PopupMenuButton(
+                                                      icon: const Icon(
+                                                        Icons.more_vert,
+                                                        color: Colors.white,
+                                                        shadows: [Shadow(color: Colors.black, blurRadius: 5)],
+                                                      ),
+                                                      shadowColor: Colors.black,
+                                                      elevation: 8,
+                                                      itemBuilder: (context) => [
+                                                        PopupMenuItem(
+                                                          child: Row(
+                                                            children: [
+                                                              Icon(JwIcons.star__fill),
+                                                              SizedBox(width: 8),
+                                                              Text('Supprimer des favoris'),
+                                                            ],
+                                                          ),
+                                                          onTap: () async {
+                                                            setState(() {
+                                                              JwLifeApp.userdata.removeAFavorite(JwLifeApp.userdata.favorites[index]);
+                                                            });
+                                                          },
+                                                        )
+                                                      ],
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                              const SizedBox(height: 4),
+                                              SizedBox(
+                                                width: 80,
+                                                child: Padding(
+                                                  padding: const EdgeInsets.only(left: 2.0, right: 4.0),
+                                                  child: Text(
+                                                     '${JwLifeApp.userdata.favorites[index]['KeySymbol']} · ${JwLifeApp.userdata.favorites[index]['LanguageVernacularName']}',
+                                                    style: const TextStyle(
+                                                      fontSize: 9,
+                                                      height: 1.2,
+                                                      fontWeight: FontWeight.w100,
+                                                      fontFamily: 'Roboto',
+                                                    ),
+                                                    maxLines: 3,
+                                                    overflow: TextOverflow.ellipsis,
+                                                    textAlign: TextAlign.start,
+                                                    softWrap: true,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      )
+                                    ),
+                                ],
+                                onReorder: (oldIndex, newIndex) {
+                                  if (newIndex > oldIndex) newIndex -= 1;
+                                  JwLifeApp.userdata.reorderFavorites(oldIndex, newIndex);
+                                  setState(() {});
                                 },
-                              ),
+                              )
                             ),
 
                           if (PubCatalog.recentPublications.isNotEmpty)
@@ -1786,91 +1883,10 @@ class _HomePageState extends State<HomePage> {
                                 if (index < teachingToolboxVideos.length) {
                                   // Partie des vidéos
                                   MediaItem mediaItem = teachingToolboxVideos[index];
-                                  bool isAudio = mediaItem.type == "AUDIO";
 
                                   return Padding(
                                     padding: const EdgeInsets.only(right: 2.0), // Espacement entre les items
-                                    child: InkWell(
-                                        onTap: () {
-                                          if (isAudio) {
-                                            showAudioPlayer(context, mediaItem);
-                                          }
-                                          else {
-                                            showFullScreenVideo(context, mediaItem);
-                                          }
-                                        },
-                                        child: SizedBox(
-                                          width: 80,
-                                          child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              Stack(
-                                                children: [
-                                                  ClipRRect(
-                                                    borderRadius: BorderRadius.circular(2.0),
-                                                    child: ImageCachedWidget(
-                                                      imageUrl: mediaItem.realmImages?.squareImageUrl ?? '',
-                                                      pathNoImage: "pub_type_video",
-                                                      height: 80,
-                                                      width: 80,
-                                                    ),
-                                                  ),
-                                                  Positioned(
-                                                    top: -8,
-                                                    right: -10,
-                                                    child: PopupMenuButton(
-                                                      icon: const Icon(Icons.more_vert, color: Colors.white, shadows: [Shadow(color: Colors.black, blurRadius: 5)]),
-                                                      shadowColor: Colors.black,
-                                                      elevation: 8,
-                                                      itemBuilder: (context) => [
-                                                        getVideoShareItem(mediaItem),
-                                                        getVideoLanguagesItem(context, mediaItem),
-                                                        getVideoFavoriteItem(mediaItem),
-                                                        getVideoDownloadItem(context, mediaItem),
-                                                        getShowSubtitlesItem(context, mediaItem),
-                                                        getCopySubtitlesItem(context, mediaItem),
-                                                      ],
-                                                    ),
-                                                  ),
-                                                  Positioned(
-                                                    top: 0,
-                                                    left: 0,
-                                                    child: Container(
-                                                      color: Colors.black.withOpacity(0.8),
-                                                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.2),
-                                                      child: Row(
-                                                        children: [
-                                                          Icon(
-                                                            isAudio ? JwIcons.headphones__simple : JwIcons.play,
-                                                            size: 10,
-                                                            color: Colors.white,
-                                                          ),
-                                                          const SizedBox(width: 4),
-                                                          Text(
-                                                            formatDuration(mediaItem.duration ?? 0),
-                                                            style: const TextStyle(color: Colors.white, fontSize: 9),
-                                                          ),
-                                                        ],
-                                                      ),
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                              SizedBox(height: 4),
-                                              SizedBox(
-                                                width: 80,
-                                                child: Text(
-                                                  mediaItem.title ?? '',
-                                                  style: TextStyle(fontSize: 9.0, height: 1.2),
-                                                  maxLines: 3,
-                                                  overflow: TextOverflow.ellipsis,
-                                                  textAlign: TextAlign.start,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        )
-                                    )
+                                    child: HomeSquareMediaItemItem(mediaItem: mediaItem),
                                   );
                                 }
                                 else {

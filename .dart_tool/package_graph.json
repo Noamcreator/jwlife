@@ -27,7 +27,6 @@
         "intl",
         "just_audio",
         "just_audio_background",
-        "keyboard_avoider",
         "open_file",
         "package_info_plus",
         "palette_generator",
@@ -36,6 +35,7 @@
         "printing",
         "qr_flutter",
         "realm",
+        "reorderables",
         "searchfield",
         "share_plus",
         "shared_preferences",
@@ -100,8 +100,8 @@
       ]
     },
     {
-      "name": "keyboard_avoider",
-      "version": "0.2.0",
+      "name": "reorderables",
+      "version": "0.6.0",
       "dependencies": [
         "flutter"
       ]

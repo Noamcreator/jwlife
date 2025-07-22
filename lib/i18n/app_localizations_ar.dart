@@ -153,7 +153,12 @@ class AppLocalizationsAr extends AppLocalizations {
   String get navigation_favorites => 'المفضلات';
 
   @override
-  String get navigation_meetings_assembly => 'مجلس الجمعية';
+  String get navigation_meetings_assembly_br =>
+      'Assemblées de circonscription avec un représentant de la filiale';
+
+  @override
+  String get navigation_meetings_assembly_co =>
+      'Assemblées de circonscription avec le responsable de circonscription';
 
   @override
   String get navigation_meetings_convention => 'مؤتمر الإقليم';

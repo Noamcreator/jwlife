@@ -21,10 +21,10 @@ class _PublicationMediaItemsViewState extends State<PublicationMediaItemsView> {
   }
 
   Future<void> _init() async {
-    // Parse le document HTML
+    // Parse le webview HTML
     html_dom.Document document = html_dom.Document.html(widget.document);
 
-    // Parcourt tous les éléments du document
+    // Parcourt tous les éléments du webview
     for (var element in document.getElementsByTagName('img')) {
       // Vérifie si l'élément est une image
       if (element.localName == 'img') {

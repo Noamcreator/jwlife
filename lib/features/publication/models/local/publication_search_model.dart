@@ -120,7 +120,7 @@ class PublicationSearchModel {
                 }
               }
             } else {
-              // Ajout du nouveau document
+              // Ajout du nouveau webview
               tempDocuments[id] = {
                 ...doc,
                 'paragraphs': newParagraphs,
@@ -219,7 +219,7 @@ class PublicationSearchModel {
         final positions = getWordsPositionsAndParagraphId(document['TextPositions']);
         final lengths = getWordsLengths(document['TextLengths']);
 
-        // Initialisation du document dans tempDocuments si pas déjà présent
+        // Initialisation du webview dans tempDocuments si pas déjà présent
         tempDocuments.putIfAbsent(documentIds[i], () => {
           'documentId': documentIds[i],
           'mepsDocumentId': document['MepsDocumentId'],
@@ -277,7 +277,7 @@ class PublicationSearchModel {
       }
     }
 
-    // Transformer la map de paragraphes en liste pour chaque document
+    // Transformer la map de paragraphes en liste pour chaque webview
     for (var doc in tempDocuments.values) {
       doc['paragraphs'] = (doc['paragraphs'] as Map<int, Map<String, dynamic>>).values.toList();
     }
@@ -403,7 +403,7 @@ class PublicationSearchModel {
 
         String verseText = parse(verseHtml).body?.text ?? '';
 
-        // Initialisation du document dans tempDocuments si pas déjà présent
+        // Initialisation du webview dans tempDocuments si pas déjà présent
         tempVerses.putIfAbsent(bibleVerses[i]['BibleVerseId'], () => {
           'verseId': bibleVerses[i]['BibleVerseId'],
           'bookNumber': bookNumber,

@@ -386,11 +386,17 @@ abstract class AppLocalizations {
   /// **'Favoris'**
   String get navigation_favorites;
 
-  /// No description provided for @navigation_meetings_assembly.
+  /// No description provided for @navigation_meetings_assembly_br.
   ///
   /// In fr, this message translates to:
-  /// **'Assemblée de circonscription'**
-  String get navigation_meetings_assembly;
+  /// **'Assemblées de circonscription avec un représentant de la filiale'**
+  String get navigation_meetings_assembly_br;
+
+  /// No description provided for @navigation_meetings_assembly_co.
+  ///
+  /// In fr, this message translates to:
+  /// **'Assemblées de circonscription avec le responsable de circonscription'**
+  String get navigation_meetings_assembly_co;
 
   /// No description provided for @navigation_meetings_convention.
   ///
@@ -401,13 +407,13 @@ abstract class AppLocalizations {
   /// No description provided for @navigation_meetings_life_and_ministry.
   ///
   /// In fr, this message translates to:
-  /// **'Vie et ministère'**
+  /// **'Réunion de semaine'**
   String get navigation_meetings_life_and_ministry;
 
   /// No description provided for @navigation_meetings_watchtower_study.
   ///
   /// In fr, this message translates to:
-  /// **'Étude de La Tour de Garde'**
+  /// **'Réunion du weekend'**
   String get navigation_meetings_watchtower_study;
 
   /// No description provided for @navigation_predication_letters.

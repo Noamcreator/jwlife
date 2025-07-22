@@ -1,27 +1,34 @@
-import 'package:beamer/beamer.dart';
 import 'package:flutter/material.dart';
 
 Future<void> showPage(BuildContext context, Widget page) {
-  return Navigator.push(
-    context,
+  return Navigator.of(context).push(
     PageRouteBuilder(
       pageBuilder: (context, animation, secondaryAnimation) => page,
       transitionsBuilder: (context, animation, secondaryAnimation, child) {
-        // Créer une animation de fondu (fade)
-        var opacity = Tween(begin: 0.0, end: 1.0).animate(
-          CurvedAnimation(
-            parent: animation,
-            curve: Curves.easeInOut,
-          ),
+        // Animation d'entrée : fade + slide up
+        final enterOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(
+          CurvedAnimation(parent: animation, curve: Curves.easeInOut),
+        );
+        final enterOffset = Tween<Offset>(begin: const Offset(0, 0.1), end: Offset.zero).animate(
+          CurvedAnimation(parent: animation, curve: Curves.easeOut),
         );
 
-        return FadeTransition(
-          opacity: opacity,
+        return AnimatedBuilder(
+          animation: animation,
+          builder: (context, child) {
+            return FadeTransition(
+              opacity: enterOpacity,
+              child: SlideTransition(
+                position: enterOffset,
+                child: child,
+              ),
+            );
+          },
           child: child,
         );
       },
-      transitionDuration: const Duration(milliseconds: 300),
-      reverseTransitionDuration: const Duration(milliseconds: 200),
+      transitionDuration: const Duration(milliseconds: 350),
+      reverseTransitionDuration: const Duration(milliseconds: 300),
     ),
   );
 }

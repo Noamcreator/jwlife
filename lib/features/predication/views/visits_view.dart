@@ -209,7 +209,7 @@ class _VisitsViewState extends State<VisitsView> {
                             },
                             validator: (value) {
                               if (value == null) {
-                                return 'Veuillez choisir un document';
+                                return 'Veuillez choisir un webview';
                               }
                               return null;
                             },

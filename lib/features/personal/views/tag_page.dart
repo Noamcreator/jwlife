@@ -96,8 +96,8 @@ class _TagPageState extends State<TagPage> {
           itemBuilder: (context, index) {
             final note = _filteredNotes[index];
 
-            List<String> categoriesId = note['CategoriesId'] == null ? [] : note['CategoriesId'].split(',');
-            List<String> categoriesName = note['CategoriesName'] == null ? [] : note['CategoriesName'].split(',');
+            List<String> categoriesId = note['TagsId'] == null ? [] : note['TagsId'].split(',');
+            List<String> categoriesName = [];
             return GestureDetector(
               onTap: () {
                 showPage(context, NoteView(

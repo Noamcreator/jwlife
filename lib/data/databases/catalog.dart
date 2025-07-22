@@ -214,7 +214,7 @@ class PubCatalog {
             SUM(hp.VisitCount) AS TotalVisits,
             $_publicationQuery
             LEFT JOIN history.History hp ON p.KeySymbol = hp.KeySymbol AND p.IssueTagNumber = hp.IssueTagNumber AND p.MepsLanguageId = hp.MepsLanguageId
-            WHERE hp.Type = 'document' 
+            WHERE hp.Type = 'webview' 
             GROUP BY p.Id
             ORDER BY TotalVisits DESC
             LIMIT 10;
@@ -654,7 +654,7 @@ class PubCatalog {
 
       try {
         final publications = await catalog.rawQuery('''
-        SELECT DISTINCT
+        SELECT
             p.*,
             pa.LastModified,
             pa.Size,
@@ -690,10 +690,10 @@ class PubCatalog {
                  ORDER BY (ia.Width * ia.Height) DESC
                  LIMIT 1)
             ) AS ImageLsr
-        FROM Publication p
-        LEFT JOIN PublicationAsset pa ON p.Id = pa.PublicationId
+        FROM PublicationAsset pa
+        JOIN Publication p ON p.Id = pa.PublicationId
         LEFT JOIN PublicationAttributeMap pam ON p.Id = pam.PublicationId
-        WHERE pa.ConventionReleaseDayNumber IS NOT NULL AND pa.MepsLanguageId = ?;
+        WHERE pa.MepsLanguageId = ? AND pa.ConventionReleaseDayNumber IS NOT NULL;
       ''', [JwLifeSettings().currentLanguage.id]);
 
         return publications

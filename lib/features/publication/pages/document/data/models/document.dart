@@ -368,7 +368,7 @@ class Document {
 
   void removeBookmark(Bookmark bookmark) {
     bookmarks.removeWhere((item) =>
-        item['Slot'] == bookmark.slot &&
+    item['Slot'] == bookmark.slot &&
         item['BlockType'] == bookmark.blockType &&
         item['BlockIdentifier'] == bookmark.blockIdentifier
     );
@@ -416,6 +416,12 @@ class Document {
     JwLifeApp.userdata.addNoteToDocId(this, blockType, identifier, title, uuid, userMarkGuid);
   }
 
+  void removeNote(String guid) {
+    notes.removeWhere((note) => note['Guid'] == guid);
+    JwLifeApp.userdata.removeNoteWithGuid(guid);
+  }
+
+
   void updateNote(String uuid, String title, String content) {
     notes.where((note) => note['Guid'] == uuid).forEach((note) {
       note['Title'] = title;
@@ -425,10 +431,20 @@ class Document {
     JwLifeApp.userdata.updateNoteWithGuid(uuid, title, content);
   }
 
+  void addTagToNote(String uuid, int tagId) {
+    notes.where((note) => note['Guid'] == uuid).forEach((note) {
+      note['TagsId'] != null ? note['TagsId'] != '' ? note['TagsId'] = '${note['TagsId']},$tagId' : note['TagsId'] = '$tagId' : note['TagsId'] = '$tagId';
+    });
 
-  void removeNote(String guid) {
-    notes.removeWhere((note) => note['Guid'] == guid);
-    JwLifeApp.userdata.removeNoteWithGuid(guid);
+    JwLifeApp.userdata.addTagToNoteWithGuid(uuid, tagId);
+  }
+
+  void removeTagToNote(String uuid, int tagId) {
+    notes.where((note) => note['Guid'] == uuid).forEach((note) {
+      note['TagsId'] != null ? note['TagsId'] != '' ? note['TagsId'] = note['TagsId'].toString().replaceAll('$tagId', '') : note['TagsId'] = '' : note['TagsId'] = '';
+    });
+
+    JwLifeApp.userdata.removeTagFromNoteWithGuid(uuid, tagId);
   }
 
   void updateOrInsertInputFieldValue(String tag, String value) {

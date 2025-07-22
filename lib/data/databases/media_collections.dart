@@ -21,14 +21,7 @@ class MediaCollections {
     await fetchDownloadMedias();
   }
 
-  void clearMedias() {
-    videos.clear();
-    audios.clear();
-  }
-
   Future<void> fetchDownloadMedias() async {
-    clearMedias();
-
     // Chargement des publications
     //File mepsFile = await getMepsFile();
 

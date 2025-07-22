@@ -3,9 +3,6 @@ import 'dart:convert';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:sqflite/sqflite.dart';
 
-import '../../../../../../../app/jwlife_app.dart';
-import '../../../../../../../core/utils/utils_jwpub.dart';
-import '../../../../../../../core/utils/webview_data.dart';
 import '../../../../../app/services/settings_service.dart';
 import '../../../../../core/utils/utils.dart';
 import '../data/models/document.dart';
@@ -106,7 +103,6 @@ class DocumentsManager {
     int? endVerseId = widget.lastVerse;
     List<String> wordsSelected = widget.wordsSelected;
 
-    String wordSelectingColor = isDarkMode ? '#215457' : '#c5f8fa';
     //String highlightYellowColor = isDarkMode ? '#86761d' : '#fff9bb';
     //String highlightGreenColor = isDarkMode ? '#4a6831' : '#dbf2c8';
     //String highlightBlueColor = isDarkMode ? '#3a6381' : '#cbecff';
@@ -122,21 +118,21 @@ class DocumentsManager {
     String noteIndicatorPinkColor = isDarkMode ? '#c64677' : '#f698bc';
     String noteIndicatorOrangeColor = isDarkMode ? '#ea6d01' : '#feba89';
 
-    String noteGrayColor = isDarkMode ? '#2b2b2b' : '#f2f2f2';
-    String noteYellowColor = isDarkMode ? '#4a400d' : '#fefce5';
-    String noteGreenColor = isDarkMode ? '#233316' : '#effbe7';
-    String noteBlueColor = isDarkMode ? '#203546' : '#e6f7ff';
-    String notePurpleColor = isDarkMode ? '#2d2437' : '#f1eafa';
-    String notePinkColor = isDarkMode ? '#3f1f2c' : '#ffe6f1';
-    String noteOrangeColor = isDarkMode ? '#48290d' : '#fef0e5';
+    String noteGrayColor = isDarkMode ? '#292929' : '#f1f1f1';
+    String noteYellowColor = isDarkMode ? '#49400e' : '#fffce6';
+    String noteGreenColor = isDarkMode ? '#233315' : '#effbe6';
+    String noteBlueColor = isDarkMode ? '#203646' : '#e6f7ff';
+    String notePurpleColor = isDarkMode ? '#2d2438' : '#f1eafa';
+    String notePinkColor = isDarkMode ? '#401f2c' : '#ffe6f0';
+    String noteOrangeColor = isDarkMode ? '#49290e' : '#fff0e6';
 
-    String searchColor = isDarkMode ? '#d09828' : '#ffc757';
+    //String searchColor = isDarkMode ? '#d09828' : '#ffc757';
 
     String theme = isDarkMode ? 'dark' : 'light';
 
     return '''
     <!DOCTYPE html>
-    <html style="overflow-x: hidden; height: 100%;">
+    <html style="overflow-x: hidden; overflow-y: hidden; height: 100%;">
       <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="initial-scale=1.0, user-scalable=no">
@@ -147,10 +143,6 @@ class DocumentsManager {
             font-size: ${fontSize}px;
             overflow: hidden;
             -webkit-tap-highlight-color: transparent;
-          }
-          
-          a {
-            
           }
           
           body.cc-theme--dark {
@@ -214,17 +206,18 @@ class DocumentsManager {
             background-color: #ffffff;
             border: 2px solid #5f5a57;
           }
+          
           #magnifier .zoomed {
-              position: absolute;
-              transform-origin: 0 0;
-              width: 100%;
-              height: 100%;
-              pointer-events: none;
+            position: absolute;
+            transform-origin: 0 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
           }
   
           .magnifier-content {
-              transform-origin: 0 0;
-              position: absolute;
+            transform-origin: 0 0;
+            position: absolute;
           }
 
           .bookmark-icon {
@@ -244,57 +237,56 @@ class DocumentsManager {
             z-index: 999;
           }
          
-            .word.selected {
-                background-color: $wordSelectingColor;
-            }
+          .word.selected {
+            background-color: rgba(66, 236, 241, 0.3);
+          }
             
-            .word.searched {
-                background-color: $searchColor;
-            }
+          .punctuation.selected {
+            background-color: rgba(66, 236, 241, 0.3);
+          }
             
-            a:hover, a:active, a:visited, a:focus {
-              text-decoration: none;
-              border: none;
-              background: rgba(225, 225, 225, 0.5);
-              outline: none;
-            }
+          .word.searched {
+            background-color: rgba(255, 185, 46, 0.8);
+          }
             
-            .punctuation.selected {
-                background-color: $wordSelectingColor;
-            }
+          a:hover, a:active, a:visited, a:focus {
+            border: none;
+            background: rgba(175, 175, 175, 0.3);
+            outline: none;
+          }
             
-            /* Light mode (cc-theme--light) */
-            .cc-theme--light .highlight-yellow      { background-color: rgba(255, 243, 122, 0.5); }
-            .cc-theme--light .highlight-green       { background-color: rgba(183, 228, 146, 0.5); }
-            .cc-theme--light .highlight-blue        { background-color: rgba(152, 216, 255, 0.5); }
-            .cc-theme--light .highlight-pink        { background-color: rgba(246, 152, 188, 0.5); }
-            .cc-theme--light .highlight-purple      { background-color: rgba(193, 167, 226, 0.5); }
-            .cc-theme--light .highlight-orange      { background-color: rgba(255, 186, 138, 0.5); }
+          /* Light mode (cc-theme--light) */
+          .cc-theme--light .highlight-yellow      { background-color: rgba(255, 243, 122, 0.5); }
+          .cc-theme--light .highlight-green       { background-color: rgba(183, 228, 146, 0.5); }
+          .cc-theme--light .highlight-blue        { background-color: rgba(152, 216, 255, 0.5); }
+          .cc-theme--light .highlight-pink        { background-color: rgba(246, 152, 188, 0.5); }
+          .cc-theme--light .highlight-purple      { background-color: rgba(193, 167, 226, 0.5); }
+          .cc-theme--light .highlight-orange      { background-color: rgba(255, 186, 138, 0.5); }
             
-            /* Dark mode (cc-theme--dark) */
-            .cc-theme--dark .highlight-yellow       { background-color: rgba(250, 217, 41, 0.5); }
-            .cc-theme--dark .highlight-green        { background-color: rgba(129, 189, 79, 0.5); }
-            .cc-theme--dark .highlight-blue         { background-color: rgba(95, 180, 239, 0.5); }
-            .cc-theme--dark .highlight-pink         { background-color: rgba(219, 93, 141, 0.5); }
-            .cc-theme--dark .highlight-purple       { background-color: rgba(146, 111, 189, 0.5); }
-            .cc-theme--dark .highlight-orange       { background-color: rgba(255, 134, 46, 0.5); }
+          /* Dark mode (cc-theme--dark) */
+          .cc-theme--dark .highlight-yellow       { background-color: rgba(250, 217, 41, 0.5); }
+          .cc-theme--dark .highlight-green        { background-color: rgba(129, 189, 79, 0.5); }
+          .cc-theme--dark .highlight-blue         { background-color: rgba(95, 180, 239, 0.5); }
+          .cc-theme--dark .highlight-pink         { background-color: rgba(219, 93, 141, 0.5); }
+          .cc-theme--dark .highlight-purple       { background-color: rgba(146, 111, 189, 0.5); }
+          .cc-theme--dark .highlight-orange       { background-color: rgba(255, 134, 46, 0.5); }
 
 
-            .note-indicator-gray      { background-color: $noteIndicatorGrayColor; }
-            .note-indicator-yellow    { background-color: $noteIndicatorYellowColor; }
-            .note-indicator-green     { background-color: $noteIndicatorGreenColor; }
-            .note-indicator-blue      { background-color: $noteIndicatorBlueColor; }
-            .note-indicator-pink      { background-color: $noteIndicatorPinkColor; }
-            .note-indicator-orange    { background-color: $noteIndicatorOrangeColor; }
-            .note-indicator-purple    { background-color: $noteIndicatorPurpleColor; }
+          .note-indicator-gray      { background-color: $noteIndicatorGrayColor; }
+          .note-indicator-yellow    { background-color: $noteIndicatorYellowColor; }
+          .note-indicator-green     { background-color: $noteIndicatorGreenColor; }
+          .note-indicator-blue      { background-color: $noteIndicatorBlueColor; }
+          .note-indicator-pink      { background-color: $noteIndicatorPinkColor; }
+          .note-indicator-orange    { background-color: $noteIndicatorOrangeColor; }
+          .note-indicator-purple    { background-color: $noteIndicatorPurpleColor; }
             
-            .note-gray      { background-color: $noteGrayColor; }
-            .note-yellow    { background-color: $noteYellowColor; }
-            .note-green     { background-color: $noteGreenColor; }
-            .note-blue      { background-color: $noteBlueColor; }
-            .note-pink      { background-color: $notePinkColor; }
-            .note-orange    { background-color: $noteOrangeColor; }
-            .note-purple    { background-color: $notePurpleColor; }
+          .note-gray      { background-color: $noteGrayColor; }
+          .note-yellow    { background-color: $noteYellowColor; }
+          .note-green     { background-color: $noteGreenColor; }
+          .note-blue      { background-color: $noteBlueColor; }
+          .note-pink      { background-color: $notePinkColor; }
+          .note-orange    { background-color: $noteOrangeColor; }
+          .note-purple    { background-color: $notePurpleColor; }
         </style>
       </head>
       <body class="${webViewData.theme}">
@@ -349,6 +341,7 @@ class DocumentsManager {
             if (index < 0 || index > maxIndex) return { html: "", className: "" };
             if (cachedPages[index]) return cachedPages[index];
             const page = await window.flutter_inappwebview.callHandler('getPage', index);
+            console.log("fetchPage", index, page.className);
             cachedPages[index] = page;
             return page;
           }
@@ -1253,7 +1246,7 @@ class DocumentsManager {
                   colorIndex: 0
               });
               
-              addNoteWithGuid(paragraph, null, noteGuid.uuid, 0, title, '');
+              addNoteWithGuid(paragraph, null, noteGuid.uuid, 0, title, '', '');
               closeToolbar();
               removeAllSelected();
           }
@@ -1312,7 +1305,7 @@ class DocumentsManager {
                   colorIndex: colorIndex
               });
               
-              addNoteWithGuid(paragraph, highlightGuid, noteGuid.uuid, colorIndex, title, '');
+              addNoteWithGuid(paragraph, highlightGuid, noteGuid.uuid, colorIndex, title, '', '');
               closeToolbar();
               removeAllSelected();
           }
@@ -1478,7 +1471,8 @@ class DocumentsManager {
                   note.Guid,
                   note.ColorIndex ?? 0,
                   note.Title,
-                  note.Content
+                  note.Content,
+                  note.TagsId
                 );
           
                 processedNoteGuids.add(note.Guid);
@@ -1654,7 +1648,7 @@ class DocumentsManager {
             });
           }
 
-          function addNoteWithGuid(target, highlightGuid, noteGuid, colorIndex, title, content) {
+          function addNoteWithGuid(target, highlightGuid, noteGuid, colorIndex, title, content, tagsId) {
             const idAttr = isBible() ? 'id' : 'data-pid';
         
             // Chercher le premier élément surligné si highlightGuid est donné
@@ -1714,7 +1708,7 @@ class DocumentsManager {
             // Clic pour afficher la note
             noteIndicator.addEventListener('click', (e) => {
                 e.stopPropagation();
-                showNotePopup(highlightGuid, noteGuid, title, content, colorName, e.pageX, e.pageY);
+                showNotePopup(highlightGuid, noteGuid, title, content, colorName, tagsId, e.pageX, e.pageY);
                 window.flutter_inappwebview.callHandler('showDialog', true);
             });
             
@@ -1728,269 +1722,391 @@ class DocumentsManager {
             pageCenter.appendChild(noteIndicator);
           }
           
-          function showNotePopup(highlightGuid, noteGuid, title, content, colorName, x, y) {
-            // Supprimer toute popup existante
-            const existingPopup = document.querySelector('.note-popup');
-            if (existingPopup) existingPopup.remove();
+          async function showNotePopup(highlightGuid, noteGuid, title, content, colorName, tagsId, x, y) {
+  const allTags = await window.flutter_inappwebview.callHandler('getTags');
+  const tags = allTags.tags;
 
-            const popup = document.createElement('div');
-            popup.className = `note-popup note-\${colorName}`;
-            popup.setAttribute('data-popup-id', noteGuid);
-          
-            // Créer les éléments
-            const titleBar = document.createElement('div');
-            titleBar.className = `note-\${colorName}`;
-          
-            const titleElement = document.createElement('input');
-            titleElement.className = `note-\${colorName}`;
-          
-            const contentElement = document.createElement('textarea');
-            contentElement.className = `note-\${colorName}`;
-          
-            const controlsContainer = document.createElement('div');
-            controlsContainer.className = `note-\${colorName}`;
-          
-            const closeBtn = document.createElement('button');
-            closeBtn.className = `note-\${colorName}`;
-          
-            const maximizeBtn = document.createElement('button');
-            maximizeBtn.className = `note-\${colorName}`;
-          
-            // Style global
-            popup.style.cssText = `
-              position: fixed;
-              border-radius: 10px;
-              font-size: ${fontSize}px;
-              line-height: 1.4;
-              z-index: 1000;
-              display: flex;
-              flex-direction: column;
-              max-width: 95vw;
-              max-height: 50vh;
-              overflow: hidden;
-              padding: 10px;
-            `;
-          
-            // Title bar
-            titleBar.style.cssText = `
-              display: flex;
-              background: inherit;
-              flex-shrink: 0;
-            `;
-          
-            titleElement.type = 'text';
-            titleElement.value = title;
-            titleElement.style.cssText = `
-              flex: 1;
-              font-weight: bold;
-              border: none;
-              outline: none;
-              font-size: inherit;
-              font-family: inherit;
-              background: transparent;
-            `;
-          
-            controlsContainer.style.cssText = `
-              display: flex;
-              gap: 4px;
-              margin-left: 8px;
-            `;
-          
-            closeBtn.textContent = '×';
-            maximizeBtn.textContent = '□';
-            [closeBtn, maximizeBtn].forEach(btn => {
-              btn.style.cssText = `
-                width: 24px;
-                height: 24px;
-                border: none;
-                background: #666;
-                color: white;
-                cursor: pointer;
-                font-size: 14px;
-                padding: 0;
-                border-radius: 0;
-              `;
-            });
-          
-            contentElement.value = content;
-            contentElement.style.cssText = `
-              border: none;
-              outline: none;
-              resize: none;
-              font-family: inherit;
-              font-size: inherit;
-              overflow: auto;
-              white-space: pre-wrap;
-              height: auto;
-            `;
-            
-            // Fonction pour adapter la popup à la taille du textarea
-            function resizePopupToFit() {
-              contentElement.style.height = 'auto';
-              contentElement.style.height = `\${contentElement.scrollHeight + 6}px`;
-            
-              const totalHeight = titleBar.offsetHeight + contentElement.scrollHeight + 16; // padding approx
-              popup.style.height = `\${Math.min(totalHeight, window.innerHeight * 0.9)}px`;
-            }
-            
-            contentElement.addEventListener('input', () => {
-              resizePopupToFit();
-            });
-          
-            // Assemble
-            controlsContainer.appendChild(maximizeBtn);
-            controlsContainer.appendChild(closeBtn);
-            titleBar.appendChild(titleElement);
-            titleBar.appendChild(controlsContainer);
-            popup.appendChild(titleBar);
-            popup.appendChild(contentElement);
-            document.body.appendChild(popup);
-          
-            // Appliquer taille en fonction du contenu
-            requestAnimationFrame(() => {
-              const tmp = contentElement.cloneNode();
-              tmp.style.cssText = `
-                position: absolute;
-                visibility: hidden;
-                white-space: pre-wrap;
-                line-height: 1.4;
-                font-size: ${fontSize}px;
-                font-family: inherit;
-                padding: 10px;
-                width: auto;
-                height: auto;
-              `;
-              tmp.value = content;
-              document.body.appendChild(tmp);
-          
-              const safePadding = 10;     // marge de sécurité
-              
-              const contentW = Math.min(tmp.scrollWidth + 40, window.innerWidth * 0.9);
-              const maxAvailableHeight = window.innerHeight - appBarHeight - bottomNavBarHeight - (safePadding * 2);
-              const contentH = Math.min(tmp.scrollHeight + 80, maxAvailableHeight);
-              
-              document.body.removeChild(tmp);
-              
-              popup.style.width = `\${contentW}px`;
-              popup.style.height = `\${contentH}px`;
-              
-              resizePopupToFit();
-              
-              // Position intelligente
-              let left = x;
-              let top = y;
-              
-              // Empêcher le débordement à droite
-              if (x + contentW > window.innerWidth - safePadding) {
-                left = window.innerWidth - contentW - safePadding;
-              }
-              
-              // Empêcher le débordement en bas (en respectant la bottom bar)
-              if (y + contentH > window.innerHeight - bottomNavBarHeight - safePadding) {
-                top = window.innerHeight - bottomNavBarHeight - contentH - safePadding;
-              }
-              
-              // Empêcher que le haut de la popup dépasse l'AppBar
-              if (top < appBarHeight + safePadding) {
-                top = appBarHeight + safePadding;
-              }
-              
-              popup.style.left = `\${Math.max(0, left)}px`;
-              popup.style.top = `\${Math.max(0, top)}px`;
-            });
-          
-            // Drag logic (touch only)
-            let isDragging = false;
-            let dragOffset = { x: 0, y: 0 };
-          
-            titleBar.addEventListener('touchstart', (e) => {
-              const touch = e.touches[0];
-              if (e.target === titleElement || e.target === closeBtn || e.target === maximizeBtn) return;
-              isDragging = true;
-              const rect = popup.getBoundingClientRect();
-              dragOffset.x = touch.clientX - rect.left;
-              dragOffset.y = touch.clientY - rect.top;
-            });
-          
-            document.addEventListener('touchmove', (e) => {
-              if (!isDragging) return;
-              const touch = e.touches[0];
-              let newLeft = touch.clientX - dragOffset.x;
-              let newTop = touch.clientY - dragOffset.y;
-          
-              newLeft = Math.max(0, Math.min(newLeft, window.innerWidth - popup.offsetWidth));
-              newTop = Math.max(0, Math.min(newTop, window.innerHeight - popup.offsetHeight));
-          
-              popup.style.left = `\${newLeft}px`;
-              popup.style.top = `\${newTop}px`;
-            });
-          
-            document.addEventListener('touchend', () => {
-              isDragging = false;
-            });
-          
-            // Maximize
-            let isMaximized = false;
-            let savedStyle = {};
-            maximizeBtn.addEventListener('click', () => {
-              if (isMaximized) {
-                Object.assign(popup.style, savedStyle);
-                maximizeBtn.textContent = '□';
-                isMaximized = false;
-              } 
-              else {
-                savedStyle = {
-                  left: popup.style.left,
-                  top: popup.style.top,
-                  width: popup.style.width,
-                  height: popup.style.height,
-                  position: popup.style.position,
-                  maxHeight: popup.style.maxHeight,
-                  maxWidth: popup.style.maxWidth,
-                  borderRadius: popup.style.borderRadius
-                };
-            
-                popup.style.left = `0px`;
-                popup.style.top = `\${appBarHeight}px`;
-                popup.style.width = `\${window.innerWidth}px`;
-                popup.style.height = `calc(100vh - \${appBarHeight + bottomNavBarHeight}px)`;
-                popup.style.position = 'fixed';
-                popup.style.maxHeight = 'none';
-                popup.style.maxWidth = 'none';
-                popup.style.borderRadius = '0px';
-            
-                maximizeBtn.textContent = '❐';
-                isMaximized = true;
-              }
-              window.flutter_inappwebview.callHandler('showFullscreenPopup', isMaximized);
-            });
-          
-            // Close
-            closeBtn.addEventListener('click', () => {
-              popup.remove();
-              window.flutter_inappwebview.callHandler('showDialog', false);
-            });
-   
-            // Stop propagation
-            popup.addEventListener('click', e => e.stopPropagation());
-          
-            // Auto save stub
-            const saveChanges = () => { 
-              const title = titleElement.value;
-              const content = contentElement.value;
-              
-              const note = notes.find(n => n.Guid === noteGuid);
+  const existingPopup = document.querySelector('.note-popup');
+  if (existingPopup) existingPopup.remove();
 
-              window.flutter_inappwebview.callHandler('updateNote', { 
-                noteGuid: noteGuid, 
-                title: title, 
-                content: content 
-              });
-            };
-            titleElement.addEventListener('input', saveChanges);
-            contentElement.addEventListener('input', saveChanges);
-          }
-          
+  const safePadding = 20;
+  const minWidth = 320;
+  const maxWidth = window.innerWidth * 0.9;
+
+  const tempTextarea = document.createElement('textarea');
+  tempTextarea.style.cssText = `
+    position: absolute;
+    visibility: hidden;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    font-size: inherit;
+    line-height: 1.6;
+    padding: 20px;
+    border: none;
+    width: auto;
+    max-width: \${maxWidth - 40}px;
+  `;
+  tempTextarea.value = content;
+  document.body.appendChild(tempTextarea);
+
+  const contentWidth = Math.max(minWidth, Math.min(tempTextarea.scrollWidth + 80, maxWidth));
+  tempTextarea.style.width = \`\${contentWidth - 40}px\`;
+  const contentHeight = Math.max(60, Math.min(tempTextarea.scrollHeight, 300));
+  document.body.removeChild(tempTextarea);
+
+  const titleBarHeight = 60;
+  const tagsContainerHeight = 120;
+  const totalWidth = contentWidth;
+  const totalHeight = titleBarHeight + contentHeight + tagsContainerHeight;
+
+  let left = x - totalWidth / 2;
+  let top = y - 50;
+
+  if (left + totalWidth > window.innerWidth - safePadding) {
+    left = window.innerWidth - totalWidth - safePadding;
+  }
+  if (left < safePadding) {
+    left = safePadding;
+  }
+  if (top + totalHeight > window.innerHeight - bottomNavBarHeight - safePadding) {
+    top = window.innerHeight - bottomNavBarHeight - totalHeight - safePadding;
+  }
+  if (top < appBarHeight + safePadding) {
+    top = appBarHeight + safePadding;
+  }
+
+  const popup = document.createElement('div');
+  popup.className = \`note-popup note-\${colorName}\`;
+  popup.setAttribute('data-popup-id', noteGuid);
+
+  const titleBar = document.createElement('div');
+  titleBar.className = 'note-title-bar';
+
+  const titleElement = document.createElement('input');
+  titleElement.className = 'note-title-input';
+  titleElement.type = 'text';
+  titleElement.value = title;
+  titleElement.placeholder = 'Titre de la note';
+
+  const controlsContainer = document.createElement('div');
+  controlsContainer.className = 'note-controls';
+
+  const maximizeBtn = document.createElement('button');
+  maximizeBtn.className = 'note-control-btn maximize-btn';
+  maximizeBtn.innerHTML = '⛶';
+
+  const closeBtn = document.createElement('button');
+  closeBtn.className = 'note-control-btn close-btn';
+  closeBtn.innerHTML = '✕';
+
+  const contentElement = document.createElement('textarea');
+  contentElement.className = 'note-content';
+  contentElement.value = content;
+  contentElement.placeholder = 'Écrivez votre note ici...';
+
+  popup.style.cssText = \`
+    position: fixed;
+    left: \${Math.max(0, left)}px;
+    top: \${Math.max(0, top)}px;
+    width: \${totalWidth}px;
+    height: \${totalHeight}px;
+    border-radius: 16px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+    font-size: inherit;
+    line-height: 1.5;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(10px);
+  \`;
+
+  titleBar.style.cssText = \`
+    display: flex;
+    align-items: center;
+    padding: 16px 20px 12px 20px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 16px 16px 0 0;
+    height: \${titleBarHeight}px;
+    box-sizing: border-box;
+  \`;
+
+  titleElement.style.cssText = \`
+    flex: 1;
+    font-weight: 600;
+    font-size: inherit;
+    border: none;
+    outline: none;
+    background: transparent;
+    color: inherit;
+    padding: 0;
+    margin: 0;
+  \`;
+
+  controlsContainer.style.cssText = \`
+    display: flex;
+    gap: 8px;
+    margin-left: 16px;
+  \`;
+
+  [maximizeBtn, closeBtn].forEach(btn => {
+    btn.style.cssText = \`
+      width: 32px;
+      height: 32px;
+      border: none;
+      background: rgba(0, 0, 0, 0.1);
+      color: rgba(0, 0, 0, 0.6);
+      cursor: pointer;
+      font-size: 14px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+      font-weight: 500;
+    \`;
+  });
+
+  maximizeBtn.addEventListener('mouseenter', () => {
+    maximizeBtn.style.background = 'rgba(0, 0, 0, 0.15)';
+    maximizeBtn.style.transform = 'scale(1.05)';
+  });
+  maximizeBtn.addEventListener('mouseleave', () => {
+    maximizeBtn.style.background = 'rgba(0, 0, 0, 0.1)';
+    maximizeBtn.style.transform = 'scale(1)';
+  });
+
+  closeBtn.addEventListener('mouseenter', () => {
+    closeBtn.style.background = '#ff4757';
+    closeBtn.style.color = 'white';
+    closeBtn.style.transform = 'scale(1.05)';
+  });
+  closeBtn.addEventListener('mouseleave', () => {
+    closeBtn.style.background = 'rgba(0, 0, 0, 0.1)';
+    closeBtn.style.color = 'rgba(0, 0, 0, 0.6)';
+    closeBtn.style.transform = 'scale(1)';
+  });
+
+  contentElement.style.cssText = \`
+    border: none;
+    outline: none;
+    resize: none;
+    font-size: inherit;
+    line-height: 1.6;
+    padding: 20px;
+    background: transparent;
+    color: inherit;
+    overflow-y: auto;
+    height: \${contentHeight}px;
+    box-sizing: border-box;
+  \`;
+
+  const tagsContainer = document.createElement('div');
+  tagsContainer.style.cssText = \`
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 16px 20px 20px 20px;
+    border-top: 1px solid rgba(0, 0, 0, 0.08);
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 0 0 16px 16px;
+    height: \${tagsContainerHeight}px;
+    overflow-y: auto;
+    box-sizing: border-box;
+    position: relative;
+  \`;
+
+  const tagStyle = \`
+    background: rgba(255, 255, 255, 0.9);
+    color: #2c3e50;
+    padding: 7px 9px;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: 500;
+    white-space: nowrap;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    backdrop-filter: blur(10px);
+  \`;
+  
+  console.log('theUniqueTagsId', tagsId);
+
+  const currentTagIds = !tagsId || tagsId === '' ? [] : tagsId.split(',').map(id => parseInt(id));
+  currentTagIds.forEach(tagId => {
+    const tag = tags.find(t => t.TagId === tagId);
+    if (!tag) return;
+    const tagElement = document.createElement('span');
+    tagElement.textContent = tag.Name;
+    tagElement.style.cssText = tagStyle;
+    tagElement.addEventListener('click', () => {
+      window.flutter_inappwebview.callHandler('openTagPage', {
+        tagId: tag.TagId,
+      });
+    });
+    tagElement.addEventListener('contextmenu', () => {
+      tagsContainer.removeChild(tagElement);
+      window.flutter_inappwebview.callHandler('removeTagToNote', {
+        noteGuid: noteGuid,
+        tagId: tag.TagId,
+      });
+    });
+    tagsContainer.appendChild(tagElement);
+  });
+
+  const tagInputWrapper = document.createElement('div');
+  tagInputWrapper.style.cssText = \`
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    flex-wrap: wrap;
+  \`;
+
+  const tagInput = document.createElement('input');
+  tagInput.type = 'text';
+  tagInput.style.cssText = \`
+    display: none;
+    flex: 1;
+    min-width: 100px;
+    border: none;
+    padding: 4px;
+    outline: none;
+    font-size: 14px;
+    background: transparent;
+    color: inherit;
+  \`;
+
+  const addTagButton = document.createElement('button');
+  addTagButton.textContent = '+';
+  addTagButton.style.cssText = \`
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(255, 255, 255, 0.9);
+    color: #2c3e50;
+    font-size: 18px;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  \`;
+
+  addTagButton.addEventListener('click', () => {
+    tagInput.style.display = 'block';
+    tagInput.focus();
+  });
+
+  const suggestionsList = document.createElement('div');
+  suggestionsList.style.cssText = \`
+    display: none;
+    width: 100%;
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+    max-height: 100px;
+    overflow-y: auto;
+    margin-top: 4px;
+    backdrop-filter: blur(15px);
+  \`;
+
+  tagInput.addEventListener('input', () => {
+    const value = tagInput.value.toLowerCase();
+    suggestionsList.innerHTML = '';
+    if (value === '') {
+      suggestionsList.style.display = 'none';
+      return;
+    }
+    const filtered = tags.filter(tag => tag.Name.toLowerCase().includes(value) && !currentTagIds.includes(tag.TagId));
+    filtered.forEach((tag, index) => {
+      const item = document.createElement('div');
+      item.textContent = tag.Name;
+      item.style.cssText = \`
+        padding: 8px 12px; 
+        cursor: pointer;
+        font-size: 14px;
+        color: #2c3e50;
+        transition: background-color 0.2s ease;
+        \${index === 0 ? 'border-radius: 12px 12px 0 0;' : ''}
+        \${index === filtered.length - 1 ? 'border-radius: 0 0 12px 12px;' : ''}
+      \`;
+      item.addEventListener('mouseenter', () => {
+        item.style.backgroundColor = 'rgba(52, 152, 219, 0.1)';
+      });
+      item.addEventListener('mouseleave', () => {
+        item.style.backgroundColor = 'transparent';
+      });
+      item.addEventListener('click', () => {
+        currentTagIds.push(tag.TagId);
+        const tagElement = document.createElement('span');
+        tagElement.textContent = tag.Name;
+        tagElement.style.cssText = tagStyle;
+        tagsContainer.insertBefore(tagElement, tagInputWrapper);
+        tagInput.value = '';
+        suggestionsList.innerHTML = '';
+        suggestionsList.style.display = 'none';
+        window.flutter_inappwebview.callHandler('addTagToNote', {
+          noteGuid: noteGuid,
+          tagId: tag.TagId
+        });
+      });
+      suggestionsList.appendChild(item);
+    });
+    suggestionsList.style.display = filtered.length ? 'block' : 'none';
+  });
+
+  controlsContainer.appendChild(maximizeBtn);
+  controlsContainer.appendChild(closeBtn);
+  titleBar.appendChild(titleElement);
+  titleBar.appendChild(controlsContainer);
+  popup.appendChild(titleBar);
+  popup.appendChild(contentElement);
+  popup.appendChild(tagsContainer);
+
+  tagInputWrapper.appendChild(addTagButton);
+  tagInputWrapper.appendChild(tagInput);
+  tagInputWrapper.appendChild(suggestionsList);
+  tagsContainer.appendChild(tagInputWrapper);
+  document.body.appendChild(popup);
+
+  popup.style.transform = 'scale(0.9) translateY(20px)';
+  popup.style.opacity = '0';
+  popup.style.transition = 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)';
+  setTimeout(() => {
+    popup.style.transform = 'scale(1) translateY(0)';
+    popup.style.opacity = '1';
+  }, 10);
+  setTimeout(() => {
+    popup.style.transition = '';
+  }, 300);
+
+  closeBtn.addEventListener('click', () => {
+    popup.style.transition = 'all 0.2s ease';
+    popup.style.transform = 'scale(0.9)';
+    popup.style.opacity = '0';
+    setTimeout(() => {
+      popup.remove();
+    }, 200);
+    window.flutter_inappwebview.callHandler('showDialog', false);
+  });
+
+  const saveChanges = () => {
+    const title = titleElement.value;
+    const content = contentElement.value;
+    window.flutter_inappwebview.callHandler('updateNote', {
+      noteGuid: noteGuid,
+      title: title,
+      content: content
+    });
+  };
+
+  titleElement.addEventListener('input', saveChanges);
+  contentElement.addEventListener('input', saveChanges);
+}
+
           // Fonction utilitaire pour supprimer un surlignage spécifique par son UUID
           function removeHighlightByGuid(guid) {
             const highlightedElements = document.querySelectorAll(`[data-highlight-id="\${guid}"]`);

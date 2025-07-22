@@ -154,8 +154,8 @@ String createHtmlContent(String html, String articleClasses, Publication publica
   String headerAdjustmentScript = '''
     <script>
   var hasAppBar = $hasAppBar;
-  var header = document.querySelector('header');
-  var firstImage = document.querySelector('div#f1.north_center'); // On récupère la première image du document
+  var header = webview.querySelector('header');
+  var firstImage = webview.querySelector('div#f1.north_center'); // On récupère la première image du webview
 
   if (firstImage != null) {
     // Vérifier si l'image n'est pas dans le header ou si elle est avant le header
@@ -170,10 +170,10 @@ String createHtmlContent(String html, String articleClasses, Publication publica
   }
 
   // Appliquer paddingTop au body
-  document.querySelector('#article').style.paddingTop = paddingTop;
-  document.querySelector('#article').style.paddingBottom = '50px';
+  webview.querySelector('#article').style.paddingTop = paddingTop;
+  webview.querySelector('#article').style.paddingBottom = '50px';
   
-  document.body.addEventListener('click', (event) => {
+  webview.body.addEventListener('click', (event) => {
     // Gérer les images
     if (event.target && event.target.tagName === 'IMG') {
       window.flutter_inappwebview.callHandler('onImageClick', event.target.src);
@@ -193,25 +193,25 @@ String createHtmlContent(String html, String articleClasses, Publication publica
   });
   
     // Gestion des vidéos sous forme d'éléments <video>
-    var videoElements = document.querySelectorAll("video[data-video]");
+    var videoElements = webview.querySelectorAll("video[data-video]");
     videoElements.forEach(function(videoElement) {
         var imageName = videoElement.getAttribute("data-image");
 
         if (imageName) {
             var imagePath = `${publication.path}/\${imageName}`;
             
-            var imgElement = document.createElement("img");
+            var imgElement = webview.createElement("img");
             imgElement.src = imagePath;
             imgElement.style.width = "100%";
             imgElement.style.height = "auto";
 
-            var container = document.createElement("div");
+            var container = webview.createElement("div");
             container.style.position = "relative"; 
             container.style.width = "100%";
             container.style.height = "auto"; 
             container.appendChild(imgElement); 
 
-            var playButton = document.createElement("div");
+            var playButton = webview.createElement("div");
             playButton.style.position = "absolute";
             playButton.style.bottom = "10px";
             playButton.style.left = "10px";
@@ -237,7 +237,7 @@ String createHtmlContent(String html, String articleClasses, Publication publica
     });
 
     // Gestion des liens <a data-video>
-    var videoLinks = document.querySelectorAll("a[data-video]");
+    var videoLinks = webview.querySelectorAll("a[data-video]");
     videoLinks.forEach(function(link) {
         link.addEventListener("click", function(event) {
             event.preventDefault(); // Empêche la navigation

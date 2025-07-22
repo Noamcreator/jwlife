@@ -156,7 +156,7 @@ class RectanglePublicationItem extends StatelessWidget {
                                       icon: const Icon(
                                         JwIcons.cloud_arrow_down,
                                         color: Colors.white,
-                                        shadows: [Shadow(color: Colors.black, blurRadius: 5)],
+                                        shadows: [Shadow(color: Colors.black, blurRadius: 3)],
                                       ),
                                     ),
                                   ),

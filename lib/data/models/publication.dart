@@ -13,6 +13,7 @@ import 'package:jwlife/widgets/dialog/utils_dialog.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../app/services/settings_service.dart';
+import '../../features/meetings/pages/meeting_page.dart';
 import '../../features/publication/pages/document/local/documents_manager.dart';
 import '../../features/publication/pages/menu/local/publication_menu_view.dart';
 import '../../features/publication/pages/menu/online/publication_menu.dart';
@@ -173,7 +174,7 @@ class Publication {
       progressNotifier: ValueNotifier(0.0),
       isDownloadingNotifier: ValueNotifier(false),
       isDownloadedNotifier: ValueNotifier(json['Hash'] != null && json['DatabasePath'] != null && json['Path'] != null),
-      isFavoriteNotifier: ValueNotifier(isFavorite ?? JwLifeApp.userdata.favorites.any((p) => p.symbol == symbol && p.mepsLanguage.id == mepsLanguageId && p.issueTagNumber == issueTagNumber)),
+      isFavoriteNotifier: ValueNotifier(isFavorite ?? JwLifeApp.userdata.favorites.any((p) => p is Publication && (p.symbol == symbol && p.mepsLanguage.id == mepsLanguageId && p.issueTagNumber == issueTagNumber))),
     );
 
     PublicationRepository().addPublication(publication);
@@ -329,12 +330,6 @@ class Publication {
     progressNotifier.value = -1;
     await removeJwpubFile(this);
 
-    if (category.id == 1) {
-      BiblePage.refreshBibleView();
-    }
-
-    showBottomMessage(context, 'Publication supprimée');
-
     documentsManager = null;
     hash = null;
     path = null;
@@ -346,6 +341,16 @@ class Publication {
     isDownloadingNotifier.value = false;
     isDownloadedNotifier.value = false;
     progressNotifier.value = 0;
+
+    showBottomMessage(context, 'Publication supprimée');
+
+    if (category.id == 1) {
+      BiblePage.refreshBibleView();
+    }
+
+    if(symbol == 'S-34') {
+      MeetingsPage.refreshMeetingsPubs();
+    }
   }
 
   void showMenu(BuildContext context, {int? mepsLanguage}) async {

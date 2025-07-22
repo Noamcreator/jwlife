@@ -38,7 +38,7 @@ class _ContactEditorPageState extends State<ContactEditorPage> {
       CollectionReference brothersAndSisters = congregationDoc.collection('brothers_and_sisters');
       DocumentReference contactDoc = brothersAndSisters.doc(widget.id);
 
-      // Récupérer les données du document
+      // Récupérer les données du webview
       DocumentSnapshot contactSnapshot = await contactDoc.get();
       if (contactSnapshot.exists) {
         // Extraire les données

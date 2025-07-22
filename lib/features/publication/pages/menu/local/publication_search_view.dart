@@ -106,7 +106,7 @@ class _PublicationSearchViewState extends State<PublicationSearchView> {
                     List<int> wordsSelected = [];
                     for (var paragraph in doc['paragraphs']) {
                       for (var word in paragraph['words']) {
-                        printTime(word['index']);
+                        //printTime(word['index'].toString());
                         wordsSelected.add(word['index']);
                       }
                     }

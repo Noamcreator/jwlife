@@ -13,20 +13,6 @@ class Assets {
   static const String darkBookmark08 = 'assets/icons/bookmarks/dark/bookmark08.png';
   static const String darkBookmark09 = 'assets/icons/bookmarks/dark/bookmark09.png';
   static const String darkBookmark10 = 'assets/icons/bookmarks/dark/bookmark10.png';
-  static const String darkHighlight = 'assets/icons/highlights/dark/highlight.png';
-  static const String darkHighlight1 = 'assets/icons/highlights/dark/highlight1.png';
-  static const String darkHighlight1Selected = 'assets/icons/highlights/dark/highlight1_selected.png';
-  static const String darkHighlight2 = 'assets/icons/highlights/dark/highlight2.png';
-  static const String darkHighlight2Selected = 'assets/icons/highlights/dark/highlight2_selected.png';
-  static const String darkHighlight3 = 'assets/icons/highlights/dark/highlight3.png';
-  static const String darkHighlight3Selected = 'assets/icons/highlights/dark/highlight3_selected.png';
-  static const String darkHighlight4 = 'assets/icons/highlights/dark/highlight4.png';
-  static const String darkHighlight4Selected = 'assets/icons/highlights/dark/highlight4_selected.png';
-  static const String darkHighlight5 = 'assets/icons/highlights/dark/highlight5.png';
-  static const String darkHighlight5Selected = 'assets/icons/highlights/dark/highlight5_selected.png';
-  static const String darkHighlight6 = 'assets/icons/highlights/dark/highlight6.png';
-  static const String darkHighlight6Selected = 'assets/icons/highlights/dark/highlight6_selected.png';
-  static const String darkHighlightSelected = 'assets/icons/highlights/dark/highlight_selected.png';
   static const String dbMepsunit = 'assets/db/mepsunit.db';
   static const String fontsJwIcons = 'assets/fonts/jw-icons.ttf';
   static const String fontsNotoSansBold = 'assets/fonts/NotoSans-Bold.ttf';
@@ -42,7 +28,6 @@ class Assets {
   static const String iconsIcHelp = 'assets/icons/ic_help.png';
   static const String iconsIcLauncher = 'assets/icons/ic_launcher.png';
   static const String iconsJwLife = 'assets/icons/jw_life.png';
-  static const String iconsJwLifeLogo = 'assets/icons/jw_life_logo.psd';
   static const String iconsNavDonation = 'assets/icons/nav_donation.png';
   static const String iconsNavGithubDark = 'assets/icons/nav_github_dark.png';
   static const String iconsNavGithubLight = 'assets/icons/nav_github_light.png';
@@ -114,20 +99,7 @@ class Assets {
   static const String lightBookmark08 = 'assets/icons/bookmarks/light/bookmark08.png';
   static const String lightBookmark09 = 'assets/icons/bookmarks/light/bookmark09.png';
   static const String lightBookmark10 = 'assets/icons/bookmarks/light/bookmark10.png';
-  static const String lightHighlight = 'assets/icons/highlights/light/highlight.png';
-  static const String lightHighlight1 = 'assets/icons/highlights/light/highlight1.png';
-  static const String lightHighlight1Selected = 'assets/icons/highlights/light/highlight1_selected.png';
-  static const String lightHighlight2 = 'assets/icons/highlights/light/highlight2.png';
-  static const String lightHighlight2Selected = 'assets/icons/highlights/light/highlight2_selected.png';
-  static const String lightHighlight3 = 'assets/icons/highlights/light/highlight3.png';
-  static const String lightHighlight3Selected = 'assets/icons/highlights/light/highlight3_selected.png';
-  static const String lightHighlight4 = 'assets/icons/highlights/light/highlight4.png';
-  static const String lightHighlight4Selected = 'assets/icons/highlights/light/highlight4_selected.png';
-  static const String lightHighlight5 = 'assets/icons/highlights/light/highlight5.png';
-  static const String lightHighlight5Selected = 'assets/icons/highlights/light/highlight5_selected.png';
-  static const String lightHighlight6 = 'assets/icons/highlights/light/highlight6.png';
-  static const String lightHighlight6Selected = 'assets/icons/highlights/light/highlight6_selected.png';
-  static const String lightHighlightSelected = 'assets/icons/highlights/light/highlight_selected.png';
   static const String userDataDefaultThumbnail = 'assets/userData/default_thumbnail.png';
   static const String userDataUserData = 'assets/userData/userData.db';
+
 }

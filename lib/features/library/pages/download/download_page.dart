@@ -14,6 +14,7 @@ import 'package:sqflite/sqflite.dart';
 
 import '../../../../data/repositories/PublicationRepository.dart';
 import '../../../../data/databases/catalog.dart';
+import '../../../meetings/pages/meeting_page.dart';
 import '../../../publication/pages/menu/local/publication_menu_view.dart';
 
 class DownloadPage extends StatefulWidget {
@@ -351,6 +352,9 @@ class _DownloadPageState extends State<DownloadPage> {
             if (f == result.files.last) {
               PubCatalog.updateCatalogCategories();
               loadItems();
+              if(jwpub.symbol == 'S-34') {
+                MeetingsPage.refreshMeetingsPubs();
+              }
               showPage(context, PublicationMenuView(publication: jwpub));
             }
           }

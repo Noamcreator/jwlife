@@ -1,21 +1,18 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 import 'package:audio_service/audio_service.dart';
 
 import 'package:just_audio/just_audio.dart';
-import 'package:http/http.dart' as http;
 import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/data/databases/tiles_cache.dart';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/databases/history.dart';
 import 'package:jwlife/data/realm/catalog.dart' as realm_catalog;
 import 'package:jwlife/data/realm/realm_library.dart';
-import 'package:jwlife/widgets/image_cached_widget.dart';
 import 'package:realm/realm.dart';
 
 import '../../app/jwlife_app.dart';
-import '../../app/jwlife_view.dart';
+import '../../app/jwlife_page.dart';
 import '../../app/services/settings_service.dart';
 import '../../core/api.dart';
 import '../../data/models/audio.dart';

@@ -97,8 +97,7 @@ class _PublicationMenuViewState extends State<PublicationMenuView> with SingleTi
 
   // Méthode pour initialiser la base de données
   Future<void> _init() async {
-    _documentsManager =
-        DocumentsManager(publication: widget.publication, mepsDocumentId: -1);
+    _documentsManager = DocumentsManager(publication: widget.publication, mepsDocumentId: -1);
     await _documentsManager.initializeDatabaseAndData();
     widget.publication.documentsManager = _documentsManager;
     await _fetchItems();
@@ -125,7 +124,7 @@ class _PublicationMenuViewState extends State<PublicationMenuView> with SingleTi
           validateStatus: (status) => status != null && status < 500, // Accepte les 404 sans throw
         )
       );
-      printTime('API Response: ${response.data}');
+      printTime('API Response: ${response.statusCode}');
 
       if (response.statusCode == 200 && response.data != null) {
         final data = response.data;
@@ -771,36 +770,6 @@ WHERE bbn.BookNumber IN ($placeholders) AND bci.LanguageId = ?''';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Image en haut
-        widget.publication.imageLsr == null
-            ? Container()
-            : Image.file(
-          File('${widget.publication.path}/${widget.publication.imageLsr!.split(
-              '/').last}'),
-          fit: BoxFit.fill,
-          width: double.infinity,
-        ),
-
-        // Titre de la publication
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 10.0),
-          child: Column(
-            children: [
-              Text(
-                widget.publication.coverTitle.isNotEmpty
-                    ? widget.publication.coverTitle
-                    : widget.publication.title,
-                style: TextStyle(
-                  color: textColor,
-                  fontSize: 25.0,
-                  fontWeight: FontWeight.bold,
-                  height: 1.2,
-                ),
-              ),
-            ],
-          ),
-        ),
-
         // Liste des éléments dans une colonne
         _isLoading ? Center(child: CircularProgressIndicator()) : Column(
           children: _tabsWithItems.first.items.map<Widget>((item) {

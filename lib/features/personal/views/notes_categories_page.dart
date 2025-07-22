@@ -197,8 +197,8 @@ class _NotesTagsViewState extends State<NotesTagsView> {
               delegate: SliverChildBuilderDelegate(
                     (context, index) {
                   final note = filteredNotes[index];
-                  List<String> categoriesId = note['CategoriesId']?.split(',') ?? [];
-                  List<String> categoriesName = note['CategoriesName']?.split(',') ?? [];
+                  List<String> categoriesId = note['TagsId']?.split(',') ?? [];
+                  List<String> categoriesName = [];
 
                   return GestureDetector(
                     onTap: () {

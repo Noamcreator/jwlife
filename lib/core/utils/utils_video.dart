@@ -18,10 +18,11 @@ import 'package:share_plus/share_plus.dart';
 import 'package:http/http.dart' as http;
 import 'package:sqflite/sqflite.dart';
 
-import '../../app/jwlife_view.dart';
+import '../../app/jwlife_page.dart';
 import '../../app/services/settings_service.dart';
 import '../../data/realm/catalog.dart';
 import '../../data/realm/realm_library.dart';
+import '../../features/home/views/home_page.dart';
 import '../../features/video/subtitles.dart';
 import '../../features/video/subtitles_view.dart';
 import '../../features/video/video_player_view.dart';
@@ -134,16 +135,24 @@ PopupMenuItem getVideoLanguagesItem(BuildContext context, MediaItem item) {
 }
 
 PopupMenuItem getVideoFavoriteItem(MediaItem item) {
+  bool isFavorite = JwLifeApp.userdata.favorites.contains(item);
   return PopupMenuItem(
     child: Row(
       children: [
-        Icon(JwIcons.star),
+        Icon(isFavorite ? JwIcons.star__fill : JwIcons.star),
         SizedBox(width: 8),
-        Text('Ajouter aux favoris'),
+        Text(isFavorite ? 'Supprimer des favoris' : 'Ajouter aux favoris'),
       ],
     ),
     onTap: () async {
-      // Ajoutez ici votre logique d'ajout aux favoris
+      if(isFavorite) {
+        await JwLifeApp.userdata.removeAFavorite(item);
+      }
+      else {
+        await JwLifeApp.userdata.addInFavorite(item);
+      }
+
+      HomePage.refreshHomePage();
     },
   );
 }

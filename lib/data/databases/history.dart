@@ -88,7 +88,7 @@ class History {
     List<Map<String, dynamic>> existing = await db.query(
       "History",
       where: "DocumentId = ? AND Type = ?",
-      whereArgs: [docId, "document"],
+      whereArgs: [docId, "webview"],
     );
 
     if (existing.isNotEmpty) {
@@ -109,7 +109,7 @@ class History {
         "KeySymbol": pub.keySymbol,
         "IssueTagNumber": pub.issueTagNumber,
         "MepsLanguageId": pub.mepsLanguage.id,
-        "Type": "document",
+        "Type": "webview",
         "LastVisited": DateTime.now().toIso8601String()
       });
     }
@@ -423,7 +423,7 @@ class History {
                     separatorBuilder: (context, index) => Divider(color: isDarkMode ? Colors.black : Color(0xFFf1f1f1)),
                     itemBuilder: (context, index) {
                       var item = filteredHistory[index];
-                      IconData icon = item["Type"] == 'document' ? item['PublicationTypeId'] != null ? PublicationCategory.all.firstWhere(
+                      IconData icon = item["Type"] == 'webview' ? item['PublicationTypeId'] != null ? PublicationCategory.all.firstWhere(
                             (category) => category.id == item['PublicationTypeId']).icon
                           : JwIcons.document : JwIcons.document;
 
@@ -463,7 +463,7 @@ class History {
                               item["ChapterNumber"]
                             );
                           }
-                          else if (item["Type"] == "document") {
+                          else if (item["Type"] == "webview") {
                             showDocumentView(mainContext, item["DocumentId"], item["MepsLanguageId"]);
                           }
                         },
