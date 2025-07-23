@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:searchfield/searchfield.dart';
 
-import '../i18n/localization.dart';
+import '../../i18n/localization.dart';
 
 class SearchFieldWidget extends StatefulWidget {
   final String query;

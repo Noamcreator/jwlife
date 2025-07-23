@@ -12,6 +12,7 @@ import 'package:jwlife/i18n/localization.dart';
 import 'package:jwlife/widgets/image_cached_widget.dart';
 import 'package:sqflite/sqflite.dart';
 
+import '../../../../app/jwlife_page.dart';
 import '../../../../data/repositories/PublicationRepository.dart';
 import '../../../../data/databases/catalog.dart';
 import '../../../meetings/pages/meeting_page.dart';
@@ -353,7 +354,7 @@ class _DownloadPageState extends State<DownloadPage> {
               PubCatalog.updateCatalogCategories();
               loadItems();
               if(jwpub.symbol == 'S-34') {
-                MeetingsPage.refreshMeetingsPubs();
+                JwLifePage.getMeetingsGlobalKey().currentState?.refreshMeetingsPubs();
               }
               showPage(context, PublicationMenuView(publication: jwpub));
             }

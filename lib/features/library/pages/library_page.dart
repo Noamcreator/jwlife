@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:jwlife/app/jwlife_app.dart';
+import 'package:jwlife/app/jwlife_page.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/shared_preferences_helper.dart';
 import 'package:jwlife/core/utils/widgets_utils.dart';
@@ -20,16 +21,13 @@ import 'publication/publications_page.dart';
 import 'video/video_page.dart';
 
 class LibraryPage extends StatefulWidget {
-  static late void Function() refreshLibraryCategories;
-  static late void Function(List<PublicationCategory>) refreshCatalogCategories;
-
   const LibraryPage({super.key});
 
   @override
-  _LibraryPageState createState() => _LibraryPageState();
+  LibraryPageState createState() => LibraryPageState();
 }
 
-class _LibraryPageState extends State<LibraryPage> {
+class LibraryPageState extends State<LibraryPage> {
   String language = '';
   List<PublicationCategory> catalogCategories = [];
   late Category? video; // Initialise une catégorie vide
@@ -39,18 +37,16 @@ class _LibraryPageState extends State<LibraryPage> {
   @override
   void initState() {
     super.initState();
-    LibraryPage.refreshLibraryCategories = _refreshLibraryCategories;
-    LibraryPage.refreshCatalogCategories = _refreshCatalogCategories;
-    _refreshLibraryCategories();
+    refreshLibraryCategories();
     PubCatalog.updateCatalogCategories();
   }
 
-  void _refreshLibraryCategories() {
+  void refreshLibraryCategories() {
     setLanguage();
     getCategories();
   }
 
-  void _refreshCatalogCategories(List<PublicationCategory> categories) async {
+  void refreshCatalogCategories(List<PublicationCategory> categories) async {
     setState(() {
       catalogCategories = categories;
     });
@@ -124,9 +120,9 @@ class _LibraryPageState extends State<LibraryPage> {
                   builder: (context) => languageDialog,
                 );
                 if (value != null) {
-                  setLibraryLanguage(value);
-                  _refreshLibraryCategories();
-                  HomePage.refreshChangeLanguage();
+                  await setLibraryLanguage(value);
+                  refreshLibraryCategories();
+                  JwLifePage.getHomeGlobalKey().currentState?.changeLanguageAndRefresh();
                 }
               },
             ),

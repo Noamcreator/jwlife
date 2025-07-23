@@ -5,6 +5,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:intl/intl.dart';
+import 'package:jwlife/app/jwlife_page.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/shared_preferences_helper.dart';
 import 'package:jwlife/data/models/meps_language.dart';
@@ -357,8 +358,8 @@ class _SettingsPageState extends State<SettingsPage> {
                       primaryIetfCode: value['PrimaryIetfCode'],
                     );
                   });
-                  setLibraryLanguage(value);
-                  HomePage.refreshChangeLanguage();
+                  await setLibraryLanguage(value);
+                  JwLifePage.getHomeGlobalKey().currentState?.changeLanguageAndRefresh();
                 }
               });
             },
@@ -520,7 +521,8 @@ class _SettingsPageState extends State<SettingsPage> {
                   );
 
                   if (dialogContext != null) Navigator.of(dialogContext!).pop();
-                  setState(() => Navigator.pop(context));
+                  JwLifePage.getHomeGlobalKey().currentState?.refreshFavorites();
+                  Navigator.pop(context);
                 }
               }
             },
@@ -617,7 +619,8 @@ class _SettingsPageState extends State<SettingsPage> {
 
               // 4. Fermer le dialog de chargement et revenir à l’écran précédent
               if (dialogContext != null) Navigator.of(dialogContext!).pop();
-              setState(() => Navigator.pop(context));
+              JwLifePage.getHomeGlobalKey().currentState?.refreshFavorites();
+              Navigator.pop(context);
             },
           ),
           const Divider(),

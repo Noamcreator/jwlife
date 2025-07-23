@@ -152,7 +152,7 @@ PopupMenuItem getVideoFavoriteItem(MediaItem item) {
         await JwLifeApp.userdata.addInFavorite(item);
       }
 
-      HomePage.refreshHomePage();
+      JwLifePage.getHomeGlobalKey().currentState?.refreshFavorites();
     },
   );
 }

@@ -5,10 +5,10 @@ class ResponsiveAppBarActions extends StatelessWidget {
   final int visibleCount;
 
   const ResponsiveAppBarActions({
-    Key? key,
+    super.key,
     required this.allActions,
     this.visibleCount = 2, // Nombre d'icônes visibles avant le menu
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

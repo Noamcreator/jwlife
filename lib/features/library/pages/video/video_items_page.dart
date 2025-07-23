@@ -10,7 +10,8 @@ import 'package:jwlife/data/realm/realm_library.dart';
 import 'package:jwlife/widgets/dialog/language_dialog.dart';
 import 'package:jwlife/widgets/image_cached_widget.dart';
 
-import '../../../../widgets/searchfield_widget.dart';
+import '../../../../widgets/mediaitem_item_widget.dart';
+import '../../../../widgets/searchfield/searchfield_widget.dart';
 
 class VideoItemsPage extends StatefulWidget {
   final Category category;
@@ -112,8 +113,8 @@ class _VideoItemsPageState extends State<VideoItemsPage> {
     );
 
     return Scaffold(
-      appBar: _isSearching
-          ? AppBar(
+      resizeToAvoidBottomInset: false,
+      appBar: _isSearching ? AppBar(
         title: SearchFieldWidget(
           query: '',
           onSearchTextChanged: (text) {
@@ -204,7 +205,7 @@ class _VideoItemsPageState extends State<VideoItemsPage> {
                 ),
               ),
               SizedBox(
-                height: 180, // Ajuster la hauteur comme nécessaire
+                height: 140, // Ajuster la hauteur comme nécessaire
                 child: ListView.builder(
                   scrollDirection: Axis.horizontal,
                   itemCount: mediaList.length,
@@ -215,82 +216,9 @@ class _VideoItemsPageState extends State<VideoItemsPage> {
                         .query("naturalKey == '$mediaKey'")
                         .first;
 
-                    return GestureDetector(
-                      onTap: () {
-                        showFullScreenVideo(context, mediaItem);
-                      },
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 3.0),
-                        child: SizedBox(
-                          width: 180,
-                          child: Stack(
-                            children: [
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(2.0),
-                                child: ImageCachedWidget(
-                                  imageUrl: mediaItem.realmImages!.wideFullSizeImageUrl ?? mediaItem.realmImages!.wideImageUrl ?? mediaItem.realmImages!.squareFullSizeImageUrl ?? mediaItem.realmImages!.squareImageUrl,
-                                  pathNoImage: "pub_type_video",
-                                  height: 90,
-                                  width: 180,
-                                ),
-                              ),
-                              Positioned(
-                                top: 4,
-                                left: 4,
-                                child: Container(
-                                  color: Colors.black.withOpacity(0.8),
-                                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                                  child: Row(
-                                    children: [
-                                      Icon(JwIcons.play, size: 12, color: Colors.white),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        formatDuration(mediaItem.duration!),
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 10,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                              Positioned(
-                                top: -5,
-                                right: -10,
-                                child: PopupMenuButton(
-                                  icon: const Icon(Icons.more_vert, color: Colors.white),
-                                  itemBuilder: (context) => [
-                                    getVideoShareItem(mediaItem),
-                                    getVideoLanguagesItem(context, mediaItem),
-                                    getVideoFavoriteItem(mediaItem),
-                                    getVideoDownloadItem(context, mediaItem),
-                                    getShowSubtitlesItem(context, mediaItem),
-                                    getCopySubtitlesItem(context, mediaItem)
-                                  ],
-                                ),
-                              ),
-                              Positioned(
-                                top: 100,
-                                left: 0,
-                                right: 0,
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-                                  child: Text(
-                                    mediaItem.title!,
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                    ),
-                                    textAlign: TextAlign.start,
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
+                    return MediaItemItemWidget(
+                      mediaItem: mediaItem,
+                        timeAgoText: true
                     );
                   },
                 ),

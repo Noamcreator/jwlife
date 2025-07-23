@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:jwlife/app/jwlife_app.dart';
-import 'package:jwlife/features/personal/views/tag_page.dart';
 import 'package:jwlife/widgets/dialog/utils_dialog.dart';
 
 import '../../data/models/userdata/tag.dart';
+import '../../features/personal/pages/tag_page.dart';
 import 'common_ui.dart';
 
-void showAddTagDialog(BuildContext context) async {
+Future<void> showAddTagDialog(BuildContext context) async {
   TextEditingController textController = TextEditingController();
 
   // Affichage du dialogue avec la structure showJwDialog
-  await showJwDialog(
+  await showJwDialog<void>(
     context: context,
     titleText: "Ajouter une catégorie",
     content: Padding(
@@ -28,13 +28,15 @@ void showAddTagDialog(BuildContext context) async {
       ),
       JwDialogButton(
         label: "OK",
+        closeDialog: false, // ← Ne ferme pas automatiquement
         onPressed: (buildContext) async {
           String name = textController.text.trim();
           if (name.isNotEmpty) {
             Tag? tag = await JwLifeApp.userdata.addTag(name, 1);
             if (tag != null) {
-              showPage(buildContext, TagPage(tag: tag));
+              await showPage(buildContext, TagPage(tag: tag));
             }
+            Navigator.of(buildContext).pop(); // ← C’est toi qui le gères ici
           }
         },
       ),

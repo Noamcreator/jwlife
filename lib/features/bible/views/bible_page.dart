@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:jwlife/app/jwlife_page.dart';
 import 'package:jwlife/core/utils/widgets_utils.dart';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/repositories/PublicationRepository.dart';
@@ -14,22 +15,22 @@ class BiblePage extends StatefulWidget {
   const BiblePage({super.key});
 
   @override
-  _BiblePageState createState() => _BiblePageState();
+  BiblePageState createState() => BiblePageState();
 }
 
-class _BiblePageState extends State<BiblePage> {
+class BiblePageState extends State<BiblePage> {
   @override
   void initState() {
-
     BiblePage.refreshBibleView = () {setState(() {});};
-
     super.initState();
   }
 
   @override
   Widget build(BuildContext context) {
+    print('Build BiblePage');
+
     List<Publication> bibles = PublicationRepository().getAllBibles();
-    if (HomePage.isRefreshing) {
+    if (JwLifePage.getHomeGlobalKey().currentState?.isRefreshing ?? true) {
       return getLoadingWidget(Theme.of(context).primaryColor);
     }
     else if (bibles.isNotEmpty) {

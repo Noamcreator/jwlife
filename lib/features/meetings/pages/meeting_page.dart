@@ -13,26 +13,26 @@ import 'package:jwlife/widgets/dialog/utils_dialog.dart';
 import 'package:jwlife/widgets/image_cached_widget.dart';
 import 'package:sqflite/sqflite.dart';
 
+import '../../../app/jwlife_page.dart';
 import '../../../app/services/settings_service.dart';
 import '../../../core/utils/common_ui.dart';
+import '../../../data/databases/history.dart';
+import '../../../widgets/responsive_appbar_actions.dart';
 import '../../publication/pages/document/data/models/document.dart';
 import '../../publication/pages/document/local/document_page.dart';
 import '../../publication/pages/document/local/documents_manager.dart';
 import '../../publication/pages/menu/local/publication_menu_view.dart';
 
 class MeetingsPage extends StatefulWidget {
-  static late Function() refreshMeetingsPubs;
-  static late Function() refreshConventionsPubs;
-
   const MeetingsPage({super.key});
 
   @override
-  _MeetingsPageState createState() => _MeetingsPageState();
+  MeetingsPageState createState() => MeetingsPageState();
 }
 
-class _MeetingsPageState extends State<MeetingsPage> {
+class MeetingsPageState extends State<MeetingsPage> {
   int _initialIndex = 0;
-  DateTime weekRange = DateTime.now();
+  DateTime dateOfMeetingValue = DateTime.now();
   bool isLoading = true;
 
   Publication? _midweekMeetingPub;
@@ -60,70 +60,68 @@ class _MeetingsPageState extends State<MeetingsPage> {
       _initialIndex = 1; // Samedi et dimanche
     }
 
-    MeetingsPage.refreshMeetingsPubs = _refreshMeetingsPubs;
-    MeetingsPage.refreshConventionsPubs = _refreshConventionsPubs;
-
-    _refreshMeetingsPubs();
+    refreshMeetingsPubs();
 
     setState(() {
       isLoading = false;
     });
   }
 
-  Future<void> _refreshMeetingsPubs() async {
-    _midweekMeetingPub = PubCatalog.datedPublications.firstWhereOrNull((element) => element.keySymbol.contains('mwb'));
-    _weekendMeetingPub = PubCatalog.datedPublications.firstWhereOrNull((element) => element.keySymbol.contains('w'));
-    _publicTalkPub = PublicationRepository().getAllDownloadedPublications().firstWhereOrNull((element) => element.keySymbol.contains('S-34'));
+  Future<void> refreshMeetingsPubs({List<Publication>? publications}) async {
+    final pubs = publications ?? PubCatalog.datedPublications;
 
-    if(_midweekMeetingPub != null) {
-      _midweekMeetingPub!.isDownloadedNotifier.addListener(() async {
-        if (_midweekMeetingPub!.isDownloadedNotifier.value) {
-          _midweekMeeting = await fetchMidWeekMeeting(_midweekMeetingPub);
-          setState(() {}); // Met à jour l'affichage avec les nouvelles données
-        }
-        else {
-          setState(() {
-            _midweekMeeting = null;
-          });
-        }
-      });
-      _midweekMeeting = await fetchMidWeekMeeting(_midweekMeetingPub);
+    _midweekMeetingPub = pubs.firstWhereOrNull((pub) => pub.keySymbol.contains('mwb'));
+    _weekendMeetingPub = pubs.firstWhereOrNull((pub) => pub.keySymbol.contains(RegExp(r'(?<!m)w')));
+    _publicTalkPub = PublicationRepository()
+        .getAllDownloadedPublications()
+        .firstWhereOrNull((pub) => pub.keySymbol.contains('S-34'));
+
+    // Suppression et ajout des listeners comme vu plus haut
+    _midweekMeetingPub?.isDownloadedNotifier.removeListener(_onMidweekDownloaded);
+    _weekendMeetingPub?.isDownloadedNotifier.removeListener(_onWeekendDownloaded);
+
+    if (_midweekMeetingPub != null) {
+      _midweekMeetingPub!.isDownloadedNotifier.addListener(_onMidweekDownloaded);
+      if (_midweekMeetingPub!.isDownloadedNotifier.value) {
+        _midweekMeeting = await fetchMidWeekMeeting(_midweekMeetingPub);
+      } else {
+        _midweekMeeting = null;
+      }
     }
 
-    if(_weekendMeetingPub != null) {
-      _weekendMeetingPub?.isDownloadedNotifier.addListener(() async {
-        if (_weekendMeetingPub!.isDownloadedNotifier.value) {
-          _weekendMeeting = await fetchWeekendMeeting(_weekendMeetingPub);
-          setState(() {}); // Met à jour l'affichage avec les nouvelles données
-        }
-        else {
-          setState(() {
-            _weekendMeeting = null;
-          });
-        }
-      });
-      _weekendMeeting = await fetchWeekendMeeting(_weekendMeetingPub);
-    }
-
-    if(_weekendMeetingPub != null) {
-      _weekendMeetingPub?.isDownloadedNotifier.addListener(() async {
-        if (_weekendMeetingPub!.isDownloadedNotifier.value) {
-          _weekendMeeting = await fetchWeekendMeeting(_weekendMeetingPub);
-          setState(() {}); // Met à jour l'affichage avec les nouvelles données
-        }
-        else {
-          setState(() {
-            _weekendMeeting = null;
-          });
-        }
-      });
-      _weekendMeeting = await fetchWeekendMeeting(_weekendMeetingPub);
+    if (_weekendMeetingPub != null) {
+      _weekendMeetingPub!.isDownloadedNotifier.addListener(_onWeekendDownloaded);
+      if (_weekendMeetingPub!.isDownloadedNotifier.value) {
+        _weekendMeeting = await fetchWeekendMeeting(_weekendMeetingPub);
+      } else {
+        _weekendMeeting = null;
+      }
     }
 
     setState(() {});
   }
 
-  void _refreshConventionsPubs() {
+// Méthodes de callback à déclarer dans ta classe pour éviter les fonctions anonymes
+  void _onMidweekDownloaded() async {
+    if (_midweekMeetingPub!.isDownloadedNotifier.value) {
+      _midweekMeeting = await fetchMidWeekMeeting(_midweekMeetingPub);
+    } else {
+      _midweekMeeting = null;
+    }
+    setState(() {});
+  }
+
+  void _onWeekendDownloaded() async {
+    if (_weekendMeetingPub!.isDownloadedNotifier.value) {
+      _weekendMeeting = await fetchWeekendMeeting(_weekendMeetingPub);
+    } else {
+      _weekendMeeting = null;
+    }
+    setState(() {});
+  }
+
+
+  void refreshConventionsPubs() {
     setState(() {
       _conventionPub = PubCatalog.assembliesPublications.firstWhereOrNull((element) => element.keySymbol.contains('CO-pgm'));
       _circuitCoPub = PubCatalog.assembliesPublications.firstWhereOrNull((element) => element.keySymbol.contains('CA-copgm'));
@@ -135,7 +133,7 @@ class _MeetingsPageState extends State<MeetingsPage> {
     if (publication != null && publication.isDownloadedNotifier.value) {
       Database db = await openReadOnlyDatabase(publication.databasePath!);
 
-      String weekRange = DateFormat('yyyyMMdd').format(this.weekRange);
+      String weekRange = DateFormat('yyyyMMdd').format(dateOfMeetingValue);
 
       final List<Map<String, dynamic>> result = await db.rawQuery('''
         SELECT Document.MepsDocumentId, Document.Title, Document.Subtitle, Multimedia.FilePath
@@ -159,7 +157,7 @@ class _MeetingsPageState extends State<MeetingsPage> {
     if (publication != null) {
       Database db = await openDatabase(publication.databasePath!);
 
-      String weekRange = DateFormat('yyyyMMdd').format(this.weekRange);
+      String weekRange = DateFormat('yyyyMMdd').format(this.dateOfMeetingValue);
 
       final List<Map<String, dynamic>> result = await db.rawQuery('''
         SELECT doc.MepsDocumentId, doc.Title, doc.ContextTitle, m.FilePath
@@ -347,9 +345,10 @@ class _MeetingsPageState extends State<MeetingsPage> {
           : const Color(0xFF626262),
     );
 
-    if (HomePage.isRefreshing) {
+    if (JwLifePage.getHomeGlobalKey().currentState?.isRefreshing ?? true) {
       return getLoadingWidget(Theme.of(context).primaryColor);
-    } else {
+    }
+    else {
       return Scaffold(
         resizeToAvoidBottomInset: false,
         appBar: AppBar(
@@ -357,39 +356,44 @@ class _MeetingsPageState extends State<MeetingsPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text('Réunions et Assemblées', style: textStyleTitle),
-              Text(formatWeekRange(weekRange), style: textStyleSubtitle),
+              Text(formatWeekRange(dateOfMeetingValue), style: textStyleSubtitle),
             ],
           ),
           actions: [
-            IconButton(
-              icon: const Icon(JwIcons.language),
-              onPressed: () {},
-            ),
-            PopupMenuButton(
-              icon: const Icon(Icons.more_vert),
-              itemBuilder: (context) => [
-                PopupMenuItem<String>(
-                  child: const Text('Sélectionner une semaine'),
-                  onTap: () async {
-                    DateTime selectedWeek = await showWeekSelectionDialog(context, weekRange);
-                    setState(() {
-                      isLoading = true;
-                    });
+            ResponsiveAppBarActions(
+              allActions: [
+                IconTextButton(
+                  icon: Icon(JwIcons.language),
+                  text: 'Autres langues',
+                  onPressed: () {
+                    // Logique de changement de langue ici
+                  },
+                ),
+                IconTextButton(
+                  icon: Icon(JwIcons.calendar),
+                  text: 'Sélectionner une semaine',
+                  onPressed: () async {
+                    DateTime? selectedWeek = await showMonthCalendarDialog(context, dateOfMeetingValue);
+                    if (selectedWeek != null) {
+                      List<Publication> weeksPubs = await PubCatalog.getPublicationsForTheDay(date: selectedWeek);
 
-                    List<Publication> weeksPubs = await PubCatalog.getPublicationsForTheDay(date: selectedWeek);
+                      refreshMeetingsPubs(publications: weeksPubs);
 
-                    if (weeksPubs.isNotEmpty) {
-                      // Logic for publications
+                      setState(() {
+                        dateOfMeetingValue = selectedWeek;
+                      });
                     }
-
-                    setState(() {
-                      weekRange = selectedWeek;
-                      isLoading = false;
-                    });
+                  },
+                ),
+                IconTextButton(
+                  text: "Historique",
+                  icon: const Icon(JwIcons.arrow_circular_left_clock),
+                  onPressed: () {
+                    History.showHistoryDialog(context);
                   },
                 ),
               ],
-            ),
+            )
           ],
         ),
         body: isLoading
@@ -456,7 +460,7 @@ class _MeetingsPageState extends State<MeetingsPage> {
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
-                child: _isMidweekMeetingContentIsDownload(context, weekRange),
+                child: _isMidweekMeetingContentIsDownload(context, dateOfMeetingValue),
               ),
               const SizedBox(height: 16),
 
@@ -469,7 +473,7 @@ class _MeetingsPageState extends State<MeetingsPage> {
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
-                child: _isWeekendMeetingContentIsDownload(context, weekRange),
+                child: _isWeekendMeetingContentIsDownload(context, dateOfMeetingValue),
               ),
               const SizedBox(height: 40),
 
@@ -553,12 +557,6 @@ class _MeetingsPageState extends State<MeetingsPage> {
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(0.1),
-                  border: Border(
-                    bottom: BorderSide(
-                      color: Colors.white.withOpacity(0.2),
-                      width: 1,
-                    ),
-                  ),
                 ),
                 child: Row(
                   children: [

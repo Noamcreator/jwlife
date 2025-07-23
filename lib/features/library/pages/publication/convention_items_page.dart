@@ -11,7 +11,7 @@ import 'package:jwlife/data/models/publication_category.dart';
 import 'package:jwlife/data/repositories/PublicationRepository.dart';
 import 'package:jwlife/data/databases/catalog.dart';
 import 'package:jwlife/data/realm/catalog.dart';
-import 'package:jwlife/features/library/widgets/RectanglePublicationItem.dart';
+import 'package:jwlife/features/library/widgets/rectangle_publication_item.dart';
 import 'package:jwlife/widgets/dialog/language_dialog.dart';
 import 'package:jwlife/widgets/image_cached_widget.dart';
 import 'package:realm/realm.dart';
@@ -19,7 +19,7 @@ import 'package:realm/realm.dart';
 import '../../../../app/services/settings_service.dart';
 import '../../../../data/models/publication_attribute.dart';
 import '../../../../data/realm/realm_library.dart';
-import '../../widgets/RectangleMediaItem.dart';
+import '../../widgets/rectangle_mediaItem_item.dart';
 
 class ConventionItemsView extends StatefulWidget {
   final int indexDay;
@@ -114,7 +114,7 @@ class _ConventionItemsViewState extends State<ConventionItemsView> {
               }
               else {
                 MediaItem media = RealmLibrary.realm.all<MediaItem>().query("naturalKey == '$item'").first;
-                return RectangleMediaItem(media: media);
+                return RectangleMediaItemItem(media: media);
               }
             }).toList(),
           )

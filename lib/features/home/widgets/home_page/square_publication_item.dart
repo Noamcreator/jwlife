@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 
-import '../../../app/jwlife_app.dart';
-import '../../../core/icons.dart';
-import '../../../core/utils/utils_pub.dart';
-import '../../../data/models/publication.dart';
-import '../../../data/repositories/PublicationRepository.dart';
-import '../../../widgets/image_cached_widget.dart';
+import '../../../../app/jwlife_app.dart';
+import '../../../../core/icons.dart';
+import '../../../../core/utils/utils_pub.dart';
+import '../../../../data/models/publication.dart';
+import '../../../../data/repositories/PublicationRepository.dart';
+import '../../../../widgets/image_cached_widget.dart';
 
 class HomeSquarePublicationItem extends StatelessWidget {
   final Publication pub;

@@ -7,10 +7,10 @@ import '../../../core/utils/utils_video.dart';
 import '../../../data/realm/catalog.dart';
 import '../../../widgets/image_cached_widget.dart';
 
-class RectangleMediaItem extends StatelessWidget {
+class RectangleMediaItemItem extends StatelessWidget {
   final MediaItem media;
 
-  const RectangleMediaItem({super.key, required this.media});
+  const RectangleMediaItemItem({super.key, required this.media});
 
   @override
   Widget build(BuildContext context) {

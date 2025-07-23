@@ -4,19 +4,48 @@ import 'package:jwlife/features/bible/views/bible_page.dart';
 import 'package:jwlife/features/congregation/pages/congregation_page.dart';
 import 'package:jwlife/features/home/views/home_page.dart';
 import 'package:jwlife/features/library/pages/library_page.dart';
-import 'package:jwlife/features/personal/views/personal_page.dart';
-import 'package:jwlife/features/predication/views/predication_page.dart';
+import 'package:jwlife/features/personal/pages/personal_page.dart';
 
 import '../core/icons.dart';
 import 'package:jwlife/i18n/localization.dart';
 
 import '../features/audio/audio_player_widget.dart';
 import '../features/meetings/pages/meeting_page.dart';
+import '../features/predication/pages/predication_page.dart';
 import '../widgets/custom_bottom_navigation_item.dart';
+import '../widgets/slide_indexed_stack.dart';
 
 class JwLifePage extends StatefulWidget {
   final Function(ThemeMode) toggleTheme;
   final Function(Locale) changeLocale;
+
+  static final List<GlobalKey> pageKeys = [
+    GlobalKey<HomePageState>(),
+    GlobalKey<BiblePageState>(),
+    GlobalKey<LibraryPageState>(),
+    GlobalKey<MeetingsPageState>(),
+    GlobalKey<PredicationPageState>(),
+    GlobalKey<CongregationPageState>(),
+    GlobalKey<PersonalPageState>(),
+  ];
+
+  static late GlobalKey<HomePageState> Function() getHomeGlobalKey;
+  static late GlobalKey<BiblePageState> Function() getBibleGlobalKey;
+  static late GlobalKey<LibraryPageState> Function() getLibraryGlobalKey;
+  static late GlobalKey<MeetingsPageState> Function() getMeetingsGlobalKey;
+  static late GlobalKey<PredicationPageState> Function() getPredicationGlobalKey;
+  static late GlobalKey<CongregationPageState> Function() getCongregationGlobalKey;
+  static late GlobalKey<PersonalPageState> Function() getPersonalGlobalKey;
+
+  static void initializePageKeys() {
+    getHomeGlobalKey = () => pageKeys[0] as GlobalKey<HomePageState>;
+    getBibleGlobalKey = () => pageKeys[1] as GlobalKey<BiblePageState>;
+    getLibraryGlobalKey = () => pageKeys[2] as GlobalKey<LibraryPageState>;
+    getMeetingsGlobalKey = () => pageKeys[3] as GlobalKey<MeetingsPageState>;
+    getPredicationGlobalKey = () => pageKeys[4] as GlobalKey<PredicationPageState>;
+    getCongregationGlobalKey = () => pageKeys[5] as GlobalKey<CongregationPageState>;
+    getPersonalGlobalKey = () => pageKeys[6] as GlobalKey<PersonalPageState>;
+  }
 
   static late Function(bool) toggleNavBarVisibility;
   static late Function(bool) toggleNavBarBlack;
@@ -67,14 +96,16 @@ class _JwLifePageState extends State<JwLifePage> {
   void initState() {
     super.initState();
 
+    JwLifePage.initializePageKeys();
+
     _pages = [
-      HomePage(toggleTheme: widget.toggleTheme, changeLocale: widget.changeLocale),
-      BiblePage(),
-      LibraryPage(),
-      MeetingsPage(),
-      PredicationPage(),
-      CongregationPage(),
-      PersonalPage(),
+      HomePage(key: JwLifePage.pageKeys[0], toggleTheme: widget.toggleTheme, changeLocale: widget.changeLocale),
+      BiblePage(key: JwLifePage.pageKeys[1]),
+      LibraryPage(key: JwLifePage.pageKeys[2]),
+      MeetingsPage(key: JwLifePage.pageKeys[3]),
+      PredicationPage(key: JwLifePage.pageKeys[4]),
+      CongregationPage(key: JwLifePage.pageKeys[5]),
+      PersonalPage(key: JwLifePage.pageKeys[6]),
     ];
 
     JwLifePage.toggleNavBarVisibility = _toggleNavBarVisibility;
@@ -141,14 +172,11 @@ class _JwLifePageState extends State<JwLifePage> {
       ),
     );
 
-    final Widget audioWidget = AnimatedSwitcher(
-      duration: const Duration(milliseconds: 200),
-      child: !isKeyboardOpen
-          ? AudioPlayerWidget(
+    final Widget audioWidget = Visibility(
+      child: AudioPlayerWidget(
         key: const ValueKey('audio'),
         visible: _audioWidgetVisible && !_navBarIsBlack[_currentIndex],
-      )
-          : const SizedBox.shrink(key: ValueKey('no-audio')),
+      ),
     );
 
     final Widget bottomNav = _navBarVisible[_currentIndex]
@@ -193,8 +221,7 @@ class _JwLifePageState extends State<JwLifePage> {
         }
         _updateSystemUiMode();
       },
-    )
-        : const SizedBox.shrink();
+    ) : const SizedBox.shrink();
 
     return _navBarIsPositioned[_currentIndex] || _navBarIsBlack[_currentIndex]
         ? Scaffold(
@@ -220,11 +247,10 @@ class _JwLifePageState extends State<JwLifePage> {
       ),
     )
         : Scaffold(
-      resizeToAvoidBottomInset: false,
       body: Column(
         children: [
           Expanded(child: content),
-          audioWidget,
+          audioWidget
         ],
       ),
       bottomNavigationBar: bottomNav,

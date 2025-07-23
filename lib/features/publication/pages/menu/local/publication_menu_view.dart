@@ -19,7 +19,7 @@ import 'package:jwlife/features/bible/views/local_bible_chapter.dart';
 import 'package:jwlife/features/publication/pages/menu/local/publication_search_view.dart';
 import 'package:jwlife/widgets/dialog/language_dialog_pub.dart';
 import 'package:jwlife/widgets/responsive_appbar_actions.dart';
-import 'package:jwlife/widgets/searchfield_widget.dart';
+import 'package:jwlife/widgets/searchfield/searchfield_widget.dart';
 import 'package:sqflite/sqflite.dart';
 
 import '../../../../../core/api.dart';
@@ -91,8 +91,13 @@ class _PublicationMenuViewState extends State<PublicationMenuView> with SingleTi
   void initState() {
     super.initState();
     _init();
-
     _iniAudio();
+  }
+
+  @override
+  void dispose() {
+    _tabController?.dispose();
+    super.dispose();
   }
 
   // Méthode pour initialiser la base de données
@@ -130,9 +135,7 @@ class _PublicationMenuViewState extends State<PublicationMenuView> with SingleTi
         final data = response.data;
         if (data.containsKey('files') && data['files'].containsKey(languageSymbol)) {
           setState(() {
-            _audios = data['files'][languageSymbol]['MP3']
-                .map<Audio>((audio) =>
-                Audio.fromJson(audio, languageSymbol: widget.publication.mepsLanguage.symbol)).toList();
+            _audios = data['files'][languageSymbol]['MP3'].map<Audio>((audio) => Audio.fromJson(audio, languageSymbol: widget.publication.mepsLanguage.symbol)).toList();
           });
         }
       }
@@ -376,15 +379,15 @@ GROUP BY
       // Requête unique pour tous les livres
       final placeholders = List.filled(bookIds.length, '?').join(',');
       final bookNamesQuery = '''
-SELECT 
-  bbn.BookNumber,
-  bbn.StandardBookName,
-  bbn.OfficialBookAbbreviation,
-  bbg.GroupId
-FROM BibleBookName bbn
-JOIN BibleCluesInfo bci ON bbn.BibleCluesInfoId = bci.BibleCluesInfoId
-JOIN BibleBookGroup bbg ON bbg.BookNumber = bbn.BookNumber
-WHERE bbn.BookNumber IN ($placeholders) AND bci.LanguageId = ?''';
+        SELECT 
+          bbn.BookNumber,
+          bbn.StandardBookName,
+          bbn.OfficialBookAbbreviation,
+          bbg.GroupId
+        FROM BibleBookName bbn
+        JOIN BibleCluesInfo bci ON bbn.BibleCluesInfoId = bci.BibleCluesInfoId
+        JOIN BibleBookGroup bbg ON bbg.BookNumber = bbn.BookNumber
+        WHERE bbn.BookNumber IN ($placeholders) AND bci.LanguageId = ?''';
 
       final bookNames = await mepsDatabase.rawQuery(
         bookNamesQuery,
@@ -853,8 +856,7 @@ WHERE bbn.BookNumber IN ($placeholders) AND bci.LanguageId = ?''';
             },
             onSuggestionTap: (item) async {
               // Accéder à l'élément encapsulé
-              String query = item
-                  .item!['word']; // Utilise 'item.item' au lieu de 'item['query']'
+              String query = item.item!['word']; // Utilise 'item.item' au lieu de 'item['query']'
 
               showPage(
                 context,
@@ -1030,8 +1032,7 @@ WHERE bbn.BookNumber IN ($placeholders) AND bci.LanguageId = ?''';
           if (widget.publication.schemaVersion != 9) ...[
             if (widget.publication.imageLsr != null)
               Image.file(
-                File('${widget.publication.path}/${widget.publication.imageLsr!
-                    .split('/').last}'),
+                File('${widget.publication.path}/${widget.publication.imageLsr!.split('/').last}'),
                 fit: BoxFit.fill,
                 width: double.infinity,
               ),
@@ -1117,8 +1118,7 @@ WHERE bbn.BookNumber IN ($placeholders) AND bci.LanguageId = ?''';
                 if (widget.publication.schemaVersion != 9) ...[
                   if (widget.publication.imageLsr != null)
                     Image.file(
-                      File('${widget.publication.path}/${widget.publication
-                          .imageLsr!.split('/').last}'),
+                      File('${widget.publication.path}/${widget.publication.imageLsr!.split('/').last}'),
                       fit: BoxFit.fill,
                       width: double.infinity,
                     ),

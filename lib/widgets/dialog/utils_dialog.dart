@@ -8,6 +8,7 @@ import 'package:jwlife/core/utils/files_helper.dart';
 import 'package:sqflite/sqflite.dart';
 
 import '../../app/services/settings_service.dart';
+import '../../core/icons.dart';
 import 'language_dialog.dart';
 
 class JwDialogButton {
@@ -222,7 +223,7 @@ Future<T?> showJwChoiceDialog<T>({
 }
 
 
-Future<void> showNoConnectionDialog(BuildContext context) async{
+Future<void> showNoConnectionDialog(BuildContext context) async {
   showJwDialog(
     context: context,
     contentText: 'Connectez-vous à Internet.',
@@ -244,124 +245,195 @@ Future<void> showNoConnectionDialog(BuildContext context) async{
   );
 }
 
-Future<DateTime> showWeekSelectionDialog(BuildContext context, DateTime initialDate) async {
-  // Requête SQL pour récupérer la dernière date
-  String query = '''
-  SELECT End
-  FROM DatedText
-  JOIN Publication ON DatedText.PublicationId = Publication.Id
-  WHERE (Publication.KeySymbol = 'mwb' OR Publication.KeySymbol = 'w') AND Publication.MepsLanguageId = ?
-  ORDER BY DatedText.End DESC
-  LIMIT 1;
-  ''';
+Future<DateTime?> showMonthCalendarDialog(BuildContext context, DateTime initialDate) async {
+  final locale = JwLifeSettings().currentLanguage.primaryIetfCode;
 
-  // Exécuter la requête SQL
-  File catalogFile = await getCatalogFile();
-  Database db = await openReadOnlyDatabase(catalogFile.path);
-
-  List<Map<String, dynamic>> result = await db.rawQuery(query, [JwLifeSettings().currentLanguage.id]);
-
-  db.close();
-
-  // Convertir la dernière date reçue en DateTime
-  DateTime lastDate = DateFormat('yyyy-MM-dd').parse(result.first['End']);
-
-  // Obtenir la date actuelle
-  DateTime currentDate = DateTime.now();
-
-  // Calculer la date de début de la première semaine (5 semaines avant la date actuelle)
-  DateTime startDate = currentDate.subtract(Duration(days: 5 * 7));
-
-  // Initialiser une liste pour stocker les semaines
-  List<String> weeksList = [];
-  List<DateTime> weeksStartDates = []; // Liste des dates de début pour chaque semaine
-
-  // Générer la liste des semaines en fonction de la date de début
-  DateTime currentWeekStart = startDate.subtract(Duration(days: startDate.weekday - 1)); // Commence le lundi de la semaine
-  while (currentWeekStart.isBefore(lastDate) || currentWeekStart.isAtSameMomentAs(lastDate)) {
-    // Calculer la date de fin de la semaine (dimanche)
-    DateTime currentWeekEnd = currentWeekStart.add(Duration(days: 6));
-
-    // Formater les dates pour afficher la semaine au format "6-12 janvier", "13-19 janvier", etc.
-    String weekRange = '${DateFormat('d', JwLifeSettings().locale.languageCode).format(currentWeekStart)}-${DateFormat('d MMMM', JwLifeSettings().locale.languageCode).format(currentWeekEnd)}';
-    weeksList.add(weekRange);
-    weeksStartDates.add(currentWeekStart);
-
-    // Passer à la semaine suivante
-    currentWeekStart = currentWeekStart.add(Duration(days: 7));
+  // Pour afficher le mois et l'année
+  String formatMonthYear(DateTime date) {
+    return DateFormat('MMMM yyyy', locale).format(date);
   }
 
-  // Trouver l'index de la semaine où initialDate se trouve
-  int selectedWeekIndex = weeksStartDates.indexWhere((weekStart) {
-    // Vérifier si initialDate est dans cette semaine (du lundi au dimanche)
-    DateTime currentWeekEnd = weekStart.add(Duration(days: 6));
-    return initialDate.isAfter(weekStart.subtract(Duration(days: 1))) && initialDate.isBefore(currentWeekEnd.add(Duration(days: 1)));
-  });
+  List<DateTime> getCalendarDays(DateTime date) {
+    DateTime firstOfMonth = DateTime(date.year, date.month, 1);
+    DateTime lastOfMonth = DateTime(date.year, date.month + 1, 0);
 
-  // Afficher un dialogue pour la sélection de la semaine
-  String? selectedWeek = await showDialog<String>(
+    // Début = lundi précédent ou égal au 1er du mois
+    DateTime startCalendar = firstOfMonth.subtract(Duration(days: firstOfMonth.weekday - 1));
+    // Fin = dimanche suivant ou égal à la fin du mois
+    DateTime endCalendar = lastOfMonth.add(Duration(days: 7 - lastOfMonth.weekday));
+
+    List<DateTime> days = [];
+    DateTime day = startCalendar;
+    while (!day.isAfter(endCalendar)) {
+      days.add(day);
+      day = day.add(Duration(days: 1));
+    }
+    return days;
+  }
+
+  DateTime selectedDay = initialDate;
+  DateTime displayedMonth = DateTime(initialDate.year, initialDate.month);
+
+  DateTime? result = await showDialog<DateTime>(
     context: context,
-    builder: (BuildContext context) {
-      return Dialog(
-        child: Container(
-          width: double.infinity,  // Utiliser toute la largeur du dialogue
-          padding: EdgeInsets.symmetric(vertical: 5),  // Padding vertical pour le dialogue
-          child: Column(
-            mainAxisSize: MainAxisSize.min,  // Ajuster la taille pour ne pas prendre trop de place
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Text(
-                  'Sélectionner une semaine',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-                ),
-              ),
-              Divider(color: Colors.black),  // Ligne de séparation en haut
-              Expanded(
-                child: SingleChildScrollView(
-                  child: Column(
-                    children: weeksList.asMap().map((index, week) {
-                      return MapEntry(
-                        index,
-                        Column(
-                          children: [
-                            ListTile(
-                              contentPadding: EdgeInsets.symmetric(vertical: 0, horizontal: 16),  // Réduire l'espace autour
-                              title: Text(week),
-                              leading: Radio<String>(
-                                value: week,
-                                groupValue: weeksList[selectedWeekIndex],
-                                onChanged: (String? value) {
-                                  Navigator.pop(context, value);
-                                },
-                              ),
-                              onTap: () {
-                                Navigator.pop(context, week);  // Retourner la semaine sélectionnée
-                              },
+    builder: (context) {
+      return StatefulBuilder(
+        builder: (context, setState) {
+          List<DateTime> days = getCalendarDays(displayedMonth);
+
+          return Dialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            child: Container(
+              width: 380,
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // En-tête avec mois/année et navigation mois précédent/suivant
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      IconButton(
+                        icon: Icon(JwIcons.chevron_left),
+                        onPressed: () {
+                          setState(() {
+                            displayedMonth = DateTime(displayedMonth.year, displayedMonth.month - 1);
+                          });
+                        },
+                      ),
+                      Text(
+                        formatMonthYear(displayedMonth),
+                        style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                      ),
+                      IconButton(
+                        icon: Icon(JwIcons.chevron_right),
+                        onPressed: () {
+                          setState(() {
+                            displayedMonth = DateTime(displayedMonth.year, displayedMonth.month + 1);
+                          });
+                        },
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 8),
+
+                  // Noms des jours en entête (Lun, Mar, Mer, ...)
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: List.generate(7, (index) {
+                      // DateTime weekday: 1 = lundi ... 7 = dimanche
+                      final dayName = DateFormat.E(locale).format(DateTime(2021, 8, index + 2)); // 2 août 2021 est lundi
+                      return Expanded(
+                        child: Center(
+                          child: Text(
+                            dayName,
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.blueGrey.shade700,
                             ),
-                            Divider(color: Colors.black, thickness: 1), // Séparation noire
-                          ],
+                          ),
                         ),
                       );
-                    }).values.toList(),
+                    }),
                   ),
-                ),
+
+                  const SizedBox(height: 8),
+
+                  // Grille des jours du mois avec 7 colonnes
+                  Flexible(
+                    child: GridView.builder(
+                      shrinkWrap: true,
+                      physics: NeverScrollableScrollPhysics(),
+                      itemCount: days.length,
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 7,
+                        mainAxisSpacing: 6,
+                        crossAxisSpacing: 6,
+                        childAspectRatio: 1,
+                      ),
+                      itemBuilder: (context, index) {
+                        DateTime day = days[index];
+                        bool isInMonth = day.month == displayedMonth.month;
+                        bool isSelected = day.year == selectedDay.year &&
+                            day.month == selectedDay.month &&
+                            day.day == selectedDay.day;
+
+                        return GestureDetector(
+                          onTap: isInMonth
+                              ? () {
+                            setState(() {
+                              selectedDay = day;
+                            });
+                          }
+                              : null,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? Theme.of(context).primaryColor
+                                  : isInMonth
+                                  ? Colors.grey.shade200
+                                  : Colors.transparent,
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            alignment: Alignment.center,
+                            child: Text(
+                              '${day.day}',
+                              style: TextStyle(
+                                color: isSelected
+                                    ? Colors.white
+                                    : isInMonth
+                                    ? Colors.black87
+                                    : Colors.grey.shade400,
+                                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  ElevatedButton(
+                    onPressed: () {
+                      setState(() {
+                        selectedDay = DateTime.now();
+                        displayedMonth = DateTime.now();
+                      });
+                    },
+                    child: Text("RÉNITIALISÉ A AUJOURD'HUI"),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // Boutons Annuler / Valider
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, null),
+                        child: Text('ANNULER'),
+                      ),
+                      SizedBox(width: 16),
+                      ElevatedButton(
+                        onPressed: () => Navigator.pop(context, selectedDay),
+                        child: Text('VALIDER'),
+                      ),
+                    ],
+                  ),
+                ],
               ),
-            ],
-          ),
-        ),
+            ),
+          );
+        },
       );
     },
   );
 
-  // Si une semaine a été sélectionnée, retourner la date du lundi de cette semaine
-  if (selectedWeek != null && selectedWeek.isNotEmpty) {
-    int selectedIndex = weeksList.indexOf(selectedWeek);
-    return weeksStartDates[selectedIndex];
-  }
-
-  return DateTime.now();  // Retourne une chaîne vide si aucune semaine n'est sélectionnée
+  return result;
 }
 
 Future showLibraryLanguageDialog(BuildContext context) {

@@ -1,55 +1,130 @@
 import 'package:flutter/material.dart';
+import 'package:jwlife/data/models/userdata/location.dart';
 
 class Note {
-  static Color getColor(var context, int index) {
-    switch (index % 7) {
+  int noteId;
+  String guid;
+  String? title;
+  String? content;
+  String? lastModified;
+  String? created;
+  int blockType;
+  int? blockIdentifier;
+  int colorIndex;
+  int? userMarkId;
+  String? userMarkGuid;
+  Location location;
+  List<int> tagsId;
+
+  Note({
+    required this.noteId,
+    required this.guid,
+    this.title,
+    this.content,
+    this.lastModified,
+    this.created,
+    required this.blockType,
+    this.blockIdentifier,
+    required this.colorIndex,
+    this.userMarkId,
+    this.userMarkGuid,
+    required this.location,
+    required this.tagsId,
+  });
+
+  /// Retourne une couleur selon l'index et le thème (clair/sombre)
+  Color getColor(BuildContext context, {int? colorId}) {
+    switch (colorId ?? colorIndex % 7) {
       case 0:
-        return Theme.of(context).brightness == Brightness.dark ? Color(0xFF292929) : Colors.grey[300]!;
+        return Theme.of(context).brightness == Brightness.dark ? Color(0xFF292929) : Color(0xFFf1f1f1);
       case 1:
-        return Theme.of(context).brightness == Brightness.dark ? Color(0xFF49400e) : Colors.yellow[200]!;
+        return Theme.of(context).brightness == Brightness.dark ? Color(0xFF49400e) : Color(0xFFfffce6);
       case 2:
-        return Theme.of(context).brightness == Brightness.dark ? Color(0xFF233315) : Colors.green[200]!;
+        return Theme.of(context).brightness == Brightness.dark ? Color(0xFF233315) : Color(0xFFeffbe6);
       case 3:
-        return Theme.of(context).brightness == Brightness.dark ? Color(0xFF203646) : Colors.blue[200]!;
+        return Theme.of(context).brightness == Brightness.dark ? Color(0xFF203646) : Color(0xFFe6f7ff);
       case 4:
-        return Theme.of(context).brightness == Brightness.dark ? Color(0xFF401f2c) : Colors.pink[200]!;
+        return Theme.of(context).brightness == Brightness.dark ? Color(0xFF401f2c) : Color(0xFFffe6f0);
       case 5:
-        return Theme.of(context).brightness == Brightness.dark ? Color(0xFF49290e) : Colors.orange[200]!;
+        return Theme.of(context).brightness == Brightness.dark ? Color(0xFF49290e) : Color(0xFFfff0e6);
       case 6:
-        return Theme.of(context).brightness == Brightness.dark ? Color(0xFF2d2438) : Colors.purple[200]!;
+        return Theme.of(context).brightness == Brightness.dark ? Color(0xFF2d2438) : Color(0xFFf1eafa);
       default:
-        return Theme.of(context).brightness == Brightness.dark ? Color(0xFF292929) : Colors.grey[300]!; // Si jamais index est supérieur à 5, retourne par défaut la couleur grise
+        return Theme.of(context).brightness == Brightness.dark ? Color(0xFF292929) : Color(0xFFf1f1f1);
     }
   }
 
-  static String dateTodayToCreated(String lastModif) {
-    DateTime lastModified = DateTime.parse(lastModif);
+  /// Créé une instance Note à partir d'une map (ex: JSON)
+  factory Note.fromMap(Map<String, dynamic> map) {
+    return Note(
+      noteId: map['NoteId'],
+      guid: map['Guid'],
+      title: map['Title'],
+      content: map['Content'],
+      lastModified: map['LastModified'],
+      created: map['Created'],
+      blockType: map['BlockType'],
+      blockIdentifier: map['BlockIdentifier'],
+      colorIndex: map['ColorIndex'] ?? 0,
+      userMarkId: map['UserMarkId'],
+      userMarkGuid: map['UserMarkGuid'],
+      location: Location.fromMap(map),
+      tagsId: map['TagsId'] != null
+          ? map['TagsId']
+          .split(',')
+          .map((e) => int.tryParse(e.trim()))
+          .where((e) => e != null)
+          .cast<int>()
+          .toList()
+          : [],
+    );
+  }
 
-    // Obtenir la date d'aujourd'hui
-    DateTime today = DateTime.now();
+  String getRelativeTime() {
+    String? dateStr = lastModified ?? created;
+    if (dateStr == null || dateStr.isEmpty) return '';
 
-    // Calculer la différence en jours entre la date de dernière modification et aujourd'hui
-    int differenceInDays = today.difference(lastModified).inDays;
+    DateTime date;
+    try {
+      date = DateTime.parse(dateStr);
+    } catch (_) {
+      return lastModified ?? ''; // date invalide
+    }
 
-    if (differenceInDays <= 30) {
-      // Si la différence est inférieure ou égale à 30 jours, retourner le nombre de jours écoulés
-      return 'Il y a $differenceInDays jours';
+    Duration diff = DateTime.now().difference(date);
+    if (diff.isNegative) {
+      return 'à l\'instant · ${_formatDate(date)}';
+    }
+
+    String relative;
+    if (diff.inSeconds < 60) {
+      int s = diff.inSeconds;
+      relative = 'il y a $s seconde${s > 1 ? 's' : ''}';
+    } else if (diff.inMinutes < 60) {
+      int m = diff.inMinutes;
+      relative = 'il y a $m minute${m > 1 ? 's' : ''}';
+    } else if (diff.inHours < 24) {
+      int h = diff.inHours;
+      relative = 'il y a $h heure${h > 1 ? 's' : ''}';
+    } else if (diff.inDays < 30) {
+      int j = diff.inDays;
+      relative = 'il y a $j jour${j > 1 ? 's' : ''}';
+    } else if (diff.inDays < 365) {
+      int mois = (diff.inDays / 30).floor();
+      relative = 'il y a $mois mois';
     } else {
-      // Si la différence dépasse 30 jours, formater la date de dernière modification
-      // au format "jour mois" (par exemple, "26 mars")
-      String formattedDate = '${lastModified.day} ${_getMonthName(lastModified.month)}';
-      return formattedDate;
+      int annee = (diff.inDays / 365).floor();
+      relative = 'il y a $annee an${annee > 1 ? 's' : ''}';
     }
+
+    return '$relative · ${_formatDate(date)}';
   }
 
-  static String _getMonthName(int month) {
-    // Tableau des noms des mois
-    List<String> monthNames = [
-      'janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet',
-      'août', 'septembre', 'octobre', 'novembre', 'décembre'
-    ];
-
-    // Retourner le nom du mois correspondant à l'indice
-    return monthNames[month - 1]; // -1 car les indices commencent à 0
+// Fonction utilitaire pour formater la date en jj/mm/aaaa
+  String _formatDate(DateTime date) {
+    String jour = date.day.toString().padLeft(2, '0');
+    String mois = date.month.toString().padLeft(2, '0');
+    String annee = date.year.toString();
+    return '$jour/$mois/$annee';
   }
 }

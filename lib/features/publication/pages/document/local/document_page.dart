@@ -6,7 +6,6 @@ import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:html/parser.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/app/jwlife_page.dart';
@@ -21,7 +20,6 @@ import 'package:jwlife/core/utils/utils_video.dart';
 import 'package:jwlife/data/models/audio.dart';
 import 'package:jwlife/data/models/media.dart';
 import 'package:jwlife/data/models/publication.dart';
-import 'package:jwlife/data/models/publication_category.dart';
 import 'package:jwlife/data/repositories/PublicationRepository.dart';
 import 'package:jwlife/data/databases/catalog.dart';
 import 'package:jwlife/data/databases/history.dart';
@@ -38,9 +36,7 @@ import '../../../../../../../core/utils/widgets_utils.dart';
 import '../../../../../../../data/models/userdata/bookmark.dart';
 import '../../../../../app/services/settings_service.dart';
 import '../../../../../core/webview/webview_utils.dart';
-import '../../../../../data/databases/tiles_cache.dart';
-import '../../../../../data/models/userdata/tag.dart';
-import '../../../../personal/views/tag_page.dart';
+import '../../../../personal/pages/tag_page.dart';
 import 'document_medias_page.dart';
 import '../data/models/document.dart';
 import 'package:audio_service/audio_service.dart' as audio_service;
@@ -357,709 +353,704 @@ class _DocumentPageState extends State<DocumentPage> with SingleTickerProviderSt
       backgroundColor: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF111111) : Colors.white,
       body: Stack(children: [
         Visibility(
-            visible: _isLoadingWebView,
-            maintainState: true,
-            child: _isLoadingData ? InAppWebView(
-                initialSettings: InAppWebViewSettings(
-                  disableContextMenu: true,
-                  useShouldOverrideUrlLoading: true,
-                  mediaPlaybackRequiresUserGesture: false,
-                  disableDefaultErrorPage: true,
-                  useOnLoadResource: false,         // À désactiver sauf si tu surveilles les requêtes
-                  allowUniversalAccessFromFileURLs: true,
-                  allowFileAccess: true,
-                  allowContentAccess: true,
-                  loadWithOverviewMode: true,
-                  useHybridComposition: true,
-                  offscreenPreRaster: true,
-                  hardwareAcceleration: true,
-                  databaseEnabled: false,
-                  domStorageEnabled: true,
-                ),
-                initialData: InAppWebViewInitialData(
-                    data: widget.publication.documentsManager!.createReaderHtmlShell(widget),
-                    baseUrl: WebUri('file://$webappPath/')
-                ),
-                onWebViewCreated: (controller) async {
-                  _controller = controller;
+          visible: _isLoadingWebView,
+          maintainState: true,
+          child: _isLoadingData ? InAppWebView(
+              initialSettings: InAppWebViewSettings(
+                disableContextMenu: true,
+                useShouldOverrideUrlLoading: true,
+                mediaPlaybackRequiresUserGesture: false,
+                disableDefaultErrorPage: true,
+                useOnLoadResource: false,         // À désactiver sauf si tu surveilles les requêtes
+                allowUniversalAccessFromFileURLs: true,
+                allowFileAccess: true,
+                allowContentAccess: true,
+                loadWithOverviewMode: true,
+                useHybridComposition: true,
+                offscreenPreRaster: true,
+                hardwareAcceleration: true,
+                databaseEnabled: false,
+                domStorageEnabled: true,
+              ),
+              initialData: InAppWebViewInitialData(
+                  data: widget.publication.documentsManager!.createReaderHtmlShell(widget),
+                  baseUrl: WebUri('file://$webappPath/')
+              ),
+              onWebViewCreated: (controller) async {
+                _controller = controller;
 
-                  controller.addJavaScriptHandler(
+                controller.addJavaScriptHandler(
                     handlerName: 'fontsLoaded',
                     callback: (args) {
                       setState(() {
                         _isLoadingFonts = true;
                       });
                     }
-                  );
+                );
 
-                  controller.addJavaScriptHandler(
-                    handlerName: 'showDialog',
-                    callback: (args) {
-                      bool isShowDialog = args[0] as bool;
-                      setState(() {
-                        if(isShowDialog) {
-                          _showDialog = true;
-                        }
-                        else {
-                          setControlsVisible(_controlsVisibleSave);
-                          _showDialog = false;
-                        }
-                      });
-                    },
-                  );
-
-                  controller.addJavaScriptHandler(
-                    handlerName: 'showFullscreenPopup',
-                    callback: (args) {
-                      bool isMaximized = args[0] as bool;
-                      setState(() {
-                        if(isMaximized) {
-                          setControlsVisible(true);
-                        }
-                        else {
-                          setControlsVisible(_controlsVisibleSave);
-                        }
-                      });
-                    },
-                  );
-
-                  controller.addJavaScriptHandler(
-                    handlerName: 'getPage',
-                    callback: (args) async {
-                      final index = args[0] as int;
-                      if (index < 0 || index >= widget.publication.documentsManager!.documents.length) {
-                        return {'html': '', 'className': '', 'audiosMarkers': '', 'isBibleChapter': false};
-                      }
-
-                      final doc = widget.publication.documentsManager!.documents[index];
-
-                      String html = '';
-                      List<Map<String, dynamic>> audioMarkersJson = [];
-
-                      if(doc.isBibleChapter()) {
-                        List<Uint8List> contentBlob = doc.getChapterContent();
-
-                        for(dynamic content in contentBlob) {
-                          html += decodeBlobContent(
-                            content,
-                            widget.publication.hash!,
-                          );
-                        }
-
-                        if (widget.audios.isNotEmpty) {
-                          final audio = widget.audios.firstWhereOrNull((a) => a.bookNumber == doc.bookNumber && a.track == doc.chapterNumberBible);
-                          if (audio != null && audio.markers.isNotEmpty) {
-                            audioMarkersJson = audio.markers.map((m) => m.toJson()).toList();
-                          }
-                        }
+                controller.addJavaScriptHandler(
+                  handlerName: 'showDialog',
+                  callback: (args) {
+                    bool isShowDialog = args[0] as bool;
+                    setState(() {
+                      if(isShowDialog) {
+                        _showDialog = true;
                       }
                       else {
-                        html = decodeBlobContent(doc.content!, widget.publication.hash!);
+                        setControlsVisible(_controlsVisibleSave);
+                        _showDialog = false;
+                      }
+                    });
+                  },
+                );
 
-                        if (widget.audios.isNotEmpty) {
-                          final audio = widget.audios.firstWhereOrNull((a) => a.documentId == doc.mepsDocumentId);;
-                          if (audio != null && audio.markers.isNotEmpty) {
-                            audioMarkersJson = audio.markers.map((m) => m.toJson()).toList();
-                          }
+                controller.addJavaScriptHandler(
+                  handlerName: 'showFullscreenPopup',
+                  callback: (args) {
+                    bool isMaximized = args[0] as bool;
+                    setState(() {
+                      if(isMaximized) {
+                        setControlsVisible(true);
+                      }
+                      else {
+                        setControlsVisible(_controlsVisibleSave);
+                      }
+                    });
+                  },
+                );
+
+                controller.addJavaScriptHandler(
+                  handlerName: 'getPage',
+                  callback: (args) async {
+                    final index = args[0] as int;
+                    if (index < 0 || index >= widget.publication.documentsManager!.documents.length) {
+                      return {'html': '', 'className': '', 'audiosMarkers': '', 'isBibleChapter': false};
+                    }
+
+                    final doc = widget.publication.documentsManager!.documents[index];
+
+                    String html = '';
+                    List<Map<String, dynamic>> audioMarkersJson = [];
+
+                    if(doc.isBibleChapter()) {
+                      List<Uint8List> contentBlob = doc.getChapterContent();
+
+                      for(dynamic content in contentBlob) {
+                        html += decodeBlobContent(
+                          content,
+                          widget.publication.hash!,
+                        );
+                      }
+
+                      if (widget.audios.isNotEmpty) {
+                        final audio = widget.audios.firstWhereOrNull((a) => a.bookNumber == doc.bookNumber && a.track == doc.chapterNumberBible);
+                        if (audio != null && audio.markers.isNotEmpty) {
+                          audioMarkersJson = audio.markers.map((m) => m.toJson()).toList();
                         }
                       }
-                      final className = getArticleClass(doc);
+                    }
+                    else {
+                      html = decodeBlobContent(doc.content!, widget.publication.hash!);
 
-                      return {
-                        'html': html,
-                        'className': className,
-                        'audiosMarkers': audioMarkersJson,
-                        'isBibleChapter': doc.isBibleChapter(),
-                      };
-                    },
-                  );
-
-                  controller.addJavaScriptHandler(
-                    handlerName: 'changePageAt',
-                    callback: (args) async {
-                      await changePageAt(args[0] as int);
-                    },
-                  );
-
-                  controller.addJavaScriptHandler(
-                    handlerName: 'getUserdata',
-                    callback: (args) {
-                      for(var note in widget.publication.documentsManager!.getCurrentDocument().notes) {
-                        printTime('note: $note');
-                      }
-                      return {
-                        'highlights': widget.publication.documentsManager!.getCurrentDocument().highlights,
-                        'notes': widget.publication.documentsManager!.getCurrentDocument().notes,
-                        'inputFields': widget.publication.documentsManager!.getCurrentDocument().inputFields,
-                        'bookmarks': widget.publication.documentsManager!.getCurrentDocument().bookmarks,
-                      };
-                    },
-                  );
-
-                  controller.addJavaScriptHandler(
-                    handlerName: 'getTags',
-                    callback: (args) {
-                      return {
-                        'tags': JwLifeApp.userdata.tags.map((t) => t.toMap()).toList(),
-                      };
-                    },
-                  );
-
-                  controller.addJavaScriptHandler(
-                    handlerName: 'onScroll',
-                    callback: (args) async {
-                      if(!_showDialog) {
-                        if (!_isProgrammaticScroll) {
-                          if (args[1] == "down" && _lastDirectionScroll != "down") {
-                            setState(() {
-                              _controlsVisible = false;
-                              _controlsVisibleSave = false;
-                            });
-                            // enelever la barre de noti en haut de l'ecran
-                            //SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual, overlays: []);
-                            JwLifePage.toggleNavBarVisibility.call(false);
-                          }
-                          else if (args[1] == "up" && _lastDirectionScroll != "up") {
-                            setState(() {
-                              _controlsVisible = true;
-                              _controlsVisibleSave = true;
-                            });
-                            // remettre la barre de noti en haut de l'ecran
-                            //SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual, overlays: SystemUiOverlay.values);
-                            JwLifePage.toggleNavBarVisibility.call(true);
-                          }
-                          _lastDirectionScroll = args[1];
+                      if (widget.audios.isNotEmpty) {
+                        final audio = widget.audios.firstWhereOrNull((a) => a.documentId == doc.mepsDocumentId);;
+                        if (audio != null && audio.markers.isNotEmpty) {
+                          audioMarkersJson = audio.markers.map((m) => m.toJson()).toList();
                         }
                       }
-                    },
-                  );
+                    }
+                    final className = getArticleClass(doc);
 
-                  // Récupérer un guid pour un highlight
-                  controller.addJavaScriptHandler(
-                    handlerName: 'getHighlightGuid',
-                    callback: (args) {
-                      var uuid = Uuid();
-                      return {
-                        'guid': uuid.v4()
-                      };
-                    },
-                  );
+                    return {
+                      'html': html,
+                      'className': className,
+                      'audiosMarkers': audioMarkersJson,
+                      'isBibleChapter': doc.isBibleChapter(),
+                    };
+                  },
+                );
 
-                  controller.addJavaScriptHandler(
-                    handlerName: 'addHighlights',
-                    callback: (args) {
-                      printTime('addHighlights ${args[0]} ${args[1]} ${args[2]}');
-                      widget.publication.documentsManager!.getCurrentDocument().addHighlights(
+                controller.addJavaScriptHandler(
+                  handlerName: 'changePageAt',
+                  callback: (args) async {
+                    await changePageAt(args[0] as int);
+                  },
+                );
+
+                controller.addJavaScriptHandler(
+                  handlerName: 'getUserdata',
+                  callback: (args) {
+                    for(var note in widget.publication.documentsManager!.getCurrentDocument().notes) {
+                      printTime('note: $note');
+                    }
+                    return {
+                      'highlights': widget.publication.documentsManager!.getCurrentDocument().highlights,
+                      'notes': widget.publication.documentsManager!.getCurrentDocument().notes,
+                      'inputFields': widget.publication.documentsManager!.getCurrentDocument().inputFields,
+                      'bookmarks': widget.publication.documentsManager!.getCurrentDocument().bookmarks,
+                    };
+                  },
+                );
+
+                controller.addJavaScriptHandler(
+                  handlerName: 'getTags',
+                  callback: (args) {
+                    return {
+                      'tags': JwLifeApp.userdata.tags.map((t) => t.toMap()).toList(),
+                    };
+                  },
+                );
+
+                controller.addJavaScriptHandler(
+                  handlerName: 'onScroll',
+                  callback: (args) async {
+                    if(!_showDialog) {
+                      if (!_isProgrammaticScroll) {
+                        if (args[1] == "down" && _lastDirectionScroll != "down") {
+                          setState(() {
+                            _controlsVisible = false;
+                            _controlsVisibleSave = false;
+                          });
+                          // enelever la barre de noti en haut de l'ecran
+                          //SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual, overlays: []);
+                          JwLifePage.toggleNavBarVisibility.call(false);
+                        }
+                        else if (args[1] == "up" && _lastDirectionScroll != "up") {
+                          setState(() {
+                            _controlsVisible = true;
+                            _controlsVisibleSave = true;
+                          });
+                          // remettre la barre de noti en haut de l'ecran
+                          //SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual, overlays: SystemUiOverlay.values);
+                          JwLifePage.toggleNavBarVisibility.call(true);
+                        }
+                        _lastDirectionScroll = args[1];
+                      }
+                    }
+                  },
+                );
+
+                // Récupérer un guid pour un highlight
+                controller.addJavaScriptHandler(
+                  handlerName: 'getHighlightGuid',
+                  callback: (args) {
+                    var uuid = Uuid();
+                    return {
+                      'guid': uuid.v4()
+                    };
+                  },
+                );
+
+                controller.addJavaScriptHandler(
+                  handlerName: 'addHighlights',
+                  callback: (args) {
+                    printTime('addHighlights ${args[0]} ${args[1]} ${args[2]}');
+                    widget.publication.documentsManager!.getCurrentDocument().addHighlights(
                         args[0],
                         args[1],
                         args[2]
-                      );
-                    },
-                  );
+                    );
+                  },
+                );
 
-                  // Quand on clique supprime le highlight
-                  controller.addJavaScriptHandler(
-                      handlerName: 'removeHighlight',
-                      callback: (args) {
-                        widget.publication.documentsManager!.getCurrentDocument().removeHighlight(args[0]['guid']);
+                // Quand on clique supprime le highlight
+                controller.addJavaScriptHandler(
+                    handlerName: 'removeHighlight',
+                    callback: (args) {
+                      widget.publication.documentsManager!.getCurrentDocument().removeHighlight(args[0]['guid']);
+                    }
+                );
+
+                // Quand on change le color index d'un highlight
+                controller.addJavaScriptHandler(
+                    handlerName: 'changeHighlightColor',
+                    callback: (args) {
+                      widget.publication.documentsManager!.getCurrentDocument().changeHighlightColor(args[0]['guid'], args[0]['newColorIndex']);
+                    }
+                );
+
+
+                controller.addJavaScriptHandler(
+                  handlerName: 'addNote',
+                  callback: (args) {
+                    var uuid = Uuid();
+                    String uuidV4 = uuid.v4();
+
+                    widget.publication.documentsManager!.getCurrentDocument().addNoteWithUserMarkGuid(
+                      args[0]['blockType'],
+                      int.parse(args[0]['identifier']),
+                      args[0]['title'],
+                      uuidV4,
+                      args[0]['userMarkGuid'],
+                      args[0]['colorIndex'],
+                    );
+                    return {
+                      'uuid': uuidV4
+                    };
+                  },
+                );
+
+                controller.addJavaScriptHandler(
+                  handlerName: 'removeNote',
+                  callback: (args) {
+                    String guid = args[0]['guid'];
+                    widget.publication.documentsManager!.getCurrentDocument().removeNote(guid);
+                  },
+                );
+
+                controller.addJavaScriptHandler(
+                  handlerName: 'updateNote',
+                  callback: (args) {
+                    String uuid = args[0]['noteGuid'];
+                    String title = args[0]['title'];
+                    String content = args[0]['content'];
+                    widget.publication.documentsManager!.getCurrentDocument().updateNote(uuid, title, content);
+                  },
+                );
+
+                controller.addJavaScriptHandler(
+                  handlerName: 'addTagToNote',
+                  callback: (args) {
+                    String uuid = args[0]['noteGuid'];
+                    int tagId = args[0]['tagId'];
+                    widget.publication.documentsManager!.getCurrentDocument().addTagToNote(uuid, tagId);
+                  },
+                );
+
+                controller.addJavaScriptHandler(
+                  handlerName: 'removeTagToNote',
+                  callback: (args) {
+                    String uuid = args[0]['noteGuid'];
+                    int tagId = args[0]['tagId'];
+                    widget.publication.documentsManager!.getCurrentDocument().removeTagToNote(uuid, tagId);
+                  },
+                );
+
+                controller.addJavaScriptHandler(
+                  handlerName: 'openTagPage',
+                  callback: (args) {
+                    int tagId = args[0]['tagId'];
+                    showPage(context, TagPage(tag: JwLifeApp.userdata.tags.firstWhere((tag) => tag.id == tagId)));
+                  },
+                );
+
+                controller.addJavaScriptHandler(
+                  handlerName: 'addTag',
+                  callback: (args) {
+                    String tagName = args[0]['tagName'];
+                    JwLifeApp.userdata.addTag(tagName, 1);
+                  },
+                );
+
+                // Gestionnaire pour les clics sur les images
+                controller.addJavaScriptHandler(
+                  handlerName: 'onImageClick',
+                  callback: (args) {
+                    _openFullScreenImageView(args[0]); // Gérer l'affichage de l'image
+                  },
+                );
+
+                // Gestionnaire pour les clics sur les images
+                controller.addJavaScriptHandler(
+                  handlerName: 'fetchFootnote',
+                  callback: (args) {
+                    fetchFootnote(context, widget.publication, controller, args[0]);
+                  },
+                );
+
+                // Gestionnaire pour les clics sur les images
+                controller.addJavaScriptHandler(
+                  handlerName: 'fetchVersesReference',
+                  callback: (args) {
+                    fetchVersesReference(context, widget.publication, controller, args[0]);
+                  },
+                );
+
+                controller.addJavaScriptHandler(
+                  handlerName: 'openMepsDocument',
+                  callback: (args) async {
+                    Map<String, dynamic>? document = args[0];
+                    if (document != null) {
+                      if (document['mepsDocumentId'] != null) {
+                        await showDocumentView(context, document['mepsDocumentId'], document['mepsLanguageId'], startParagraphId: document['startParagraphId'], endParagraphId: document['endParagraphId']);
+                        JwLifePage.toggleNavBarVisibility(_controlsVisible);
+                        JwLifePage.toggleNavBarPositioned(true);
                       }
-                  );
-
-                  // Quand on change le color index d'un highlight
-                  controller.addJavaScriptHandler(
-                      handlerName: 'changeHighlightColor',
-                      callback: (args) {
-                        widget.publication.documentsManager!.getCurrentDocument().changeHighlightColor(args[0]['guid'], args[0]['newColorIndex']);
-                      }
-                  );
-
-
-                  controller.addJavaScriptHandler(
-                    handlerName: 'addNote',
-                    callback: (args) {
-                      var uuid = Uuid();
-                      String uuidV4 = uuid.v4();
-
-                      widget.publication.documentsManager!.getCurrentDocument().addNoteWithUserMarkGuid(
-                        args[0]['blockType'],
-                        int.parse(args[0]['identifier']),
-                        args[0]['title'],
-                        uuidV4,
-                        args[0]['userMarkGuid'],
-                        args[0]['colorIndex'],
-                      );
-                      return {
-                        'uuid': uuidV4
-                      };
-                    },
-                  );
-
-                  controller.addJavaScriptHandler(
-                    handlerName: 'removeNote',
-                    callback: (args) {
-                      String guid = args[0]['guid'];
-                      widget.publication.documentsManager!.getCurrentDocument().removeNote(guid);
-                    },
-                  );
-
-                  controller.addJavaScriptHandler(
-                    handlerName: 'updateNote',
-                    callback: (args) {
-                      String uuid = args[0]['noteGuid'];
-                      String title = args[0]['title'];
-                      String content = args[0]['content'];
-                      widget.publication.documentsManager!.getCurrentDocument().updateNote(uuid, title, content);
-                    },
-                  );
-
-                  controller.addJavaScriptHandler(
-                    handlerName: 'addTagToNote',
-                    callback: (args) {
-                      String uuid = args[0]['noteGuid'];
-                      int tagId = args[0]['tagId'];
-                      widget.publication.documentsManager!.getCurrentDocument().addTagToNote(uuid, tagId);
-                    },
-                  );
-
-                  controller.addJavaScriptHandler(
-                    handlerName: 'removeTagToNote',
-                    callback: (args) {
-                      String uuid = args[0]['noteGuid'];
-                      int tagId = args[0]['tagId'];
-                      widget.publication.documentsManager!.getCurrentDocument().removeTagToNote(uuid, tagId);
-                    },
-                  );
-
-                  controller.addJavaScriptHandler(
-                    handlerName: 'openTagPage',
-                    callback: (args) {
-                      int tagId = args[0]['tagId'];
-                      showPage(
-                        context,
-                        TagPage(
-                          tag: JwLifeApp.userdata.tags.firstWhere((tag) => tag.id == tagId),
-                        )
-                      );
-                    },
-                  );
-
-                  controller.addJavaScriptHandler(
-                    handlerName: 'addTag',
-                    callback: (args) {
-                      String tagName = args[0]['tagName'];
-                      JwLifeApp.userdata.addTag(tagName, 1);
-                    },
-                  );
-
-                  // Gestionnaire pour les clics sur les images
-                  controller.addJavaScriptHandler(
-                    handlerName: 'onImageClick',
-                    callback: (args) {
-                      _openFullScreenImageView(args[0]); // Gérer l'affichage de l'image
-                    },
-                  );
-
-                  // Gestionnaire pour les clics sur les images
-                  controller.addJavaScriptHandler(
-                    handlerName: 'fetchFootnote',
-                    callback: (args) {
-                      fetchFootnote(context, widget.publication, controller, args[0]);
-                    },
-                  );
-
-                  // Gestionnaire pour les clics sur les images
-                  controller.addJavaScriptHandler(
-                    handlerName: 'fetchVersesReference',
-                    callback: (args) {
-                      fetchVersesReference(context, widget.publication, controller, args[0]);
-                    },
-                  );
-
-                  controller.addJavaScriptHandler(
-                    handlerName: 'openMepsDocument',
-                    callback: (args) async {
-                      Map<String, dynamic>? document = args[0];
-                      if (document != null) {
-                        if (document['mepsDocumentId'] != null) {
-                          await showDocumentView(context, document['mepsDocumentId'], document['mepsLanguageId'], startParagraphId: document['startParagraphId'], endParagraphId: document['endParagraphId']);
-                          JwLifePage.toggleNavBarVisibility(_controlsVisible);
-                          JwLifePage.toggleNavBarPositioned(true);
-                        }
-                        else if (document['bookNumber'] != null && document['chapterNumber'] != null) {
-                          await showChapterView(
-                            context,
-                            'nwtsty',
-                            document["mepsLanguageId"],
-                            document["bookNumber"],
-                            document["chapterNumber"],
-                            firstVerseNumber: document["firstVerseNumber"],
-                            lastVerseNumber: document["lastVerseNumber"],
-                          );
-                          JwLifePage.toggleNavBarVisibility(_controlsVisible);
-                          JwLifePage.toggleNavBarPositioned(true);
-                        }
-                      }
-                    },
-                  );
-
-                  // Gestionnaire pour les modifications des champs de formulaire
-                  controller.addJavaScriptHandler(
-                    handlerName: 'onInputChange',
-                    callback: (args) {
-                      String tag = args[0]['tag'];
-                      String value = args[0]['value'];
-                      widget.publication.documentsManager!.getCurrentDocument().updateOrInsertInputFieldValue(tag, value);
-                    },
-                  );
-
-                  controller.addJavaScriptHandler(
-                    handlerName: 'bookmark',
-                    callback: (args) async {
-                      final arg = args[0];
-
-                      final bool isBible = arg['isBible'];
-                      final String id = arg['id'];
-                      final String snippet = arg['snippet'];
-
-                      final docManager = widget.publication.documentsManager!;
-                      final currentDoc = docManager.getCurrentDocument();
-
-                      if (isBible) {
-                        // Cas d’un verset
-                        int? blockIdentifier = int.tryParse(id);
-                        int blockType = blockIdentifier != null ? 2 : 0;
-
-                        printTime('blockIdentifier: $blockIdentifier');
-                        printTime('blockType: $blockType');
-                        printTime('bookNumber: ${currentDoc.bookNumber}');
-                        printTime('chapterNumber: ${currentDoc.chapterNumber}');
-
-                        Bookmark? bookmark = await showBookmarkDialog(
+                      else if (document['bookNumber'] != null && document['chapterNumber'] != null) {
+                        await showChapterView(
                           context,
-                          widget.publication,
-                          webViewController: _controller,
-                          bookNumber: currentDoc.bookNumber,
-                          chapterNumber: currentDoc.chapterNumber,
-                          title: '${currentDoc.displayTitle} ${currentDoc.chapterNumber}',
-                          snippet: snippet.trim(),
-                          blockType: blockType,
-                          blockIdentifier: blockIdentifier,
+                          'nwtsty',
+                          document["mepsLanguageId"],
+                          document["bookNumber"],
+                          document["chapterNumber"],
+                          firstVerseNumber: document["firstVerseNumber"],
+                          lastVerseNumber: document["lastVerseNumber"],
                         );
+                        JwLifePage.toggleNavBarVisibility(_controlsVisible);
+                        JwLifePage.toggleNavBarPositioned(true);
+                      }
+                    }
+                  },
+                );
 
-                        if(bookmark != null) {
-                          if (bookmark.location.bookNumber != null && bookmark.location.chapterNumber != null) {
-                            final page = docManager.documents.indexWhere((doc) => doc.bookNumber == bookmark.location.bookNumber && doc.chapterNumberBible == bookmark.location.chapterNumber);
+                // Gestionnaire pour les modifications des champs de formulaire
+                controller.addJavaScriptHandler(
+                  handlerName: 'onInputChange',
+                  callback: (args) {
+                    String tag = args[0]['tag'];
+                    String value = args[0]['value'];
+                    widget.publication.documentsManager!.getCurrentDocument().updateOrInsertInputFieldValue(tag, value);
+                  },
+                );
 
-                            if (page != widget.publication.documentsManager!.documentIndex) {
-                              await _jumpToPage(page);
-                            }
+                controller.addJavaScriptHandler(
+                  handlerName: 'bookmark',
+                  callback: (args) async {
+                    final arg = args[0];
 
-                            if(bookmark.blockIdentifier != null) {
-                              _jumpToVerse(bookmark.blockIdentifier!, bookmark.blockIdentifier!);
-                            }
+                    final bool isBible = arg['isBible'];
+                    final String id = arg['id'];
+                    final String snippet = arg['snippet'];
+
+                    final docManager = widget.publication.documentsManager!;
+                    final currentDoc = docManager.getCurrentDocument();
+
+                    if (isBible) {
+                      // Cas d’un verset
+                      int? blockIdentifier = int.tryParse(id);
+                      int blockType = blockIdentifier != null ? 2 : 0;
+
+                      printTime('blockIdentifier: $blockIdentifier');
+                      printTime('blockType: $blockType');
+                      printTime('bookNumber: ${currentDoc.bookNumber}');
+                      printTime('chapterNumber: ${currentDoc.chapterNumber}');
+
+                      Bookmark? bookmark = await showBookmarkDialog(
+                        context,
+                        widget.publication,
+                        webViewController: _controller,
+                        bookNumber: currentDoc.bookNumber,
+                        chapterNumber: currentDoc.chapterNumber,
+                        title: '${currentDoc.displayTitle} ${currentDoc.chapterNumber}',
+                        snippet: snippet.trim(),
+                        blockType: blockType,
+                        blockIdentifier: blockIdentifier,
+                      );
+
+                      if(bookmark != null) {
+                        if (bookmark.location.bookNumber != null && bookmark.location.chapterNumber != null) {
+                          final page = docManager.documents.indexWhere((doc) => doc.bookNumber == bookmark.location.bookNumber && doc.chapterNumberBible == bookmark.location.chapterNumber);
+
+                          if (page != widget.publication.documentsManager!.documentIndex) {
+                            await _jumpToPage(page);
+                          }
+
+                          if(bookmark.blockIdentifier != null) {
+                            _jumpToVerse(bookmark.blockIdentifier!, bookmark.blockIdentifier!);
                           }
                         }
+                      }
+                    }
+                    else {
+                      // Cas d’un paragraphe classique
+                      int? blockIdentifier = int.tryParse(id);
+                      int blockType = blockIdentifier != null ? 1 : 0;
+
+                      printTime('blockIdentifier: $blockIdentifier');
+                      printTime('blockType: $blockType');
+                      printTime('mepsDocumentId: ${currentDoc.mepsDocumentId}');
+                      printTime('title: ${currentDoc.displayTitle}');
+
+                      Bookmark? bookmark = await showBookmarkDialog(
+                        context,
+                        widget.publication,
+                        webViewController: _controller,
+                        mepsDocumentId: currentDoc.mepsDocumentId,
+                        title: currentDoc.displayTitle,
+                        snippet: snippet.trim(),
+                        blockType: blockType,
+                        blockIdentifier: blockIdentifier,
+                      );
+
+                      if(bookmark != null) {
+                        if (bookmark.location.mepsDocumentId != null) {
+                          final page = docManager.documents.indexWhere((doc) => doc.mepsDocumentId == bookmark.location.mepsDocumentId);
+                          if (page != widget.publication.documentsManager!.documentIndex) {
+                            await _jumpToPage(page);
+                          }
+                        }
+
+                        // Aller au paragraphe dans la même page
+                        if (bookmark.blockIdentifier != null) {
+                          _jumpToParagraph(bookmark.blockIdentifier!, bookmark.blockIdentifier!);
+                        }
+                      }
+                    }
+                  },
+                );
+
+                // Gestionnaire pour les modifications des champs de formulaire
+                controller.addJavaScriptHandler(
+                  handlerName: 'showFullscreenDialog',
+                  callback: (args) async {
+                    bool isFullscreen = args[0]['isFullscreen'];
+                    bool closeDialog = args[0]['closeDialog'];
+                    setState(() {
+                      if(closeDialog) {
+                        setControlsVisible(_controlsVisibleSave);
                       }
                       else {
-                        // Cas d’un paragraphe classique
-                        int? blockIdentifier = int.tryParse(id);
-                        int blockType = blockIdentifier != null ? 1 : 0;
-
-                        printTime('blockIdentifier: $blockIdentifier');
-                        printTime('blockType: $blockType');
-                        printTime('mepsDocumentId: ${currentDoc.mepsDocumentId}');
-                        printTime('title: ${currentDoc.displayTitle}');
-
-                        Bookmark? bookmark = await showBookmarkDialog(
-                          context,
-                          widget.publication,
-                          webViewController: _controller,
-                          mepsDocumentId: currentDoc.mepsDocumentId,
-                          title: currentDoc.displayTitle,
-                          snippet: snippet.trim(),
-                          blockType: blockType,
-                          blockIdentifier: blockIdentifier,
-                        );
-
-                        if(bookmark != null) {
-                          if (bookmark.location.mepsDocumentId != null) {
-                            final page = docManager.documents.indexWhere((doc) => doc.mepsDocumentId == bookmark.location.mepsDocumentId);
-                            if (page != widget.publication.documentsManager!.documentIndex) {
-                              await _jumpToPage(page);
-                            }
-                          }
-
-                          // Aller au paragraphe dans la même page
-                          if (bookmark.blockIdentifier != null) {
-                            _jumpToParagraph(bookmark.blockIdentifier!, bookmark.blockIdentifier!);
-                          }
-                        }
+                        setControlsVisible(true);
                       }
-                    },
-                  );
+                      _showDialog = isFullscreen;
+                    });
+                  },
+                );
 
-                  // Gestionnaire pour les modifications des champs de formulaire
-                  controller.addJavaScriptHandler(
-                    handlerName: 'showFullscreenDialog',
-                    callback: (args) async {
-                      bool isFullscreen = args[0]['isFullscreen'];
-                      bool closeDialog = args[0]['closeDialog'];
-                      setState(() {
-                        if(closeDialog) {
-                          setControlsVisible(_controlsVisibleSave);
-                        }
-                        else {
-                          setControlsVisible(true);
-                        }
-                        _showDialog = isFullscreen;
-                      });
-                    },
-                  );
+                // Gestionnaire pour les modifications des champs de formulaire
+                controller.addJavaScriptHandler(
+                  handlerName: 'share',
+                  callback: (args) async {
+                    final arg = args[0];
 
-                  // Gestionnaire pour les modifications des champs de formulaire
-                  controller.addJavaScriptHandler(
-                    handlerName: 'share',
-                    callback: (args) async {
-                      final arg = args[0];
+                    final bool isBible = arg['isBible'];
+                    final String id = arg['id'];
 
-                      final bool isBible = arg['isBible'];
-                      final String id = arg['id'];
+                    widget.publication.documentsManager!.getCurrentDocument().share(isBible, id: id);
+                  },
+                );
 
-                      widget.publication.documentsManager!.getCurrentDocument().share(isBible, id: id);
-                    },
-                  );
+                // Gestionnaire pour les modifications des champs de formulaire
+                controller.addJavaScriptHandler(
+                  handlerName: 'copyText',
+                  callback: (args) async {
+                    Clipboard.setData(ClipboardData(text: args[0]['text']));
+                    showBottomMessage(context, 'Texte copié dans le presse-papier');
+                  },
+                );
 
-                  // Gestionnaire pour les modifications des champs de formulaire
-                  controller.addJavaScriptHandler(
-                    handlerName: 'copyText',
-                    callback: (args) async {
-                      Clipboard.setData(ClipboardData(text: args[0]['text']));
-                      showBottomMessage(context, 'Texte copié dans le presse-papier');
-                    },
-                  );
+                controller.addJavaScriptHandler(
+                  handlerName: 'playAudio',
+                  callback: (args) async {
+                    final arg = args[0];
 
-                  controller.addJavaScriptHandler(
-                    handlerName: 'playAudio',
-                    callback: (args) async {
-                      final arg = args[0];
+                    final bool isBible = arg['isBible'];
+                    final String id = arg['id'];
 
-                      final bool isBible = arg['isBible'];
-                      final String id = arg['id'];
+                    try {
+                      // Trouver l'audio correspondant au document dans une liste
+                      Audio? audio;
 
-                      try {
-                        // Trouver l'audio correspondant au document dans une liste
-                        Audio? audio;
+                      if(isBible) {
+                        audio = widget.audios.firstWhereOrNull((audio) => audio.bookNumber == widget.publication.documentsManager!.getCurrentDocument().bookNumber && audio.track == widget.publication.documentsManager!.getCurrentDocument().chapterNumberBible);
+                      }
+                      else {
+                        audio = widget.audios.firstWhereOrNull((audio) => audio.documentId == widget.publication.documentsManager!.getCurrentDocument().mepsDocumentId);
+                      }
 
+                      if(audio != null) {
+                        // Trouver le marqueur correspondant au paragraphId dans la liste des marqueurs
+                        Marker? marker;
                         if(isBible) {
-                          audio = widget.audios.firstWhereOrNull((audio) => audio.bookNumber == widget.publication.documentsManager!.getCurrentDocument().bookNumber && audio.track == widget.publication.documentsManager!.getCurrentDocument().chapterNumberBible);
+                          marker = audio.markers.firstWhereOrNull((marker) => marker.verseNumber == int.tryParse(id));
                         }
                         else {
-                          audio = widget.audios.firstWhereOrNull((audio) => audio.documentId == widget.publication.documentsManager!.getCurrentDocument().mepsDocumentId);
+                          marker = audio.markers.firstWhereOrNull((marker) => marker.mepsParagraphId == int.tryParse(id));
                         }
 
-                        if(audio != null) {
-                          // Trouver le marqueur correspondant au paragraphId dans la liste des marqueurs
-                          Marker? marker;
+                        if(marker != null) {
+                          // Extraire le startTime du marqueur et vérifier s'il est valide
+                          String startTime = marker.startTime;
+                          if (startTime.isEmpty) {
+                            printTime('Le startTime est invalide');
+                            return;
+                          }
+
+                          // Analyser la durée
+                          Duration duration = parseDuration(startTime);
+
+                          printTime('duration: $duration');
+
+                          // Trouver l'index du document
+                          int? index;
                           if(isBible) {
-                            marker = audio.markers.firstWhereOrNull((marker) => marker.verseNumber == int.tryParse(id));
+                            index = widget.audios.indexWhere((audio) => audio.bookNumber == widget.publication.documentsManager!.getCurrentDocument().bookNumber && audio.track == widget.publication.documentsManager!.getCurrentDocument().chapterNumberBible);
                           }
                           else {
-                            marker = audio.markers.firstWhereOrNull((marker) => marker.mepsParagraphId == int.tryParse(id));
+                            index = widget.audios.indexWhere((audio) => audio.documentId == widget.publication.documentsManager!.getCurrentDocument().mepsDocumentId);
                           }
 
-                          if(marker != null) {
-                            // Extraire le startTime du marqueur et vérifier s'il est valide
-                            String startTime = marker.startTime;
-                            if (startTime.isEmpty) {
-                              printTime('Le startTime est invalide');
-                              return;
-                            }
-
-                            // Analyser la durée
-                            Duration duration = parseDuration(startTime);
-
-                            printTime('duration: $duration');
-
-                            // Trouver l'index du document
-                            int? index;
-                            if(isBible) {
-                              index = widget.audios.indexWhere((audio) => audio.bookNumber == widget.publication.documentsManager!.getCurrentDocument().bookNumber && audio.track == widget.publication.documentsManager!.getCurrentDocument().chapterNumberBible);
-                            }
-                            else {
-                              index = widget.audios.indexWhere((audio) => audio.documentId == widget.publication.documentsManager!.getCurrentDocument().mepsDocumentId);
-                            }
-
-                            if (index != -1) {
-                              // Afficher le lien du lecteur audio et se positionner au bon startTime
-                              showAudioPlayerPublicationLink(context, widget.publication, widget.audios, index, start: duration);
-                            }
+                          if (index != -1) {
+                            // Afficher le lien du lecteur audio et se positionner au bon startTime
+                            showAudioPlayerPublicationLink(context, widget.publication, widget.audios, index, start: duration);
                           }
                         }
                       }
-                      catch (e) {
-                        printTime('Erreur lors de la lecture de l\'audio : $e');
-                      }
-                    },
-                  );
+                    }
+                    catch (e) {
+                      printTime('Erreur lors de la lecture de l\'audio : $e');
+                    }
+                  },
+                );
 
-                  controller.addJavaScriptHandler(
-                    handlerName: 'playVerseAudio',
-                    callback: (args) async {
-                      dynamic audio = args[0]['audio'];
-                      dynamic verse = args[0]['verse'];
+                controller.addJavaScriptHandler(
+                  handlerName: 'playVerseAudio',
+                  callback: (args) async {
+                    dynamic audio = args[0]['audio'];
+                    dynamic verse = args[0]['verse'];
 
-                      int verseNumber = verse['verseNumber'];
-                      String url = audio['url'];
-                      Duration startDuration = Duration.zero;
-                      Duration? endDuration;
+                    int verseNumber = verse['verseNumber'];
+                    String url = audio['url'];
+                    Duration startDuration = Duration.zero;
+                    Duration? endDuration;
 
-                      dynamic markers = audio['markers'];
+                    dynamic markers = audio['markers'];
 
-                      if (markers != null) {
-                        for (int i = 0; i < markers.length; i++) {
-                          if (markers[i]['verseNumber'] == verseNumber) {
-                            startDuration = parseDuration(markers[i]['startTime']);
-                            Duration duration = parseDuration(markers[i]['duration']);
-                            endDuration = startDuration + duration;
-                            break;
-                          }
-                        }
-                      }
-
-                      Publication bible = PublicationRepository().getAllBibles().first;
-
-                      audio_service.MediaItem mediaItem = audio_service.MediaItem(
-                          id: '0',
-                          album: bible.title,
-                          title: JwLifeApp.bibleCluesInfo.getVerse(verse['bookNumber'], verse['chapterNumber'], verseNumber),
-                          artUri: Uri.file(bible.imageSqr!)
-                      );
-
-                      showAudioPlayerForLink(context, url, mediaItem, initialPosition: startDuration, endPosition: endDuration);
-                    },
-                  );
-                  // Gestionnaire pour les modifications des champs de formulaire
-                  controller.addJavaScriptHandler(
-                    handlerName: 'search',
-                    callback: (args) async {
-                      String query = args[0]['query'];
-                      showPage(context, SearchPage(query: query));
-                    },
-                  );
-
-                  // Gestionnaire pour les modifications des champs de formulaire
-                  controller.addJavaScriptHandler(
-                    handlerName: 'searchVerse',
-                    callback: (args) async {
-                      String book = widget.publication.documentsManager!.getCurrentDocument().bookNumber.toString();
-                      String chapter = widget.publication.documentsManager!.getCurrentDocument().chapterNumber.toString();
-                      String verseNumber = args[0]['query'].toString();
-
-                      String query = JwLifeApp.bibleCluesInfo.getVerse(int.parse(book), int.parse(chapter), int.parse(verseNumber));
-                      showPage(context, SearchPage(query: query));
-                    },
-                  );
-
-                  // Gestionnaire pour les modifications des champs de formulaire
-                  controller.addJavaScriptHandler(
-                    handlerName: 'onVideoClick',
-                    callback: (args) async {
-                      String link = args[0];
-
-                      printTime('Link: $link');
-                      // Extraire les paramètres
-                      Uri uri = Uri.parse(link);
-                      String? pub = uri.queryParameters['pub'];
-                      int? docId = uri.queryParameters['docid'] != null ? int.parse(uri.queryParameters['docid']!) : null;
-                      String track = uri.queryParameters['track'] ?? '';
-
-                      MediaItem? mediaItem = getVideoItem(pub, int.parse(track), docId, null, null);
-
-                      if(mediaItem != null) {
-                        showVideoDialog(context, mediaItem).then((result) {
-                          if (result == 'play') { // Vérifiez si le résultat est 'play'
-                            showFullScreenVideo(context, mediaItem);
-                          }
-                        });
-                      }
-                      else {
-
-                      }
-                    },
-                  );
-                },
-                shouldInterceptRequest: (controller, request) async {
-                  String requestedUrl = '${request.url}';
-
-                  if (requestedUrl.startsWith('jwpub-media://')) {
-                    final filePath = requestedUrl.replaceFirst('jwpub-media://', '');
-                    return await widget.publication.documentsManager!.getCurrentDocument().getImagePathFromDatabase(filePath);
-                  }
-
-                  return null;
-                },
-                shouldOverrideUrlLoading: (controller, navigationAction) async {
-                  WebUri uri = navigationAction.request.url!;
-                  String url = uri.uriValue.toString();
-
-                  if(url.startsWith('jwpub://')) {
-                    fetchHyperlink(context, controller, widget.publication, _jumpToPage, _jumpToParagraph, url, _controlsVisible);
-                    return NavigationActionPolicy.CANCEL;
-                  }
-                  else if (url.startsWith('webpubdl://'))  {
-                    final docId = uri.queryParameters['docid'];
-                    final track = uri.queryParameters['track'];
-                    final langwritten = uri.queryParameters.containsKey('langwritten') ? uri.queryParameters['langwritten'] : widget.publication.mepsLanguage.symbol;
-                    final fileformat = uri.queryParameters['fileformat'];
-
-                    showDocumentDialog(context, docId!, track!, langwritten!, fileformat!);
-
-                    return NavigationActionPolicy.CANCEL;
-                  }
-                  else if (uri.host == 'www.jw.org' && uri.path == '/finder') {
-                    if(uri.queryParameters.containsKey('wtlocale')) {
-                      final wtlocale = uri.queryParameters['wtlocale'];
-                      if (uri.queryParameters.containsKey('lank')) {
-                        MediaItem? mediaItem;
-                        if(uri.queryParameters.containsKey('lank')) {
-                          final lank = uri.queryParameters['lank'];
-                          mediaItem = getVideoItemFromLank(lank!, wtlocale!);
-                        }
-
-                        showVideoDialog(context, mediaItem!).then((result) {
-                          if (result ==
-                              'play') { // Vérifiez si le résultat est 'play'
-                            showFullScreenVideo(context, mediaItem!);
-                          }
-                        });
-                      }
-                      else if (uri.queryParameters.containsKey('pub')) {
-                        // Récupère les paramètres
-                        final pub = uri.queryParameters['pub'];
-                        final issueTagNumber = uri.queryParameters.containsKey('issueTagNumber') ? int.parse(uri.queryParameters['issueTagNumber']!) : 0;
-
-                        Publication? publication = await PubCatalog.searchPub(pub!, issueTagNumber, wtlocale!);
-                        if (publication != null) {
-                          publication.showMenu(context);
+                    if (markers != null) {
+                      for (int i = 0; i < markers.length; i++) {
+                        if (markers[i]['verseNumber'] == verseNumber) {
+                          startDuration = parseDuration(markers[i]['startTime']);
+                          Duration duration = parseDuration(markers[i]['duration']);
+                          endDuration = startDuration + duration;
+                          break;
                         }
                       }
                     }
 
-                    // Annule la navigation pour gérer le lien manuellement
-                    return NavigationActionPolicy.CANCEL;
+                    Publication bible = PublicationRepository().getAllBibles().first;
+
+                    audio_service.MediaItem mediaItem = audio_service.MediaItem(
+                        id: '0',
+                        album: bible.title,
+                        title: JwLifeApp.bibleCluesInfo.getVerse(verse['bookNumber'], verse['chapterNumber'], verseNumber),
+                        artUri: Uri.file(bible.imageSqr!)
+                    );
+
+                    showAudioPlayerForLink(context, url, mediaItem, initialPosition: startDuration, endPosition: endDuration);
+                  },
+                );
+                // Gestionnaire pour les modifications des champs de formulaire
+                controller.addJavaScriptHandler(
+                  handlerName: 'search',
+                  callback: (args) async {
+                    String query = args[0]['query'];
+                    showPage(context, SearchPage(query: query));
+                  },
+                );
+
+                // Gestionnaire pour les modifications des champs de formulaire
+                controller.addJavaScriptHandler(
+                  handlerName: 'searchVerse',
+                  callback: (args) async {
+                    String book = widget.publication.documentsManager!.getCurrentDocument().bookNumber.toString();
+                    String chapter = widget.publication.documentsManager!.getCurrentDocument().chapterNumber.toString();
+                    String verseNumber = args[0]['query'].toString();
+
+                    String query = JwLifeApp.bibleCluesInfo.getVerse(int.parse(book), int.parse(chapter), int.parse(verseNumber));
+                    showPage(context, SearchPage(query: query));
+                  },
+                );
+
+                // Gestionnaire pour les modifications des champs de formulaire
+                controller.addJavaScriptHandler(
+                  handlerName: 'onVideoClick',
+                  callback: (args) async {
+                    String link = args[0];
+
+                    printTime('Link: $link');
+                    // Extraire les paramètres
+                    Uri uri = Uri.parse(link);
+                    String? pub = uri.queryParameters['pub'];
+                    int? docId = uri.queryParameters['docid'] != null ? int.parse(uri.queryParameters['docid']!) : null;
+                    String track = uri.queryParameters['track'] ?? '';
+
+                    MediaItem? mediaItem = getVideoItem(pub, int.parse(track), docId, null, null);
+
+                    if(mediaItem != null) {
+                      showVideoDialog(context, mediaItem).then((result) {
+                        if (result == 'play') { // Vérifiez si le résultat est 'play'
+                          showFullScreenVideo(context, mediaItem);
+                        }
+                      });
+                    }
+                    else {
+
+                    }
+                  },
+                );
+              },
+              shouldInterceptRequest: (controller, request) async {
+                String requestedUrl = '${request.url}';
+
+                if (requestedUrl.startsWith('jwpub-media://')) {
+                  final filePath = requestedUrl.replaceFirst('jwpub-media://', '');
+                  return await widget.publication.documentsManager!.getCurrentDocument().getImagePathFromDatabase(filePath);
+                }
+
+                return null;
+              },
+              shouldOverrideUrlLoading: (controller, navigationAction) async {
+                WebUri uri = navigationAction.request.url!;
+                String url = uri.uriValue.toString();
+
+                if(url.startsWith('jwpub://')) {
+                  fetchHyperlink(context, controller, widget.publication, _jumpToPage, _jumpToParagraph, url, _controlsVisible);
+                  return NavigationActionPolicy.CANCEL;
+                }
+                else if (url.startsWith('webpubdl://'))  {
+                  final docId = uri.queryParameters['docid'];
+                  final track = uri.queryParameters['track'];
+                  final langwritten = uri.queryParameters.containsKey('langwritten') ? uri.queryParameters['langwritten'] : widget.publication.mepsLanguage.symbol;
+                  final fileformat = uri.queryParameters['fileformat'];
+
+                  showDocumentDialog(context, docId!, track!, langwritten!, fileformat!);
+
+                  return NavigationActionPolicy.CANCEL;
+                }
+                else if (uri.host == 'www.jw.org' && uri.path == '/finder') {
+                  if(uri.queryParameters.containsKey('wtlocale')) {
+                    final wtlocale = uri.queryParameters['wtlocale'];
+                    if (uri.queryParameters.containsKey('lank')) {
+                      MediaItem? mediaItem;
+                      if(uri.queryParameters.containsKey('lank')) {
+                        final lank = uri.queryParameters['lank'];
+                        mediaItem = getVideoItemFromLank(lank!, wtlocale!);
+                      }
+
+                      showVideoDialog(context, mediaItem!).then((result) {
+                        if (result ==
+                            'play') { // Vérifiez si le résultat est 'play'
+                          showFullScreenVideo(context, mediaItem!);
+                        }
+                      });
+                    }
+                    else if (uri.queryParameters.containsKey('pub')) {
+                      // Récupère les paramètres
+                      final pub = uri.queryParameters['pub'];
+                      final issueTagNumber = uri.queryParameters.containsKey('issueTagNumber') ? int.parse(uri.queryParameters['issueTagNumber']!) : 0;
+
+                      Publication? publication = await PubCatalog.searchPub(pub!, issueTagNumber, wtlocale!);
+                      if (publication != null) {
+                        publication.showMenu(context);
+                      }
+                    }
                   }
 
-                  // Permet la navigation pour tous les autres liens
-                  return NavigationActionPolicy.ALLOW;
-                },
-                onProgressChanged: (controller, progress) {
-                  if(progress == 100) {
-                    setState(() {
-                      _isLoadingWebView = true;
-                    });
-                  }
+                  // Annule la navigation pour gérer le lien manuellement
+                  return NavigationActionPolicy.CANCEL;
                 }
-            ) : Container(),
+
+                // Permet la navigation pour tous les autres liens
+                return NavigationActionPolicy.ALLOW;
+              },
+              onProgressChanged: (controller, progress) {
+                if(progress == 100) {
+                  setState(() {
+                    _isLoadingWebView = true;
+                  });
+                }
+              }
+          ) : Container(),
         ),
 
         if (!_isLoadingFonts)
@@ -1187,7 +1178,7 @@ class _DocumentPageState extends State<DocumentPage> with SingleTickerProviderSt
                                 }
 
                                 if (bookmark.blockIdentifier != null) {
-                                   _jumpToVerse(bookmark.blockIdentifier!, bookmark.blockIdentifier!);
+                                  _jumpToVerse(bookmark.blockIdentifier!, bookmark.blockIdentifier!);
                                 };
                               }
                               else {

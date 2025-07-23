@@ -3,16 +3,16 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:jwlife/app/jwlife_app.dart';
 
-import '../../../core/api.dart';
-import '../../../core/icons.dart';
-import '../../../core/utils/utils.dart';
-import '../../../core/utils/utils_audio.dart';
-import '../../../core/utils/utils_media.dart';
-import '../../../core/utils/utils_video.dart';
-import '../../../data/models/video.dart';
-import '../../../data/realm/catalog.dart';
-import '../../../widgets/dialog/publication_dialogs.dart';
-import '../../../widgets/image_cached_widget.dart';
+import '../../../../core/api.dart';
+import '../../../../core/icons.dart';
+import '../../../../core/utils/utils.dart';
+import '../../../../core/utils/utils_audio.dart';
+import '../../../../core/utils/utils_media.dart';
+import '../../../../core/utils/utils_video.dart';
+import '../../../../data/models/video.dart';
+import '../../../../data/realm/catalog.dart';
+import '../../../../widgets/dialog/publication_dialogs.dart';
+import '../../../../widgets/image_cached_widget.dart';
 
 class HomeSquareMediaItemItem extends StatelessWidget {
   final MediaItem mediaItem;

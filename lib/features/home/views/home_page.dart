@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:ui' as ui;
 
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
@@ -17,90 +16,68 @@ import 'package:jwlife/core/utils/directory_helper.dart';
 import 'package:jwlife/core/utils/files_helper.dart';
 import 'package:jwlife/core/utils/shared_preferences_helper.dart';
 import 'package:jwlife/core/utils/utils.dart';
-import 'package:jwlife/core/utils/utils_audio.dart';
-import 'package:jwlife/core/utils/utils_document.dart';
 import 'package:jwlife/core/utils/utils_jwpub.dart';
-import 'package:jwlife/core/utils/utils_media.dart';
-import 'package:jwlife/core/utils/utils_video.dart';
 import 'package:jwlife/core/utils/widgets_utils.dart';
 import 'package:jwlife/data/models/publication.dart';
-import 'package:jwlife/data/models/publication_category.dart';
 import 'package:jwlife/data/repositories/PublicationRepository.dart';
-import 'package:jwlife/data/models/video.dart';
 import 'package:jwlife/data/databases/catalog.dart';
 import 'package:jwlife/data/databases/history.dart';
 import 'package:jwlife/data/realm/catalog.dart';
 import 'package:jwlife/data/realm/realm_library.dart';
-import 'package:jwlife/features/home/views/search/bible_search_page.dart';
-import 'package:jwlife/features/home/views/search/search_page.dart';
-import 'package:jwlife/features/home/views/search/suggestion.dart';
-import 'package:jwlife/features/home/widgets/square_mediaitem_item.dart';
-import 'package:jwlife/features/library/pages/library_page.dart';
+import 'package:jwlife/features/home/widgets/home_page/favorite_section.dart';
+import 'package:jwlife/features/home/widgets/home_page/square_mediaitem_item.dart';
 import 'package:jwlife/i18n/localization.dart';
 import 'package:jwlife/features/home/views/alert_banner.dart';
-import 'package:jwlife/features/home/widgets/rectangle_publication_item.dart';
-import 'package:jwlife/features/home/widgets/square_publication_item.dart';
-import 'package:jwlife/widgets/dialog/publication_dialogs.dart';
+import 'package:jwlife/features/home/widgets/home_page/rectangle_publication_item.dart';
+import 'package:jwlife/features/home/widgets/home_page/square_publication_item.dart';
 import 'package:jwlife/widgets/dialog/utils_dialog.dart';
-import 'package:realm/realm.dart';
-import 'package:searchfield/searchfield.dart';
+import 'package:jwlife/widgets/mediaitem_item_widget.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:http/http.dart' as http;
 import 'package:html/parser.dart' as html_parser;
 
+import '../../../app/jwlife_page.dart';
 import '../../../app/services/settings_service.dart';
-import '../../../core/utils/utils_pub.dart';
-import '../../../data/databases/tiles_cache.dart';
-import '../../../data/models/tile.dart';
-import '../../../widgets/dialog/language_dialog.dart';
-import '../../../widgets/image_cached_widget.dart';
-import '../../meetings/pages/meeting_page.dart';
+import '../widgets/home_page/article_widget.dart';
+import '../widgets/home_page/home_appbar.dart';
 import 'article_page.dart';
 import '../../settings_page.dart';
 import 'daily_text_page.dart';
 
 class HomePage extends StatefulWidget {
-  static late Future<void> Function() refreshChangeLanguage;
-  static late Function() refreshHomePage;
-  static late bool isRefreshing;
   final Function(ThemeMode) toggleTheme;
   final Function(Locale) changeLocale;
 
   const HomePage({super.key, required this.toggleTheme, required this.changeLocale});
 
   @override
-  _HomePageState createState() => _HomePageState();
+  HomePageState createState() => HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
-  List<dynamic> alerts = [];
-  String verseOfTheDay = '';
+class HomePageState extends State<HomePage> {
+  List<dynamic> _alerts = [];
+  String _verseOfTheDay = '';
   List<Map<String, dynamic>> _articles = [];
 
-  List<MediaItem> teachingToolboxVideos = [];
-  List<MediaItem> latestAudiosVideos = [];
+  List<dynamic> _favorites = [];
+  List<Publication> _recentPublications = [];
+  List<Publication?> _teachingToolboxPublications = [];
+  List<Publication> _latestPublications = [];
+  
+  List<MediaItem> _teachingToolboxVideos = [];
+  List<MediaItem> _latestAudiosVideos = [];
 
-  List<SuggestionItem> suggestions = [];
-  final TextEditingController _searchController = TextEditingController();
-
-  int _currentArticleIndex = 0;
-
-  bool _isRefreshing = false;
-  bool _isSearching = false;
+  bool isRefreshing = false;
 
   @override
   void initState() {
     super.initState();
-    HomePage.refreshChangeLanguage = _refreshChangeLanguage;
-    HomePage.refreshHomePage = _refreshView;
-    HomePage.isRefreshing = _isRefreshing;
-
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _init();
     });
   }
-
+  
   Future<void> _init({bool first = true}) async {
     printTime("Init start");
     _initPage();
@@ -114,32 +91,7 @@ class _HomePageState extends State<HomePage> {
     await PubCatalog.fetchAssemblyPublications();
 
     printTime("Refresh MeetingsView start");
-    MeetingsPage.refreshConventionsPubs();
-  }
-
-  Future<void> _refreshChangeLanguage() async {
-    printTime("Refresh change language start");
-    LibraryPage.refreshLibraryCategories();
-    PubCatalog.updateCatalogCategories();
-
-    // Enveloppe toute la première séquence dans un Future synchronisé
-    PubCatalog.loadPublicationsInHomePage().then((_) async {
-      printTime("Refresh Homepage start");
-      setState(() {});
-
-      MeetingsPage.refreshMeetingsPubs();
-
-      await _loadBibleCluesInfo();
-      await PubCatalog.fetchAssemblyPublications();
-
-      printTime("Refresh MeetingsView start");
-      MeetingsPage.refreshConventionsPubs();
-
-      fetchVerseOfTheDay();
-    });
-
-    _initPage();
-    _refresh(first: true);
+    JwLifePage.getMeetingsGlobalKey().currentState?.refreshConventionsPubs();
   }
 
   Future<void> _initPage() async {
@@ -148,9 +100,42 @@ class _HomePageState extends State<HomePage> {
     fetchArticleInHomePage();
 
     setState(() {
-      teachingToolboxVideos = RealmLibrary.loadTeachingToolboxVideos();
-      latestAudiosVideos = RealmLibrary.loadLatestVideos();
+      _favorites = JwLifeApp.userdata.favorites;
+      _recentPublications = PubCatalog.recentPublications;
+      _teachingToolboxPublications = PubCatalog.teachingToolboxPublications;
+      _latestPublications = PubCatalog.latestPublications;
+      _teachingToolboxVideos = RealmLibrary.loadTeachingToolboxVideos();
+      _latestAudiosVideos = RealmLibrary.loadLatestVideos();
     });
+  }
+
+  Future<void> changeLanguageAndRefresh() async {
+    printTime("Refresh change language start");
+    JwLifePage.getLibraryGlobalKey().currentState?.refreshLibraryCategories();
+    PubCatalog.updateCatalogCategories();
+
+    // Enveloppe toute la première séquence dans un Future synchronisé
+    PubCatalog.loadPublicationsInHomePage().then((_) async {
+      printTime("Refresh Homepage start");
+      setState(() {
+        _recentPublications = PubCatalog.recentPublications;
+        _teachingToolboxPublications = PubCatalog.teachingToolboxPublications;
+        _latestPublications = PubCatalog.latestPublications;
+      });
+
+      JwLifePage.getMeetingsGlobalKey().currentState?.refreshMeetingsPubs();
+
+      await _loadBibleCluesInfo();
+      await PubCatalog.fetchAssemblyPublications();
+
+      printTime("Refresh MeetingsView start");
+      JwLifePage.getMeetingsGlobalKey().currentState?.refreshConventionsPubs();
+
+      fetchVerseOfTheDay();
+    });
+
+    _initPage();
+    _refresh(first: true);
   }
 
   Future<void> _loadBibleCluesInfo() async {
@@ -194,7 +179,7 @@ class _HomePageState extends State<HomePage> {
     showBottomMessage(context, 'Mise à jour disponible');
 
     setState(() {
-      _isRefreshing = true;
+      isRefreshing = true;
     });
 
     // Préparer les tâches de mise à jour
@@ -204,10 +189,10 @@ class _HomePageState extends State<HomePage> {
       updateTasks.add(
         Api.updateLibrary(JwLifeSettings().currentLanguage.symbol).then((_) {
           setState(() {
-            teachingToolboxVideos = RealmLibrary.loadTeachingToolboxVideos();
-            latestAudiosVideos = RealmLibrary.loadLatestVideos();
+            _teachingToolboxVideos = RealmLibrary.loadTeachingToolboxVideos();
+            _latestAudiosVideos = RealmLibrary.loadLatestVideos();
           });
-          LibraryPage.refreshLibraryCategories();
+          JwLifePage.getLibraryGlobalKey().currentState?.refreshLibraryCategories();
         }),
       );
     }
@@ -217,15 +202,18 @@ class _HomePageState extends State<HomePage> {
         Api.updateCatalog().then((_) async {
           await PubCatalog.loadPublicationsInHomePage().then((_) async {
             printTime("Refresh Homepage start");
-            setState(() {});
+            setState(() {
+              _recentPublications = PubCatalog.recentPublications;
+              _teachingToolboxPublications = PubCatalog.teachingToolboxPublications;
+              _latestPublications = PubCatalog.latestPublications;
+            });
 
             PubCatalog.updateCatalogCategories();
-            MeetingsPage.refreshMeetingsPubs();
+            JwLifePage.getMeetingsGlobalKey().currentState?.refreshMeetingsPubs();
 
             await PubCatalog.fetchAssemblyPublications();
 
-            printTime("Refresh MeetingsView start");
-            MeetingsPage.refreshConventionsPubs();
+            JwLifePage.getMeetingsGlobalKey().currentState?.refreshConventionsPubs();
 
             fetchVerseOfTheDay();
           });
@@ -239,13 +227,14 @@ class _HomePageState extends State<HomePage> {
     showBottomMessage(context, 'Mise à jour terminée');
 
     setState(() {
-      _isRefreshing = false;
+      isRefreshing = false;
     });
   }
 
-  void _refreshView() {
-    printTime("Refresh view start");
-    setState(() {});
+  void refreshFavorites() {
+    setState(() {
+      _favorites = JwLifeApp.userdata.favorites;
+    });
   }
 
   Future<void> fetchAlertInfo() async {
@@ -274,7 +263,7 @@ class _HomePageState extends State<HomePage> {
         final data = jsonDecode(alertResponse.body);
 
         setState(() {
-          alerts = data['alerts'];
+          _alerts = data['alerts'];
         });
       }
       else {
@@ -315,9 +304,9 @@ class _HomePageState extends State<HomePage> {
         // Si déjà téléchargé, retirer le listener car on n'en aura pas besoin
         verseOfTheDayPub.isDownloadedNotifier.removeListener(listener);
 
-        printTime("fetchVerseOfTheDay webview start");
+        printTime("fetchVerseOfTheDay document start");
         Map<String, dynamic>? document = await PubCatalog.getDatedDocumentForToday(verseOfTheDayPub);
-        printTime("fetchVerseOfTheDay webview end");
+        printTime("fetchVerseOfTheDay document end");
 
         final decodedHtml = decodeBlobContent(
           document!['Content'] as Uint8List,
@@ -327,7 +316,7 @@ class _HomePageState extends State<HomePage> {
         final htmlDocument = html_parser.parse(decodedHtml);
 
         setState(() {
-          verseOfTheDay = htmlDocument.querySelector('.themeScrp')?.text ?? '';
+          _verseOfTheDay = htmlDocument.querySelector('.themeScrp')?.text ?? '';
         });
       }
     }
@@ -385,7 +374,6 @@ class _HomePageState extends State<HomePage> {
     if (articles.isNotEmpty) {
       setState(() {
         _articles = List<Map<String, dynamic>>.from(articles);
-        _currentArticleIndex = _articles.length - 1;
       }); // Mise à jour unique
     }
 
@@ -443,7 +431,6 @@ class _HomePageState extends State<HomePage> {
 
       setState(() {
         _articles.add(newArticle);
-        _currentArticleIndex = _articles.length - 1;
       }); // Mise à jour unique
 
       // Enregistrement en base
@@ -621,11 +608,11 @@ class _HomePageState extends State<HomePage> {
        */
 
   Widget _buildAlertBannerWidget() {
-    if (alerts.isEmpty) return SizedBox.shrink(); // Retourne un widget vide si aucune alerte
+    if (_alerts.isEmpty) return SizedBox.shrink(); // Retourne un widget vide si aucune alerte
 
     return Column(
       children: [
-        AlertBanner(alerts: alerts),
+        AlertBanner(alerts: _alerts),
         SizedBox(height: 8), // Espace entre l'alerte et le texte du jour
       ],
     );
@@ -691,7 +678,8 @@ class _HomePageState extends State<HomePage> {
           onTap: () {
             if (publication.isDownloadedNotifier.value) {
               showPage(context, DailyTextPage(publication: publication));
-            } else {
+            }
+            else {
               publication.download(context);
             }
                     },
@@ -713,7 +701,7 @@ class _HomePageState extends State<HomePage> {
                           children: [
                             Row(
                               mainAxisAlignment: MainAxisAlignment.center,
-                              children: isDownloaded && verseOfTheDay.isNotEmpty ? [
+                              children: isDownloaded && _verseOfTheDay.isNotEmpty ? [
                                 Icon(JwIcons.calendar, size: 24),
                                 SizedBox(width: 8),
                                 Text(
@@ -743,8 +731,8 @@ class _HomePageState extends State<HomePage> {
                               valueListenable: publication.isDownloadedNotifier,
                               builder: (context, isDownloaded, _) {
                                 if (isDownloaded) {
-                                  return verseOfTheDay.isNotEmpty ? Text(
-                                    verseOfTheDay,
+                                  return _verseOfTheDay.isNotEmpty ? Text(
+                                    _verseOfTheDay,
                                     textAlign: TextAlign.center,
                                     style: TextStyle(fontSize: 16, height: 1.2),
                                     maxLines: 4,
@@ -798,197 +786,8 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildArticleWidget() {
-    if (_articles.isEmpty || _articles[_currentArticleIndex]['Title'] == null) {
-      return const SizedBox.shrink();
-    }
-
-    final currentArticle = _articles[_currentArticleIndex];
-    final screenSize = MediaQuery.of(context).size;
-    final isLandscape = screenSize.width > screenSize.height;
-    final imagePath = isLandscape
-        ? currentArticle['ImagePathPnr'] ?? ''
-        : currentArticle['ImagePathLsr'] ?? '';
-
-    return Stack(
-      children: [
-        // Image en arrière-plan
-        _buildImageContainer(imagePath, screenSize.width),
-
-        // Flèches de navigation
-        ..._buildNavigationArrows(),
-
-        // Conteneur avec texte
-        _buildContentContainer(currentArticle, screenSize),
-      ],
-    );
-  }
-
-  Widget _buildImageContainer(String imagePath, double screenWidth) {
-    return Container(
-      width: double.infinity,
-      height: 200, // Hauteur fixe pour éviter le calcul d'aspect ratio
-      decoration: BoxDecoration(
-        image: DecorationImage(
-          image: FileImage(File(imagePath)),
-          fit: BoxFit.cover,
-        ),
-      ),
-    );
-  }
-
-  List<Widget> _buildNavigationArrows() {
-    final arrows = <Widget>[];
-
-    if (_currentArticleIndex < _articles.length - 1) {
-      arrows.add(
-        Positioned(
-          right: 10,
-          top: 60,
-          child: GestureDetector(
-            onTap: () => _navigateArticle(1),
-            child: _buildArrowButton(JwIcons.chevron_right),
-          ),
-        ),
-      );
-    }
-
-    if (_currentArticleIndex > 0) {
-      arrows.add(
-        Positioned(
-          left: 10,
-          top: 60,
-          child: GestureDetector(
-            onTap: () => _navigateArticle(-1),
-            child: _buildArrowButton(JwIcons.chevron_left),
-          ),
-        ),
-      );
-    }
-
-    return arrows;
-  }
-
-  void _navigateArticle(int direction) {
-    setState(() {
-      _currentArticleIndex = (_currentArticleIndex + direction).clamp(0, _articles.length - 1);
-    });
-  }
-
-  Widget _buildContentContainer(Map<String, dynamic> article, Size screenSize) {
-    return Center(
-      child: Container(
-        width: screenSize.width * 0.9, // 90% de la largeur de l'écran
-        constraints: BoxConstraints(
-          maxWidth: 600, // Largeur maximale pour les grands écrans
-          maxHeight: screenSize.height * 0.7, // Maximum 70% de la hauteur
-        ),
-        margin: EdgeInsets.only(top: 140), // Décale le conteneur vers le haut
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Colors.grey[900]!.withOpacity(0.70),
-          borderRadius: BorderRadius.circular(8),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.3),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (article['ContextTitle']?.isNotEmpty == true)
-              _buildText(article['ContextTitle'], 15, FontWeight.bold),
-            _buildText(article['Title'], 26, FontWeight.bold),
-            if (article['Description']?.isNotEmpty == true)
-              _buildDescription(article['Description']),
-            const SizedBox(height: 10),
-            _buildReadMoreButton(article),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildArrowButton(IconData icon) {
-    return Container(
-      height: 50,
-      width: 50,
-      alignment: Alignment.center,
-      color: Colors.grey[900]!.withOpacity(0.7),
-      child: Icon(
-        icon,
-        color: Colors.white,
-        size: 40,
-      ),
-    );
-  }
-
-  Widget _buildText(String? text, double fontSize, FontWeight fontWeight) {
-    if (text?.isEmpty != false) return const SizedBox.shrink();
-
-    return Text(
-      text!,
-      style: TextStyle(
-        fontSize: fontSize,
-        fontWeight: fontWeight,
-        color: Colors.white,
-      ),
-      maxLines: fontSize > 20 ? 2 : 1,
-      overflow: TextOverflow.ellipsis,
-    );
-  }
-
-  Widget _buildDescription(String text) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 4),
-      child: Text(
-        text,
-        style: const TextStyle(
-          fontSize: 15,
-          color: Colors.white,
-        ),
-        maxLines: 3,
-        overflow: TextOverflow.ellipsis,
-      ),
-    );
-  }
-
-  Widget _buildReadMoreButton(Map<String, dynamic> article) {
-    final buttonText = article['ButtonText'];
-    if (buttonText?.isEmpty != false) return const SizedBox.shrink();
-
-    return ElevatedButton(
-      onPressed: () => _navigateToArticle(article),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: Theme.of(context).primaryColor,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.zero,
-        ),
-        textStyle: const TextStyle(fontSize: 22),
-      ),
-      child: Text(
-        buttonText!,
-        style: const TextStyle(color: Colors.white),
-      ),
-    );
-  }
-
-  void _navigateToArticle(Map<String, dynamic> article) {
-    showPage(
-      context,
-      ArticlePage(
-        title: article['Title'] ?? '',
-        link: article['Link'] ?? '',
-      ),
-    );
-  }
-
   Widget _buildLatestVideosWidget() {
-    if (latestAudiosVideos.isEmpty) {
+    if (_latestAudiosVideos.isEmpty) {
       return const SizedBox(height: 15);
     }
 
@@ -999,9 +798,12 @@ class _HomePageState extends State<HomePage> {
           height: 140,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
-            itemCount: latestAudiosVideos.length,
+            itemCount: _latestAudiosVideos.length,
             itemBuilder: (context, mediaIndex) {
-              return _buildMediaItemWidget(context, mediaIndex);
+              return MediaItemItemWidget(
+                  mediaItem: _latestAudiosVideos[mediaIndex],
+                  timeAgoText: true
+              );
             },
           ),
         ),
@@ -1009,707 +811,28 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildMediaItemWidget(BuildContext context, int mediaIndex) {
-    MediaItem mediaItem = latestAudiosVideos[mediaIndex];
-    DateTime firstPublished = DateTime.parse(mediaItem.firstPublished!);
-    DateTime publishedDate = DateTime(firstPublished.year, firstPublished.month, firstPublished.day);
-    DateTime today = DateTime.now();
-    DateTime currentDate = DateTime(today.year, today.month, today.day);
-
-    int days = currentDate.difference(publishedDate).inDays;
-
-    String textToShow = (days == 0)
-        ? "Aujourd'hui"
-        : (days == 1)
-        ? "Hier"
-        : "Il y a $days jours";
-
-    bool isAudio = mediaItem.type == "AUDIO";
-
-    return InkWell(
-      onTap: () {
-        if (isAudio) {
-          showAudioPlayer(context, mediaItem);
-        } else {
-          showFullScreenVideo(context, mediaItem);
-        }
-      },
-      child: Padding(
-        padding: const EdgeInsets.only(right: 2.0),
-        child: SizedBox(
-          width: 165,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Stack(
-                children: [
-                  _buildMediaImage(mediaItem, isAudio),
-                  _buildPopupMenu(mediaItem, isAudio),
-                  _buildMediaInfoOverlay(mediaItem, isAudio),
-                  _buildRightBottom(mediaItem),
-                ],
-              ),
-              const SizedBox(height: 4),
-              // Texte en dessous de l'image
-              _buildMediaTitle(mediaItem, textToShow),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Future<Color> getDominantColorFromFile2(File file) async {
-    try {
-      final bytes = await file.readAsBytes();
-      final codec = await ui.instantiateImageCodec(
-        bytes,
-        targetWidth: 40,
-        targetHeight: 40,
-      );
-      final frame = await codec.getNextFrame();
-      final image = frame.image;
-
-      final byteData = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
-      if (byteData == null) return const Color(0xFFE0E0E0);
-
-      final pixels = byteData.buffer.asUint8List();
-
-      Map<String, int> colorFrequency = {};
-
-      // Échantillonner tous les 4 pixels pour optimiser
-      for (int i = 0; i < pixels.length; i += 16) {
-        if (i + 3 < pixels.length) {
-          final r = pixels[i];
-          final g = pixels[i + 1];
-          final b = pixels[i + 2];
-
-          // Grouper les couleurs similaires (réduire la précision)
-          final groupedR = (r ~/ 32) * 32;
-          final groupedG = (g ~/ 32) * 32;
-          final groupedB = (b ~/ 32) * 32;
-
-          final colorKey = '$groupedR,$groupedG,$groupedB';
-          colorFrequency[colorKey] = (colorFrequency[colorKey] ?? 0) + 1;
-        }
-      }
-
-      final dominantColorKey = colorFrequency.entries
-          .reduce((a, b) => a.value > b.value ? a : b)
-          .key;
-
-      final parts = dominantColorKey.split(',');
-      return Color.fromARGB(
-        255,
-        int.parse(parts[0]),
-        int.parse(parts[1]),
-        int.parse(parts[2]),
-      );
-    } catch (e) {
-      return const Color(0xFFE0E0E0);
-    }
-  }
-
-  // Votre widget modifié avec l'une des solutions
-  Widget _buildMediaImage(MediaItem mediaItem, bool isAudio) {
-    final images = mediaItem.realmImages!;
-    final wideImageUrl = images.wideFullSizeImageUrl ?? images.wideImageUrl;
-    final squareImageUrl = images.squareFullSizeImageUrl ?? images.squareImageUrl;
-
-    final isWide = wideImageUrl != null;
-    final imageUrl = wideImageUrl ?? squareImageUrl;
-
-    if (isWide || imageUrl == null) {
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(2.0),
-        child: SizedBox(
-          width: 165,
-          height: 85,
-          child: ImageCachedWidget(
-            imageUrl: imageUrl,
-            pathNoImage: isAudio ? "pub_type_audio" : "pub_type_video",
-            height: 85,
-            width: 165,
-            fit: BoxFit.cover,
-          ),
-        ),
-      );
-    }
-
-    return FutureBuilder<Tile?>(
-      future: TilesCache().getOrDownloadImage(imageUrl),
-      builder: (context, snapshot) {
-        final tile = snapshot.data;
-
-        if (snapshot.connectionState == ConnectionState.waiting || tile == null) {
-          return ClipRRect(
-            borderRadius: BorderRadius.circular(2.0),
-            child: Container(
-              width: 165,
-              height: 85,
-              alignment: Alignment.center,
-              child: ImageCachedWidget(
-                imageUrl: imageUrl,
-                pathNoImage: isAudio ? "pub_type_audio" : "pub_type_video",
-                height: 85,
-                width: 85,
-                fit: BoxFit.cover,
-              ),
-            ),
-          );
-        }
-
-        return FutureBuilder<Color>(
-          // Choisissez l'une des solutions ci-dessus
-          future: getDominantColorFromFile2(tile.file), // Par exemple, la solution 2
-          builder: (context, colorSnapshot) {
-            final bgColor = colorSnapshot.data ?? const Color(0xFFE0E0E0);
-            return ClipRRect(
-              borderRadius: BorderRadius.circular(2.0),
-              child: Container(
-                width: 165,
-                height: 85,
-                color: bgColor,
-                alignment: Alignment.center,
-                child: Image.file(
-                  tile.file,
-                  width: 85,
-                  height: 85,
-                  fit: BoxFit.cover,
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-
-  Widget _buildPopupMenu(MediaItem mediaItem, bool isAudio) {
-    return Positioned(
-      top: -8,
-      right: -13,
-      child: PopupMenuButton(
-        popUpAnimationStyle: AnimationStyle.lerp(
-          AnimationStyle(curve: Curves.ease),
-          AnimationStyle(curve: Curves.ease),
-          0.5,
-        ),
-        icon: const Icon(
-          Icons.more_vert,
-          color: Colors.white,
-          shadows: [Shadow(color: Colors.black, blurRadius: 5)],
-        ),
-        shadowColor: Colors.black,
-        elevation: 8,
-        itemBuilder: (context) {
-          return isAudio
-              ? [
-            getAudioShareItem(mediaItem),
-            getAudioLanguagesItem(context, mediaItem),
-            getAudioFavoriteItem(mediaItem),
-            getAudioDownloadItem(context, mediaItem),
-            getAudioLyricsItem(context, mediaItem),
-            getCopyLyricsItem(mediaItem),
-          ]
-              : [
-            getVideoShareItem(mediaItem),
-            getVideoLanguagesItem(context, mediaItem),
-            getVideoFavoriteItem(mediaItem),
-            getVideoDownloadItem(context, mediaItem),
-            getShowSubtitlesItem(context, mediaItem),
-            getCopySubtitlesItem(context, mediaItem),
-          ];
-        },
-      ),
-    );
-  }
-
-  Widget _buildMediaInfoOverlay(MediaItem mediaItem, bool isAudio) {
-    return Positioned(
-      top: 4,
-      left: 4,
-      child: Container(
-        color: Colors.black.withOpacity(0.8),
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-        child: Row(
-          children: [
-            Icon(isAudio ? JwIcons.headphones__simple : JwIcons.play, size: 12, color: Colors.white),
-            const SizedBox(width: 4),
-            Text(
-              formatDuration(mediaItem.duration!),
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 10,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMediaTitle(MediaItem mediaItem, String textToShow) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 2.0, right: 4.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            mediaItem.title!,
-            style: const TextStyle(
-              fontSize: 10,
-              height: 1.1,
-            ),
-            maxLines: 3,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.start,
-          ),
-          Text(
-            textToShow,
-            style: TextStyle(
-              fontSize: 10,
-              color: Theme.of(context).brightness == Brightness.dark
-                  ? const Color(0xFFc3c3c3)
-                  : const Color(0xFF585858),
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.start,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRightBottom(MediaItem mediaItem) {
-    Video? video = JwLifeApp.mediaCollections.getVideo(mediaItem);
-
-    return video != null && video.isDownloaded == true ? JwLifeApp.userdata.favorites.contains(mediaItem)
-        ? Positioned(
-        bottom: 4,
-        right: 4,
-        child: const Icon(
-            JwIcons.star,
-            color: Colors.white,
-            shadows: [Shadow(color: Colors.black, blurRadius: 10)]
-        ),
-      ) : const SizedBox() :Positioned(
-      bottom: -7,
-      right: -7,
-      child: IconButton(
-        iconSize: 22,
-        padding: const EdgeInsets.all(0),
-        onPressed: () async {
-          if(await hasInternetConnection()) {
-            String link = 'https://b.jw-cdn.org/apis/mediator/v1/media-items/${mediaItem.languageSymbol}/${mediaItem.languageAgnosticNaturalKey}';
-            final response = await Api.httpGetWithHeaders(link);
-            if (response.statusCode == 200) {
-              final jsonFile = response.body;
-              final jsonData = json.decode(jsonFile);
-
-              printTime(link);
-
-              showVideoDownloadDialog(context, jsonData['media'][0]['files']).then((value) {
-                if (value != null) {
-                  downloadMedia(context, mediaItem, jsonData['media'][0], file: value);
-                }
-              });
-            }
-          }
-        },
-        icon: const Icon(JwIcons.cloud_arrow_down, color: Colors.white, shadows: [Shadow(color: Colors.black, blurRadius: 10)]),
-      ),
-    );
-  }
-
-  int _latestRequestId = 0;
-
-  Future<void> fetchSuggestions(String query) async {
-    final int requestId = ++_latestRequestId;
-
-    const String baseImageUrl = "https://app.jw-cdn.org/catalogs/publications/";
-
-    List<SuggestionItem> suggestions = [];
-
-    if (query.isEmpty || requestId != _latestRequestId) {
-      if(query.isEmpty) {
-        setState(() {
-          this.suggestions = suggestions;
-        });
-      }
-      return;
-    }
-
-    // Rechercher dans les bases de données avec des sujets (topics)
-    final List<Publication> pubsWithTopics = PublicationRepository()
-        .getAllDownloadedPublications()
-        .where((pub) => pub.hasTopics)
-        .toList();
-
-    for (final pub in pubsWithTopics) {
-      final db = await openReadOnlyDatabase(pub.databasePath!);
-      final topics = await db.rawQuery(
-        '''
-      SELECT 
-        Topic.DisplayTopic,
-        Document.MepsDocumentId
-      FROM Topic
-      LEFT JOIN TopicDocument ON Topic.TopicId = TopicDocument.TopicId
-      LEFT JOIN Document ON TopicDocument.DocumentId = Document.DocumentId
-      WHERE Topic.Topic LIKE ?
-      LIMIT 1
-      ''',
-        ['%$query%'],
-      );
-
-      if (topics.isNotEmpty && requestId == _latestRequestId) {
-        final topic = topics.first;
-        SuggestionItem suggestionItem = SuggestionItem(
-          type: 0,
-          query: topic['MepsDocumentId'],
-          caption: topic['DisplayTopic'] as String,
-          icon: pub.imageSqr,
-          subtitle: pub.title,
-          label: 'Ouvrage de référence',
-        );
-
-        suggestions.add(suggestionItem);
-      }
-      else if(requestId != _latestRequestId) {
-        return;
-      }
-
-      if(!pub.isBible()) {
-        await db.close();
-      }
-    }
-
-    // Rechercher dans la base de données principale (catalogue)
-    final catalogFile = await getCatalogFile();
-    final db = await openDatabase(catalogFile.path, readOnly: true);
-
-    final result = await db.rawQuery(
-      '''
-    SELECT
-      p.*,
-      MAX(CASE WHEN ia.NameFragment LIKE '%_sqr-%' OR (ia.Width = 600 AND ia.Height = 600)
-        THEN ia.NameFragment END) AS ImageSqr
-    FROM Publication p
-    LEFT JOIN PublicationAsset pa ON p.Id = pa.PublicationId
-    LEFT JOIN PublicationAssetImageMap paim ON pa.Id = paim.PublicationAssetId
-    LEFT JOIN ImageAsset ia ON paim.ImageAssetId = ia.Id
-    WHERE LOWER(p.Symbol) = ? AND p.MepsLanguageId = ?
-    GROUP BY p.Id
-    LIMIT 1
-    ''',
-      [query.toLowerCase(), JwLifeSettings().currentLanguage.id],
-    );
-
-    if (result.isEmpty || result.first['KeySymbol'] == null) {
-      final fallbackResult = await db.rawQuery(
-        '''
-      SELECT
-        p.*,
-        MAX(CASE WHEN ia.NameFragment LIKE '%_sqr-%' OR (ia.Width = 600 AND ia.Height = 600)
-          THEN ia.NameFragment END) AS ImageSqr
-      FROM Publication p
-      LEFT JOIN PublicationAsset pa ON p.Id = pa.PublicationId
-      LEFT JOIN PublicationAssetImageMap paim ON pa.Id = paim.PublicationAssetId
-      LEFT JOIN ImageAsset ia ON paim.ImageAssetId = ia.Id
-      WHERE p.Title COLLATE NOCASE LIKE ? AND p.MepsLanguageId = ?
-      GROUP BY p.Id
-      LIMIT 10
-      ''',
-        ['%${query.toLowerCase()}%', JwLifeSettings().currentLanguage.id],
-      );
-
-      if (fallbackResult.isNotEmpty && requestId == _latestRequestId) {
-        final e = fallbackResult.first;
-        suggestions.add(SuggestionItem(
-          type: 2,
-          query: e['Symbol'] ?? '',
-          caption: e['Title'] as String,
-          icon: e['ImageSqr'] != null ? "$baseImageUrl${e['ImageSqr']}" : null,
-          subtitle: e['KeySymbol'] as String,
-          label: 'Publication',
-        ),);
-      }
-    }
-    else if (requestId == _latestRequestId) {
-      final e = result.first;
-      suggestions.add(
-        SuggestionItem(
-          type: 2,
-          query: e['Symbol'] ?? '',
-          caption: e['Title'] as String,
-          icon: e['ImageSqr'] != null ? "$baseImageUrl${e['ImageSqr']}" : null,
-          subtitle: e['KeySymbol'] as String,
-          label: 'Publication',
-        ),
-      );
-    }
-    else {
-      return;
-    }
-
-    await db.close();
-
-    // Rechercher dans les médias Realm
-    final medias = RealmLibrary.realm.all<MediaItem>().query(
-      r"title CONTAINS[c] $0 AND languageSymbol == $1",
-      [query, JwLifeSettings().currentLanguage.symbol],
-    );
-
-    if (medias.isNotEmpty && requestId == _latestRequestId) {
-      for (final media in medias.take(10)) {
-        final category = RealmLibrary.realm
-            .all<Category>()
-            .query(r"key == $0", [media.primaryCategory ?? ''])
-            .firstOrNull;
-
-        suggestions.add(
-          SuggestionItem(
-            type: 3,
-            query: media,
-            caption: media.title.toString(),
-            icon: media.realmImages?.squareImageUrl ?? '',
-            subtitle: category?.localizedName ?? '',
-            label: media.type == 'AUDIO' ? 'Audio' : 'Vidéo',
-          ),
-        );
-      }
-    }
-    else if(requestId != _latestRequestId) {
-      return;
-    }
-
-    setState(() {
-      this.suggestions = suggestions;
-    });
-  }
-
-  /// Méthode réutilisable pour construire chaque élément de suggestion
-  SearchFieldListItem<SuggestionItem> _buildSuggestionItem(SuggestionItem item) {
-    return SearchFieldListItem<SuggestionItem>(
-      item.caption,
-      item: item,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            if (item.icon?.isNotEmpty ?? false)
-              Row(
-                children: [
-                  ImageCachedWidget(
-                    imageUrl: item.icon!,
-                    pathNoImage: 'pub_type_placeholder',
-                    width: 40,
-                    height: 40,
-                  ),
-                  const SizedBox(width: 10),
-                ],
-              ),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    item.caption,
-                    style: const TextStyle(fontSize: 16),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  if (item.subtitle?.isNotEmpty ?? false)
-                    Text(
-                      item.subtitle!,
-                      style: const TextStyle(fontSize: 12, color: Colors.grey),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                ],
-              ),
-            ),
-            if (item.type == 3) const SizedBox(width: 5),
-            if (item.type == 3)
-              Icon(item.label == 'Audio' ? JwIcons.music : JwIcons.video),
-          ],
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    // Styles partagés
-    final textStyleTitle = const TextStyle(fontSize: 20, fontWeight: FontWeight.bold);
-    final textStyleSubtitle = TextStyle(
-      fontSize: 14,
-      color: Theme.of(context).brightness == Brightness.dark
-          ? const Color(0xFFc3c3c3)
-          : const Color(0xFF626262),
-
-    );
+    print('Build HomePage');
 
     return Scaffold(
         resizeToAvoidBottomInset: false,
-        appBar: _isSearching
-            ? AppBar(
-            leading: IconButton(
-              icon: Icon(Icons.arrow_back),
-              onPressed: () {
-                setState(() {
-                  _isSearching = false;
-                });
-              },
-            ),
-          title: SearchField<SuggestionItem>(
-            controller: _searchController,
-            animationDuration: Duration(milliseconds: 300),
-            itemHeight: 53,
-            autofocus: true,
-            offset: const Offset(-65, 55),
-            maxSuggestionsInViewPort: 9,
-            maxSuggestionBoxHeight: 200,
-            suggestionState: Suggestion.expand,
-            searchInputDecoration: SearchInputDecoration(
-              hintText: localization(context).search_hint,
-              searchStyle: TextStyle(
-                color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black,
-              ),
-              fillColor: Theme.of(context).brightness == Brightness.dark
-                  ? const Color(0xFF1f1f1f)
-                  : const Color(0xFFf1f1f1),
-              filled: true,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              cursorColor: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black,
-              border: const OutlineInputBorder(
-                borderRadius: BorderRadius.zero,
-                borderSide: BorderSide.none,
-              ),
-              suffixIcon: GestureDetector(
-                child: Container(
-                  color: Color(0xFF345996),
-                    margin: const EdgeInsets.only(left: 2),
-                    child: Icon(JwIcons.magnifying_glass, color: Colors.white)
-                ),
-                 onTap: () {
-                   setState(() => _isSearching = false);
-                   showPage(context, SearchPage(query: _searchController.text));
-                },
-              )
-            ),
-            suggestionsDecoration: SuggestionDecoration(
-              color: Theme.of(context).brightness == Brightness.dark
-                  ? const Color(0xFF1f1f1f)
-                  : Colors.white,
-              borderRadius: BorderRadius.circular(8),
-              width: MediaQuery.of(context).size.width-15,
-            ),
-            suggestions: suggestions.map(_buildSuggestionItem).toList(),
-            onSearchTextChanged: (text) async {
-              fetchSuggestions(text);
-              return [];
-            },
-            onSuggestionTap: (item) async {
-              final selected = item.item!;
-              switch (selected.type) {
-                case 0:
-                  showDocumentView(context, selected.query, JwLifeSettings().currentLanguage.id);
-                  break;
-                case 1:
-                  showPage(context, SearchBiblePage(query: selected.query));
-                  break;
-                case 2:
-                  final publication = await PubCatalog.searchPub(selected.query, 0, JwLifeSettings().currentLanguage.id);
-                  if (publication != null) {
-                    publication.showMenu(context);
-                  } else {
-                    showErrorDialog(context, "Aucune publication ${selected.query} n'a pu être trouvée.");
-                  }
-                  break;
-                case 3:
-                  selected.label == 'Audio'
-                      ? showAudioPlayer(context, selected.query)
-                      : showFullScreenVideo(context, selected.query);
-                  break;
-                default:
-                  showPage(context, SearchPage(query: selected.query));
-              }
-
-              setState(() => _isSearching = false);
-            },
-            onSubmit: (text) {
-              setState(() => _isSearching = false);
-              showPage(context, SearchPage(query: text));
-            },
-            onTapOutside: (_) => setState(() => _isSearching = false),
-          )) : AppBar(
-          title: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(localization(context).navigation_home, style: textStyleTitle),
-              Text(JwLifeSettings().currentLanguage.vernacular, style:  textStyleSubtitle),
-            ],
-          ),
-          actions: [
-            IconButton(
-              disabledColor: Colors.grey,
-              icon: Icon(JwIcons.magnifying_glass),
-              onPressed: () async {
-                setState(() {
-                  _isSearching = true;
-                });
-              },
-            ),
-            IconButton(
-              disabledColor: Colors.grey,
-              icon: Icon(JwIcons.arrow_circular_left_clock),
-              onPressed: () {
-                History.showHistoryDialog(context);
-              },
-            ),
-            IconButton(
-              icon: const Icon(JwIcons.language),
-              onPressed: () async {
-                LanguageDialog languageDialog = LanguageDialog();
-                showDialog(
-                  context: context,
-                  builder: (context) => languageDialog,
-                ).then((value) {
-                  if(value != null) {
-                    setState(() async {
-                      if (value['Symbol'] != JwLifeSettings().currentLanguage.symbol) {
-                        setLibraryLanguage(value);
-                        _refreshChangeLanguage();
-                      }
-                    });
-                  }
-                });
-              },
-            ),
-            IconButton(
-              icon: Icon(JwIcons.gear),
-              onPressed: () {
-                showPage(context, SettingsPage(
-                    toggleTheme: widget.toggleTheme,
-                    changeLanguage: widget.changeLocale
-                )).then((value) {
-                  setState(() {});
-                });
-              },
-            ),
-          ],
+        appBar: HomeAppBar(
+          onOpenSettings: () {
+            showPage(context, SettingsPage(
+              toggleTheme: widget.toggleTheme,
+              changeLanguage: widget.changeLocale,
+            )).then((_) => setState(() {}));
+          },
         ),
         body: RefreshIndicator(
           color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black,
           backgroundColor: Theme.of(context).brightness == Brightness.dark ? Colors.black : Colors.white,
           onRefresh: () async {
-            if (await hasInternetConnection() && !_isRefreshing) {
+            if (await hasInternetConnection() && !isRefreshing) {
               await _refresh();
             }
-            else if (!_isRefreshing) {
+            else if (!isRefreshing) {
               showNoConnectionDialog(context);
             }
           },
@@ -1717,7 +840,7 @@ class _HomePageState extends State<HomePage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _isRefreshing ? LinearProgressIndicator(
+                isRefreshing ? LinearProgressIndicator(
                     valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).primaryColor),
                     backgroundColor: Colors.grey[300]) : SizedBox(height: 8),
 
@@ -1728,136 +851,47 @@ class _HomePageState extends State<HomePage> {
                 _buildDailyTextWidget(),
 
                 /* Afficher l'article en page d'accueil */
-                _buildArticleWidget(),
+                ArticleWidget(
+                  articles: _articles,
+                  onReadMore: (article) {
+                    showPage(
+                      context,
+                      ArticlePage(
+                        title: article['Title'] ?? '',
+                        link: article['Link'] ?? '',
+                      ),
+                    );
+                  },
+                ),
 
                 Padding(
                     padding: EdgeInsets.symmetric(horizontal: 10),
                     child: Column(
                         children: [
                           const SizedBox(height: 20),
-                          if (JwLifeApp.userdata.favorites.isNotEmpty)
-                            Text(
-                              localization(context).navigation_favorites,
-                              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                            ),
-                          if (JwLifeApp.userdata.favorites.isNotEmpty)
-                            const SizedBox(height: 4),
-                          if (JwLifeApp.userdata.favorites.isNotEmpty)
-                            SizedBox(
-                              height: 120,
-                              child: ReorderableListView(
-                                scrollDirection: Axis.horizontal,
-                                children: [
-                                  for (int index = 0; index < JwLifeApp.userdata.favorites.length; index++)
-                                    Padding(
-                                      key: ValueKey(JwLifeApp.userdata.favorites[index]), // Clé nécessaire pour le reorder
-                                      padding: const EdgeInsets.only(right: 2.0),
-                                      child: JwLifeApp.userdata.favorites[index] is Publication ? HomeSquarePublicationItem(pub: JwLifeApp.userdata.favorites[index])
-                                          : JwLifeApp.userdata.favorites[index] is MediaItem ? HomeSquareMediaItemItem(mediaItem: JwLifeApp.userdata.favorites[index])
-                                          : InkWell(
-                                        child: SizedBox(
-                                          width: 80,
-                                          child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              Stack(
-                                                children: [
-                                                  ClipRRect(
-                                                    borderRadius: BorderRadius.circular(2.0),
-                                                    child: Container(
-                                                      color: Color(0xFF757575),
-                                                      height: 80,
-                                                      width: 80,
-                                                      child: Center(
-                                                        child: Icon(
-                                                          JwIcons.publication_video_music,
-                                                          size: 40,
-                                                          color: Colors.white,
-                                                        ),
-                                                      ),
-                                                    ),
-                                                  ),
-                                                  // Menu contextuel
-                                                  Positioned(
-                                                    top: -8,
-                                                    right: -10,
-                                                    child: PopupMenuButton(
-                                                      icon: const Icon(
-                                                        Icons.more_vert,
-                                                        color: Colors.white,
-                                                        shadows: [Shadow(color: Colors.black, blurRadius: 5)],
-                                                      ),
-                                                      shadowColor: Colors.black,
-                                                      elevation: 8,
-                                                      itemBuilder: (context) => [
-                                                        PopupMenuItem(
-                                                          child: Row(
-                                                            children: [
-                                                              Icon(JwIcons.star__fill),
-                                                              SizedBox(width: 8),
-                                                              Text('Supprimer des favoris'),
-                                                            ],
-                                                          ),
-                                                          onTap: () async {
-                                                            setState(() {
-                                                              JwLifeApp.userdata.removeAFavorite(JwLifeApp.userdata.favorites[index]);
-                                                            });
-                                                          },
-                                                        )
-                                                      ],
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                              const SizedBox(height: 4),
-                                              SizedBox(
-                                                width: 80,
-                                                child: Padding(
-                                                  padding: const EdgeInsets.only(left: 2.0, right: 4.0),
-                                                  child: Text(
-                                                     '${JwLifeApp.userdata.favorites[index]['KeySymbol']} · ${JwLifeApp.userdata.favorites[index]['LanguageVernacularName']}',
-                                                    style: const TextStyle(
-                                                      fontSize: 9,
-                                                      height: 1.2,
-                                                      fontWeight: FontWeight.w100,
-                                                      fontFamily: 'Roboto',
-                                                    ),
-                                                    maxLines: 3,
-                                                    overflow: TextOverflow.ellipsis,
-                                                    textAlign: TextAlign.start,
-                                                    softWrap: true,
-                                                  ),
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      )
-                                    ),
-                                ],
-                                onReorder: (oldIndex, newIndex) {
-                                  if (newIndex > oldIndex) newIndex -= 1;
-                                  JwLifeApp.userdata.reorderFavorites(oldIndex, newIndex);
-                                  setState(() {});
-                                },
-                              )
-                            ),
 
-                          if (PubCatalog.recentPublications.isNotEmpty)
+                          if (_favorites.isNotEmpty)
+                            FavoritesSection(favorites: _favorites, onReorder: (oldIndex, newIndex) {
+                              if (newIndex > oldIndex) newIndex -= 1;
+                              JwLifeApp.userdata.reorderFavorites(oldIndex, newIndex);
+                              refreshFavorites();
+                            }),
+
+                          if (_recentPublications.isNotEmpty)
                             Text(
                               'Publications récentes',
                               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                             ),
-                          if (PubCatalog.recentPublications.isNotEmpty)
+                          if (_recentPublications.isNotEmpty)
                             const SizedBox(height: 4),
-                          if (PubCatalog.recentPublications.isNotEmpty)
+                          if (_recentPublications.isNotEmpty)
                             SizedBox(
                               height: 120, // Hauteur à ajuster selon votre besoin
                               child: ListView.builder(
                                 scrollDirection: Axis.horizontal,
-                                itemCount: PubCatalog.recentPublications.length,
+                                itemCount: _recentPublications.length,
                                 itemBuilder: (context, index) {
-                                  Publication publication = PubCatalog.recentPublications[index];
+                                  Publication publication = _recentPublications[index];
                                   return Padding(
                                     padding: const EdgeInsets.only(right: 2.0), // Espacement entre les items
                                     child: HomeSquarePublicationItem(pub: publication),
@@ -1877,12 +911,12 @@ class _HomePageState extends State<HomePage> {
                             height: 120,
                             child: ListView.builder(
                               scrollDirection: Axis.horizontal,
-                              itemCount: teachingToolboxVideos.length + PubCatalog.teachingToolBoxPublications.length,
+                              itemCount: _teachingToolboxVideos.length + _teachingToolboxPublications.length,
                               itemBuilder: (context, index) {
                                 // Déterminer si l'élément est une vidéo ou une publication
-                                if (index < teachingToolboxVideos.length) {
+                                if (index < _teachingToolboxVideos.length) {
                                   // Partie des vidéos
-                                  MediaItem mediaItem = teachingToolboxVideos[index];
+                                  MediaItem mediaItem = _teachingToolboxVideos[index];
 
                                   return Padding(
                                     padding: const EdgeInsets.only(right: 2.0), // Espacement entre les items
@@ -1890,8 +924,8 @@ class _HomePageState extends State<HomePage> {
                                   );
                                 }
                                 else {
-                                  int pubIndex = index - teachingToolboxVideos.length;
-                                  Publication? pub = PubCatalog.teachingToolBoxPublications[pubIndex];
+                                  int pubIndex = index - _teachingToolboxVideos.length;
+                                  Publication? pub = _teachingToolboxPublications[pubIndex];
 
                                   // Vérifier si la valeur est présente dans availableTeachingToolBoxInt
                                   if (pub != null) {
@@ -1920,13 +954,13 @@ class _HomePageState extends State<HomePage> {
                           const SizedBox(height: 4),
                           SizedBox(
                             height: 80, // Adjust height as needed
-                            child: PubCatalog.lastPublications.isEmpty ? getLoadingWidget(Theme.of(context).primaryColor) : ListView.builder(
+                            child: _latestPublications.isEmpty ? getLoadingWidget(Theme.of(context).primaryColor) : ListView.builder(
                               scrollDirection: Axis.horizontal, // Définit le scroll en horizontal
-                              itemCount: PubCatalog.lastPublications.length,
+                              itemCount: _latestPublications.length,
                               itemBuilder: (context, index) {
                                 return Padding(
                                   padding: const EdgeInsets.only(right: 2.0), // Espacement entre les items
-                                  child: HomeRectanglePublicationItem(pub: PubCatalog.lastPublications[index])
+                                  child: HomeRectanglePublicationItem(pub: _latestPublications[index])
                                 );
                               },
                             ),
@@ -1958,7 +992,7 @@ class _HomePageState extends State<HomePage> {
                             ),
                           ),
 
-                          const SizedBox(height: 20),
+                          const SizedBox(height: 25),
                         ]
                     )
                 ),

@@ -260,9 +260,7 @@ class PubCollections {
     }
 
     // Récupérer l'image de type 'lsr' avec les dimensions spécifiques
-    var imageLsr = imagesDb
-        .where((element) => element['Type'] == 'lsr' && element['Width'] == 1200 && element['Height'] == 600)
-        .toList();
+    var imageLsr = imagesDb.where((element) => element['Type'] == 'lsr' && element['Width'] == 1200 && element['Height'] == 600).toList();
 
     // Si une image est trouvée, on récupère son chemin
     if (imageLsr.isNotEmpty) {

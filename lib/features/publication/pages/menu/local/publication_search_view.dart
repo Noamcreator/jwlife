@@ -5,7 +5,7 @@ import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/data/models/audio.dart';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/databases/history.dart';
-import 'package:jwlife/widgets/searchfield_widget.dart';
+import 'package:jwlife/widgets/searchfield/searchfield_widget.dart';
 
 import '../../../../../core/utils/utils.dart';
 import '../../../models/local/publication_search_model.dart';
