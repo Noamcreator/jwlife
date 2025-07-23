@@ -12,6 +12,7 @@ import 'package:jwlife/features/bible/views/bible_page.dart';
 import 'package:jwlife/widgets/dialog/utils_dialog.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../app/jwlife_page.dart';
 import '../../app/services/settings_service.dart';
 import '../../features/meetings/pages/meeting_page.dart';
 import '../../features/publication/pages/document/local/documents_manager.dart';
@@ -116,7 +117,7 @@ class Publication {
     Publication? existing = PublicationRepository().getByCompositeKey(symbol, issueTagNumber, mepsLanguageId);
 
     if (existing != null) { // Si la publication est trouvée
-      if(!existing.isDownloadedNotifier.value) { // Si elle n'est pas encore téléchargée, on la met à jour avec les nouvelles données de la base de données téléchargée
+      if(!existing.isDownloadedNotifier.value) {
         existing.hash = json['Hash'] ?? existing.hash;
         existing.timeStamp = json['Timestamp'] ?? existing.timeStamp;
         existing.path = json['Path'] ?? existing.path;
@@ -289,7 +290,7 @@ class Publication {
         },
       );
 
-      Publication? pubDownloaded = await _downloadOperation!.valueOrCancellation();
+      Publication? pubDownloaded = await _updateOperation!.valueOrCancellation();
 
       if (pubDownloaded != null) {
         isDownloadedNotifier.value = true;
@@ -301,7 +302,7 @@ class Publication {
         progressNotifier.value = 1.0;
 
         // ✅ Utilise messenger capturé
-        showBottomMessageWithActionState(messenger, theme.brightness == Brightness.dark, '« ${getTitle()} » mis à jour', SnackBarAction(
+        showBottomMessageWithActionState(messenger, theme.brightness == Brightness.dark, '« ${getTitle()} » a été mis à jour', SnackBarAction(
           label: 'Ouvrir',
           textColor: theme.primaryColor,
           onPressed: () {
@@ -349,7 +350,7 @@ class Publication {
     }
 
     if(symbol == 'S-34') {
-      MeetingsPage.refreshMeetingsPubs();
+      JwLifePage.getMeetingsGlobalKey().currentState?.refreshMeetingsPubs();
     }
   }
 
@@ -403,6 +404,10 @@ class Publication {
     else {
       return shortTitle;
     }
+  }
+
+  String getSymbolAndIssue() {
+    return issueTagNumber != 0 ? '$symbol • $issueTagNumber' : symbol;
   }
 
   String getRelativeDateText() {

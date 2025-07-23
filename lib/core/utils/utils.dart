@@ -1,6 +1,7 @@
 
 import 'dart:io';
 import 'dart:math';
+import 'dart:ui' as ui;
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:crypto/crypto.dart';
@@ -102,10 +103,59 @@ String formatBytes(int bytes, [int decimals = 2]) {
   if (bytes <= 0) return "0 B";
   const suffixes = ["B", "KB", "MB", "GB", "TB"];
   int i = (log(bytes) / log(1024)).floor();
-  return ((bytes / pow(1024, i)).toStringAsFixed(decimals)) + ' ' + suffixes[i];
+  return '${(bytes / pow(1024, i)).toStringAsFixed(decimals)} ${suffixes[i]}';
 }
 
+Future<Color> getDominantColorFromFile(File file) async {
+  try {
+    final bytes = await file.readAsBytes();
+    final codec = await ui.instantiateImageCodec(
+      bytes,
+      targetWidth: 40,
+      targetHeight: 40,
+    );
+    final frame = await codec.getNextFrame();
+    final image = frame.image;
 
+    final byteData = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+    if (byteData == null) return const Color(0xFFE0E0E0);
+
+    final pixels = byteData.buffer.asUint8List();
+
+    Map<String, int> colorFrequency = {};
+
+    // Échantillonner tous les 4 pixels pour optimiser
+    for (int i = 0; i < pixels.length; i += 16) {
+      if (i + 3 < pixels.length) {
+        final r = pixels[i];
+        final g = pixels[i + 1];
+        final b = pixels[i + 2];
+
+        // Grouper les couleurs similaires (réduire la précision)
+        final groupedR = (r ~/ 32) * 32;
+        final groupedG = (g ~/ 32) * 32;
+        final groupedB = (b ~/ 32) * 32;
+
+        final colorKey = '$groupedR,$groupedG,$groupedB';
+        colorFrequency[colorKey] = (colorFrequency[colorKey] ?? 0) + 1;
+      }
+    }
+
+    final dominantColorKey = colorFrequency.entries
+        .reduce((a, b) => a.value > b.value ? a : b)
+        .key;
+
+    final parts = dominantColorKey.split(',');
+    return Color.fromARGB(
+      255,
+      int.parse(parts[0]),
+      int.parse(parts[1]),
+      int.parse(parts[2]),
+    );
+  } catch (e) {
+    return const Color(0xFFE0E0E0);
+  }
+}
 
 String convertHtmlToText(String html) {
   return html == '' ? '' : html.replaceAll(RegExp(r"<[^>]*>"), '').trim();

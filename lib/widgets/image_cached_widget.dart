@@ -39,6 +39,7 @@ class _ImageCachedWidgetState extends State<ImageCachedWidget> {
   @override
   void didUpdateWidget(covariant ImageCachedWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
+
     if (widget.imageUrl != oldWidget.imageUrl) {
       if (widget.imageUrl == null || widget.imageUrl!.isEmpty) {
         _imageFuture = Future.value(null);

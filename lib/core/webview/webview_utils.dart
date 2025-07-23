@@ -447,7 +447,7 @@ Future<void> injectHtmlDialog(BuildContext context, InAppWebViewController contr
             if (isFullscreen) {
               // Sortie du plein écran
               if (window.flutter_inappwebview) {
-                window.flutter_inappdocument.callHandler('showFullscreenDialog', {'isFullscreen': false, 'closeDialog': false});
+                window.flutter_inappwebview.callHandler('showFullscreenDialog', {'isFullscreen': false, 'closeDialog': false});
               } 
               isFullscreen = false;
               dialog.style.position = 'fixed';
@@ -463,7 +463,7 @@ Future<void> injectHtmlDialog(BuildContext context, InAppWebViewController contr
             } else {
               // Passage en plein écran
               if (window.flutter_inappwebview) {
-                window.flutter_inappdocument.callHandler('showFullscreenDialog', {'isFullscreen': true, 'closeDialog': false});
+                window.flutter_inappwebview.callHandler('showFullscreenDialog', {'isFullscreen': true, 'closeDialog': false});
               } 
               isFullscreen = true;
               dialog.style.position = 'fixed';
@@ -493,7 +493,7 @@ Future<void> injectHtmlDialog(BuildContext context, InAppWebViewController contr
             event.preventDefault();
             dialog.remove();
             if (window.flutter_inappwebview) {
-              window.flutter_inappdocument.callHandler('showFullscreenDialog', {'isFullscreen': false, 'closeDialog': true});
+              window.flutter_inappwebview.callHandler('showFullscreenDialog', {'isFullscreen': false, 'closeDialog': true});
             }
           };
           
@@ -567,7 +567,7 @@ Future<void> injectHtmlDialog(BuildContext context, InAppWebViewController contr
           event.stopPropagation();
           
           if (window.flutter_inappwebview) {
-            window.flutter_inappdocument.callHandler('playVerseAudio', {'verse': item, 'audio': item.audio});
+            window.flutter_inappwebview.callHandler('playVerseAudio', {'verse': item, 'audio': item.audio});
           } 
         });
       
@@ -577,7 +577,7 @@ Future<void> injectHtmlDialog(BuildContext context, InAppWebViewController contr
         // Ajout d'un écouteur d'événements pour ouvrir une fenêtre Flutter
         infoBar.addEventListener('click', function() {
           if (window.flutter_inappwebview) {
-            window.flutter_inappdocument.callHandler('openMepsDocument', item);
+            window.flutter_inappwebview.callHandler('openMepsDocument', item);
           } else {
             console.log('Flutter handler non disponible');
           }

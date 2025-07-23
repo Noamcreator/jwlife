@@ -17,8 +17,6 @@ class GZipOptimizer {
   // Décompression optimisée pour catalog.db (55MB → 204MB)
   static Future<void> decompressCatalogDb(List<int> gzipBytes, File file) async {
     final totalStopwatch = Stopwatch()..start();
-    printTime('Début optimisation catalog.db - ${(gzipBytes.length / 1024 / 1024).toStringAsFixed(1)}MB');
-
     try {
       // Méthode la plus rapide : décompression main thread + écriture optimisée
       await _fastMainThreadDecompression(gzipBytes, file);
@@ -38,12 +36,9 @@ class GZipOptimizer {
     final stopwatch = Stopwatch()..start();
     final sizeInMB = (gzipBytes.length / 1024 / 1024);
 
-    printTime('Début décompression JSON - ${sizeInMB.toStringAsFixed(1)}MB');
-
     // Vérifier le cache d'abord
     final key = _generateCacheKey(gzipBytes);
     if (_jsonCache.containsKey(key)) {
-      printTime('JSON trouvé dans le cache (${stopwatch.elapsedMilliseconds}ms)');
       return _jsonCache[key]!;
     }
 

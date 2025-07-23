@@ -26,6 +26,7 @@ import '../../core/utils/utils_video.dart';
 import '../../features/publication/pages/document/data/models/document.dart';
 import '../models/userdata/congregation.dart';
 import '../models/userdata/location.dart';
+import '../models/userdata/note.dart';
 import '../realm/catalog.dart';
 
 class Userdata {
@@ -33,7 +34,6 @@ class Userdata {
   late Database _database;
   List<dynamic> favorites = [];
   List<Tag> tags = [];
-  List<Map<String, dynamic>> notes = [];
 
   Future<void> init() async {
     File userdataFile = await getUserdataFile();
@@ -41,7 +41,6 @@ class Userdata {
       _database = await openDatabase(userdataFile.path, version: schemaVersion);
       await getFavorites();
       getTags();
-      //await getNotes();
     }
   }
 
@@ -50,12 +49,6 @@ class Userdata {
   Future<void> reload_db() async {
     await _database.close();
     await init();
-  }
-
-  void clearData() {
-    favorites.clear();
-    tags.clear();
-    notes.clear();
   }
 
   Future<void> getFavorites() async {
@@ -212,7 +205,7 @@ class Userdata {
 
   Future<void> addInFavorite(dynamic object) async {
     try {
-      int locationId;
+      int? locationId;
       if (object is Publication) {
         locationId = await insertLocation(null, null, null, null, object.issueTagNumber, object.symbol, object.mepsLanguage.id, type: 1);
       }
@@ -535,6 +528,13 @@ class Userdata {
         whereArgs: [tag.id, tag.type],
       );
 
+      // On enlève aussi les associations dans les TagMap
+      await _database.delete(
+        'TagMap',
+        where: 'TagId = ?',
+        whereArgs: [tag.id],
+      );
+
       // Mise à jour de la liste locale `tags`
       tags.removeWhere((t) => t.id == tag.id);
 
@@ -546,12 +546,14 @@ class Userdata {
     }
   }
 
-  Future<int> insertLocationWithDocument(Publication publication, Document document) async {
-    int locationId = await insertLocation(document.bookNumber, document.chapterNumber, document.mepsDocumentId, null, publication.issueTagNumber, publication.keySymbol, publication.mepsLanguage.id);
+  Future<int?> insertLocationWithDocument(Publication publication, Document document) async {
+    int? locationId = await insertLocation(document.bookNumber, document.chapterNumber, document.mepsDocumentId, null, publication.issueTagNumber, publication.keySymbol, publication.mepsLanguage.id);
     return locationId;
   }
 
-  Future<int> insertLocation(int? bookNumber, int? chapterNumber, int? mepsDocumentId, int? track, int? issueTagNumber, String? keySymbol, int? mepsLanguageId, {int type = 0,}) async {
+  Future<int?> insertLocation(int? bookNumber, int? chapterNumber, int? mepsDocumentId, int? track, int? issueTagNumber, String? keySymbol, int? mepsLanguageId, {int type = 0}) async {
+    if (bookNumber == null && chapterNumber == null && mepsDocumentId == null && track == null && issueTagNumber == null && keySymbol == null && mepsLanguageId == null) return null;
+
     try {
       // Construction dynamique du whereClause sans champs null
       Map<String, dynamic> whereClause = {};
@@ -624,7 +626,7 @@ class Userdata {
   Future<void> updateOrInsertInputField(Document document, String tag, String value) async {
     try {
       // Étape 1 : Obtenir ou insérer le LocationId via insertLocation
-      final int locationId = await insertLocationWithDocument(document.publication, document);
+      final int? locationId = await insertLocationWithDocument(document.publication, document);
 
       // Étape 2 : Insérer ou mettre à jour l'entrée InputField
       await _database.rawInsert('''
@@ -786,56 +788,43 @@ class Userdata {
     }
   }
 
-  Future<void> getNotes() async {
-    File catalogFile = await getCatalogFile();
-
-    if (await catalogFile.exists()) {
-      await _database.execute("ATTACH DATABASE '${catalogFile.path}' AS catalog");
-
-      List<Map<String, dynamic>> result = await _database.rawQuery('''
-        SELECT DISTINCT
-             Note.NoteId,
-             Note.Title,
-             Note.Content,
-             COALESCE(UserMark.ColorIndex, 0) AS ColorIndex,
-             Note.Guid,
-             Note.Created,
-             Note.LastModified,
-             COALESCE(catalog.Publication.ShortTitle, '') AS ShortTitle,
-             COALESCE(Location.DocumentId, '') AS DocumentId,
-             COALESCE(Location.IssueTagNumber, 0) AS IssueTagNumber,
-             COALESCE(Location.KeySymbol, '') AS KeySymbol,
-             COALESCE(Location.MepsLanguage, 0) AS MepsLanguage,
-             (SELECT catalog.ImageAsset.NameFragment
-               FROM catalog.ImageAsset
-               JOIN catalog.PublicationAssetImageMap ON ImageAsset.Id = catalog.PublicationAssetImageMap.ImageAssetId
-               JOIN catalog.Publication ON catalog.Publication.KeySymbol = Location.KeySymbol 
-                  AND catalog.Publication.MepsLanguageId = Location.MepsLanguage 
-                  AND catalog.Publication.IssueTagNumber = Location.IssueTagNumber
-               JOIN catalog.PublicationAsset ON catalog.PublicationAsset.PublicationId = catalog.Publication.Id
-               WHERE catalog.PublicationAssetImageMap.PublicationAssetId = catalog.PublicationAsset.Id 
-                 AND (catalog.ImageAsset.NameFragment LIKE '%_sqr-%' OR (catalog.ImageAsset.Width = 600 AND catalog.ImageAsset.Height = 600))
-               ORDER BY catalog.ImageAsset.Width DESC
-               LIMIT 1) AS ImageSqr,
-             COALESCE(catalog.Publication.PublicationTypeId, 0) AS PublicationTypeId,
-             GROUP_CONCAT(Tag.TagId) AS CategoriesId,
-             GROUP_CONCAT(Tag.Name) AS CategoriesName
-      FROM Note
-      LEFT JOIN TagMap ON Note.NoteId = TagMap.NoteId
-      LEFT JOIN Tag ON TagMap.TagId = Tag.TagId
-      LEFT JOIN UserMark ON Note.UserMarkId = UserMark.UserMarkId
-      LEFT JOIN Location ON Note.LocationId = Location.LocationId
-      LEFT JOIN catalog.Publication ON catalog.Publication.KeySymbol = Location.KeySymbol 
-          AND catalog.Publication.MepsLanguageId = Location.MepsLanguage 
-          AND catalog.Publication.IssueTagNumber = Location.IssueTagNumber
-      GROUP BY Note.NoteId
-      ORDER BY Note.LastModified DESC;
-''');
-
-      await _database.execute("DETACH DATABASE catalog");
-
-      notes = result;
+  Future<List<Note>> getNotes({int? limit}) async {
+    String limitClause = ';';
+    if (limit != null) {
+      limitClause = ' LIMIT $limit;';
     }
+    List<Map<String, dynamic>> result = await _database.rawQuery('''
+        SELECT 
+          N.NoteId,
+          N.Guid,
+          N.Title,
+          N.Content,
+          N.BlockType,
+          N.BlockIdentifier,
+          N.LastModified,
+          N.Created,
+          UM.UserMarkId,
+          UM.ColorIndex,
+          UM.UserMarkGuid,
+          GROUP_CONCAT(DISTINCT T.TagId) AS TagsId,
+          L.LocationId,
+          L.BookNumber,
+          L.ChapterNumber,
+          L.DocumentId,
+          L.IssueTagNumber,
+          L.KeySymbol,
+          L.MepsLanguage
+        FROM Note N
+        LEFT JOIN Location L ON L.LocationId = N.LocationId
+        LEFT JOIN TagMap TM ON N.NoteId = TM.NoteId
+        LEFT JOIN Tag T ON TM.TagId = T.TagId
+        LEFT JOIN UserMark UM ON N.UserMarkId = UM.UserMarkId
+        GROUP BY N.NoteId
+        ORDER BY N.LastModified DESC
+        $limitClause
+    ''');
+
+    return result.map((note) => Note.fromMap(note)).toList();
   }
 
   Future<List<Map<String, dynamic>>> getNotesFromDocId(int docId, int mepsLang) async {
@@ -946,9 +935,12 @@ class Userdata {
   void removeNoteWithGuid(String noteGuid) async {
     try {
       await _database.rawDelete('''
+        DELETE FROM TagMap WHERE NoteId IN (SELECT NoteId FROM Note WHERE Guid = ?)
+      ''', [noteGuid]);
+
+      await _database.rawDelete('''
       DELETE FROM Note WHERE Guid = ?
     ''', [noteGuid]);
-
     }
     catch (e) {
       printTime('Error: $e');
@@ -956,12 +948,12 @@ class Userdata {
     }
   }
 
-  Future<Map<String, dynamic>> addNote(String title, String content, int? colorIndex, List<int> categoryIds, int? mepsDocumentId, int? bookNumber, int? chapterNumber, int? issueTagNumber, String? keySymbol, int? mepsLanguageId, {int blockType = 0, int? blockIdentifier}) async {
+  Future<Note?> addNote(String title, String content, int? colorIndex, List<int> categoryIds, int? mepsDocumentId, int? bookNumber, int? chapterNumber, int? issueTagNumber, String? keySymbol, int? mepsLanguageId, {int blockType = 0, int? blockIdentifier}) async {
     try {
-      final int locationId = await insertLocation(bookNumber, chapterNumber, mepsDocumentId, null, issueTagNumber, keySymbol, mepsLanguageId);
+      int? locationId = await insertLocation(bookNumber, chapterNumber, mepsDocumentId, null, issueTagNumber, keySymbol, mepsLanguageId);
 
       int? userMarkId;
-      if (colorIndex != null) {
+      if (colorIndex != null && locationId != null) {
         final userMarkGuid = uuid.Uuid().v4(); // Generates a version 4 UUID
 
         // Insérer une nouvelle entrée dans la table UserMark avec un LocationId valide
@@ -1015,12 +1007,21 @@ class Userdata {
         });
       }
 
-      final note = await _database.query('Note', where: 'NoteId = ?', whereArgs: [noteId]);
-      return note.first;
+      Note newNote = Note.fromMap({
+        'NoteId': noteId,
+        'Guid': guidNote,
+        'Title': title,
+        'Content': content,
+        'LastModified': DateTime.now().toIso8601String(),
+        'Created': DateTime.now().toIso8601String(),
+        'BlockType': blockType,
+        'BlockIdentifier': blockIdentifier
+      });
+      return newNote;
     }
     catch (e) {
       printTime('Erreur lors de l\'ajout de la note : $e');
-      return {};
+      return null;
     }
   }
 
@@ -1115,21 +1116,15 @@ class Userdata {
     }
   }
 
-  Future<Map<String, dynamic>> updateNote(
-      Map<String, dynamic> note,
-      String title,
-      String content,{
-      int? colorIndex,
-      List<int>? categoryIds}
-      ) async {
+  Future<Note> updateNote(Note note, String title, String content, {int? colorIndex, List<int>? tagsId}) async {
     try {
-      int noteId = note['NoteId'];
-      int? userMarkId = note['UserMarkId'];
+      int noteId = note.noteId;
+      int? userMarkId = note.userMarkId;
 
       if (userMarkId != null) {
         await _database.update(
           'UserMark',
-          {'ColorIndex': colorIndex ?? 0},
+          {'ColorIndex': colorIndex ?? note.colorIndex},
           where: 'UserMarkId = ?',
           whereArgs: [userMarkId],
         );
@@ -1149,23 +1144,22 @@ class Userdata {
       );
 
       // Mettre à jour et retourner l'objet note
-      note['Title'] = title;
-      note['Content'] = content;
-      note['ColorIndex'] = colorIndex;
-      note['LastModified'] = lastModified;
+      note.title = title;
+      note.content = content;
+      note.colorIndex = colorIndex ?? note.colorIndex;
+      note.lastModified = lastModified;
 
       return note;
     }
     catch (e) {
       printTime('Erreur lors de la mise à jour de la note : $e');
-      return {};
+      return note;
     }
   }
 
-  Future<bool> deleteNote(Map<String, dynamic> note) async {
+  Future<bool> deleteNote(Note note) async {
     try {
-      int noteId = note['NoteId'];
-      int? userMarkId = note['UserMarkId'];
+      int noteId = note.noteId;
 
       // Supprimer d'abord les entrées associées dans la table TagMap
       await _database.delete(
@@ -1181,15 +1175,6 @@ class Userdata {
         whereArgs: [noteId],
       );
 
-      // Supprimer l'entrée associée dans la table UserMark si elle existe
-      if (userMarkId != null) {
-        await _database.delete(
-          'UserMark',
-          where: 'UserMarkId = ?',
-          whereArgs: [userMarkId],
-        );
-      }
-
       printTime('Note supprimée avec succès');
       return true;
 
@@ -1200,30 +1185,44 @@ class Userdata {
   }
 
 
-  Future<List<Map<String, dynamic>>> getNotesByCategory(int categoryId) async {
+  Future<List<Note>> getNotesByTag(int tagId) async {
     List<Map<String, dynamic>> result = await _database.rawQuery('''
-    SELECT Note.NoteId,
-           Note.Title,
-           Note.Content,
-           UserMark.ColorIndex,
-           Note.Guid,
-           Note.Created,
-           Note.LastModified,
-           GROUP_CONCAT(Tag.TagId) AS TagsId
-    FROM Note
-    LEFT JOIN TagMap ON Note.NoteId = TagMap.NoteId
-    LEFT JOIN Tag ON TagMap.TagId = Tag.TagId
-    LEFT JOIN UserMark ON Note.UserMarkId = UserMark.UserMarkId
-    WHERE Note.NoteId IN (SELECT Note.NoteId FROM Note LEFT JOIN TagMap ON Note.NoteId = TagMap.NoteId
-    WHERE TagMap.TagId = ?)
-    GROUP BY Note.NoteId
-  ''', [categoryId]);
+      SELECT 
+        N.NoteId,
+        N.Guid,
+        N.Title,
+        N.Content,
+        N.BlockType,
+        N.BlockIdentifier,
+        N.LastModified,
+        N.Created,
+        UM.UserMarkId,
+        UM.ColorIndex,
+        UM.UserMarkGuid,
+        GROUP_CONCAT(DISTINCT T.TagId) AS TagsId,
+        L.LocationId,
+        L.BookNumber,
+        L.ChapterNumber,
+        L.DocumentId,
+        L.IssueTagNumber,
+        L.KeySymbol,
+        L.MepsLanguage
+      FROM Note N
+      LEFT JOIN Location L ON L.LocationId = N.LocationId
+      LEFT JOIN TagMap TM ON N.NoteId = TM.NoteId
+      LEFT JOIN Tag T ON TM.TagId = T.TagId
+      LEFT JOIN UserMark UM ON N.UserMarkId = UM.UserMarkId
+      WHERE EXISTS (
+          SELECT 1
+          FROM TagMap tm2
+          WHERE tm2.NoteId = N.NoteId
+            AND tm2.TagId = ?
+      )
+      GROUP BY N.NoteId
+      ORDER BY N.LastModified DESC;
+    ''', [tagId]);
 
-    return result;
-  }
-
-  Map<String, dynamic> getNoteById(int noteId) {
-    return notes.firstWhere((note) => note['NoteId'] == noteId);
+    return result.map((map) => Note.fromMap(map)).toList();
   }
 
   Future<List<Bookmark>> getBookmarksFromPub(Publication publication) async {
@@ -1862,7 +1861,6 @@ class Userdata {
 
     favorites = [];
     tags = [];
-    notes = [];
     _database = await openDatabase(userdataDbPath, version: schemaVersion);
   }
 }

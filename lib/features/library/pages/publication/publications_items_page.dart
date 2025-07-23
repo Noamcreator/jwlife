@@ -10,7 +10,7 @@ import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/models/publication_category.dart';
 import 'package:jwlife/data/repositories/PublicationRepository.dart';
 import 'package:jwlife/data/databases/catalog.dart';
-import 'package:jwlife/features/library/widgets/RectanglePublicationItem.dart';
+import 'package:jwlife/features/library/widgets/rectangle_publication_item.dart';
 import 'package:jwlife/widgets/dialog/language_dialog.dart';
 import 'package:jwlife/widgets/image_cached_widget.dart';
 
@@ -95,7 +95,7 @@ class _PublicationsItemsViewState extends State<PublicationsItemsView> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(widget.category.getName(context), style: textStyleTitle),
+            Text(widget.year != null ? '${widget.year}' : widget.category.getName(context), style: textStyleTitle),
             Text(JwLifeSettings().currentLanguage.vernacular, style: textStyleSubtitle),
           ],
         ),

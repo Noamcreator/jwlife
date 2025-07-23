@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:jwlife/data/repositories/PublicationRepository.dart';
 
-import '../../../core/icons.dart';
-import '../../../core/utils/utils.dart';
-import '../../../core/utils/utils_pub.dart';
-import '../../../data/models/publication.dart';
-import '../../../widgets/image_cached_widget.dart';
+import '../../../../core/icons.dart';
+import '../../../../core/utils/utils.dart';
+import '../../../../core/utils/utils_pub.dart';
+import '../../../../data/models/publication.dart';
+import '../../../../widgets/image_cached_widget.dart';
 
 class HomeRectanglePublicationItem extends StatelessWidget {
   final Publication pub;
@@ -113,10 +113,9 @@ class HomeRectanglePublicationItem extends StatelessWidget {
                   onPressed: () {
                     publication.cancelDownload(context);
                   },
-                  icon: const Icon(
+                  icon: Icon(
                     JwIcons.x,
-                    color: Colors.white,
-                    shadows: [Shadow(color: Colors.black, blurRadius: 5)],
+                    color: Color(0xFF9d9d9d),
                   ),
                 ),
               );
@@ -125,23 +124,28 @@ class HomeRectanglePublicationItem extends StatelessWidget {
             return ValueListenableBuilder<bool>(
               valueListenable: publication.isDownloadedNotifier,
               builder: (context, isDownloaded, _) {
-                if (!isDownloaded) {
+                if (!isDownloaded || publication.hasUpdate()) {
                   return Stack(
                     children: [
                       // Icône de téléchargement
                       Positioned(
-                        bottom: 5,
+                        bottom: 3,
                         right: -10,
                         height: 40,
                         child: IconButton(
                           padding: EdgeInsets.zero,
                           onPressed: () {
-                            publication.download(context);
+                            if (publication.hasUpdate()) {
+                              publication.update(context);
+                            }
+                            else {
+                              publication.download(context);
+                            }
                           },
-                          icon: const Icon(
-                            JwIcons.cloud_arrow_down,
-                            color: Colors.white,
-                            shadows: [Shadow(color: Colors.black, blurRadius: 5)],
+                          icon: Icon(
+                            publication.hasUpdate() ? JwIcons.arrows_circular : JwIcons.cloud_arrow_down,
+                            size: publication.hasUpdate() ? 20 : 24,
+                            color: Color(0xFF9d9d9d),
                           ),
                         ),
                       ),
@@ -153,31 +157,11 @@ class HomeRectanglePublicationItem extends StatelessWidget {
                           formatFileSize(publication.size),
                           style: TextStyle(
                             fontSize: 10,
-                            color: Theme.of(context).brightness == Brightness.dark
-                                ? const Color(0xFFc3c3c3)
-                                : const Color(0xFF585858),
+                            color: Color(0xFF9d9d9d),
                           ),
                         ),
                       ),
                     ],
-                  );
-                }
-                else if (publication.hasUpdate()) {
-                  return Positioned(
-                    bottom: -4,
-                    right: -8,
-                    height: 40,
-                    child: IconButton(
-                      padding: EdgeInsets.zero,
-                      onPressed: () {
-                        publication.download(context);
-                      },
-                      icon: const Icon(
-                        JwIcons.arrows_circular,
-                        color: Colors.white,
-                        shadows: [Shadow(color: Colors.black, blurRadius: 5)],
-                      ),
-                    ),
                   );
                 }
                 return ValueListenableBuilder<bool>(
@@ -188,10 +172,9 @@ class HomeRectanglePublicationItem extends StatelessWidget {
                         bottom: -4,
                         right: 2,
                         height: 40,
-                        child: const Icon(
+                        child: Icon(
                           JwIcons.star,
-                          color: Colors.white,
-                          shadows: [Shadow(color: Colors.black, blurRadius: 5)],
+                          color: Color(0xFF9d9d9d),
                         ),
                       );
                     }
@@ -223,7 +206,7 @@ class HomeRectanglePublicationItem extends StatelessWidget {
                     valueColor: AlwaysStoppedAnimation<Color>(
                       Theme.of(context).primaryColor,
                     ),
-                    backgroundColor: Colors.grey,
+                    backgroundColor: Color(0xFF9d9d9d),
                     minHeight: 2,
                   );
                 },

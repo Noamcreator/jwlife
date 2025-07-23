@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:jwlife/app/jwlife_app.dart';
+import 'package:jwlife/app/services/settings_service.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/shared_preferences_helper.dart';
 import 'package:jwlife/core/utils/utils.dart';
@@ -14,7 +15,8 @@ import 'package:jwlife/widgets/dialog/language_dialog.dart';
 import 'package:jwlife/widgets/image_cached_widget.dart';
 import 'package:realm/realm.dart';
 
-import '../../../../widgets/searchfield_widget.dart';
+import '../../../../app/jwlife_page.dart';
+import '../../../../widgets/searchfield/searchfield_widget.dart';
 
 class AudioItemsPage extends StatefulWidget {
   final Category category;
@@ -122,6 +124,7 @@ class _AudioItemsPageState extends State<AudioItemsPage> {
     );
 
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       appBar: _isSearching
           ? AppBar(
         title: SearchFieldWidget(
@@ -181,9 +184,9 @@ class _AudioItemsPageState extends State<AudioItemsPage> {
                 context: context,
                 builder: (context) => languageDialog,
               ).then((value) async {
-                setLibraryLanguage(value);
-                loadItems(value['Symbol']);
-                HomePage.refreshChangeLanguage();
+                await setLibraryLanguage(value);
+                loadItems(JwLifeSettings().currentLanguage.symbol);
+                JwLifePage.getHomeGlobalKey().currentState?.changeLanguageAndRefresh();
               });
             },
           ),

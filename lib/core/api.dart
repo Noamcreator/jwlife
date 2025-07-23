@@ -124,13 +124,14 @@ class Api {
       final language = results.isNotEmpty ? results.first : null;
 
       if (language == null || language.lastModified != serverDate) {
-        debugPrint('Une mise à jour de la bibliothèque pour la langue \$languageSymbol est disponible.');
+        printTime('Une mise à jour de la bibliothèque pour la langue \$languageSymbol est disponible.');
         return true;
       }
-    } catch (e) {
-      debugPrint('Erreur lors de la vérification de mise à jour de la bibliothèque : $e');
     }
-    debugPrint('La bibliothèque pour la langue \$languageSymbol est déjà à jour.');
+    catch (e) {
+      printTime('Erreur lors de la vérification de mise à jour de la bibliothèque : $e');
+    }
+    printTime('La Bibliothèque pour la langue \$languageSymbol est déjà à jour.');
     return false;
   }
 
