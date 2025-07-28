@@ -1,3 +1,4 @@
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:jwlife/app/jwlife_page.dart';
 import 'package:jwlife/core/icons.dart';
@@ -9,6 +10,7 @@ import 'package:jwlife/data/databases/history.dart';
 import 'package:jwlife/data/realm/catalog.dart';
 import 'package:jwlife/widgets/image_cached_widget.dart';
 
+import '../../../../../app/services/global_key_service.dart';
 import '../data/models/document.dart';
 import '../data/models/multimedia.dart';
 import 'full_screen_image_page.dart';
@@ -215,10 +217,10 @@ class _DocumentMediasViewState extends State<DocumentMediasView> {
   Widget imageTile(BuildContext context, Multimedia media) {
     return GestureDetector(
       onTap: () {
-        JwLifePage.toggleNavBarBlack.call(true);
-
-        int index = widget.document.multimedias.indexWhere((img) => img.filePath.toLowerCase() == media.filePath.toLowerCase());
-        showPage(context, FullScreenImagePage(publication: widget.document.publication, multimedias: widget.document.multimedias, index: index));
+        Multimedia? multimedia = widget.document.multimedias.firstWhereOrNull((img) => img.filePath.toLowerCase() == media.filePath.toLowerCase());
+        if (multimedia != null) {
+          showPage(context, FullScreenImagePage(publication: widget.document.publication, multimedias: widget.document.multimedias, multimedia: multimedia));
+        }
       },
       child: Stack(
         alignment: Alignment.center,

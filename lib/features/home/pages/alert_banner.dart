@@ -4,7 +4,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
-import 'package:jwlife/features/home/views/alert_info_page.dart';
+import 'package:jwlife/features/home/pages/alert_info_page.dart';
 import 'package:html/dom.dart' as html_dom;
 
 class AlertBanner extends StatefulWidget {

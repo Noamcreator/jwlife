@@ -11,13 +11,14 @@ import 'package:jwlife/core/utils/shared_preferences_helper.dart';
 import 'package:jwlife/data/models/meps_language.dart';
 import 'package:jwlife/i18n/app_localizations.dart';
 import 'package:jwlife/i18n/localization.dart';
-import 'package:jwlife/features/home/views/home_page.dart';
+import 'package:jwlife/features/home/pages/home_page.dart';
 import 'package:jwlife/widgets/dialog/utils_dialog.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:realm/realm.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:sqflite/sqflite.dart';
 import '../app/jwlife_app.dart';
+import '../app/services/global_key_service.dart';
 import '../app/services/settings_service.dart';
 import '../core/utils/files_helper.dart';
 import '../core/utils/utils.dart';
@@ -28,14 +29,7 @@ import '../data/databases/userdata.dart';
 import '../widgets/settings_widget.dart';
 
 class SettingsPage extends StatefulWidget {
-  final Function(ThemeMode) toggleTheme;
-  final Function(Locale) changeLanguage;
-
-  const SettingsPage({
-    super.key,
-    required this.toggleTheme,
-    required this.changeLanguage,
-  });
+  const SettingsPage({super.key});
 
   @override
   _SettingsPageState createState() => _SettingsPageState();
@@ -153,7 +147,14 @@ class _SettingsPageState extends State<SettingsPage> {
     setState(() {
       _theme = theme;
     });
-    widget.toggleTheme(theme);
+    GlobalKeyService.jwLifeAppKey.currentState?.toggleTheme(theme);
+  }
+
+  Future<void> _updatePrimaryColor(Color color) async {
+    setState(() {
+      _selectedColor = color;
+    });
+    GlobalKeyService.jwLifeAppKey.currentState?.togglePrimaryColor(color);
   }
 
   Future<void> _updateLocale(Locale locale, String vernacular) async {
@@ -161,7 +162,7 @@ class _SettingsPageState extends State<SettingsPage> {
       _selectedLocale = locale;
       _selectedLocaleVernacular = vernacular;
     });
-    widget.changeLanguage(locale);
+    GlobalKeyService.jwLifeAppKey.currentState?.changeLocale(locale);
   }
 
   void showThemeSelectionDialog() {
@@ -236,12 +237,9 @@ class _SettingsPageState extends State<SettingsPage> {
         ),
         JwDialogButton(
           label: localization(context).action_save.toUpperCase(),
-          onPressed: (dialogContext) {
-            Navigator.of(dialogContext).pop(); // Fermer seulement la boîte de dialogue
-            setState(() {
-              _selectedColor = tempColor;
-            });
-            JwLifeApp.togglePrimaryColor(_selectedColor!);
+          closeDialog: true,
+          onPressed: (BuildContext context) {
+            _updatePrimaryColor(tempColor);
           },
         ),
       ],
@@ -359,7 +357,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     );
                   });
                   await setLibraryLanguage(value);
-                  JwLifePage.getHomeGlobalKey().currentState?.changeLanguageAndRefresh();
+                  GlobalKeyService.homeKey.currentState?.changeLanguageAndRefresh();
                 }
               });
             },
@@ -521,7 +519,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   );
 
                   if (dialogContext != null) Navigator.of(dialogContext!).pop();
-                  JwLifePage.getHomeGlobalKey().currentState?.refreshFavorites();
+                  GlobalKeyService.homeKey.currentState?.refreshFavorites();
                   Navigator.pop(context);
                 }
               }
@@ -560,8 +558,8 @@ class _SettingsPageState extends State<SettingsPage> {
 
               // Si le fichier est bien exporté, on le partage
               if (backupFile != null) {
-                await Share.shareXFiles(
-                  [XFile(backupFile.path)]
+                SharePlus.instance.share(
+                    ShareParams(files: [XFile(backupFile.path)])
                 );
               }
 
@@ -619,7 +617,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
               // 4. Fermer le dialog de chargement et revenir à l’écran précédent
               if (dialogContext != null) Navigator.of(dialogContext!).pop();
-              JwLifePage.getHomeGlobalKey().currentState?.refreshFavorites();
+              GlobalKeyService.homeKey.currentState?.refreshFavorites();
               Navigator.pop(context);
             },
           ),

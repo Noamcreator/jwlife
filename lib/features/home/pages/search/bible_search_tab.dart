@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
-import 'package:jwlife/features/home/views/search/search_page.dart';
+import 'package:jwlife/features/home/pages/search/search_page.dart';
 
 import 'search_model.dart';
 

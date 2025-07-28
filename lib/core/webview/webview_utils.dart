@@ -9,7 +9,6 @@ import 'package:jwlife/core/utils/utils_document.dart';
 import 'package:jwlife/core/utils/utils_jwpub.dart';
 
 import '../../app/jwlife_app.dart';
-import '../../app/jwlife_page.dart';
 import '../../app/services/settings_service.dart';
 import '../../data/databases/catalog.dart';
 import '../../data/databases/tiles_cache.dart';
@@ -17,16 +16,7 @@ import '../../data/models/publication.dart';
 import '../../data/models/publication_category.dart';
 import '../../data/repositories/PublicationRepository.dart';
 
-Future<void> fetchHyperlink(BuildContext context, InAppWebViewController controller, Publication publication, Function(int) jumpToPage, Function(int, int) jumpToParagraph, String link, bool controlsIsVisible) async {
-  if (link.startsWith('jwpub://b')) {
-    await fetchVerses(context, controller, link);
-  }
-  else if (link.startsWith('jwpub://p')) {
-    await fetchPublication(context, controller, publication, jumpToPage, jumpToParagraph, link, controlsIsVisible);
-  }
-}
-
-Future<void> fetchVerses(BuildContext context, InAppWebViewController controller, String link) async {
+Future<Map<String, dynamic>> fetchVerses(BuildContext context, String link) async {
   String verses = link.split('/').last;
   int book1 = int.parse(verses.split('-').first.split(':')[0]);
   int chapter1 = int.parse(verses.split('-').first.split(':')[1]);
@@ -36,10 +26,7 @@ Future<void> fetchVerses(BuildContext context, InAppWebViewController controller
   int chapter2 = int.parse(verses.split('-').last.split(':')[1]);
   int verse2 = int.parse(verses.split('-').last.split(':')[2]);
 
-  String versesDisplay = JwLifeApp.bibleCluesInfo.getVerses(
-      book1, chapter1, verse1,
-      book2, chapter2, verse2
-  );
+  String versesDisplay = JwLifeApp.bibleCluesInfo.getVerses(book1, chapter1, verse1, book2, chapter2, verse2);
 
   List<Map<String, dynamic>> items = [];
 
@@ -100,12 +87,13 @@ Future<void> fetchVerses(BuildContext context, InAppWebViewController controller
         htmlContent += decodedHtml;
       }
 
+      List<Map<String, dynamic>> highlights = await JwLifeApp.userdata.getHighlightsFromChapterNumber(book1, chapter1, bible.mepsLanguage.id);
+      List<Map<String, dynamic>> notes = await JwLifeApp.userdata.getNotesFromChapterNumber(book1, chapter1, bible.mepsLanguage.id);
+
       items.add({
         'type': 'verse',
-        'content': createHtmlDialogContent(
-            htmlContent,
-            "bibleCitation html5 pub-${bible.keySymbol} jwac showRuby ml-${bible.mepsLanguage.symbol} ms-ROMAN dir-ltr layout-reading layout-sidebar"
-        ),
+        'content': htmlContent,
+        'className': "bibleCitation html5 pub-${bible.keySymbol} jwac showRuby ml-${bible.mepsLanguage.symbol} ms-ROMAN dir-ltr layout-reading layout-sidebar",
         'subtitle': bible.mepsLanguage.vernacular,
         'imageUrl': bible.imageSqr,
         'publicationTitle': bible.shortTitle,
@@ -115,95 +103,90 @@ Future<void> fetchVerses(BuildContext context, InAppWebViewController controller
         'lastVerseNumber': verse2,
         'audio': audio,
         'mepsLanguageId': bible.mepsLanguage.id,
+        'highlights': highlights,
+        'notes': notes
       });
     }
 
-    final versesJson = {
+    return {
       'items': items,
       'title': versesDisplay,
     };
-
-    // Inject HTML content in JavaScript dialog
-    injectHtmlDialog(context, controller, versesJson);
   }
   catch (e) {
     printTime('Error fetching verses: $e');
+    return {
+      'items': [],
+      'title': versesDisplay,
+    };
   }
 }
 
-Future<void> fetchPublication(BuildContext context, InAppWebViewController controller, Publication publication, Function(int) jumpToPage, Function(int, int) jumpToParagraph, String link, bool controlsIsVisible) async {
+Future<Map<String, dynamic>?> fetchExtractPublication(BuildContext context, Publication publication, String link, Function(int) jumpToPage, Function(int, int) jumpToParagraph) async {
   String newLink = link.replaceAll('jwpub://', '');
   List<String> links = newLink.split("\$");
 
   List<Map<String, dynamic>> response = await publication.documentsManager!.database.rawQuery('''
-  SELECT 
-    Extract.*,
-    RefPublication.*
-  FROM Extract
-  LEFT JOIN RefPublication ON Extract.RefPublicationId = RefPublication.RefPublicationId
-  WHERE Extract.Link IN (${links.map((link) => "'$link'").join(',')})
-''');
+    SELECT 
+      Extract.*,
+      RefPublication.*
+    FROM Extract
+    LEFT JOIN RefPublication ON Extract.RefPublicationId = RefPublication.RefPublicationId
+    WHERE Extract.Link IN (${links.map((link) => "'$link'").join(',')})
+  ''');
 
   if (response.isNotEmpty) {
     List<Map<String, dynamic>> extractItems = [];
 
     for (var extract in response) {
-      dynamic pub = await PubCatalog.searchSqrImageForPub(
-          extract['UndatedSymbol'],
-          int.parse(extract['IssueTagNumber']),
-          extract['MepsLanguageIndex']);
+      Publication? refPub = PublicationRepository().getPublicationWithSymbol(extract['UndatedSymbol'], int.parse(extract['IssueTagNumber']), extract['MepsLanguageIndex']);
+      refPub ??= await PubCatalog.searchPub(extract['UndatedSymbol'], int.parse(extract['IssueTagNumber']), extract['MepsLanguageIndex']);
 
-      /// Décoder le contenu
-      final decodedHtml = decodeBlobContent(
-          extract['Content'] as Uint8List, publication.hash!);
       var doc = parse(extract['Caption']);
       String caption = doc.querySelector('.etitle')?.text ?? '';
 
-      String image = '';
-      if (pub != null && pub['ImageSqr'] != null) {
-        String imagePath = "https://app.jw-cdn.org/catalogs/publications/${pub['ImageSqr']}";
-        image = (await TilesCache().getOrDownloadImage(imagePath))!.file.path;
+      String image = refPub?.imageSqr ?? refPub?.networkImageSqr ?? '';
+      if (image.isNotEmpty) {
+        if(image.startsWith('https')) {
+          image = (await TilesCache().getOrDownloadImage(image))!.file.path;
+        }
       }
-      else {
-        String type = PublicationCategory.all.firstWhere(
-                (element) => element.type == extract['PublicationType']).image;
+      if (refPub == null || refPub.imageSqr == null) {
+        String type = PublicationCategory.all.firstWhere((element) => element.type == extract['PublicationType']).image;
         bool isDark = Theme.of(context).brightness == Brightness.dark;
-        String path = isDark
-            ? 'assets/images/${type}_gray.png'
-            : 'assets/images/$type.png';
+        String path = isDark ? 'assets/images/${type}_gray.png' : 'assets/images/$type.png';
         image = '/android_asset/flutter_assets/$path';
       }
 
+      /// Décoder le contenu
+      final decodedHtml = decodeBlobContent(extract['Content'] as Uint8List, publication.hash!);
+
+      List<Map<String, dynamic>> highlights = await JwLifeApp.userdata.getHighlightsFromDocId(extract['RefMepsDocumentId'], extract['MepsLanguageIndex']);
+      List<Map<String, dynamic>> notes = await JwLifeApp.userdata.getNotesFromDocId(extract['RefMepsDocumentId'], extract['MepsLanguageIndex']);
+
       dynamic article = {
         'type': 'publication',
-        'content': createHtmlDialogContent(
-            decodedHtml,
-            "publicationCitation html5 pub-${extract['UndatedSymbol']} "
-                "docId-${extract['RefMepsDocumentId']} pub-${extract['Symbol']} "
-                "docClass-${extract['RefMepsDocumentClass']} jwac showRuby "
-                "ml-${extract['Symbol']} ms-ROMAN dir-ltr layout-reading layout-sidebar"),
+        'content': decodedHtml,
+        'className': "publicationCitation html5 pub-${extract['UndatedSymbol']} docId-${extract['RefMepsDocumentId']} docClass-${extract['RefMepsDocumentClass']} jwac showRuby ml-${extract['Symbol']} ms-ROMAN dir-ltr layout-reading layout-sidebar",
         'subtitle': caption,
         'imageUrl': image,
         'mepsDocumentId': extract['RefMepsDocumentId'],
         'mepsLanguageId': extract['MepsLanguageIndex'],
         'startParagraphId': extract['RefBeginParagraphOrdinal'],
         'endParagraphId': extract['RefEndParagraphOrdinal'],
-        'publicationTitle': extract['IssueTagNumber'] == '0' || pub == null
-            ? extract['ShortTitle'] ?? extract['Title']
-            : pub['IssueTitle'],
+        'publicationTitle': extract['IssueTagNumber'] == '0' || refPub == null ? extract['ShortTitle'] ?? extract['Title'] : refPub.issueTagNumber,
+        'highlights': highlights,
+        'notes': notes
       };
 
-      // Ajouter l'élément webview à la liste versesItems
+      // Ajouter l'élément document à la liste versesItems
       extractItems.add(article);
     }
 
-    dynamic articlesJson = {
+    return {
       'items': extractItems,
       'title': 'Extrait de publication',
     };
-
-    // Inject HTML content in JavaScript dialog
-    injectHtmlDialog(context, controller, articlesJson);
   }
   else {
     List<String> parts = newLink.split('/');
@@ -236,13 +219,15 @@ Future<void> fetchPublication(BuildContext context, InAppWebViewController contr
     }
     else {
       await showDocumentView(context, mepsDocumentId, publication.mepsLanguage.id, startParagraphId: startParagraph, endParagraphId: endParagraph);
-      JwLifePage.toggleNavBarVisibility(controlsIsVisible);
-      JwLifePage.toggleNavBarPositioned(true);
+      //JwLifePage.toggleNavBarVisibility(controlsIsVisible);
+      //JwLifePage.toggleNavBarPositioned(true);
     }
+
+    return null;
   }
 }
 
-Future<void> fetchFootnote(BuildContext context, Publication publication, InAppWebViewController controller, String footNoteId, {String? bibleVerseId}) async {
+Future<Map<String, dynamic>> fetchFootnote(BuildContext context, Publication publication, String footNoteId, {String? bibleVerseId}) async {
   List<Map<String, dynamic>> response = [];
 
   if(bibleVerseId != null) {
@@ -280,25 +265,22 @@ Future<void> fetchFootnote(BuildContext context, Publication publication, InAppW
         publication.hash!
     );
 
-    dynamic document = {
-      'items': [
-        {
-          'type': 'note',
-          'content': createHtmlDialogContent(
-              decodedHtml,
-              "document html5 pub-${publication.keySymbol} docId-${publication.documentsManager!.getCurrentDocument().mepsDocumentId} docClass-13 jwac showRuby ml-${publication.mepsLanguage.symbol} ms-ROMAN dir-ltr layout-reading layout-sidebar"
-          ),
-        }
-      ],
+    return {
+      'type': 'note',
+      'content': decodedHtml,
+      'className': "document html5 pub-${publication.keySymbol} docId-${publication.documentsManager!.getCurrentDocument().mepsDocumentId} docClass-13 jwac showRuby ml-${publication.mepsLanguage.symbol} ms-ROMAN dir-ltr layout-reading layout-sidebar",
       'title': 'Note',
     };
-
-    // Inject HTML content in JavaScript dialog
-    injectHtmlDialog(context, controller, document);
   }
+  return {
+    'type': 'note',
+    'content': '',
+    'className': '',
+    'title': 'Note',
+  };
 }
 
-Future<void> fetchVersesReference(BuildContext context, Publication publication, InAppWebViewController controller, String versesReferenceId) async {
+Future<Map<String, dynamic>> fetchVersesReference(BuildContext context, Publication publication, InAppWebViewController controller, String versesReferenceId) async {
   List<Map<String, dynamic>> response = await publication.documentsManager!.database.rawQuery(
       '''
       SELECT 
@@ -336,10 +318,8 @@ Future<void> fetchVersesReference(BuildContext context, Publication publication,
 
       versesItems.add({
         'type': 'verse',
-        'content': createHtmlDialogContent(
-            htmlContent,
-            "bibleCitation html5 pub-${publication.keySymbol} jwac showRuby ml-${publication.mepsLanguage.symbol} ms-ROMAN dir-ltr layout-reading layout-sidebar"
-        ),
+        'content': htmlContent,
+        'className': "bibleCitation html5 pub-${publication.keySymbol} jwac showRuby ml-${publication.mepsLanguage.symbol} ms-ROMAN dir-ltr layout-reading layout-sidebar",
         'subtitle': publication.mepsLanguage.vernacular,
         'imageUrl': publication.imageSqr,
         'publicationTitle': verseDisplay,
@@ -351,14 +331,15 @@ Future<void> fetchVersesReference(BuildContext context, Publication publication,
       });
     }
 
-    dynamic versesJson = {
+    return {
       'items': versesItems,
       'title': 'Renvois',
     };
-
-    // Inject HTML content in JavaScript dialog
-    injectHtmlDialog(context, controller, versesJson);
   }
+  return {
+    'items': [],
+    'title': 'Renvois',
+  };
 }
 
 Future<void> injectHtmlDialog(BuildContext context, InAppWebViewController controller, dynamic content) async {
@@ -600,6 +581,6 @@ Future<void> injectHtmlDialog(BuildContext context, InAppWebViewController contr
       
       // Ajouter le dialogue au body
       document.body.appendChild(dialog);
-        }
+      }
 """);
 }

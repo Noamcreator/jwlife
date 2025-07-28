@@ -162,7 +162,7 @@ class _AlertInfoPageState extends State<AlertInfoPage> {
             final langwritten = uri.queryParameters.containsKey('langwritten') ? uri.queryParameters['langwritten'] : '';
             final fileformat = uri.queryParameters['fileformat'];
 
-            showDocumentDialog(context, docId!, track!, langwritten!, fileformat!);
+            //showDocumentDialog(context, docId!, track!, langwritten!, fileformat!);
 
             return NavigationActionPolicy.CANCEL;
           }

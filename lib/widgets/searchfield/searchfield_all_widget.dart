@@ -14,9 +14,9 @@ import '../../data/databases/catalog.dart';
 import '../../data/realm/catalog.dart';
 import '../../data/realm/realm_library.dart';
 import '../../data/repositories/PublicationRepository.dart';
-import '../../features/home/views/search/bible_search_page.dart';
-import '../../features/home/views/search/search_page.dart';
-import '../../features/home/views/search/suggestion.dart';
+import '../../features/home/pages/search/bible_search_page.dart';
+import '../../features/home/pages/search/search_page.dart';
+import '../../features/home/pages/search/suggestion.dart';
 import '../../i18n/localization.dart';
 import '../image_cached_widget.dart';
 // Ajoute les imports nécessaires pour JwIcons, PubCatalog, RealmLibrary, etc.

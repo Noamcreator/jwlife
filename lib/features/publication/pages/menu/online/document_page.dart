@@ -330,9 +330,9 @@ class _PagesDocumentViewState extends State<PagesDocumentView> {
                   child: Text('Envoyer le lien'),
                   onTap: () {
                     int docId = widget.navCards[_currentIndex]['docId']!;
-                    Share.share(
-                      'https://www.jw.org/finder?srcid=jwlshare&wtlocale=${widget.publication['LanguageSymbol']}&prefer=lang&docid=$docId',
-                      subject: widget.publication['ShortTitle'],
+                    Uri uri = Uri.parse('https://www.jw.org/finder?srcid=jwlshare&wtlocale=${widget.publication['LanguageSymbol']}&prefer=lang&docid=$docId');
+                    SharePlus.instance.share(
+                        ShareParams(title: widget.publication['ShortTitle'], uri: uri)
                     );
                   },
                 ),

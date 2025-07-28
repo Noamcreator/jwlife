@@ -4,11 +4,10 @@ import 'package:jwlife/core/utils/utils_database.dart';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/models/publication_attribute.dart';
 import 'package:jwlife/data/realm/realm_library.dart';
-import 'package:jwlife/features/library/pages/library_page.dart';
 import 'package:realm/realm.dart';
 import 'package:sqflite/sqflite.dart';
 
-import '../../app/jwlife_page.dart';
+import '../../app/services/global_key_service.dart';
 import '../../app/services/settings_service.dart';
 import '../../core/utils/utils.dart';
 import '../realm/catalog.dart';
@@ -28,7 +27,7 @@ class PubCatalog {
     p.*,
     meps.Language.Symbol AS LanguageSymbol, 
     meps.Language.VernacularName AS LanguageVernacularName, 
-    meps.Language.PrimaryIetfCode AS LanguagePrimaryIetfCode, 
+    meps.Language.PrimaryIetfCode AS LanguagePrimaryIetfCode,
     pa.LastModified, 
     pa.CatalogedOn,
     pa.Size,
@@ -158,7 +157,7 @@ class PubCatalog {
           matchedCategories.add(PublicationCategory.all.firstWhere((cat) => cat.type == 'Convention'));
         }
 
-        JwLifePage.getLibraryGlobalKey().currentState?.refreshCatalogCategories(matchedCategories);
+        GlobalKeyService.libraryKey.currentState?.refreshCatalogCategories(matchedCategories);
 
         printTime('Catégories mis à jour dans LibraryView');
 
@@ -241,11 +240,10 @@ class PubCatalog {
           printTime('result4 check');
 
           results = [result1, result2, result3, result4];
-        });
 
-        // DETACH des bases en dehors de la transaction
-        await catalogDB.execute("DETACH DATABASE meps");
-        await catalogDB.execute("DETACH DATABASE history");
+          await txn.execute("DETACH DATABASE meps");
+          await txn.execute("DETACH DATABASE history");
+        });
 
         // Traitement des résultats après le détachement
         final resultDatedPublications = results[0];

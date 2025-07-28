@@ -196,25 +196,10 @@ WHERE meps.BibleCluesInfo.LanguageId = ?
                   Bookmark? bookmark = await showBookmarkDialog(context, widget.bible);
                   if (bookmark != null) {
                     if(bookmark.location.bookNumber!= null && bookmark.location.chapterNumber != null) {
-                        showPage(context, DocumentPage.bible(
-                            bible: widget.bible,
-                            book: bookmark.location.bookNumber!,
-                            chapter: bookmark.location.chapterNumber!,
-                            firstVerse: bookmark.blockIdentifier,
-                            lastVerse: bookmark.blockIdentifier,
-                            audios: widget.audios
-                        )
-                      );
+                      showPageBibleChapter(context, widget.bible, bookmark.location.bookNumber!, bookmark.location.chapterNumber!, firstVerse: bookmark.blockIdentifier, lastVerse: bookmark.blockIdentifier, audios: widget.audios);
                     }
                     else if(bookmark.location.mepsDocumentId != null) {
-                        showPage(context, DocumentPage(
-                          publication: widget.bible,
-                          audios: [],
-                          mepsDocumentId: bookmark.location.mepsDocumentId!,
-                          startParagraphId: bookmark.blockIdentifier,
-                          endParagraphId: bookmark.blockIdentifier
-                        )
-                      );
+                      showPageDocument(context, widget.bible, bookmark.location.mepsDocumentId!, startParagraphId: bookmark.blockIdentifier, endParagraphId: bookmark.blockIdentifier, audios: widget.audios);
                     }
                   }
                 },
@@ -364,7 +349,7 @@ WHERE meps.BibleCluesInfo.LanguageId = ?
                   ),
                 ),
                 onPressed: () {
-                  showPage(context, DocumentPage(publication: widget.bible, mepsDocumentId: _books[_currentIndex]['MepsDocumentId']));
+                  showPageDocument(context, widget.bible, _books[_currentIndex]['MepsDocumentId'], audios: widget.audios);
                 },
                 child: Padding(
                   padding: const EdgeInsets.symmetric(vertical: 16.0),
@@ -416,7 +401,7 @@ WHERE meps.BibleCluesInfo.LanguageId = ?
   Widget _buildChapterContainer(dynamic chapter) {
     return InkWell(
       onTap: () {
-        showPage(context, DocumentPage.bible(bible: widget.bible, book: _books[_currentIndex]['BibleBookId'], chapter: chapter['ChapterNumber'], audios: widget.audios));
+        showPageBibleChapter(context, widget.bible, _books[_currentIndex]['BibleBookId'], chapter['ChapterNumber'], audios: widget.audios);
       },
       child: Container(
         decoration: const BoxDecoration(

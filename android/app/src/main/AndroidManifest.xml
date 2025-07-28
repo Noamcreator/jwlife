@@ -25,6 +25,7 @@
         <!-- Activity optimisée pour InAppWebView et clavier -->
         <activity
             android:name="com.ryanheise.audioservice.AudioServiceActivity"
+            android:supportsPictureInPicture="true"
             android:exported="true"
             android:launchMode="singleTop"
             android:taskAffinity=""

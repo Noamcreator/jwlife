@@ -15,8 +15,7 @@ import '../../widgets/image_cached_widget.dart';
 import 'audio_player_model.dart';
 
 class AudioPlayerWidget extends StatefulWidget {
-  final bool visible;
-  const AudioPlayerWidget({super.key, required this.visible});
+  const AudioPlayerWidget({super.key});
 
   @override
   _AudioPlayerWidgetState createState() => _AudioPlayerWidgetState();
@@ -106,7 +105,7 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
 
   @override
   Widget build(BuildContext context) {
-    return widget.visible ? GestureDetector(
+    return GestureDetector(
       onTap: () {
         showPage(context, FullAudioView());
       },
@@ -380,7 +379,7 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
           ],
         ),
       ),
-    ) : Container();
+    );
   }
 }
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:jwlife/app/jwlife_page.dart';
 
+import '../../../../app/services/global_key_service.dart';
 import '../../../../app/services/settings_service.dart';
 import '../../../../core/icons.dart';
 import '../../../../core/utils/shared_preferences_helper.dart';
@@ -50,7 +51,7 @@ class _HomeAppBarState extends State<HomeAppBar> {
         setState(() async {
           if (value['Symbol'] != JwLifeSettings().currentLanguage.symbol) {
             await setLibraryLanguage(value);
-            JwLifePage.getHomeGlobalKey().currentState?.changeLanguageAndRefresh();
+            GlobalKeyService.homeKey.currentState?.changeLanguageAndRefresh();
           }
         });
       }

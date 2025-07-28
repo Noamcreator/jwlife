@@ -221,17 +221,17 @@ Future<String?> _showOnlineVideoDialog(BuildContext context, MediaItem mediaItem
 }
 
 // Fonction pour afficher le dialogue de téléchargement
-Future<String?> showDocumentDialog(BuildContext context, String docId, String track, String langwritten, String fileformat) async {
+Future<String?> showDocumentDialog(BuildContext context, String? pub, String? docId, String? track, String langwritten, String fileformat) async {
   final connectivityResult = await (Connectivity().checkConnectivity());
 
-  // Définir les paramètres de requête
-  final queryParams = {
-    'docid': docId,  // Ajoutez le docId
+  final queryParams = <String, String>{
+    if (pub != null) 'pub': pub,
+    if (docId != null) 'docid': docId,
+    'fileformat': fileformat,
+    if (track != null) 'track': track,
+    'langwritten': langwritten,
     'output': 'json',
-    'fileformat': fileformat,  // Utilisation du paramètre fileformat
     'alllangs': '0',
-    'track': track,  // Ajoutez le track
-    'langwritten': langwritten,  // Utiliser langwritten (maintenant défini)
   };
 
   printTime("queryParams: $queryParams");
@@ -255,7 +255,6 @@ Future<String?> showDocumentDialog(BuildContext context, String docId, String tr
     else {
       // Si la requête échoue, afficher un message d'erreur
       printTime("Erreur lors de la récupération des données: ${response.statusCode}");
-      // Vous pouvez également afficher un message d'erreur dans l'interface utilisateur
     }
   }
   catch (e) {
@@ -281,7 +280,7 @@ Future<String?> _showPdfDialog(BuildContext context, List<ConnectivityResult> co
             mainAxisSize: MainAxisSize.min, // Pour ne pas remplir tout l'espace
             children: [
               Text(
-                "Document",
+                file['title'],
                 style: TextStyle(fontSize: 23, fontWeight: FontWeight.bold),
               ),
               SizedBox(height: 10),
@@ -292,7 +291,6 @@ Future<String?> _showPdfDialog(BuildContext context, List<ConnectivityResult> co
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // Afficher les informations importantes ici
-                      Text("Nom: ${file['title'] ?? ''}"),
                       Text("Nom du fichier: ${file['file']['url'].split('/').last ?? ''}"),
                       Text("Taille: ${formatFileSize(file['filesize'])}"),
                       Text("Format(s): ${jsonData['fileformat'].join(', ')}"),

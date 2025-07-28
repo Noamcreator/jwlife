@@ -8,12 +8,11 @@ import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/repositories/PublicationRepository.dart';
 import 'package:jwlife/data/databases/catalog.dart';
 import 'package:jwlife/i18n/localization.dart';
-import 'package:jwlife/features/home/views/home_page.dart';
 import 'package:jwlife/widgets/dialog/utils_dialog.dart';
 import 'package:jwlife/widgets/image_cached_widget.dart';
 import 'package:sqflite/sqflite.dart';
 
-import '../../../app/jwlife_page.dart';
+import '../../../app/services/global_key_service.dart';
 import '../../../app/services/settings_service.dart';
 import '../../../core/utils/common_ui.dart';
 import '../../../data/databases/history.dart';
@@ -345,7 +344,7 @@ class MeetingsPageState extends State<MeetingsPage> {
           : const Color(0xFF626262),
     );
 
-    if (JwLifePage.getHomeGlobalKey().currentState?.isRefreshing ?? true) {
+    if (GlobalKeyService.homeKey.currentState?.isRefreshing ?? true) {
       return getLoadingWidget(Theme.of(context).primaryColor);
     }
     else {
@@ -846,6 +845,8 @@ class MeetingsPageState extends State<MeetingsPage> {
             },
             onTap: () async {
               if(selectedPublicTalk != null) {
+                showPageDocument(context, _publicTalkPub!, selectedPublicTalk!.mepsDocumentId);
+                /*
                 showPage(
                   context,
                   DocumentPage(
@@ -853,6 +854,8 @@ class MeetingsPageState extends State<MeetingsPage> {
                     mepsDocumentId: selectedPublicTalk!.mepsDocumentId,
                   ),
                 );
+
+                 */
               }
               else {
                 _showPublicTalksDialog();

@@ -124,14 +124,14 @@ class Api {
       final language = results.isNotEmpty ? results.first : null;
 
       if (language == null || language.lastModified != serverDate) {
-        printTime('Une mise à jour de la bibliothèque pour la langue \$languageSymbol est disponible.');
+        printTime('Une mise à jour de la bibliothèque pour la langue $languageSymbol est disponible.');
         return true;
       }
     }
     catch (e) {
       printTime('Erreur lors de la vérification de mise à jour de la bibliothèque : $e');
     }
-    printTime('La Bibliothèque pour la langue \$languageSymbol est déjà à jour.');
+    printTime('La Bibliothèque pour la langue $languageSymbol est déjà à jour.');
     return false;
   }
 
@@ -142,7 +142,7 @@ class Api {
       final response = await httpGetWithHeaders(url);
 
       if (response.statusCode == 200) {
-        debugPrint('Chargement du catalogue pour la langue \$languageSymbol...');
+        debugPrint('Chargement du catalogue pour la langue $languageSymbol...');
         await RealmLibrary.convertMediaJsonToRealm(response.bodyBytes);
 
         // Mettre à jour la date de modification
@@ -153,11 +153,11 @@ class Api {
           results.first.lastModified = serverDate;
         });
 
-        debugPrint('Catalogue de la langue \$languageSymbol mis à jour.');
+        debugPrint('Catalogue de la langue $languageSymbol mis à jour.');
         return true;
       }
       else {
-        debugPrint('Échec du téléchargement du catalogue pour la langue \$languageSymbol : ${response.statusCode}');
+        debugPrint('Échec du téléchargement du catalogue pour la langue $languageSymbol : ${response.statusCode}');
       }
     } catch (e) {
       debugPrint('Erreur lors de la mise à jour de la bibliothèque : $e');

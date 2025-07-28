@@ -110,6 +110,8 @@ class _PublicationSearchViewState extends State<PublicationSearchView> {
                         wordsSelected.add(word['index']);
                       }
                     }
+                    showPageDocument(context, widget.publication, doc['mepsDocumentId'], startParagraphId: doc['paragraphs'][0]['paragraphId'], endParagraphId: doc['paragraphs'][0]['paragraphId'], audios: widget.audios, wordsSelected: _model.wordsSelectedDocument);
+                    /*
                     showPage(
                       context,
                       DocumentPage(
@@ -121,6 +123,8 @@ class _PublicationSearchViewState extends State<PublicationSearchView> {
                         wordsSelected: _model.wordsSelectedDocument
                       ),
                     );
+
+                     */
                   },
                   child: Card(
                     color: Theme.of(context).brightness == Brightness.dark
@@ -316,18 +320,7 @@ class _PublicationSearchViewState extends State<PublicationSearchView> {
                 return GestureDetector(
                   onTap: () {
                     printTime(verse.toString());
-
-                    showPage(
-                      context,
-                      DocumentPage.bible(
-                        bible: widget.publication,
-                        audios: widget.audios,
-                        book: verse['bookNumber'],
-                        chapter: verse['chapterNumber'],
-                        firstVerse: verse['verseNumber'],
-                        lastVerse: verse['verseNumber'],
-                      ),
-                    );
+                    showPageBibleChapter(context, widget.publication, verse['bookNumber'], verse['chapterNumber'], firstVerse: verse['verseNumber'], lastVerse: verse['verseNumber'], audios: widget.audios);
                   },
                   child: Card(
                     color: Theme.of(context).brightness == Brightness.dark

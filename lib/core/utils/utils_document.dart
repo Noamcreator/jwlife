@@ -16,10 +16,9 @@ import '../../app/jwlife_app.dart';
 import '../../app/services/settings_service.dart';
 import '../../features/publication/pages/document/local/document_page.dart';
 
-Future<void> showDownloadPublicationDialog(BuildContext context, Publication publication) async {
+Future<void> showDownloadPublicationDialog(BuildContext context, Publication publication, {int? mepsDocId, int? bookNumber, int? chapterNumber, int? startParagraphId, int? endParagraphId}) async {
   String publicationTitle = publication.getTitle();
 
-  // Affichage du dialogue principal
   await showJwDialog<void>(
     context: context,
     titleText: "« $publicationTitle » n'est pas téléchargé",
@@ -27,27 +26,32 @@ Future<void> showDownloadPublicationDialog(BuildContext context, Publication pub
     buttons: [
       JwDialogButton(
         label: 'ANNULER',
+        closeDialog: true,
       ),
       JwDialogButton(
         label: 'TÉLÉCHARGER',
-        closeDialog: false, // Ne ferme pas immédiatement
+        closeDialog: false,
         onPressed: (buildContext) async {
-          await showDownloadProgressDialog(context, publication);
-          Navigator.pop(buildContext);
+          Navigator.of(buildContext).pop(); // Ferme le 1er dialog
+          await showDownloadProgressDialog(context, publication, mepsDocId, bookNumber, chapterNumber, startParagraphId, endParagraphId); // Ouvre le 2nd proprement
         },
       ),
     ],
   );
 }
 
-Future<void> showDownloadProgressDialog(BuildContext context, Publication publication) async {
+Future<void> showDownloadProgressDialog(BuildContext context, Publication publication, int? mepsDocId, int? bookNumber, int? chapterNumber, int? startParagraphId, int? endParagraphId) async {
   await showJwDialog<void>(
     context: context,
     titleText: "Téléchargement de « ${publication.getTitle()} »",
-    content: _DownloadDialogContent(publication: publication),
+    content: _DownloadDialogContent(publication: publication, mepsDocId: mepsDocId, bookNumber: bookNumber, chapterNumber: chapterNumber, startParagraphId: startParagraphId, endParagraphId: endParagraphId),
     buttons: [
       JwDialogButton(
-        label: 'ANNULER'
+        label: 'ANNULER',
+        onPressed: (buildContext) async {
+          await publication.cancelDownload(context);
+          Navigator.of(buildContext).pop();
+        },
       ),
     ],
   );
@@ -55,49 +59,70 @@ Future<void> showDownloadProgressDialog(BuildContext context, Publication public
 
 class _DownloadDialogContent extends StatefulWidget {
   final Publication publication;
+  final int? mepsDocId;
+  final int? bookNumber;
+  final int? chapterNumber;
+  final int? startParagraphId;
+  final int? endParagraphId;
 
-  const _DownloadDialogContent({required this.publication});
+  const _DownloadDialogContent({required this.publication, this.mepsDocId, this.bookNumber, this.chapterNumber, this.startParagraphId, this.endParagraphId});
 
   @override
-  __DownloadDialogContentState createState() => __DownloadDialogContentState();
+  State<_DownloadDialogContent> createState() => __DownloadDialogContentState();
 }
 
 class __DownloadDialogContentState extends State<_DownloadDialogContent> {
-  double progress = 0.0;
+  bool _hasStarted = false;
 
   @override
-  void initState() {
-    super.initState();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
 
-    init();
+    if (!_hasStarted) {
+      _hasStarted = true;
+      _startDownload(); // On appelle ici, plus sûr
+    }
   }
 
-  Future<void> init() async {
-    // TODO : Gestion de la progression pour le dialog de téléchargement
-    await widget.publication.download(context);
-    Navigator.pop(context);
+  Future<void> _startDownload() async {
+    await widget.publication.download(context); // ← maintenant dans un contexte sûr
+    if (mounted) {
+      Navigator.pop(context);
+      if (widget.publication.isDownloadedNotifier.value) {
+        if (widget.bookNumber != null && widget.chapterNumber != null) {
+          await showPageBibleChapter(context, widget.publication, widget.bookNumber!, widget.chapterNumber!, firstVerse: widget.startParagraphId, lastVerse: widget.endParagraphId);
+        }
+        else {
+          await showPageDocument(context, widget.publication, widget.mepsDocId!, startParagraphId: widget.startParagraphId, endParagraphId: widget.endParagraphId);
+        }
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 25.0),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (progress > 0)
-            LinearProgressIndicator(
-              value: progress,
-              valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).primaryColor),
-              backgroundColor: Colors.grey[300],
-            ),
-          if (progress == 0)
-            LinearProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).primaryColor),
-              backgroundColor: Colors.grey[300],
-            ),
-        ],
-      )
+      padding: const EdgeInsets.symmetric(horizontal: 25.0, vertical: 10),
+      child: ValueListenableBuilder<bool>(
+        valueListenable: widget.publication.isDownloadingNotifier,
+        builder: (context, isDownloading, _) {
+          if (!isDownloading) return const SizedBox.shrink();
+
+          return ValueListenableBuilder<double>(
+            valueListenable: widget.publication.progressNotifier,
+            builder: (context, progress, _) {
+              return LinearProgressIndicator(
+                value: progress == -1 ? null : progress,
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  Theme.of(context).primaryColor,
+                ),
+                backgroundColor: Colors.grey.shade300,
+                minHeight: 4,
+              );
+            },
+          );
+        },
+      ),
     );
   }
 }
@@ -106,24 +131,18 @@ Future<void> showDocumentView(BuildContext context, int mepsDocId, int currentLa
   Publication? publication = await JwLifeApp.pubCollections.getDocumentFromMepsDocumentId(mepsDocId, currentLanguageId);
 
   if (publication != null) {
-    await showPage(context, DocumentPage(publication: publication, mepsDocumentId: mepsDocId, startParagraphId: startParagraphId, endParagraphId: endParagraphId));
+    if (publication.isDownloadedNotifier.value) {
+      await showPageDocument(context, publication, mepsDocId, startParagraphId: startParagraphId, endParagraphId: endParagraphId);
+    }
+    else {
+      await showDownloadPublicationDialog(context, publication, mepsDocId: mepsDocId, startParagraphId: startParagraphId, endParagraphId: endParagraphId);
+    }
   }
   else {
     if(await hasInternetConnection()) {
       publication = await PubCatalog.searchPubFromMepsDocumentId(mepsDocId, currentLanguageId);
       if (publication != null) {
-        await showDownloadPublicationDialog(context, publication);
-        if (publication.isDownloadedNotifier.value) {
-          showPage(
-            context,
-            DocumentPage(
-              publication: publication,
-              mepsDocumentId: mepsDocId,
-              startParagraphId: startParagraphId,
-              endParagraphId: endParagraphId,
-            ),
-          );
-        }
+        await showDownloadPublicationDialog(context, publication, mepsDocId: mepsDocId, startParagraphId: startParagraphId, endParagraphId: endParagraphId);
       }
     }
     else {
@@ -136,11 +155,19 @@ Future<void> showChapterView(BuildContext context, String keySymbol, int current
   Publication? bible = PublicationRepository().getAllBibles().firstWhereOrNull((p) => p.keySymbol == keySymbol && p.mepsLanguage.id == currentLanguageId);
 
   if (bible != null) {
-    await showPage(context, DocumentPage.bible(bible: bible, book: bookNumber, chapter: chapterNumber, firstVerse: firstVerseNumber, lastVerse: lastVerseNumber));
+    if (bible.isDownloadedNotifier.value) {
+      await showPageBibleChapter(context, bible, bookNumber, chapterNumber, firstVerse: firstVerseNumber, lastVerse: lastVerseNumber);
+    }
+    else {
+      await showDownloadPublicationDialog(context, bible, bookNumber: bookNumber, chapterNumber: chapterNumber, startParagraphId: firstVerseNumber, endParagraphId: lastVerseNumber);
+    }
   }
   else {
     if(await hasInternetConnection()) {
-      //showPage(context, PublicationMenu(publication: publication));
+      bible = await PubCatalog.searchPub(keySymbol, 0, currentLanguageId);
+      if (bible != null) {
+        await showDownloadPublicationDialog(context, bible, bookNumber: bookNumber, chapterNumber: chapterNumber, startParagraphId: firstVerseNumber, endParagraphId: lastVerseNumber);
+      }
     }
     else {
       await showNoConnectionDialog(context);
@@ -423,7 +450,6 @@ Future<bool> showFullscreenDialog(BuildContext context) async {
                           setState(() {
                             isFullscreen = value;
                           });
-                          setFullscreen(isFullscreen);
                         },
                       ),
                     ],

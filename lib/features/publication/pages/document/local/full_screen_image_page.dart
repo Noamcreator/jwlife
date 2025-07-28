@@ -8,18 +8,19 @@ import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/realm/catalog.dart';
 import 'package:jwlife/widgets/image_cached_widget.dart';
 
+import '../../../../../app/services/global_key_service.dart';
 import '../data/models/multimedia.dart';
 
 class FullScreenImagePage extends StatefulWidget {
   final Publication publication;
   final List<Multimedia> multimedias;
-  final int index;
+  final Multimedia multimedia;
 
   const FullScreenImagePage({
     super.key,
     required this.publication,
     required this.multimedias,
-    required this.index,
+    required this.multimedia,
   });
 
   @override
@@ -38,21 +39,19 @@ class _FullScreenImagePageState extends State<FullScreenImagePage> {
   @override
   void initState() {
     super.initState();
-    _currentIndex = widget.index;
-
     setState(() {
       for(Multimedia multimedia in widget.multimedias) {
         if (!widget.multimedias.any((img) => img.linkMultimediaId == multimedia.id && img.mimeType == 'video/mp4')) {
           _multimedias.add(multimedia);
         }
       }
-     // _multimedias.sort((a, b) => a.beginParagraphOrdinal.compareTo(b.beginParagraphOrdinal));
     });
+
+    _currentIndex = _multimedias.indexWhere((img) => img.id == widget.multimedia.id);
 
     _pageController = PageController(initialPage: _currentIndex);
     _scrollController = ScrollController();
     _transformationController.addListener(_handleTransformationChanged);
-    //WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToCurrentIndex());
   }
 
   @override
@@ -86,8 +85,8 @@ class _FullScreenImagePageState extends State<FullScreenImagePage> {
       onTap: () {
         setState(() {
           _controlsVisible = !_controlsVisible;
-          JwLifePage.toggleNavBarVisibility.call(_controlsVisible);
         });
+        GlobalKeyService.jwLifePageKey.currentState!.toggleNavBarVisibility(_controlsVisible);
       },
       child: Scaffold(
         backgroundColor: Colors.black,
@@ -156,8 +155,8 @@ class _FullScreenImagePageState extends State<FullScreenImagePage> {
                     else {
                       setState(() {
                         _controlsVisible = !_controlsVisible;
-                        JwLifePage.toggleNavBarVisibility.call(_controlsVisible);
                       });
+                      GlobalKeyService.jwLifePageKey.currentState!.toggleNavBarVisibility(_controlsVisible);
                     }
                   },
                   child: Stack(
@@ -200,9 +199,7 @@ class _FullScreenImagePageState extends State<FullScreenImagePage> {
         leading: IconButton(
           icon: Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () {
-            JwLifePage.toggleNavBarVisibility.call(true);
-            JwLifePage.toggleNavBarBlack.call(false);
-            Navigator.pop(context);
+            GlobalKeyService.jwLifePageKey.currentState?.handleBack(context);
           },
         ),
       ),

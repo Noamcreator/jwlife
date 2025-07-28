@@ -5,7 +5,7 @@ import 'package:jwlife/core/utils/utils_video.dart';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/databases/catalog.dart';
 import 'package:jwlife/data/realm/catalog.dart';
-import 'package:jwlife/features/home/views/search/search_model.dart';
+import 'package:jwlife/features/home/pages/search/search_model.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../app/services/settings_service.dart';

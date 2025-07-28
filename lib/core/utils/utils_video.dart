@@ -19,10 +19,11 @@ import 'package:http/http.dart' as http;
 import 'package:sqflite/sqflite.dart';
 
 import '../../app/jwlife_page.dart';
+import '../../app/services/global_key_service.dart';
 import '../../app/services/settings_service.dart';
 import '../../data/realm/catalog.dart';
 import '../../data/realm/realm_library.dart';
-import '../../features/home/views/home_page.dart';
+import '../../features/home/pages/home_page.dart';
 import '../../features/video/subtitles.dart';
 import '../../features/video/subtitles_view.dart';
 import '../../features/video/video_player_view.dart';
@@ -34,7 +35,7 @@ void showFullScreenVideo(BuildContext context, MediaItem mediaItem) async {
   Video? video = JwLifeApp.mediaCollections.getVideo(mediaItem);
 
   if (video != null) {
-    JwLifePage.toggleNavBarBlack.call(true);
+    //GlobalKeyService.jwLifePageKey.currentState!.toggleNavBarBlack(true);
 
     showPage(context, VideoPlayerPage(
       mediaItem: mediaItem,
@@ -43,7 +44,7 @@ void showFullScreenVideo(BuildContext context, MediaItem mediaItem) async {
   }
   else {
     if(await hasInternetConnection()) {
-      JwLifePage.toggleNavBarBlack.call(true);
+      //GlobalKeyService.jwLifePageKey.currentState!.toggleNavBarBlack(true);
 
       showPage(context, VideoPlayerPage(
         mediaItem: mediaItem
@@ -96,8 +97,11 @@ PopupMenuItem getVideoShareItem(MediaItem item) {
       ],
     ),
     onTap: () {
-      Share.shareUri(Uri.parse('https://www.jw.org/finder?srcid=jwlshare&wtlocale=${item.languageSymbol}&lank=${item.languageAgnosticNaturalKey}'));
-    },
+      Uri uri = Uri.parse('https://www.jw.org/finder?srcid=jwlshare&wtlocale=${item.languageSymbol}&lank=${item.languageAgnosticNaturalKey}');
+      SharePlus.instance.share(
+          ShareParams(title: item.title, uri: uri)
+      );
+      },
   );
 }
 
@@ -152,7 +156,7 @@ PopupMenuItem getVideoFavoriteItem(MediaItem item) {
         await JwLifeApp.userdata.addInFavorite(item);
       }
 
-      JwLifePage.getHomeGlobalKey().currentState?.refreshFavorites();
+      GlobalKeyService.homeKey.currentState?.refreshFavorites();
     },
   );
 }

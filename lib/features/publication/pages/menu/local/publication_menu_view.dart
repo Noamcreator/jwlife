@@ -15,7 +15,6 @@ import 'package:jwlife/data/models/audio.dart';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/databases/history.dart';
 import 'package:jwlife/data/models/userdata/bookmark.dart';
-import 'package:jwlife/features/bible/views/local_bible_chapter.dart';
 import 'package:jwlife/features/publication/pages/menu/local/publication_search_view.dart';
 import 'package:jwlife/widgets/dialog/language_dialog_pub.dart';
 import 'package:jwlife/widgets/responsive_appbar_actions.dart';
@@ -23,8 +22,8 @@ import 'package:jwlife/widgets/searchfield/searchfield_widget.dart';
 import 'package:sqflite/sqflite.dart';
 
 import '../../../../../core/api.dart';
+import '../../../../bible/pages/local_bible_chapter.dart';
 import '../../document/data/models/document.dart';
-import '../../document/local/document_page.dart';
 import '../../document/local/documents_manager.dart';
 
 class ListItem {
@@ -438,11 +437,15 @@ GROUP BY
       padding: const EdgeInsets.symmetric(vertical: 4.0),
       child: InkWell(
         onTap: () {
+          showPageDocument(context, widget.publication, item.mepsDocumentId, audios: _audios);
+          /*
           showPage(context, DocumentPage(
             publication: widget.publication,
             audios: _audios,
             mepsDocumentId: item.mepsDocumentId,
           ));
+
+           */
         },
         child: Row(
           spacing: 8.0,
@@ -669,10 +672,14 @@ GROUP BY
           itemBuilder: (context, index) {
             return GestureDetector(
               onTap: () {
+                showPageDocument(context, widget.publication, items[index].mepsDocumentId, audios: _audios);
+                /*
                 showPage(context, DocumentPage(
                   publication: widget.publication,
                   mepsDocumentId: items[index].mepsDocumentId,
                 ));
+
+                 */
               },
               child: Container(
                 alignment: Alignment.center,
@@ -927,30 +934,11 @@ GROUP BY
                   Bookmark? bookmark = await showBookmarkDialog(
                       context, widget.publication);
                   if (bookmark != null) {
-                    if (bookmark.location.bookNumber != null &&
-                        bookmark.location.chapterNumber != null) {
-                      showPage(
-                          context,
-                          DocumentPage.bible(
-                              bible: widget.publication,
-                              book: bookmark.location.bookNumber!,
-                              chapter: bookmark.location.chapterNumber!,
-                              firstVerse: bookmark.blockIdentifier,
-                              lastVerse: bookmark.blockIdentifier
-                          )
-                      );
+                    if (bookmark.location.bookNumber != null && bookmark.location.chapterNumber != null) {
+                      showPageBibleChapter(context, widget.publication, bookmark.location.bookNumber!, bookmark.location.chapterNumber!, firstVerse: bookmark.blockIdentifier, lastVerse: bookmark.blockIdentifier);
                     }
                     else if (bookmark.location.mepsDocumentId != null) {
-                      showPage(
-                          context,
-                          DocumentPage(
-                              publication: widget.publication,
-                              audios: _audios,
-                              mepsDocumentId: bookmark.location.mepsDocumentId!,
-                              startParagraphId: bookmark.blockIdentifier,
-                              endParagraphId: bookmark.blockIdentifier
-                          )
-                      );
+                      showPageDocument(context, widget.publication, bookmark.location.mepsDocumentId!, startParagraphId: bookmark.blockIdentifier, endParagraphId: bookmark.blockIdentifier, audios: _audios);
                     }
                   }
                 },

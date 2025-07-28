@@ -3,8 +3,8 @@ import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/databases/catalog.dart';
-import 'package:jwlife/features/home/views/search/search_model.dart';
-import 'package:jwlife/features/home/views/search/verses_search_tab.dart';
+import 'package:jwlife/features/home/pages/search/search_model.dart';
+import 'package:jwlife/features/home/pages/search/verses_search_tab.dart';
 import 'package:searchfield/searchfield.dart';
 
 import '../../../../app/services/settings_service.dart';

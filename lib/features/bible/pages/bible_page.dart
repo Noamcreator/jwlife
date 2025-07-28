@@ -5,13 +5,13 @@ import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/repositories/PublicationRepository.dart';
 import 'package:jwlife/data/databases/catalog.dart';
 import 'package:jwlife/i18n/localization.dart';
-import 'package:jwlife/features/home/views/home_page.dart';
+import 'package:jwlife/features/home/pages/home_page.dart';
 import 'package:jwlife/widgets/dialog/language_dialog_pub.dart';
 
+import '../../../app/services/global_key_service.dart';
 import '../../publication/pages/menu/local/publication_menu_view.dart';
 
 class BiblePage extends StatefulWidget {
-  static late Function() refreshBibleView;
   const BiblePage({super.key});
 
   @override
@@ -21,8 +21,11 @@ class BiblePage extends StatefulWidget {
 class BiblePageState extends State<BiblePage> {
   @override
   void initState() {
-    BiblePage.refreshBibleView = () {setState(() {});};
     super.initState();
+  }
+
+  void refreshBiblePage() {
+    setState(() {});
   }
 
   @override
@@ -30,7 +33,7 @@ class BiblePageState extends State<BiblePage> {
     print('Build BiblePage');
 
     List<Publication> bibles = PublicationRepository().getAllBibles();
-    if (JwLifePage.getHomeGlobalKey().currentState?.isRefreshing ?? true) {
+    if (GlobalKeyService.homeKey.currentState?.isRefreshing ?? true) {
       return getLoadingWidget(Theme.of(context).primaryColor);
     }
     else if (bibles.isNotEmpty) {

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/core/utils/utils_video.dart';
 import 'package:jwlife/data/realm/catalog.dart';
-import 'package:jwlife/features/home/views/search/search_model.dart';
+import 'package:jwlife/features/home/pages/search/search_model.dart';
 
 import '../../../../app/services/settings_service.dart';
 import '../../../../core/icons.dart';

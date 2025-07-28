@@ -13,6 +13,7 @@ import 'package:realm/realm.dart';
 
 import '../../app/jwlife_app.dart';
 import '../../app/jwlife_page.dart';
+import '../../app/services/global_key_service.dart';
 import '../../app/services/settings_service.dart';
 import '../../core/api.dart';
 import '../../data/models/audio.dart';
@@ -255,8 +256,8 @@ class JwLifeAudioPlayer {
     printTime("play");
     printTime("starPlayAudio: $start");
     if (start != null) await player.seek(start);
-    if (!JwLifePage.audioWidgetVisible) {
-      JwLifePage.toggleAudioWidgetVisibility(true);
+    if (!GlobalKeyService.jwLifePageKey.currentState!.audioWidgetVisible) {
+      GlobalKeyService.jwLifePageKey.currentState!.toggleAudioWidgetVisibility(true);
     }
     await player.play();
   }
@@ -282,6 +283,6 @@ class JwLifeAudioPlayer {
     randomMode = false;
     await player.clearAudioSources();
     await player.stop();
-    JwLifePage.toggleAudioWidgetVisibility(false);
+    GlobalKeyService.jwLifePageKey.currentState!.toggleAudioWidgetVisibility(false);
   }
 }

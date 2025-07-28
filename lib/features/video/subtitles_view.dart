@@ -11,6 +11,7 @@ import 'package:jwlife/data/realm/catalog.dart';
 import 'package:jwlife/features/video/subtitles.dart';
 import 'package:jwlife/features/video/video_player_view.dart';
 
+import '../../app/services/global_key_service.dart';
 import '../../app/services/settings_service.dart';
 import '../../core/api.dart';
 
@@ -175,7 +176,7 @@ class _SubtitlesPageState extends State<SubtitlesPage> {
           final subtitle = _searchResults[index];
           return GestureDetector(
             onTap: () {
-              JwLifePage.toggleNavBarBlack.call(true);
+              //GlobalKeyService.jwLifePageKey.currentState!.toggleNavBarBlack(true);
               if (widget.localVideo != null) {
                 MediaItem? mediaItem = getVideoItem(widget.localVideo!.keySymbol, widget.localVideo!.track, widget.localVideo!.documentId, widget.localVideo!.issueTagNumber, JwLifeSettings().currentLanguage.id);
                 showPage(context, VideoPlayerPage(mediaItem: mediaItem!, localVideo: widget.localVideo, startPosition: subtitle.startTime));

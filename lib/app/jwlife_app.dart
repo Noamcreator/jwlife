@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:jwlife/app/services/global_key_service.dart';
 import 'package:jwlife/app/services/settings_service.dart';
 import 'package:jwlife/app/startup/create_database.dart';
 import 'package:jwlife/app/startup/splash_screen.dart';
@@ -20,12 +20,11 @@ import 'package:jwlife/i18n/app_localizations.dart';
 
 import '../data/databases/tiles_cache.dart';
 import '../features/audio/audio_player_model.dart';
+import '../features/publication/pages/document/local/document_page.dart';
 import 'jwlife_page.dart';
 import 'startup/copy_assets.dart';
 
 class JwLifeApp extends StatefulWidget {
-  static late Function(Color) togglePrimaryColor;
-
   static late PubCollections pubCollections;
   static late MediaCollections mediaCollections;
   static late Userdata userdata;
@@ -41,17 +40,19 @@ class JwLifeApp extends StatefulWidget {
   }
 
   @override
-  State<JwLifeApp> createState() => _JwLifeAppState();
+  State<JwLifeApp> createState() => JwLifeAppState();
 }
 
-class _JwLifeAppState extends State<JwLifeApp> {
+class JwLifeAppState extends State<JwLifeApp> {
   bool _initialized = false;
+  ThemeMode _themeMode = JwLifeSettings().themeMode;
+  ThemeData _lightTheme = JwLifeSettings().lightData;
+  ThemeData _darkTheme = JwLifeSettings().darkData;
+  Locale _locale = JwLifeSettings().locale;
 
   @override
   void initState() {
     super.initState();
-
-    JwLifeApp.togglePrimaryColor = _togglePrimaryColor;
 
     initializeData().then((_) {
       setState(() {
@@ -60,27 +61,37 @@ class _JwLifeAppState extends State<JwLifeApp> {
     });
   }
 
-  Future<void> _togglePrimaryColor(Color color) async {
+  void toggleTheme(ThemeMode themeMode) {
     setState(() {
-      JwLifeSettings().lightData = AppTheme.getLightTheme(color);
-      JwLifeSettings().darkData = AppTheme.getDarkTheme(color);
+      _themeMode = themeMode;
     });
-    setPrimaryColor(JwLifeSettings().themeMode, color);
-  }
-
-  void _toggleTheme(ThemeMode themeMode) {
-    setState(() {
-      JwLifeSettings().themeMode = themeMode;
-    });
+    JwLifeSettings().themeMode = themeMode;
     JwLifeSettings().webViewData.update(themeMode);
     final theme = themeMode == ThemeMode.dark ? 'dark' : themeMode == ThemeMode.light ? 'light' : 'system';
     setTheme(theme);
+
+    for (List<GlobalKey<DocumentPageState>> keys in GlobalKeyService.jwLifePageKey.currentState!.documentPageKeys) {
+      for (GlobalKey<DocumentPageState> key in keys) {
+        key.currentState!.changeTheme(themeMode);
+      }
+    }
   }
 
-  void _changeLocale(Locale locale) {
+  Future<void> togglePrimaryColor(Color color) async {
     setState(() {
-      JwLifeSettings().locale = locale;
+      _lightTheme = AppTheme.getLightTheme(color);
+      _darkTheme = AppTheme.getDarkTheme(color);
     });
+    JwLifeSettings().lightData = AppTheme.getLightTheme(color);
+    JwLifeSettings().darkData = AppTheme.getDarkTheme(color);
+    setPrimaryColor(JwLifeSettings().themeMode, color);
+  }
+
+  void changeLocale(Locale locale) {
+    setState(() {
+      _locale = locale;
+    });
+    JwLifeSettings().locale = locale;
     setLocale(locale.languageCode);
   }
 
@@ -89,24 +100,13 @@ class _JwLifeAppState extends State<JwLifeApp> {
     return MaterialApp(
       title: Constants.appName,
       debugShowCheckedModeBanner: false,
-      themeMode: JwLifeSettings().themeMode,
-      theme: JwLifeSettings().lightData,
-      darkTheme: JwLifeSettings().darkData,
-      locale: JwLifeSettings().locale,
+      themeMode: _themeMode,
+      theme: _lightTheme,
+      darkTheme: _darkTheme,
+      locale: _locale,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
-      home: _initialized
-          ? JwLifePage(
-        toggleTheme: _toggleTheme,
-        changeLocale: _changeLocale,
-      )
-          : AnnotatedRegion<SystemUiOverlayStyle>(
-        value: SystemUiOverlayStyle(
-          statusBarColor: Colors.transparent,
-          systemNavigationBarColor: Colors.white,
-        ),
-        child: const SplashScreen(),
-      ),
+      home: _initialized ? JwLifePage(key: GlobalKeyService.jwLifePageKey) : const SplashScreen()
     );
   }
 

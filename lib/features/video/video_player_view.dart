@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:async'; // Importer pour utiliser Timer
 import 'dart:io';
+import 'package:floating/floating.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:jwlife/app/jwlife_page.dart';
@@ -11,8 +12,8 @@ import 'package:jwlife/data/databases/history.dart';
 import 'package:jwlife/data/realm/catalog.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:video_player/video_player.dart';
-import 'package:http/http.dart' as http;
 
+import '../../app/services/global_key_service.dart';
 import '../../core/api.dart';
 import 'subtitles.dart';
 
@@ -39,21 +40,12 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
   Timer? _timer; // Variable pour le Timer
   bool _controlsVisible = true; // Variable pour contrôler la visibilité des contrôles
   bool _showSubtitle = false;
-  final bool _audioWidgetVisible = JwLifePage.audioWidgetVisible; // Variable pour contrôler la visibilité de l'audio widget
 
   @override
   void initState() {
     super.initState();
-    // Met le mode plein écran en masquant les barres système
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky, overlays: []);
-
-    setState(() {
-      _title = widget.mediaItem.title ?? '';
-      _duration = Duration(seconds: widget.mediaItem.duration!.toInt());
-    });
-
-    // Met le mode plein écran en masquant le player audio
-    toggleAudioWidgetVisibility();
+    _title = widget.mediaItem.title ?? '';
+    _duration = Duration(seconds: widget.mediaItem.duration!.toInt());
 
     History.insertVideo(widget.mediaItem);
 
@@ -66,12 +58,20 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
     else {
       getVideoApi();
     }
+
+    /*
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      GlobalKeyService.jwLifePageKey.currentState?.toggleNavBarBlack(true);
+    });
+
+     */
   }
 
-  Future<void> toggleAudioWidgetVisibility() async {
-    if(JwLifePage.audioWidgetVisible) {
-      JwLifePage.toggleAudioWidgetVisibility(false);
-    }
+  @override
+  void dispose() {
+    _controller?.dispose();
+    _timer?.cancel(); // Annulez le Timer
+    super.dispose();
   }
 
   // Method to play the video
@@ -100,7 +100,7 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
     }
   }
 
-  Future<void> fetchMedia(final media) async {
+  Future<void> fetchMedia(dynamic media) async {
     final videoUrl = media['files'][2]['progressiveDownloadURL']; // Adapt according to response structure
     final title = media['title']; // Adapt according to response structure
     final duration = Duration(seconds: (media['duration'] as num).toInt()); // Adapt according to response structure
@@ -108,7 +108,7 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
     await playOnlineVideo(title, duration, videoUrl);
   }
 
-  Future<void> fetchPubMedia(final media) async {
+  Future<void> fetchPubMedia(dynamic media) async {
     final videoUrl = media['files']['F']['MP4'][2]['file']['url'];
     final title = media['files']['F']['MP4'][2]['title'];
     final duration = Duration(seconds: (media['files']['F']['MP4'][2]['duration'] as num).toInt()); // Adapt according to response structure
@@ -118,34 +118,29 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
 
   // Method to play the video
   Future<void> playOnlineVideo(String title, Duration duration, String videoUrl) async {
-    _controller = VideoPlayerController.network(videoUrl)
+    Uri uriVideo = Uri.parse(videoUrl);
+    _controller = VideoPlayerController.networkUrl(
+        uriVideo,
+        httpHeaders: Api.getHeaders()
+      )
       ..initialize().then((_) {
-        setState(() {
-          _controller!.play();
-          _controller!.seekTo(widget.startPosition);
-          // Démarrez le Timer lorsque le contrôleur est prêt
-          _timer = Timer.periodic(Duration(milliseconds: 100), (Timer timer) {
-            if (_controller!.value.isInitialized && mounted) {
-              setState(() {
-                if(!_isPositionSeeking) {
-                  _positionSlider = _controller!.value.position.inSeconds.toDouble();
-                }
-              });
-            }
-            if(_controller!.value.position >= _controller!.value.duration) {
-              JwLifePage.toggleNavBarVisibility.call(true);
-              JwLifePage.toggleNavBarBlack.call(false);
-              Navigator.pop(context);
+        _controller!.play();
+        _controller!.seekTo(widget.startPosition);
+        _controller!.addListener(() {
+          setState(() {
+            if(!_isPositionSeeking) {
+              _positionSlider = _controller!.value.position.inSeconds.toDouble();
             }
           });
-          Timer(Duration(seconds: 2), () {
-            if(JwLifePage.navBarIsBlack[JwLifePage.currentIndex] == true) {
-              setState(() {
-                _controlsVisible = !_controlsVisible; // Toggle visibility
-                JwLifePage.toggleNavBarVisibility.call(_controlsVisible); // Appeler la fonction pour modifier la visibilité de la barre de navigation
-              });
-            }
+          if(_controller!.value.position >= _controller!.value.duration) {
+            GlobalKeyService.jwLifePageKey.currentState?.handleBack(context);
+          }
+        });
+        _timer = Timer(Duration(seconds: 3), () {
+          setState(() {
+            _controlsVisible = false;
           });
+          GlobalKeyService.jwLifePageKey.currentState!.toggleNavBarVisibility(false);
         });
       });
   }
@@ -156,32 +151,23 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
 
     _controller = VideoPlayerController.file(file)
       ..initialize().then((_) {
-        setState(() {
-          _controller!.play();
-          _controller!.seekTo(widget.startPosition);
-          // Démarrez le Timer lorsque le contrôleur est prêt
-          _timer = Timer.periodic(Duration(milliseconds: 100), (Timer timer) {
-            if (_controller!.value.isInitialized && mounted) {
-              setState(() {
-                if(!_isPositionSeeking) {
-                  _positionSlider = _controller!.value.position.inSeconds.toDouble();
-                }
-              });
-            }
-            if(_controller!.value.position >= _controller!.value.duration) {
-              JwLifePage.toggleNavBarVisibility.call(true);
-              JwLifePage.toggleNavBarBlack.call(false);
-              Navigator.pop(context);
+        _controller!.play();
+        _controller!.seekTo(widget.startPosition);
+        _controller!.addListener(() {
+          setState(() {
+            if(!_isPositionSeeking) {
+              _positionSlider = _controller!.value.position.inSeconds.toDouble();
             }
           });
-          Timer(Duration(seconds: 2), () {
-            if(JwLifePage.navBarIsBlack[JwLifePage.currentIndex] == true) {
-              setState(() {
-                _controlsVisible = !_controlsVisible; // Toggle visibility
-                JwLifePage.toggleNavBarVisibility.call(_controlsVisible); // Appeler la fonction pour modifier la visibilité de la barre de navigation
-              });
-            }
+          if(_controller!.value.position >= _controller!.value.duration) {
+            GlobalKeyService.jwLifePageKey.currentState?.handleBack(context);
+          }
+        });
+        _timer = Timer(Duration(seconds: 3), () {
+          setState(() {
+            _controlsVisible = false; // Toggle visibility
           });
+          GlobalKeyService.jwLifePageKey.currentState!.toggleNavBarVisibility(false);
         });
       });
   }
@@ -200,8 +186,36 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () {
-        _controlsVisible = !_controlsVisible;
-        JwLifePage.toggleNavBarVisibility.call(_controlsVisible);
+        _timer?.cancel();
+        setState(() {
+          _controlsVisible = !_controlsVisible;
+        });
+        GlobalKeyService.jwLifePageKey.currentState!.toggleNavBarVisibility(_controlsVisible);
+
+        if(_controlsVisible) {
+          // lancer un timer de 3 secondes pour ensuite enlever la barre de navigation
+          _timer = Timer(Duration(seconds: 3), () {
+            setState(() {
+              _controlsVisible = false;
+            });
+            GlobalKeyService.jwLifePageKey.currentState!.toggleNavBarVisibility(false);
+            _timer?.cancel();
+          });
+        }
+      },
+      onDoubleTapDown: (details) {
+        final tapPosition = details.localPosition;
+        final widgetWidth = context.size?.width ?? 0;
+
+        // Si l'utilisateur double-tap sur la partie droite de l'ecran
+        if (tapPosition.dx > widgetWidth / 2) {
+          // on avance de 15 secondes
+          _controller!.seekTo(_controller!.value.position + Duration(seconds: 15));
+        }
+        // Sinon on revient 15 secondes
+        else {
+          _controller!.seekTo(_controller!.value.position - Duration(seconds: 5));
+        }
       },
       child: Scaffold(
         backgroundColor: Colors.black,
@@ -212,8 +226,7 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
               child: Center(
                 child: Stack(
                   children: [
-                    _controller != null && _controller!.value.isInitialized
-                        ? AspectRatio(
+                    _controller != null && _controller!.value.isInitialized ? AspectRatio(
                       aspectRatio: _controller!.value.aspectRatio,
                       child: VideoPlayer(_controller!),
                     ) : Container(),
@@ -256,25 +269,44 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
                 child: AppBar(
                   backgroundColor: Colors.transparent,
                   elevation: 0, // Pour ne pas avoir d'ombre sous l'AppBar
-                  title: Text(_title.isEmpty ? 'Video' : _title, style: TextStyle(color: Colors.white)),
+                  title: Text(_title, style: TextStyle(color: Colors.white)),
                   leading: IconButton(
                     icon: Icon(Icons.arrow_back, color: Colors.white),
                     onPressed: () {
-                      // Restaure l'affichage des barres système
-                      SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-
-                      JwLifePage.toggleNavBarVisibility.call(true);
-                      JwLifePage.toggleNavBarBlack.call(false);
-                      Navigator.pop(context);
+                      GlobalKeyService.jwLifePageKey.currentState?.handleBack(context);
                     },
                   ),
+                  actions: [
+                    IconButton(
+                      icon: Icon(JwIcons.screen_square_right, color: Colors.white),
+                      onPressed: () async {
+                        _controlsVisible = false;
+                        final floating = Floating();
+                        final canUsePiP = await floating.isPipAvailable;
+
+                        if (canUsePiP) {
+                          PiPStatus statusAfterEnabling  = await floating.enable(ImmediatePiP());
+                          if (PiPStatus.disabled == statusAfterEnabling) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Échec de l’activation du mode PiP')),
+                            );
+                          }
+                        }
+                        else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Le mode PiP n’est pas disponible sur cet appareil')),
+                          );
+                        }
+                      },
+                    ),
+                  ],
                 ),
               ),
 
             // Contrôles positionnés en bas
             if (_controlsVisible)
               Positioned(
-                bottom: 55,
+                bottom: 65,
                 left: -15,
                 right: -15,
                 child: Container(
@@ -306,7 +338,6 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
                             setState(() {
                               _positionSlider = newValue;
                               _controller!.seekTo(Duration(seconds: newValue.toInt()));
-                              _controller!.play();
                               _isPositionSeeking = false;
                             });
                           },
@@ -408,8 +439,9 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
                                     ],
                                   ),
                                   onTap: () {
-                                    Share.share(
-                                        'https://www.jw.org/finder?srcid=jwlshare&wtlocale=${widget.mediaItem.languageSymbol}&lank=${widget.mediaItem.languageAgnosticNaturalKey}'
+                                    Uri uri = Uri.parse('https://www.jw.org/finder?srcid=jwlshare&wtlocale=${widget.mediaItem.languageSymbol}&lank=${widget.mediaItem.languageAgnosticNaturalKey}');
+                                    SharePlus.instance.share(
+                                        ShareParams(title: widget.mediaItem.title, uri: uri)
                                     );
                                   },
                                 ),
@@ -540,20 +572,5 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
         ),
       ),
     );
-  }
-
-  @override
-  void dispose() {
-    // Restaure l'affichage des barres système
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-
-    _controller?.dispose();
-    _timer?.cancel(); // Annulez le Timer
-    JwLifePage.toggleNavBarVisibility.call(true);
-    JwLifePage.toggleNavBarBlack.call(false);
-    if(_audioWidgetVisible) {
-      JwLifePage.toggleAudioWidgetVisibility(true);
-    }
-    super.dispose();
   }
 }

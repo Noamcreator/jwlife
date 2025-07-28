@@ -1,5 +1,66 @@
 import 'package:flutter/material.dart';
+import 'package:jwlife/app/jwlife_page.dart';
+import 'package:jwlife/features/publication/pages/document/local/document_page.dart';
+import 'package:jwlife/features/publication/pages/document/local/full_screen_image_page.dart';
+import 'package:jwlife/features/video/video_player_view.dart';
 
+import '../../app/services/global_key_service.dart';
+import '../../data/models/audio.dart';
+import '../../data/models/publication.dart';
+
+Future<void> showPageDocument(BuildContext context, Publication publication, int mepsDocumentId, {int? startParagraphId, int? endParagraphId, List<Audio>? audios, List<String>? wordsSelected}) {
+  GlobalKeyService.jwLifePageKey.currentState!.toggleNavBarPositioned(true);
+
+  final GlobalKey<DocumentPageState> documentPageKey = GlobalKey<DocumentPageState>();
+  GlobalKeyService.jwLifePageKey.currentState!.documentPageKeys[GlobalKeyService.jwLifePageKey.currentState!.currentIndex].add(documentPageKey);
+
+  return showPage(context, DocumentPage(
+      key: documentPageKey,
+      publication: publication,
+      mepsDocumentId: mepsDocumentId,
+      startParagraphId: startParagraphId,
+      endParagraphId: endParagraphId,
+      audios: audios ?? [],
+      wordsSelected: wordsSelected ?? []
+    )
+  );
+}
+
+Future<void> showPageBibleChapter(BuildContext context, Publication bible, int book, int chapter, {int? firstVerse, int? lastVerse, List<Audio>? audios, List<String>? wordsSelected}) {
+  GlobalKeyService.jwLifePageKey.currentState!.toggleNavBarPositioned(true);
+
+  final GlobalKey<DocumentPageState> documentPageKey = GlobalKey<DocumentPageState>();
+  GlobalKeyService.jwLifePageKey.currentState!.documentPageKeys[GlobalKeyService.jwLifePageKey.currentState!.currentIndex].add(documentPageKey);
+
+  return showPage(context, DocumentPage.bible(
+      key: documentPageKey,
+      bible: bible,
+      book: book,
+      chapter: chapter,
+      firstVerse: firstVerse,
+      lastVerse: lastVerse,
+      audios: audios ?? [],
+      wordsSelected: wordsSelected ?? []
+  )
+  );
+}
+
+Future<void> showPage(BuildContext context, Widget page) {
+  if (page is VideoPlayerPage || page is FullScreenImagePage) {
+    GlobalKeyService.jwLifePageKey.currentState!.toggleNavBarBlack(true);
+  }
+
+  return Navigator.of(context).push(
+    PageRouteBuilder(
+      pageBuilder: (_, __, ___) => page,
+      transitionsBuilder: (_, animation, __, child) => child,
+      transitionDuration: Duration.zero,
+      reverseTransitionDuration: Duration.zero,
+    ),
+  );
+}
+
+/*
 Future<void> showPage(BuildContext context, Widget page) {
   return Navigator.of(context).push(
     PageRouteBuilder(
@@ -33,21 +94,27 @@ Future<void> showPage(BuildContext context, Widget page) {
   );
 }
 
+ */
+
 void showBottomMessageWithActionState(ScaffoldMessengerState messenger, bool isDark, String message, SnackBarAction? action) {
   messenger.clearSnackBars();
-  messenger.showSnackBar(
+  final controller = messenger.showSnackBar(
     SnackBar(
       action: action,
-      duration: const Duration(seconds: 2),
+      duration: const Duration(seconds: 1),
       content: Text(message, style: TextStyle(color: isDark ? Colors.black : Colors.white, fontSize: 15)),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(10.0),
       ),
-      //margin: const EdgeInsets.only(bottom: 60),
+      margin: GlobalKeyService.jwLifePageKey.currentState!.navBarIsPositioned[GlobalKeyService.jwLifePageKey.currentState!.currentIndex] ? const EdgeInsets.only(bottom: 60) : null,
       behavior: SnackBarBehavior.floating,
       backgroundColor: isDark ? Color(0xFFf1f1f1) : Color(0xFF3c3c3c),
     ),
   );
+
+  Future.delayed(Duration(seconds: 2), () {
+    controller.close(); // force la fermeture
+  });
 }
 
 void showBottomMessageWithAction(BuildContext context, String message, SnackBarAction? action) {
@@ -56,7 +123,7 @@ void showBottomMessageWithAction(BuildContext context, String message, SnackBarA
   ScaffoldMessenger.of(context).showSnackBar(
     SnackBar(
       action: action,
-      duration: const Duration(seconds: 2),
+      duration: const Duration(seconds: 1),
       content: Text(message, style: TextStyle(color: isDark ? Colors.black : Colors.white, fontSize: 15)),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(10.0),

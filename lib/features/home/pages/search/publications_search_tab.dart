@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:jwlife/core/api.dart';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/databases/catalog.dart';
-import 'package:jwlife/features/home/views/search/search_model.dart';
+import 'package:jwlife/features/home/pages/search/search_model.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -148,13 +148,14 @@ class _PublicationsSearchTabState extends State<PublicationsSearchTab> {
                                 top: -7,
                                 right: -13,
                                 child: PopupMenuButton<String>(
-                                  icon: const Icon(Icons.more_vert, color: Colors.white, size: 25),
+                                  icon: const Icon(Icons.more_vert, size: 25),
                                   itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
                                     PopupMenuItem(
                                       child: const Text('Envoyer le lien'),
                                       onTap: () {
-                                        Share.share(
-                                          'https://www.jw.org/finder?srcid=jwlshare&wtlocale=${JwLifeSettings().currentLanguage.symbol}&lank=${item['lank']}',
+                                        Uri uri = Uri.parse('https://www.jw.org/finder?srcid=jwlshare&wtlocale=${JwLifeSettings().currentLanguage.symbol}&lank=${item['lank']}');
+                                        SharePlus.instance.share(
+                                            ShareParams(title: item['title'], uri: uri)
                                         );
                                       },
                                     ),

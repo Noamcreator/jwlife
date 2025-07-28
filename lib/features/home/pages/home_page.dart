@@ -14,20 +14,18 @@ import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/core/utils/directory_helper.dart';
 import 'package:jwlife/core/utils/files_helper.dart';
-import 'package:jwlife/core/utils/shared_preferences_helper.dart';
 import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/core/utils/utils_jwpub.dart';
 import 'package:jwlife/core/utils/widgets_utils.dart';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/repositories/PublicationRepository.dart';
 import 'package:jwlife/data/databases/catalog.dart';
-import 'package:jwlife/data/databases/history.dart';
 import 'package:jwlife/data/realm/catalog.dart';
 import 'package:jwlife/data/realm/realm_library.dart';
 import 'package:jwlife/features/home/widgets/home_page/favorite_section.dart';
 import 'package:jwlife/features/home/widgets/home_page/square_mediaitem_item.dart';
 import 'package:jwlife/i18n/localization.dart';
-import 'package:jwlife/features/home/views/alert_banner.dart';
+import 'package:jwlife/features/home/pages/alert_banner.dart';
 import 'package:jwlife/features/home/widgets/home_page/rectangle_publication_item.dart';
 import 'package:jwlife/features/home/widgets/home_page/square_publication_item.dart';
 import 'package:jwlife/widgets/dialog/utils_dialog.dart';
@@ -37,7 +35,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:http/http.dart' as http;
 import 'package:html/parser.dart' as html_parser;
 
-import '../../../app/jwlife_page.dart';
+import '../../../app/services/global_key_service.dart';
 import '../../../app/services/settings_service.dart';
 import '../widgets/home_page/article_widget.dart';
 import '../widgets/home_page/home_appbar.dart';
@@ -46,10 +44,7 @@ import '../../settings_page.dart';
 import 'daily_text_page.dart';
 
 class HomePage extends StatefulWidget {
-  final Function(ThemeMode) toggleTheme;
-  final Function(Locale) changeLocale;
-
-  const HomePage({super.key, required this.toggleTheme, required this.changeLocale});
+  const HomePage({super.key});
 
   @override
   HomePageState createState() => HomePageState();
@@ -91,7 +86,7 @@ class HomePageState extends State<HomePage> {
     await PubCatalog.fetchAssemblyPublications();
 
     printTime("Refresh MeetingsView start");
-    JwLifePage.getMeetingsGlobalKey().currentState?.refreshConventionsPubs();
+    GlobalKeyService.meetingsKey.currentState?.refreshConventionsPubs();
   }
 
   Future<void> _initPage() async {
@@ -111,7 +106,7 @@ class HomePageState extends State<HomePage> {
 
   Future<void> changeLanguageAndRefresh() async {
     printTime("Refresh change language start");
-    JwLifePage.getLibraryGlobalKey().currentState?.refreshLibraryCategories();
+    GlobalKeyService.libraryKey.currentState?.refreshLibraryCategories();
     PubCatalog.updateCatalogCategories();
 
     // Enveloppe toute la première séquence dans un Future synchronisé
@@ -123,13 +118,13 @@ class HomePageState extends State<HomePage> {
         _latestPublications = PubCatalog.latestPublications;
       });
 
-      JwLifePage.getMeetingsGlobalKey().currentState?.refreshMeetingsPubs();
+      GlobalKeyService.meetingsKey.currentState?.refreshMeetingsPubs();
 
       await _loadBibleCluesInfo();
       await PubCatalog.fetchAssemblyPublications();
 
       printTime("Refresh MeetingsView start");
-      JwLifePage.getMeetingsGlobalKey().currentState?.refreshConventionsPubs();
+      GlobalKeyService.meetingsKey.currentState?.refreshConventionsPubs();
 
       fetchVerseOfTheDay();
     });
@@ -192,7 +187,7 @@ class HomePageState extends State<HomePage> {
             _teachingToolboxVideos = RealmLibrary.loadTeachingToolboxVideos();
             _latestAudiosVideos = RealmLibrary.loadLatestVideos();
           });
-          JwLifePage.getLibraryGlobalKey().currentState?.refreshLibraryCategories();
+          GlobalKeyService.libraryKey.currentState?.refreshLibraryCategories();
         }),
       );
     }
@@ -209,11 +204,11 @@ class HomePageState extends State<HomePage> {
             });
 
             PubCatalog.updateCatalogCategories();
-            JwLifePage.getMeetingsGlobalKey().currentState?.refreshMeetingsPubs();
+            GlobalKeyService.meetingsKey.currentState?.refreshMeetingsPubs();
 
             await PubCatalog.fetchAssemblyPublications();
 
-            JwLifePage.getMeetingsGlobalKey().currentState?.refreshConventionsPubs();
+            GlobalKeyService.meetingsKey.currentState?.refreshConventionsPubs();
 
             fetchVerseOfTheDay();
           });
@@ -819,10 +814,8 @@ class HomePageState extends State<HomePage> {
         resizeToAvoidBottomInset: false,
         appBar: HomeAppBar(
           onOpenSettings: () {
-            showPage(context, SettingsPage(
-              toggleTheme: widget.toggleTheme,
-              changeLanguage: widget.changeLocale,
-            )).then((_) => setState(() {}));
+            //showPage(context, SettingsPage()).then((_) => setState(() {}));
+            showPage(context, SettingsPage());
           },
         ),
         body: RefreshIndicator(

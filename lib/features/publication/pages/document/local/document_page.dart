@@ -1,14 +1,12 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:ui';
 import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:jwlife/app/jwlife_app.dart';
-import 'package:jwlife/app/jwlife_page.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/core/utils/shared_preferences_helper.dart';
@@ -24,22 +22,24 @@ import 'package:jwlife/data/repositories/PublicationRepository.dart';
 import 'package:jwlife/data/databases/catalog.dart';
 import 'package:jwlife/data/databases/history.dart';
 import 'package:jwlife/data/realm/catalog.dart';
-import 'package:jwlife/features/home/views/search/search_page.dart';
+import 'package:jwlife/features/home/pages/search/search_page.dart';
 import 'package:jwlife/widgets/dialog/language_dialog_pub.dart';
 import 'package:jwlife/widgets/dialog/publication_dialogs.dart';
 import 'package:jwlife/widgets/responsive_appbar_actions.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:uuid/uuid.dart';
+import 'package:audio_service/audio_service.dart' as audio_service;
 
-import '../../../../../../../core/utils/directory_helper.dart';
 import '../../../../../../../core/utils/widgets_utils.dart';
 import '../../../../../../../data/models/userdata/bookmark.dart';
+import '../../../../../app/services/global_key_service.dart';
 import '../../../../../app/services/settings_service.dart';
 import '../../../../../core/webview/webview_utils.dart';
+import '../../../../../widgets/searchfield/searchfield_widget.dart';
 import '../../../../personal/pages/tag_page.dart';
+import '../data/models/multimedia.dart';
 import 'document_medias_page.dart';
 import '../data/models/document.dart';
-import 'package:audio_service/audio_service.dart' as audio_service;
 
 import 'documents_manager.dart';
 import 'full_screen_image_page.dart';
@@ -79,6 +79,7 @@ class DocumentPage extends StatefulWidget {
     int? firstVerse,
     int? lastVerse,
     List<Audio> audios = const [],
+    List<String> wordsSelected = const [],
   }) : this(
     key: key,
     publication: bible,
@@ -91,19 +92,19 @@ class DocumentPage extends StatefulWidget {
   );
 
   @override
-  _DocumentPageState createState() => _DocumentPageState();
+  DocumentPageState createState() => DocumentPageState();
 }
 
-class _DocumentPageState extends State<DocumentPage> with SingleTickerProviderStateMixin {
+class DocumentPageState extends State<DocumentPage> with SingleTickerProviderStateMixin {
   /* CONTROLLER */
   late InAppWebViewController _controller;
 
-  String webappPath = '';
-
   /* MODES */
   bool _isImageMode = false;
+
+  /* SEARCH */
   bool _isSearching = false;
-  bool _isFullscreen = true;
+  List<Map<String, dynamic>> suggestions = [];
 
   /* LOADING */
   bool _isLoadingData = false;
@@ -111,8 +112,6 @@ class _DocumentPageState extends State<DocumentPage> with SingleTickerProviderSt
   bool _isLoadingFonts = false;
 
   /* OTHER VIEW */
-  bool _isProgrammaticScroll = false; // Variable pour éviter l'interférence
-  String _lastDirectionScroll = ''; // Variable pour éviter l'interférence
   bool _controlsVisible = true; // Variable pour contrôler la visibilité des contrôles
   bool _controlsVisibleSave = true; // Variable pour contrôler la visibilité des contrôles
   bool _showDialog = false; // Variable pour contrôler la visibilité des contrôles
@@ -134,16 +133,13 @@ class _DocumentPageState extends State<DocumentPage> with SingleTickerProviderSt
 
   @override
   void dispose() {
-    super.dispose();
     _streamSequenceStateSubscription.cancel();
     _streamSequencePositionSubscription.cancel();
     _controller.dispose();
+    super.dispose();
   }
 
   Future<void> init() async {
-    Directory webApp = await getAppWebViewDirectory();
-    webappPath = '${webApp.path}/webapp';
-
     if(widget.publication.documentsManager != null) {
       if(widget.book != null && widget.chapter != null) {
         widget.publication.documentsManager!.bookNumber = widget.book!;
@@ -164,11 +160,6 @@ class _DocumentPageState extends State<DocumentPage> with SingleTickerProviderSt
     });
 
     await widget.publication.documentsManager!.getCurrentDocument().changePageAt();
-
-    _isFullscreen = await getFullscreen();
-
-    JwLifePage.toggleNavBarPositioned.call(true);
-    JwLifePage.toggleNavBarVisibility.call(true);
 
     _streamSequenceStateSubscription = JwLifeApp.audioPlayer.player.sequenceStateStream.listen((state) {
       if (!mounted) return;
@@ -261,61 +252,91 @@ class _DocumentPageState extends State<DocumentPage> with SingleTickerProviderSt
   }
 
   Future<void> _jumpToPage(int page) async {
-    if (page == widget.publication.documentsManager!.documentIndex) {
-      return;
-    }
+    if (page != widget.publication.documentsManager!.documentIndex) {
+      _pageHistory.add(widget.publication.documentsManager!.documentIndex); // Ajouter la page actuelle à l'historique
+      _currentPageHistory = page;
 
-    _pageHistory.add(widget.publication.documentsManager!.documentIndex); // Ajouter la page actuelle à l'historique
-    _currentPageHistory = page;
-
-    setState(() async {
-      if (page != widget.publication.documentsManager!.documentIndex) {
-        widget.publication.documentsManager!.documentIndex = page;
-      }
-
+      widget.publication.documentsManager!.documentIndex = page;
       await _controller.evaluateJavascript(source: 'jumpToPage($page);');
 
       setControlsVisible(true);
-    });
+
+      setState(() {});
+    }
   }
 
   void setControlsVisible(bool visible) {
     _controlsVisible = visible;
-    JwLifePage.toggleNavBarVisibility(visible);
+    GlobalKeyService.jwLifePageKey.currentState!.toggleNavBarVisibility.call(_controlsVisible);
   }
 
-  bool _handleBackPress() {
+  Future<bool> _canHandleBackPress() async {
     if (_pageHistory.isNotEmpty) {
-      _currentPageHistory = _pageHistory.removeLast(); // Revenir à la dernière page dans l'historique
-      _controller.evaluateJavascript(source: 'jumpToPage($_currentPageHistory);');
+      if(_currentPageHistory == -1) {
+        _currentPageHistory = _pageHistory.removeLast(); // Revenir à la dernière page dans l'historique
+        await _controller.loadData(data: widget.publication.documentsManager!.createReaderHtmlShell(), baseUrl: WebUri('file://${JwLifeSettings().webViewData.webappPath}/'));
+      }
+      else {
+        _currentPageHistory = _pageHistory.removeLast(); // Revenir à la dernière page dans l'historique
+        await _controller.evaluateJavascript(source: 'jumpToPage($_currentPageHistory);');
+      }
       return false; // Ne pas quitter l'application
     }
-    return true; // Quitter l'application si aucun historique
+    return true; // Quitter la vue si aucun historique
+  }
+
+  Future<void> handleBackPress() async {
+    if(_isSearching) {
+      setState(() {
+        _isSearching = false;
+      });
+    }
+    else if(_showDialog) {
+      _showDialog = false;
+      _controller.evaluateJavascript(source: "removeDialog();");
+      setState(() {
+        setControlsVisible(_controlsVisibleSave);
+      });
+    }
+    else {
+      if (await _canHandleBackPress()) {
+        if (GlobalKeyService.jwLifePageKey.currentState?.documentPageKeys[GlobalKeyService.jwLifePageKey.currentState!.currentIndex].isNotEmpty ?? false) {
+          GlobalKeyService.jwLifePageKey.currentState?.documentPageKeys[GlobalKeyService.jwLifePageKey.currentState!.currentIndex].removeLast();
+        }
+
+        if (GlobalKeyService.jwLifePageKey.currentState?.documentPageKeys[GlobalKeyService.jwLifePageKey.currentState!.currentIndex].isEmpty ?? true) {
+          GlobalKeyService.jwLifePageKey.currentState?.handleBack(context);
+        }
+        else {
+          final currentNavigator = GlobalKeyService.jwLifePageKey.currentState!.navigatorKeys[GlobalKeyService.jwLifePageKey.currentState!.currentIndex].currentState!;
+
+          if (currentNavigator.canPop()) {
+            currentNavigator.pop();
+          }
+        }
+      }
+    }
   }
 
   void _openFullScreenImageView(String path) {
     String newPath = path.split('//').last.toLowerCase().trim();
 
-    int indexImage = widget.publication.documentsManager!.getCurrentDocument().multimedias.indexWhere((img) => img.filePath.toLowerCase().contains(newPath));
+    Multimedia? multimedia = widget.publication.documentsManager!.getCurrentDocument().multimedias.firstWhereOrNull((img) => img.filePath.toLowerCase().trim().contains(newPath));
 
-    if (!widget.publication.documentsManager!.getCurrentDocument().multimedias.elementAt(indexImage).hasSuppressZoom) {
-      JwLifePage.toggleNavBarBlack.call(true);
-
+    if(multimedia == null) return;
+    if (!multimedia.hasSuppressZoom) {
       showPage(context, FullScreenImagePage(
           publication: widget.publication,
           multimedias: widget.publication.documentsManager!.getCurrentDocument().multimedias,
-          index: indexImage
+          multimedia: multimedia
       ));
     }
   }
 
   Future<void> switchImageMode() async {
     if (_isImageMode) {
-      _controller.loadData(data: widget.publication.documentsManager!.getCurrentDocument().htmlContent, baseUrl: WebUri('file://$webappPath/'));
-
-      setState(() {
-        _isImageMode = false;
-      });
+      //_controller.loadData(data: widget.publication.documentsManager!.getCurrentDocument().htmlContent, baseUrl: WebUri('file://$webappPath/'));
+      _isImageMode = false;
     }
     else {
       String path = '${widget.publication.path}/${widget.publication.documentsManager!.getCurrentDocument().svgs[0]['FilePath']}';
@@ -323,19 +344,21 @@ class _DocumentPageState extends State<DocumentPage> with SingleTickerProviderSt
       String colorBackground = Theme.of(context).brightness == Brightness.dark ? '#202020' : '#ecebe7';
       String svgBase64 = base64Encode(file.readAsBytesSync());
       String base64Html = '''
-<html>
-  <body style="margin:0;padding:0;background-color:$colorBackground;display:flex;align-items:center;justify-content:center;">
-    <div style="background-color:#ffffff;height:65%;box-shadow:0 4px 10px rgba(0,0,0,0.2);display:flex;align-items:center;justify-content:center;">
-      <img src="data:image/svg+xml;base64,$svgBase64" style="width:100%;height:100%;object-fit:contain;" />
-    </div>
-  </body>
-</html>
-''';
+      <html>
+        <body style="margin:0;padding:0;background-color:$colorBackground;display:flex;align-items:center;justify-content:center;">
+          <div style="background-color:#ffffff;height:65%;box-shadow:0 4px 10px rgba(0,0,0,0.2);display:flex;align-items:center;justify-content:center;">
+            <img src="data:image/svg+xml;base64,$svgBase64" style="width:100%;height:100%;object-fit:contain;" />
+          </div>
+        </body>
+      </html>
+      ''';
       _controller.loadData(data: base64Html, mimeType: 'text/html', encoding: 'utf8');
-      setState(() {
-        _isImageMode = true;
-      });
+      _isImageMode = true;
     }
+  }
+
+  void changeTheme(ThemeMode themeMode) {
+    _controller.reload();
   }
 
   @override
@@ -357,24 +380,28 @@ class _DocumentPageState extends State<DocumentPage> with SingleTickerProviderSt
           maintainState: true,
           child: _isLoadingData ? InAppWebView(
               initialSettings: InAppWebViewSettings(
+                scrollBarStyle: null,
+                verticalScrollBarEnabled: false,
+                horizontalScrollBarEnabled: false,
                 disableContextMenu: true,
                 useShouldOverrideUrlLoading: true,
                 mediaPlaybackRequiresUserGesture: false,
-                disableDefaultErrorPage: true,
-                useOnLoadResource: false,         // À désactiver sauf si tu surveilles les requêtes
+                useOnLoadResource: false,
                 allowUniversalAccessFromFileURLs: true,
                 allowFileAccess: true,
                 allowContentAccess: true,
-                loadWithOverviewMode: true,
                 useHybridComposition: true,
-                offscreenPreRaster: true,
                 hardwareAcceleration: true,
                 databaseEnabled: false,
-                domStorageEnabled: true,
               ),
               initialData: InAppWebViewInitialData(
-                  data: widget.publication.documentsManager!.createReaderHtmlShell(widget),
-                  baseUrl: WebUri('file://$webappPath/')
+                  data: widget.publication.documentsManager!.createReaderHtmlShell(
+                      startParagraphId: widget.startParagraphId,
+                      endParagraphId: widget.endParagraphId,
+                      startVerseId: widget.firstVerse,
+                      endVerseId: widget.lastVerse
+                  ),
+                  baseUrl: WebUri('file://${JwLifeSettings().webViewData.webappPath}/')
               ),
               onWebViewCreated: (controller) async {
                 _controller = controller;
@@ -392,20 +419,12 @@ class _DocumentPageState extends State<DocumentPage> with SingleTickerProviderSt
                   handlerName: 'showDialog',
                   callback: (args) {
                     bool isShowDialog = args[0] as bool;
-                    setState(() {
-                      if(isShowDialog) {
-                        _showDialog = true;
-                      }
-                      else {
-                        setControlsVisible(_controlsVisibleSave);
-                        _showDialog = false;
-                      }
-                    });
+                    _showDialog = isShowDialog;
                   },
                 );
 
                 controller.addJavaScriptHandler(
-                  handlerName: 'showFullscreenPopup',
+                  handlerName: 'showFullscreenDialog',
                   callback: (args) {
                     bool isMaximized = args[0] as bool;
                     setState(() {
@@ -504,27 +523,22 @@ class _DocumentPageState extends State<DocumentPage> with SingleTickerProviderSt
                 controller.addJavaScriptHandler(
                   handlerName: 'onScroll',
                   callback: (args) async {
-                    if(!_showDialog) {
-                      if (!_isProgrammaticScroll) {
-                        if (args[1] == "down" && _lastDirectionScroll != "down") {
-                          setState(() {
-                            _controlsVisible = false;
-                            _controlsVisibleSave = false;
-                          });
-                          // enelever la barre de noti en haut de l'ecran
-                          //SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual, overlays: []);
-                          JwLifePage.toggleNavBarVisibility.call(false);
-                        }
-                        else if (args[1] == "up" && _lastDirectionScroll != "up") {
-                          setState(() {
-                            _controlsVisible = true;
-                            _controlsVisibleSave = true;
-                          });
-                          // remettre la barre de noti en haut de l'ecran
-                          //SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual, overlays: SystemUiOverlay.values);
-                          JwLifePage.toggleNavBarVisibility.call(true);
-                        }
-                        _lastDirectionScroll = args[1];
+                    if (JwLifeSettings().webViewData.isFullScreen) {
+                      if (args[1] == "down") {
+                        setState(() {
+                          _controlsVisible = false;
+                          _controlsVisibleSave = false;
+                        });
+                        // enelever la barre de noti en haut de l'ecran
+                        GlobalKeyService.jwLifePageKey.currentState!.toggleNavBarVisibility(false);
+                      }
+                      else if (args[1] == "up") {
+                        setState(() {
+                          _controlsVisible = true;
+                          _controlsVisibleSave = true;
+                        });
+                        // remettre la barre de noti en haut de l'ecran
+                        GlobalKeyService.jwLifePageKey.currentState!.toggleNavBarVisibility(true);
                       }
                     }
                   },
@@ -652,17 +666,42 @@ class _DocumentPageState extends State<DocumentPage> with SingleTickerProviderSt
 
                 // Gestionnaire pour les clics sur les images
                 controller.addJavaScriptHandler(
+                  handlerName: 'fetchVerses',
+                  callback: (args) async {
+                    Map<String, dynamic>? verses = await fetchVerses(context, args[0]);
+                    printTime('fetchVerses $verses');
+                    return verses;
+                  },
+                );
+
+                // Gestionnaire pour les clics sur les images
+                controller.addJavaScriptHandler(
+                  handlerName: 'fetchExtractPublication',
+                  callback: (args) async {
+                    Map<String, dynamic>? extractPublication = await fetchExtractPublication(context, widget.publication, args[0], _jumpToPage, _jumpToParagraph);
+                    if (extractPublication != null) {
+                      printTime('fetchExtractPublication $extractPublication');
+                      return extractPublication;
+                    }
+                  },
+                );
+
+                // Gestionnaire pour les clics sur les images
+                controller.addJavaScriptHandler(
                   handlerName: 'fetchFootnote',
-                  callback: (args) {
-                    fetchFootnote(context, widget.publication, controller, args[0]);
+                  callback: (args) async {
+                    Map<String, dynamic> footnote = await fetchFootnote(context, widget.publication, args[0]);
+                    printTime('fetchFootnote $footnote');
+                    return footnote;
                   },
                 );
 
                 // Gestionnaire pour les clics sur les images
                 controller.addJavaScriptHandler(
                   handlerName: 'fetchVersesReference',
-                  callback: (args) {
-                    fetchVersesReference(context, widget.publication, controller, args[0]);
+                  callback: (args) async {
+                    Map<String, dynamic> versesReference = await fetchVersesReference(context, widget.publication, controller, args[0]);
+                    return versesReference;
                   },
                 );
 
@@ -672,11 +711,23 @@ class _DocumentPageState extends State<DocumentPage> with SingleTickerProviderSt
                     Map<String, dynamic>? document = args[0];
                     if (document != null) {
                       if (document['mepsDocumentId'] != null) {
+                        bool saveControlsVisible = _controlsVisible;
+
+                        if (!saveControlsVisible) {
+                          GlobalKeyService.jwLifePageKey.currentState?.toggleNavBarVisibility(true);
+                        }
+
                         await showDocumentView(context, document['mepsDocumentId'], document['mepsLanguageId'], startParagraphId: document['startParagraphId'], endParagraphId: document['endParagraphId']);
-                        JwLifePage.toggleNavBarVisibility(_controlsVisible);
-                        JwLifePage.toggleNavBarPositioned(true);
+
+                        GlobalKeyService.jwLifePageKey.currentState?.toggleNavBarVisibility(saveControlsVisible);
                       }
                       else if (document['bookNumber'] != null && document['chapterNumber'] != null) {
+                        bool saveControlsVisible = _controlsVisible;
+
+                        if (!saveControlsVisible) {
+                          GlobalKeyService.jwLifePageKey.currentState?.toggleNavBarVisibility(true);
+                        }
+
                         await showChapterView(
                           context,
                           'nwtsty',
@@ -686,8 +737,8 @@ class _DocumentPageState extends State<DocumentPage> with SingleTickerProviderSt
                           firstVerseNumber: document["firstVerseNumber"],
                           lastVerseNumber: document["lastVerseNumber"],
                         );
-                        JwLifePage.toggleNavBarVisibility(_controlsVisible);
-                        JwLifePage.toggleNavBarPositioned(true);
+
+                        GlobalKeyService.jwLifePageKey.currentState?.toggleNavBarVisibility(saveControlsVisible);
                       }
                     }
                   },
@@ -786,24 +837,6 @@ class _DocumentPageState extends State<DocumentPage> with SingleTickerProviderSt
                         }
                       }
                     }
-                  },
-                );
-
-                // Gestionnaire pour les modifications des champs de formulaire
-                controller.addJavaScriptHandler(
-                  handlerName: 'showFullscreenDialog',
-                  callback: (args) async {
-                    bool isFullscreen = args[0]['isFullscreen'];
-                    bool closeDialog = args[0]['closeDialog'];
-                    setState(() {
-                      if(closeDialog) {
-                        setControlsVisible(_controlsVisibleSave);
-                      }
-                      else {
-                        setControlsVisible(true);
-                      }
-                      _showDialog = isFullscreen;
-                    });
                   },
                 );
 
@@ -961,10 +994,11 @@ class _DocumentPageState extends State<DocumentPage> with SingleTickerProviderSt
                     // Extraire les paramètres
                     Uri uri = Uri.parse(link);
                     String? pub = uri.queryParameters['pub'];
+                    int? issue = uri.queryParameters['issue'] != null ? int.parse(uri.queryParameters['issue']!) : null;
                     int? docId = uri.queryParameters['docid'] != null ? int.parse(uri.queryParameters['docid']!) : null;
-                    String track = uri.queryParameters['track'] ?? '';
+                    int? track = uri.queryParameters['track'] != null ? int.parse(uri.queryParameters['track']!) : null;
 
-                    MediaItem? mediaItem = getVideoItem(pub, int.parse(track), docId, null, null);
+                    MediaItem? mediaItem = getVideoItem(pub, track, docId, issue, null);
 
                     if(mediaItem != null) {
                       showVideoDialog(context, mediaItem).then((result) {
@@ -983,10 +1017,10 @@ class _DocumentPageState extends State<DocumentPage> with SingleTickerProviderSt
                 String requestedUrl = '${request.url}';
 
                 if (requestedUrl.startsWith('jwpub-media://')) {
+                  printTime('Requested URL: $requestedUrl');
                   final filePath = requestedUrl.replaceFirst('jwpub-media://', '');
                   return await widget.publication.documentsManager!.getCurrentDocument().getImagePathFromDatabase(filePath);
                 }
-
                 return null;
               },
               shouldOverrideUrlLoading: (controller, navigationAction) async {
@@ -994,18 +1028,21 @@ class _DocumentPageState extends State<DocumentPage> with SingleTickerProviderSt
                 String url = uri.uriValue.toString();
 
                 if(url.startsWith('jwpub://')) {
-                  fetchHyperlink(context, controller, widget.publication, _jumpToPage, _jumpToParagraph, url, _controlsVisible);
                   return NavigationActionPolicy.CANCEL;
                 }
-                else if (url.startsWith('webpubdl://'))  {
+                else if (url.startsWith('webpubdl://')) {
+                  final uri = Uri.parse(url);
+
+                  final pub = uri.queryParameters['pub'];
                   final docId = uri.queryParameters['docid'];
                   final track = uri.queryParameters['track'];
-                  final langwritten = uri.queryParameters.containsKey('langwritten') ? uri.queryParameters['langwritten'] : widget.publication.mepsLanguage.symbol;
                   final fileformat = uri.queryParameters['fileformat'];
+                  final langwritten = uri.queryParameters['langwritten'] ?? widget.publication.mepsLanguage.symbol;
 
-                  showDocumentDialog(context, docId!, track!, langwritten!, fileformat!);
-
-                  return NavigationActionPolicy.CANCEL;
+                  if ((pub != null || docId != null) && fileformat != null) {
+                    showDocumentDialog(context, pub, docId, track, langwritten, fileformat);
+                    return NavigationActionPolicy.CANCEL;
+                  }
                 }
                 else if (uri.host == 'www.jw.org' && uri.path == '/finder') {
                   if(uri.queryParameters.containsKey('wtlocale')) {
@@ -1018,8 +1055,7 @@ class _DocumentPageState extends State<DocumentPage> with SingleTickerProviderSt
                       }
 
                       showVideoDialog(context, mediaItem!).then((result) {
-                        if (result ==
-                            'play') { // Vérifiez si le résultat est 'play'
+                        if (result == 'play') { // Vérifiez si le résultat est 'play'
                           showFullScreenVideo(context, mediaItem!);
                         }
                       });
@@ -1031,8 +1067,19 @@ class _DocumentPageState extends State<DocumentPage> with SingleTickerProviderSt
 
                       Publication? publication = await PubCatalog.searchPub(pub!, issueTagNumber, wtlocale!);
                       if (publication != null) {
-                        publication.showMenu(context);
+                        GlobalKeyService.jwLifePageKey.currentState!.toggleNavBarPositioned(false);
+                        await publication.showMenu(context);
+                        GlobalKeyService.jwLifePageKey.currentState!.toggleNavBarPositioned(true);
                       }
+                    }
+                    else if(uri.queryParameters.containsKey('docID')) {
+                      _pageHistory.add(widget.publication.documentsManager!.documentIndex); // Ajouter la page actuelle à l'historique
+                      _currentPageHistory = -1;
+
+                      setState(() {
+                        setControlsVisible(true);
+                      });
+                      return NavigationActionPolicy.ALLOW;
                     }
                   }
 
@@ -1040,6 +1087,12 @@ class _DocumentPageState extends State<DocumentPage> with SingleTickerProviderSt
                   return NavigationActionPolicy.CANCEL;
                 }
 
+                _pageHistory.add(widget.publication.documentsManager!.documentIndex); // Ajouter la page actuelle à l'historique
+                _currentPageHistory = -1;
+
+                setState(() {
+                  setControlsVisible(true);
+                });
                 // Permet la navigation pour tous les autres liens
                 return NavigationActionPolicy.ALLOW;
               },
@@ -1057,44 +1110,45 @@ class _DocumentPageState extends State<DocumentPage> with SingleTickerProviderSt
           getLoadingWidget(Theme.of(context).primaryColor),
 
 
-        if (!_isFullscreen || (_isFullscreen && _controlsVisible))
+        if (_controlsVisible)
           Positioned(
               top: 0,
               left: 0,
               right: 0,
               child: AppBar(
                 title: _isSearching
-                    ? Container(
-                  decoration: BoxDecoration(
-                    color: Colors.black, // Fond noir pour la barre de recherche
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          autofocus: true,
-                          style: TextStyle(color: Colors.white), // Texte en blanc
-                          decoration: InputDecoration(
-                            hintText: 'Recherche...',
-                            hintStyle: TextStyle(color: Colors.white54), // Texte de l'astuce en gris
-                            contentPadding: EdgeInsets.symmetric(vertical: 10, horizontal: 16),
-                          ),
-                          onChanged: (value) {
-                            printTime(value);
-                          },
-                        ),
-                      ),
-                      IconButton(
-                        icon: Icon(Icons.close, color: Colors.white),
-                        onPressed: () {
-                          setState(() {
-                            _isSearching = false; // Fermer la barre de recherche
-                          });
-                        },
-                      ),
-                    ],
-                  ),
+                    ? SearchFieldWidget(
+                  query: '',
+                  onSearchTextChanged: (text) {
+                    fetchSuggestions(text);
+                  },
+                  onSuggestionTap: (item) async {
+                    String query = item.item!['word'];
+
+                    // Encodage JS sûr
+                    final safeQuery = jsonEncode([query]); // Exemple : ["mot"]
+
+                    _controller.evaluateJavascript(source: "selectWords($safeQuery, true);");
+
+                    setState(() {
+                      _isSearching = false;
+                    });
+                  },
+                  onSubmit: (text) async {
+                    final safeText = jsonEncode([text]);
+
+                    _controller.evaluateJavascript(source: "selectWords($safeText, true);");
+
+                    setState(() {
+                      _isSearching = false;
+                    });
+                  },
+                  onTapOutside: (event) {
+                    setState(() {
+                      _isSearching = false;
+                    });
+                  },
+                  suggestions: suggestions,
                 )
                     : !_isLoadingData ? Container() : Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1114,24 +1168,7 @@ class _DocumentPageState extends State<DocumentPage> with SingleTickerProviderSt
                 leading: IconButton(
                   icon: const Icon(Icons.arrow_back),
                   onPressed: () {
-                    if(_showDialog) {
-                      _showDialog = false;
-                      _controller.evaluateJavascript(source: """
-                        const existingDialog = webview.getElementById('customDialog');
-                        if (existingDialog) {
-                          existingDialog.remove(); // Supprimez le dialogue existant
-                        }
-                      """);
-                    }
-                    else {
-                      if (_handleBackPress()) {
-                        setState(() {
-                          _isLoadingWebView = false;
-                        });
-                        JwLifePage.toggleNavBarPositioned.call(false);
-                        Navigator.pop(context);
-                      }
-                    }
+                    handleBackPress();
                   },
                 ),
                 actions: [
@@ -1270,9 +1307,8 @@ class _DocumentPageState extends State<DocumentPage> with SingleTickerProviderSt
                           icon: Icon(JwIcons.square_stack),
                           onPressed: () async {
                             bool isFullscreen = await showFullscreenDialog(context);
-                            setState(() {
-                              _isFullscreen = isFullscreen;
-                            });
+                            await setFullscreen(isFullscreen);
+                            JwLifeSettings().webViewData.updateFullscreen(isFullscreen);
                           },
                         ),
                         IconTextButton(
@@ -1298,7 +1334,53 @@ class _DocumentPageState extends State<DocumentPage> with SingleTickerProviderSt
   }
 
   String getArticleClass(Document document) {
-    String publication = document.isBibleChapter() ? 'bible' : 'webview';
+    String publication = document.isBibleChapter() ? 'bible' : 'document';
     return '''$publication html5 pub-${widget.publication.keySymbol} jwac docClass-${document.classType} docId-${document.documentId} ms-ROMAN ml-${widget.publication.mepsLanguage.symbol} dir-ltr layout-reading layout-sidebar ${JwLifeSettings().webViewData.theme}''';
+  }
+
+  int _latestRequestId = 0;
+
+  Future<void> fetchSuggestions(String text) async {
+    final int requestId = ++_latestRequestId;
+
+    if (text.isEmpty) {
+      if (requestId != _latestRequestId) return;
+      setState(() {
+        suggestions.clear();
+      });
+      return;
+    }
+
+    List<String> words = text.split(' ');
+    List<Map<String, dynamic>> allSuggestions = [];
+
+    for (String word in words) {
+      final suggestionsForWord = await widget.publication.documentsManager!.database.rawQuery(
+        '''
+      SELECT Word
+      FROM Word
+      WHERE Word LIKE ?
+      ''',
+        ['%$word%'],
+      );
+
+      allSuggestions.addAll(suggestionsForWord);
+      if (requestId != _latestRequestId) return;
+    }
+
+    List<Map<String, dynamic>> suggs = [];
+    for (Map<String, dynamic> suggestion in allSuggestions) {
+      suggs.add({
+        'type': 0,
+        'query': text,
+        'word': suggestion['Word'],
+      });
+    }
+
+    if (requestId != _latestRequestId) return;
+
+    setState(() {
+      suggestions = suggs;
+    });
   }
 }

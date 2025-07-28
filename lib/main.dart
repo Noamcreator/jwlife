@@ -4,6 +4,7 @@ import 'package:just_audio_background/just_audio_background.dart';
 import 'package:jwlife/app/services/settings_service.dart';
 
 import 'app/jwlife_app.dart';
+import 'app/services/global_key_service.dart';
 
 Future<void> main() async {
   // Assure l'initialisation correcte des widgets Flutter
@@ -23,5 +24,5 @@ Future<void> main() async {
   await JwLifeSettings().init();
 
   // Lance l'application Flutter
-  runApp(JwLifeApp());
+  runApp(JwLifeApp(key: GlobalKeyService.jwLifeAppKey));
 }

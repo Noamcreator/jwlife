@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 
 class CustomBottomNavigationItem {
@@ -24,36 +23,45 @@ class CustomBottomNavigation extends StatelessWidget {
   final IconThemeData? selectedIconTheme;
 
   const CustomBottomNavigation({
-    Key? key,
+    super.key,
     required this.currentIndex,
     required this.items,
     required this.onTap,
     this.backgroundColor,
     this.selectedItemColor,
     this.unselectedItemColor,
-    this.selectedFontSize = 14.0,
+    this.selectedFontSize = 12.0,
     this.unselectedFontSize = 12.0,
     this.selectedLabelStyle,
     this.selectedIconTheme,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final bottomNavTheme = theme.bottomNavigationBarTheme;
+
+    final effectiveSelectedColor =
+        selectedItemColor ?? bottomNavTheme.selectedItemColor ?? theme.primaryColor;
+    final effectiveUnselectedColor =
+        unselectedItemColor ?? bottomNavTheme.unselectedItemColor ?? theme.unselectedWidgetColor;
+
     return Container(
       decoration: BoxDecoration(
-        color: backgroundColor ?? Theme.of(context).bottomNavigationBarTheme.backgroundColor,
-        boxShadow: [
+        color: backgroundColor ?? bottomNavTheme.backgroundColor,
+        boxShadow: const [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 8,
-            offset: const Offset(0, -2),
+            color: Colors.black12,
+            blurRadius: 1,
+            offset: Offset(0, -2),
           ),
         ],
       ),
       child: SafeArea(
+        maintainBottomViewPadding: true,
         top: false,
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8.0),
+          padding: const EdgeInsets.only(top: 1.0, bottom: 4.0),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: items.asMap().entries.map((entry) {
@@ -64,33 +72,41 @@ class CustomBottomNavigation extends StatelessWidget {
               return Expanded(
                 child: InkWell(
                   onTap: () => onTap(index),
-                  splashFactory: NoSplash.splashFactory,
-                  highlightColor: Colors.grey.withOpacity(0),
+                  borderRadius: BorderRadius.circular(12),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      IconTheme(
-                        data: IconThemeData(
-                          color: isSelected
-                              ? (selectedItemColor ?? Theme.of(context).bottomNavigationBarTheme.selectedItemColor)
-                              : (unselectedItemColor ?? Theme.of(context).bottomNavigationBarTheme.unselectedItemColor),
-                          fill: isSelected ? (selectedIconTheme?.fill ?? 0.0) : 0.0,
+                      Container(
+                        padding: const EdgeInsets.all(6.0),
+                        decoration: BoxDecoration(
+                          color: isSelected ? effectiveSelectedColor.withOpacity(0.15) : Colors.transparent,
+                          shape: BoxShape.circle,
                         ),
-                        child: item.icon,
+                        child: IconTheme(
+                          data: IconThemeData(
+                            color: isSelected ? effectiveSelectedColor : effectiveUnselectedColor,
+                            size: selectedIconTheme?.size ?? 26.0,  // taille fixe toujours 26
+                          ),
+                          child: item.icon,
+                        ),
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        item.label,
-                        style: TextStyle(
-                          fontSize: isSelected ? selectedFontSize : unselectedFontSize,
-                          fontWeight: isSelected ? (selectedLabelStyle?.fontWeight ?? FontWeight.bold) : FontWeight.normal,
-                          color: isSelected
-                              ? (selectedItemColor ?? Theme.of(context).bottomNavigationBarTheme.selectedItemColor)
-                              : (unselectedItemColor ?? Theme.of(context).bottomNavigationBarTheme.unselectedItemColor),
+                      const SizedBox(height: 2),
+                      SizedBox(
+                        height: selectedFontSize * 1.3, // hauteur fixe pour texte (ajuster selon besoin)
+                        child: Text(
+                          item.label,
+                          style: TextStyle(
+                            fontSize: selectedFontSize, // même taille toujours
+                            fontWeight: isSelected
+                                ? (selectedLabelStyle?.fontWeight ?? FontWeight.bold)
+                                : FontWeight.normal,
+                            color: isSelected ? effectiveSelectedColor : effectiveUnselectedColor,
+                            height: 0.9,
+                          ),
+                          textAlign: TextAlign.center,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        textAlign: TextAlign.center,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),

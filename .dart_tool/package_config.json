@@ -308,6 +308,12 @@
       "languageVersion": "3.1"
     },
     {
+      "name": "floating",
+      "rootUri": "file:///C:/Users/noamb/AppData/Local/Pub/Cache/hosted/pub.dev/floating-6.0.0",
+      "packageUri": "lib/",
+      "languageVersion": "3.0"
+    },
+    {
       "name": "flutter",
       "rootUri": "file:///C:/Users/noamb/flutter/packages/flutter",
       "packageUri": "lib/",
@@ -1155,7 +1161,7 @@
     },
     {
       "name": "video_player_android",
-      "rootUri": "file:///C:/Users/noamb/AppData/Local/Pub/Cache/hosted/pub.dev/video_player_android-2.8.7",
+      "rootUri": "file:///C:/Users/noamb/AppData/Local/Pub/Cache/hosted/pub.dev/video_player_android-2.8.9",
       "packageUri": "lib/",
       "languageVersion": "3.7"
     },
@@ -1247,6 +1253,6 @@
   "generator": "pub",
   "generatorVersion": "3.8.1",
   "flutterRoot": "file:///C:/Users/noamb/flutter",
-  "flutterVersion": "3.32.7",
+  "flutterVersion": "3.32.8",
   "pubCache": "file:///C:/Users/noamb/AppData/Local/Pub/Cache"
 }

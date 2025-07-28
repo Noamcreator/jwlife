@@ -92,8 +92,9 @@ PopupMenuItem getAudioShareItem(MediaItem item) {
       ],
     ),
     onTap: () {
-      Share.share(
-        'https://www.jw.org/finder?srcid=jwlshare&wtlocale=${item.languageSymbol}&lank=${item.languageAgnosticNaturalKey}'
+      Uri uri = Uri.parse('https://www.jw.org/finder?srcid=jwlshare&wtlocale=${item.languageSymbol}&lank=${item.languageAgnosticNaturalKey}');
+      SharePlus.instance.share(
+          ShareParams(title: item.title, uri: uri)
       );
     },
   );

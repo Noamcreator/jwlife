@@ -306,53 +306,55 @@ class Document {
   }
 
   void share(bool isBible, {String? id}) {
-    // Créer une base d'URL pour la publication.
+    // Base de l'URL
     final baseUrl = 'https://www.jw.org/finder';
 
-    String url = '';
+    late Uri uri;
+
     if (isBible) {
-      int bookNumber = this.bookNumber!;
-      int chapterNumber = chapterNumberBible!;
-      int verseNumber = id != null ? int.parse(id) : 0; // Si id est nul, on met verseNumber à 0.
-
-      String chapterNumberFormatted = chapterNumber.toString().padLeft(3, '0'); // Format du chapitre (par exemple 003)
-      String verseNumberFormatted = verseNumber.toString().padLeft(3, '0'); // Format du verset (par exemple 000)
-
-      // Créer l'ID complet du verset
-      String verseId = '$bookNumber$chapterNumberFormatted$verseNumberFormatted';
-
-      // Si paragraphId est nul, utiliser la plage de versets
-      String bibleParam;
-      if (id != null) {
-        bibleParam = verseId; // Utilise l'ID du verset spécifique
-      } else {
-        // Plage de versets de 000 à 999
-        bibleParam = '${bookNumber.toString().padLeft(2, '0')}${chapterNumberFormatted}000-${bookNumber.toString().padLeft(2, '0')}${chapterNumberFormatted}999';
+      // Vérifie que les propriétés nécessaires sont bien définies
+      if (bookNumber == null || chapterNumberBible == null) {
+        throw Exception('bookNumber et chapterNumberBible doivent être définis.');
       }
 
-      // Ajouter les paramètres de la requête en utilisant une méthode sûre.
-      url = Uri.parse(baseUrl).replace(queryParameters: {
+      final int bookNum = bookNumber!;
+      final int chapterNum = chapterNumberBible!;
+      final int verseNum = id != null ? int.tryParse(id) ?? 0 : 0;
+
+      final String chapterStr = chapterNum.toString().padLeft(3, '0');
+      final String verseStr = verseNum.toString().padLeft(3, '0');
+      final String bookStr = bookNum.toString().padLeft(2, '0');
+
+      final String bibleParam = id != null
+          ? '$bookNum$chapterStr$verseStr'
+          : '$bookStr${chapterStr}000-$bookStr${chapterStr}999';
+
+      uri = Uri.parse(baseUrl).replace(queryParameters: {
         'srcid': 'jwlshare',
         'wtlocale': publication.mepsLanguage.symbol,
         'prefer': 'lang',
         'bible': bibleParam,
         'pub': publication.keySymbol,
-      }).toString();
+      });
     }
     else {
-      // Ajouter les paramètres de la requête en utilisant une méthode sûre.
-      url = Uri.parse(baseUrl).replace(queryParameters: {
+      uri = Uri.parse(baseUrl).replace(queryParameters: {
         'srcid': 'jwlshare',
         'wtlocale': publication.mepsLanguage.symbol,
         'prefer': 'lang',
         'docid': mepsDocumentId.toString(),
-        if (id != null) 'par': id, // Inclure le paragraphe si défini
-      }).toString();
+        if (id != null) 'par': id,
+      });
     }
 
-    // Partager le lien construit.
-    Share.share(url);
+    SharePlus.instance.share(
+      ShareParams(
+        title: title,
+        uri: uri,
+      ),
+    );
   }
+
 
   bool isBibleChapter() {
     return bookNumber != null && chapterNumberBible != null;

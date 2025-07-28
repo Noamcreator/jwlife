@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/features/home/widgets/home_page/square_mediaitem_item.dart';
 import 'package:jwlife/features/home/widgets/home_page/square_publication_item.dart';
 
+import '../../../../app/jwlife_page.dart';
+import '../../../../app/services/global_key_service.dart';
 import '../../../../core/icons.dart';
 import '../../../../data/models/publication.dart';
 import '../../../../data/realm/catalog.dart';
@@ -24,7 +28,20 @@ class FavoritesSection extends StatelessWidget {
           height: 120,
           child: ReorderableListView(
             scrollDirection: Axis.horizontal,
+            onReorderStart: (int index) {
+              HapticFeedback.mediumImpact();
+            },
             onReorder: onReorder,
+            proxyDecorator: (child, index, animation) {
+              return Opacity(
+                opacity: 0.8,
+                child: Material(
+                  elevation: 6,
+                  color: Theme.of(context).scaffoldBackgroundColor,
+                  child: child,
+                ),
+              );
+            },
             children: [
               for (int index = 0; index < favorites.length; index++)
                 Padding(
@@ -65,10 +82,55 @@ class FavoritesSection extends StatelessWidget {
                           ),
                         ),
                       ),
-                    )
+                    ),
+                    Positioned(
+                      top: -8,
+                      right: -10,
+                      child: PopupMenuButton(
+                        icon: const Icon(
+                          Icons.more_vert,
+                          color: Colors.white
+                        ),
+                        itemBuilder: (context) => [
+                          PopupMenuItem(
+                            child: Row(
+                              children: [
+                                Icon(JwIcons.star__fill),
+                                SizedBox(width: 8),
+                                Text('Supprimer des favoris'),
+                              ],
+                            ),
+                            onTap: () async {
+                              await JwLifeApp.userdata.removeAFavorite(item);
+                              GlobalKeyService.homeKey.currentState?.refreshFavorites();
+                            },
+                          )
+                        ],
+                      ),
+                    ),
                   ],
                 ),
-              ]
+                const SizedBox(height: 4),
+                SizedBox(
+                  width: 80,
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 2.0, right: 4.0),
+                    child: Text(
+                      item['KeySymbol'] + ' • ' + item['LanguageVernacularName'],
+                      style: const TextStyle(
+                        fontSize: 9,
+                        height: 1.2,
+                        fontWeight: FontWeight.w100,
+                        fontFamily: 'Roboto',
+                      ),
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.start,
+                      softWrap: true,
+                    ),
+                  ),
+                ),
+              ],
           ),
         ),
         onTap: () {}

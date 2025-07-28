@@ -10,12 +10,11 @@ import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/core/utils/utils_audio.dart';
 import 'package:jwlife/data/realm/catalog.dart';
 import 'package:jwlife/data/realm/realm_library.dart';
-import 'package:jwlife/features/home/views/home_page.dart';
 import 'package:jwlife/widgets/dialog/language_dialog.dart';
 import 'package:jwlife/widgets/image_cached_widget.dart';
 import 'package:realm/realm.dart';
 
-import '../../../../app/jwlife_page.dart';
+import '../../../../app/services/global_key_service.dart';
 import '../../../../widgets/searchfield/searchfield_widget.dart';
 
 class AudioItemsPage extends StatefulWidget {
@@ -186,7 +185,7 @@ class _AudioItemsPageState extends State<AudioItemsPage> {
               ).then((value) async {
                 await setLibraryLanguage(value);
                 loadItems(JwLifeSettings().currentLanguage.symbol);
-                JwLifePage.getHomeGlobalKey().currentState?.changeLanguageAndRefresh();
+                GlobalKeyService.homeKey.currentState?.changeLanguageAndRefresh();
               });
             },
           ),

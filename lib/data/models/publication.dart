@@ -8,13 +8,11 @@ import 'package:jwlife/core/utils/utils_jwpub.dart';
 import 'package:jwlife/data/models/publication_attribute.dart';
 import 'package:jwlife/data/models/publication_category.dart';
 import 'package:jwlife/data/models/meps_language.dart';
-import 'package:jwlife/features/bible/views/bible_page.dart';
 import 'package:jwlife/widgets/dialog/utils_dialog.dart';
 import 'package:share_plus/share_plus.dart';
 
-import '../../app/jwlife_page.dart';
+import '../../app/services/global_key_service.dart';
 import '../../app/services/settings_service.dart';
-import '../../features/meetings/pages/meeting_page.dart';
 import '../../features/publication/pages/document/local/documents_manager.dart';
 import '../../features/publication/pages/menu/local/publication_menu_view.dart';
 import '../../features/publication/pages/menu/online/publication_menu.dart';
@@ -205,9 +203,8 @@ class Publication {
     final uri = Uri.https('www.jw.org', '/finder', queryParams);
 
     // Partager le lien
-    Share.share(
-      uri.toString(),
-      subject: title,
+    SharePlus.instance.share(
+        ShareParams(title: getTitle(), uri: uri)
     );
   }
 
@@ -237,7 +234,7 @@ class Publication {
         isDownloadedNotifier.value = true;
 
         if (category.id == 1) {
-          BiblePage.refreshBibleView();
+          GlobalKeyService.bibleKey.currentState?.refreshBiblePage();
         }
 
         progressNotifier.value = 1.0;
@@ -246,10 +243,9 @@ class Publication {
             label: 'Ouvrir',
             textColor: theme.primaryColor,
             onPressed: () {
-              messenger.clearSnackBars();
-              pubDownloaded.showMenu(context);
+              pubDownloaded.showMenu(GlobalKeyService.currentPageKey?.currentContext ?? context);
             },
-          ),
+        ),
         );
       }
 
@@ -296,7 +292,7 @@ class Publication {
         isDownloadedNotifier.value = true;
 
         if (category.id == 1) {
-          BiblePage.refreshBibleView();
+          GlobalKeyService.bibleKey.currentState?.refreshBiblePage();
         }
 
         progressNotifier.value = 1.0;
@@ -306,8 +302,7 @@ class Publication {
           label: 'Ouvrir',
           textColor: theme.primaryColor,
           onPressed: () {
-              messenger.clearSnackBars();
-              pubDownloaded.showMenu(context);
+              pubDownloaded.showMenu(GlobalKeyService.currentPageKey?.currentContext ?? context);
             },
           ),
         );
@@ -346,25 +341,25 @@ class Publication {
     showBottomMessage(context, 'Publication supprimée');
 
     if (category.id == 1) {
-      BiblePage.refreshBibleView();
+      GlobalKeyService.bibleKey.currentState?.refreshBiblePage();
     }
 
     if(symbol == 'S-34') {
-      JwLifePage.getMeetingsGlobalKey().currentState?.refreshMeetingsPubs();
+      GlobalKeyService.meetingsKey.currentState?.refreshMeetingsPubs();
     }
   }
 
-  void showMenu(BuildContext context, {int? mepsLanguage}) async {
+  Future<void> showMenu(BuildContext context, {int? mepsLanguage}) async {
     if(isDownloadedNotifier.value && !isDownloadingNotifier.value) {
-      showPage(context, PublicationMenuView(publication: this));
+      await showPage(context, PublicationMenuView(publication: this));
     }
     else {
       if(await hasInternetConnection()) {
-        showPage(context, PublicationMenu(publication: this));
+        await showPage(context, PublicationMenu(publication: this));
         //await download(context);
       }
       else {
-        showNoConnectionDialog(context);
+        await showNoConnectionDialog(context);
       }
     }
   }

@@ -3,8 +3,11 @@ import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/app/jwlife_page.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/data/models/publication.dart';
-import 'package:jwlife/features/home/views/home_page.dart';
+import 'package:jwlife/features/home/pages/home_page.dart';
 import 'package:jwlife/widgets/dialog/language_dialog_pub.dart';
+
+import '../../app/services/global_key_service.dart';
+import '../../features/publication/pages/document/local/documents_manager.dart';
 
 PopupMenuItem getPubShareMenuItem(Publication publication) {
   return PopupMenuItem(
@@ -64,7 +67,7 @@ PopupMenuItem getPubFavoriteItem(Publication pub) {
         pub.isFavoriteNotifier.value = true;
       }
 
-      JwLifePage.getHomeGlobalKey().currentState?.refreshFavorites();
+      GlobalKeyService.homeKey.currentState?.refreshFavorites();
     },
   );
 }

@@ -1,7 +1,10 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:jwlife/core/utils/shared_preferences_helper.dart';
 
 import '../../app/services/settings_service.dart';
+import 'directory_helper.dart';
 
 class WebViewData {
   late String theme;
@@ -10,6 +13,9 @@ class WebViewData {
   late String cssCode;
   late double fontSize;
   late int colorIndex;
+  late bool isFullScreen;
+
+  late String webappPath;
 
   // Méthode privée pour charger le CSS
   Future<void> init() async {
@@ -29,6 +35,10 @@ class WebViewData {
     //dialogBackgroundColor = isDark ? '#1d1d1d' : '#f7f7f5';
     fontSize = await getFontSize();
     colorIndex = await getLastHighlightColorIndex();
+    isFullScreen = await getFullscreen();
+
+    Directory webappViewDirectory = await getAppWebViewDirectory();
+    webappPath = '${webappViewDirectory.path}/webapp';
   }
 
   void update(ThemeMode themeMode) {
@@ -53,5 +63,9 @@ class WebViewData {
 
   void updateColorIndex(int index) {
     colorIndex = index;
+  }
+
+  void updateFullscreen(bool value) {
+    isFullScreen = value;
   }
 }

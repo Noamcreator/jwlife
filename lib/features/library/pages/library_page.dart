@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/app/jwlife_page.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/shared_preferences_helper.dart';
@@ -8,10 +7,10 @@ import 'package:jwlife/data/models/publication_category.dart';
 import 'package:jwlife/data/databases/history.dart';
 import 'package:jwlife/data/realm/catalog.dart';
 import 'package:jwlife/i18n/localization.dart';
-import 'package:jwlife/features/home/views/home_page.dart';
 import 'package:jwlife/widgets/dialog/language_dialog.dart';
 import 'package:realm/realm.dart';
 
+import '../../../app/services/global_key_service.dart' show GlobalKeyService;
 import '../../../app/services/settings_service.dart';
 import '../../../data/databases/catalog.dart';
 import 'audio/audio_page.dart';
@@ -122,7 +121,7 @@ class LibraryPageState extends State<LibraryPage> {
                 if (value != null) {
                   await setLibraryLanguage(value);
                   refreshLibraryCategories();
-                  JwLifePage.getHomeGlobalKey().currentState?.changeLanguageAndRefresh();
+                  GlobalKeyService.homeKey.currentState?.changeLanguageAndRefresh();
                 }
               },
             ),

@@ -91,42 +91,11 @@ class DocumentsManager {
     }
   }
 
-  String createReaderHtmlShell(DocumentPage widget) {
+  String createReaderHtmlShell({int? startParagraphId, int? endParagraphId, int? startVerseId, int? endVerseId, List<String> wordsSelected = const []}) {
     final webViewData = JwLifeSettings().webViewData;
     final fontSize = webViewData.fontSize;
     final colorIndex = webViewData.colorIndex;
     bool isDarkMode = webViewData.theme == 'cc-theme--dark';
-
-    int? startParagraphId = widget.startParagraphId;
-    int? endParagraphId = widget.endParagraphId;
-    int? startVerseId = widget.firstVerse;
-    int? endVerseId = widget.lastVerse;
-    List<String> wordsSelected = widget.wordsSelected;
-
-    //String highlightYellowColor = isDarkMode ? '#86761d' : '#fff9bb';
-    //String highlightGreenColor = isDarkMode ? '#4a6831' : '#dbf2c8';
-    //String highlightBlueColor = isDarkMode ? '#3a6381' : '#cbecff';
-    //String highlightPurpleColor = isDarkMode ? '#524169' : '#e0d3ef';
-    //String highlightPinkColor = isDarkMode ? '#783750' : '#facbdd';
-    //String highlightOrangeColor = isDarkMode ? '#894c1f' : '#ffddc4';
-
-    String noteIndicatorGrayColor = isDarkMode ? '#808080' : '#bfbfbf';
-    String noteIndicatorYellowColor = isDarkMode ? '#eac600' : '#fff379';
-    String noteIndicatorGreenColor = isDarkMode ? '#67a332' : '#b7e492';
-    String noteIndicatorBlueColor = isDarkMode ? '#4ba1de' : '#98d8fe';
-    String noteIndicatorPurpleColor = isDarkMode ? '#7a57a7' : '#c0a7e1';
-    String noteIndicatorPinkColor = isDarkMode ? '#c64677' : '#f698bc';
-    String noteIndicatorOrangeColor = isDarkMode ? '#ea6d01' : '#feba89';
-
-    String noteGrayColor = isDarkMode ? '#292929' : '#f1f1f1';
-    String noteYellowColor = isDarkMode ? '#49400e' : '#fffce6';
-    String noteGreenColor = isDarkMode ? '#233315' : '#effbe6';
-    String noteBlueColor = isDarkMode ? '#203646' : '#e6f7ff';
-    String notePurpleColor = isDarkMode ? '#2d2438' : '#f1eafa';
-    String notePinkColor = isDarkMode ? '#401f2c' : '#ffe6f0';
-    String noteOrangeColor = isDarkMode ? '#49290e' : '#fff0e6';
-
-    //String searchColor = isDarkMode ? '#d09828' : '#ffc757';
 
     String theme = isDarkMode ? 'dark' : 'light';
 
@@ -159,6 +128,7 @@ class DocumentsManager {
             transition: transform 0.3s ease-in-out;
             height: 100vh;
           }
+          
           .page {
             flex: 0 0 100%;
             height: 100vh;
@@ -271,22 +241,37 @@ class DocumentsManager {
           .cc-theme--dark .highlight-purple       { background-color: rgba(146, 111, 189, 0.5); }
           .cc-theme--dark .highlight-orange       { background-color: rgba(255, 134, 46, 0.5); }
 
-
-          .note-indicator-gray      { background-color: $noteIndicatorGrayColor; }
-          .note-indicator-yellow    { background-color: $noteIndicatorYellowColor; }
-          .note-indicator-green     { background-color: $noteIndicatorGreenColor; }
-          .note-indicator-blue      { background-color: $noteIndicatorBlueColor; }
-          .note-indicator-pink      { background-color: $noteIndicatorPinkColor; }
-          .note-indicator-orange    { background-color: $noteIndicatorOrangeColor; }
-          .note-indicator-purple    { background-color: $noteIndicatorPurpleColor; }
-            
-          .note-gray      { background-color: $noteGrayColor; }
-          .note-yellow    { background-color: $noteYellowColor; }
-          .note-green     { background-color: $noteGreenColor; }
-          .note-blue      { background-color: $noteBlueColor; }
-          .note-pink      { background-color: $notePinkColor; }
-          .note-orange    { background-color: $noteOrangeColor; }
-          .note-purple    { background-color: $notePurpleColor; }
+          .cc-theme--light .note-indicator-gray      { background-color: #bfbfbf; }
+          .cc-theme--light .note-indicator-yellow    { background-color: #fff379; }
+          .cc-theme--light .note-indicator-green     { background-color: #b7e492; }
+          .cc-theme--light .note-indicator-blue      { background-color: #98d8fe; }
+          .cc-theme--light .note-indicator-pink      { background-color: #f698bc; }
+          .cc-theme--light .note-indicator-orange    { background-color: #feba89; }
+          .cc-theme--light .note-indicator-purple    { background-color: #c0a7e1; }
+        
+          .cc-theme--dark .note-indicator-gray      { background-color: #808080; }
+          .cc-theme--dark .note-indicator-yellow    { background-color: #eac600; }
+          .cc-theme--dark .note-indicator-green     { background-color: #67a332; }
+          .cc-theme--dark .note-indicator-blue      { background-color: #4ba1de; }
+          .cc-theme--dark .note-indicator-pink      { background-color: #c64677; }
+          .cc-theme--dark .note-indicator-orange    { background-color: #ea6d01; }
+          .cc-theme--dark .note-indicator-purple    { background-color: #7a57a7; }
+          
+          .cc-theme--light .note-gray      { background-color: #f1f1f1; }
+          .cc-theme--light .note-yellow    { background-color: #fffce6; }
+          .cc-theme--light .note-green     { background-color: #effbe6; }
+          .cc-theme--light .note-blue      { background-color: #e6f7ff; }
+          .cc-theme--light .note-pink      { background-color: #ffe6f0; }
+          .cc-theme--light .note-orange    { background-color: #fff0e6; }
+          .cc-theme--light .note-purple    { background-color: #f1eafa; }
+          
+          .cc-theme--dark .note-gray      { background-color: #292929; }
+          .cc-theme--dark .note-yellow    { background-color: #49400e; }
+          .cc-theme--dark .note-green     { background-color: #233315; }
+          .cc-theme--dark .note-blue      { background-color: #203646; }
+          .cc-theme--dark .note-pink      { background-color: #401f2c; }
+          .cc-theme--dark .note-orange    { background-color: #49290e; }
+          .cc-theme--dark .note-purple    { background-color: #2d2438; }
         </style>
       </head>
       <body class="${webViewData.theme}">
@@ -315,8 +300,6 @@ class DocumentsManager {
           let cachedPages = {};
           let scrollTopPages = {};
           let highlightColorIndex = $colorIndex;
-          
-          let lastScrollTop = 0;
           
           let isChangingParagraph = false;
           
@@ -424,11 +407,8 @@ class DocumentsManager {
             });
           }
           
-          function wrapWordsWithSpan(articleId) {
-            let selector = isBible() ? '.v' : '[data-pid]';
-            const article = document.getElementById(articleId);
-            if (!article) return;
-          
+          function wrapWordsWithSpan(article, isBible) {
+            let selector = isBible ? '.v' : '[data-pid]';
             const paragraphs = article.querySelectorAll(selector);
             paragraphs.forEach((p) => {
                 processTextNodes(p);
@@ -586,9 +566,8 @@ class DocumentsManager {
             void container.offsetWidth;
             container.style.transition = "transform 0.3s ease-in-out";
             
-            wrapWordsWithSpan('article-center');
-            
-            //console.log(document.getElementById("page-center").innerHTML);
+            const article = document.getElementById("article-center");
+            wrapWordsWithSpan(article, isBible());
           }
           
           async function loadPrevAndNextPages(index) {
@@ -721,33 +700,52 @@ class DocumentsManager {
               isChangingParagraph = false;
             }
           }
-
           
-          function selectWords(words) {
-            // Supprimer d'abord la classe 'searched' de tous les éléments
+          function selectWords(words, jumpToWord) {
+            // Supprimer la classe 'searched' de tous les éléments
             pageCenter.querySelectorAll('.searched').forEach(element => {
                 element.classList.remove('searched');
             });
-            
-            // Récupérer tous les éléments avec la classe 'word'
-            const wordElements = document.querySelectorAll('.word');
         
-            // Ajouter la classe 'searched' aux éléments dont le texte correspond
+            // Récupérer tous les éléments avec la classe 'word'
+            const wordElements = pageCenter.querySelectorAll('.word');
+        
+            const normalizedSearchWords = words.map(w => w.toLowerCase());
+        
+            let firstMatchedElement = null;
+        
+            // Ajouter la classe 'searched' aux éléments correspondants
             wordElements.forEach(element => {
-                const wordText = element.textContent.toLowerCase(); // Conversion en minuscules pour comparaison
-                if (words.some(searchWord => wordText.includes(searchWord.toLowerCase()))) {
+                const wordText = element.textContent.trim().toLowerCase();
+                const isMatch = normalizedSearchWords.some(searchWord => wordText.includes(searchWord));
+                if (isMatch) {
                     element.classList.add('searched');
+                    if (!firstMatchedElement) {
+                        firstMatchedElement = element;
+                    }
                 }
             });
-          }
+        
+            // Si demandé, faire défiler jusqu'au premier mot trouvé
+            if (jumpToWord && firstMatchedElement) {
+                firstMatchedElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
 
           function isBible() {
             return cachedPages[currentIndex]['isBibleChapter'];
           }
      
           function restoreOpacity() {
-            selector = isBible() ? '.v' : '[data-pid]';
-            pageCenter.querySelectorAll(selector).forEach(e => e.style.opacity = '1');
+            const selector = isBible() ? '.v' : '[data-pid]';
+            const elements = pageCenter.querySelectorAll(selector);
+          
+            // Déconnecter temporairement (optionnel)
+            requestAnimationFrame(() => {
+              elements.forEach(e => {
+                e.style.opacity = '1';
+              });
+            });
           }
     
           function dimOthers(paragraphs, selector) {
@@ -1128,7 +1126,6 @@ class DocumentsManager {
             buttons.forEach(([icon, handler]) => toolbar.appendChild(createToolbarButton(icon, handler)));
           }
           
-          
           function showToolbar(paragraphs, pid, selector, hasAudio, type) {
             const paragraph = paragraphs[0];
             const toolbars = document.querySelectorAll('.toolbar, .toolbar-highlight');
@@ -1226,7 +1223,734 @@ class DocumentsManager {
               toolbar.appendChild(createToolbarButton('&#xE65E;', () => callHandler('playAudio', { id: pid, isBible: type === 'verse' })));
             }
           }
+          
+          function removeDialog() {
+            const existingDialog = document.getElementById('customDialog');
+            if (existingDialog) existingDialog.remove(); // Supprimez le dialogue existant
 
+            const existingPopup = document.querySelector('.note-popup');
+            if (existingPopup) existingPopup.remove();
+          }
+          
+          // Fonction principale pour créer et afficher un dialog
+          function showDialog(options) {
+              window.flutter_inappwebview?.callHandler('showDialog', true);
+              
+              removeDialog();
+              
+              let isFullscreen = false;
+              const isDark = $isDarkMode;
+              
+              // Création du dialog principal avec un design arrondi moderne
+              const dialog = document.createElement('div');
+              dialog.id = 'customDialog';
+              dialog.style.cssText = `
+                  position: fixed;
+                  top: 50%;
+                  left: 50%;
+                  transform: translate(-50%, -50%);
+                  background: ${JwLifeSettings().webViewData.backgroundColor};
+                  padding: 0;
+                  border-radius: 16px;
+                  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.15);
+                  z-index: 1000;
+                  width: 85%;
+                  max-width: 850px;
+                  backdrop-filter: blur(20px);
+                  border: 1px solid \${isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)'};
+                  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+                  animation: dialogAppear 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+              `;
+              
+              // Ajout des animations CSS
+              const style = document.createElement('style');
+              style.textContent = `
+                  @keyframes dialogAppear {
+                      from {
+                          opacity: 0;
+                          transform: translate(-50%, -50%) scale(0.8);
+                      }
+                      to {
+                          opacity: 1;
+                          transform: translate(-50%, -50%) scale(1);
+                      }
+                  }
+                  
+                  @keyframes buttonHover {
+                      from { transform: scale(1); }
+                      to { transform: scale(1.1); }
+                  }
+                  
+                  .dialog-button:hover {
+                      animation: buttonHover 0.2s ease-in-out;
+                  }
+              `;
+              document.head.appendChild(style);
+              
+              // Création du header avec gradient subtil
+              const header = createHeader(options.title, isDark, dialog, isFullscreen);
+              
+              // Système de déplacement
+              setupDragSystem(header.dragArea, dialog, () => isFullscreen);
+              
+              // Création du conteneur de contenu
+              const contentContainer = document.createElement('div');
+              contentContainer.style.cssText = `
+                  max-height: 60vh;
+                  overflow-y: auto;
+                  background-color: ${JwLifeSettings().webViewData.backgroundColor};
+                  border-bottom-left-radius: 16px;
+                  border-bottom-right-radius: 16px;
+                  scrollbar-width: thin;
+                  scrollbar-color: \${isDark ? '#555 transparent' : '#ccc transparent'};
+              `;
+              
+              // Style pour les scrollbars webkit
+              contentContainer.style.cssText += `
+                  &::-webkit-scrollbar {
+                      width: 6px;
+                  }
+                  &::-webkit-scrollbar-track {
+                      background: transparent;
+                  }
+                  &::-webkit-scrollbar-thumb {
+                      background: \${isDark ? '#555' : '#ccc'};
+                      border-radius: 3px;
+                  }
+              `;
+              
+              // Ajout du contenu personnalisé
+              if (options.contentRenderer) {
+                  options.contentRenderer(contentContainer, isDark);
+              }
+              
+              // Setup du bouton fullscreen
+              setupFullscreenToggle(header.fullscreenButton, dialog, contentContainer, isFullscreen);
+              
+              // Assemblage du dialog
+              dialog.appendChild(header.element);
+              dialog.appendChild(contentContainer);
+              document.body.appendChild(dialog);
+              
+              return dialog;
+          }
+          
+          // Fonction pour créer le header
+          function createHeader(title, isDark, dialog, isFullscreen) {
+              const header = document.createElement('div');
+              const headerGradient = isDark ? 'linear-gradient(135deg, #2a2a2a 0%, #1e1e1e 100%)' : 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)';
+              
+              header.style.cssText = `
+                  background: \${headerGradient};
+                  color: \${isDark ? '#ffffff' : '#333333'};
+                  padding: 12px 16px;
+                  font-size: 18px;
+                  font-weight: 600;
+                  display: flex;
+                  align-items: center;
+                  border-top-left-radius: 16px;
+                  border-top-right-radius: 16px;
+                  height: 50px;
+                  border-bottom: 1px solid \${isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'};
+              `;
+              
+              // Zone de déplacement
+              const dragArea = document.createElement('div');
+              dragArea.style.cssText = `
+                  flex-grow: 1;
+                  cursor: move;
+                  user-select: none;
+                  display: flex;
+                  align-items: center;
+                  font-weight: 600;
+                  letter-spacing: 0.5px;
+              `;
+              dragArea.innerHTML = title;
+              
+              // Conteneur des boutons
+              const buttonContainer = document.createElement('div');
+              buttonContainer.style.cssText = 'display: flex; align-items: center; gap: 8px;';
+              
+              // Bouton fullscreen
+              const fullscreenButton = document.createElement('button');
+              fullscreenButton.innerHTML = '&#xE6AF;';
+              fullscreenButton.className = 'dialog-button';
+              fullscreenButton.style.cssText = `
+                  font-family: jw-icons-external;
+                  font-size: 18px;
+                  padding: 8px;
+                  background: ${JwLifeSettings().webViewData.backgroundColor};
+                  border: none;
+                  border-radius: 8px;
+                  color: inherit;
+                  cursor: pointer;
+                  transition: all 0.2s ease;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  width: 36px;
+                  height: 36px;
+              `;
+              
+              // Bouton fermer
+              const closeButton = document.createElement('button');
+              closeButton.innerHTML = '&#xE6D8;';
+              closeButton.className = 'dialog-button';
+              closeButton.style.cssText = `
+                  font-family: jw-icons-external;
+                  font-size: 18px;
+                  padding: 8px;
+                  background: rgba(220, 53, 69, 0.1);
+                  border: none;
+                  border-radius: 8px;
+                  color: #dc3545;
+                  cursor: pointer;
+                  transition: all 0.2s ease;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  width: 36px;
+                  height: 36px;
+              `;
+              
+              closeButton.onclick = function(event) {
+                  event.stopPropagation();
+                  event.preventDefault();
+                  dialog.style.animation = 'dialogAppear 0.3s reverse';
+                  setTimeout(() => {
+                      dialog.remove();
+                      window.flutter_inappwebview?.callHandler('showFullscreenDialog', false);
+                      window.flutter_inappwebview?.callHandler('showDialog', false);
+                  }, 300);
+              };
+              
+              buttonContainer.appendChild(fullscreenButton);
+              buttonContainer.appendChild(closeButton);
+              
+              header.appendChild(dragArea);
+              header.appendChild(buttonContainer);
+              
+              return {
+                  element: header,
+                  dragArea: dragArea,
+                  fullscreenButton: fullscreenButton,
+                  closeButton: closeButton
+              };
+          }
+          
+          // Système de déplacement
+          function setupDragSystem(dragArea, dialog, isFullscreenCallback) {
+              let isDragging = false;
+              let offsetX = 0, offsetY = 0;
+              
+              function startDrag(event) {
+                  if (isFullscreenCallback()) return;
+                  event.preventDefault();
+                  let clientX = event.clientX ?? event.touches?.[0]?.clientX;
+                  let clientY = event.clientY ?? event.touches?.[0]?.clientY;
+                  isDragging = true;
+                  offsetX = clientX - dialog.getBoundingClientRect().left;
+                  offsetY = clientY - dialog.getBoundingClientRect().top;
+                  dialog.style.transition = 'none';
+              }
+              
+              function onDrag(event) {
+                  if (!isDragging) return;
+                  event.preventDefault();
+                  let clientX = event.clientX ?? event.touches?.[0]?.clientX;
+                  let clientY = event.clientY ?? event.touches?.[0]?.clientY;
+                  dialog.style.left = (clientX - offsetX) + 'px';
+                  dialog.style.top = (clientY - offsetY) + 'px';
+                  dialog.style.transform = 'none';
+              }
+              
+              function stopDrag() {
+                  isDragging = false;
+                  dialog.style.transition = 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)';
+              }
+              
+              dragArea.addEventListener('mousedown', startDrag);
+              document.addEventListener('mousemove', onDrag);
+              document.addEventListener('mouseup', stopDrag);
+              dragArea.addEventListener('touchstart', startDrag);
+              document.addEventListener('touchmove', onDrag);
+              document.addEventListener('touchend', stopDrag);
+          }
+          
+          // Configuration du fullscreen
+          function setupFullscreenToggle(fullscreenButton, dialog, contentContainer, isFullscreen) {
+              fullscreenButton.onclick = function(event) {
+                  event.stopPropagation();
+                  event.preventDefault();
+                  
+                  if (isFullscreen) {
+                      window.flutter_inappwebview?.callHandler('showFullscreenDialog', false);
+                      isFullscreen = false;
+                      dialog.style.cssText = dialog.style.cssText.replace(/position: fixed;.*?transform: none;/, '');
+                      dialog.style.position = 'fixed';
+                      dialog.style.top = '50%';
+                      dialog.style.left = '50%';
+                      dialog.style.transform = 'translate(-50%, -50%)';
+                      dialog.style.width = '85%';
+                      dialog.style.height = 'auto';
+                      dialog.style.marginTop = '0';
+                      dialog.style.borderRadius = '16px';
+                      
+                      fullscreenButton.innerHTML = '&#xE6AF;';
+                      contentContainer.style.maxHeight = '60vh';
+                      contentContainer.style.borderBottomLeftRadius = '16px';
+                      contentContainer.style.borderBottomRightRadius = '16px';
+                  } 
+                  else {
+                      window.flutter_inappwebview?.callHandler('showFullscreenDialog', true);
+                      isFullscreen = true;
+                      dialog.style.position = 'fixed';
+                      dialog.style.top = '0';
+                      dialog.style.left = '0';
+                      dialog.style.width = '100vw';
+                      dialog.style.height = '100vh';
+                      dialog.style.transform = 'none';
+                      dialog.style.marginTop = '90px';
+                      dialog.style.borderRadius = '0';
+                      
+                      fullscreenButton.innerHTML = '&#xE6B3;';
+                      contentContainer.style.maxHeight = 'calc(100vh - 140px)';
+                      contentContainer.style.borderBottomLeftRadius = '0';
+                      contentContainer.style.borderBottomRightRadius = '0';
+                  }
+              };
+          }
+          
+          // Fonctions spécialisées 
+          function showVerseDialog(verses) {
+              showDialog({
+                  title: verses.title,
+                  contentRenderer: (contentContainer, isDark) => {
+                      verses.items.forEach((item, index) => {
+                          const infoBar = document.createElement('div');
+                          infoBar.style.cssText = `
+                              display: flex;
+                              align-items: center;
+                              padding-inline: 10px;
+                              padding-block: 6px;
+                              background: \${isDark ? '#000000' : '#f1f1f1'};
+                              border-bottom: 1px solid \${isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)'};
+                          `;
+                         
+                          const img = document.createElement('img');
+                          img.src = 'file://' + item.imageUrl;
+                          img.style.cssText = `
+                              height: 50px;
+                              width: 50px;
+                              border-radius: 8px;
+                              object-fit: cover;
+                              margin-right: 8px;
+                              box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+                          `;
+                          
+                          const textContainer = document.createElement('div');
+                          textContainer.style.cssText = 'flex-grow: 1; margin-left: 8px; padding: 8px 0;';
+                          
+                          const pubText = document.createElement('div');
+                          pubText.textContent = item.publicationTitle;
+                          pubText.style.cssText = `
+                              font-size: 16px;
+                              font-weight: 700;
+                              margin-bottom: 4px;
+                              line-height: 1.3;
+                              white-space: nowrap;
+                              overflow: hidden;
+                              text-overflow: ellipsis;
+                          `;
+                          
+                          const subtitleText = document.createElement('div');
+                          subtitleText.textContent = item.subtitle;
+                          subtitleText.style.cssText = `
+                              font-size: 12px;
+                              opacity: 0.8;
+                              line-height: 1.4;
+                              white-space: nowrap;
+                              overflow: hidden;
+                              text-overflow: ellipsis;
+                          `;
+                          
+                          textContainer.appendChild(pubText);
+                          textContainer.appendChild(subtitleText);
+                          
+                          infoBar.addEventListener('click', function() {
+                              window.flutter_inappwebview?.callHandler('openMepsDocument', item);
+                          });
+                          
+                          infoBar.appendChild(img);
+                          infoBar.appendChild(textContainer);
+                          
+                          const article = document.createElement('div');
+                          article.innerHTML = `<article id="verse-dialog" class="\${item.className}">\${item.content}</article>`;
+                          article.style.cssText = `
+                            padding-top: 10px;
+                            padding-bottom: 16px;
+                          `;
+                       
+                          wrapWordsWithSpan(article, true);
+                          
+                          const paragraphs = getAllParagraphs(article);
+                          item.highlights.forEach(h => {
+                            if (h.Identifier >= item.firstVerseNumber && h.Identifier <= item.lastVerseNumber) {
+                               addHighlight(paragraphs, h.BlockType, h.Identifier, h.StartToken, h.EndToken, h.UserMarkGuid, h.ColorIndex);
+                            }
+                          });
+                          
+                          item.notes.forEach(note => {
+                            const matchingHighlight = item.highlights.find(h => h.UserMarkGuid === note.UserMarkGuid);
+                        
+                            addNoteWithGuid(
+                              article,
+                              null,
+                              matchingHighlight?.UserMarkGuid || null,
+                              note.Guid,
+                              note.ColorIndex ?? 0,
+                              note.Title,
+                              note.Content,
+                              note.TagsId,
+                              true
+                            );
+                          });      
+                          
+                          console.log('article Content', article.innerHTML);
+                          
+                          article.addEventListener('click', async (event) => {
+                              onClickOnPage(event.target);
+                          });
+                          
+                          contentContainer.appendChild(infoBar);
+                          contentContainer.appendChild(article);
+                      });
+                  }
+              });
+          }
+          
+          function showVerseReferencesDialog(verseReferences) {
+              showDialog({
+                  title: verseReferences.title || 'Références bibliques',
+                  contentRenderer: (contentContainer, isDark) => {
+                      verseReferences.items.forEach((item, index) => {
+                          // Conteneur principal pour chaque référence
+                          const referenceItem = document.createElement('div');
+                          referenceItem.style.cssText = `
+                              background: transparent;
+                              transition: all 0.2s ease;
+                              cursor: pointer;
+                          `;
+                        
+                          // Header avec référence biblique
+                          const headerBar = document.createElement('div');
+                          headerBar.style.cssText = `
+                              display: flex;
+                              align-items: center;
+                              padding: 16px;
+                              background: transparent;
+                          `;
+                          
+                          // Icône Bible (optionnel)
+                          const bibleIcon = document.createElement('div');
+                          bibleIcon.innerHTML = '📖'; // Vous pouvez remplacer par votre icône JW
+                          bibleIcon.style.cssText = `
+                              font-size: 24px;
+                              margin-right: 16px;
+                              width: 40px;
+                              height: 40px;
+                              display: flex;
+                              align-items: center;
+                              justify-content: center;
+                              background: \${isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)'};
+                              border-radius: 50%;
+                          `;
+                          headerBar.appendChild(bibleIcon);
+                          
+                          // Conteneur des textes
+                          const textContainer = document.createElement('div');
+                          textContainer.style.cssText = 'flex-grow: 1;';
+                          
+                          // Référence biblique (ex: "Jean 3:16")
+                          const verseReference = document.createElement('div');
+                          verseReference.textContent = item.reference || item.title;
+                          verseReference.style.cssText = `
+                              font-size: inherit;
+                              margin-bottom: 4px;
+                              color: \${isDark ? '#ffffff' : '#333333'};
+                              line-height: 1.3;
+                          `;
+                          
+                          textContainer.appendChild(verseReference);
+                          
+                          // Version/traduction (optionnel)
+                          if (item.version) {
+                              const version = document.createElement('div');
+                              version.textContent = item.version;
+                              version.style.cssText = `
+                                  font-size: inherit;
+                                  line-height: 1.4;
+                              `;
+                              textContainer.appendChild(version);
+                          }
+                          
+                          headerBar.appendChild(textContainer);
+                        
+                          // Contenu du verset
+                          const content = document.createElement('div');
+                          content.innerHTML = item.content || item.text;
+                          content.style.cssText = `
+                              padding: 0 16px 16px 16px;
+                              line-height: 1.7;
+                              font-size: inherit;
+                              background: transparent;
+                              position: relative;
+                          `;
+                          
+                          content.className = item.className || '';
+                          
+                          // Contexte supplémentaire (livre, chapitre, etc.)
+                          if (item.context) {
+                              const contextInfo = document.createElement('div');
+                              contextInfo.textContent = item.context;
+                              contextInfo.style.cssText = `
+                                  padding: 8px 16px;
+                                  font-size: 12px;
+                                  opacity: 0.6;
+                                  text-align: right;
+                                  font-style: normal;
+                              `;
+                              content.appendChild(contextInfo);
+                          }
+                          
+                          // Gestionnaire de clic pour tout l'élément
+                          referenceItem.addEventListener('click', function() {
+                              if (window.flutter_inappwebview) {
+                                  window.flutter_inappwebview.callHandler('openBibleVerse', {
+                                      reference: item.reference,
+                                      book: item.book,
+                                      chapter: item.chapter,
+                                      verse: item.verse,
+                                      endVerse: item.endVerse
+                                  });
+                              }
+                          });
+                          
+                          // Assemblage
+                          referenceItem.appendChild(headerBar);
+                          referenceItem.appendChild(content);
+                          contentContainer.appendChild(referenceItem);
+                          
+                          // Barre de séparation entre les références (sauf le dernier)
+                          if (index < verseReferences.items.length - 1) {
+                              const separator = document.createElement('div');
+                              separator.style.cssText = `
+                                  height: 2px;
+                                  background: \${isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.15)'};
+                                  margin: 20px 16px;
+                                  border-radius: 1px;
+                              `;
+                              contentContainer.appendChild(separator);
+                          }
+                      });
+                  }
+              });
+          }
+          
+          function showExtractPublicationDialog(extractData) {
+              showDialog({
+                  title: extractData.title || 'Extrait de publication',
+                  contentRenderer: (contentContainer, isDark) => {
+                      extractData.items.forEach((item, index) => {
+                          // Conteneur principal pour chaque extrait
+                          const extractItem = document.createElement('div');
+                          extractItem.style.cssText = `
+                              overflow: hidden;
+                              transition: all 0.2s ease;
+                              cursor: pointer;
+                          `;
+                          
+                          // Header avec image et infos
+                          const headerBar = document.createElement('div');
+                          headerBar.style.cssText = `
+                              display: flex;
+                              align-items: center;
+                              padding-inline: 8px;
+                              padding-block: 8px;
+                              background: \${isDark ? '#000000' : '#f1f1f1'};
+                              border-bottom: 1px solid \${isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)'};
+                          `;
+                          
+                          // Image de la publication
+                          if (item.imageUrl) {
+                              const img = document.createElement('img');
+                              img.src = 'file://' + item.imageUrl;
+                              img.style.cssText = `
+                                  height: 50px;
+                                  width: 50px;
+                                  border-radius: 8px;
+                                  object-fit: cover;
+                                  margin-right: 8px;
+                                  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+                              `;
+                              headerBar.appendChild(img);
+                          }
+                          
+                          headerBar.addEventListener('click', function() {
+                              window.flutter_inappwebview.callHandler('openMepsDocument', {
+                                      mepsDocumentId: item.mepsDocumentId,
+                                      mepsLanguageId: item.mepsLanguageId,
+                                      startParagraph: item.startParagraphId,
+                                      endParagraph: item.endParagraphId
+                                  });
+                          });
+                          
+                          // Conteneur des textes
+                          const textContainer = document.createElement('div');
+                          textContainer.style.cssText = 'flex-grow: 1;';
+                          
+                          // Conteneur horizontal pour le titre et le sous-titre
+                          const titleRow = document.createElement('div');
+                          titleRow.style.cssText = `
+                            display: flex;
+                            align-items: center;
+                            gap: 8px; /* espace entre titre et sous-titre */
+                            overflow: hidden;
+                          `;
+                          
+                          // Titre de la publication
+                          const pubTitle = document.createElement('div');
+                          pubTitle.textContent = item.publicationTitle;
+                          pubTitle.style.cssText = `
+                            font-size: 16px;
+                            font-weight: 700;
+                            margin-bottom: 4px;
+                            color: \${isDark ? '#ffffff' : '#333333'};
+                            line-height: 1.3;
+                            white-space: nowrap;
+                            overflow: hidden;
+                            text-overflow: ellipsis;
+                          `;
+                          
+                          // Sous-titre (en dessous du titre)
+                          if (item.subtitle) {
+                            const subtitle = document.createElement('div');
+                            subtitle.textContent = item.subtitle;
+                            subtitle.style.cssText = `
+                              font-size: 12px;
+                              opacity: 0.8;
+                              line-height: 1.4;
+                              white-space: nowrap;
+                              overflow: hidden;
+                              text-overflow: ellipsis;
+                            `;
+                            textContainer.appendChild(pubTitle);
+                            textContainer.appendChild(subtitle);
+                          } else {
+                            textContainer.appendChild(pubTitle);
+                          }
+                          
+                          textContainer.appendChild(titleRow);
+                         
+                          headerBar.appendChild(textContainer);
+                         
+                         const article = document.createElement('div');
+                          article.innerHTML = `<article id="publication-dialog" class="\${item.className}">\${item.content}</article>`;
+                          article.style.cssText = `
+                            padding-block: 16px;
+                            line-height: 1.7;
+                            font-size: inherit;
+                          `;
+                       
+                          wrapWordsWithSpan(article, false);
+                          
+                          const paragraphs = getAllParagraphs(article);
+                          item.highlights.forEach(h => {
+                            if ((item.startParagraphId == null || h.Identifier >= item.startParagraphId) && (item.endParagraphId == null || h.Identifier <= item.endParagraphId)) {
+                              addHighlight(
+                                paragraphs,
+                                h.BlockType,
+                                h.Identifier,
+                                h.StartToken,
+                                h.EndToken,
+                                h.UserMarkGuid,
+                                h.ColorIndex
+                              );
+                            }
+                          });
+                          
+                          item.notes.forEach(note => {
+                            const matchingHighlight = item.highlights.find(h => h.UserMarkGuid === note.UserMarkGuid);
+                        
+                            addNoteWithGuid(
+                              article,
+                              null,
+                              matchingHighlight?.UserMarkGuid || null,
+                              note.Guid,
+                              note.ColorIndex ?? 0,
+                              note.Title,
+                              note.Content,
+                              note.TagsId,
+                              false
+                            );
+                          });      
+                          
+                          article.addEventListener('click', async (event) => {
+                              onClickOnPage(event.target);
+                          });
+                          
+                          article.querySelectorAll('img').forEach(img => {
+                            img.onerror = () => {
+                              img.style.display = 'none';  // Cache l'image si elle ne charge pas
+                            }
+                          });
+
+                          // Assemblage
+                          extractItem.appendChild(headerBar);
+                          extractItem.appendChild(article);
+                          contentContainer.appendChild(extractItem);
+                          
+                          // Séparateur entre les éléments (sauf le dernier)
+                          if (index < extractData.items.length - 1) {
+                              const separator = document.createElement('div');
+                              separator.style.cssText = `
+                                  height: 3px;
+                                  background: \${isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'};
+                                  margin: 12px 0px;
+                              `;
+                              contentContainer.appendChild(separator);
+                          }
+                      });
+                  }
+              });
+          }
+          
+          function showFootNoteDialog(footnote) {
+              showDialog({
+                  title: footnote.title,
+                  contentRenderer: (contentContainer, isDark) => {
+                      const noteContainer = document.createElement('div');
+                      noteContainer.style.cssText = `
+                          padding-inline: 20px;
+                      `;
+                      
+                      const noteContent = document.createElement('div');
+                      noteContent.innerHTML = footnote.content;
+                      noteContent.style.cssText = `
+                          line-height: 1.7;
+                          font-size: inherit;
+                      `;
+                      
+                      noteContent.addEventListener('click', async (event) => {
+                        onClickOnPage(event.target);
+                      });
+                      
+                      noteContainer.appendChild(noteContent);
+                      contentContainer.appendChild(noteContainer);
+                  }
+              });
+          }
+         
           function getAllHighlights(uuid) {
             return pageCenter.querySelectorAll(`[data-highlight-id="\${uuid}"]`);
           }
@@ -1246,7 +1970,7 @@ class DocumentsManager {
                   colorIndex: 0
               });
               
-              addNoteWithGuid(paragraph, null, noteGuid.uuid, 0, title, '', '');
+              addNoteWithGuid(pageCenter, paragraph, null, noteGuid.uuid, 0, title, '', '', isBible);
               closeToolbar();
               removeAllSelected();
           }
@@ -1305,7 +2029,7 @@ class DocumentsManager {
                   colorIndex: colorIndex
               });
               
-              addNoteWithGuid(paragraph, highlightGuid, noteGuid.uuid, colorIndex, title, '', '');
+              addNoteWithGuid(pageCenter, paragraph, highlightGuid, noteGuid.uuid, colorIndex, title, '', '', isVerse);
               closeToolbar();
               removeAllSelected();
           }
@@ -1466,13 +2190,15 @@ class DocumentsManager {
                 const matchingHighlight = matchingHighlights.find(h => h.UserMarkGuid === note.UserMarkGuid);
           
                 addNoteWithGuid(
+                  pageCenter,
                   p,
                   matchingHighlight?.UserMarkGuid || null,
                   note.Guid,
                   note.ColorIndex ?? 0,
                   note.Title,
                   note.Content,
-                  note.TagsId
+                  note.TagsId,
+                  isBible()
                 );
           
                 processedNoteGuids.add(note.Guid);
@@ -1498,8 +2224,6 @@ class DocumentsManager {
                 textarea.rows = 1;
                 textarea.style.height = 'auto';
                 textarea.style.height = `\${textarea.scrollHeight + 4}px`;
-                repositionAllNotes();
-                repositionAllBookmarks();
               };
           
               const eventType = input.tagName === 'TEXTAREA' ? 'input' : 'change';
@@ -1517,24 +2241,26 @@ class DocumentsManager {
               }
             });
             
-            repositionAllNotes();
-            repositionAllBookmarks();
+            //repositionAllNotes();
+            //repositionAllBookmarks();
           }
           
-          function getTarget(id) {
-            if (isBible()) {
-              const elements = pageCenter.querySelectorAll('.v');
-          
+          function getTarget(article, isBible, id) {
+            if (isBible) {
+              const elements = article.querySelectorAll('.v');
+              
               for (const el of elements) {
-                const idParts = el.id.split('-');
+                const idAttr = el.getAttribute('id');
+                const idParts = idAttr.split('-');
                 const thirdPart = idParts[2];
-          
+                
                 if (thirdPart === String(id)) {
                   return el;
                 }
               }
-            } else {
-              return pageCenter.querySelector(`[data-pid="\${id}"]`);
+            } 
+            else {
+              return article.querySelector(`[data-pid="\${id}"]`);
             }
           
             return null;
@@ -1553,14 +2279,14 @@ class DocumentsManager {
             const bookmarks = document.querySelectorAll('.bookmark-icon');
             bookmarks.forEach(bookmark => {
               const id = bookmark.getAttribute('id');
-              let target = getTarget(id);
+              let target = getTarget(pageCenter, isBible(), blockIdentifier);
               getBookmarkPosition(target, bookmark);
             });
           }
           
           function addBookmark(target, blockType, blockIdentifier, slot) {
             if (!target) {
-              target = getTarget(blockIdentifier);
+              target = getTarget(pageCenter, isBible(), blockIdentifier);
             }
           
             const imgSrc = bookmarkAssets[slot];
@@ -1573,7 +2299,6 @@ class DocumentsManager {
                 bookmark.classList.add('bookmark-icon');
           
                 getBookmarkPosition(target, bookmark);
-          
                 pageCenter.appendChild(bookmark);
               });
             }
@@ -1648,17 +2373,24 @@ class DocumentsManager {
             });
           }
 
-          function addNoteWithGuid(target, highlightGuid, noteGuid, colorIndex, title, content, tagsId) {
-            const idAttr = isBible() ? 'id' : 'data-pid';
+          function addNoteWithGuid(article, target, highlightGuid, noteGuid, colorIndex, title, content, tagsId, isBible) {
+            if (!target) {
+              const highlightTarget = article.querySelector(`[data-highlight-id="\${highlightGuid}"]`);
+              if (highlightTarget) {
+                target = isBible ? highlightTarget.closest('.v') : highlightTarget.closest('p');
+              }
+            }
+            
+            if (!target) {
+              return;
+            }
+            
+            const idAttr = isBible ? 'id' : 'data-pid';
         
             // Chercher le premier élément surligné si highlightGuid est donné
             let firstHighlightedElement = null;
             if (highlightGuid) {
                 firstHighlightedElement = target.querySelector(`[data-highlight-id="\${highlightGuid}"]`);
-                if (!firstHighlightedElement) {
-                    console.log(`Aucun surlignage trouvé pour le guid: \${highlightGuid}`);
-                    firstHighlightedElement = null; // on force null car on ne veut pas utiliser target comme élément
-                }
             }
        
             // Créer le carré de note
@@ -1709,7 +2441,6 @@ class DocumentsManager {
             noteIndicator.addEventListener('click', (e) => {
                 e.stopPropagation();
                 showNotePopup(highlightGuid, noteGuid, title, content, colorName, tagsId, e.pageX, e.pageY);
-                window.flutter_inappwebview.callHandler('showDialog', true);
             });
             
             // Clic pour supprimer la note
@@ -1719,393 +2450,401 @@ class DocumentsManager {
             });
         
             // Ajouter le carré au container principal
-            pageCenter.appendChild(noteIndicator);
+            article.appendChild(noteIndicator);
           }
           
           async function showNotePopup(highlightGuid, noteGuid, title, content, colorName, tagsId, x, y) {
-  const allTags = await window.flutter_inappwebview.callHandler('getTags');
-  const tags = allTags.tags;
-
-  const existingPopup = document.querySelector('.note-popup');
-  if (existingPopup) existingPopup.remove();
-
-  const safePadding = 20;
-  const minWidth = 320;
-  const maxWidth = window.innerWidth * 0.9;
-
-  const tempTextarea = document.createElement('textarea');
-  tempTextarea.style.cssText = `
-    position: absolute;
-    visibility: hidden;
-    white-space: pre-wrap;
-    word-wrap: break-word;
-    font-size: inherit;
-    line-height: 1.6;
-    padding: 20px;
-    border: none;
-    width: auto;
-    max-width: \${maxWidth - 40}px;
-  `;
-  tempTextarea.value = content;
-  document.body.appendChild(tempTextarea);
-
-  const contentWidth = Math.max(minWidth, Math.min(tempTextarea.scrollWidth + 80, maxWidth));
-  tempTextarea.style.width = \`\${contentWidth - 40}px\`;
-  const contentHeight = Math.max(60, Math.min(tempTextarea.scrollHeight, 300));
-  document.body.removeChild(tempTextarea);
-
-  const titleBarHeight = 60;
-  const tagsContainerHeight = 120;
-  const totalWidth = contentWidth;
-  const totalHeight = titleBarHeight + contentHeight + tagsContainerHeight;
-
-  let left = x - totalWidth / 2;
-  let top = y - 50;
-
-  if (left + totalWidth > window.innerWidth - safePadding) {
-    left = window.innerWidth - totalWidth - safePadding;
-  }
-  if (left < safePadding) {
-    left = safePadding;
-  }
-  if (top + totalHeight > window.innerHeight - bottomNavBarHeight - safePadding) {
-    top = window.innerHeight - bottomNavBarHeight - totalHeight - safePadding;
-  }
-  if (top < appBarHeight + safePadding) {
-    top = appBarHeight + safePadding;
-  }
-
-  const popup = document.createElement('div');
-  popup.className = \`note-popup note-\${colorName}\`;
-  popup.setAttribute('data-popup-id', noteGuid);
-
-  const titleBar = document.createElement('div');
-  titleBar.className = 'note-title-bar';
-
-  const titleElement = document.createElement('input');
-  titleElement.className = 'note-title-input';
-  titleElement.type = 'text';
-  titleElement.value = title;
-  titleElement.placeholder = 'Titre de la note';
-
-  const controlsContainer = document.createElement('div');
-  controlsContainer.className = 'note-controls';
-
-  const maximizeBtn = document.createElement('button');
-  maximizeBtn.className = 'note-control-btn maximize-btn';
-  maximizeBtn.innerHTML = '⛶';
-
-  const closeBtn = document.createElement('button');
-  closeBtn.className = 'note-control-btn close-btn';
-  closeBtn.innerHTML = '✕';
-
-  const contentElement = document.createElement('textarea');
-  contentElement.className = 'note-content';
-  contentElement.value = content;
-  contentElement.placeholder = 'Écrivez votre note ici...';
-
-  popup.style.cssText = \`
-    position: fixed;
-    left: \${Math.max(0, left)}px;
-    top: \${Math.max(0, top)}px;
-    width: \${totalWidth}px;
-    height: \${totalHeight}px;
-    border-radius: 16px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
-    font-size: inherit;
-    line-height: 1.5;
-    z-index: 1000;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    backdrop-filter: blur(10px);
-  \`;
-
-  titleBar.style.cssText = \`
-    display: flex;
-    align-items: center;
-    padding: 16px 20px 12px 20px;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: 16px 16px 0 0;
-    height: \${titleBarHeight}px;
-    box-sizing: border-box;
-  \`;
-
-  titleElement.style.cssText = \`
-    flex: 1;
-    font-weight: 600;
-    font-size: inherit;
-    border: none;
-    outline: none;
-    background: transparent;
-    color: inherit;
-    padding: 0;
-    margin: 0;
-  \`;
-
-  controlsContainer.style.cssText = \`
-    display: flex;
-    gap: 8px;
-    margin-left: 16px;
-  \`;
-
-  [maximizeBtn, closeBtn].forEach(btn => {
-    btn.style.cssText = \`
-      width: 32px;
-      height: 32px;
-      border: none;
-      background: rgba(0, 0, 0, 0.1);
-      color: rgba(0, 0, 0, 0.6);
-      cursor: pointer;
-      font-size: 14px;
-      border-radius: 8px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: all 0.2s ease;
-      font-weight: 500;
-    \`;
-  });
-
-  maximizeBtn.addEventListener('mouseenter', () => {
-    maximizeBtn.style.background = 'rgba(0, 0, 0, 0.15)';
-    maximizeBtn.style.transform = 'scale(1.05)';
-  });
-  maximizeBtn.addEventListener('mouseleave', () => {
-    maximizeBtn.style.background = 'rgba(0, 0, 0, 0.1)';
-    maximizeBtn.style.transform = 'scale(1)';
-  });
-
-  closeBtn.addEventListener('mouseenter', () => {
-    closeBtn.style.background = '#ff4757';
-    closeBtn.style.color = 'white';
-    closeBtn.style.transform = 'scale(1.05)';
-  });
-  closeBtn.addEventListener('mouseleave', () => {
-    closeBtn.style.background = 'rgba(0, 0, 0, 0.1)';
-    closeBtn.style.color = 'rgba(0, 0, 0, 0.6)';
-    closeBtn.style.transform = 'scale(1)';
-  });
-
-  contentElement.style.cssText = \`
-    border: none;
-    outline: none;
-    resize: none;
-    font-size: inherit;
-    line-height: 1.6;
-    padding: 20px;
-    background: transparent;
-    color: inherit;
-    overflow-y: auto;
-    height: \${contentHeight}px;
-    box-sizing: border-box;
-  \`;
-
-  const tagsContainer = document.createElement('div');
-  tagsContainer.style.cssText = \`
-    display: flex;
-    flex-wrap: wrap;
-    align-items: flex-start;
-    gap: 8px;
-    padding: 16px 20px 20px 20px;
-    border-top: 1px solid rgba(0, 0, 0, 0.08);
-    background: rgba(255, 255, 255, 0.03);
-    border-radius: 0 0 16px 16px;
-    height: \${tagsContainerHeight}px;
-    overflow-y: auto;
-    box-sizing: border-box;
-    position: relative;
-  \`;
-
-  const tagStyle = \`
-    background: rgba(255, 255, 255, 0.9);
-    color: #2c3e50;
-    padding: 7px 9px;
-    border-radius: 20px;
-    font-size: 14px;
-    font-weight: 500;
-    white-space: nowrap;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    backdrop-filter: blur(10px);
-  \`;
-  
-  console.log('theUniqueTagsId', tagsId);
-
-  const currentTagIds = !tagsId || tagsId === '' ? [] : tagsId.split(',').map(id => parseInt(id));
-  currentTagIds.forEach(tagId => {
-    const tag = tags.find(t => t.TagId === tagId);
-    if (!tag) return;
-    const tagElement = document.createElement('span');
-    tagElement.textContent = tag.Name;
-    tagElement.style.cssText = tagStyle;
-    tagElement.addEventListener('click', () => {
-      window.flutter_inappwebview.callHandler('openTagPage', {
-        tagId: tag.TagId,
-      });
-    });
-    tagElement.addEventListener('contextmenu', () => {
-      tagsContainer.removeChild(tagElement);
-      window.flutter_inappwebview.callHandler('removeTagToNote', {
-        noteGuid: noteGuid,
-        tagId: tag.TagId,
-      });
-    });
-    tagsContainer.appendChild(tagElement);
-  });
-
-  const tagInputWrapper = document.createElement('div');
-  tagInputWrapper.style.cssText = \`
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    width: 100%;
-    flex-wrap: wrap;
-  \`;
-
-  const tagInput = document.createElement('input');
-  tagInput.type = 'text';
-  tagInput.style.cssText = \`
-    display: none;
-    flex: 1;
-    min-width: 100px;
-    border: none;
-    padding: 4px;
-    outline: none;
-    font-size: 14px;
-    background: transparent;
-    color: inherit;
-  \`;
-
-  const addTagButton = document.createElement('button');
-  addTagButton.textContent = '+';
-  addTagButton.style.cssText = \`
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    border: none;
-    background: rgba(255, 255, 255, 0.9);
-    color: #2c3e50;
-    font-size: 18px;
-    font-weight: bold;
-    cursor: pointer;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  \`;
-
-  addTagButton.addEventListener('click', () => {
-    tagInput.style.display = 'block';
-    tagInput.focus();
-  });
-
-  const suggestionsList = document.createElement('div');
-  suggestionsList.style.cssText = \`
-    display: none;
-    width: 100%;
-    background: rgba(255, 255, 255, 0.95);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    border-radius: 12px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
-    max-height: 100px;
-    overflow-y: auto;
-    margin-top: 4px;
-    backdrop-filter: blur(15px);
-  \`;
-
-  tagInput.addEventListener('input', () => {
-    const value = tagInput.value.toLowerCase();
-    suggestionsList.innerHTML = '';
-    if (value === '') {
-      suggestionsList.style.display = 'none';
-      return;
-    }
-    const filtered = tags.filter(tag => tag.Name.toLowerCase().includes(value) && !currentTagIds.includes(tag.TagId));
-    filtered.forEach((tag, index) => {
-      const item = document.createElement('div');
-      item.textContent = tag.Name;
-      item.style.cssText = \`
-        padding: 8px 12px; 
-        cursor: pointer;
-        font-size: 14px;
-        color: #2c3e50;
-        transition: background-color 0.2s ease;
-        \${index === 0 ? 'border-radius: 12px 12px 0 0;' : ''}
-        \${index === filtered.length - 1 ? 'border-radius: 0 0 12px 12px;' : ''}
-      \`;
-      item.addEventListener('mouseenter', () => {
-        item.style.backgroundColor = 'rgba(52, 152, 219, 0.1)';
-      });
-      item.addEventListener('mouseleave', () => {
-        item.style.backgroundColor = 'transparent';
-      });
-      item.addEventListener('click', () => {
-        currentTagIds.push(tag.TagId);
-        const tagElement = document.createElement('span');
-        tagElement.textContent = tag.Name;
-        tagElement.style.cssText = tagStyle;
-        tagsContainer.insertBefore(tagElement, tagInputWrapper);
-        tagInput.value = '';
-        suggestionsList.innerHTML = '';
-        suggestionsList.style.display = 'none';
-        window.flutter_inappwebview.callHandler('addTagToNote', {
-          noteGuid: noteGuid,
-          tagId: tag.TagId
-        });
-      });
-      suggestionsList.appendChild(item);
-    });
-    suggestionsList.style.display = filtered.length ? 'block' : 'none';
-  });
-
-  controlsContainer.appendChild(maximizeBtn);
-  controlsContainer.appendChild(closeBtn);
-  titleBar.appendChild(titleElement);
-  titleBar.appendChild(controlsContainer);
-  popup.appendChild(titleBar);
-  popup.appendChild(contentElement);
-  popup.appendChild(tagsContainer);
-
-  tagInputWrapper.appendChild(addTagButton);
-  tagInputWrapper.appendChild(tagInput);
-  tagInputWrapper.appendChild(suggestionsList);
-  tagsContainer.appendChild(tagInputWrapper);
-  document.body.appendChild(popup);
-
-  popup.style.transform = 'scale(0.9) translateY(20px)';
-  popup.style.opacity = '0';
-  popup.style.transition = 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)';
-  setTimeout(() => {
-    popup.style.transform = 'scale(1) translateY(0)';
-    popup.style.opacity = '1';
-  }, 10);
-  setTimeout(() => {
-    popup.style.transition = '';
-  }, 300);
-
-  closeBtn.addEventListener('click', () => {
-    popup.style.transition = 'all 0.2s ease';
-    popup.style.transform = 'scale(0.9)';
-    popup.style.opacity = '0';
-    setTimeout(() => {
-      popup.remove();
-    }, 200);
-    window.flutter_inappwebview.callHandler('showDialog', false);
-  });
-
-  const saveChanges = () => {
-    const title = titleElement.value;
-    const content = contentElement.value;
-    window.flutter_inappwebview.callHandler('updateNote', {
-      noteGuid: noteGuid,
-      title: title,
-      content: content
-    });
-  };
-
-  titleElement.addEventListener('input', saveChanges);
-  contentElement.addEventListener('input', saveChanges);
-}
+            const allTags = await window.flutter_inappwebview.callHandler('getTags');
+            const tags = allTags.tags;
+            
+            window.flutter_inappwebview.callHandler('showDialog', true);
+          
+            removeDialog();
+          
+            const safePadding = 20;
+            const minWidth = 320;
+            const maxWidth = window.innerWidth * 0.9;
+          
+            const tempTextarea = document.createElement('textarea');
+            tempTextarea.style.cssText = `
+              position: absolute;
+              visibility: hidden;
+              white-space: pre-wrap;
+              word-wrap: break-word;
+              font-size: inherit;
+              line-height: 1.6;
+              padding: 20px;
+              border: none;
+              width: auto;
+              max-width: \${maxWidth - 40}px;
+            `;
+            tempTextarea.value = content;
+            document.body.appendChild(tempTextarea);
+          
+            const contentWidth = Math.max(minWidth, Math.min(tempTextarea.scrollWidth + 80, maxWidth));
+            tempTextarea.style.width = \`\${contentWidth - 40}px\`;
+            const contentHeight = Math.max(60, Math.min(tempTextarea.scrollHeight, 300));
+            document.body.removeChild(tempTextarea);
+          
+            const titleBarHeight = 60;
+            const tagsContainerHeight = 120;
+            const totalWidth = contentWidth;
+            const totalHeight = titleBarHeight + contentHeight + tagsContainerHeight;
+          
+            let left = x - totalWidth / 2;
+            let top = y - 50;
+          
+            if (left + totalWidth > window.innerWidth - safePadding) {
+              left = window.innerWidth - totalWidth - safePadding;
+            }
+            if (left < safePadding) {
+              left = safePadding;
+            }
+            if (top + totalHeight > window.innerHeight - bottomNavBarHeight - safePadding) {
+              top = window.innerHeight - bottomNavBarHeight - totalHeight - safePadding;
+            }
+            if (top < appBarHeight + safePadding) {
+              top = appBarHeight + safePadding;
+            }
+          
+            const popup = document.createElement('div');
+            popup.className = \`note-popup note-\${colorName}\`;
+            popup.setAttribute('data-popup-id', noteGuid);
+          
+            const titleBar = document.createElement('div');
+            titleBar.className = 'note-title-bar';
+          
+            const titleElement = document.createElement('input');
+            titleElement.className = 'note-title-input';
+            titleElement.type = 'text';
+            titleElement.value = title;
+            titleElement.placeholder = 'Titre de la note';
+          
+            const controlsContainer = document.createElement('div');
+            controlsContainer.className = 'note-controls';
+          
+            const maximizeBtn = document.createElement('button');
+            maximizeBtn.className = 'note-control-btn maximize-btn';
+            maximizeBtn.innerHTML = '⛶';
+          
+            const closeBtn = document.createElement('button');
+            closeBtn.className = 'note-control-btn close-btn';
+            closeBtn.innerHTML = '✕';
+          
+            const contentElement = document.createElement('textarea');
+            contentElement.className = 'note-content';
+            contentElement.value = content;
+            contentElement.placeholder = 'Écrivez votre note ici...';
+          
+            popup.style.cssText = \`
+              position: fixed;
+              left: \${Math.max(0, left)}px;
+              top: \${Math.max(0, top)}px;
+              width: \${totalWidth}px;
+              height: \${totalHeight}px;
+              border-radius: 16px;
+              box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+              font-size: inherit;
+              line-height: 1.5;
+              z-index: 1000;
+              display: flex;
+              flex-direction: column;
+              overflow: hidden;
+              border: 1px solid rgba(255, 255, 255, 0.2);
+              backdrop-filter: blur(10px);
+            \`;
+          
+            titleBar.style.cssText = \`
+              display: flex;
+              align-items: center;
+              padding: 16px 20px 12px 20px;
+              border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+              background: rgba(255, 255, 255, 0.05);
+              border-radius: 16px 16px 0 0;
+              height: \${titleBarHeight}px;
+              box-sizing: border-box;
+            \`;
+          
+            titleElement.style.cssText = \`
+              flex: 1;
+              font-weight: 600;
+              font-size: inherit;
+              border: none;
+              outline: none;
+              background: transparent;
+              color: inherit;
+              padding: 0;
+              margin: 0;
+            \`;
+          
+            controlsContainer.style.cssText = \`
+              display: flex;
+              gap: 8px;
+              margin-left: 16px;
+            \`;
+          
+            [maximizeBtn, closeBtn].forEach(btn => {
+              btn.style.cssText = \`
+                width: 32px;
+                height: 32px;
+                border: none;
+                background: rgba(0, 0, 0, 0.1);
+                color: rgba(0, 0, 0, 0.6);
+                cursor: pointer;
+                font-size: 14px;
+                border-radius: 8px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                transition: all 0.2s ease;
+                font-weight: 500;
+              \`;
+            });
+          
+            maximizeBtn.addEventListener('mouseenter', () => {
+              maximizeBtn.style.background = 'rgba(0, 0, 0, 0.15)';
+              maximizeBtn.style.transform = 'scale(1.05)';
+            });
+            maximizeBtn.addEventListener('mouseleave', () => {
+              maximizeBtn.style.background = 'rgba(0, 0, 0, 0.1)';
+              maximizeBtn.style.transform = 'scale(1)';
+            });
+          
+            closeBtn.addEventListener('mouseenter', () => {
+              closeBtn.style.background = '#ff4757';
+              closeBtn.style.color = 'white';
+              closeBtn.style.transform = 'scale(1.05)';
+            });
+            closeBtn.addEventListener('mouseleave', () => {
+              closeBtn.style.background = 'rgba(0, 0, 0, 0.1)';
+              closeBtn.style.color = 'rgba(0, 0, 0, 0.6)';
+              closeBtn.style.transform = 'scale(1)';
+            });
+          
+            contentElement.style.cssText = \`
+              border: none;
+              outline: none;
+              resize: none;
+              font-size: inherit;
+              line-height: 1.6;
+              padding: 20px;
+              background: transparent;
+              color: inherit;
+              overflow-y: auto;
+              height: \${contentHeight}px;
+              box-sizing: border-box;
+            \`;
+          
+            const tagsContainer = document.createElement('div');
+            tagsContainer.style.cssText = \`
+              display: flex;
+              flex-wrap: wrap;
+              align-items: flex-start;
+              gap: 8px;
+              padding: 16px 20px 20px 20px;
+              border-top: 1px solid rgba(0, 0, 0, 0.08);
+              background: rgba(255, 255, 255, 0.03);
+              border-radius: 0 0 16px 16px;
+              height: \${tagsContainerHeight}px;
+              overflow-y: auto;
+              box-sizing: border-box;
+              position: relative;
+            \`;
+          
+            const tagStyle = \`
+              background: rgba(255, 255, 255, 0.9);
+              color: #2c3e50;
+              padding: 7px 9px;
+              border-radius: 20px;
+              font-size: 14px;
+              font-weight: 500;
+              white-space: nowrap;
+              box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+              border: 1px solid rgba(255, 255, 255, 0.3);
+              backdrop-filter: blur(10px);
+            \`;
+            
+            console.log('theUniqueTagsId', tagsId);
+          
+            const currentTagIds = !tagsId || tagsId === '' ? [] : tagsId.split(',').map(id => parseInt(id));
+            currentTagIds.forEach(tagId => {
+              const tag = tags.find(t => t.TagId === tagId);
+              if (!tag) return;
+              const tagElement = document.createElement('span');
+              tagElement.textContent = tag.Name;
+              tagElement.style.cssText = tagStyle;
+              tagElement.addEventListener('click', () => {
+                window.flutter_inappwebview.callHandler('openTagPage', {
+                  tagId: tag.TagId,
+                });
+              });
+              tagElement.addEventListener('contextmenu', () => {
+                tagsContainer.removeChild(tagElement);
+                window.flutter_inappwebview.callHandler('removeTagToNote', {
+                  noteGuid: noteGuid,
+                  tagId: tag.TagId,
+                });
+              });
+              tagsContainer.appendChild(tagElement);
+            });
+          
+            const tagInputWrapper = document.createElement('div');
+            tagInputWrapper.style.cssText = \`
+              display: flex;
+              align-items: center;
+              gap: 10px;
+              width: 100%;
+              flex-wrap: wrap;
+            \`;
+          
+            const tagInput = document.createElement('input');
+            tagInput.type = 'text';
+            tagInput.style.cssText = \`
+              display: none;
+              flex: 1;
+              min-width: 100px;
+              border: none;
+              padding: 4px;
+              outline: none;
+              font-size: 14px;
+              background: transparent;
+              color: inherit;
+            \`;
+          
+            const addTagButton = document.createElement('button');
+            addTagButton.textContent = '+';
+            addTagButton.style.cssText = \`
+              width: 32px;
+              height: 32px;
+              border-radius: 50%;
+              border: none;
+              background: rgba(255, 255, 255, 0.9);
+              color: #2c3e50;
+              font-size: 18px;
+              font-weight: bold;
+              cursor: pointer;
+              box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            \`;
+          
+            addTagButton.addEventListener('click', () => {
+              tagInput.style.display = 'block';
+              tagInput.focus();
+            });
+          
+            const suggestionsList = document.createElement('div');
+            suggestionsList.style.cssText = \`
+              display: none;
+              width: 100%;
+              background: rgba(255, 255, 255, 0.95);
+              border: 1px solid rgba(255, 255, 255, 0.3);
+              border-radius: 12px;
+              box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+              max-height: 100px;
+              overflow-y: auto;
+              margin-top: 4px;
+              backdrop-filter: blur(15px);
+            \`;
+          
+            tagInput.addEventListener('input', () => {
+              const value = tagInput.value.toLowerCase();
+              suggestionsList.innerHTML = '';
+              if (value === '') {
+                suggestionsList.style.display = 'none';
+                return;
+              }
+              const filtered = tags.filter(tag => tag.Name.toLowerCase().includes(value) && !currentTagIds.includes(tag.TagId));
+              filtered.forEach((tag, index) => {
+                const item = document.createElement('div');
+                item.textContent = tag.Name;
+                item.style.cssText = \`
+                  padding: 8px 12px; 
+                  cursor: pointer;
+                  font-size: 14px;
+                  color: #2c3e50;
+                  transition: background-color 0.2s ease;
+                  \${index === 0 ? 'border-radius: 12px 12px 0 0;' : ''}
+                  \${index === filtered.length - 1 ? 'border-radius: 0 0 12px 12px;' : ''}
+                \`;
+                item.addEventListener('mouseenter', () => {
+                  item.style.backgroundColor = 'rgba(52, 152, 219, 0.1)';
+                });
+                item.addEventListener('mouseleave', () => {
+                  item.style.backgroundColor = 'transparent';
+                });
+                item.addEventListener('click', () => {
+                  currentTagIds.push(tag.TagId);
+                  const tagElement = document.createElement('span');
+                  tagElement.textContent = tag.Name;
+                  tagElement.style.cssText = tagStyle;
+                  tagsContainer.insertBefore(tagElement, tagInputWrapper);
+                  tagInput.value = '';
+                  suggestionsList.innerHTML = '';
+                  suggestionsList.style.display = 'none';
+                  window.flutter_inappwebview.callHandler('addTagToNote', {
+                    noteGuid: noteGuid,
+                    tagId: tag.TagId
+                  });
+                });
+                suggestionsList.appendChild(item);
+              });
+              suggestionsList.style.display = filtered.length ? 'block' : 'none';
+            });
+          
+            controlsContainer.appendChild(maximizeBtn);
+            controlsContainer.appendChild(closeBtn);
+            titleBar.appendChild(titleElement);
+            titleBar.appendChild(controlsContainer);
+            popup.appendChild(titleBar);
+            popup.appendChild(contentElement);
+            popup.appendChild(tagsContainer);
+          
+            tagInputWrapper.appendChild(addTagButton);
+            tagInputWrapper.appendChild(tagInput);
+            tagInputWrapper.appendChild(suggestionsList);
+            tagsContainer.appendChild(tagInputWrapper);
+            document.body.appendChild(popup);
+          
+            popup.style.transform = 'scale(0.9) translateY(20px)';
+            popup.style.opacity = '0';
+            popup.style.transition = 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)';
+            setTimeout(() => {
+              popup.style.transform = 'scale(1) translateY(0)';
+              popup.style.opacity = '1';
+            }, 10);
+            setTimeout(() => {
+              popup.style.transition = '';
+            }, 300);
+          
+            closeBtn.addEventListener('click', () => {
+              popup.style.transition = 'all 0.2s ease';
+              popup.style.transform = 'scale(0.9)';
+              popup.style.opacity = '0';
+              setTimeout(() => {
+                popup.remove();
+              }, 200);
+              window.flutter_inappwebview.callHandler('showDialog', false);
+            });
+            
+            maximizeBtn.addEventListener('click', () => {
+              popup.style.transition = 'all 0.2s ease';
+              popup.style.transform = 'scale(1) translateY(0)';
+              popup.style.opacity = '1';
+              window.flutter_inappwebview.callHandler('showFullscreenDialog', true);
+            });
+          
+            const saveChanges = () => {
+              const title = titleElement.value;
+              const content = contentElement.value;
+              window.flutter_inappwebview.callHandler('updateNote', {
+                noteGuid: noteGuid,
+                title: title,
+                content: content
+              });
+            };
+          
+            titleElement.addEventListener('input', saveChanges);
+            contentElement.addEventListener('input', saveChanges);
+          }
 
           // Fonction utilitaire pour supprimer un surlignage spécifique par son UUID
           function removeHighlightByGuid(guid) {
@@ -2188,55 +2927,67 @@ class DocumentsManager {
           async function init() {
             // Masquer le contenu avant le chargement
             pageCenter.classList.remove('visible');
+          
+            // Charger la page principale
             await loadIndexPage(currentIndex);
             pageCenter.scrollTop = 0;
             pageCenter.scrollLeft = 0;
-            
+          
+            // Ajouter la scrollBar
             scrollBar = document.createElement('img');
             scrollBar.className = 'scroll-bar';
             scrollBar.src = speedBarScroll;
             scrollBar.addEventListener("touchstart", (e) => {
               if (e.touches.length !== 1) return;
               isTouchDragging = true;
-            
+          
               const touchY = e.touches[0].clientY;
               dragTouchOffsetY = touchY - scrollBar.getBoundingClientRect().top;
-            
+          
               e.preventDefault(); // bloque le scroll natif
             }, { passive: false });
-          
             document.body.appendChild(scrollBar);
-            
+          
+            // Informer Flutter que la page principale est chargée
             await window.flutter_inappwebview.callHandler('changePageAt', currentIndex);
           
+            // Attendre que les polices soient prêtes
             await document.fonts.ready;
-            loadUserdata();
-      
-            if($startParagraphId != null && $endParagraphId != null) {
-              jumpToIdSelector('[data-pid]', 'data-pid', $startParagraphId, $endParagraphId);
+          
+            // Charger les données utilisateur (notes/bookmarks, etc.)
+            await loadUserdata();
+            
+            if (${wordsSelected.isNotEmpty}) {
+              selectWords(${jsonEncode(wordsSelected)}, false);
             }
-            else if($startVerseId != null && $endVerseId != null) {
+          
+            // Appliquer les scrolls ou sélections APRÈS que tout est visible
+            if ($startParagraphId != null && $endParagraphId != null) {
+              jumpToIdSelector('[data-pid]', 'data-pid', $startParagraphId, $endParagraphId);
+            } else if ($startVerseId != null && $endVerseId != null) {
               jumpToIdSelector('.v', 'id', $startVerseId, $endVerseId);
             }
-            
-            if(${wordsSelected.isNotEmpty}) {
-              selectWords(${jsonEncode(widget.wordsSelected)});
-            }
-           
-            // Double RAF pour garantir le rendu complet avant le fondu
-            requestAnimationFrame(() => {
-              requestAnimationFrame(() => {
-                repositionAllNotes();
-                repositionAllBookmarks();
-                pageCenter.classList.add('visible'); // Lancer le fondu
-                window.flutter_inappwebview.callHandler('fontsLoaded');
-              });
-            });
-  
+          
+            // Afficher la page (avec fondu)
+            pageCenter.classList.add('visible');
+            window.flutter_inappwebview.callHandler('fontsLoaded');
+          
+            // Charger les pages autour
             await loadPrevAndNextPages(currentIndex);
           }
           
           init();
+          
+          let lastScrollTop = 0;
+          let lastDirection = null;
+          
+          let directionChangePending = false;
+          let directionChangeStartTime = 0;
+          let directionChangeStartScroll = 0;
+          let directionChangeTargetDirection = null;
+          
+          const DIRECTION_CHANGE_THRESHOLD_MS = 300;
+          const DIRECTION_CHANGE_THRESHOLD_PX = 40;
           
           pageCenter.addEventListener("scroll", () => {
             if (isLongPressing || isChangingParagraph) return;
@@ -2245,28 +2996,58 @@ class DocumentsManager {
             const scrollHeight = pageCenter.scrollHeight;
             const clientHeight = pageCenter.clientHeight;
           
-            const scrollDirection = scrollTop > lastScrollTop ? "down" : scrollTop < lastScrollTop ? "up" : "none";
-            lastScrollTop = scrollTop;
-            
-            if(scrollDirection == 'down') {
-              appBarHeight = 0;    // hauteur de l'AppBar
-              bottomNavBarHeight = 0; // hauteur de la BottomBar
+            const scrollDelta = scrollTop - lastScrollTop;
+            const scrollDirection = scrollDelta > 0 ? "down" : scrollDelta < 0 ? "up" : "none";
+            const now = Date.now();
+          
+            // Si direction a changé
+            if (
+              scrollDirection !== "none" &&
+              scrollDirection !== lastDirection &&
+              !directionChangePending
+            ) {
+              // On commence à surveiller
+              directionChangePending = true;
+              directionChangeStartTime = now;
+              directionChangeStartScroll = scrollTop;
+              directionChangeTargetDirection = scrollDirection;
             }
-            else {
-              appBarHeight = 90;    // hauteur de l'AppBar
-              bottomNavBarHeight = 55; // hauteur de la BottomBar
+          
+            // Si on est en attente d'une validation de changement
+            if (directionChangePending && scrollDirection === directionChangeTargetDirection) {
+              const timeDiff = now - directionChangeStartTime;
+              const scrollDiff = Math.abs(scrollTop - directionChangeStartScroll);
+          
+              if (timeDiff < DIRECTION_CHANGE_THRESHOLD_MS && scrollDiff > DIRECTION_CHANGE_THRESHOLD_PX) {
+                // Geste franc validé
+                window.flutter_inappwebview.callHandler('onScroll', scrollTop, scrollDirection);
+                lastDirection = scrollDirection;
+                directionChangePending = false;
+              } else if (timeDiff >= DIRECTION_CHANGE_THRESHOLD_MS) {
+                // Trop lent → annuler
+                directionChangePending = false;
+              }
+            }
+          
+            lastScrollTop = scrollTop;
+          
+            // Gestion UI (masquer/afficher barres)
+            if (scrollDirection === 'down') {
+              appBarHeight = 0;
+              bottomNavBarHeight = 0;
+            } else if (scrollDirection === 'up') {
+              appBarHeight = 90;
+              bottomNavBarHeight = 55;
             }
           
             scrollTopPages[currentIndex] = scrollTop;
-            window.flutter_inappwebview.callHandler('onScroll', scrollTop, scrollDirection);
           
-            // Mise à jour position de la scroll-bar
+            // Scroll-bar
             const scrollableHeight = scrollHeight - clientHeight;
             const visibleHeight = window.innerHeight - bottomNavBarHeight - 90;
             const scrollRatio = scrollTop / scrollableHeight;
-          
             const scrollBarTop = 90 + (visibleHeight - scrollBar.offsetHeight) * scrollRatio;
-            scrollBar.style.top = `\${scrollBarTop}px`; // attention : backticks, pas échappé
+            scrollBar.style.top = `\${scrollBarTop}px`; // ← corrigé ici : plus besoin d'échappement
           });
           
           // Variables globales pour éviter les redéclarations
@@ -2327,9 +3108,7 @@ class DocumentsManager {
             'highlight-blue', 'highlight-pink', 'highlight-orange', 'highlight-purple'
           ]);
           
-          // Gestionnaire d'événements click optimisé
-          pageCenter.addEventListener('click', (event) => {
-            const target = event.target;
+          async function onClickOnPage(target) {
             const tagName = target.tagName;
             
             // Early returns pour les cas simples
@@ -2337,33 +3116,71 @@ class DocumentsManager {
               closeToolbar();
               return;
             }
-          
+
             if (tagName === 'IMG') {
               window.flutter_inappwebview.callHandler('onImageClick', target.src);
               closeToolbar();
               return;
             }
           
+            const classList = target.classList; 
+                        
             // Utilisation de classList.contains avec cache
-            const classList = target.classList;
-            
+            const matchedElement = target.closest('a');
+        
+            if(matchedElement) {
+              const linkClassList = matchedElement.classList; 
+              const href = matchedElement.getAttribute('href');
+
+              if (href.startsWith('#')) {
+                const targetElement = pageCenter.querySelector(href);
+              
+                if (targetElement) {
+                  targetElement.scrollIntoView({
+                    behavior: 'smooth', // pour un défilement fluide
+                    block: 'center',    // centre l'élément dans la vue
+                  });
+                }
+              
+                closeToolbar();
+                return;
+              }
+              
+              if (linkClassList.contains('b')) {
+                const verses = await window.flutter_inappwebview.callHandler('fetchVerses', href);
+                showVerseDialog(verses);
+                closeToolbar();
+                return;
+              }
+      
+              if(href.startsWith('jwpub://p/')) {
+                const extract = await window.flutter_inappwebview.callHandler('fetchExtractPublication', href);
+                showExtractPublicationDialog(extract);
+                closeToolbar();
+                return;
+              }
+              
+              closeToolbar();
+              return;
+            }
+  
             if (classList.contains('fn')) {
               const fnid = target.getAttribute('data-fnid');
-              window.flutter_inappwebview.callHandler('fetchFootnote', fnid);
-              closeToolbar();
-              return;
-            }
-          
-            if (classList.contains('m')) {
-              const mid = target.getAttribute('data-mid');
-              window.flutter_inappwebview.callHandler('fetchVersesReference', mid);
+              const footnote = await window.flutter_inappwebview.callHandler('fetchFootnote', fnid);
+              showFootNoteDialog(footnote);
               closeToolbar();
               return;
             }
             
-            // Optimisation de closest() avec cache
-            const matchedElement = target.closest('a');
-            if (matchedElement || classList.contains('gen-field')) {
+            if (classList.contains('m')) {
+              const mid = target.getAttribute('data-mid');
+              const versesReference = await window.flutter_inappwebview.callHandler('fetchVersesReference', mid);
+              showVerseReferencesDialog(versesReference);
+              closeToolbar();
+              return;
+            }
+            
+            if (classList.contains('gen-field')) {
               closeToolbar();
               return;
             }
@@ -2386,7 +3203,12 @@ class DocumentsManager {
             } else {
               whenClickOnParagraph(target, '[data-pid]', 'data-pid', 'paragraph');
             }
-          }, { passive: true });
+          }
+          
+          // Gestionnaire d'événements click optimisé
+          pageCenter.addEventListener('click', async (event) => {
+            onClickOnPage(event.target);
+          });
           
           // Gestionnaire touchstart optimisé
           pageCenter.addEventListener('touchstart', async (event) => {
@@ -2493,7 +3315,7 @@ class DocumentsManager {
             const firstParagraph = firstParagraphInfo.paragraph;
             const lastParagraph = lastParagraphInfo.paragraph;
           
-            const paragraphs = getAllParagraphs();
+            const paragraphs = getAllParagraphs(pageCenter);
           
             const firstIndex = paragraphs.indexOf(firstParagraph);
             const lastIndex = paragraphs.indexOf(lastParagraph);
@@ -2717,11 +3539,11 @@ class DocumentsManager {
             return result;
           }
           
-          function getAllParagraphs() {
+          function getAllParagraphs(article) {
             const finalList = [];
           
             // Ajouter d'abord tous les versets
-            const verses = pageCenter.querySelectorAll('.v[id]');
+            const verses = article.querySelectorAll('.v[id]');
             verses.forEach(verse => {
               const id = verse.id.split('-')[2];
               finalList.push(verse);
@@ -2729,7 +3551,7 @@ class DocumentsManager {
           
             if(verses.length === 0) {
               // Ajouter les paragraphes uniquement si aucun verset ne les couvre
-              const paragraphs = pageCenter.querySelectorAll('[data-pid]');
+              const paragraphs = article.querySelectorAll('[data-pid]');
               paragraphs.forEach(paragraph => {
                 finalList.push(paragraph);
               });

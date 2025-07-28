@@ -22,7 +22,7 @@ class SplashScreen extends StatelessWidget {
             // Indicateur de progression avec une hauteur plus petite
             SizedBox(
               height: 4, // Hauteur personnalisée de l'indicateur
-              width: 150,
+              width: 160,
               child: LinearProgressIndicator(
                 valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).primaryColor),
                 backgroundColor: Colors.grey[300]
