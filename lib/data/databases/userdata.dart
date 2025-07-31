@@ -12,10 +12,12 @@ import 'package:jwlife/core/assets.dart';
 import 'package:jwlife/core/utils/directory_helper.dart';
 import 'package:jwlife/core/utils/files_helper.dart';
 import 'package:jwlife/core/utils/utils.dart';
+import 'package:jwlife/data/databases/catalog.dart';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/models/userdata/bookmark.dart';
 import 'package:jwlife/data/models/userdata/tag.dart';
 import 'package:jwlife/data/repositories/PublicationRepository.dart';
+import 'package:jwlife/features/publication/pages/document/data/models/dated_text.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:sqflite/sqflite.dart';
@@ -62,25 +64,25 @@ class Userdata {
       await _database.execute("ATTACH DATABASE '${mepsFile.path}' AS meps");
 
       final userResults = await _database.rawQuery('''
-      SELECT DISTINCT
-        meps.Language.Symbol AS LanguageSymbol,
-        meps.Language.VernacularName AS LanguageVernacularName,
-        meps.Language.PrimaryIetfCode AS LanguagePrimaryIetfCode,
-        loc.BookNumber,
-        loc.ChapterNumber,
-        loc.DocumentId,
-        loc.Track,
-        loc.IssueTagNumber,
-        loc.KeySymbol,
-        loc.MepsLanguage,
-        loc.Type
-      FROM Location loc
-      LEFT JOIN meps.Language ON loc.MepsLanguage = meps.Language.LanguageId
-      LEFT JOIN TagMap tm ON tm.LocationId = loc.LocationId
-      LEFT JOIN Tag tag ON tm.TagId = tag.TagId
-      WHERE tag.Type = 0
-      ORDER BY tm.Position
-    ''');
+        SELECT DISTINCT
+          meps.Language.Symbol AS LanguageSymbol,
+          meps.Language.VernacularName AS LanguageVernacularName,
+          meps.Language.PrimaryIetfCode AS LanguagePrimaryIetfCode,
+          loc.BookNumber,
+          loc.ChapterNumber,
+          loc.DocumentId,
+          loc.Track,
+          loc.IssueTagNumber,
+          loc.KeySymbol,
+          loc.MepsLanguage,
+          loc.Type
+        FROM Location loc
+        INNER JOIN meps.Language ON loc.MepsLanguage = meps.Language.LanguageId
+        LEFT JOIN TagMap tm ON tm.LocationId = loc.LocationId
+        LEFT JOIN Tag tag ON tm.TagId = tag.TagId
+        WHERE tag.Type = 0
+        ORDER BY tm.Position
+      ''');
 
       await _database.execute("DETACH DATABASE meps");
 
@@ -142,30 +144,24 @@ class Userdata {
               ]).toList();
 
               final result = await txn.rawQuery('''
-              SELECT DISTINCT
-                p.*,
-                pa.LastModified,
-                pa.Size,
-                pa.ExpandedSize,
-                pa.SchemaVersion,
-                (SELECT ia.NameFragment
-                 FROM ImageAsset ia
-                 JOIN PublicationAssetImageMap paim ON ia.Id = paim.ImageAssetId
-                 WHERE paim.PublicationAssetId = pa.Id
-                   AND (ia.NameFragment LIKE '%_sqr-%' OR (ia.Width = 600 AND ia.Height = 600))
-                 ORDER BY ia.Width DESC
-                 LIMIT 1) AS ImageSqr,
-                (SELECT ia.NameFragment
-                 FROM ImageAsset ia
-                 JOIN PublicationAssetImageMap paim ON ia.Id = paim.ImageAssetId
-                 WHERE paim.PublicationAssetId = pa.Id
-                   AND ia.NameFragment LIKE '%_lsr-%'
-                 ORDER BY ia.Width DESC
-                 LIMIT 1) AS ImageLsr
-              FROM Publication p
-              LEFT JOIN PublicationAsset pa ON p.Id = pa.PublicationId
-              WHERE $conditions
-            ''', args);
+                SELECT DISTINCT
+                  p.*,
+                  pa.LastModified, 
+                  pa.CatalogedOn,
+                  pa.Size,
+                  pa.ExpandedSize,
+                  pa.SchemaVersion,
+                  pam.PublicationAttributeId,
+                  (SELECT ia.NameFragment 
+                   FROM PublicationAssetImageMap paim 
+                   JOIN ImageAsset ia ON paim.ImageAssetId = ia.Id 
+                   WHERE paim.PublicationAssetId = pa.Id  AND (ia.Width = 270 AND ia.Height = 270)
+                   LIMIT 1) AS ImageSqr
+                  FROM Publication p
+                  INNER JOIN PublicationAsset pa ON p.Id = pa.PublicationId
+                  LEFT JOIN PublicationAttributeMap pam ON p.Id = pam.PublicationId
+                WHERE $conditions
+              ''', args);
 
               for (final pubRow in publicationsToLoad) {
                 final index = pubRow['index'] as int;
@@ -546,8 +542,9 @@ class Userdata {
     }
   }
 
-  Future<int?> insertLocationWithDocument(Publication publication, Document document) async {
-    int? locationId = await insertLocation(document.bookNumber, document.chapterNumber, document.mepsDocumentId, null, publication.issueTagNumber, publication.keySymbol, publication.mepsLanguage.id);
+  Future<int?> insertLocationWithDocument(Publication publication, Document? document, {DatedText? datedText}) async {
+    int mepsDocumentId = document?.mepsDocumentId ?? datedText!.mepsDocumentId;
+    int? locationId = await insertLocation(document?.bookNumber, document?.chapterNumber, mepsDocumentId, null, publication.issueTagNumber, publication.keySymbol, publication.mepsLanguage.id);
     return locationId;
   }
 
@@ -715,10 +712,10 @@ class Userdata {
     }
   }
 
-  Future<void> addHighlightToDoc(Publication publication, Document document, List<dynamic> highlightsParagraphs, int colorIndex, String uuid) async {
+  Future<void> addHighlightToDoc(Publication publication, Document? document, List<dynamic> highlightsParagraphs, int colorIndex, String uuid, {DatedText? datedText}) async {
     try {
       // Étape 1 : Obtenir ou insérer le LocationId via insertLocation
-      final locationId = await insertLocationWithDocument(publication, document);
+      final locationId = await insertLocationWithDocument(publication, document, datedText: datedText);
 
       printTime('locationId: $locationId');
 
@@ -887,7 +884,7 @@ class Userdata {
     }
   }
 
-  Future<void> addNoteToDocId(Document document, int blockType, int identifier, String title, String uuid, String? userMarkGuid) async {
+  Future<void> addNoteToDocId(Publication publication, Document? document, int blockType, int identifier, String title, String uuid, String? userMarkGuid, {DatedText? datedText}) async {
     try {
       int? userMarkId;
       int? locationId;
@@ -908,7 +905,7 @@ class Userdata {
       }
 
       // Si on n’a pas encore de locationId, on l’obtient via insertLocation
-      locationId ??= await insertLocationWithDocument(document.publication, document);
+      locationId ??= await insertLocationWithDocument(publication, null, datedText: datedText);
 
       final timestamp = DateTime.now().toIso8601String();
 

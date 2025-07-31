@@ -281,7 +281,7 @@ class _MediaItemItemWidgetState extends State<MediaItemItemWidget> {
         children: [
           Text(
             widget.mediaItem.title!,
-            style: const TextStyle(fontSize: 10, height: 1.1),
+            style: TextStyle(fontSize: widget.timeAgoText == true ? 10 : 11.5, height: 1.1),
             maxLines: 3,
             overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.start,

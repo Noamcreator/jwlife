@@ -8,6 +8,7 @@ import 'package:jwlife/core/utils/utils_jwpub.dart';
 import 'package:jwlife/data/models/publication_attribute.dart';
 import 'package:jwlife/data/models/publication_category.dart';
 import 'package:jwlife/data/models/meps_language.dart';
+import 'package:jwlife/features/publication/pages/document/local/dated_text_manager.dart';
 import 'package:jwlife/widgets/dialog/utils_dialog.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -29,6 +30,7 @@ class Publication {
   String coverTitle;
   String undatedTitle;
   String undatedReferenceTitle;
+  String description;
   int year;
   int issueTagNumber;
   String symbol;
@@ -52,6 +54,7 @@ class Publication {
   bool hasTopics = false;
   bool hasCommentary = false;
   DocumentsManager? documentsManager;
+  DatedTextManager? datedTextManager;
 
   CancelableOperation? _downloadOperation;
   CancelableOperation? _updateOperation;
@@ -73,6 +76,7 @@ class Publication {
     this.coverTitle = '',
     this.undatedTitle = '',
     this.undatedReferenceTitle = '',
+    this.description = '',
     this.year = 0,
     this.issueTagNumber = 0,
     this.symbol = '',
@@ -120,6 +124,7 @@ class Publication {
         existing.timeStamp = json['Timestamp'] ?? existing.timeStamp;
         existing.path = json['Path'] ?? existing.path;
         existing.databasePath = json['DatabasePath'];
+        existing.description = json['Description'] ?? existing.description;
         existing.imageSqr = json['ImageSqr'] != null ? json['ImageSqr'].toString().startsWith("/data") ? json['ImageSqr'] : "https://app.jw-cdn.org/catalogs/publications/${json['ImageSqr']}" : existing.imageSqr;
         existing.imageLsr = json['ImageLsr'] != null ? json['ImageLsr'].toString().startsWith("/data") ? json['ImageLsr'] : "https://app.jw-cdn.org/catalogs/publications/${json['ImageLsr']}" : existing.imageLsr;
       }
@@ -138,13 +143,14 @@ class Publication {
     // Sinon, en créer une nouvelle
     Publication publication = Publication(
       id: json['Id'] ?? json['PublicationId'] ?? 0,
-      mepsLanguage: json['LanguageSymbol'] != null ? MepsLanguage(id: json['MepsLanguageId'], symbol: json['LanguageSymbol'], vernacular: json['LanguageVernacularName'], primaryIetfCode: json['LanguagePrimaryIetfCode']) : JwLifeSettings().currentLanguage,
+      mepsLanguage: json['LanguageSymbol'] != null ? MepsLanguage(id: json['MepsLanguageId'], symbol: json['LanguageSymbol'], vernacular: json['LanguageVernacularName'], primaryIetfCode: json['LanguagePrimaryIetfCode'], isSignLanguage: json['IsSignLanguage'] == 1) : JwLifeSettings().currentLanguage,
       title: json['Title'] ?? '',
       issueTitle: json['IssueTitle'] ?? '',
       shortTitle: json['ShortTitle'] ?? '',
       coverTitle: json['CoverTitle'] ?? '',
       undatedTitle: json['UndatedTitle'] ?? '',
       undatedReferenceTitle: json['UndatedReferenceTitle'] ?? '',
+      description: json['Description'] ?? '',
       year: json['Year'] ?? 0,
       issueTagNumber: json['IssueTagNumber'] ?? 0,
       symbol: json['Symbol'] ?? '',
@@ -327,6 +333,7 @@ class Publication {
     await removeJwpubFile(this);
 
     documentsManager = null;
+    datedTextManager = null;
     hash = null;
     path = null;
     databasePath = null;

@@ -4,7 +4,7 @@
 
 # JW Life
 
-JW Life est une application mobile développée avec Flutter pour enrichir la vie spirituelle d'un Témoins de Jéhovah.  
+JW Life est une application mobile développée avec Flutter pour enrichir la vie spirituelle d'un Témoin de Jéhovah.  
 Ce projet propose une alternative moderne à JW Library, avec une interface fluide, une navigation intuitive et des outils supplémentaires adaptés au quotidien théocratique.
 
 ---

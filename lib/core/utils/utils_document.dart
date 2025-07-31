@@ -14,6 +14,7 @@ import 'package:jwlife/widgets/dialog/utils_dialog.dart';
 
 import '../../app/jwlife_app.dart';
 import '../../app/services/settings_service.dart';
+import '../../features/publication/pages/document/data/models/document.dart';
 import '../../features/publication/pages/document/local/document_page.dart';
 
 Future<void> showDownloadPublicationDialog(BuildContext context, Publication publication, {int? mepsDocId, int? bookNumber, int? chapterNumber, int? startParagraphId, int? endParagraphId}) async {
@@ -322,32 +323,30 @@ String createHtmlContent(String html, String articleClasses, Publication publica
   return htmlContent;
 }
 
-String createHtmlDialogContent(String html, String articleClasses) {
-  WebViewData webViewData = JwLifeSettings().webViewData;
+String getArticleClass(Document document) {
+  final isBible = document.isBibleChapter();
+  final publication = isBible ? 'bible' : 'document';
+  final keySymbol = document.publication.keySymbol;
+  final docClass = document.classType;
+  final docId = document.documentId;
+  final scriptName = document.publication.mepsLanguage.internalScriptName;
+  final languageSymbol = document.publication.mepsLanguage.symbol;
+  final direction = document.publication.mepsLanguage.isRtl ? 'rtl' : 'ltr';
+  final theme = JwLifeSettings().webViewData.theme;
 
-  String htmlContent = '''
-    <!DOCTYPE html>
-    <html style="overflow-x: hidden; height: 100%;">
-      <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="initial-scale=1.0, user-scalable=no">
-        <link rel="stylesheet" href="jw-styles.css" />
-      </head>
-      <body>
-        <style>
-          body {
-            font-size: ${webViewData.fontSize}px;
-            background-color: ${webViewData.backgroundColor};
-          }
-        </style>
-        <article id="article" class="$articleClasses ${webViewData.theme}">
-          $html
-        </article>
-      </body>
-    </html>
-  ''';
-
-  return htmlContent;
+  return [
+    publication,
+    'jwac',
+    'pub-$keySymbol',
+    'docClass-$docClass',
+    'docId-$docId',
+    'ms-$scriptName',
+    'ml-$languageSymbol',
+    'dir-$direction',
+    'layout-reading',
+    'layout-sidebar',
+    theme,
+  ].join(' ');
 }
 
 Future<void> showFontSizeDialog(BuildContext context, InAppWebViewController? controller) async {

@@ -131,25 +131,34 @@ Future<void> setCatalogDate(String catalogDate) async {
 }
 
 /* LIBRARY LANGUAGE */
-Future<String> getLibraryLanguage(int index) async {
+Future<List<String>?> getLibraryLanguage() async {
   SharedPreferences prefs = await SharedPreferences.getInstance();
-  if (prefs.containsKey('library_language') == true) {
-    return prefs.getStringList('library_language')![index];
+  if (prefs.containsKey('library_language') == true && prefs.getStringList('library_language') != null) {
+    return prefs.getStringList('library_language');
   }
-  return '';
+  return ['0', 'E', 'English', 'en', '0', 'ROMAN', 'Roman', '0', '0', '0', '0', '1', 'r1', 'lp-e'];
 }
 
 Future<void> setLibraryLanguage(Map<String, dynamic> selectedLanguage) async {
   JwLifeSettings().currentLanguage = MepsLanguage.fromJson(selectedLanguage);
 
   SharedPreferences prefs = await SharedPreferences.getInstance();
-  prefs.setStringList('library_language', [selectedLanguage['LanguageId'].toString(), selectedLanguage['Symbol'], selectedLanguage['VernacularName'], selectedLanguage['PrimaryIetfCode']]);
-}
-
-
-Future<void> setLibraryLanguageDebug(int id, String code, String vernacular, String locale) async {
-  SharedPreferences prefs = await SharedPreferences.getInstance();
-  prefs.setStringList('library_language', [id.toString(), code, vernacular, locale]);
+  prefs.setStringList('library_language', [
+    JwLifeSettings().currentLanguage.id.toString(),
+    JwLifeSettings().currentLanguage.symbol,
+    JwLifeSettings().currentLanguage.vernacular,
+    JwLifeSettings().currentLanguage.primaryIetfCode,
+    JwLifeSettings().currentLanguage.isSignLanguage == true ? '1' : '0',
+    JwLifeSettings().currentLanguage.internalScriptName,
+    JwLifeSettings().currentLanguage.displayScriptName,
+    JwLifeSettings().currentLanguage.isBidirectional == true ? '1' : '0',
+    JwLifeSettings().currentLanguage.isRtl == true ? '1' : '0',
+    JwLifeSettings().currentLanguage.isCharacterSpaced == true ? '1' : '0',
+    JwLifeSettings().currentLanguage.isCharacterBreakable == true ? '1' : '0',
+    JwLifeSettings().currentLanguage.hasSystemDigits == true ? '1' : '0',
+    JwLifeSettings().currentLanguage.rsConf,
+    JwLifeSettings().currentLanguage.lib,
+  ]);
 }
 
 /* WEB APP FOLDER */

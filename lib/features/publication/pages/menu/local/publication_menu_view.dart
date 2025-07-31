@@ -1024,25 +1024,36 @@ GROUP BY
                 fit: BoxFit.fill,
                 width: double.infinity,
               ),
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Text(
-                widget.publication.coverTitle.isNotEmpty
-                    ? widget.publication.coverTitle
-                    : widget.publication.title,
-                style: TextStyle(
-                  color: Theme
-                      .of(context)
-                      .brightness == Brightness.dark
-                      ? Colors.white
-                      : Colors.black,
-                  fontSize: 25,
-                  fontWeight: FontWeight.bold,
-                  height: 1.2,
-                ),
-                textAlign: TextAlign.center,
+            const SizedBox(height: 8),
+            Text(
+              widget.publication.coverTitle.isNotEmpty
+                  ? widget.publication.coverTitle
+                  : widget.publication.title,
+              style: TextStyle(
+                color: Theme
+                    .of(context)
+                    .brightness == Brightness.dark
+                    ? Colors.white
+                    : Colors.black,
+                fontSize: 25,
+                fontWeight: FontWeight.bold,
+                height: 1.2,
               ),
+              textAlign: TextAlign.center,
             ),
+            if(widget.publication.description.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Text(
+                  widget.publication.description,
+                  style: TextStyle(
+                    color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black,
+                    fontSize: 14,
+                    height: 1.2,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
           ],
           if (tabWithItems.tab['DataType'] == 'number')
             Padding(

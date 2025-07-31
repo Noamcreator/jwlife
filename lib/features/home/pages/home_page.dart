@@ -277,9 +277,7 @@ class HomePageState extends State<HomePage> {
   Future<void> fetchVerseOfTheDay() async {
     printTime("fetchVerseOfTheDay");
 
-    Publication? verseOfTheDayPub = PubCatalog.datedPublications.firstWhereOrNull(
-          (element) => element.keySymbol.contains('es'),
-    );
+    Publication? verseOfTheDayPub = PubCatalog.datedPublications.firstWhereOrNull((element) => element.keySymbol.contains('es'),);
 
     if (verseOfTheDayPub != null) {
       VoidCallback? listener;
@@ -303,11 +301,7 @@ class HomePageState extends State<HomePage> {
         Map<String, dynamic>? document = await PubCatalog.getDatedDocumentForToday(verseOfTheDayPub);
         printTime("fetchVerseOfTheDay document end");
 
-        final decodedHtml = decodeBlobContent(
-          document!['Content'] as Uint8List,
-          verseOfTheDayPub.hash!,
-        );
-
+        final decodedHtml = decodeBlobContent(document!['Content'] as Uint8List, verseOfTheDayPub.hash!);
         final htmlDocument = html_parser.parse(decodedHtml);
 
         setState(() {
@@ -353,6 +347,8 @@ class HomePageState extends State<HomePage> {
       },
     );
 
+    printTime('fetchArticleInHomePage request start');
+
     // Récupérer les 3 derniers articles avec images LSR et PNR
     final articles = await db.rawQuery('''
     SELECT a.*, 
@@ -372,14 +368,16 @@ class HomePageState extends State<HomePage> {
       }); // Mise à jour unique
     }
 
+    printTime('fetchArticleInHomePage request end');
+
     final response = await Api.httpGetWithHeaders('https://jw.org/${JwLifeSettings().currentLanguage.primaryIetfCode}');
 
     if (response.statusCode != 200) {
       throw Exception('Failed to load content');
     }
-    else {
-      printTime("fetchArticleInHomePage webview start");
-    }
+
+    printTime("fetchArticleInHomePage document start");
+
     final document = html_parser.parse(response.body);
 
     String getImageUrl(String className) {
@@ -672,7 +670,12 @@ class HomePageState extends State<HomePage> {
         GestureDetector(
           onTap: () {
             if (publication.isDownloadedNotifier.value) {
-              showPage(context, DailyTextPage(publication: publication));
+              GlobalKeyService.jwLifePageKey.currentState!.toggleNavBarPositioned(true);
+
+              final GlobalKey<DailyTextPageState> dailyTextPageKey = GlobalKey<DailyTextPageState>();
+              GlobalKeyService.jwLifePageKey.currentState!.webViewPageKeys[GlobalKeyService.jwLifePageKey.currentState!.currentIndex].add(dailyTextPageKey);
+
+              showPage(context, DailyTextPage(key: dailyTextPageKey, publication: publication));
             }
             else {
               publication.download(context);

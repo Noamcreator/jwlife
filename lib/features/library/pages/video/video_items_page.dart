@@ -204,8 +204,9 @@ class _VideoItemsPageState extends State<VideoItemsPage> {
                   ),
                 ),
               ),
-              SizedBox(
+              Container(
                 height: 140, // Ajuster la hauteur comme nécessaire
+                padding: const EdgeInsets.only(left: 8, right: 8),
                 child: ListView.builder(
                   scrollDirection: Axis.horizontal,
                   itemCount: mediaList.length,
@@ -218,7 +219,7 @@ class _VideoItemsPageState extends State<VideoItemsPage> {
 
                     return MediaItemItemWidget(
                       mediaItem: mediaItem,
-                        timeAgoText: true
+                        timeAgoText: false
                     );
                   },
                 ),

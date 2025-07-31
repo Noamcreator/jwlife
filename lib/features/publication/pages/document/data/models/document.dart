@@ -415,7 +415,7 @@ class Document {
       'UserMarkGuid': userMarkGuid,
       'ColorIndex': colorIndex
     });
-    JwLifeApp.userdata.addNoteToDocId(this, blockType, identifier, title, uuid, userMarkGuid);
+    JwLifeApp.userdata.addNoteToDocId(publication, this, blockType, identifier, title, uuid, userMarkGuid);
   }
 
   void removeNote(String guid) {

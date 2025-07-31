@@ -1,3 +1,4 @@
+import 'package:collection/collection.dart';
 import 'package:intl/intl.dart';
 import 'package:jwlife/core/utils/files_helper.dart';
 import 'package:jwlife/core/utils/utils_database.dart';
@@ -22,75 +23,44 @@ class PubCatalog {
   static List<Publication> latestPublications = [];
   static List<Publication> assembliesPublications = [];
 
-  /// Requête SQL pour récupérer les publications et leurs métadonnées.
-  static final String _publicationQuery = '''
-    p.*,
-    meps.Language.Symbol AS LanguageSymbol, 
-    meps.Language.VernacularName AS LanguageVernacularName, 
-    meps.Language.PrimaryIetfCode AS LanguagePrimaryIetfCode,
-    pa.LastModified, 
-    pa.CatalogedOn,
-    pa.Size,
-    pa.ExpandedSize,
-    pa.SchemaVersion,
-    pam.PublicationAttributeId,
-    (
+  /*
+  (
       SELECT ia2.NameFragment
-      FROM ImageAsset ia2
-      INNER JOIN PublicationAssetImageMap paim2 ON ia2.Id = paim2.ImageAssetId
-      WHERE paim2.PublicationAssetId = pa.Id AND ia2.NameFragment LIKE '%_sqr-%'
-      ORDER BY ia2.Width DESC, ia2.Height DESC
-      LIMIT 1
-    ) AS ImageSqr,
-    (
-      SELECT ia2.NameFragment 
       FROM ImageAsset ia2
       INNER JOIN PublicationAssetImageMap paim2 ON ia2.Id = paim2.ImageAssetId
       WHERE paim2.PublicationAssetId = pa.Id AND ia2.NameFragment LIKE '%_lsr-%'
       ORDER BY ia2.Width DESC, ia2.Height DESC
       LIMIT 1
     ) AS ImageLsr
-    FROM Publication p
-    LEFT JOIN PublicationAsset pa ON p.Id = pa.PublicationId
-    LEFT JOIN PublicationAttributeMap pam ON p.Id = pam.PublicationId
-    LEFT JOIN meps.Language ON p.MepsLanguageId = meps.Language.LanguageId
-    LEFT JOIN PublicationAssetImageMap paim ON pa.Id = paim.PublicationAssetId
-    LEFT JOIN ImageAsset ia ON paim.ImageAssetId = ia.Id
+  */
+
+  /// Requête SQL pour récupérer les publications et leurs métadonnées.
+  static final String publicationSelectQuery = '''
+    p.*,
+    meps.Language.Symbol AS LanguageSymbol, 
+    meps.Language.VernacularName AS LanguageVernacularName, 
+    meps.Language.PrimaryIetfCode AS LanguagePrimaryIetfCode,
+    meps.Language.IsSignLanguage AS IsSignLanguage,
+    pa.LastModified, 
+    pa.CatalogedOn,
+    pa.Size,
+    pa.ExpandedSize,
+    pa.SchemaVersion,
+    pam.PublicationAttributeId,
+    (SELECT ia.NameFragment 
+     FROM PublicationAssetImageMap paim 
+     JOIN ImageAsset ia ON paim.ImageAssetId = ia.Id 
+     WHERE paim.PublicationAssetId = pa.Id AND ((ia.Width = 270 AND ia.Height = 270) OR (ia.Width = 100 AND ia.Height = 100))
+     LIMIT 1) AS ImageSqr
   ''';
 
-  static Future<List<Publication>> getPublicationsForTheDay({DateTime? date}) async {
-    // Obtenez la date du jour au format AAAA-mm-jj
-    String formattedDate = '';
-    date ??= DateTime.now();
-    formattedDate = "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
-
-    final catalogFile = await getCatalogFile();
-    final mepsFile = await getMepsFile();
-
-    if (allFilesExist([catalogFile, mepsFile])) {
-      final catalog = await openReadOnlyDatabase(catalogFile.path);
-
-      await attachDatabases(catalog, {'meps': mepsFile.path});
-
-      try {
-        final result = await catalog.rawQuery('''
-          SELECT DISTINCT
-            dt.Class,
-          $_publicationQuery
-          LEFT JOIN DatedText dt ON p.Id = dt.PublicationId
-          WHERE ? BETWEEN dt.Start AND dt.End AND p.MepsLanguageId = ?
-        ''', [formattedDate, JwLifeSettings().currentLanguage.id]);
-
-        await detachDatabases(catalog, ['meps']);
-
-        return result.map((e) => Publication.fromJson(e)).toList();
-      }
-      finally {
-        await catalog.close();
-      }
-    }
-    return [];
-  }
+  static final String publicationQuery = '''
+    $publicationSelectQuery
+    FROM Publication p
+    INNER JOIN PublicationAsset pa ON p.Id = pa.PublicationId
+    INNER JOIN meps.Language ON p.MepsLanguageId = meps.Language.LanguageId
+    LEFT JOIN PublicationAttributeMap pam ON p.Id = pam.PublicationId
+  ''';
 
   static Future<Map<String, dynamic>?> getDatedDocumentForToday(Publication publication) async {
     Database datedDocumentDb = await openReadOnlyDatabase(publication.databasePath!);
@@ -101,8 +71,7 @@ class PubCatalog {
       SELECT Content
       FROM DatedText
       WHERE FirstDateOffset <= ? AND LastDateOffset >= ?
-    ''', [today, today]
-    );
+    ''', [today, today]);
 
     datedDocumentDb.close();
 
@@ -120,23 +89,22 @@ class PubCatalog {
       try {
         // Récupérer les catégories distinctes de publication de la base de données pour la langue actuelle
         List<Map<String, dynamic>> result1 = await catalogDB.rawQuery('''
-          SELECT PublicationTypeId AS id
+          SELECT DISTINCT 
+            PublicationTypeId AS id
           FROM Publication
           WHERE MepsLanguageId = ?
-          GROUP BY PublicationTypeId
         ''', [JwLifeSettings().currentLanguage.id]);
 
         List<Map<String, dynamic>> hasPubForConventionDay = await catalogDB.rawQuery('''
-          SELECT COUNT(*) > 0 AS HasConventionReleaseDayNumber
-          FROM PublicationAsset
-          WHERE ConventionReleaseDayNumber IS NOT NULL AND MepsLanguageId = ?;
+          SELECT EXISTS (
+              SELECT 1
+              FROM PublicationAsset
+              WHERE ConventionReleaseDayNumber IS NOT NULL
+                AND MepsLanguageId = ?
+          ) AS HasConventionReleaseDayNumber;
         ''', [JwLifeSettings().currentLanguage.id]);
 
         final hasConvDay = RealmLibrary.realm.all<Category>().query("language == '${JwLifeSettings().currentLanguage.symbol}'").query("key == 'ConvDay1' OR key == 'ConvDay2' OR key == 'ConvDay3'");
-
-        for(Category convDay in hasConvDay) {
-          printTime('${convDay.key!} : ${convDay.media}');
-        }
 
         // Convertir les résultats SQL en un Set pour une recherche rapide
         Set<int> existingIds = result1.map((e) => e['id'] as int).toSet();
@@ -182,8 +150,6 @@ class PubCatalog {
       final catalogDB = await openReadOnlyDatabase(catalogFile.path);
 
       try {
-        List<List<Map<String, Object?>>> results = [];
-
         // ATTACH et requêtes dans la transaction
         await catalogDB.transaction((txn) async {
           await txn.execute("ATTACH DATABASE '${mepsFile.path}' AS meps");
@@ -192,91 +158,86 @@ class PubCatalog {
           String formattedDate = DateTime.now().toIso8601String().split('T').first;
           final languageId = JwLifeSettings().currentLanguage.id;
 
-
           // Exécution des requêtes EN SÉRIE, pas en parallèle
-          final result1 = await txn.rawQuery('''
-          SELECT DISTINCT
-            $_publicationQuery
-          LEFT JOIN DatedText dt ON p.Id = dt.PublicationId
-          WHERE ? BETWEEN dt.Start AND dt.End AND p.MepsLanguageId = ?
-        ''', [formattedDate, languageId]);
+          List<Map<String, Object?>> result1 = [];
+          List<Map<String, Object?>> result2 = [];
+          List<Map<String, Object?>> result3 = [];
+          List<Map<String, Object?>> result4 = [];
 
-          printTime('result1 check');
+          result1 = await txn.rawQuery('''
+              SELECT DISTINCT
+                $publicationSelectQuery
+              FROM DatedText dt
+              INNER JOIN Publication p ON dt.PublicationId = p.Id
+              INNER JOIN PublicationAsset pa ON p.Id = pa.PublicationId
+              INNER JOIN meps.Language ON p.MepsLanguageId = meps.Language.LanguageId
+              LEFT JOIN PublicationAttributeMap pam ON p.Id = pam.PublicationId
+              WHERE ? BETWEEN dt.Start AND dt.End AND p.MepsLanguageId = ?
+            ''', [formattedDate, languageId]);
 
-          final result2 = await txn.rawQuery('''
-          SELECT
-            SUM(hp.VisitCount) AS TotalVisits,
-            $_publicationQuery
-            LEFT JOIN history.History hp ON p.KeySymbol = hp.KeySymbol AND p.IssueTagNumber = hp.IssueTagNumber AND p.MepsLanguageId = hp.MepsLanguageId
-            WHERE hp.Type = 'webview' 
-            GROUP BY p.Id
-            ORDER BY TotalVisits DESC
-            LIMIT 10;
-        ''');
+          datedPublications = result1.map((item) => Publication.fromJson(item)).toList();
 
-          printTime('result2 check');
+          result2 = await txn.rawQuery('''
+              SELECT DISTINCT
+                SUM(hp.VisitCount) AS TotalVisits,
+                $publicationSelectQuery
+              FROM history.History hp
+              INNER JOIN Publication p ON p.KeySymbol = hp.KeySymbol AND p.IssueTagNumber = hp.IssueTagNumber AND p.MepsLanguageId = hp.MepsLanguageId
+              INNER JOIN PublicationAsset pa ON p.Id = pa.PublicationId
+              INNER JOIN meps.Language ON p.MepsLanguageId = meps.Language.LanguageId
+              LEFT JOIN PublicationAttributeMap pam ON p.Id = pam.PublicationId
+              GROUP BY p.KeySymbol, p.IssueTagNumber, p.MepsLanguageId
+              ORDER BY TotalVisits DESC
+              LIMIT 10;
+            ''');
 
-          final result3 = await txn.rawQuery('''
-          SELECT DISTINCT
-            $_publicationQuery
-            WHERE p.MepsLanguageId = ?
-            GROUP BY p.Id
-            ORDER BY pa.CatalogedOn DESC
-            LIMIT ?
-        ''', [languageId, 12]);
+          recentPublications = result2.map((item) => Publication.fromJson(item)).toList();
 
-          printTime('result3 check');
+          result3 = await txn.rawQuery('''
+              SELECT DISTINCT
+                $publicationQuery
+              WHERE p.MepsLanguageId = ?
+              ORDER BY pa.CatalogedOn DESC
+              LIMIT ?
+            ''', [languageId, 12]);
 
-          final result4 = await txn.rawQuery('''
-          SELECT DISTINCT
-            ca.SortOrder,
-            $_publicationQuery
-            LEFT JOIN CuratedAsset ca ON ca.PublicationAssetId = pa.Id
-            WHERE pa.MepsLanguageId = ? AND ca.ListType = ?
-            GROUP BY p.Id
-            ORDER BY ca.SortOrder;
-        ''', [languageId, 2]);
+          latestPublications = result3.map((item) => Publication.fromJson(item)).toList();
 
-          printTime('result4 check');
+          result4 = await txn.rawQuery('''
+              SELECT DISTINCT
+                ca.SortOrder,
+                $publicationSelectQuery
+              FROM CuratedAsset ca
+              INNER JOIN PublicationAsset pa ON ca.PublicationAssetId = pa.Id
+              INNER JOIN Publication p ON pa.PublicationId = p.Id
+              INNER JOIN meps.Language ON p.MepsLanguageId = meps.Language.LanguageId
+              LEFT JOIN PublicationAttributeMap pam ON p.Id = pam.PublicationId
+              WHERE pa.MepsLanguageId = ? AND ca.ListType = ?
+              ORDER BY ca.SortOrder;
+            ''', [languageId, 2]);
 
-          results = [result1, result2, result3, result4];
+          if (result4.isNotEmpty) {
+            teachingToolboxPublications = [];
+            List<int> availableTeachingToolBoxInt = [-1, 5, 8, 9, 10, -1, 11, -1, 17, 18, 19];
+            for (int i = 0; i < availableTeachingToolBoxInt.length; i++) {
+              if (availableTeachingToolBoxInt[i] == -1) {
+                teachingToolboxPublications.add(null);
+              }
+              else if (result4.any((e) => e['SortOrder'] == availableTeachingToolBoxInt[i])) {
+                final pub = result4.firstWhereOrNull((e) => e['SortOrder'] == availableTeachingToolBoxInt[i]);
+                if (pub != null) {
+                  teachingToolboxPublications.add(Publication.fromJson(pub));
+                }
+              }
+            }
+          }
 
           await txn.execute("DETACH DATABASE meps");
           await txn.execute("DETACH DATABASE history");
         });
-
-        // Traitement des résultats après le détachement
-        final resultDatedPublications = results[0];
-        datedPublications = resultDatedPublications.map((item) => Publication.fromJson(item)).toList();
-        printTime('datedPublications: ${datedPublications.length}');
-
-        final resultRecentPublications = results[1];
-        recentPublications = resultRecentPublications.map((item) => Publication.fromJson(item)).toList();
-        printTime('recentPublications: ${recentPublications.length}');
-
-        final resultLastPublications = results[2];
-        latestPublications = resultLastPublications.map((item) => Publication.fromJson(item)).toList();
-        printTime('lastPublications: ${latestPublications.length}');
-
-        final resultToolBox = results[3];
-        printTime('resultToolBox: ${resultToolBox.length}');
-        if (resultToolBox.isNotEmpty) {
-          teachingToolboxPublications = [];
-          List<int> availableTeachingToolBoxInt = [-1, 5, 8, 9, 10, -1, 11, -1, 17, 18, 19];
-          for (int i = 0; i < availableTeachingToolBoxInt.length; i++) {
-            if (availableTeachingToolBoxInt[i] == -1) {
-              teachingToolboxPublications.add(null);
-            } else if (resultToolBox.any((e) => e['SortOrder'] == availableTeachingToolBoxInt[i])) {
-              final pub = resultToolBox.firstWhere(
-                    (e) => e['SortOrder'] == availableTeachingToolBoxInt[i],
-                orElse: () => {},
-              );
-              if (pub.isNotEmpty) {
-                teachingToolboxPublications.add(Publication.fromJson(pub));
-              }
-            }
-          }
-        }
+      }
+      catch (e) {
+        printTime('Error loading PublicationsInHomePage: $e');
       }
       finally {
         await catalogDB.close();
@@ -289,25 +250,39 @@ class PubCatalog {
     printTime('loadHomePage end');
   }
 
-  static Future<List<Map<String, dynamic>>> getAllDatedTextFromPub(int languageId, String pubSymbol, int issueTagNumber) async {
-    final catalogFile = await getCatalogFile();
+  static Future<List<Publication>> getPublicationsForTheDay({DateTime? date}) async {
+    // Obtenez la date du jour au format AAAA-mm-jj
+    String formattedDate = '';
+    date ??= DateTime.now();
+    formattedDate = "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
 
-    if (allFilesExist([catalogFile])) {
+    final catalogFile = await getCatalogFile();
+    final mepsFile = await getMepsFile();
+
+    if (allFilesExist([catalogFile, mepsFile])) {
       final catalog = await openReadOnlyDatabase(catalogFile.path);
 
-      final publications = await catalog.rawQuery('''
-      SELECT
-        Class,
-        Start,
-        End
-      FROM DatedText
-      LEFT JOIN Publication ON DatedText.PublicationId = Publication.Id
-      WHERE Publication.MepsLanguageId = ? AND Publication.Symbol = ? AND Publication.IssueTagNumber = ?
-    ''', [languageId, pubSymbol, issueTagNumber]);
+      await attachDatabases(catalog, {'meps': mepsFile.path});
 
-      await catalog.close();
+      try {
+        final result = await catalog.rawQuery('''
+          SELECT DISTINCT
+            $publicationSelectQuery
+          FROM DatedText dt
+          INNER JOIN Publication p ON dt.PublicationId = p.Id
+          INNER JOIN PublicationAsset pa ON p.Id = pa.PublicationId
+          INNER JOIN meps.Language ON p.MepsLanguageId = meps.Language.LanguageId
+          LEFT JOIN PublicationAttributeMap pam ON p.Id = pam.PublicationId
+          WHERE ? BETWEEN dt.Start AND dt.End AND p.MepsLanguageId = ?
+        ''', [formattedDate, JwLifeSettings().currentLanguage.id]);
 
-      return publications.isNotEmpty ? publications : [];
+        await detachDatabases(catalog, ['meps']);
+
+        return result.map((e) => Publication.fromJson(e)).toList();
+      }
+      finally {
+        await catalog.close();
+      }
     }
     return [];
   }
@@ -319,10 +294,9 @@ class PubCatalog {
       final catalog = await openReadOnlyDatabase(catalogFile.path);
 
       final publications = await catalog.rawQuery('''
-      SELECT
-        Book
+      SELECT Book
       FROM AvailableBibleBook
-      LEFT JOIN Publication ON AvailableBibleBook.PublicationId = Publication.Id
+      INNER JOIN Publication ON AvailableBibleBook.PublicationId = Publication.Id
       WHERE Publication.MepsLanguageId = ? AND Publication.Symbol = ? AND Publication.IssueTagNumber = ?
     ''', [languageId, pubSymbol, issueTagNumber]);
 
@@ -357,9 +331,9 @@ class PubCatalog {
         printTime('language: $language');
 
         final publications = await catalog.rawQuery('''
-          SELECT
-            $_publicationQuery
-          $languageRequest
+          SELECT DISTINCT
+            $publicationQuery
+          $languageRequest 
           AND LOWER(p.KeySymbol) = LOWER(?) 
           AND p.IssueTagNumber = ?
           LIMIT 1
@@ -385,39 +359,24 @@ class PubCatalog {
 
       try {
         final publications = await catalog.rawQuery('''
-          SELECT
-            p.*,
-            pa.LastModified, 
-            pa.CatalogedOn,
-            pa.Size,
-            pa.ExpandedSize,
-            pa.SchemaVersion,
-            pam.PublicationAttributeId,
-            (
-              SELECT ia2.NameFragment
-              FROM ImageAsset ia2
-              INNER JOIN PublicationAssetImageMap paim2 ON ia2.Id = paim2.ImageAssetId
-              WHERE paim2.PublicationAssetId = pa.Id AND ia2.NameFragment LIKE '%_sqr-%'
-              ORDER BY ia2.Width DESC, ia2.Height DESC
-              LIMIT 1
-            ) AS ImageSqr,
-            (
-              SELECT ia2.NameFragment 
-              FROM ImageAsset ia2
-              INNER JOIN PublicationAssetImageMap paim2 ON ia2.Id = paim2.ImageAssetId
-              WHERE paim2.PublicationAssetId = pa.Id AND ia2.NameFragment LIKE '%_lsr-%'
-              ORDER BY ia2.Width DESC, ia2.Height DESC
-              LIMIT 1
-            ) AS ImageLsr
-            FROM Publication p
-            LEFT JOIN PublicationAsset pa ON p.Id = pa.PublicationId
-            LEFT JOIN PublicationAttributeMap pam ON p.Id = pam.PublicationId
-            LEFT JOIN PublicationAssetImageMap paim ON pa.Id = paim.PublicationAssetId
-            LEFT JOIN ImageAsset ia ON paim.ImageAssetId = ia.Id
-            WHERE p.MepsLanguageId = ?
-            AND LOWER(p.KeySymbol) = LOWER(?) 
-            AND p.IssueTagNumber = ?
-            LIMIT 1
+          SELECT DISTINCT
+           p.*,
+           pa.LastModified, 
+           pa.CatalogedOn,
+           pa.Size,
+           pa.ExpandedSize,
+           pa.SchemaVersion,
+           pam.PublicationAttributeId,
+           (SELECT ia.NameFragment 
+            FROM PublicationAssetImageMap paim 
+            JOIN ImageAsset ia ON paim.ImageAssetId = ia.Id 
+            WHERE paim.PublicationAssetId = pa.Id  AND (ia.Width = 270 AND ia.Height = 270)
+            LIMIT 1) AS ImageSqr
+          FROM Publication p
+          INNER JOIN PublicationAsset pa ON p.Id = pa.PublicationId
+          LEFT JOIN PublicationAttributeMap pam ON p.Id = pam.PublicationId
+          WHERE p.MepsLanguageId = ? AND LOWER(p.KeySymbol) = LOWER(?)  AND p.IssueTagNumber = ?
+          LIMIT 1
           ''', [mepsLanguageId, pubSymbol, issueTagNumber]);
 
         printTime('searchPub: ${publications.length}');
@@ -430,41 +389,6 @@ class PubCatalog {
     }
     return null;
   }
-
-  /// Rechercher une publication par symbole et la date d'issue.
-  static Future<dynamic> searchSqrImageForPub(String pubSymbol, int issueTagNumber, int mepsLanguageId) async {
-    final catalogFile = await getCatalogFile();
-    if (allFilesExist([catalogFile])) {
-      final catalog = await openReadOnlyDatabase(catalogFile.path);
-
-      try {
-        final result = await catalog.rawQuery('''
-        SELECT
-          p.IssueTitle,
-          (SELECT ia2.NameFragment
-           FROM ImageAsset ia2
-           LEFT JOIN PublicationAssetImageMap paim2 ON ia2.Id = paim2.ImageAssetId
-           WHERE paim2.PublicationAssetId = pa.Id AND ia2.NameFragment LIKE '%_sqr-%'
-           ORDER BY ia2.Width DESC, ia2.Height DESC
-           LIMIT 1) AS ImageSqr
-        FROM Publication p
-        LEFT JOIN PublicationAsset pa ON p.Id = pa.PublicationId
-        LEFT JOIN PublicationAssetImageMap paim ON pa.Id = paim.PublicationAssetId
-        LEFT JOIN ImageAsset ia ON paim.ImageAssetId = ia.Id
-        WHERE pa.MepsLanguageId = ? 
-          AND LOWER(p.KeySymbol) = LOWER(?) 
-          AND p.IssueTagNumber = ?
-        LIMIT 1
-      ''', [mepsLanguageId, pubSymbol, issueTagNumber]);
-
-        return result.isNotEmpty ? result.first : null;
-      } finally {
-        await catalog.close();
-      }
-    }
-    return null;
-  }
-
 
   /// Rechercher une publication par mepsDocumentId et la langue.
   static Future<Publication?> searchPubFromMepsDocumentId(int mepsDocumentId, int mepsLanguageId) async {
@@ -479,8 +403,12 @@ class PubCatalog {
 
         final publications = await catalog.rawQuery('''
           SELECT DISTINCT
-            $_publicationQuery
-          LEFT JOIN PublicationDocument pd ON p.Id = pd.PublicationId
+            $publicationSelectQuery
+          FROM PublicationDocument pd
+          INNER JOIN Publication p ON pd.PublicationId = p.Id
+          INNER JOIN PublicationAsset pa ON p.Id = pa.PublicationId
+          INNER JOIN meps.Language ON p.MepsLanguageId = meps.Language.LanguageId
+          LEFT JOIN PublicationAttributeMap pam ON p.Id = pam.PublicationId
           WHERE pd.DocumentId = ? AND p.MepsLanguageId = ?
           LIMIT 1
         ''', [mepsDocumentId, mepsLanguageId]);
@@ -513,9 +441,10 @@ class PubCatalog {
         }
 
         final result = await catalog.rawQuery('''
-        SELECT
+          SELECT DISTINCT
             p.*,
-            pa.LastModified,
+            pa.LastModified, 
+            pa.CatalogedOn,
             pa.Size,
             pa.ExpandedSize,
             pa.SchemaVersion,
@@ -523,15 +452,14 @@ class PubCatalog {
             (SELECT ia.NameFragment 
              FROM PublicationAssetImageMap paim 
              JOIN ImageAsset ia ON paim.ImageAssetId = ia.Id 
-             WHERE paim.PublicationAssetId = pa.Id 
-               AND (ia.Width = 270 AND ia.Height = 270)
+             WHERE paim.PublicationAssetId = pa.Id AND ((ia.Width = 270 AND ia.Height = 270) OR (ia.Width = 100 AND ia.Height = 100))
              LIMIT 1) AS ImageSqr
-        FROM Publication p
-        LEFT JOIN PublicationAsset pa ON p.Id = pa.PublicationId
-        LEFT JOIN PublicationAttributeMap pam ON p.Id = pam.PublicationId
-        WHERE p.MepsLanguageId = ? AND p.PublicationTypeId = ? $yearCondition
-        ORDER BY p.Id;
-''', queryParams);
+          FROM Publication p
+          INNER JOIN PublicationAsset pa ON p.Id = pa.PublicationId
+          LEFT JOIN PublicationAttributeMap pam ON p.Id = pam.PublicationId
+          WHERE p.MepsLanguageId = ? AND p.PublicationTypeId = ? $yearCondition
+          ORDER BY p.Id;
+        ''', queryParams);
 
         Map<PublicationAttribute, List<Publication>> groupedByCategory = {};
         for (var publication in result) {
@@ -561,41 +489,13 @@ class PubCatalog {
 
         // Récupération de toutes les publications d'assemblée de circonscription
         final allCircuitAssemblies = await catalog.rawQuery('''
-        SELECT
-          p.*,
-          meps.Language.Symbol AS LanguageSymbol,
-          meps.Language.VernacularName AS LanguageVernacularName,
-          meps.Language.PrimaryIetfCode AS LanguagePrimaryIetfCode,
-          pa.LastModified,
-          pa.CatalogedOn,
-          pa.Size,
-          pa.ExpandedSize,
-          pa.SchemaVersion,
-          pam.PublicationAttributeId,
-          (
-            SELECT ia2.NameFragment
-            FROM ImageAsset ia2
-            INNER JOIN PublicationAssetImageMap paim2 ON ia2.Id = paim2.ImageAssetId
-            WHERE paim2.PublicationAssetId = pa.Id AND ia2.NameFragment LIKE '%_sqr-%'
-            ORDER BY ia2.Width DESC, ia2.Height DESC
-            LIMIT 1
-          ) AS ImageSqr,
-          (
-            SELECT ia2.NameFragment
-            FROM ImageAsset ia2
-            INNER JOIN PublicationAssetImageMap paim2 ON ia2.Id = paim2.ImageAssetId
-            WHERE paim2.PublicationAssetId = pa.Id AND ia2.NameFragment LIKE '%_lsr-%'
-            ORDER BY ia2.Width DESC, ia2.Height DESC
-            LIMIT 1
-          ) AS ImageLsr
-        FROM Publication p
-        LEFT JOIN PublicationAsset pa ON p.Id = pa.PublicationId
-        LEFT JOIN PublicationAttributeMap pam ON p.Id = pam.PublicationId
-        LEFT JOIN meps.Language ON p.MepsLanguageId = meps.Language.LanguageId
-        LEFT JOIN PublicationAssetImageMap paim ON pa.Id = paim.PublicationAssetId
-        LEFT JOIN ImageAsset ia ON paim.ImageAssetId = ia.Id
-        WHERE p.MepsLanguageId = ?
-          AND (p.KeySymbol LIKE 'CA-copgm%' OR p.KeySymbol LIKE 'CA-brpgm%')
+          SELECT
+            $publicationSelectQuery
+          FROM Publication p
+          INNER JOIN PublicationAsset pa ON p.Id = pa.PublicationId
+          INNER JOIN meps.Language ON p.MepsLanguageId = meps.Language.LanguageId
+          LEFT JOIN PublicationAttributeMap pam ON p.Id = pam.PublicationId
+          WHERE p.MepsLanguageId = ? AND (p.KeySymbol LIKE 'CA-copgm%' OR p.KeySymbol LIKE 'CA-brpgm%')
       ''', [langId]);
 
         // Groupement et tri en Dart pour émuler ROW_NUMBER()
@@ -619,40 +519,8 @@ class PubCatalog {
         // Dernière publication d’assemblée régionale
         final convention = await catalog.rawQuery('''
         SELECT
-          p.*,
-          meps.Language.Symbol AS LanguageSymbol,
-          meps.Language.VernacularName AS LanguageVernacularName,
-          meps.Language.PrimaryIetfCode AS LanguagePrimaryIetfCode,
-          pa.LastModified,
-          pa.CatalogedOn,
-          pa.Size,
-          pa.ExpandedSize,
-          pa.SchemaVersion,
-          pam.PublicationAttributeId,
-          (
-            SELECT ia2.NameFragment
-            FROM ImageAsset ia2
-            INNER JOIN PublicationAssetImageMap paim2 ON ia2.Id = paim2.ImageAssetId
-            WHERE paim2.PublicationAssetId = pa.Id AND ia2.NameFragment LIKE '%_sqr-%'
-            ORDER BY ia2.Width DESC, ia2.Height DESC
-            LIMIT 1
-          ) AS ImageSqr,
-          (
-            SELECT ia2.NameFragment
-            FROM ImageAsset ia2
-            INNER JOIN PublicationAssetImageMap paim2 ON ia2.Id = paim2.ImageAssetId
-            WHERE paim2.PublicationAssetId = pa.Id AND ia2.NameFragment LIKE '%_lsr-%'
-            ORDER BY ia2.Width DESC, ia2.Height DESC
-            LIMIT 1
-          ) AS ImageLsr
-        FROM Publication p
-        LEFT JOIN PublicationAsset pa ON p.Id = pa.PublicationId
-        LEFT JOIN PublicationAttributeMap pam ON p.Id = pam.PublicationId
-        LEFT JOIN meps.Language ON p.MepsLanguageId = meps.Language.LanguageId
-        LEFT JOIN PublicationAssetImageMap paim ON pa.Id = paim.PublicationAssetId
-        LEFT JOIN ImageAsset ia ON paim.ImageAssetId = ia.Id
-        WHERE p.MepsLanguageId = ?
-          AND p.KeySymbol LIKE 'CO-pgm%'
+          $publicationQuery
+        WHERE p.MepsLanguageId = ? AND p.KeySymbol LIKE 'CO-pgm%'
         ORDER BY p.Year DESC
         LIMIT 1;
       ''', [langId]);
@@ -662,7 +530,8 @@ class PubCatalog {
           final pub = Publication.fromJson(publication);
           assembliesPublications.add(pub);
         }
-      } finally {
+      }
+      finally {
         await detachDatabases(catalog, ['meps']);
         await catalog.close();
       }
@@ -678,56 +547,32 @@ class PubCatalog {
 
       try {
         final publications = await catalog.rawQuery('''
-        SELECT
-            p.*,
-            pa.LastModified,
-            pa.Size,
-            pa.ExpandedSize, 
-            pa.SchemaVersion,
-            pa.ConventionReleaseDayNumber,
-            pam.PublicationAttributeId,
-            (SELECT ia.NameFragment 
-             FROM PublicationAssetImageMap paim 
-             JOIN ImageAsset ia ON paim.ImageAssetId = ia.Id 
-             WHERE paim.PublicationAssetId = pa.Id 
-               AND (ia.Width = 270 AND ia.Height = 270)
-             LIMIT 1) AS ImageSqr,
-            -- Sous-requête pour l'image rectangulaire ou fallback
-            COALESCE(
-                (SELECT ia.NameFragment 
-                 FROM PublicationAssetImageMap paim 
-                 JOIN ImageAsset ia ON paim.ImageAssetId = ia.Id 
-                 WHERE paim.PublicationAssetId = pa.Id 
-                   AND (ia.NameFragment LIKE '%_lsr-%' OR (ia.Width = 1200 AND ia.Height = 600))
-                 LIMIT 1),
-                -- Fallback : image la plus grande si pas de LSR
-                (SELECT ia.NameFragment 
-                 FROM PublicationAssetImageMap paim 
-                 JOIN ImageAsset ia ON paim.ImageAssetId = ia.Id 
-                 WHERE paim.PublicationAssetId = pa.Id 
-                   AND NOT EXISTS (
-                       SELECT 1 FROM PublicationAssetImageMap paim2 
-                       JOIN ImageAsset ia2 ON paim2.ImageAssetId = ia2.Id 
-                       WHERE paim2.PublicationAssetId = pa.Id 
-                         AND (ia2.NameFragment LIKE '%_lsr-%' OR (ia2.Width = 1200 AND ia2.Height = 600))
-                   )
-                 ORDER BY (ia.Width * ia.Height) DESC
-                 LIMIT 1)
-            ) AS ImageLsr
-        FROM PublicationAsset pa
-        JOIN Publication p ON p.Id = pa.PublicationId
-        LEFT JOIN PublicationAttributeMap pam ON p.Id = pam.PublicationId
-        WHERE pa.MepsLanguageId = ? AND pa.ConventionReleaseDayNumber IS NOT NULL;
-      ''', [JwLifeSettings().currentLanguage.id]);
+          SELECT
+             p.*,
+             pa.LastModified, 
+             pa.CatalogedOn,
+             pa.Size,
+             pa.ExpandedSize,
+             pa.SchemaVersion,
+             pa.ConventionReleaseDayNumber,
+             pam.PublicationAttributeId,
+             (SELECT ia.NameFragment 
+              FROM PublicationAssetImageMap paim 
+              JOIN ImageAsset ia ON paim.ImageAssetId = ia.Id 
+              WHERE paim.PublicationAssetId = pa.Id  AND (ia.Width = 270 AND ia.Height = 270)
+              LIMIT 1) AS ImageSqr
+          FROM PublicationAsset pa
+          INNER JOIN Publication p ON pa.PublicationId = p.Id
+          LEFT JOIN PublicationAttributeMap pam ON p.Id = pam.PublicationId
+          WHERE pa.MepsLanguageId = ? AND pa.ConventionReleaseDayNumber IS NOT NULL;
+        ''', [JwLifeSettings().currentLanguage.id]);
 
-        return publications
-            .map((pub) => Publication.fromJson(pub))
-            .toList();
-      } finally {
+        return publications.map((pub) => Publication.fromJson(pub)).toList();
+      }
+      finally {
         await catalog.close();
       }
     }
-
     return [];
   }
 }

@@ -255,7 +255,7 @@ class _AudioItemsPageState extends State<AudioItemsPage> {
                       width: 55,
                     ),
                   ),
-                  const SizedBox(width: 15),
+                  const SizedBox(width: 14),
                   Expanded(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -264,7 +264,7 @@ class _AudioItemsPageState extends State<AudioItemsPage> {
                         Text(
                           mediaItem.title!,
                           style: TextStyle(
-                            fontSize: 15,
+                            fontSize: 15.5,
                             fontWeight: FontWeight.bold,
                             overflow: TextOverflow.ellipsis,
                             color: JwLifeApp.audioPlayer.currentId == id &&
@@ -273,11 +273,11 @@ class _AudioItemsPageState extends State<AudioItemsPage> {
                                 : Theme.of(context).secondaryHeaderColor,
                           ),
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 2),
                         Text(
                           formatDuration(mediaItem.duration!),
                           style: TextStyle(
-                            fontSize: 13,
+                            fontSize: 14,
                             color: Theme.of(context).brightness == Brightness.dark ? Color(0xFF8e8e8e) : Color(0xFF757575),
                           ),
                         ),

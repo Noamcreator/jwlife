@@ -23,6 +23,7 @@ class LanguagesPubDialog extends StatefulWidget {
 
 class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
   String? selectedLanguage;
+  String? selectedSymbol;
   final TextEditingController _searchController = TextEditingController();
   List<Map<String, dynamic>> filteredLanguagesList = [];
   List<Map<String, dynamic>> favoriteLanguages = []; // Liste pour les langues favorites
@@ -117,14 +118,10 @@ class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
         Publication.*,
         mepsLang.Symbol as LanguageSymbol,
         meps.LanguageName.Name AS LanguageName
-      FROM 
-        Publication
-      JOIN 
-        meps.LocalizedLanguageName ON Publication.MepsLanguageId = meps.LocalizedLanguageName.TargetLanguageId
-      JOIN 
-        meps.LanguageName ON meps.LocalizedLanguageName.LanguageNameId = meps.LanguageName.LanguageNameId
-      JOIN
-        meps.Language AS mepsLang ON mepsLang.LanguageId = meps.LocalizedLanguageName.TargetLanguageId
+      FROM Publication
+      INNER JOIN meps.LocalizedLanguageName ON Publication.MepsLanguageId = meps.LocalizedLanguageName.TargetLanguageId
+      INNER JOIN  meps.LanguageName ON meps.LocalizedLanguageName.LanguageNameId = meps.LanguageName.LanguageNameId
+      INNER JOIN meps.Language AS mepsLang ON mepsLang.LanguageId = meps.LocalizedLanguageName.TargetLanguageId
       WHERE 
         Publication.KeySymbol = ? 
         AND Publication.IssueTagNumber = ? 
@@ -334,18 +331,22 @@ class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
       onTap: () async {
         setState(() {
           selectedLanguage = languageSymbol;
+          selectedSymbol = languageData['KeySymbol'];
         });
+
+        String? keySymbol = widget.publication?.keySymbol != null ? widget.publication!.keySymbol : selectedSymbol;
+        int? issueTagNumber = widget.publication?.issueTagNumber != null ? widget.publication!.issueTagNumber : 0;
 
         Publication? publication = PublicationRepository()
             .getAllPublications()
             .firstWhereOrNull((p) =>
         p.mepsLanguage.symbol == selectedLanguage &&
-            p.symbol == widget.publication!.symbol &&
-            p.issueTagNumber == widget.publication!.issueTagNumber);
+            p.keySymbol == keySymbol &&
+            p.issueTagNumber == issueTagNumber);
 
         publication ??= await PubCatalog.searchPub(
-            widget.publication!.keySymbol,
-            widget.publication!.issueTagNumber,
+            keySymbol!,
+            issueTagNumber,
             selectedLanguage);
 
         if (publication != null) {
@@ -358,14 +359,16 @@ class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
             try {
               await publication.download(context);
               Navigator.of(context).pop(publication);
-            } catch (error) {
+            }
+            catch (error) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text('Erreur lors du téléchargement: $error'),
                   backgroundColor: Colors.red,
                 ),
               );
-            } finally {
+            }
+            finally {
               setState(() {
                 _downloadingLanguage = null;
               });
@@ -386,10 +389,11 @@ class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
                 Radio(
                   value: languageSymbol,
                   activeColor: Theme.of(context).primaryColor,
-                  groupValue: selectedLanguage,
+                  groupValue: widget.publication == null ? '${selectedLanguage}_$selectedSymbol' : selectedLanguage,
                   onChanged: (value) {
                     setState(() {
                       selectedLanguage = languageSymbol;
+                      selectedSymbol = languageData['KeySymbol'];
                     });
                   },
                 ),
@@ -495,12 +499,15 @@ class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
 
   Widget _buildProgressBar(BuildContext context, String languageSymbol) {
     // Trouver la publication en cours de téléchargement
+    String? keySymbol = widget.publication?.keySymbol != null ? widget.publication!.keySymbol : selectedSymbol;
+    int? issueTagNumber = widget.publication?.issueTagNumber != null ? widget.publication!.issueTagNumber : 0;
+
     Publication? publication = PublicationRepository()
         .getAllPublications()
         .firstWhereOrNull((p) =>
-    p.mepsLanguage.symbol == languageSymbol &&
-        p.symbol == widget.publication!.symbol &&
-        p.issueTagNumber == widget.publication!.issueTagNumber);
+    p.mepsLanguage.symbol == selectedLanguage &&
+        p.keySymbol == keySymbol &&
+        p.issueTagNumber == issueTagNumber);
 
     if (publication == null) return Container();
 

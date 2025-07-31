@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:jwlife/app/jwlife_page.dart';
 
 import '../../../../app/services/global_key_service.dart';
 import '../../../../app/services/settings_service.dart';
@@ -46,14 +45,12 @@ class _HomeAppBarState extends State<HomeAppBar> {
     showDialog(
       context: context,
       builder: (context) => languageDialog,
-    ).then((value) {
+    ).then((value) async {
       if (value != null) {
-        setState(() async {
-          if (value['Symbol'] != JwLifeSettings().currentLanguage.symbol) {
-            await setLibraryLanguage(value);
-            GlobalKeyService.homeKey.currentState?.changeLanguageAndRefresh();
-          }
-        });
+        if (value['Symbol'] != JwLifeSettings().currentLanguage.symbol) {
+          await setLibraryLanguage(value);
+          GlobalKeyService.homeKey.currentState?.changeLanguageAndRefresh();
+        }
       }
     });
   }

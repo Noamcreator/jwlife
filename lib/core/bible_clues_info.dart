@@ -3,6 +3,8 @@ class BibleCluesInfo {
   final String separator;
   final String rangeSeparator;
   final String nonConsecutiveRangeSeparator;
+  final String superscriptionFullText;
+  final String superscriptionAbbreviationText;
   final List<BibleBookName> bibleBookNames;
 
   // Constructeur pour initialiser la liste de livres de la Bible et les séparateurs
@@ -12,6 +14,8 @@ class BibleCluesInfo {
     this.separator = ',',
     this.rangeSeparator = '-',
     this.nonConsecutiveRangeSeparator = ';',
+    this.superscriptionFullText = 'superscription',
+    this.superscriptionAbbreviationText = 'Sup',
   });
 
   // Méthode pour désérialiser le JSON
@@ -22,6 +26,8 @@ class BibleCluesInfo {
       separator: json['Separator'] ?? ',',
       rangeSeparator: json['RangeSeparator'] ?? '-',
       nonConsecutiveRangeSeparator: json['NonconsecutiveChapterListSeparator'] ?? ';',
+      superscriptionFullText: json['SuperscriptionTextFull'] ?? 'superscription',
+      superscriptionAbbreviationText: json['SuperscriptionTextAbbreviation'] ?? 'Sup',
     );
   }
 
@@ -45,21 +51,24 @@ class BibleCluesInfo {
   }
 
   String getVerses(int book1, int chapter1, int verse1, int book2, int chapter2, int verse2) {
+    String verse1Text = verse1 == 0 ? superscriptionFullText : verse1.toString();
+    String verse2Text = verse2 == 0 ? superscriptionFullText : verse2.toString();
+
     BibleBookName bookName = bibleBookNames.elementAt(book1 - 1);
     if (book1 != book2) {
       BibleBookName bookName2 = bibleBookNames.elementAt(book2 - 1);
-      return '${bookName.standardBookName} $chapter1$chapterVerseSeparator$verse1 $nonConsecutiveRangeSeparator ${bookName2.standardBookName} $chapter2$chapterVerseSeparator$verse2';
+      return '${bookName.standardBookName} $chapter1$chapterVerseSeparator$verse1Text $nonConsecutiveRangeSeparator ${bookName2.standardBookName} $chapter2$chapterVerseSeparator$verse2Text';
     }
     else if (chapter1 != chapter2) {
-      return '${bookName.standardBookName} $chapter1$chapterVerseSeparator$verse1 $nonConsecutiveRangeSeparator $chapter2$chapterVerseSeparator$verse2';
+      return '${bookName.standardBookName} $chapter1$chapterVerseSeparator$verse1Text $nonConsecutiveRangeSeparator $chapter2$chapterVerseSeparator$verse2Text';
     }
     else if (verse1 != verse2) {
       if (verse1 != verse2 - 1 || verse2 != verse1 - 1) {
-        return '${bookName.standardBookName} $chapter1$chapterVerseSeparator$verse1$rangeSeparator$verse2';
+        return '${bookName.standardBookName} $chapter1$chapterVerseSeparator$verse1Text$rangeSeparator$verse2Text';
       }
-      return '${bookName.standardBookName} $chapter1$chapterVerseSeparator$verse1 $separator $verse2';
+      return '${bookName.standardBookName} $chapter1$chapterVerseSeparator$verse1Text $separator $verse2Text';
     }
-    return '${bookName.standardBookName} $chapter1$chapterVerseSeparator$verse1';
+    return '${bookName.standardBookName} $chapter1$chapterVerseSeparator$verse1Text';
   }
 }
 

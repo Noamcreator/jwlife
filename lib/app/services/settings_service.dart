@@ -15,14 +15,7 @@ class JwLifeSettings {
   ThemeData lightData = AppTheme.getLightTheme(const Color(0xFF646496));
   ThemeData darkData = AppTheme.getDarkTheme(Color.lerp(const Color(0xFF646496), Colors.white, 0.3)!);
   Locale locale = const Locale('en');
-  MepsLanguage currentLanguage = MepsLanguage(
-    id: 3,
-    symbol: 'F',
-    vernacular: 'Français',
-    primaryIetfCode: 'fr',
-    rsConf: 'r30',
-    lib: 'lp-f',
-  );
+  late MepsLanguage currentLanguage;
   WebViewData webViewData = WebViewData();
 
   Future<void> init() async {
@@ -36,10 +29,29 @@ class JwLifeSettings {
     final lightColor = await getPrimaryColor(ThemeMode.light);
     final darkColor = await getPrimaryColor(ThemeMode.dark);
     final localeCode = await getLocale();
-
     themeMode = themeMod;
     locale = Locale(localeCode);
     lightData = AppTheme.getLightTheme(lightColor);
     darkData = AppTheme.getDarkTheme(darkColor);
+    
+    List<String>? libraryLanguage = await getLibraryLanguage();
+    if (libraryLanguage != null) {
+      currentLanguage = MepsLanguage(
+        id: int.parse(libraryLanguage[0]),
+        symbol: libraryLanguage[1],
+        vernacular: libraryLanguage[2],
+        primaryIetfCode: libraryLanguage[3],
+        isSignLanguage: libraryLanguage[4] == '1' ? true : false,
+        internalScriptName: libraryLanguage[5],
+        displayScriptName: libraryLanguage[6],
+        isBidirectional: libraryLanguage[7] == '1' ? true : false,
+        isRtl: libraryLanguage[8] == '1' ? true : false,
+        isCharacterSpaced: libraryLanguage[9] == '1' ? true : false,
+        isCharacterBreakable: libraryLanguage[10] == '1' ? true : false,
+        hasSystemDigits: libraryLanguage[11] == '1' ? true : false,
+        rsConf: libraryLanguage[12],
+        lib: libraryLanguage[13],
+      );
+    }
   }
 }

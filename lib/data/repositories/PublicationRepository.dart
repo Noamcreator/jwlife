@@ -44,7 +44,19 @@ class PublicationRepository {
 
   /// Retourne toutes les bibles
   List<Publication> getAllBibles() {
-    return _publications.values.where((p) => p.category.id == 1 && p.mepsLanguage.id == JwLifeSettings().currentLanguage.id && p.isDownloadedNotifier.value).toList();
+    int id = JwLifeSettings().currentLanguage.id;
+
+    return _publications.values
+        .where((p) => p.category.id == 1 && p.isDownloadedNotifier.value)
+        .toList()
+      ..sort((a, b) {
+        // Priorité à la langue courante
+        if (a.mepsLanguage.id == id && b.mepsLanguage.id != id) return -1;
+        if (a.mepsLanguage.id != id && b.mepsLanguage.id == id) return 1;
+
+        // Remplacer ici par un champ existant pour trier, exemple :
+        return a.title.compareTo(b.title); // ou p.id, p.symbol, etc.
+      });
   }
 
   /// Retourne une instance unique d'une publication si elle existe, sinon l'original
@@ -54,7 +66,7 @@ class PublicationRepository {
   }
 
   Publication? getPublicationWithSymbol(String symbol, int issueTagNumber, int mepsLanguageId) {
-    final key = '${symbol}_${issueTagNumber}_${mepsLanguageId}';
+    final key = '${symbol}_${issueTagNumber}_$mepsLanguageId';
     return _publications[key];
   }
 

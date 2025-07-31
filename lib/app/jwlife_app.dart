@@ -16,10 +16,12 @@ import 'package:jwlife/data/models/publication_attribute.dart';
 import 'package:jwlife/data/models/publication_category.dart';
 import 'package:jwlife/data/databases/catalog.dart';
 import 'package:jwlife/data/databases/userdata.dart';
+import 'package:jwlife/features/publication/pages/document/local/dated_text_manager.dart';
 import 'package:jwlife/i18n/app_localizations.dart';
 
 import '../data/databases/tiles_cache.dart';
 import '../features/audio/audio_player_model.dart';
+import '../features/home/pages/daily_text_page.dart';
 import '../features/publication/pages/document/local/document_page.dart';
 import 'jwlife_page.dart';
 import 'startup/copy_assets.dart';
@@ -70,9 +72,16 @@ class JwLifeAppState extends State<JwLifeApp> {
     final theme = themeMode == ThemeMode.dark ? 'dark' : themeMode == ThemeMode.light ? 'light' : 'system';
     setTheme(theme);
 
-    for (List<GlobalKey<DocumentPageState>> keys in GlobalKeyService.jwLifePageKey.currentState!.documentPageKeys) {
-      for (GlobalKey<DocumentPageState> key in keys) {
-        key.currentState!.changeTheme(themeMode);
+    for (var keys in GlobalKeyService.jwLifePageKey.currentState!.webViewPageKeys) {
+      for (var key in keys) {
+        final state = key.currentState;
+
+        if (state is DocumentPageState) {
+          state.changeTheme(themeMode);
+        }
+        else if (state is DailyTextPageState) {
+          state.changeTheme(themeMode);
+        }
       }
     }
   }

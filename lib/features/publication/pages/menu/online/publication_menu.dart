@@ -5,6 +5,7 @@ import 'package:jwlife/data/models/publication.dart';
 
 import '../../../../../core/api.dart';
 import '../../../../../core/utils/utils.dart';
+import '../../../../../core/utils/utils_pub.dart';
 
 class PublicationMenu extends StatefulWidget {
   final Publication publication;
@@ -20,7 +21,6 @@ class PublicationMenu extends StatefulWidget {
 
 class _PublicationMenuState extends State<PublicationMenu> with SingleTickerProviderStateMixin {
   String wolLink = 'https://wol.jw.org';
-  String wolLinkJwOrg = 'https://www.jw.org';
   String description = '';
   List<Map<String, String>> _tabItems = [];
   List<List<Map<String, dynamic>>> _navigationCards = [];
@@ -53,58 +53,47 @@ class _PublicationMenuState extends State<PublicationMenu> with SingleTickerProv
       //}
 
       wolLink = 'https://wol.jw.org/wol/finder?wtlocale=${widget.publication.mepsLanguage.symbol}&pub=${widget.publication.symbol}&year=$year&month=$month&day=$day';
-    } else {
+    }
+    else {
       wolLink = 'https://wol.jw.org/wol/finder?wtlocale=${widget.publication.mepsLanguage.symbol}&pub=${widget.publication.symbol}';
     }
-
-    wolLinkJwOrg = 'https://www.jw.org/finder?wtlocale=${widget.publication.mepsLanguage.symbol}&pub=${widget.publication.symbol}';
 
     printTime(wolLink);
     _fetchHtmlContent();
   }
 
   Future<void> _fetchHtmlContent() async {
-    try {
-      final response = await Api.httpGetWithHeaders(wolLink);
+    // Lancer le chargement HTML en parallèle
+    Api.httpGetWithHeaders(wolLink).then((response) {
       if (response.statusCode == 200) {
         _extractHtmlContent(response.body);
-      }
-      else {
+      } else {
         throw Exception('Failed to load publication content');
       }
-    } catch (e) {
+    }).catchError((e) {
       printTime('Error fetching publication content: $e');
       setState(() {
         _isLoading = false;
       });
-    }
+    });
 
-    if (widget.publication.issueTagNumber == 0) {
-      try {
-        final response = await Api.httpGetWithHeaders(wolLinkJwOrg);
-        if (response.statusCode == 200) {
-          _extractPublicationDescription(response.body);
-        }
-        else {
-          throw Exception('Failed to load publication content');
-        }
-      } catch (e) {
-        printTime('Error fetching publication content: $e');
-        setState(() {
-          _isLoading = false;
-        });
-      }
-    }
+    // Lancer l'extraction de la description en parallèle
+    extractPublicationDescription(widget.publication).then((desc) {
+      setState(() {
+        description = desc;
+      });
+    }).catchError((e) {
+      printTime('Error extracting description: $e');
+    });
   }
 
-  void _extractPublicationDescription(String htmlContent) {
-    var document = htmlParser.parse(htmlContent);
-    var metaDescription = document.querySelector('meta[name="description"]');
-
-    if (metaDescription != null) {
-      setState(() {
-        description = metaDescription.attributes['content']?.trim() ?? '';
-      });
+// Séparer la logique HTML
+  Future<void> _fetchHtml() async {
+    final response = await Api.httpGetWithHeaders(wolLink);
+    if (response.statusCode == 200) {
+      _extractHtmlContent(response.body);
+    } else {
+      throw Exception('Failed to load publication content');
     }
   }
 

@@ -45,39 +45,39 @@ class _PendingUpdatesPageState extends State<PendingUpdatesPage> {
       await pubCollectionsDB.execute("ATTACH DATABASE '${catalogFile.path}' AS catalog");
 
       List<Map<String, dynamic>> result = await pubCollectionsDB.rawQuery('''
-    SELECT DISTINCT
-      p.*,
-      pa.ExpandedSize,
-      pa.LastModified,
-      pip.Title AS IssueTitle,
-      pip.CoverTitle AS CoverTitle,
-      l.Symbol AS LanguageSymbol,
-      l.VernacularName AS LanguageVernacularName,
-      l.PrimaryIetfCode AS LanguagePrimaryIetfCode,
-      (SELECT img.Path 
-       FROM Image img
-       WHERE img.Type = 't' 
-         AND img.PublicationId = p.PublicationId 
-       ORDER BY img.Width DESC, img.Height DESC 
-       LIMIT 1) AS ImageSqr,
-      (SELECT img.Path 
-       FROM Image img
-       WHERE img.Width = 1200 
-         AND img.Height = 600 
-         AND img.Type = 'lsr' 
-         AND img.PublicationId = p.PublicationId 
-       LIMIT 1) AS ImageLsr
-    FROM Publication p
-    LEFT JOIN PublicationIssueProperty pip ON pip.PublicationId = p.PublicationId
-    LEFT JOIN meps.Language l ON p.MepsLanguageId = l.LanguageId
-    LEFT JOIN catalog.Publication cp 
-      ON p.MepsLanguageId = cp.MepsLanguageId 
-      AND p.Symbol = cp.Symbol 
-      AND p.IssueTagNumber = cp.IssueTagNumber
-    LEFT JOIN catalog.PublicationAsset pa ON cp.Id = pa.PublicationId
-    WHERE STRFTIME('%Y-%m-%d %H:%M:%S', pa.LastModified) > STRFTIME('%Y-%m-%d %H:%M:%S', p.Timestamp)
-    ORDER BY p.PublicationType
-''');
+        SELECT DISTINCT
+          p.*,
+          pa.ExpandedSize,
+          pa.LastModified,
+          pip.Title AS IssueTitle,
+          pip.CoverTitle AS CoverTitle,
+          l.Symbol AS LanguageSymbol,
+          l.VernacularName AS LanguageVernacularName,
+          l.PrimaryIetfCode AS LanguagePrimaryIetfCode,
+          (SELECT img.Path 
+           FROM Image img
+           WHERE img.Type = 't' 
+             AND img.PublicationId = p.PublicationId 
+           ORDER BY img.Width DESC, img.Height DESC 
+           LIMIT 1) AS ImageSqr,
+          (SELECT img.Path 
+           FROM Image img
+           WHERE img.Width = 1200 
+             AND img.Height = 600 
+             AND img.Type = 'lsr' 
+             AND img.PublicationId = p.PublicationId 
+           LIMIT 1) AS ImageLsr
+        FROM Publication p
+        LEFT JOIN PublicationIssueProperty pip ON pip.PublicationId = p.PublicationId
+        LEFT JOIN meps.Language l ON p.MepsLanguageId = l.LanguageId
+        LEFT JOIN catalog.Publication cp 
+          ON p.MepsLanguageId = cp.MepsLanguageId 
+          AND p.Symbol = cp.Symbol 
+          AND p.IssueTagNumber = cp.IssueTagNumber
+        LEFT JOIN catalog.PublicationAsset pa ON cp.Id = pa.PublicationId
+        WHERE STRFTIME('%Y-%m-%d %H:%M:%S', pa.LastModified) > STRFTIME('%Y-%m-%d %H:%M:%S', p.Timestamp)
+        ORDER BY p.PublicationType
+      ''');
 
       setState(() {
         groupedPublications = {};

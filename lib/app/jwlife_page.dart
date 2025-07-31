@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:jwlife/app/services/global_key_service.dart';
+import 'package:jwlife/features/home/pages/daily_text_page.dart';
 import 'package:jwlife/features/home/pages/home_page.dart';
 import 'package:jwlife/features/publication/pages/document/local/document_page.dart';
 import 'package:jwlife/widgets/dialog/utils_dialog.dart';
@@ -39,7 +40,7 @@ class JwLifePageState extends State<JwLifePage> {
 
   final List<GlobalKey<NavigatorState>> navigatorKeys = List.generate(7, (_) => GlobalKey<NavigatorState>());
 
-  List<List<GlobalKey<DocumentPageState>>> documentPageKeys = List.generate(7, (_) => []);
+  List<List<GlobalKey<State<StatefulWidget>>>> webViewPageKeys = List.generate(7, (_) => []);
 
   @override
   void initState() {
@@ -157,15 +158,19 @@ class JwLifePageState extends State<JwLifePage> {
 
   @override
   Widget build(BuildContext context) {
-    final bool isKeyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0;
-
     final Widget content = PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) async {
-        if(documentPageKeys[currentIndex].isNotEmpty) {
-          DocumentPageState documentPageState = documentPageKeys[currentIndex].last.currentState!;
-          documentPageState.handleBackPress();
-          return;
+        if(webViewPageKeys[currentIndex].isNotEmpty) {
+          final webViewPageState = webViewPageKeys[currentIndex].last.currentState!;
+          if(webViewPageState is DocumentPageState) {
+            webViewPageState.handleBackPress();
+            return;
+          }
+          else if (webViewPageState is DailyTextPageState) {
+            webViewPageState.handleBackPress();
+            return;
+          }
         }
         if (didPop) return;
         handleBack(context); // même logique aussi
@@ -222,7 +227,7 @@ class JwLifePageState extends State<JwLifePage> {
         onTap: (index) {
           if (index == currentIndex) {
             navigatorKeys[index].currentState!.popUntil((route) => route.isFirst);
-            documentPageKeys[index].clear();
+            webViewPageKeys[index].clear();
             setState(() {
               navBarVisible[currentIndex] = true;
               navBarIsBlack[index] = false;

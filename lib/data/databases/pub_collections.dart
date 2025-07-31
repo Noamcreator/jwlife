@@ -7,6 +7,7 @@ import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/repositories/PublicationRepository.dart';
 import 'package:sqflite/sqflite.dart';
 
+import '../../core/utils/utils_pub.dart';
 
 class PubCollections {
   late Database _database;
@@ -27,14 +28,15 @@ class PubCollections {
 
       final result = await txn.rawQuery('''
       WITH ImageData AS (
-        SELECT 
-            PublicationId,
-            MAX(CASE WHEN Type = 't' AND Width = 270 AND Height = 270 THEN Path END) AS ImageSqr,
-            MAX(CASE WHEN Type = 'lsr' AND Width = 1200 AND Height = 600 THEN Path END) AS ImageLsr
-        FROM Image 
-        WHERE (Type = 't' AND Width = 270 AND Height = 270) 
-           OR (Type = 'lsr' AND Width = 1200 AND Height = 600)
-        GROUP BY PublicationId
+         SELECT 
+             PublicationId,
+             MAX(CASE WHEN Type = 't' AND Width = 270 AND Height = 270 THEN Path WHEN Type = 't' AND Width = 100 AND Height = 100 THEN Path ELSE NULL END) AS ImageSqr,
+             MAX(CASE  WHEN Type = 'lsr' AND Width = 1200 AND Height = 600 THEN Path END) AS ImageLsr
+         FROM Image
+         WHERE 
+             (Type = 't' AND ( (Width = 270 AND Height = 270) OR (Width = 100 AND Height = 100) ))
+             OR (Type = 'lsr' AND Width = 1200 AND Height = 600)
+         GROUP BY PublicationId
       )
       SELECT DISTINCT 
           p.*,
@@ -46,11 +48,12 @@ class PubCollections {
           img.ImageLsr,
           l.Symbol AS LanguageSymbol,
           l.VernacularName AS LanguageVernacularName,
-          l.PrimaryIetfCode AS LanguagePrimaryIetfCode
+          l.PrimaryIetfCode AS LanguagePrimaryIetfCode,
+          l.IsSignLanguage AS IsSignLanguage
       FROM Publication p
       LEFT JOIN PublicationAttribute pa ON pa.PublicationId = p.PublicationId
       LEFT JOIN PublicationIssueProperty pip ON pip.PublicationId = p.PublicationId
-      LEFT JOIN meps.Language l ON p.MepsLanguageId = l.LanguageId
+      INNER JOIN meps.Language l ON p.MepsLanguageId = l.LanguageId
       LEFT JOIN ImageData img ON img.PublicationId = p.PublicationId;
     ''');
 
@@ -74,6 +77,13 @@ class PubCollections {
     await open();
 
     dynamic pub = manifestData['publication'];
+
+    int languageId = pub['language'];
+    String symbol = pub['symbol'];
+    int year = pub['year'] is String ? int.parse(pub['year']) : pub['year'];
+    int issueTagNum = pub['issueId'];
+
+    Future<String> descriptionFuture = extractPublicationDescription(publication, symbol: symbol, issueTagNumber: issueTagNum, mepsLanguage: 'F');
 
     Database publicationDb = await openDatabase("$path/${pub['fileName']}", version: manifestData['schemaVersion']);
 
@@ -99,11 +109,8 @@ class PubCollections {
       hasVerseCommentaryTable = verseCommentaryExists.isNotEmpty;
     }
 
-    int languageId = pub['language'];
-    String symbol = pub['symbol'];
-    int year = pub['year'] is String ? int.parse(pub['year']) : pub['year'];
-    int issueTagNum = pub['issueId'];
     String hashPublication = getPublicationHash(languageId, symbol, year, issueTagNum);
+    String description = await descriptionFuture;
 
     Map<String, dynamic> pubDb = {
       'MepsLanguageId': languageId,
@@ -113,8 +120,9 @@ class PubCollections {
       'ShortTitle': pub['shortTitle'],
       'DisplayTitle': pub['displayTitle'],
       'UndatedReferenceTitle': pub['undatedReferenceTitle'],
+      'Description': description,
       'Symbol': symbol,
-      'KeySymbol': pub['uniqueSymbol'],
+      'KeySymbol': pub['uniqueSymbol'] ?? symbol,
       'UniqueEnglishSymbol': pub['uniqueEnglishSymbol'],
       'SchemaVersion': pub['schemaVersion'],
       'Year': year,
@@ -127,8 +135,8 @@ class PubCollections {
       'DatabasePath': "$path/${pub['fileName']}",
       'ExpandedSize': manifestData['expandedSize'],
       'MepsBuildNumber': manifestData['mepsBuildNumber'],
-      'TopicSearch': hasTopicsTable ? 0 : 1,
-      'VerseCommentary': hasVerseCommentaryTable ? 0 : 1,
+      'TopicSearch': hasTopicsTable ? 1 : 0,
+      'VerseCommentary': hasVerseCommentaryTable ? 1 : 0,
     };
 
     int publicationId = await _database.insert('Publication', pubDb);
@@ -305,13 +313,13 @@ class PubCollections {
     return await db.transaction((txn) async {
       // Création de la table Document
       await txn.execute("""
-      CREATE TABLE IF NOT EXISTS "Document" (
-        "LanguageIndex" INTEGER NOT NULL,
-        "MepsDocumentId" INTEGER NOT NULL,
-        "PublicationId" INTEGER,
-        FOREIGN KEY("PublicationId") REFERENCES "Publication"("PublicationId")
-      );
-    """);
+        CREATE TABLE IF NOT EXISTS "Document" (
+          "LanguageIndex" INTEGER NOT NULL,
+          "MepsDocumentId" INTEGER NOT NULL,
+          "PublicationId" INTEGER,
+          FOREIGN KEY("PublicationId") REFERENCES "Publication"("PublicationId")
+        );
+      """);
 
       // Création de la table Image
       await txn.execute("""
@@ -340,6 +348,7 @@ class PubCollections {
         "ShortTitle" TEXT,
         "DisplayTitle" TEXT,
         "UndatedReferenceTitle" TEXT,
+        "Description" TEXT,
         "Symbol" TEXT NOT NULL,
         "KeySymbol" TEXT,
         "UniqueEnglishSymbol" TEXT NOT NULL,

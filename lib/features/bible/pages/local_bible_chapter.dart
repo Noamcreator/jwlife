@@ -56,24 +56,24 @@ class _LocalChapterBiblePageState extends State<LocalChapterBiblePage> {
 
       List<Map<String, dynamic>> results = await database.rawQuery('''
       SELECT 
-    BibleBook.*,
-    meps.BibleBookName.StandardBookName,
-    d1.*,
-    d2.Content AS OutlineContent,
-    d3.Content AS OverviewContent,
-    (SELECT Multimedia.FilePath 
-     FROM DocumentMultimedia
-     JOIN Multimedia ON DocumentMultimedia.MultimediaId = Multimedia.MultimediaId 
-     WHERE DocumentMultimedia.DocumentId = BibleBook.IntroDocumentId 
-       AND Multimedia.CategoryType = 13
-     LIMIT 1) AS FilePath
-FROM BibleBook
-JOIN meps.BibleBookName ON BibleBook.BibleBookId = meps.BibleBookName.BookNumber
-JOIN meps.BibleCluesInfo ON meps.BibleBookName.BibleCluesInfoId = meps.BibleCluesInfo.BibleCluesInfoId
-JOIN Document d1 ON BibleBook.IntroDocumentId = d1.DocumentId
-LEFT JOIN Document d2 ON BibleBook.OutlineDocumentId = d2.DocumentId
-LEFT JOIN Document d3 ON BibleBook.OverviewDocumentId = d3.DocumentId
-WHERE meps.BibleCluesInfo.LanguageId = ?
+        BibleBook.*,
+        meps.BibleBookName.StandardBookName,
+        d1.*,
+        d2.Content AS OutlineContent,
+        d3.Content AS OverviewContent,
+        (SELECT Multimedia.FilePath 
+         FROM DocumentMultimedia
+         JOIN Multimedia ON DocumentMultimedia.MultimediaId = Multimedia.MultimediaId 
+         WHERE DocumentMultimedia.DocumentId = BibleBook.IntroDocumentId 
+         AND Multimedia.CategoryType = 13
+         LIMIT 1) AS FilePath
+        FROM BibleBook
+        INNER JOIN meps.BibleBookName ON BibleBook.BibleBookId = meps.BibleBookName.BookNumber
+        INNER JOIN meps.BibleCluesInfo ON meps.BibleBookName.BibleCluesInfoId = meps.BibleCluesInfo.BibleCluesInfoId
+        INNER JOIN Document d1 ON BibleBook.IntroDocumentId = d1.DocumentId
+        LEFT JOIN Document d2 ON BibleBook.OutlineDocumentId = d2.DocumentId
+        LEFT JOIN Document d3 ON BibleBook.OverviewDocumentId = d3.DocumentId
+        WHERE meps.BibleCluesInfo.LanguageId = ?
       ''', [widget.bible.mepsLanguage.id]);
 
       await database.execute("DETACH DATABASE meps");
@@ -105,8 +105,8 @@ WHERE meps.BibleCluesInfo.LanguageId = ?
           BibleChapter.ChapterNumber,
           Document.MepsDocumentId
         FROM BibleChapter
-        JOIN BibleBook ON BibleChapter.BookNumber = BibleBook.BibleBookId
-        JOIN Document ON BibleBook.BookDocumentId = Document.DocumentId
+        INNER JOIN BibleBook ON BibleChapter.BookNumber = BibleBook.BibleBookId
+        INNER JOIN Document ON BibleBook.BookDocumentId = Document.DocumentId
         WHERE BookNumber = ?
       ''', [_currentIndex+1]);
 

@@ -20,18 +20,19 @@ class LanguageDialog extends StatefulWidget {
 class _LanguageDialogState extends State<LanguageDialog> {
   String? selectedLanguage;
   final TextEditingController _searchController = TextEditingController();
-  List<Map<String, dynamic>> filteredLanguagesList = [];
-  List<Map<String, dynamic>> favoriteLanguages = []; // Liste pour les langues favorites
+  List<Map<String, dynamic>> _allLanguagesList = [];
+  List<Map<String, dynamic>> _filteredLanguagesList = [];
+  List<Map<String, dynamic>> _favoriteLanguages = []; // Liste pour les langues favorites
   Database? database;
 
   @override
   void initState() {
     super.initState();
-    initSettings('');
+    initSettings();
     _searchController.addListener(_onSearchChanged);
   }
 
-  Future<void> initSettings(String searchTerm) async {
+  Future<void> initSettings() async {
     selectedLanguage = JwLifeSettings().currentLanguage.symbol;
 
     File mepsUnitFile = await getMepsFile(); // mepsUnitFile est .db
@@ -41,7 +42,7 @@ class _LanguageDialogState extends State<LanguageDialog> {
       database = await openDatabase(mepsUnitFile.path);
 
       // Fetch languages using language code
-      await fetchLanguages(selectedLanguage!, searchTerm);
+      await fetchLanguages(selectedLanguage!);
 
       database!.close();
     }
@@ -54,17 +55,35 @@ class _LanguageDialogState extends State<LanguageDialog> {
     super.dispose();
   }
 
-  Future<void> fetchLanguages(String languageCode, String searchTerm) async {
+  Future<void> fetchLanguages(String languageCode) async {
     List<Map<String, dynamic>> response = await database!.rawQuery('''
-    SELECT l.LanguageId, l.VernacularName, ln.Name, l.Symbol, l.PrimaryIetfCode
-    FROM Language l
-    JOIN LocalizedLanguageName lln ON l.LanguageId = lln.TargetLanguageId
-    JOIN LanguageName ln ON lln.LanguageNameId = ln.LanguageNameId
-    WHERE lln.SourceLanguageId = (SELECT LanguageId FROM Language WHERE Symbol = ?)
-      AND l.VernacularName IS NOT '' 
-      AND (l.VernacularName LIKE '%$searchTerm%' OR ln.Name LIKE '%$searchTerm%')
-    ORDER BY ln.Name
-  ''', [languageCode]);
+      SELECT 
+        l.LanguageId,
+        l.Symbol,
+        l.VernacularName,
+        COALESCE(ln_src.Name, ln_fallback.Name) AS Name,
+        l.PrimaryIetfCode,
+        l.IsSignLanguage,
+        s.InternalName,
+        s.DisplayName,
+        s.IsBidirectional,
+        s.IsRTL,
+        s.IsCharacterSpaced,
+        s.IsCharacterBreakable,
+        s.HasSystemDigits
+      FROM Language l
+      INNER JOIN Script s ON l.ScriptId = s.ScriptId
+      LEFT JOIN LocalizedLanguageName lln_src ON l.LanguageId = lln_src.TargetLanguageId AND lln_src.SourceLanguageId = (SELECT LanguageId FROM Language WHERE Symbol = ?)
+      LEFT JOIN LanguageName ln_src ON lln_src.LanguageNameId = ln_src.LanguageNameId
+      
+      -- LEFT JOIN sur la fallback de cette langue (Language.PrimaryFallbackLanguageId)
+      LEFT JOIN LocalizedLanguageName lln_fallback ON l.LanguageId = lln_fallback.TargetLanguageId AND lln_fallback.SourceLanguageId = l.PrimaryFallbackLanguageId
+      LEFT JOIN LanguageName ln_fallback ON lln_fallback.LanguageNameId = ln_fallback.LanguageNameId
+      
+      -- Nom vernaculaire non vide
+      WHERE l.VernacularName IS NOT '' AND (ln_src.Name IS NOT NULL OR (ln_src.Name IS NULL AND ln_fallback.Name IS NOT NULL))
+      ORDER BY Name
+    ''', [languageCode]);
 
     // Si le widget.languagesList est vide, on effectue une requête à la base de données.
     if (widget.languagesListJson.isNotEmpty) {
@@ -87,11 +106,12 @@ class _LanguageDialogState extends State<LanguageDialog> {
     List<Map<String, dynamic>> languagesModifiable = List.from(response);
 
     setState(() {
-      filteredLanguagesList = languagesModifiable;
-      favoriteLanguages = filteredLanguagesList.where((lang) {
+      _allLanguagesList = languagesModifiable;
+      _filteredLanguagesList = languagesModifiable;
+      _favoriteLanguages = _filteredLanguagesList.where((lang) {
         return isFavorite(lang);
       }).toList();
-      filteredLanguagesList.removeWhere((lang) => isFavorite(lang));
+      _filteredLanguagesList.removeWhere((lang) => isFavorite(lang));
     });
   }
 
@@ -100,9 +120,16 @@ class _LanguageDialogState extends State<LanguageDialog> {
   }
 
   Future<void> _onSearchChanged() async {
-    if (database != null) {
-      await initSettings(_searchController.text);
-    }
+    String searchTerm = _searchController.text;
+    List<Map<String, dynamic>> languagesSearchResult = List.from(_allLanguagesList);
+
+    languagesSearchResult = languagesSearchResult.where((lang) {
+      return lang['Name'].toString().toLowerCase().contains(searchTerm.toLowerCase()) || lang['VernacularName'].toString().toLowerCase().contains(searchTerm.toLowerCase());
+    }).toList();
+
+    setState(() {
+      _filteredLanguagesList = languagesSearchResult;
+    });
   }
 
   @override
@@ -116,8 +143,8 @@ class _LanguageDialogState extends State<LanguageDialog> {
 
     // Combine favoriteLanguages en haut et filteredLanguagesList en bas
     final combinedLanguages = [
-      ...favoriteLanguages.map((language) => {...language, 'isFavorite': true}),
-      ...filteredLanguagesList.map((language) => {
+      ..._favoriteLanguages.map((language) => {...language, 'isFavorite': true}),
+      ..._filteredLanguagesList.map((language) => {
         ...language,
         'isFavorite': false
       }),
@@ -158,7 +185,7 @@ class _LanguageDialogState extends State<LanguageDialog> {
                       enableSuggestions: false, // Désactive les suggestions
                       keyboardType: TextInputType.text, // Permet la saisie de texte
                       decoration: InputDecoration(
-                        hintText: 'Rechercher une langue (${filteredLanguagesList.length})',
+                        hintText: 'Rechercher une langue (${_filteredLanguagesList.length})',
                         hintStyle: TextStyle(
                           fontSize: 18,
                           color: hintColor,
@@ -178,7 +205,7 @@ class _LanguageDialogState extends State<LanguageDialog> {
                 itemBuilder: (BuildContext context, int index) {
                   final languageData = combinedLanguages[index];
                   final vernacularName = languageData['VernacularName'];
-                  final translatedName = languageData['Name'];
+                  final translatedName = languageData['Name'] ?? '';
                   final title = languageData['Title'] ?? ''; // Affichage du titre si disponible
                   final isFavorite = languageData['isFavorite'] as bool;
 
@@ -197,7 +224,7 @@ class _LanguageDialogState extends State<LanguageDialog> {
                             ),
                           ),
                         ),
-                      if (!isFavorite && index == favoriteLanguages.length)
+                      if (!isFavorite && index == _favoriteLanguages.length)
                         Padding(
                           padding: EdgeInsets.only(left: 20, bottom: 8, top: 10),
                           child: Text(

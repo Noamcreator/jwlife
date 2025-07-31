@@ -54,30 +54,24 @@ class History {
     final catalogFile = await getCatalogFile();
     final db = await getHistoryDb();
 
-    await attachDatabases(db, {
-      'catalog': catalogFile.path
-    });
+    await attachDatabases(db, {'catalog': catalogFile.path});
 
     List<Map<String, dynamic>> result = await db.rawQuery('''
-  SELECT 
-    History.*,
-    catalog.Publication.ShortTitle AS PublicationTitle,
-    catalog.Publication.IssueTitle AS PublicationIssueTitle,
-    catalog.Publication.PublicationTypeId
-  FROM History
-  LEFT JOIN catalog.Publication 
-    ON catalog.Publication.MepsLanguageId = History.MepsLanguageId 
-    AND catalog.Publication.KeySymbol = History.KeySymbol
-    AND catalog.Publication.IssueTagNumber = History.IssueTagNumber
-    ORDER BY LastVisited DESC
-''');
+      SELECT 
+        History.*,
+        catalog.Publication.ShortTitle AS PublicationTitle,
+        catalog.Publication.IssueTitle AS PublicationIssueTitle,
+        catalog.Publication.PublicationTypeId
+      FROM History
+      LEFT JOIN catalog.Publication 
+        ON catalog.Publication.MepsLanguageId = History.MepsLanguageId 
+        AND catalog.Publication.KeySymbol = History.KeySymbol
+        AND catalog.Publication.IssueTagNumber = History.IssueTagNumber
+        ORDER BY LastVisited DESC
+    ''');
 
     await detachDatabases(db, ['catalog']);
     await db.close();
-
-    for(var history in result) {
-      printTime(history.toString());
-    }
 
     return result;
   }

@@ -348,14 +348,6 @@ class _SettingsPageState extends State<SettingsPage> {
             onTap: () {
               showLibraryLanguageDialog(context).then((value) async {
                 if (value['Symbol'] != JwLifeSettings().currentLanguage.symbol) {
-                  setState(() {
-                    _selectedLanguage = MepsLanguage(
-                      id: value['LanguageId'],
-                      symbol: value['Symbol'],
-                      vernacular: value['VernacularName'],
-                      primaryIetfCode: value['PrimaryIetfCode'],
-                    );
-                  });
                   await setLibraryLanguage(value);
                   GlobalKeyService.homeKey.currentState?.changeLanguageAndRefresh();
                 }
@@ -721,7 +713,7 @@ class _SettingsPageState extends State<SettingsPage> {
           SettingsTile(
             title: 'Date de la bibliothèque',
             subtitle: libraryDate,
-          ),
+          )
         ],
       ),
     );

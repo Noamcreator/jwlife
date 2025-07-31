@@ -12,7 +12,7 @@ Future<void> showPageDocument(BuildContext context, Publication publication, int
   GlobalKeyService.jwLifePageKey.currentState!.toggleNavBarPositioned(true);
 
   final GlobalKey<DocumentPageState> documentPageKey = GlobalKey<DocumentPageState>();
-  GlobalKeyService.jwLifePageKey.currentState!.documentPageKeys[GlobalKeyService.jwLifePageKey.currentState!.currentIndex].add(documentPageKey);
+  GlobalKeyService.jwLifePageKey.currentState!.webViewPageKeys[GlobalKeyService.jwLifePageKey.currentState!.currentIndex].add(documentPageKey);
 
   return showPage(context, DocumentPage(
       key: documentPageKey,
@@ -30,7 +30,7 @@ Future<void> showPageBibleChapter(BuildContext context, Publication bible, int b
   GlobalKeyService.jwLifePageKey.currentState!.toggleNavBarPositioned(true);
 
   final GlobalKey<DocumentPageState> documentPageKey = GlobalKey<DocumentPageState>();
-  GlobalKeyService.jwLifePageKey.currentState!.documentPageKeys[GlobalKeyService.jwLifePageKey.currentState!.currentIndex].add(documentPageKey);
+  GlobalKeyService.jwLifePageKey.currentState!.webViewPageKeys[GlobalKeyService.jwLifePageKey.currentState!.currentIndex].add(documentPageKey);
 
   return showPage(context, DocumentPage.bible(
       key: documentPageKey,

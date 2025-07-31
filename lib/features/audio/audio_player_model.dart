@@ -12,7 +12,6 @@ import 'package:jwlife/data/realm/realm_library.dart';
 import 'package:realm/realm.dart';
 
 import '../../app/jwlife_app.dart';
-import '../../app/jwlife_page.dart';
 import '../../app/services/global_key_service.dart';
 import '../../app/services/settings_service.dart';
 import '../../core/api.dart';

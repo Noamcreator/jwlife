@@ -34,6 +34,7 @@ import '../../../../../../../core/utils/widgets_utils.dart';
 import '../../../../../../../data/models/userdata/bookmark.dart';
 import '../../../../../app/services/global_key_service.dart';
 import '../../../../../app/services/settings_service.dart';
+import '../../../../../core/webview/webview_javascript.dart';
 import '../../../../../core/webview/webview_utils.dart';
 import '../../../../../widgets/searchfield/searchfield_widget.dart';
 import '../../../../personal/pages/tag_page.dart';
@@ -144,10 +145,10 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
       if(widget.book != null && widget.chapter != null) {
         widget.publication.documentsManager!.bookNumber = widget.book!;
         widget.publication.documentsManager!.chapterNumber = widget.chapter!;
-        widget.publication.documentsManager!.documentIndex = widget.publication.documentsManager!.documents.indexWhere((element) => element.bookNumber == widget.book && element.chapterNumberBible == widget.chapter);
+        widget.publication.documentsManager!.selectedDocumentIndex = widget.publication.documentsManager!.documents.indexWhere((element) => element.bookNumber == widget.book && element.chapterNumberBible == widget.chapter);
       }
       else {
-        widget.publication.documentsManager!.documentIndex = widget.publication.documentsManager!.documents.indexWhere((element) => element.mepsDocumentId == widget.mepsDocumentId);
+        widget.publication.documentsManager!.selectedDocumentIndex = widget.publication.documentsManager!.documents.indexWhere((element) => element.mepsDocumentId == widget.mepsDocumentId);
       }
     }
     else {
@@ -236,7 +237,7 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
   Future<void> changePageAt(int index) async {
     if (index <= widget.publication.documentsManager!.documents.length - 1 && index >= 0) {
       setState(() {
-        widget.publication.documentsManager!.documentIndex = index;
+        widget.publication.documentsManager!.selectedDocumentIndex = index;
       });
 
       await widget.publication.documentsManager!.getCurrentDocument().changePageAt();
@@ -252,11 +253,11 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
   }
 
   Future<void> _jumpToPage(int page) async {
-    if (page != widget.publication.documentsManager!.documentIndex) {
-      _pageHistory.add(widget.publication.documentsManager!.documentIndex); // Ajouter la page actuelle à l'historique
+    if (page != widget.publication.documentsManager!.selectedDocumentIndex) {
+      _pageHistory.add(widget.publication.documentsManager!.selectedDocumentIndex); // Ajouter la page actuelle à l'historique
       _currentPageHistory = page;
 
-      widget.publication.documentsManager!.documentIndex = page;
+      widget.publication.documentsManager!.selectedDocumentIndex = page;
       await _controller.evaluateJavascript(source: 'jumpToPage($page);');
 
       setControlsVisible(true);
@@ -274,7 +275,11 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
     if (_pageHistory.isNotEmpty) {
       if(_currentPageHistory == -1) {
         _currentPageHistory = _pageHistory.removeLast(); // Revenir à la dernière page dans l'historique
-        await _controller.loadData(data: widget.publication.documentsManager!.createReaderHtmlShell(), baseUrl: WebUri('file://${JwLifeSettings().webViewData.webappPath}/'));
+        await _controller.loadData(data: createReaderHtmlShell(
+            widget.publication,
+            widget.publication.documentsManager!.selectedDocumentIndex,
+            widget.publication.documentsManager!.documents.length - 1
+        ), baseUrl: WebUri('file://${JwLifeSettings().webViewData.webappPath}/'));
       }
       else {
         _currentPageHistory = _pageHistory.removeLast(); // Revenir à la dernière page dans l'historique
@@ -300,18 +305,22 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
     }
     else {
       if (await _canHandleBackPress()) {
-        if (GlobalKeyService.jwLifePageKey.currentState?.documentPageKeys[GlobalKeyService.jwLifePageKey.currentState!.currentIndex].isNotEmpty ?? false) {
-          GlobalKeyService.jwLifePageKey.currentState?.documentPageKeys[GlobalKeyService.jwLifePageKey.currentState!.currentIndex].removeLast();
+        final jwLifeState = GlobalKeyService.jwLifePageKey.currentState;
+        if (jwLifeState == null) return;
+
+        final currentIndex = jwLifeState.currentIndex;
+        final webViewStack = jwLifeState.webViewPageKeys[currentIndex];
+
+        if (webViewStack.isNotEmpty) {
+          webViewStack.removeLast();
         }
 
-        if (GlobalKeyService.jwLifePageKey.currentState?.documentPageKeys[GlobalKeyService.jwLifePageKey.currentState!.currentIndex].isEmpty ?? true) {
-          GlobalKeyService.jwLifePageKey.currentState?.handleBack(context);
-        }
-        else {
-          final currentNavigator = GlobalKeyService.jwLifePageKey.currentState!.navigatorKeys[GlobalKeyService.jwLifePageKey.currentState!.currentIndex].currentState!;
-
-          if (currentNavigator.canPop()) {
-            currentNavigator.pop();
+        if (webViewStack.isEmpty) {
+          jwLifeState.handleBack(context);
+        } else {
+          final currentNavigator = jwLifeState.navigatorKeys[currentIndex].currentState;
+          if (currentNavigator?.canPop() ?? false) {
+            currentNavigator!.pop();
           }
         }
       }
@@ -395,7 +404,10 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
                 databaseEnabled: false,
               ),
               initialData: InAppWebViewInitialData(
-                  data: widget.publication.documentsManager!.createReaderHtmlShell(
+                  data: createReaderHtmlShell(
+                      widget.publication,
+                      widget.publication.documentsManager!.selectedDocumentIndex,
+                      widget.publication.documentsManager!.documents.length - 1,
                       startParagraphId: widget.startParagraphId,
                       endParagraphId: widget.endParagraphId,
                       startVerseId: widget.firstVerse,
@@ -443,7 +455,7 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
                   callback: (args) async {
                     final index = args[0] as int;
                     if (index < 0 || index >= widget.publication.documentsManager!.documents.length) {
-                      return {'html': '', 'className': '', 'audiosMarkers': '', 'isBibleChapter': false};
+                      return {'html': '', 'className': '', 'audiosMarkers': '', 'isBibleChapter': false, 'link': ''};
                     }
 
                     final doc = widget.publication.documentsManager!.documents[index];
@@ -485,6 +497,7 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
                       'className': className,
                       'audiosMarkers': audioMarkersJson,
                       'isBibleChapter': doc.isBibleChapter(),
+                      'link': ''
                     };
                   },
                 );
@@ -678,7 +691,7 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
                 controller.addJavaScriptHandler(
                   handlerName: 'fetchExtractPublication',
                   callback: (args) async {
-                    Map<String, dynamic>? extractPublication = await fetchExtractPublication(context, widget.publication, args[0], _jumpToPage, _jumpToParagraph);
+                    Map<String, dynamic>? extractPublication = await fetchExtractPublication(context, 'document', widget.publication.documentsManager!.database, widget.publication, args[0], _jumpToPage, _jumpToParagraph);
                     if (extractPublication != null) {
                       printTime('fetchExtractPublication $extractPublication');
                       return extractPublication;
@@ -792,7 +805,7 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
                         if (bookmark.location.bookNumber != null && bookmark.location.chapterNumber != null) {
                           final page = docManager.documents.indexWhere((doc) => doc.bookNumber == bookmark.location.bookNumber && doc.chapterNumberBible == bookmark.location.chapterNumber);
 
-                          if (page != widget.publication.documentsManager!.documentIndex) {
+                          if (page != widget.publication.documentsManager!.selectedDocumentIndex) {
                             await _jumpToPage(page);
                           }
 
@@ -826,7 +839,7 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
                       if(bookmark != null) {
                         if (bookmark.location.mepsDocumentId != null) {
                           final page = docManager.documents.indexWhere((doc) => doc.mepsDocumentId == bookmark.location.mepsDocumentId);
-                          if (page != widget.publication.documentsManager!.documentIndex) {
+                          if (page != widget.publication.documentsManager!.selectedDocumentIndex) {
                             await _jumpToPage(page);
                           }
                         }
@@ -1073,7 +1086,7 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
                       }
                     }
                     else if(uri.queryParameters.containsKey('docID')) {
-                      _pageHistory.add(widget.publication.documentsManager!.documentIndex); // Ajouter la page actuelle à l'historique
+                      _pageHistory.add(widget.publication.documentsManager!.selectedDocumentIndex); // Ajouter la page actuelle à l'historique
                       _currentPageHistory = -1;
 
                       setState(() {
@@ -1087,7 +1100,7 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
                   return NavigationActionPolicy.CANCEL;
                 }
 
-                _pageHistory.add(widget.publication.documentsManager!.documentIndex); // Ajouter la page actuelle à l'historique
+                _pageHistory.add(widget.publication.documentsManager!.selectedDocumentIndex); // Ajouter la page actuelle à l'historique
                 _currentPageHistory = -1;
 
                 setState(() {
@@ -1210,7 +1223,7 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
                               if(bookmark.location.bookNumber != null && bookmark.location.chapterNumber != null) {
                                 int page = widget.publication.documentsManager!.documents.indexWhere((doc) => doc.bookNumber == bookmark.location.bookNumber && doc.chapterNumber == bookmark.location.chapterNumber);
 
-                                if (page != widget.publication.documentsManager!.documentIndex) {
+                                if (page != widget.publication.documentsManager!.selectedDocumentIndex) {
                                   await _jumpToPage(page);
                                 }
 
@@ -1222,7 +1235,7 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
                                 if(bookmark.location.mepsDocumentId != widget.publication.documentsManager!.getCurrentDocument().mepsDocumentId) {
                                   int page = widget.publication.documentsManager!.documents.indexWhere((doc) => doc.mepsDocumentId == bookmark.location.mepsDocumentId);
 
-                                  if (page != widget.publication.documentsManager!.documentIndex) {
+                                  if (page != widget.publication.documentsManager!.selectedDocumentIndex) {
                                     await _jumpToPage(page);
                                   }
 
@@ -1331,11 +1344,6 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
           ),
       ]),
     );
-  }
-
-  String getArticleClass(Document document) {
-    String publication = document.isBibleChapter() ? 'bible' : 'document';
-    return '''$publication html5 pub-${widget.publication.keySymbol} jwac docClass-${document.classType} docId-${document.documentId} ms-ROMAN ml-${widget.publication.mepsLanguage.symbol} dir-ltr layout-reading layout-sidebar ${JwLifeSettings().webViewData.theme}''';
   }
 
   int _latestRequestId = 0;
