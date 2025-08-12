@@ -455,7 +455,7 @@
     },
     {
       "name": "file_picker",
-      "version": "10.3.0",
+      "version": "10.3.1",
       "dependencies": [
         "cross_file",
         "dbus",
@@ -781,15 +781,24 @@
       ]
     },
     {
+      "name": "nm",
+      "version": "0.5.0",
+      "dependencies": [
+        "dbus"
+      ]
+    },
+    {
       "name": "web",
       "version": "1.1.1",
       "dependencies": []
     },
     {
-      "name": "nm",
-      "version": "0.5.0",
+      "name": "connectivity_plus_platform_interface",
+      "version": "2.0.1",
       "dependencies": [
-        "dbus"
+        "flutter",
+        "meta",
+        "plugin_platform_interface"
       ]
     },
     {
@@ -802,15 +811,6 @@
         "material_color_utilities",
         "meta",
         "vector_math"
-      ]
-    },
-    {
-      "name": "connectivity_plus_platform_interface",
-      "version": "2.0.1",
-      "dependencies": [
-        "flutter",
-        "meta",
-        "plugin_platform_interface"
       ]
     },
     {
@@ -1041,6 +1041,22 @@
       "dependencies": []
     },
     {
+      "name": "url_launcher_platform_interface",
+      "version": "2.3.2",
+      "dependencies": [
+        "flutter",
+        "plugin_platform_interface"
+      ]
+    },
+    {
+      "name": "url_launcher_linux",
+      "version": "3.2.1",
+      "dependencies": [
+        "flutter",
+        "url_launcher_platform_interface"
+      ]
+    },
+    {
       "name": "url_launcher_windows",
       "version": "3.1.4",
       "dependencies": [
@@ -1056,22 +1072,6 @@
         "flutter_web_plugins",
         "url_launcher_platform_interface",
         "web"
-      ]
-    },
-    {
-      "name": "url_launcher_platform_interface",
-      "version": "2.3.2",
-      "dependencies": [
-        "flutter",
-        "plugin_platform_interface"
-      ]
-    },
-    {
-      "name": "url_launcher_linux",
-      "version": "3.2.1",
-      "dependencies": [
-        "flutter",
-        "url_launcher_platform_interface"
       ]
     },
     {
