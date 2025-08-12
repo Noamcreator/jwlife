@@ -15,8 +15,7 @@ class SharedPreferencesKeys {
   static const lastMepsVersion = _PrefKey('last_meps_version', '0.0');
 
   // Web app
-  static const webAppDownload = _PrefKey('webapp_download', false);
-  static const webAppDownloadVersion = _PrefKey('webapp_version', 0.0);
+  static const webAppDownloadVersion = _PrefKey('webapp_version', '0.0.0');
 
   // Document
   static const fontSize = _PrefKey('font_size', 20.0);

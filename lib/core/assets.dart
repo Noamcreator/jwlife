@@ -3,7 +3,6 @@ class Assets {
   Assets._();
 
   static const String assetsIconsJwLife = 'assets/icons/jw_life.svg';
-  static const String assetsWebapp = 'assets/webapp.zip';
   static const String darkBookmark01 = 'assets/icons/bookmarks/dark/bookmark01.png';
   static const String darkBookmark02 = 'assets/icons/bookmarks/dark/bookmark02.png';
   static const String darkBookmark03 = 'assets/icons/bookmarks/dark/bookmark03.png';
@@ -51,7 +50,7 @@ class Assets {
   static const String iconsNavJwb = 'assets/icons/nav_jwb.png';
   static const String iconsNavJworg = 'assets/icons/nav_jworg.png';
   static const String iconsNavOnlinelibrary = 'assets/icons/nav_onlinelibrary.png';
-  static const String jwlifeAssetsWebapp = 'assets/webapp.zip';
+  static const String jwlifeAssetsWebapp = 'assets/webapp_assets.zip';
   static const String lightBookmark01 = 'assets/icons/bookmarks/light/bookmark01.png';
   static const String lightBookmark02 = 'assets/icons/bookmarks/light/bookmark02.png';
   static const String lightBookmark03 = 'assets/icons/bookmarks/light/bookmark03.png';

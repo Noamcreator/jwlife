@@ -130,14 +130,14 @@ Future<void> setLibraryLanguage(Map<String, dynamic> selectedLanguage) async {
 }
 
 /* WEB APP FOLDER */
-Future<bool> getWebAppDownload() async {
+Future<String> getWebAppVersion() async {
   final prefs = await SharedPreferences.getInstance();
-  return prefs.getBool(SharedPreferencesKeys.webAppDownload.key) ?? SharedPreferencesKeys.webAppDownload.defaultValue;
+  return prefs.getString(SharedPreferencesKeys.webAppDownloadVersion.key) ?? SharedPreferencesKeys.webAppDownloadVersion.defaultValue;
 }
 
-Future<void> setWebAppDownload(bool download) async {
+Future<void> setWebAppVersion(String webappVersion) async {
   final prefs = await SharedPreferences.getInstance();
-  await prefs.setBool(SharedPreferencesKeys.webAppDownload.key, download);
+  await prefs.setString(SharedPreferencesKeys.webAppDownloadVersion.key, webappVersion);
 }
 
 /* FONT SIZE PUBLICATION */

@@ -41,8 +41,8 @@ class _AlertInfoPageState extends State<AlertInfoPage> {
 
   Future<void> _initializeHtml() async {
     try {
-      Directory webApp = await getAppWebViewDirectory();
-      webappPath = '${webApp.path}/webapp';
+      Directory filesDirectory = await getAppFilesDirectory();
+      webappPath = '${filesDirectory.path}/webapp_assets';
 
       _htmlContent = convertAlertsToHtml(widget.alerts);
     }

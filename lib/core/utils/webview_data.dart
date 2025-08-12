@@ -40,8 +40,8 @@ class WebViewData {
     colorIndex = await getLastHighlightColorIndex();
     isFullScreen = await getFullscreen();
 
-    Directory webappViewDirectory = await getAppWebViewDirectory();
-    webappPath = '${webappViewDirectory.path}/webapp';
+    Directory filesDirectory = await getAppFilesDirectory();
+    webappPath = '${filesDirectory.path}/webapp_assets';
 
     headlessWebView = HeadlessInAppWebView();
     headlessWebView.run();

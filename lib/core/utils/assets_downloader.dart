@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:archive/archive.dart';
@@ -8,15 +9,30 @@ import '../api.dart';
 import '../shared_preferences/shared_preferences_utils.dart';
 
 class AssetsDownload {
-  static final String webappFileUrl = 'https://github.com/Noamcreator/jwlife/raw/refs/heads/main/webapp.zip';
+  static final String webappApi = 'https://github.com/Noamcreator/jwlife/raw/refs/heads/main/api/';
 
   // Télécharge et enregistre les polices localement
   static Future<void> download() async {
-    final directory = await getAppWebViewDirectory();
-    final webappDir = Directory('${directory.path}/webapp');
-    final webappDirDownloaded = await getWebAppDownload();
+    final directory = await getAppFilesDirectory();
+    final webappDir = Directory('${directory.path}/webapp_assets');
+    final webappVersion = await getWebAppVersion();
+    String webappVersionServer = '0.0.0';
+    String webappfileNameServer = 'webapp_assets.zip';
 
-    if (!await webappDir.exists() || !webappDirDownloaded) {
+    // récupérer la version du webapp
+    try {
+      String webappInfoApi = '${webappApi}webapp_version.json';
+      final response = await Api.httpGetWithHeaders(webappInfoApi);
+      final jsonBody = json.decode(response.body);
+      webappVersionServer = jsonBody['version'];
+      webappfileNameServer = jsonBody['name'];
+    }
+    catch (e) {
+      printTime('Error fetching webapp version: $e');
+    }
+
+    if (webappVersionServer != webappVersion) {
+      String webappFileUrl = '$webappApi$webappfileNameServer';
       await webappDir.create(recursive: true);
       printTime('Downloading webapp...');
       try {
@@ -24,7 +40,7 @@ class AssetsDownload {
         if (response.statusCode == 200) {
           printTime('Extracting webapp...');
           await extractWebAppZip(webappDir, response.bodyBytes);
-          await setWebAppDownload(true);
+          await setWebAppVersion(webappVersionServer);
           printTime('webapp downloaded');
         }
         else {
