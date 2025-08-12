@@ -167,9 +167,9 @@ class Document {
     );
   }
 
-  Future<void> changePageAt() async {
+  Future<void> changePageAt(int? startBlockIdentifier, int? endBlockIdentifier) async {
     if (isBibleChapter()) {
-      History.insertBibleChapter("$displayTitle $chapterNumber", publication, bookNumber!, chapterNumber!);
+      History.insertBibleChapter(displayTitle, publication, bookNumber!, chapterNumber!, startBlockIdentifier, endBlockIdentifier);
     }
     else {
       if (!hasAlreadyBeenRead) {
@@ -178,27 +178,12 @@ class Document {
           fetchSvgs(),
         ]);
       }
-      History.insertDocument(title, publication, mepsDocumentId);
+      History.insertDocument(title, publication, mepsDocumentId, startBlockIdentifier, endBlockIdentifier);
     }
 
     if(!hasAlreadyBeenRead) {
       await loadUserdata();
     }
-
-    /*
-    // On charge les pages de gauche et de droite
-   if (documentsManager != null) {
-     int index = documentsManager.documentIndex;
-     if (index > 0) {
-       await documentsManager.getPreviousDocument().changePageAt(null);
-     }
-     if (index < documentsManager.documents.length - 1) {
-       await documentsManager.getNextDocument().changePageAt(null);
-     }
-   }
-
-     */
-
     hasAlreadyBeenRead = true;
   }
 

@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../app/services/global_key_service.dart';
 import '../../../../app/services/settings_service.dart';
 import '../../../../core/icons.dart';
-import '../../../../core/utils/shared_preferences_helper.dart';
+import '../../../../core/shared_preferences/shared_preferences_utils.dart';
 import '../../../../data/databases/history.dart';
 import '../../../../i18n/localization.dart';
 import '../../../../widgets/dialog/language_dialog.dart';

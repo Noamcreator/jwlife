@@ -50,6 +50,12 @@ class _DocumentMediasViewState extends State<DocumentMediasView> {
             },
           ),
         ],
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back),
+          onPressed: () {
+            GlobalKeyService.jwLifePageKey.currentState?.handleBack(context);
+          },
+        ),
       ),
       body: (videos.isEmpty && images.isEmpty)
           ? const Center(child: CircularProgressIndicator())
@@ -71,7 +77,7 @@ class _DocumentMediasViewState extends State<DocumentMediasView> {
                 itemCount: videos.length,
                 itemBuilder: (context, index) {
                   final media = videos[index];
-                  MediaItem? mediaItem = getVideoItem(media.keySymbol, media.track, media.mepsDocumentId, media.issueTagNumber, media.mepsLanguageId);
+                  MediaItem? mediaItem = getMediaItem(media.keySymbol, media.track, media.mepsDocumentId, media.issueTagNumber, media.mepsLanguageId);
                   if (mediaItem == null) {
                     return Container();
                   }

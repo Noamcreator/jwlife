@@ -10,10 +10,10 @@ import '../../data/databases/tiles_cache.dart';
 class CreateDatabase {
   static Future<void> create() async {
     await Future.wait([
-      _createDatabase(getPubCollectionsFile, JwLifeApp.pubCollections.createDbPubCollection),
-      _createDatabase(getMediaCollectionsFile, JwLifeApp.mediaCollections.createDbMediaCollection),
-      _createDatabase(getTilesDbFile, TilesCache().createDbTilesCache),
-      _createDatabase(getHistoryFile, History.createDbHistory),
+      _createDatabase(getPubCollectionsDatabaseFile, JwLifeApp.pubCollections.createDbPubCollection),
+      _createDatabase(getMediaCollectionsDatabaseFile, JwLifeApp.mediaCollections.createDbMediaCollection),
+      _createDatabase(getTilesDatabaseFile, TilesCache().createDbTilesCache),
+      _createDatabase(getHistoryDatabaseFile, History.createDbHistory),
     ]);
   }
 

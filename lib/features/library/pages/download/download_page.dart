@@ -38,7 +38,7 @@ class _DownloadPageState extends State<DownloadPage> {
 
   Future<void> loadItems() async {
     // Chargement des médias
-    File mediasCollectionsFile = await getMediaCollectionsFile();
+    File mediasCollectionsFile = await getMediaCollectionsDatabaseFile();
     if (await mediasCollectionsFile.exists()) {
       Database mediaCollectionsDB = await openReadOnlyDatabase(mediasCollectionsFile.path);
 

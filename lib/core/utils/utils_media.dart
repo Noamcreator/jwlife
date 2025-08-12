@@ -90,7 +90,7 @@ Future<void> downloadAudio(BuildContext context, String? pubSymbol, int? issueTa
     await File(mediaFilePath).writeAsBytes(bytes);
 
     // Ouvrir la base de données SQLite
-    final mediaCollectionsDbFile = await getMediaCollectionsFile();
+    final mediaCollectionsDbFile = await getMediaCollectionsDatabaseFile();
     final db = await openDatabase(mediaCollectionsDbFile.path, version: 1);
 
     try {
@@ -108,7 +108,7 @@ Future<void> downloadAudio(BuildContext context, String? pubSymbol, int? issueTa
 
       String imagePath = '';
       if (imageUrl.startsWith('https')) {
-        File tileCacheFile = await getTilesDbFile();
+        File tileCacheFile = await getTilesDatabaseFile();
         Database database = await openDatabase(tileCacheFile.path);
         final List<Map<String, dynamic>> result = await database.query(
           'TilesCache',
@@ -163,7 +163,7 @@ Future<void> downloadAudio(BuildContext context, String? pubSymbol, int? issueTa
 
 Future<void> deleteAudio(BuildContext context, String? pubSymbol, int? issueTagNumber, int? documentId, int? track, String? mepsLanguage) async {
   // Ouvrir la base de données SQLite
-  final mediaCollectionsDbFile = await getMediaCollectionsFile();
+  final mediaCollectionsDbFile = await getMediaCollectionsDatabaseFile();
   final db = await openDatabase(mediaCollectionsDbFile.path, version: 1);
 
   try {
@@ -250,7 +250,7 @@ Future<void> downloadMedia(BuildContext context, MediaItem item, dynamic media, 
     }
 
     // Ouvrir la base de données SQLite
-    final mediaCollectionsDbFile = await getMediaCollectionsFile();
+    final mediaCollectionsDbFile = await getMediaCollectionsDatabaseFile();
     final db = await openDatabase(mediaCollectionsDbFile.path, version: 1);
 
     try {
@@ -269,7 +269,7 @@ Future<void> downloadMedia(BuildContext context, MediaItem item, dynamic media, 
       String? imageUrl = item.type == 'AUDIO' ? item.realmImages!.squareImageUrl! : item.realmImages?.wideFullSizeImageUrl ?? item.realmImages?.wideImageUrl ?? item.realmImages?.squareImageUrl;
       String imagePath = '';
       if (imageUrl != null && imageUrl.startsWith('https')) {
-        File tileCacheFile = await getTilesDbFile();
+        File tileCacheFile = await getTilesDatabaseFile();
         Database database = await openDatabase(tileCacheFile.path);
         final List<Map<String, dynamic>> result = await database.query(
           'TilesCache',
@@ -473,7 +473,7 @@ Future<void> downloadVideoFile(BuildContext context, MediaItem item, dynamic vid
 
 Future<void> removeMedia(MediaItem item) async {
   // Ouvrir la base de données SQLite
-  final mediaCollectionsDbFile = await getMediaCollectionsFile();
+  final mediaCollectionsDbFile = await getMediaCollectionsDatabaseFile();
   final db = await openDatabase(mediaCollectionsDbFile.path, version: 1);
 
   await db.delete(

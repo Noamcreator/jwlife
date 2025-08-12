@@ -13,6 +13,7 @@ import 'package:jwlife/widgets/dialog/utils_dialog.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../app/services/global_key_service.dart';
+import '../../app/services/notification_service.dart';
 import '../../app/services/settings_service.dart';
 import '../../features/publication/pages/document/local/documents_manager.dart';
 import '../../features/publication/pages/menu/local/publication_menu_view.dart';
@@ -222,8 +223,14 @@ class Publication {
       final cancelToken = CancelToken();
       _cancelToken = cancelToken;
 
-      final messenger = ScaffoldMessenger.of(context);   // ✅ capture en avance
-      final theme = Theme.of(context); // ✅ capture en avance
+      // Afficher la notification initiale
+      await NotificationService().showProgressNotification(
+        id: hashCode, // ID unique basé sur la publication
+        title: 'Téléchargement en cours...',
+        body: getTitle(),
+        progress: 0,
+        maxProgress: 100,
+      );
 
       _downloadOperation = CancelableOperation.fromFuture(
         downloadJwpubFile(this, context, cancelToken),
@@ -231,6 +238,8 @@ class Publication {
           isDownloadingNotifier.value = false;
           isDownloadedNotifier.value = false;
           progressNotifier.value = 0;
+          // Annuler la notification
+          NotificationService().cancelNotification(hashCode);
         },
       );
 
@@ -245,14 +254,16 @@ class Publication {
 
         progressNotifier.value = 1.0;
 
-        showBottomMessageWithActionState(messenger, theme.brightness == Brightness.dark, '« ${getTitle()} » téléchargée', SnackBarAction(
-            label: 'Ouvrir',
-            textColor: theme.primaryColor,
-            onPressed: () {
-              pubDownloaded.showMenu(GlobalKeyService.currentPageKey?.currentContext ?? context);
-            },
-        ),
+        // Notification de fin avec bouton "Ouvrir"
+        await NotificationService().showCompletionNotification(
+          id: hashCode,
+          title: '✅ Téléchargement terminé',
+          body: getTitle(),
+          payload: 'pub:${symbol}_${mepsLanguage.id}_$issueTagNumber', // Pour identifier la publication
         );
+      } else {
+        // Téléchargement annulé ou échoué
+        await NotificationService().cancelNotification(hashCode);
       }
 
       isDownloadingNotifier.value = false;

@@ -17,22 +17,19 @@ class RectangleMediaItemItem extends StatelessWidget {
     MediaItem mediaItem = media;
     bool isAudio = mediaItem.type == "AUDIO";
 
-    return GestureDetector(
-      onTap: () {
-        if (isAudio) {
-          showAudioPlayer(context, mediaItem);
-        }
-        else {
-          showFullScreenVideo(context, mediaItem);
-        }
-      },
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 2.0),
-        decoration: BoxDecoration(
-          color: Theme.of(context).brightness == Brightness.dark
-              ? const Color(0xFF292929)
-              : Colors.white,
-        ),
+    return Material(
+      color: Theme.of(context).brightness == Brightness.dark
+          ? const Color(0xFF292929)
+          : Colors.white,
+      child: InkWell(
+        onTap: () {
+          if (isAudio) {
+            showAudioPlayer(context, mediaItem);
+          }
+          else {
+            showFullScreenVideo(context, mediaItem);
+          }
+        },
         child: SizedBox(
           height: 80,
           child: Stack(

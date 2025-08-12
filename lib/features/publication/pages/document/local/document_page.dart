@@ -9,7 +9,6 @@ import 'package:just_audio/just_audio.dart';
 import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
-import 'package:jwlife/core/utils/shared_preferences_helper.dart';
 import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/core/utils/utils_audio.dart';
 import 'package:jwlife/core/utils/utils_document.dart';
@@ -34,6 +33,7 @@ import '../../../../../../../core/utils/widgets_utils.dart';
 import '../../../../../../../data/models/userdata/bookmark.dart';
 import '../../../../../app/services/global_key_service.dart';
 import '../../../../../app/services/settings_service.dart';
+import '../../../../../core/shared_preferences/shared_preferences_utils.dart';
 import '../../../../../core/webview/webview_javascript.dart';
 import '../../../../../core/webview/webview_utils.dart';
 import '../../../../../widgets/searchfield/searchfield_widget.dart';
@@ -123,6 +123,8 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
   int? lastDocumentId;
   int lastParagraphId = 0;
 
+  bool insertBlockIdentifier = false;
+
   late StreamSubscription<SequenceState?> _streamSequenceStateSubscription;
   late StreamSubscription<Duration?> _streamSequencePositionSubscription;
 
@@ -159,8 +161,6 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
     setState(() {
       _isLoadingData = true;
     });
-
-    await widget.publication.documentsManager!.getCurrentDocument().changePageAt();
 
     _streamSequenceStateSubscription = JwLifeApp.audioPlayer.player.sequenceStateStream.listen((state) {
       if (!mounted) return;
@@ -238,9 +238,24 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
     if (index <= widget.publication.documentsManager!.documents.length - 1 && index >= 0) {
       setState(() {
         widget.publication.documentsManager!.selectedDocumentIndex = index;
+        _controlsVisible = true;
       });
 
-      await widget.publication.documentsManager!.getCurrentDocument().changePageAt();
+      int? startBlockIdentifier;
+      int? endBlockIdentifier;
+      if(!insertBlockIdentifier) {
+        if(widget.publication.documentsManager!.getCurrentDocument().isBibleChapter()) {
+          startBlockIdentifier = widget.firstVerse;
+          endBlockIdentifier = widget.lastVerse;
+        }
+        else {
+          startBlockIdentifier = widget.startParagraphId;
+          endBlockIdentifier = widget.endParagraphId;
+        }
+        insertBlockIdentifier = true;
+      }
+
+      await widget.publication.documentsManager!.getCurrentDocument().changePageAt(startBlockIdentifier, endBlockIdentifier);
     }
   }
 
@@ -260,15 +275,10 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
       widget.publication.documentsManager!.selectedDocumentIndex = page;
       await _controller.evaluateJavascript(source: 'jumpToPage($page);');
 
-      setControlsVisible(true);
-
-      setState(() {});
+      setState(() {
+        _controlsVisible = true;
+      });
     }
-  }
-
-  void setControlsVisible(bool visible) {
-    _controlsVisible = visible;
-    GlobalKeyService.jwLifePageKey.currentState!.toggleNavBarVisibility.call(_controlsVisible);
   }
 
   Future<bool> _canHandleBackPress() async {
@@ -290,41 +300,41 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
     return true; // Quitter la vue si aucun historique
   }
 
-  Future<void> handleBackPress() async {
+  Future<bool> handleBackPress({bool fromPopScope = false}) async {
     if(_isSearching) {
       setState(() {
         _isSearching = false;
       });
+      return false;
     }
     else if(_showDialog) {
       _showDialog = false;
       _controller.evaluateJavascript(source: "removeDialog();");
       setState(() {
-        setControlsVisible(_controlsVisibleSave);
+        _controlsVisible = _controlsVisibleSave;
       });
+      return false;
     }
     else {
       if (await _canHandleBackPress()) {
-        final jwLifeState = GlobalKeyService.jwLifePageKey.currentState;
-        if (jwLifeState == null) return;
-
-        final currentIndex = jwLifeState.currentIndex;
-        final webViewStack = jwLifeState.webViewPageKeys[currentIndex];
-
-        if (webViewStack.isNotEmpty) {
-          webViewStack.removeLast();
-        }
-
-        if (webViewStack.isEmpty) {
-          jwLifeState.handleBack(context);
-        } else {
-          final currentNavigator = jwLifeState.navigatorKeys[currentIndex].currentState;
-          if (currentNavigator?.canPop() ?? false) {
-            currentNavigator!.pop();
+        Future.delayed(const Duration(milliseconds: 300), () {
+          if (mounted) {
+            setState(() {
+              _isLoadingWebView = false; // 👈 on masque après l'animation
+            });
           }
+        });
+
+        if(fromPopScope) {
+          return true;
+        }
+        else {
+          GlobalKeyService.jwLifePageKey.currentState!.handleBack(context);
+          return false;
         }
       }
     }
+    return true;
   }
 
   void _openFullScreenImageView(String path) {
@@ -384,15 +394,13 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
       resizeToAvoidBottomInset: false,
       backgroundColor: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF111111) : Colors.white,
       body: Stack(children: [
-        Visibility(
-          visible: _isLoadingWebView,
-          maintainState: true,
+        Offstage(
+          offstage: !_isLoadingWebView,
           child: _isLoadingData ? InAppWebView(
               initialSettings: InAppWebViewSettings(
                 scrollBarStyle: null,
                 verticalScrollBarEnabled: false,
                 horizontalScrollBarEnabled: false,
-                disableContextMenu: true,
                 useShouldOverrideUrlLoading: true,
                 mediaPlaybackRequiresUserGesture: false,
                 useOnLoadResource: false,
@@ -418,6 +426,7 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
               onWebViewCreated: (controller) async {
                 _controller = controller;
 
+
                 controller.addJavaScriptHandler(
                     handlerName: 'fontsLoaded',
                     callback: (args) {
@@ -441,10 +450,10 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
                     bool isMaximized = args[0] as bool;
                     setState(() {
                       if(isMaximized) {
-                        setControlsVisible(true);
+                        _controlsVisible = true;
                       }
                       else {
-                        setControlsVisible(_controlsVisibleSave);
+                        _controlsVisible = _controlsVisibleSave;
                       }
                     });
                   },
@@ -542,16 +551,12 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
                           _controlsVisible = false;
                           _controlsVisibleSave = false;
                         });
-                        // enelever la barre de noti en haut de l'ecran
-                        GlobalKeyService.jwLifePageKey.currentState!.toggleNavBarVisibility(false);
                       }
                       else if (args[1] == "up") {
                         setState(() {
                           _controlsVisible = true;
                           _controlsVisibleSave = true;
                         });
-                        // remettre la barre de noti en haut de l'ecran
-                        GlobalKeyService.jwLifePageKey.currentState!.toggleNavBarVisibility(true);
                       }
                     }
                   },
@@ -677,7 +682,6 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
                   },
                 );
 
-                // Gestionnaire pour les clics sur les images
                 controller.addJavaScriptHandler(
                   handlerName: 'fetchVerses',
                   callback: (args) async {
@@ -687,7 +691,6 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
                   },
                 );
 
-                // Gestionnaire pour les clics sur les images
                 controller.addJavaScriptHandler(
                   handlerName: 'fetchExtractPublication',
                   callback: (args) async {
@@ -699,7 +702,20 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
                   },
                 );
 
-                // Gestionnaire pour les clics sur les images
+                controller.addJavaScriptHandler(
+                  handlerName: 'fetchCommentaries',
+                  callback: (args) async {
+                    /*
+                    Map<String, dynamic>? extractPublication = await fetchExtractPublication(context, 'document', widget.publication.documentsManager!.database, widget.publication, args[0], _jumpToPage, _jumpToParagraph);
+                    if (extractPublication != null) {
+                      printTime('fetchExtractPublication $extractPublication');
+                      return extractPublication;
+                    }
+
+                     */
+                  },
+                );
+
                 controller.addJavaScriptHandler(
                   handlerName: 'fetchFootnote',
                   callback: (args) async {
@@ -709,12 +725,39 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
                   },
                 );
 
-                // Gestionnaire pour les clics sur les images
                 controller.addJavaScriptHandler(
                   handlerName: 'fetchVersesReference',
                   callback: (args) async {
-                    Map<String, dynamic> versesReference = await fetchVersesReference(context, widget.publication, controller, args[0]);
+                    Map<String, dynamic> versesReference = await fetchVersesReference(context, widget.publication, args[0]);
                     return versesReference;
+                  },
+                );
+
+                controller.addJavaScriptHandler(
+                  handlerName: 'fetchVerseInfo',
+                  callback: (args) async {
+                    int book = widget.publication.documentsManager!.getCurrentDocument().bookNumber!;
+                    int chapter = widget.publication.documentsManager!.getCurrentDocument().chapterNumber!;
+                    int verse = int.parse(args[0]['id']);
+                    int? verseId = await JwLifeApp.bibleCluesInfo.getBibleVerseId(book, chapter, verse);
+
+                    Future<List<Map<String, dynamic>>> verseCommentaries = fetchVerseCommentaries(context, widget.publication, verseId!, false);
+                    Future<List<Map<String, dynamic>>> verseVersions = fetchOtherVerseVersion(context, widget.publication, book, chapter, verse, verseId);
+                    Future<List<Map<String, dynamic>>> verseResearchGuide = fetchVerseResearchGuide(context, verseId, false);
+                    Future<List<Map<String, dynamic>>> verseFootnotes = fetchVerseFootnotes(context, widget.publication, verseId);
+
+                    print(widget.publication.documentsManager!.getCurrentDocument().notes.where((note) => note['BlockIdentifier'] == verse).toList());
+
+                    final verseInfo = {
+                      'title': JwLifeApp.bibleCluesInfo.getVerse(widget.publication.documentsManager!.getCurrentDocument().bookNumber!, widget.publication.documentsManager!.getCurrentDocument().chapterNumber!, verse),
+                      'commentary': await verseCommentaries,
+                      'versions': await verseVersions,
+                      'guide': await verseResearchGuide,
+                      'footnotes': await verseFootnotes,
+                      'notes': widget.publication.documentsManager!.getCurrentDocument().notes.where((note) => note['BlockIdentifier'] == verse).toList(),
+                    };
+
+                    return verseInfo;
                   },
                 );
 
@@ -724,23 +767,9 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
                     Map<String, dynamic>? document = args[0];
                     if (document != null) {
                       if (document['mepsDocumentId'] != null) {
-                        bool saveControlsVisible = _controlsVisible;
-
-                        if (!saveControlsVisible) {
-                          GlobalKeyService.jwLifePageKey.currentState?.toggleNavBarVisibility(true);
-                        }
-
                         await showDocumentView(context, document['mepsDocumentId'], document['mepsLanguageId'], startParagraphId: document['startParagraphId'], endParagraphId: document['endParagraphId']);
-
-                        GlobalKeyService.jwLifePageKey.currentState?.toggleNavBarVisibility(saveControlsVisible);
                       }
                       else if (document['bookNumber'] != null && document['chapterNumber'] != null) {
-                        bool saveControlsVisible = _controlsVisible;
-
-                        if (!saveControlsVisible) {
-                          GlobalKeyService.jwLifePageKey.currentState?.toggleNavBarVisibility(true);
-                        }
-
                         await showChapterView(
                           context,
                           'nwtsty',
@@ -750,8 +779,6 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
                           firstVerseNumber: document["firstVerseNumber"],
                           lastVerseNumber: document["lastVerseNumber"],
                         );
-
-                        GlobalKeyService.jwLifePageKey.currentState?.toggleNavBarVisibility(saveControlsVisible);
                       }
                     }
                   },
@@ -1003,15 +1030,15 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
                   callback: (args) async {
                     String link = args[0];
 
-                    printTime('Link: $link');
                     // Extraire les paramètres
                     Uri uri = Uri.parse(link);
                     String? pub = uri.queryParameters['pub'];
                     int? issue = uri.queryParameters['issue'] != null ? int.parse(uri.queryParameters['issue']!) : null;
                     int? docId = uri.queryParameters['docid'] != null ? int.parse(uri.queryParameters['docid']!) : null;
                     int? track = uri.queryParameters['track'] != null ? int.parse(uri.queryParameters['track']!) : null;
+                    String? langwritten = uri.queryParameters['langwritten'] ?? JwLifeSettings().currentLanguage.symbol;
 
-                    MediaItem? mediaItem = getVideoItem(pub, track, docId, issue, null);
+                    MediaItem? mediaItem = getMediaItem(pub, track, docId, issue, langwritten);
 
                     if(mediaItem != null) {
                       showVideoDialog(context, mediaItem).then((result) {
@@ -1019,9 +1046,6 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
                           showFullScreenVideo(context, mediaItem);
                         }
                       });
-                    }
-                    else {
-
                     }
                   },
                 );
@@ -1058,6 +1082,7 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
                   }
                 }
                 else if (uri.host == 'www.jw.org' && uri.path == '/finder') {
+                  printTime('Requested URL: $url');
                   if(uri.queryParameters.containsKey('wtlocale')) {
                     final wtlocale = uri.queryParameters['wtlocale'];
                     if (uri.queryParameters.containsKey('lank')) {
@@ -1080,17 +1105,17 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
 
                       Publication? publication = await PubCatalog.searchPub(pub!, issueTagNumber, wtlocale!);
                       if (publication != null) {
-                        GlobalKeyService.jwLifePageKey.currentState!.toggleNavBarPositioned(false);
+                        GlobalKeyService.jwLifePageKey.currentState!.toggleNavBarDisable(false);
                         await publication.showMenu(context);
-                        GlobalKeyService.jwLifePageKey.currentState!.toggleNavBarPositioned(true);
+                        GlobalKeyService.jwLifePageKey.currentState!.toggleNavBarDisable(true);
                       }
                     }
-                    else if(uri.queryParameters.containsKey('docID')) {
+                    else {
                       _pageHistory.add(widget.publication.documentsManager!.selectedDocumentIndex); // Ajouter la page actuelle à l'historique
                       _currentPageHistory = -1;
 
                       setState(() {
-                        setControlsVisible(true);
+                        _controlsVisible = true;
                       });
                       return NavigationActionPolicy.ALLOW;
                     }
@@ -1104,17 +1129,18 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
                 _currentPageHistory = -1;
 
                 setState(() {
-                  setControlsVisible(true);
+                  _controlsVisible = true;
                 });
                 // Permet la navigation pour tous les autres liens
                 return NavigationActionPolicy.ALLOW;
               },
-              onProgressChanged: (controller, progress) {
+              onProgressChanged: (controller, progress) async {
                 if(progress == 100) {
                   setState(() {
                     _isLoadingWebView = true;
                   });
                 }
+
               }
           ) : Container(),
         ),
@@ -1123,12 +1149,20 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
           getLoadingWidget(Theme.of(context).primaryColor),
 
 
-        if (_controlsVisible)
-          Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              child: AppBar(
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          child: AnimatedSlide(
+          duration: const Duration(milliseconds: 300),
+          offset: _controlsVisible ? Offset.zero : const Offset(0, -1),
+          curve: Curves.easeInOut,
+          child: AnimatedOpacity(
+          duration: const Duration(milliseconds: 300),
+          opacity: _controlsVisible ? 1.0 : 0.0,
+          curve: Curves.easeInOut,
+          child: AppBar(
+
                 title: _isSearching
                     ? SearchFieldWidget(
                   query: '',
@@ -1252,14 +1286,15 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
                           icon: Icon(JwIcons.language),
                           onPressed: () async {
                             LanguagesPubDialog languageDialog = LanguagesPubDialog(publication: widget.publication);
-                            showDialog(
+                            showDialog<Publication>(
                               context: context,
                               builder: (context) => languageDialog,
-                            ).then((value) {
-                              if (value != null) {
-                                widget.publication.showMenu(context, mepsLanguage: value);
+                            ).then((languagePub) {
+                              if (languagePub != null) {
+                                showPageDocument(context, languagePub, widget.publication.documentsManager!.getCurrentDocument().mepsDocumentId);
                               }
-                            });
+                            }
+                            );
                           },
                         ),
                         IconTextButton(
@@ -1339,10 +1374,48 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
                         ),
                       ],
                     ),
-                ],
-              )
+                  ],
+                )
+              ),
+            ),
           ),
-      ]),
+
+          if(GlobalKeyService.jwLifePageKey.currentState!.audioWidgetVisible)
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: AnimatedSlide(
+                duration: const Duration(milliseconds: 300),
+                offset: _controlsVisible ? Offset(0, -0.9) : const Offset(0, 1),
+                curve: Curves.easeInOut,
+                child: AnimatedOpacity(
+                    duration: const Duration(milliseconds: 300),
+                    opacity: _controlsVisible ? 1.0 : 0.0,
+                    curve: Curves.easeInOut,
+                    child: GlobalKeyService.jwLifePageKey.currentState!.getAudioWidget()
+                ),
+              ),
+            ),
+
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: AnimatedSlide(
+              duration: const Duration(milliseconds: 300),
+              offset: _controlsVisible ? Offset.zero : const Offset(0, 1),
+              curve: Curves.easeInOut,
+              child: AnimatedOpacity(
+                  duration: const Duration(milliseconds: 300),
+                  opacity: _controlsVisible ? 1.0 : 0.0,
+                  curve: Curves.easeInOut,
+                  child: GlobalKeyService.jwLifePageKey.currentState!.getBottomNavigationBar()
+              ),
+            ),
+          ),
+        ]
+      )
     );
   }
 

@@ -29,6 +29,7 @@ class Assets {
   static const String darkHighlight6Selected = 'assets/icons/highlights/dark/highlight6_selected.png';
   static const String darkHighlightSelected = 'assets/icons/highlights/dark/highlight_selected.png';
   static const String dbMepsunit = 'assets/db/mepsunit.db';
+  static const String mepsunitJwdat = 'assets/db/mepsunit.jwdat';
   static const String fontsJwIcons = 'assets/fonts/JwIcons.ttf';
   static const String fontsNotoSansBold = 'assets/fonts/NotoSans-Bold.ttf';
   static const String fontsRobotoBold = 'assets/fonts/Roboto-Bold.ttf';

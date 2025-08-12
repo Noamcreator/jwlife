@@ -5,13 +5,10 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:intl/intl.dart';
-import 'package:jwlife/app/jwlife_page.dart';
 import 'package:jwlife/core/icons.dart';
-import 'package:jwlife/core/utils/shared_preferences_helper.dart';
 import 'package:jwlife/data/models/meps_language.dart';
 import 'package:jwlife/i18n/app_localizations.dart';
 import 'package:jwlife/i18n/localization.dart';
-import 'package:jwlife/features/home/pages/home_page.dart';
 import 'package:jwlife/widgets/dialog/utils_dialog.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:realm/realm.dart';
@@ -20,6 +17,7 @@ import 'package:sqflite/sqflite.dart';
 import '../app/jwlife_app.dart';
 import '../app/services/global_key_service.dart';
 import '../app/services/settings_service.dart';
+import '../core/shared_preferences/shared_preferences_utils.dart';
 import '../core/utils/files_helper.dart';
 import '../core/utils/utils.dart';
 import '../core/utils/widgets_utils.dart';
@@ -40,7 +38,7 @@ class _SettingsPageState extends State<SettingsPage> {
   Locale _selectedLocale = Locale('en');
   String _selectedLocaleVernacular = 'English';
   Color? _selectedColor = Colors.blue;
-  MepsLanguage _selectedLanguage = JwLifeSettings().currentLanguage;
+  final MepsLanguage _selectedLanguage = JwLifeSettings().currentLanguage;
 
   final String appVersion = '1.0.0';
   String catalogDate = '';
@@ -89,7 +87,7 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _getVernacularName() async {
-    File mepsFile = await getMepsFile();
+    File mepsFile = await getMepsUnitDatabaseFile();
     Database database = await openDatabase(mepsFile.path);
 
     List<Map<String, dynamic>> result = await database.rawQuery('''
@@ -103,8 +101,10 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _getCatalogDate() async {
-    String dateStr = await getCatalogDate();
-
+    File catalogFile = await getCatalogDatabaseFile();
+    Database database = await openDatabase(catalogFile.path);
+    List<Map<String, dynamic>> result = await database.rawQuery('SELECT Created FROM Revision');
+    String dateStr = result.first['Created'];
     // Si vide ou nul, on arrête
     if (dateStr.isEmpty) return;
 
@@ -247,7 +247,7 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> showLanguageSelectionDialog() async {
-    File mepsFile = await getMepsFile();
+    File mepsFile = await getMepsUnitDatabaseFile();
     Database database = await openDatabase(mepsFile.path);
 
     List<String> languageCodes = AppLocalizations.supportedLocales.map((locale) => locale.languageCode).toList();

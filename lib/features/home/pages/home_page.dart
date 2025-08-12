@@ -134,7 +134,7 @@ class HomePageState extends State<HomePage> {
   }
 
   Future<void> _loadBibleCluesInfo() async {
-    File mepsFile = await getMepsFile();
+    File mepsFile = await getMepsUnitDatabaseFile();
 
     if (await mepsFile.exists()) {
       Database db = await openDatabase(mepsFile.path);
@@ -317,7 +317,7 @@ class HomePageState extends State<HomePage> {
     _articles = [];
 
     final languageSymbol = JwLifeSettings().currentLanguage.symbol;
-    final articlesDbFile = await getArticlesFile();
+    final articlesDbFile = await getArticlesDatabaseFile();
 
     final db = await openDatabase(
       articlesDbFile.path,
@@ -670,10 +670,10 @@ class HomePageState extends State<HomePage> {
         GestureDetector(
           onTap: () {
             if (publication.isDownloadedNotifier.value) {
-              GlobalKeyService.jwLifePageKey.currentState!.toggleNavBarPositioned(true);
+              GlobalKeyService.jwLifePageKey.currentState!.toggleNavBarDisable(true);
 
               final GlobalKey<DailyTextPageState> dailyTextPageKey = GlobalKey<DailyTextPageState>();
-              GlobalKeyService.jwLifePageKey.currentState!.webViewPageKeys[GlobalKeyService.jwLifePageKey.currentState!.currentIndex].add(dailyTextPageKey);
+              GlobalKeyService.jwLifePageKey.currentState!.webViewPageKeys[GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex].add(dailyTextPageKey);
 
               showPage(context, DailyTextPage(key: dailyTextPageKey, publication: publication));
             }

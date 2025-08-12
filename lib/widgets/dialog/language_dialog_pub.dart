@@ -47,7 +47,7 @@ class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
     if (widget.publication != null) {
       selectedLanguage = widget.publication!.mepsLanguage.symbol;
     }
-    File catalogFile = await getCatalogFile();
+    File catalogFile = await getCatalogDatabaseFile();
 
     if (await catalogFile.exists()) {
       Database db = await openDatabase(catalogFile.path);
@@ -61,8 +61,8 @@ class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
   Future<void> fetchLanguages(String searchTerm) async {
     if (database == null) return; // Assurez-vous que la base de données est initialisée
 
-    File catalogFile = await getCatalogFile();
-    File mepsUnitFile = await getMepsFile();
+    File catalogFile = await getCatalogDatabaseFile();
+    File mepsUnitFile = await getMepsUnitDatabaseFile();
 
     if (await catalogFile.exists()) {
       Database db = database!;  // Utiliser la base de données déjà initialisée

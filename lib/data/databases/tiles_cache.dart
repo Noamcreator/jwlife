@@ -20,7 +20,7 @@ class TilesCache {
   final List<Tile> tiles = [];
 
   Future<void> init() async {
-    File tilesDb = await getTilesDbFile();
+    File tilesDb = await getTilesDatabaseFile();
     _database = await openDatabase(
       tilesDb.path,
       version: 1,

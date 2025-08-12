@@ -64,7 +64,7 @@ class _ArticlePageState extends State<ArticlePage> {
 
   Future<String?> _getImagePathFromDatabase(String url) async {
     // Mettre l'URL en minuscule
-    File articlesFile = await getArticlesFile();
+    File articlesFile = await getArticlesDatabaseFile();
     Database db = await openDatabase(articlesFile.path);
     List<Map<String, dynamic>> imageName = await db.rawQuery(
         'SELECT Path FROM Image WHERE LOWER(Name) = ?', [url]

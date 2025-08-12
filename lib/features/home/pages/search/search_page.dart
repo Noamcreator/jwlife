@@ -7,6 +7,7 @@ import 'package:jwlife/features/home/pages/search/search_model.dart';
 import 'package:jwlife/features/home/pages/search/verses_search_tab.dart';
 import 'package:searchfield/searchfield.dart';
 
+import '../../../../app/services/global_key_service.dart';
 import '../../../../app/services/settings_service.dart';
 import '../../../../widgets/searchfield/searchfield_all_widget.dart';
 import 'all_search_tab.dart';
@@ -67,6 +68,12 @@ class _SearchPageState extends State<SearchPage> with SingleTickerProviderStateM
       resizeToAvoidBottomInset: false,
       appBar: AppBar(
         title: SearchFieldAll(autofocus: false,  initialText: widget.query),
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back),
+          onPressed: () {
+            GlobalKeyService.jwLifePageKey.currentState?.handleBack(context);
+          },
+        ),
       ),
       body: Column(
         children: [

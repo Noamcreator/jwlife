@@ -12,6 +12,7 @@ import 'package:jwlife/data/realm/catalog.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:jwlife/core/utils/files_helper.dart';
 
+import '../../app/services/global_key_service.dart';
 import '../../app/services/settings_service.dart';
 import '../../core/utils/utils.dart';
 import '../models/audio.dart';
@@ -26,12 +27,16 @@ class History {
         "BookNumber" INTEGER,
         "ChapterNumber" INTEGER,
         "DocumentId" INTEGER,
+        "StartBlockIdentifier" INTEGER,
+        "EndBlockIdentifier" INTEGER,
         "Track" INTEGER,
         "IssueTagNumber" INTEGER DEFAULT 0,
         "KeySymbol" TEXT,
         "MepsLanguageId" INTEGER,
         "DisplayTitle" TEXT,
         "Type" TEXT,
+        "NavigationBottomBarIndex" INTEGER DEFAULT 0,
+        "ScrollPosition" INTEGER DEFAULT 0,
         "VisitCount" INTEGER DEFAULT 1,
         "LastVisited" TEXT DEFAULT CURRENT_TIMESTAMP
       );
@@ -40,7 +45,7 @@ class History {
   }
 
   static Future<Database> getHistoryDb() async {
-    File historyFile = await getHistoryFile();
+    File historyFile = await getHistoryDatabaseFile();
     return await openDatabase(historyFile.path);
   }
 
@@ -50,13 +55,19 @@ class History {
     await db.close();
   }
 
-  static Future<List<Map<String, dynamic>>> loadAllHistory() async {
-    final catalogFile = await getCatalogFile();
+  static Future<List<Map<String, dynamic>>> loadAllHistory(int? bottomBarIndex) async {
+    final catalogFile = await getCatalogDatabaseFile();
     final db = await getHistoryDb();
 
     await attachDatabases(db, {'catalog': catalogFile.path});
 
-    List<Map<String, dynamic>> result = await db.rawQuery('''
+    // Initialise la clause WHERE vide
+    String whereClause = '';
+    if (bottomBarIndex != null) {
+      whereClause = 'WHERE NavigationBottomBarIndex = $bottomBarIndex';
+    }
+
+    final result = await db.rawQuery('''
       SELECT 
         History.*,
         catalog.Publication.ShortTitle AS PublicationTitle,
@@ -67,7 +78,8 @@ class History {
         ON catalog.Publication.MepsLanguageId = History.MepsLanguageId 
         AND catalog.Publication.KeySymbol = History.KeySymbol
         AND catalog.Publication.IssueTagNumber = History.IssueTagNumber
-        ORDER BY LastVisited DESC
+      $whereClause
+      ORDER BY LastVisited DESC
     ''');
 
     await detachDatabases(db, ['catalog']);
@@ -76,21 +88,26 @@ class History {
     return result;
   }
 
-  static Future<void> insertDocument(String displayTitle, Publication pub, int docId) async {
+  static Future<void> insertDocument(String displayTitle, Publication pub, int docId, int? startParagraphId, int? endParagraphId) async {
     final db = await getHistoryDb();
 
     List<Map<String, dynamic>> existing = await db.query(
       "History",
       where: "DocumentId = ? AND Type = ?",
-      whereArgs: [docId, "webview"],
+      whereArgs: [docId, "document"],
     );
 
     if (existing.isNotEmpty) {
       await db.update(
         "History",
         {
+          "DisplayTitle": displayTitle,
+          "StartBlockIdentifier": startParagraphId,
+          "EndBlockIdentifier": endParagraphId,
           "VisitCount": (existing.first["VisitCount"] ?? 0) + 1,
-          "LastVisited": DateTime.now().toIso8601String()
+          "LastVisited": DateTime.now().toUtc().toIso8601String(),
+          "NavigationBottomBarIndex": GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex,
+          "ScrollPosition": 0
         },
         where: "HistoryId = ?",
         whereArgs: [existing.first["HistoryId"]],
@@ -100,18 +117,22 @@ class History {
       await db.insert("History", {
         "DisplayTitle": displayTitle,
         "DocumentId": docId,
+        "StartBlockIdentifier": startParagraphId,
+        "EndBlockIdentifier": endParagraphId,
         "KeySymbol": pub.keySymbol,
         "IssueTagNumber": pub.issueTagNumber,
         "MepsLanguageId": pub.mepsLanguage.id,
-        "Type": "webview",
-        "LastVisited": DateTime.now().toIso8601String()
+        "Type": "document",
+        "NavigationBottomBarIndex": GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex,
+        "ScrollPosition": 0,
+        "LastVisited": DateTime.now().toUtc().toIso8601String()
       });
     }
 
     await db.close();
   }
 
-  static Future<void> insertBibleChapter(String displayTitle, Publication bible, int bibleBook, int bibleChapter) async {
+  static Future<void> insertBibleChapter(String displayTitle, Publication bible, int bibleBook, int bibleChapter, int? startVerse, int? endVerse) async {
     final db = await getHistoryDb();
 
     List<Map<String, dynamic>> existing = await db.query(
@@ -120,12 +141,19 @@ class History {
       whereArgs: [bible.keySymbol, bibleBook, bibleChapter, "chapter"],
     );
 
+    String lastDisplayTitle = startVerse == null && endVerse == null ? "$displayTitle $bibleChapter" : JwLifeApp.bibleCluesInfo.getVerses(bibleBook, bibleChapter, startVerse ?? 0, bibleBook, bibleChapter, endVerse ?? 0);
+
     if (existing.isNotEmpty) {
       await db.update(
         "History",
         {
+          "DisplayTitle": lastDisplayTitle,
+          "StartBlockIdentifier": startVerse,
+          "EndBlockIdentifier": endVerse,
           "VisitCount": (existing.first["VisitCount"] ?? 0) + 1,
-          "LastVisited": DateTime.now().toIso8601String()
+          "LastVisited": DateTime.now().toUtc().toIso8601String(),
+          "NavigationBottomBarIndex": GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex,
+          "ScrollPosition": 0
         },
         where: "HistoryId = ?",
         whereArgs: [existing.first["HistoryId"]],
@@ -133,13 +161,17 @@ class History {
     }
     else {
       await db.insert("History", {
-        "DisplayTitle": displayTitle,
+        "DisplayTitle": lastDisplayTitle,
         "BookNumber": bibleBook,
         "ChapterNumber": bibleChapter,
+        "StartBlockIdentifier": startVerse,
+        "EndBlockIdentifier": endVerse,
         "KeySymbol": bible.keySymbol,
         "MepsLanguageId": bible.mepsLanguage.id,
         "Type": "chapter",
-        "LastVisited": DateTime.now().toIso8601String()
+        "NavigationBottomBarIndex": GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex,
+        "ScrollPosition": 0,
+        "LastVisited": DateTime.now().toUtc().toIso8601String()
       });
     }
 
@@ -190,7 +222,8 @@ class History {
         "History",
         {
           "VisitCount": (existing.first["VisitCount"] ?? 0) + 1,
-          "LastVisited": DateTime.now().toIso8601String()
+          "LastVisited": DateTime.now().toUtc().toIso8601String(),
+          "NavigationBottomBarIndex": GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex,
         },
         where: "HistoryId = ?",
         whereArgs: [existing.first["HistoryId"]],
@@ -205,7 +238,8 @@ class History {
         "IssueTagNumber": issueTagNumber ?? 0,
         "MepsLanguageId": mepsLanguageId,
         "Type": "video",
-        "LastVisited": DateTime.now().toIso8601String()
+        "NavigationBottomBarIndex": GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex,
+        "LastVisited": DateTime.now().toUtc().toIso8601String()
       });
     }
 
@@ -256,7 +290,8 @@ class History {
         "History",
         {
           "VisitCount": (existing.first["VisitCount"] ?? 0) + 1,
-          "LastVisited": DateTime.now().toIso8601String()
+          "LastVisited": DateTime.now().toUtc().toIso8601String(),
+          "NavigationBottomBarIndex": GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex,
         },
         where: "HistoryId = ?",
         whereArgs: [existing.first["HistoryId"]],
@@ -271,7 +306,8 @@ class History {
         "IssueTagNumber": issueTagNumber ?? 0,
         "MepsLanguageId": mepsLanguageId,
         "Type": "audio",
-        "LastVisited": DateTime.now().toIso8601String()
+        "NavigationBottomBarIndex": GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex,
+        "LastVisited": DateTime.now().toUtc().toIso8601String()
       });
     }
 
@@ -322,7 +358,8 @@ class History {
         "History",
         {
           "VisitCount": (existing.first["VisitCount"] ?? 0) + 1,
-          "LastVisited": DateTime.now().toIso8601String()
+          "LastVisited": DateTime.now().toUtc().toIso8601String(),
+          "NavigationBottomBarIndex": GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex,
         },
         where: "HistoryId = ?",
         whereArgs: [existing.first["HistoryId"]],
@@ -337,7 +374,8 @@ class History {
         "IssueTagNumber": issueTagNumber ?? 0,
         "MepsLanguageId": mepsLanguageId,
         "Type": "audio",
-        "LastVisited": DateTime.now().toIso8601String()
+        "NavigationBottomBarIndex": GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex,
+        "LastVisited": DateTime.now().toUtc().toIso8601String()
       });
     }
 
@@ -345,12 +383,12 @@ class History {
   }
 
 
-  static Future<void> showHistoryDialog(BuildContext mainContext) async {
+  static Future<void> showHistoryDialog(BuildContext mainContext, {int? bottomBarIndex}) async {
     bool isDarkMode = Theme.of(mainContext).brightness == Brightness.dark;
 
     // Variables d'état
-    TextEditingController _searchController = TextEditingController();
-    List<Map<String, dynamic>> allHistory = await loadAllHistory();
+    TextEditingController searchController = TextEditingController();
+    List<Map<String, dynamic>> allHistory = await loadAllHistory(bottomBarIndex);
     List<Map<String, dynamic>> filteredHistory = List.from(allHistory); // Initialisation de la liste filtrée
 
     // Fonction pour filtrer l'historique
@@ -393,7 +431,7 @@ class History {
 
                 // Champ de recherche
                 TextField(
-                  controller: _searchController,
+                  controller: searchController,
                   decoration: InputDecoration(
                     labelText: 'Rechercher...',
                     border: OutlineInputBorder(),
@@ -401,7 +439,7 @@ class History {
                     prefixIcon: Icon(JwIcons.magnifying_glass),
                   ),
                   onEditingComplete: () {
-                    filterHistory(_searchController.text);
+                    filterHistory(searchController.text);
                   },
                   onChanged: (value) {
                     filterHistory(value);
@@ -426,7 +464,7 @@ class History {
                           Navigator.pop(context);
 
                           if (item["Type"] == "video") {
-                            MediaItem? mediaItem = getVideoItem(
+                            MediaItem? mediaItem = getMediaItem(
                               item["KeySymbol"],
                               item["Track"],
                               item["DocumentId"],
@@ -454,11 +492,13 @@ class History {
                               item["KeySymbol"],
                               item["MepsLanguageId"],
                               item["BookNumber"],
-                              item["ChapterNumber"]
+                              item["ChapterNumber"],
+                              firstVerseNumber: item["StartBlockIdentifier"],
+                              lastVerseNumber: item["EndBlockIdentifier"],
                             );
                           }
-                          else if (item["Type"] == "webview") {
-                            showDocumentView(mainContext, item["DocumentId"], item["MepsLanguageId"]);
+                          else if (item["Type"] == "document") {
+                            showDocumentView(mainContext, item["DocumentId"], item["MepsLanguageId"], startParagraphId: item["StartBlockIdentifier"], endParagraphId: item["EndBlockIdentifier"]);
                           }
                         },
                         child: Container(

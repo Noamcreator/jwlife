@@ -5,7 +5,6 @@ import 'package:just_audio/just_audio.dart';
 import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/app/services/settings_service.dart';
 import 'package:jwlife/core/icons.dart';
-import 'package:jwlife/core/utils/shared_preferences_helper.dart';
 import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/core/utils/utils_audio.dart';
 import 'package:jwlife/data/realm/catalog.dart';
@@ -15,6 +14,7 @@ import 'package:jwlife/widgets/image_cached_widget.dart';
 import 'package:realm/realm.dart';
 
 import '../../../../app/services/global_key_service.dart';
+import '../../../../core/shared_preferences/shared_preferences_utils.dart';
 import '../../../../widgets/searchfield/searchfield_widget.dart';
 
 class AudioItemsPage extends StatefulWidget {

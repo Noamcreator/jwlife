@@ -20,7 +20,7 @@ import '../../core/api.dart';
 
 // Fonction pour afficher le dialogue de téléchargement
 Future<String?> showVideoDialog(BuildContext context, MediaItem mediaItem) async {
-  File mediaCollectionFile = await getMediaCollectionsFile();
+  File mediaCollectionFile = await getMediaCollectionsDatabaseFile();
   Database db = await openDatabase(mediaCollectionFile.path, readOnly: true, version: 1);
 
   final List<ConnectivityResult> connectivityResult = await (Connectivity().checkConnectivity());

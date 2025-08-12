@@ -176,7 +176,7 @@ class _SearchFieldAllState extends State<SearchFieldAll> {
     }
 
     // 📘 Recherche dans le catalogue principal
-    final catalogFile = await getCatalogFile();
+    final catalogFile = await getCatalogDatabaseFile();
     final db = await openDatabase(catalogFile.path, readOnly: true);
 
     //final result = await db.rawQuery(/* comme ton code source ci-dessus */);

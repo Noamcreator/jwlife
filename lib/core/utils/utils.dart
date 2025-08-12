@@ -1,4 +1,3 @@
-
 import 'dart:io';
 import 'dart:math';
 import 'dart:ui' as ui;
@@ -10,7 +9,33 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:sqflite/sqflite.dart';
 
+import 'package:image/image.dart' as img;
+
 String capitalize(String s) => s[0].toUpperCase() + s.substring(1);
+
+int durationSecondsToTicks(double seconds) {
+  return (seconds * 10000000).round();
+}
+
+
+String formatTick(int ticks) {
+  // 1 tick = 100 ns → 10 000 000 ticks = 1 seconde
+  double totalSeconds = ticks / 10000000;
+
+  int hours = totalSeconds ~/ 3600;
+  int minutes = (totalSeconds % 3600) ~/ 60;
+  int seconds = totalSeconds % 60 ~/ 1;
+// Formater les secondes pour avoir deux chiffres
+  String formattedSeconds = seconds.toString().padLeft(2, '0');
+  String formattedMinutes = minutes.toString().padLeft(2, '0');
+
+  // Retourner la durée formatée avec ou sans les heures
+  if (hours > 0) {
+    return '$hours:$formattedMinutes:$formattedSeconds';
+  } else {
+    return '$minutes:$formattedSeconds';
+  }
+}
 
 String formatDuration(double duration) {
   // Convertir la durée en secondes
@@ -219,4 +244,21 @@ Future<bool> tableExists(Database db, String tableName) async {
     WHERE type='table' AND name=?
   ''', [tableName]);
   return result.isNotEmpty;
+}
+
+img.Image resizeAndCropCenter(img.Image originalImage, int targetSize) {
+  // 1) Redimensionner l'image pour que la hauteur soit targetSize, garder ratio
+  int newHeight = targetSize;
+  int newWidth = (originalImage.width * newHeight / originalImage.height).round();
+
+  img.Image resized = img.copyResize(originalImage, width: newWidth, height: newHeight);
+
+  // 2) Si la largeur est plus grande que targetSize, crop au centre horizontalement
+  if (newWidth > targetSize) {
+    int left = (newWidth - targetSize) ~/ 2;
+    return img.copyCrop(resized, x: left, y: 0, width: targetSize, height: targetSize);
+  }
+
+  // Si la largeur est déjà <= targetSize, retourner l'image redimensionnée telle quelle
+  return resized;
 }

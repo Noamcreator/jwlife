@@ -79,7 +79,7 @@ class _VisitsViewState extends State<VisitsView> {
   }
 
   Future<void> _showAddVisitDialog() async {
-    File catalogFile = await getCatalogFile();
+    File catalogFile = await getCatalogDatabaseFile();
     Database catalogDb = await openDatabase(catalogFile.path);
     List<Map<String, dynamic>> publications = await catalogDb.rawQuery('''
     SELECT * FROM Publication
@@ -87,7 +87,7 @@ class _VisitsViewState extends State<VisitsView> {
   ''', [JwLifeSettings().currentLanguage.id]);
     await catalogDb.close();
 
-    File pubCollectionsFile = await getPubCollectionsFile();
+    File pubCollectionsFile = await getPubCollectionsDatabaseFile();
     Database pubCollectionDb = await openDatabase(pubCollectionsFile.path);
     List<Map<String, dynamic>> downloadPublications = await pubCollectionDb.rawQuery('''
     SELECT * FROM Publication

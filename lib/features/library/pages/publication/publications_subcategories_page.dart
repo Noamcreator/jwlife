@@ -65,8 +65,8 @@ class _PublicationSubcategoriesViewState extends State<PublicationSubcategoriesV
   void loadItemsYears() async {
     int langId = JwLifeSettings().currentLanguage.id;
 
-    File catalogFile = await getCatalogFile();
-    File mepsFile = await getMepsFile();
+    File catalogFile = await getCatalogDatabaseFile();
+    File mepsFile = await getMepsUnitDatabaseFile();
 
     if (await catalogFile.exists() && await mepsFile.exists()) {
       Database catalogDB = await openDatabase(catalogFile.path);

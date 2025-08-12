@@ -34,4 +34,16 @@ class Location {
       title: map['Title'],
     );
   }
+
+  bool isNull() {
+    return bookNumber == null &&
+        chapterNumber == null &&
+        mepsDocumentId == null &&
+        track == null &&
+        issueTagNumber == null &&
+        keySymbol == null &&
+        mepsLanguageId == null &&
+        type == 0 &&
+        title == null;
+  }
 }

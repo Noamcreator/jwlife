@@ -1,3 +1,8 @@
+import 'dart:io';
+
+import 'package:jwlife/core/utils/files_helper.dart';
+import 'package:sqflite/sqflite.dart';
+
 class BibleCluesInfo {
   final String chapterVerseSeparator;
   final String separator;
@@ -69,6 +74,33 @@ class BibleCluesInfo {
       return '${bookName.standardBookName} $chapter1$chapterVerseSeparator$verse1Text $separator $verse2Text';
     }
     return '${bookName.standardBookName} $chapter1$chapterVerseSeparator$verse1Text';
+  }
+
+  Future<int?> getBibleVerseId(int book, int chapter, int verse) async {
+    File mepsFile = await getMepsUnitDatabaseFile();
+
+    try {
+      Database db = await openDatabase(mepsFile.path);
+      List<Map<String, dynamic>> result = await db.rawQuery("""
+      SELECT 
+        FirstBibleVerseId + (? - 1) +
+        CASE 
+          WHEN EXISTS (
+            SELECT 1 FROM BibleSuperscriptionLocation
+            WHERE BookNumber = ? AND ChapterNumber = ?
+          ) AND ? > 1 THEN 1 ELSE 0
+        END AS VerseId
+      FROM BibleRange
+      INNER JOIN BibleInfo ON BibleRange.BibleInfoId = BibleInfo.BibleInfoId
+      WHERE BibleInfo.Name = ? AND BookNumber = ? AND ChapterNumber = ?;
+      """, [verse, book, chapter, verse, 'NWTR', book, chapter]);
+
+      return result.first['VerseId'] as int;
+    }
+    catch (e) {
+      print('Error opening database: $e');
+    }
+    return null;
   }
 }
 

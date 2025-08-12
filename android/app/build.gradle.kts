@@ -7,37 +7,79 @@ plugins {
 
 android {
     namespace = "org.noam.jwlife"
-    compileSdk = flutter.compileSdkVersion
+
+    // Laisse Flutter piloter les versions, mais force des valeurs sûres si besoin.
+    compileSdk = maxOf(flutter.compileSdkVersion, 34) // 34 pour Android 14 (exact alarms)
     ndkVersion = "27.0.12077973"
-    //ndkVersion = flutter.ndkVersion
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        // Recommandé avec AGP 8+ et Kotlin récents
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+        isCoreLibraryDesugaringEnabled = true
     }
 
     kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_11.toString()
+        jvmTarget = JavaVersion.VERSION_17.toString()
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "org.noam.jwlife"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
-        targetSdk = flutter.targetSdkVersion
+        minSdk = maxOf(flutter.minSdkVersion, 21) // requis par la plupart des libs notif
+        targetSdk = maxOf(flutter.targetSdkVersion, 34) // Android 14 (SCHEDULE/USE_EXACT_ALARM)
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+
+        // Nécessaire si tu utilises des vecteurs comme icônes de notif
+        vectorDrawables.useSupportLibrary = true
     }
 
     buildTypes {
+        debug {
+            // Confort dev
+            isMinifyEnabled = false
+            isShrinkResources = false
+        }
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
+            // Active l'optimisation tout en gardant les ressources notif
+            isMinifyEnabled = true
+            isShrinkResources = true
+
+            // Utilise tes propres clés si dispo (sinon debug pour tester rapidement)
             signingConfig = signingConfigs.getByName("debug")
+
+            // ProGuard/R8
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
         }
     }
+
+    // Évite que le shrinker supprime des ressources utiles (sons/icônes de notif)
+    packaging {
+        resources {
+            // Exemples d'exclusions courantes (facultatif)
+            excludes += setOf(
+                "META-INF/AL2.0",
+                "META-INF/LGPL2.1",
+                "META-INF/*.kotlin_module"
+            )
+        }
+    }
+
+    // Si tu utilises des productFlavors, garde ce block simple
+    // flavorDimensions += listOf("env")
+
+    // (Optionnel) pour corriger les warnings lint bloquants en CI
+    lint {
+        abortOnError = false
+    }
+}
+
+dependencies {
+    // Core library desugaring dependency - required when isCoreLibraryDesugaringEnabled = true
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
 }
 
 flutter {

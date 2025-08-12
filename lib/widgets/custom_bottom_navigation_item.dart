@@ -14,6 +14,7 @@ class CustomBottomNavigation extends StatelessWidget {
   final int currentIndex;
   final List<CustomBottomNavigationItem> items;
   final Function(int) onTap;
+  final Function(int) onLongPress;
   final Color? backgroundColor;
   final Color? selectedItemColor;
   final Color? unselectedItemColor;
@@ -27,6 +28,7 @@ class CustomBottomNavigation extends StatelessWidget {
     required this.currentIndex,
     required this.items,
     required this.onTap,
+    required this.onLongPress,
     this.backgroundColor,
     this.selectedItemColor,
     this.unselectedItemColor,
@@ -72,6 +74,7 @@ class CustomBottomNavigation extends StatelessWidget {
               return Expanded(
                 child: InkWell(
                   onTap: () => onTap(index),
+                  onLongPress: () => onLongPress(index),
                   borderRadius: BorderRadius.circular(12),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,

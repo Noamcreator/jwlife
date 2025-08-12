@@ -44,7 +44,6 @@ import '../utils/files_helper.dart';
      */
 
 Future<Map<String, dynamic>> fetchVerses(BuildContext context, String link) async {
-  print('fetchVerses $link');
   List<String> linkSplit = link.split('/');
   String verses = linkSplit.last;
 
@@ -61,7 +60,7 @@ Future<Map<String, dynamic>> fetchVerses(BuildContext context, String link) asyn
   String versesDisplay = JwLifeApp.bibleCluesInfo.getVerses(book1, chapter1, verse1, book2, chapter2, verse2);
 
   List<Map<String, dynamic>> items = [];
-  File mepsFile = await getMepsFile();
+  File mepsFile = await getMepsUnitDatabaseFile();
 
   try {
     Database db = await openDatabase(mepsFile.path);
@@ -69,7 +68,7 @@ Future<Map<String, dynamic>> fetchVerses(BuildContext context, String link) asyn
       SELECT
       (
         SELECT 
-          FirstBibleVerseId + (? - 1) + 
+          FirstBibleVerseId + (? - FirstOrdinal) + 
           CASE 
             WHEN EXISTS (
               SELECT 1 FROM BibleSuperscriptionLocation
@@ -83,7 +82,7 @@ Future<Map<String, dynamic>> fetchVerses(BuildContext context, String link) asyn
     
       (
         SELECT 
-          FirstBibleVerseId + (? - 1) + 
+          FirstBibleVerseId + (? - FirstOrdinal) + 
           CASE 
             WHEN EXISTS (
               SELECT 1 FROM BibleSuperscriptionLocation
@@ -108,6 +107,8 @@ Future<Map<String, dynamic>> fetchVerses(BuildContext context, String link) asyn
       else {
         bibleDb = bible.documentsManager!.database;
       }
+
+      print('Verse Id: ${versesIds.first['FirstVerseId']}');
 
       List<Map<String, dynamic>> results = await bibleDb.rawQuery("""
         SELECT *
@@ -206,19 +207,39 @@ Future<Map<String, dynamic>?> fetchExtractPublication(BuildContext context, Stri
       /// Décoder le contenu
       final decodedHtml = decodeBlobContent(extract['Content'] as Uint8List, publication.hash!);
 
-      List<Map<String, dynamic>> highlights = await JwLifeApp.userdata.getHighlightsFromDocId(extract['RefMepsDocumentId'], extract['MepsLanguageIndex']);
-      List<Map<String, dynamic>> notes = await JwLifeApp.userdata.getNotesFromDocId(extract['RefMepsDocumentId'], extract['MepsLanguageIndex']);
+      int? extractMepsDocumentId = extract['RefMepsDocumentId'];
+      int? firstParagraphId = extract['RefBeginParagraphOrdinal'];
+      int? lastParagraphId = extract['RefEndParagraphOrdinal'];
+
+      // Si une des valeurs est nulle, on essaie de les extraire depuis la référence
+      if (extractMepsDocumentId == null || firstParagraphId == null || lastParagraphId == null) {
+        final regex = RegExp(r'[A-Z]+:(\d+)(?:/(\d+)-(\d+))?');
+        final match = regex.firstMatch(newLink);
+
+        if (match != null) {
+          extractMepsDocumentId ??= int.tryParse(match.group(1)!);
+          firstParagraphId ??= int.tryParse(match.group(2) ?? '');
+          lastParagraphId ??= int.tryParse(match.group(3) ?? '');
+        }
+      }
+
+      List<Map<String, dynamic>> highlights = [];
+      List<Map<String, dynamic>> notes = [];
+      if (extractMepsDocumentId != null) {
+        highlights = await JwLifeApp.userdata.getHighlightsFromDocId(extractMepsDocumentId, extract['MepsLanguageIndex']);
+        notes = await JwLifeApp.userdata.getNotesFromDocId(extractMepsDocumentId, extract['MepsLanguageIndex']);
+      }
 
       dynamic article = {
         'type': 'publication',
         'content': decodedHtml,
-        'className': "publicationCitation html5 pub-${extract['UndatedSymbol']} docId-${extract['RefMepsDocumentId']} docClass-${extract['RefMepsDocumentClass']} jwac showRuby ml-${extract['Symbol']} ms-ROMAN dir-ltr layout-reading layout-sidebar",
+        'className': "publicationCitation html5 pub-${extract['UndatedSymbol']} docId-$extractMepsDocumentId docClass-${extract['RefMepsDocumentClass']} jwac showRuby ml-${refPub?.mepsLanguage.symbol} ms-ROMAN dir-ltr layout-reading layout-sidebar",
         'subtitle': caption,
         'imageUrl': image,
-        'mepsDocumentId': extract['RefMepsDocumentId'],
+        'mepsDocumentId': extractMepsDocumentId ?? -1,
         'mepsLanguageId': extract['MepsLanguageIndex'],
-        'startParagraphId': extract['RefBeginParagraphOrdinal'],
-        'endParagraphId': extract['RefEndParagraphOrdinal'],
+        'startParagraphId': firstParagraphId,
+        'endParagraphId': lastParagraphId,
         'publicationTitle': refPub == null ? extract['ShortTitle'] : refPub.getShortTitle(),
         'highlights': highlights,
         'notes': notes
@@ -251,6 +272,8 @@ Future<Map<String, dynamic>?> fetchExtractPublication(BuildContext context, Stri
       startParagraph = int.tryParse(lastPart);
     }
 
+    print('mepsDocumentId: $mepsDocumentId, startParagraph: $startParagraph, endParagraph: $endParagraph');
+
     if(type == 'document') {
       if(publication.documentsManager!.documents.any((doc) => doc.mepsDocumentId == mepsDocumentId)) {
         if (mepsDocumentId != publication.documentsManager!.getCurrentDocument().mepsDocumentId) {
@@ -265,8 +288,6 @@ Future<Map<String, dynamic>?> fetchExtractPublication(BuildContext context, Stri
       }
       else {
         await showDocumentView(context, mepsDocumentId, publication.mepsLanguage.id, startParagraphId: startParagraph, endParagraphId: endParagraph);
-        //JwLifePage.toggleNavBarVisibility(controlsIsVisible);
-        //JwLifePage.toggleNavBarPositioned(true);
       }
     }
     else {
@@ -330,7 +351,7 @@ Future<Map<String, dynamic>> fetchFootnote(BuildContext context, Publication pub
   };
 }
 
-Future<Map<String, dynamic>> fetchVersesReference(BuildContext context, Publication publication, InAppWebViewController controller, String versesReferenceId) async {
+Future<Map<String, dynamic>> fetchVersesReference(BuildContext context, Publication publication, String versesReferenceId) async {
   List<Map<String, dynamic>> response = await publication.documentsManager!.database.rawQuery(
       '''
       SELECT 
@@ -392,245 +413,257 @@ Future<Map<String, dynamic>> fetchVersesReference(BuildContext context, Publicat
   };
 }
 
-Future<void> injectHtmlDialog(BuildContext context, InAppWebViewController controller, dynamic content) async {
-  // Encodez le contenu HTML en échappant les caractères spéciaux
-  await controller.evaluateJavascript(source: """
-        {
-          // Création d'une variable locale webview pour accéder facilement aux données
-          const json = ${json.encode(content)};
-          
-          // Supprimez le dialogue existant s'il y en a un
-          const existingDialog = document.getElementById('customDialog');
-          if (existingDialog) {
-            existingDialog.remove(); // Supprimez le dialogue existant
-          }
-          
-          let isFullscreen = false; // Flag de statut
-          
-          // Créez un nouveau dialogue
-          const dialog = document.createElement('div');
-          dialog.id = 'customDialog';
-          dialog.style.cssText = 'position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: ${JwLifeSettings().webViewData.backgroundColor}; padding: 0; border-radius: 0px; box-shadow: 0 4px 20px rgba(0.8,0.8,1,1); z-index: 1000; width: 80%; max-width: 800px;';
-          
-          // Définir les thèmes en fonction de la variable isDark
-          const isDark = ${Theme.of(context).brightness == Brightness.dark}; // Cette variable doit être passée depuis Flutter
-          
-          // Créer le header (barre supérieure du dialogue)
-          const header = document.createElement('div');
-          
-          // Style pour le theme
-          const headerStyle = isDark ? 'background: #333; color: white;' : 'background: #d8d7d5; color: #333333;';
-          // Appliquer le style à l'en-tête
-          header.style.cssText = `\${headerStyle} padding: 5px; padding-left: 10px; padding-right: 10px; font-size: 18px; font-weight: bold; display: flex; align-items: center; border-top-left-radius: 0px; border-top-right-radius: 0px; height: 40px;`;
-          
-          // **Création du conteneur pour déplacer**
-          const dragArea = document.createElement('div');
-          dragArea.style.cssText = 'flex-grow: 1; cursor: move;';
-          // Ajout du titre du verset
-          dragArea.innerHTML = json.title;
-          
-          // **Variables pour le déplacement**
-          let isDragging = false;
-          let offsetX = 0, offsetY = 0;
-          function startDrag(event) {
-            if (isFullscreen) return;
-            event.preventDefault();
-            isDragging = true;
-            let clientX = event.clientX ?? event.touches[0].clientX;
-            let clientY = event.clientY ?? event.touches[0].clientY;
-            offsetX = clientX - dialog.getBoundingClientRect().left;
-            offsetY = clientY - dialog.getBoundingClientRect().top;
-          }
-          function onDrag(event) {
-            if (!isDragging) return;
-            event.preventDefault();
-            let clientX = event.clientX ?? event.touches[0].clientX;
-            let clientY = event.clientY ?? event.touches[0].clientY;
-            let left = clientX - offsetX;
-            let top = clientY - offsetY;
-            dialog.style.left = left + 'px';
-            dialog.style.top = top + 'px';
-            dialog.style.transform = 'none';
-          }
-          function stopDrag() {
-            isDragging = false;
-          }
-          
-          // **Événements pour déplacer le dialog uniquement via dragArea**
-          dragArea.addEventListener('mousedown', startDrag);
-          document.addEventListener('mousemove', onDrag);
-          document.addEventListener('mouseup', stopDrag);
-          dragArea.addEventListener('touchstart', startDrag);
-          document.addEventListener('touchmove', onDrag);
-          document.addEventListener('touchend', stopDrag);
-          
-          // **Création du conteneur des boutons**
-          const buttonContainer = document.createElement('div');
-          buttonContainer.style.cssText = 'display: flex; align-items: center; margin-left: auto;';
-          
-          // **Bouton plein écran**
-          const fullscreenButton = document.createElement('button');
-          fullscreenButton.innerHTML = '&#xE6AF;';
-          fullscreenButton.style.cssText = 'font-family: jw-icons-external; font-size: 20px; padding: 6px;';
-          fullscreenButton.onclick = function(event) {
-            event.stopPropagation();
-            event.preventDefault();
-            if (isFullscreen) {
-              // Sortie du plein écran
-              if (window.flutter_inappwebview) {
-                window.flutter_inappwebview.callHandler('showFullscreenDialog', {'isFullscreen': false, 'closeDialog': false});
-              } 
-              isFullscreen = false;
-              dialog.style.position = 'fixed';
-              dialog.style.top = '50%';
-              dialog.style.left = '50%';
-              dialog.style.transform = 'translate(-50%, -50%)';
-              dialog.style.width = '80%';
-              dialog.style.height = 'auto';
-              dialog.style.marginTop = '0';
-              fullscreenButton.innerHTML = '&#xE6AF;';
-              
-              contentContainer.style.cssText = 'max-height: 50vh; overflow-y: auto; background-color: ${JwLifeSettings().webViewData.backgroundColor};';
-            } else {
-              // Passage en plein écran
-              if (window.flutter_inappwebview) {
-                window.flutter_inappwebview.callHandler('showFullscreenDialog', {'isFullscreen': true, 'closeDialog': false});
-              } 
-              isFullscreen = true;
-              dialog.style.position = 'fixed';
-              dialog.style.top = '0';
-              dialog.style.left = '0';
-              dialog.style.width = '100vw';
-              dialog.style.height = '100vh';
-              dialog.style.transform = 'none';
-              dialog.style.marginTop = '90px';
-              fullscreenButton.innerHTML = '&#xE6B3;';
-              
-              // Calcul de la hauteur disponible pour le content
-              const dialogTopMargin = 190; // en pixels
-              contentContainer.style.cssText = `
-                overflow-y: auto;
-                background-color: ${JwLifeSettings().webViewData.backgroundColor};
-                max-height: calc(100vh - \${dialogTopMargin}px);`;
-            }
-          };
-          
-          // **Bouton fermer**
-          const closeButton = document.createElement('button');
-          closeButton.innerHTML = '&#xE6D8;';
-          closeButton.style.cssText = 'font-family: jw-icons-external; font-size: 20px; padding: 6px;';
-          closeButton.onclick = function(event) {
-            event.stopPropagation();
-            event.preventDefault();
-            dialog.remove();
-            if (window.flutter_inappwebview) {
-              window.flutter_inappwebview.callHandler('showFullscreenDialog', {'isFullscreen': false, 'closeDialog': true});
-            }
-          };
-          
-          // **Ajout des boutons dans le conteneur**
-          buttonContainer.appendChild(fullscreenButton);
-          buttonContainer.appendChild(closeButton);
-          
-          // **Ajout du dragArea et du buttonContainer dans le header**
-          header.appendChild(dragArea);
-          header.appendChild(buttonContainer);
-          
-          // **Ajout du header au dialog**
-          dialog.appendChild(header);
-          
-          // Créer un conteneur pour tous les contenus
-          const contentContainer = document.createElement('div');
-          contentContainer.style.cssText = 'max-height: 50vh; overflow-y: auto; background-color: ${JwLifeSettings().webViewData.backgroundColor};';
-          
-          // Style commun pour les thèmes
-      const infoBarStyle = isDark 
-        ? 'background: black; color: white;' 
-        : 'background: #f2f1ef; color: black;';
-      
-      // Parcourir tous les items et créer une barre d'info et un contenu pour chacun
-      json.items.forEach((item, index) => {
-        // Créer la barre d'information (infoBar)
-        const infoBar = document.createElement('div');
-        infoBar.style.cssText = 'display: flex; align-items: center; ' + infoBarStyle;
-      
-        // Créer l'image pour la barre d'information
-        const img = document.createElement('img');
-        img.src = 'file://' + item.imageUrl;
-        img.style.cssText = 'height: 50px; margin: 0; padding: 0;';
-      
-        // Créer le conteneur de texte pour la barre d'information
-        const textContainer = document.createElement('div');
-        textContainer.style.cssText = 'text-align: left; margin-left: 10px;';
-      
-        const pubText = document.createElement('div');
-        pubText.textContent = item.publicationTitle;
-        pubText.style.cssText = 'font-size: 16px; font-weight: bold;';
-      
-        // Créer le texte du sous-titre
-        const subtitleText = document.createElement('div');
-        subtitleText.textContent = item.subtitle;
-        subtitleText.style.cssText = 'font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;';
-      
-        textContainer.appendChild(pubText);
-        textContainer.appendChild(subtitleText);
-      
-        // Ajouter l'image et le texte à la barre d'information
-        infoBar.appendChild(img);
-        infoBar.appendChild(textContainer);
-      
-        // Créer un bouton audio à droite de la barre d'information
-        const audioButton = document.createElement('button');
-        audioButton.innerHTML = '&#xE69D;'; // Icône ou texte pour le bouton audio
-        audioButton.style.cssText = `
-        font-family: jw-icons-external;
-        font-size: 25px;
-        padding: 5px 10px;
-        margin-left: auto;
-        cursor: pointer;
-        border: 1.5px solid #ccc; /* Ajoute un encadré de 2px de couleur gris clair */
-        background-color: transparent; /* Fond transparent */
-      `;
-        
-        // Ajouter un événement au bouton audio pour jouer l'audio
-        audioButton.addEventListener('click', function() {
-          // Empêche la propagation de l'événement au parent (infoBar)
-          event.stopPropagation();
-          
-          if (window.flutter_inappwebview) {
-            window.flutter_inappwebview.callHandler('playVerseAudio', {'verse': item, 'audio': item.audio});
-          } 
-        });
-      
-        // Ajouter le bouton audio à la barre d'info
-        // infoBar.appendChild(audioButton);
-      
-        // Ajout d'un écouteur d'événements pour ouvrir une fenêtre Flutter
-        infoBar.addEventListener('click', function() {
-          if (window.flutter_inappwebview) {
-            window.flutter_inappwebview.callHandler('openMepsDocument', item);
-          } else {
-            console.log('Flutter handler non disponible');
-          }
-        });
-      
-        // Créer le contenu pour l'item
-        const content = document.createElement('div');
-        content.innerHTML = item.content;
-        content.style.cssText = 'padding: 10px;';
-      
-        // Ajouter la barre d'information et le contenu au conteneur
-        if(item.type !== 'note') {
-          contentContainer.appendChild(infoBar);
+Future<List<Map<String, dynamic>>> fetchCommentaries(BuildContext context, Publication publication, int verseId, bool showLabel) async {
+  try {
+    List<Map<String, dynamic>> response =
+    await publication.documentsManager!.database.rawQuery('''
+      SELECT
+        Label, 
+        Content, 
+        CommentaryMepsDocumentId
+      FROM VerseCommentary
+      INNER JOIN VerseCommentaryMap 
+        ON VerseCommentary.VerseCommentaryId = VerseCommentaryMap.VerseCommentaryId
+      WHERE VerseCommentaryMap.BibleVerseId = ?
+    ''', [verseId]);
+
+    if (response.isNotEmpty) {
+      return response.map((commentary) {
+        String htmlContent = '';
+        if (showLabel) {
+          htmlContent += commentary['Label'] ?? '';
         }
-        contentContainer.appendChild(content);
-      });
-      
-      // Ajouter le conteneur de contenu au dialogue
-      dialog.appendChild(contentContainer);
-      
-      // Ajouter le dialogue au body
-      document.body.appendChild(dialog);
+        final decodedHtml = decodeBlobContent(
+          commentary['Content'] as Uint8List,
+          publication.hash!,
+        );
+        htmlContent += decodedHtml;
+
+        return {
+          'type': 'commentary',
+          'content': htmlContent,
+          'className': "scriptureIndexLink html5 layout-reading layout-sidebar",
+          'subtitle': publication.mepsLanguage.vernacular,
+          'imageUrl': publication.imageSqr,
+          'publicationTitle': publication.getTitle(),
+        };
+      }).toList();
+    }
+  } catch (e) {
+    print(e);
+  }
+
+  // Retourne une liste vide si aucun commentaire
+  return [];
+}
+
+Future<List<Map<String, dynamic>>> fetchVerseCommentaries(
+    BuildContext context,
+    Publication publication,
+    int verseId,
+    bool showLabel) async {
+  try {
+    List<Map<String, dynamic>> response =
+    await publication.documentsManager!.database.rawQuery('''
+      SELECT
+        Label, 
+        Content, 
+        CommentaryMepsDocumentId
+      FROM VerseCommentary
+      INNER JOIN VerseCommentaryMap 
+        ON VerseCommentary.VerseCommentaryId = VerseCommentaryMap.VerseCommentaryId
+      WHERE VerseCommentaryMap.BibleVerseId = ?
+    ''', [verseId]);
+
+    if (response.isNotEmpty) {
+      return response.map((commentary) {
+        String htmlContent = '';
+        if (showLabel) {
+          htmlContent += commentary['Label'] ?? '';
+        }
+        final decodedHtml = decodeBlobContent(
+          commentary['Content'] as Uint8List,
+          publication.hash!,
+        );
+        htmlContent += decodedHtml;
+
+        return {
+          'type': 'commentary',
+          'content': htmlContent,
+          'className': "scriptureIndexLink html5 layout-reading layout-sidebar",
+          'subtitle': publication.mepsLanguage.vernacular,
+          'imageUrl': publication.imageSqr,
+          'publicationTitle': publication.getTitle(),
+        };
+      }).toList();
+    }
+  } catch (e) {
+    print(e);
+  }
+
+  // Retourne une liste vide si aucun commentaire
+  return [];
+}
+
+Future<List<Map<String, dynamic>>> fetchOtherVerseVersion(BuildContext context, Publication publication, int book, int chapter, int verse, int verseId) async {
+  try {
+    List<Map<String, dynamic>> versesTranslations = [];
+    for (var bible in PublicationRepository().getAllBibles()) {
+      Database? bibleDb;
+      if(bible.documentsManager == null) {
+        bibleDb = await openDatabase(bible.databasePath!);
       }
-""");
+      else {
+        bibleDb = bible.documentsManager!.database;
+      }
+
+      print('Verse Id: $verseId');
+
+      List<Map<String, dynamic>> results = await bibleDb.rawQuery("""
+        SELECT *
+        FROM BibleVerse
+        WHERE BibleVerseId = ?
+      """, [verseId]);
+
+      if(bible.documentsManager == null) {
+        bibleDb.close();
+      }
+
+      String htmlContent = '';
+      String label = results.first['Label'].replaceAllMapped(
+        RegExp(r'<span class="cl">(.*?)<\/span>'),
+            (match) => '<span class="cl"><strong>${match.group(1)}</strong> </span>',
+      );
+
+      htmlContent += label;
+      final decodedHtml = decodeBlobContent(
+        results.first['Content'] as Uint8List,
+        bible.hash!,
+      );
+      htmlContent += decodedHtml;
+
+
+
+      versesTranslations.add({
+        'type': 'verse',
+        'content': htmlContent,
+        'className': "bibleCitation html5 pub-${bible.keySymbol} jwac showRuby ml-${bible.mepsLanguage.symbol} ms-ROMAN dir-ltr layout-reading layout-sidebar",
+        'subtitle': bible.mepsLanguage.vernacular,
+        'imageUrl': bible.imageSqr,
+        'publicationTitle': bible.shortTitle,
+        'bookNumber': book,
+        'chapterNumber': chapter,
+        'verseNumber': verse,
+        'audio': {},
+        'mepsLanguageId': bible.mepsLanguage.id,
+        'highlights': publication.documentsManager!.getCurrentDocument().highlights,
+        'notes': publication.documentsManager!.getCurrentDocument().notes
+      });
+    }
+    return versesTranslations;
+  }
+  catch (e) {
+    print(e);
+  }
+
+  return [];
+}
+
+Future<List<Map<String, dynamic>>> fetchVerseResearchGuide(BuildContext context, int verseId, bool showLabel) async {
+  List<Publication> publications = (PublicationRepository().getAllDownloadedPublications()).where((pub) => pub.hasCommentary).toList();
+
+  Database? db;
+  List<Map<String, dynamic>> verseCommentariesByPub = [];
+
+  for (var publication in publications) {
+    if(!publication.isBible()) {
+      try {
+        if(publication.documentsManager == null) {
+          db = await openDatabase(publication.databasePath!);
+        }
+        else {
+          db = publication.documentsManager!.database;
+        }
+
+        List<Map<String, dynamic>> response = await db.rawQuery('''
+          SELECT
+            Label, 
+            Content
+          FROM VerseCommentary
+          INNER JOIN VerseCommentaryMap ON VerseCommentary.VerseCommentaryId = VerseCommentaryMap.VerseCommentaryId
+          WHERE VerseCommentaryMap.BibleVerseId = ?
+          ''', [verseId]
+        );
+
+        if (response.isNotEmpty) {
+          Map<String, dynamic> commentary = response.first;
+          String htmlContent = '';
+          if(showLabel) {
+            htmlContent += commentary['Label'];
+          }
+          final decodedHtml = decodeBlobContent(
+              commentary['Content'] as Uint8List,
+              publication.hash!
+          );
+          htmlContent += decodedHtml;
+
+          if(publication.documentsManager == null) {
+            db.close();
+          }
+
+          verseCommentariesByPub.add({
+            'type': 'guide',
+            'content': htmlContent,
+            'className': "document html5 layout-reading layout-sidebar"
+          });
+
+          return verseCommentariesByPub;
+        }
+      }
+      catch (e) {
+        print(e);
+        if(publication.documentsManager == null) {
+          db?.close();
+        }
+      }
+    }
+  }
+
+  return [];
+}
+
+Future<List<Map<String, dynamic>>> fetchVerseFootnotes(BuildContext context, Publication publication, int verseId) async {
+  try {
+    List<Map<String, dynamic>> response = await publication.documentsManager!.database.rawQuery('''
+          SELECT
+            Content
+          FROM Footnote
+          WHERE BibleVerseId = ?
+          ''', [verseId]
+    );
+
+    if (response.isNotEmpty) {
+      List<Map<String, dynamic>> footnotes = [];
+      for (var footnote in response) {
+        final decodedHtml = decodeBlobContent(
+            footnote['Content'] as Uint8List,
+            publication.hash!
+        );
+        String htmlContent = decodedHtml;
+
+        footnotes.add({
+          'type': 'footnote',
+          'content': htmlContent,
+          'className': "document html5 layout-reading layout-sidebar"
+        });
+      }
+
+      return footnotes;
+    }
+  }
+  catch (e) {
+    print(e);
+  }
+
+  return [];
 }

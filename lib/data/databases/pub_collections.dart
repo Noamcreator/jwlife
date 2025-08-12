@@ -13,13 +13,13 @@ class PubCollections {
   late Database _database;
 
   Future<void> init() async {
-    final pubCollections = await getPubCollectionsFile();
+    final pubCollections = await getPubCollectionsDatabaseFile();
     _database = await openDatabase(pubCollections.path, version: 1);
     await fetchDownloadPublications();
   }
 
   Future<void> fetchDownloadPublications() async {
-    final mepsFile = await getMepsFile();
+    final mepsFile = await getMepsUnitDatabaseFile();
 
     printTime('fetchDownloadPublications start');
 
@@ -68,7 +68,7 @@ class PubCollections {
 
   Future<void> open() async {
     if(!_database.isOpen) {
-      File pubCollections = await getPubCollectionsFile();
+      File pubCollections = await getPubCollectionsDatabaseFile();
       _database = await openDatabase(pubCollections.path, version: 1);
     }
   }
@@ -226,7 +226,7 @@ class PubCollections {
     await publicationDb.close();
 
     if(publication == null) {
-      File mepsFile = await getMepsFile();
+      File mepsFile = await getMepsUnitDatabaseFile();
       if (await mepsFile.exists()) {
         Database db = await openDatabase(mepsFile.path);
         List<Map<String, dynamic>> result = await db.rawQuery("SELECT Symbol, VernacularName, PrimaryIetfCode FROM Language WHERE LanguageId = $languageId");

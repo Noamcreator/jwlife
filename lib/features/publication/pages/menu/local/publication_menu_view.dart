@@ -1,8 +1,9 @@
+import 'dart:developer';
 import 'dart:io';
 
 import 'package:collection/collection.dart';
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:gal/gal.dart';
 import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
@@ -21,8 +22,10 @@ import 'package:jwlife/widgets/responsive_appbar_actions.dart';
 import 'package:jwlife/widgets/searchfield/searchfield_widget.dart';
 import 'package:sqflite/sqflite.dart';
 
+import '../../../../../app/services/global_key_service.dart';
 import '../../../../../core/api.dart';
 import '../../../../bible/pages/local_bible_chapter.dart';
+import '../../../../image_page.dart';
 import '../../document/data/models/document.dart';
 import '../../document/local/documents_manager.dart';
 
@@ -108,40 +111,11 @@ class _PublicationMenuViewState extends State<PublicationMenuView> with SingleTi
   }
 
   Future<void> _iniAudio() async {
-    try {
-      final keySymbol = widget.publication.keySymbol.contains('nwt') ? 'nwt' : widget.publication.keySymbol;
-      final issueTagNumber = widget.publication.issueTagNumber.toString();
-      final languageSymbol = widget.publication.mepsLanguage.symbol;
-
-      final queryParams = {
-        'pub': keySymbol,
-        'issue': issueTagNumber,
-        'langwritten': languageSymbol,
-        'fileformat': 'mp3',
-      };
-
-      final url = Uri.https('b.jw-cdn.org', '/apis/pub-media/GETPUBMEDIALINKS', queryParams);
-      printTime('Generated URLS: $url');
-
-      final response = await Dio().getUri(url, options: Options(
-          headers: Api.getHeaders(),
-          validateStatus: (status) => status != null && status < 500, // Accepte les 404 sans throw
-        )
-      );
-      printTime('API Response: ${response.statusCode}');
-
-      if (response.statusCode == 200 && response.data != null) {
-        final data = response.data;
-        if (data.containsKey('files') && data['files'].containsKey(languageSymbol)) {
-          setState(() {
-            _audios = data['files'][languageSymbol]['MP3'].map<Audio>((audio) => Audio.fromJson(audio, languageSymbol: widget.publication.mepsLanguage.symbol)).toList();
-          });
-        }
-      }
-    }
-    catch (e) {
-      printTime('Error: $e');
-      throw Exception('Error initializing the database: $e');
+    List<Audio>? pubAudio = await Api.getPubAudio(keySymbol: widget.publication.keySymbol, issueTagNumber: widget.publication.issueTagNumber, languageSymbol: widget.publication.mepsLanguage.symbol);
+    if(pubAudio != null) {
+      setState(() {
+        _audios = pubAudio;
+      });
     }
   }
 
@@ -160,27 +134,20 @@ class _PublicationMenuViewState extends State<PublicationMenuView> with SingleTi
               vs.DataType
           ) AS DataType
       FROM PublicationView pv
-      INNER JOIN PublicationViewItem pvi 
-          ON pvi.PublicationViewId = pv.PublicationViewId
-          AND pvi.ParentPublicationViewItemId = -1
-      LEFT JOIN PublicationViewSchema vs 
-          ON pvi.SchemaType = vs.SchemaType
-      LEFT JOIN PublicationViewSchema cvs 
-          ON pvi.ChildTemplateSchemaType = cvs.SchemaType
-          AND pvi.ChildTemplateSchemaType != pvi.SchemaType  -- Condition déplacée ici
+      INNER JOIN PublicationViewItem pvi ON pvi.PublicationViewId = pv.PublicationViewId AND pvi.ParentPublicationViewItemId = -1
+      LEFT JOIN PublicationViewSchema vs ON pvi.SchemaType = vs.SchemaType
+      LEFT JOIN PublicationViewSchema cvs ON pvi.ChildTemplateSchemaType = cvs.SchemaType AND pvi.ChildTemplateSchemaType != pvi.SchemaType
       WHERE pv.Symbol = 'jwpub';
       ''');
 
       // Récupérer les items et sous-items pour chaque onglet
       final List<TabWithItems> tabsWithItems = await Future.wait(
           tabs.map((tab) async {
-            final items = await _getItemsForParent(
-                tab['PublicationViewItemId']);
+            final items = await _getItemsForParent(tab['PublicationViewItemId']);
 
             final itemList = await Future.wait(items.map((item) async {
               if (item['DefaultDocumentId'] == -1) {
-                final subItems = await _getItemsForParent(
-                    item['PublicationViewItemId']);
+                final subItems = await _getItemsForParent(item['PublicationViewItemId']);
                 bool isBibleBooks = subItems.any((subItem) =>
                 subItem['Type'] == 2);
 
@@ -257,33 +224,32 @@ class _PublicationMenuViewState extends State<PublicationMenuView> with SingleTi
     bool hasMultimediaColumns = false;
     if (multimediaExists) {
       final columns = await _getColumnsForTable('Multimedia');
-      hasMultimediaColumns =
-          ['Width', 'Height', 'CategoryType'].every(columns.contains);
+      hasMultimediaColumns = ['CategoryType'].every(columns.contains);
     }
 
     // Construction optimisée de la requête avec StringBuffer
     final buffer = StringBuffer('''
-SELECT
-  PublicationViewItem.PublicationViewItemId,
-  PublicationViewItem.ParentPublicationViewItemId,
-  PublicationViewItem.Title AS DisplayTitle,
-  PublicationViewItem.DefaultDocumentId,
-  PublicationViewSchema.DataType,
-  ''');
+      SELECT
+        PublicationViewItem.PublicationViewItemId,
+        PublicationViewItem.ParentPublicationViewItemId,
+        PublicationViewItem.Title AS DisplayTitle,
+        PublicationViewItem.DefaultDocumentId,
+        PublicationViewSchema.DataType,
+    ''');
 
     // Ajout conditionnel de FilePath
     buffer.write(hasMultimediaColumns ? '''
-  MAX(CASE 
-      WHEN Multimedia.Width = 600 AND Multimedia.Height = 600 AND Multimedia.CategoryType = 9 
-      THEN Multimedia.FilePath 
-      ELSE NULL 
-  END) AS FilePath
-''' : '  NULL AS FilePath\n');
+      MAX(CASE 
+          WHEN Multimedia.CategoryType = 9 
+          THEN Multimedia.FilePath 
+          ELSE NULL 
+      END) AS FilePath
+    ''' : '  NULL AS FilePath\n');
 
     buffer.write('''
-FROM PublicationViewItem
-LEFT JOIN PublicationViewSchema ON PublicationViewItem.SchemaType = PublicationViewSchema.SchemaType
-''');
+      FROM PublicationViewItem
+      LEFT JOIN PublicationViewSchema ON PublicationViewItem.SchemaType = PublicationViewSchema.SchemaType
+    ''');
 
     // Jointures conditionnelles
     if (documentMultimediaExists) {
@@ -297,13 +263,13 @@ LEFT JOIN PublicationViewSchema ON PublicationViewItem.SchemaType = PublicationV
     }
 
     buffer.write('''
-WHERE PublicationViewItem.ParentPublicationViewItemId = ?
-GROUP BY 
-  PublicationViewItem.PublicationViewItemId,
-  PublicationViewItem.ParentPublicationViewItemId,
-  PublicationViewItem.Title,
-  PublicationViewItem.DefaultDocumentId
-''');
+      WHERE PublicationViewItem.ParentPublicationViewItemId = ?
+      GROUP BY 
+        PublicationViewItem.PublicationViewItemId,
+        PublicationViewItem.ParentPublicationViewItemId,
+        PublicationViewItem.Title,
+        PublicationViewItem.DefaultDocumentId
+    ''');
 
     return buffer.toString();
   }
@@ -362,7 +328,7 @@ GROUP BY
 // Méthode helper pour traiter les éléments bibliques en batch
   Future<List<Map<String, dynamic>>> _processBibleItems(
       List<Map<String, dynamic>> bibleItems) async {
-    final mepsFile = await getMepsFile();
+    final mepsFile = await getMepsUnitDatabaseFile();
     final mepsDatabase = await openDatabase(mepsFile.path);
 
     try {
@@ -438,14 +404,6 @@ GROUP BY
       child: InkWell(
         onTap: () {
           showPageDocument(context, widget.publication, item.mepsDocumentId, audios: _audios);
-          /*
-          showPage(context, DocumentPage(
-            publication: widget.publication,
-            audios: _audios,
-            mepsDocumentId: item.mepsDocumentId,
-          ));
-
-           */
         },
         child: Row(
           spacing: 8.0,
@@ -545,8 +503,7 @@ GROUP BY
                       ],
                     ),
                     onTap: () {
-                      _documentsManager.getDocumentFromMepsDocumentId(
-                          item.mepsDocumentId).share(false);
+                      _documentsManager.getDocumentFromMepsDocumentId(item.mepsDocumentId).share(false);
                     },
                   ),
                 ];
@@ -818,7 +775,8 @@ GROUP BY
                   }),
                 ],
               );
-            } else {
+            }
+            else {
               return buildNameItem(context, hasImageFilePath, item);
             }
           }).toList(),
@@ -915,6 +873,12 @@ GROUP BY
                 style: textStyleSubtitle),
           ],
         ),
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back),
+          onPressed: () {
+            GlobalKeyService.jwLifePageKey.currentState?.handleBack(context);
+          },
+        ),
         actions: [
           ResponsiveAppBarActions(
             allActions: [
@@ -947,17 +911,16 @@ GROUP BY
                 text: "Langues",
                 icon: Icon(JwIcons.language),
                 onPressed: () async {
-                  LanguagesPubDialog languageDialog =
-                  LanguagesPubDialog(
-                      publication: widget.publication);
-                  showDialog(
+                  LanguagesPubDialog languageDialog = LanguagesPubDialog(publication: widget.publication);
+                  showDialog<Publication>(
                     context: context,
                     builder: (context) => languageDialog,
-                  ).then((value) {
-                    if (value != null) {
-                      //showPage(context, PublicationMenu(publication: widget.publication, publicationLanguage: value));
+                  ).then((languagePub) {
+                    if (languagePub != null) {
+                      languagePub.showMenu(context);
                     }
-                  });
+                  }
+                  );
                 },
               ),
               IconTextButton(
@@ -1012,23 +975,72 @@ GROUP BY
     if (_tabsWithItems.length == 1) {
       final tabWithItems = _tabsWithItems.first;
 
-      bool hasImageFilePath = tabWithItems.items.any((item) =>
-      item.imageFilePath != '');
+      bool hasImageFilePath = tabWithItems.items.any((item) => item.imageFilePath != '');
 
       return ListView(
         children: [
           if (widget.publication.schemaVersion != 9) ...[
             if (widget.publication.imageLsr != null)
-              Image.file(
-                File('${widget.publication.path}/${widget.publication.imageLsr!.split('/').last}'),
-                fit: BoxFit.fill,
-                width: double.infinity,
+              GestureDetector(
+                onTap: () {
+                  showPage(
+                    context,
+                    ImagePage(
+                      filePath: '${widget.publication.path}/${widget.publication.imageLsr!.split('/').last}',
+                    ),
+                  );
+                },
+                onLongPress: () {
+                  showModalBottomSheet(
+                    context: context,
+                    builder: (ctx) => SafeArea(
+                      child: Wrap(
+                        children: [
+                          ListTile(
+                            tileColor: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF4f4f4f) : Colors.white,
+                            leading: const Icon(Icons.download),
+                            title: const Text('Enregistrer l’image'),
+                            onTap: () async {
+                              final imagePath = '${widget.publication.path}/${widget.publication.imageLsr!.split('/').last}';
+                              final file = File(imagePath);
+
+                              if (await file.exists()) {
+                                try {
+                                  await Gal.putImage(file.path);
+
+                                  showBottomMessageWithAction(context, 'Image enregistrée', SnackBarAction(
+                                    label: 'Ouvrir',
+                                    onPressed: () async {
+                                      await Gal.open();
+                                    },
+                                  ));
+                                }
+                                on GalException catch (e) {
+                                  log(e.type.message);
+                                }
+                              }
+                              else {
+                                Navigator.pop(ctx);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Fichier introuvable')),
+                                );
+                              }
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+                child: Image.file(
+                  File('${widget.publication.path}/${widget.publication.imageLsr!.split('/').last}'),
+                  fit: BoxFit.fill,
+                  width: double.infinity,
+                ),
               ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 10),
             Text(
-              widget.publication.coverTitle.isNotEmpty
-                  ? widget.publication.coverTitle
-                  : widget.publication.title,
+              widget.publication.coverTitle.isNotEmpty ? widget.publication.coverTitle : widget.publication.title,
               style: TextStyle(
                 color: Theme
                     .of(context)
@@ -1041,6 +1053,8 @@ GROUP BY
               ),
               textAlign: TextAlign.center,
             ),
+            if(widget.publication.description.isEmpty)
+              const SizedBox(height: 10),
             if(widget.publication.description.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.all(8.0),
@@ -1064,8 +1078,7 @@ GROUP BY
             ...tabWithItems.items.map((item) {
               if (item.isTitle) {
                 return Padding(
-                  padding: const EdgeInsets.only(
-                      left: 8.0, right: 8.0, top: 16.0),
+                  padding: const EdgeInsets.only(left: 8.0, right: 8.0, top: 16.0),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -1099,7 +1112,9 @@ GROUP BY
                   child: buildNameItem(context, hasImageFilePath, item),
                 );
               }
-            }),
+            }
+          ),
+          const SizedBox(height: 20),
         ],
       );
     }
@@ -1112,7 +1127,7 @@ GROUP BY
         [
           SliverToBoxAdapter(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 if (widget.publication.schemaVersion != 9) ...[
                   if (widget.publication.imageLsr != null)
@@ -1193,11 +1208,10 @@ GROUP BY
               return buildNumberList(context, tabWithItems.items);
             }
 
-            bool hasImageFilePath = tabWithItems.items.any((item) =>
-            item.imageFilePath != '');
+            bool hasImageFilePath = tabWithItems.items.any((item) => item.imageFilePath != '');
 
             return ListView.builder(
-              padding: EdgeInsets.only(left: 8.0, right: 8.0),
+              padding: EdgeInsets.only(left: 8.0, right: 8.0, bottom: 20.0),
               itemCount: tabWithItems.items.length,
               itemBuilder: (context, index) {
                 final item = tabWithItems.items[index];
@@ -1227,8 +1241,7 @@ GROUP BY
                             buildBibleBooksList(context, item.subItems),
                           if (!item.isBibleBooks)
                             ...item.subItems.map((subItem) =>
-                                buildNameItem(
-                                    context, hasImageFilePath, subItem)),
+                                buildNameItem(context, item.subItems.any((subItem) => subItem.imageFilePath.isNotEmpty), subItem)),
                         ],
                       ));
                 }

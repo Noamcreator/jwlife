@@ -1,14 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:jwlife/core/utils/shared_preferences_helper.dart';
-
-//Color primaryColorLight = Color(0xFF295568);
-//Color primaryColorDark = Color.lerp(primaryColorLight, Colors.white, 0.3)!; // Ajustez le facteur entre 0 et 1
 
 class AppTheme {
   static ThemeData getLightTheme(Color primaryColor) {
-    //Color primaryColorLight = await getPrimaryColor(ThemeMode.light);
-    //Color primaryColor = color;
-
     return ThemeData(
       fontFamily: 'Roboto',
       brightness: Brightness.light,

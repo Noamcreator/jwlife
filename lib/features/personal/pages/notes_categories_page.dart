@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
-import 'package:jwlife/core/utils/utils_note_tag.dart';
+import 'package:jwlife/core/utils/utils_tag_dialogs.dart';
 import 'package:jwlife/data/databases/history.dart';
 import 'package:jwlife/data/models/userdata/tag.dart';
 import 'package:jwlife/data/models/userdata/note.dart';
@@ -87,7 +87,7 @@ class _NotesTagsPageState extends State<NotesTagsPage> {
           IconButton(
             icon: Icon(JwIcons.tag_plus),
             onPressed: () async {
-              await showAddTagDialog(context);
+              await showAddTagDialog(context, false);
               setState(() {
                 filteredTags = JwLifeApp.userdata.tags;
               });

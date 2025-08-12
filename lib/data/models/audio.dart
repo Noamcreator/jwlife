@@ -7,6 +7,7 @@ class Audio extends Media {
 
   Audio({
     required this.audioId,
+    super.naturalKey,
     required super.mediaId,
     required super.keySymbol,
     required super.categoryKey,
@@ -47,6 +48,7 @@ class Audio extends Media {
 
     return Audio(
       audioId: json['AudioId'] ?? -1,
+      naturalKey: json['naturalKey'] ?? '',
       mediaId: json['MediaKeyId'] ?? -1,
       keySymbol: json['KeySymbol'] ?? json['pub'] ?? '',
       categoryKey: json['CategoryKey'] ?? '',

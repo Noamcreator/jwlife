@@ -42,6 +42,12 @@ class PublicationRepository {
     return _publications.values.where((p) => p.isDownloadedNotifier.value).toList();
   }
 
+  Publication? getByCompositeKeyForDownload(String symbol, int issueTagNumber, int mepsLanguageId) {
+    return getAllDownloadedPublications().firstWhereOrNull(
+          (p) => p.symbol == symbol && p.issueTagNumber == issueTagNumber && p.mepsLanguage.id == mepsLanguageId,
+    );
+  }
+
   /// Retourne toutes les bibles
   List<Publication> getAllBibles() {
     int id = JwLifeSettings().currentLanguage.id;

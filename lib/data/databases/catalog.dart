@@ -81,7 +81,7 @@ class PubCatalog {
   static Future<List<PublicationCategory>> updateCatalogCategories() async {
     printTime('On met à jour les catégories pour voir si le catalogue contient des nouvelles publications...');
     // Charger le fichier de catalogue et ouvrir la base de données
-    final catalogFile = await getCatalogFile();
+    final catalogFile = await getCatalogDatabaseFile();
 
     if (allFilesExist([catalogFile])) {
       Database catalogDB = await openReadOnlyDatabase(catalogFile.path);
@@ -142,9 +142,9 @@ class PubCatalog {
 
   static Future<void> loadPublicationsInHomePage() async {
     printTime('load PublicationsInHomePage');
-    final catalogFile = await getCatalogFile();
-    final mepsFile = await getMepsFile();
-    final historyFile = await getHistoryFile();
+    final catalogFile = await getCatalogDatabaseFile();
+    final mepsFile = await getMepsUnitDatabaseFile();
+    final historyFile = await getHistoryDatabaseFile();
 
     if (allFilesExist([mepsFile, historyFile, catalogFile])) {
       final catalogDB = await openReadOnlyDatabase(catalogFile.path);
@@ -256,8 +256,8 @@ class PubCatalog {
     date ??= DateTime.now();
     formattedDate = "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
 
-    final catalogFile = await getCatalogFile();
-    final mepsFile = await getMepsFile();
+    final catalogFile = await getCatalogDatabaseFile();
+    final mepsFile = await getMepsUnitDatabaseFile();
 
     if (allFilesExist([catalogFile, mepsFile])) {
       final catalog = await openReadOnlyDatabase(catalogFile.path);
@@ -288,7 +288,7 @@ class PubCatalog {
   }
 
   static Future<List<Map<String, dynamic>>> getAllAvailableBibleBookFromPub(int languageId, String pubSymbol, int issueTagNumber) async {
-    final catalogFile = await getCatalogFile();
+    final catalogFile = await getCatalogDatabaseFile();
 
     if (allFilesExist([catalogFile])) {
       final catalog = await openReadOnlyDatabase(catalogFile.path);
@@ -309,8 +309,8 @@ class PubCatalog {
 
   /// Rechercher une publication par symbole et la date d'issue.
   static Future<Publication?> searchPub(String pubSymbol, int issueTagNumber, dynamic language) async {
-    final catalogFile = await getCatalogFile();
-    final mepsFile = await getMepsFile();
+    final catalogFile = await getCatalogDatabaseFile();
+    final mepsFile = await getMepsUnitDatabaseFile();
 
     if (allFilesExist([catalogFile, mepsFile])) {
       final catalog = await openReadOnlyDatabase(catalogFile.path);
@@ -331,7 +331,7 @@ class PubCatalog {
         printTime('language: $language');
 
         final publications = await catalog.rawQuery('''
-          SELECT DISTINCT
+          SELECT
             $publicationQuery
           $languageRequest 
           AND LOWER(p.KeySymbol) = LOWER(?) 
@@ -352,7 +352,7 @@ class PubCatalog {
   }
 
   static Future<Publication?> searchPubNoMepsLanguage(String pubSymbol, int issueTagNumber, int mepsLanguageId) async {
-    final catalogFile = await getCatalogFile();
+    final catalogFile = await getCatalogDatabaseFile();
 
     if (allFilesExist([catalogFile])) {
       final catalog = await openReadOnlyDatabase(catalogFile.path);
@@ -392,8 +392,8 @@ class PubCatalog {
 
   /// Rechercher une publication par mepsDocumentId et la langue.
   static Future<Publication?> searchPubFromMepsDocumentId(int mepsDocumentId, int mepsLanguageId) async {
-    final catalogFile = await getCatalogFile();
-    final mepsFile = await getMepsFile();
+    final catalogFile = await getCatalogDatabaseFile();
+    final mepsFile = await getMepsUnitDatabaseFile();
 
     if (allFilesExist([catalogFile, mepsFile])) {
       final catalog = await openReadOnlyDatabase(catalogFile.path);
@@ -425,7 +425,7 @@ class PubCatalog {
 
   /// Charge les publications d'une catégorie
   static Future<Map<PublicationAttribute, List<Publication>>> getPublicationsFromCategory(int category, {int? year}) async {
-    final catalogFile = await getCatalogFile();
+    final catalogFile = await getCatalogDatabaseFile();
 
     if (allFilesExist([catalogFile])) {
       final catalog = await openReadOnlyDatabase(catalogFile.path);
@@ -476,8 +476,8 @@ class PubCatalog {
   }
 
   static Future<void> fetchAssemblyPublications() async {
-    final catalogFile = await getCatalogFile();
-    final mepsFile = await getMepsFile();
+    final catalogFile = await getCatalogDatabaseFile();
+    final mepsFile = await getMepsUnitDatabaseFile();
 
     if (allFilesExist([catalogFile, mepsFile])) {
       final catalog = await openReadOnlyDatabase(catalogFile.path);
@@ -540,7 +540,7 @@ class PubCatalog {
 
   /// Rechercher les publications des assemblées régionales
   static Future<List<Publication>> fetchPubsFromConventionsDays() async {
-    final catalogFile = await getCatalogFile();
+    final catalogFile = await getCatalogDatabaseFile();
 
     if (allFilesExist([catalogFile])) {
       final catalog = await openReadOnlyDatabase(catalogFile.path);

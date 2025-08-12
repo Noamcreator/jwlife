@@ -26,7 +26,7 @@ import '../../data/realm/realm_library.dart';
 import '../../features/home/pages/home_page.dart';
 import '../../features/video/subtitles.dart';
 import '../../features/video/subtitles_view.dart';
-import '../../features/video/video_player_view.dart';
+import '../../features/video/video_player_page.dart';
 import '../api.dart';
 import 'common_ui.dart';
 import 'files_helper.dart';
@@ -35,8 +35,6 @@ void showFullScreenVideo(BuildContext context, MediaItem mediaItem) async {
   Video? video = JwLifeApp.mediaCollections.getVideo(mediaItem);
 
   if (video != null) {
-    //GlobalKeyService.jwLifePageKey.currentState!.toggleNavBarBlack(true);
-
     showPage(context, VideoPlayerPage(
       mediaItem: mediaItem,
       localVideo: video
@@ -44,8 +42,6 @@ void showFullScreenVideo(BuildContext context, MediaItem mediaItem) async {
   }
   else {
     if(await hasInternetConnection()) {
-      //GlobalKeyService.jwLifePageKey.currentState!.toggleNavBarBlack(true);
-
       showPage(context, VideoPlayerPage(
         mediaItem: mediaItem
       ));
@@ -59,9 +55,9 @@ void showFullScreenVideo(BuildContext context, MediaItem mediaItem) async {
 MediaItem getVideoItemFromLank(String lank, String wtlocale) => RealmLibrary.realm.all<MediaItem>().query("languageAgnosticNaturalKey == '$lank'").query("languageSymbol == '$wtlocale'").first;
 MediaItem getVideoItemFromDocId(String docId, String wtlocale) => RealmLibrary.realm.all<MediaItem>().query("documentId == '$docId'").query("languageSymbol == '$wtlocale'").first;
 
-
-MediaItem? getVideoItem(String? keySymbol, int? track, int? documentId, int? issueTagNumber, dynamic mepsLanguage) {
+MediaItem? getMediaItem(String? keySymbol, int? track, int? documentId, int? issueTagNumber, dynamic mepsLanguage) {
   var queryParts = <String>[];
+
   if (keySymbol != null) queryParts.add("pubSymbol == '$keySymbol'");
   if (track != null) queryParts.add("track == '$track'");
   if (documentId != null) queryParts.add("documentId == '$documentId'");
@@ -74,34 +70,46 @@ MediaItem? getVideoItem(String? keySymbol, int? track, int? documentId, int? iss
   }
 
   String languageSymbol = JwLifeSettings().currentLanguage.symbol;
-  if(mepsLanguage != null && mepsLanguage is String) {
+  if (mepsLanguage != null && mepsLanguage is String) {
     languageSymbol = mepsLanguage;
   }
   if (mepsLanguage != null) queryParts.add("languageSymbol == '$languageSymbol'");
 
   if (queryParts.isEmpty) return null;
 
-  queryParts.add("type == 'VIDEO'");
   String query = queryParts.join(" AND ");
 
-  return RealmLibrary.realm.all<MediaItem>().query(query).firstOrNull;
+  final results = RealmLibrary.realm.all<MediaItem>().query(query);
+  return results.isNotEmpty ? results.first : null;
 }
 
 PopupMenuItem getVideoShareItem(MediaItem item) {
   return PopupMenuItem(
     child: Row(
-      children: [
+      children: const [
         Icon(JwIcons.share),
         SizedBox(width: 8),
         Text('Envoyer le lien'),
       ],
     ),
     onTap: () {
-      Uri uri = Uri.parse('https://www.jw.org/finder?srcid=jwlshare&wtlocale=${item.languageSymbol}&lank=${item.languageAgnosticNaturalKey}');
-      SharePlus.instance.share(
-          ShareParams(title: item.title, uri: uri)
+      final uri = Uri.https(
+        'www.jw.org',
+        '/finder',
+        {
+          'srcid': 'jwlshare',
+          'wtlocale': item.languageSymbol,
+          'lank': item.languageAgnosticNaturalKey,
+        },
       );
-      },
+
+      SharePlus.instance.share(
+        ShareParams(
+          title: item.title,
+          uri: uri,
+        ),
+      );
+    },
   );
 }
 
@@ -238,7 +246,7 @@ PopupMenuItem getCopySubtitlesItem(BuildContext context, MediaItem item) {
       ],
     ),
     onTap: () async {
-      File mediaCollectionFile = await getMediaCollectionsFile();
+      File mediaCollectionFile = await getMediaCollectionsDatabaseFile();
       Database db = await openDatabase(mediaCollectionFile.path, readOnly: true, version: 1);
       dynamic media = await getVideoIfDownload(db, item);
 

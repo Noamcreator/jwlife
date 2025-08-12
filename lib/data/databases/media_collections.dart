@@ -16,7 +16,7 @@ class MediaCollections {
   List<Video> videos = [];
 
   Future<void> init() async {
-    File mediaCollections = await getMediaCollectionsFile();
+    File mediaCollections = await getMediaCollectionsDatabaseFile();
     _database = await openDatabase(mediaCollections.path, version: 1);
     await fetchDownloadMedias();
   }
@@ -90,7 +90,7 @@ class MediaCollections {
 
   Future<void> open() async {
     if(!_database.isOpen) {
-      File mediaCollections = await getMediaCollectionsFile();
+      File mediaCollections = await getMediaCollectionsDatabaseFile();
       _database = await openDatabase(mediaCollections.path, version: 1);
     }
   }

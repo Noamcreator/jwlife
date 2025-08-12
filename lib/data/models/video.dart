@@ -7,6 +7,7 @@ class Video extends Media {
 
   Video({
     required this.videoId,
+    super.naturalKey,
     required super.mediaId,
     required super.keySymbol,
     required super.categoryKey,
@@ -43,6 +44,7 @@ class Video extends Media {
 
     return Video(
       videoId: json['VideoId'] ?? -1,
+      naturalKey: json['naturalKey'] ?? '',
       mediaId: json['MediaKeyId'] ?? -1,
       keySymbol: json['KeySymbol'] ?? json['pub'] ?? '',
       categoryKey: json['CategoryKey'] ?? '',

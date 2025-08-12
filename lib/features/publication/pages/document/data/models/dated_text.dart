@@ -69,7 +69,7 @@ class DatedText {
     if(!hasAlreadyBeenRead) {
       await loadUserdata();
     }
-    History.insertDocument(getTitle(), publication, mepsDocumentId);
+    History.insertDocument(getTitle(), publication, mepsDocumentId, null, null);
     hasAlreadyBeenRead = true;
   }
 

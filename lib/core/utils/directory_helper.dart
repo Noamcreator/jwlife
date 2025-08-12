@@ -16,13 +16,21 @@ Future<Directory> getAppDocumentsDirectory() async { // Get the default applicat
 
 Future<Directory> getAppPublications() async { // Get the default application documents directory
   final directory = await getAppDirectory();
-  Directory appTileDirectory = Directory('${directory.path}/app_publications');
-  if (!await appTileDirectory.exists()) {
-    await appTileDirectory.create();
+  Directory appPublicationDirectory = Directory('${directory.path}/app_publications');
+  if (!await appPublicationDirectory.exists()) {
+    await appPublicationDirectory.create();
   }
-  return appTileDirectory;
+  return appPublicationDirectory;
 }
 
+Future<Directory> getAppTemp() async { // Get the default application documents directory
+  final directory = await getAppDirectory();
+  Directory appTempDirectory = Directory('${directory.path}/app_temp');
+  if (!await appTempDirectory.exists()) {
+    await appTempDirectory.create();
+  }
+  return appTempDirectory;
+}
 
 Future<Directory> getAppTileDirectory() async { // Get the default application documents directory
   final directory = await getAppDirectory();

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:jwlife/app/jwlife_page.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/utils.dart';
+import 'package:jwlife/core/utils/utils_playlist.dart';
 import 'package:jwlife/core/utils/utils_video.dart';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/realm/catalog.dart';
@@ -89,13 +90,21 @@ class _FullScreenImagePageState extends State<FullScreenImagePage> {
         GlobalKeyService.jwLifePageKey.currentState!.toggleNavBarVisibility(_controlsVisible);
       },
       child: Scaffold(
-        backgroundColor: Colors.black,
+        backgroundColor: Color(0xFF101010),
         body: Stack(
           children: [
             _buildPageView(),        // Cas d'une liste d'images
             if (_controlsVisible) _buildAppBar(),
             if (_controlsVisible && _currentIndex != -1) _buildDescription(),
             if (_controlsVisible && _currentIndex != -1) _buildThumbnailList(),
+            if (_controlsVisible && _currentIndex != -1)
+            if (_controlsVisible && _currentIndex != -1)
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: GlobalKeyService.jwLifePageKey.currentState!.getBottomNavigationBar(isBlack: true)
+            ),
           ],
         ),
       ),
@@ -132,7 +141,7 @@ class _FullScreenImagePageState extends State<FullScreenImagePage> {
                 int? mepsLanguageId = media.mepsLanguageId;
 
                 // Récupération de l'élément vidéo
-                mediaItem = getVideoItem(
+                mediaItem = getMediaItem(
                   pub,
                   track,
                   documentId,
@@ -146,7 +155,7 @@ class _FullScreenImagePageState extends State<FullScreenImagePage> {
                 panEnabled: true,
                 scaleEnabled: true,
                 minScale: 1.0,
-                maxScale: 4.0,
+                maxScale: 12.0,
                 child: GestureDetector(
                   onTap: () {
                     if (isVideo && mediaItem != null) {
@@ -202,6 +211,15 @@ class _FullScreenImagePageState extends State<FullScreenImagePage> {
             GlobalKeyService.jwLifePageKey.currentState?.handleBack(context);
           },
         ),
+        actions: [
+          IconButton(
+            icon: Icon(JwIcons.list_plus, color: Colors.white),
+            onPressed: () {
+              String fullFilePath = '${widget.publication.path}/${_multimedias[_currentIndex].filePath}';
+              showAddPlaylistDialog(context, fullFilePath);
+            },
+          ),
+        ],
       ),
     );
   }
@@ -245,7 +263,7 @@ class _FullScreenImagePageState extends State<FullScreenImagePage> {
               int? mepsLanguageId = media.mepsLanguageId;
 
               // Récupération de l'élément vidéo
-              mediaItem = getVideoItem(
+              mediaItem = getMediaItem(
                 pub,
                 track,
                 documentId,

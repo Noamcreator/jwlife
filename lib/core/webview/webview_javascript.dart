@@ -15,11 +15,12 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
 
   return '''
     <!DOCTYPE html>
-    <html style="overflow-x: hidden; overflow-y: hidden; height: 100%;">
+    <html style="overflow: hidden;">
+      <meta content="text/html" charset="UTF-8">
+      <meta name="viewport" content="initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no">
+      <link rel="stylesheet" href="jw-styles.css" />
       <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="initial-scale=1.0, user-scalable=no">
-        <link rel="stylesheet" href="jw-styles.css" />
+        <meta charset="utf-8">
         <style>
           body {
             user-select: none;
@@ -121,14 +122,30 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
             z-index: 999;
           }
          
-          .word.selected {
+          .word.selected,
+          .punctuation.selected,
+          .escape.selected {
             background-color: rgba(66, 236, 241, 0.3);
+            position: relative; /* nécessaire pour handles positionnés en absolu */
           }
-            
-          .punctuation.selected {
-            background-color: rgba(66, 236, 241, 0.3);
+          
+          .handle {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            pointer-events: auto;
           }
-            
+          
+          .handle-left {
+            bottom: -20px; /* Ajuste selon ton design */
+            left: -20px;
+          }
+          
+          .handle-right {
+            bottom: -20px;
+            right: -20px;
+          }
+          
           .word.searched {
             background-color: rgba(255, 185, 46, 0.8);
           }
@@ -221,13 +238,17 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
           const highlightAssets = Array.from({ length: 6 }, (_, i) => `highlights/$theme/highlight\${i + 1}.png`);
           const highlightSelectedAssets = Array.from({ length: 6 }, (_, i) => `highlights/$theme/highlight\${i + 1}_selected.png`);
           
+          const handleLeft = `images/handle_left.png`;
+          const handleRight = `images/handle_right.png`;
+          
           const speedBarScroll = `images/speedbar_thumb_regular.png`;
           let scrollBar = null;
     
           const maxIndex = $maxIndex;
           
-          let appBarHeight = 90;    // hauteur de l'AppBar
-          let bottomNavBarHeight = 55; // hauteur de la BottomBar
+          // Valeurs fixes de hauteur des barres
+          const APPBAR_FIXED_HEIGHT = 90;
+          const BOTTOMNAVBAR_FIXED_HEIGHT = 85;
           
           let highlights;
           let notes;
@@ -238,7 +259,6 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
             if (index < 0 || index > maxIndex) return { html: "", className: "" };
             if (cachedPages[index]) return cachedPages[index];
             const page = await window.flutter_inappwebview.callHandler('getPage', index);
-            console.log("fetchPage", index, page.className);
             cachedPages[index] = page;
             return page;
           }
@@ -513,15 +533,41 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
           async function loadPages(currentIndex) {
             await loadIndexPage(currentIndex);
           
-            // Restaurer la position de scroll verticale pour une page donnée
             function restoreScrollPosition(page, index) {
               const scroll = scrollTopPages[index] ?? 0;
               page.scrollTop = scroll;
               scrollTopPages[index] = scroll;
+              
+              // 🔄 Réinitialiser les états de direction
+              lastScrollTop = scroll;
+              lastDirection = null;
+              directionChangePending = false;
+              directionChangeStartTime = 0;
+              directionChangeStartScroll = 0;
+              directionChangeTargetDirection = null;
+            
+              if (scroll === 0) {
+                appBarHeight = APPBAR_FIXED_HEIGHT;
+                bottomNavBarHeight = BOTTOMNAVBAR_FIXED_HEIGHT;
+              }
             }
           
             restoreScrollPosition(pageCenter, currentIndex);
             pageCenter.scrollLeft = 0;
+            
+            currentGuid = '';
+            pressTimer = null;
+            firstLongPressTarget = null;
+            lastLongPressTarget = null;
+            isLongPressing = false;
+            isLongTouchFix = false;
+            isSelecting = false;
+            sideHandle = null;
+            isDragging = false;
+            isVerticalScroll = false;
+            startX = 0;
+            startY = 0;
+            currentTranslate = -100;
           
             await window.flutter_inappwebview.callHandler('changePageAt', currentIndex);
             loadUserdata();
@@ -539,94 +585,100 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
             await loadPages(index);
           }
           
-          async function jumpToIdSelector(selector, idAttr, begin, end) {
-            closeToolbar();
-          
-            const paragraphs = pageCenter.querySelectorAll(selector);
-            let targetParagraph = null;
-            
-            if (begin === -1 && end === -1) {
-              // Rétablir tous les paragraphes à l'opacité normale
-              paragraphs.forEach(p => {
-                p.style.opacity = '1';
-              });
+         async function jumpToIdSelector(selector, idAttr, begin, end) {
+          closeToolbar();
+        
+          const paragraphs = pageCenter.querySelectorAll(selector);
+          let targetParagraph = null;
+        
+          let firstParagraphId;
+          let endParagraphId;
+        
+          if (begin === -1 && end === -1) {
+            // Rétablir tous les paragraphes à l'opacité normale
+            paragraphs.forEach(p => {
+              p.style.opacity = '1';
+            });
+            return;
+          }
+        
+          if (selector === '[data-pid]') {
+            paragraphs.forEach(p => {
+              const pid = parseInt(p.getAttribute(idAttr), 10);
+              if (!firstParagraphId) firstParagraphId = pid;
+              endParagraphId = pid;
+        
+              if (pid >= begin && pid <= end && !targetParagraph) {
+                targetParagraph = p;
+              }
+        
+              p.style.opacity = (pid >= begin && pid <= end) ? '1' : '0.5';
+            });
+          } else {
+            paragraphs.forEach(p => {
+              const attrValue = p.getAttribute(idAttr)?.trim();
+              if (!attrValue) return;
+        
+              const idParts = attrValue.split('-');
+              if (idParts.length < 4) return;
+        
+              const verse = parseInt(idParts[2], 10);
+              if (!firstParagraphId) firstParagraphId = verse;
+              endParagraphId = verse;
+        
+              if (verse >= begin && verse <= end && !targetParagraph) {
+                targetParagraph = p;
+              }
+        
+              p.style.opacity = (verse >= begin && verse <= end) ? '1' : '0.5';
+            });
+          }
+        
+          if (targetParagraph) {
+            isChangingParagraph = true;
+        
+            const visibleParagraphs = Array.from(pageCenter.querySelectorAll(selector))
+              .filter(p => p.style.opacity === '1');
+        
+            if (visibleParagraphs.length === 0) {
+              isChangingParagraph = false;
               return;
             }
-          
-            if(selector === '[data-pid]') {
-              paragraphs.forEach(p => {
-                const pid = parseInt(p.getAttribute(idAttr), 10);
-          
-                if (pid >= begin && pid <= end && !targetParagraph) {
-                  targetParagraph = p;
-                }
-          
-                console.log('targetParagraph', pid, begin, end, targetParagraph);
-                p.style.opacity = (pid >= begin && pid <= end) ? '1' : '0.5';
-              });
+        
+            const firstTop = visibleParagraphs[0].offsetTop;
+            const lastParagraph = visibleParagraphs[visibleParagraphs.length - 1];
+            const lastBottom = lastParagraph.offsetTop + lastParagraph.offsetHeight;
+            const totalHeight = lastBottom - firstTop;
+        
+            const screenHeight = pageCenter.clientHeight;
+            const visibleHeight = screenHeight - appBarHeight - bottomNavBarHeight - 40;
+        
+            let scrollToY;
+        
+            // Cas : on débute au tout début
+            if (begin === firstParagraphId) {
+              scrollToY = 0;
             }
+            // Cas : on termine au dernier paragraphe
+            else if (end === endParagraphId) {
+              scrollToY = pageCenter.scrollHeight;
+            }
+            // Cas : tout tient dans l'écran, centrer
+            else if (totalHeight < visibleHeight) {
+              scrollToY = firstTop - appBarHeight - 20 - (visibleHeight / 2) + (totalHeight / 2);
+            }
+            // Cas par défaut : afficher à partir du haut du premier paragraphe visible
             else {
-              paragraphs.forEach(p => {
-                const attrValue = p.getAttribute(idAttr).trim();
-          
-                const idParts = attrValue.split('-');
-          
-                if (idParts.length < 4) return; // Vérifie que le format est correct
-          
-                const verse = parseInt(idParts[2], 10); // Position 2 = 3ème élément (5)
-          
-          
-                if (verse >= begin && verse <= end && !targetParagraph) {
-                  targetParagraph = p;
-                }
-          
-                p.style.opacity = (verse >= begin && verse <= end) ? '1' : '0.5';
-              });
+              scrollToY = firstTop - appBarHeight - 20;
             }
-          
-            if (targetParagraph) {
-              isChangingParagraph = true;
-            
-              // Récupère tous les paragraphes visibles (opacity === '1')
-              const visibleParagraphs = Array.from(pageCenter.querySelectorAll(selector)).filter(p => p.style.opacity === '1');
-            
-              if (visibleParagraphs.length === 0) {
-                isChangingParagraph = false;
-                return;
-              }
-            
-              // Trouver la position top du premier visible et bottom du dernier visible
-              const firstTop = visibleParagraphs[0].offsetTop;
-              const lastParagraph = visibleParagraphs[visibleParagraphs.length - 1];
-              const lastBottom = lastParagraph.offsetTop + lastParagraph.offsetHeight;
-            
-              // Hauteur totale combinée des paragraphes sélectionnés
-              const totalHeight = lastBottom - firstTop;
-            
-              const screenHeight = pageCenter.clientHeight;
-            
-              const visibleHeight = screenHeight - appBarHeight - bottomNavBarHeight;
-            
-              let scrollToY;
-            
-              if (totalHeight < visibleHeight) {
-                // Centre la zone combinée
-                scrollToY = firstTop - appBarHeight - (visibleHeight / 2) + (totalHeight / 2);
-              } else {
-                // Affiche le haut de la zone combinée sous l'app bar
-                scrollToY = firstTop - appBarHeight;
-              }
-            
-              scrollToY = Math.max(scrollToY, 0);
-            
-              pageCenter.scrollTop = scrollToY;
-            
-              // Attend la prochaine frame pour être sûr que c'est appliqué
-              await new Promise(requestAnimationFrame);
-            
-              isChangingParagraph = false;
-            }
+        
+            scrollToY = Math.max(scrollToY, 0);
+            pageCenter.scrollTop = scrollToY;
+        
+            await new Promise(requestAnimationFrame);
+            isChangingParagraph = false;
           }
+        }
           
           function selectWords(words, jumpToWord) {
             // Supprimer la classe 'searched' de tous les éléments
@@ -907,17 +959,14 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
     
           function closeToolbar() {
             const toolbars = document.querySelectorAll('.toolbar, .toolbar-highlight, .toolbar-colors');
-            const onlyToolbars = document.querySelectorAll('.toolbar');
           
-            if (onlyToolbars.length >= 1) {
-              restoreOpacity(); // Appel si au moins une .toolbar est présente
-            }
+            if (toolbars.length === 0) return; // Ne rien faire s'il n'y a aucune toolbar
           
-            toolbars.forEach(toolbar => toolbar.style.opacity = '0');
+            restoreOpacity(); // Appel si des toolbars sont présentes
           
-            setTimeout(() => {
-              toolbars.forEach(toolbar => toolbar.remove());
-            }, 200);
+            toolbars.forEach(toolbar => {
+              toolbar.remove();
+            });
           }
 
           function removeAllSelected() {
@@ -925,40 +974,26 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
               elem.classList.remove('selected');
             });
           }
-    
-          function showToolbarHighlight(target, highlightId) {
+          
+          function createToolbarBase({ targets, highlightId, isSelected, target }) {
             const toolbars = document.querySelectorAll('.toolbar, .toolbar-highlight');
-
+          
             // Masquer les toolbars existantes
-            toolbars.forEach(toolbar => {
-              toolbar.style.opacity = '0';
-            });
+            toolbars.forEach(toolbar => toolbar.style.opacity = '0');
           
             setTimeout(() => {
               toolbars.forEach(toolbar => toolbar.remove());
             }, 200);
           
             // Ne rien faire si la bonne toolbar existe déjà
-            const matchingToolbar = Array.from(toolbars).find(
-              toolbar => toolbar.getAttribute('data-highlight-id') === highlightId
+            const existing = Array.from(toolbars).find(toolbar =>
+              toolbar.getAttribute('data-highlight-id') === highlightId
+              || toolbar.classList.contains('selected')
             );
-            if (matchingToolbar) return;
-            
-            let left = 0;
-            let top = 0;
-            
-            let targets = [];
-   
-            const isSelected = target.classList.contains('selected');
-            if(isSelected) {
-              targets = pageCenter.querySelectorAll('.selected');
-              if (targets.length === 0) return;
-            }
-            else {
-              targets = pageCenter.querySelectorAll(`[data-highlight-id="\${highlightId}"]`);
-              if (targets.length === 0) return;
-            }
-            
+            if (existing) return;
+          
+            if (!targets || targets.length === 0) return;
+          
             // Horizontal : centré sur tous les targets
             let minLeft = Infinity;
             let maxRight = -Infinity;
@@ -967,36 +1002,38 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
               minLeft = Math.min(minLeft, rect.left);
               maxRight = Math.max(maxRight, rect.right);
             });
-              
+          
             const scrollX = window.scrollX;
-            left = minLeft + (maxRight - minLeft) / 2 + scrollX;
-              
-            // Obtenir les limites de pageCenter
+            let left = minLeft + (maxRight - minLeft) / 2 + scrollX;
+          
             const pageRect = pageCenter.getBoundingClientRect();
             const pageLeft = pageRect.left + scrollX;
             const pageRight = pageRect.right + scrollX;
-            const toolbarWidth = 200; // Estimation ou réelle largeur max
-              
-            // Clamp pour éviter les débordements
-            left = Math.max(left, pageLeft + toolbarWidth / 2 + 10);  // +10 = marge
+            const toolbarWidth = 200;
+          
+            left = Math.max(left, pageLeft + toolbarWidth / 2 + 10);
             left = Math.min(left, pageRight - toolbarWidth / 2 - 10);
-              
-            // Vertical : au-dessus du premier highlight
+          
             const firstRect = targets[0].getBoundingClientRect();
             const scrollY = window.scrollY;
             const toolbarHeight = 40;
             const safetyMargin = 10;
-              
-            top = firstRect.top + scrollY - toolbarHeight - safetyMargin;
+          
+            let top = firstRect.top + scrollY - toolbarHeight - safetyMargin;
             const minVisibleY = scrollY + appBarHeight + safetyMargin;
             if (top < minVisibleY) {
               top = Math.max(firstRect.top + scrollY + safetyMargin, minVisibleY);
             }
-
+          
             // Créer la toolbar
             const toolbar = document.createElement('div');
             toolbar.classList.add('toolbar-highlight');
-            toolbar.setAttribute('data-highlight-id', highlightId);
+            if (isSelected) {
+              toolbar.classList.add('selected');
+            }
+            else {
+              toolbar.setAttribute('data-highlight-id', highlightId);
+            }
             toolbar.style.cssText = `
               position: absolute;
               top: \${top}px;
@@ -1010,70 +1047,77 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
               opacity: 1;
               transform: translateX(-50%);
               width: max-content;
-              max-width: 90vw; /* pour éviter qu'elle dépasse trop l'écran */
+              max-width: 90vw;
             `;
-
+          
             document.body.appendChild(toolbar);
-
-             // Attendre le rendu pour obtenir la vraie largeur
+          
             requestAnimationFrame(() => {
               const toolbarRect = toolbar.getBoundingClientRect();
               const realWidth = toolbarRect.width;
-            
-              // Recalcule left avec limites
               left = Math.min(
                 Math.max(left, pageLeft + realWidth / 2 + 10),
                 pageRight - realWidth / 2 - 10
               );
-              
               toolbar.style.left = `\${left}px`;
               toolbar.style.opacity = '1';
             });
-            
+          
             const paragraphInfo = getTheFirstTargetParagraph(target);
             const id = paragraphInfo.id;
             const paragraph = paragraphInfo.paragraph;
             const isVerse = paragraphInfo.isVerse;
-            
+          
             const text = Array.from(targets)
-                .map(elem => elem.innerText)
-                .filter(text => text.length > 0)
-                .join('');
-
+              .map(elem => elem.innerText)
+              .filter(text => text.length > 0)
+              .join('');
+          
             toolbar.appendChild(createToolbarButtonColor(target, toolbar, isSelected));
-
+          
             const buttons = [
-              ['&#xE681;', () => isSelected ? addNote(paragraph, id, isVerse, text) : addNoteWithHighlight(target, target.getAttribute('data-highlight-id'))],
-              ...(!isSelected ? [['&#xE6C5;', () => removeHighlight(target.getAttribute('data-highlight-id'))]] : []),
+              ['&#xE681;', () => isSelected ? addNote(paragraph, id, isVerse, text) : addNoteWithHighlight(target, highlightId)],
+              ...(!isSelected && highlightId ? [['&#xE6C5;', () => removeHighlight(highlightId)]] : []),
               ['&#xE651;', () => callHandler('copyText', { text })],
               ['&#xE676;', () => callHandler('search', { query: text })],
-              ['&#xE696;', () => callHandler('copyText', { text })] // <== plus de virgule ici
+              ['&#xE696;', () => callHandler('copyText', { text })]
             ];
           
             buttons.forEach(([icon, handler]) => toolbar.appendChild(createToolbarButton(icon, handler)));
           }
+    
+          function showToolbarHighlight(target, highlightId) {
+            const targets = pageCenter.querySelectorAll(`[data-highlight-id="\${highlightId}"]`);
+            if (targets.length === 0) return;
+            
+            createToolbarBase({ targets, highlightId, isSelected: false, target });
+          }
           
+          function showSelectedToolbar(target) {
+            const targets = pageCenter.querySelectorAll('.selected');
+            if (targets.length === 0) return;
+          
+            createToolbarBase({ targets, highlightId: null, isSelected: true, target });
+          }
+                    
           function showToolbar(paragraphs, pid, selector, hasAudio, type) {
             const paragraph = paragraphs[0];
-            const toolbars = document.querySelectorAll('.toolbar, .toolbar-highlight');
-                
+            const toolbars = document.querySelectorAll('.toolbar, .toolbar-highlight, .toolbar-colors');
+            
+            // Chercher la toolbar correspondante au pid
+            const matchingToolbar = Array.from(toolbars).find(toolbar => toolbar.getAttribute('data-pid') === pid);
+            
+            // Supprimer les toolbars qui ne correspondent pas
             toolbars.forEach(toolbar => {
               toolbar.style.opacity = '0';
+              toolbar.remove();
             });
-            
-            // Attendre que l'animation soit terminée, puis retirer les toolbars
-            setTimeout(() => {
-              toolbars.forEach(toolbar => toolbar.remove());
-            }, 200);
-            
-            // Vérifier s'il y a une toolbar avec le bon highlightId
-            const matchingToolbar = Array.from(toolbars).find(toolbar => toolbar.getAttribute('data-pid') === pid);
             
             if (matchingToolbar) {
               restoreOpacity();
               return;
             }
-             
+            
             // Ici on dim les autres si pas highlight
             dimOthers(paragraphs, selector);
             
@@ -1127,9 +1171,8 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
             
             if (type === 'verse') {
               buttons = [
-                ['&#xE658;', () => callHandler('showVerse', { id: pid })],
+                ['&#xE658;', () => fetchVerseInfo(paragraph, pid)],
                 ['&#xE681;', () => addNote(paragraph, pid, true, '')],
-                ['&#xE61F;', () => callHandler('showOtherTranslations', { id: pid })],
                 ['&#xE62A;', () => callHandler('bookmark', { snippet: allParagraphsText, id: pid, isBible: true })],
                 ['&#xE651;', () => callHandler('copyText', { text: allParagraphsText })],
                 ['&#xE620;', () => callHandler('searchVerse', { query: pid })],
@@ -1149,6 +1192,12 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
             if (hasAudio) {
               toolbar.appendChild(createToolbarButton('&#xE65E;', () => callHandler('playAudio', { id: pid, isBible: type === 'verse' })));
             }
+          }
+          
+          async function fetchVerseInfo(paragraph, pid) {
+            const verseInfo = await window.flutter_inappwebview.callHandler('fetchVerseInfo', { id: pid });
+            showVerseInfoDialog(verseInfo);
+            closeToolbar();
           }
           
           function removeDialog() {
@@ -1234,17 +1283,18 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
               
               // Style pour les scrollbars webkit
               contentContainer.style.cssText += `
-                  &::-webkit-scrollbar {
-                      width: 6px;
-                  }
-                  &::-webkit-scrollbar-track {
-                      background: transparent;
-                  }
-                  &::-webkit-scrollbar-thumb {
-                      background: \${isDark ? '#555' : '#ccc'};
-                      border-radius: 3px;
-                  }
-              `;
+                user-select: text;
+                &::-webkit-scrollbar {
+                    width: 6px;
+                }
+                &::-webkit-scrollbar-track {
+                    background: transparent;
+                }
+                &::-webkit-scrollbar-thumb {
+                    background: \${isDark ? '#555' : '#ccc'};
+                    border-radius: 3px;
+                }
+            `;
               
               // Ajout du contenu personnalisé
               if (options.contentRenderer) {
@@ -1343,12 +1393,9 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
               closeButton.onclick = function(event) {
                   event.stopPropagation();
                   event.preventDefault();
-                  dialog.style.animation = 'dialogAppear 0.3s reverse';
-                  setTimeout(() => {
-                      dialog.remove();
-                      window.flutter_inappwebview?.callHandler('showFullscreenDialog', false);
-                      window.flutter_inappwebview?.callHandler('showDialog', false);
-                  }, 300);
+                  dialog.remove();
+                  window.flutter_inappwebview?.callHandler('showFullscreenDialog', false);
+                  window.flutter_inappwebview?.callHandler('showDialog', false);
               };
               
               buttonContainer.appendChild(fullscreenButton);
@@ -1372,7 +1419,6 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
               
               function startDrag(event) {
                   if (isFullscreenCallback()) return;
-                  event.preventDefault();
                   let clientX = event.clientX ?? event.touches?.[0]?.clientX;
                   let clientY = event.clientY ?? event.touches?.[0]?.clientY;
                   isDragging = true;
@@ -1383,7 +1429,6 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
               
               function onDrag(event) {
                   if (!isDragging) return;
-                  event.preventDefault();
                   let clientX = event.clientX ?? event.touches?.[0]?.clientX;
                   let clientY = event.clientY ?? event.touches?.[0]?.clientY;
                   dialog.style.left = (clientX - offsetX) + 'px';
@@ -1408,7 +1453,6 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
           function setupFullscreenToggle(fullscreenButton, dialog, contentContainer, isFullscreen) {
               fullscreenButton.onclick = function(event) {
                   event.stopPropagation();
-                  event.preventDefault();
                   
                   if (isFullscreen) {
                       window.flutter_inappwebview?.callHandler('showFullscreenDialog', false);
@@ -1542,8 +1586,6 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
                               true
                             );
                           });      
-                          
-                          console.log('article Content', article.innerHTML);
                           
                           article.addEventListener('click', async (event) => {
                               onClickOnPage(event.target);
@@ -1684,6 +1726,128 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
               });
           }
           
+          function showVerseInfoDialog(verseInfo) {
+              showDialog({
+                  title: verseInfo.title,
+                  contentRenderer: (contentContainer, isDark) => {
+                      // Crée l'en-tête d'onglets
+                      const tabBar = document.createElement('div');
+                      tabBar.style.cssText = `
+                          display: flex;
+                          border-bottom: 1px solid \${isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)'};
+                          background-color: \${isDark ? '#111' : '#f9f9f9'};
+                      `;
+          
+                      const tabs = [
+                        { key: 'commentary', iconClass: 'jwi-bible-speech-balloon' },
+                        { key: 'versions', iconClass: 'jwi-bible-comparison' },
+                        { key: 'guide', iconClass: 'jwi-publications-pile' },
+                        { key: 'footnotes', iconClass: 'jwi-bible-quote' },
+                        { key: 'notes', iconClass: 'jwi-text-pencil' },
+                      ];
+                      
+                      let currentTab = 'commentary';
+                      
+                      const tabButtons = tabs.map(({ key, iconClass }) => {
+                        const btn = document.createElement('button');
+                        btn.classList.add('jwf-jw-icons-external', iconClass);
+                      
+                        btn.style.cssText = `
+                          flex: 1;
+                          padding: 10px;
+                          border: none;
+                          background: none;
+                          cursor: pointer;
+                          font-size: 30px;
+                          color: \${isDark ? '#fff' : '#000'};
+                          border-bottom: 2px solid \${key === currentTab ? (isDark ? '#fff' : '#000') : 'transparent'};
+                        `;
+                      
+                        btn.addEventListener('click', () => {
+                          currentTab = key;
+                          updateTabContent();
+                      
+                          tabButtons.forEach(b => {
+                            b.style.borderBottom = '2px solid transparent';
+                          });
+                          btn.style.borderBottom = `2px solid \${isDark ? '#fff' : '#000'}`;
+                        });
+                      
+                        return btn;
+                      });
+          
+                      tabButtons.forEach(btn => tabBar.appendChild(btn));
+                      contentContainer.appendChild(tabBar);
+          
+                      // Conteneur pour le contenu dynamique
+                      const dynamicContent = document.createElement('div');
+                      dynamicContent.style.padding = '10px';
+                      contentContainer.appendChild(dynamicContent);
+          
+                      function updateTabContent() {
+                        dynamicContent.innerHTML = ''; // reset
+                    
+                        const key = currentTab.toLowerCase();
+                        const items = verseInfo[key] || [];
+                    
+                        // Textes pour message vide
+                        const emptyMessages = {
+                            commentary: "Il n'y a pas de commentaire pour ce verset.",
+                            versions: "Il n'y a pas d'autres versions pour ce verset.",
+                            guide: "Il n'y a pas de guide pour ce verset.",
+                            footnotes: "Il n'y a pas de notes de bas de page pour ce verset.",
+                            notes: "Il n'y a pas de notes personnelles pour ce verset."
+                        };
+                    
+                        // Si vide → afficher message
+                        if (items.length === 0) {
+                            const emptyDiv = document.createElement('div');
+                            emptyDiv.style.cssText = `
+                                padding: 15px;
+                                font-style: italic;
+                                opacity: 0.7;
+                            `;
+                            emptyDiv.textContent = emptyMessages[key] || "Aucun contenu disponible.";
+                            dynamicContent.appendChild(emptyDiv);
+                            return;
+                        }
+                    
+                        if (key === 'notes') {
+                            items.forEach((item) => {
+                                const article = document.createElement('div');
+                                article.innerHTML = `
+                                    <article id="verse-info-dialog" class="\${item.className || ''}">
+                                        <h3>\${item.Title}</h3>
+                                        <p>\${item.Content}</p>
+                                    </article>
+                                `;
+                                article.addEventListener('click', async (event) => {
+                                    onClickOnPage(event.target);
+                                });
+                                dynamicContent.appendChild(article);
+                            });
+                        } 
+                        else {
+                            items.forEach((item) => {
+                                const article = document.createElement('div');
+                                article.innerHTML = `
+                                    <article id="verse-info-dialog" class="\${item.className}">
+                                        \${item.content}
+                                    </article>
+                                `;
+                                article.addEventListener('click', async (event) => {
+                                    onClickOnPage(event.target);
+                                });
+                                dynamicContent.appendChild(article);
+                            });
+                        }
+                    }
+          
+                      updateTabContent(); // initial display
+                  }
+              });
+          }
+          
           function showExtractPublicationDialog(extractData) {
               showDialog({
                   title: extractData.title || 'Extrait de publication',
@@ -1727,8 +1891,8 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
                               window.flutter_inappwebview.callHandler('openMepsDocument', {
                                       mepsDocumentId: item.mepsDocumentId,
                                       mepsLanguageId: item.mepsLanguageId,
-                                      startParagraph: item.startParagraphId,
-                                      endParagraph: item.endParagraphId
+                                      startParagraphId: item.startParagraphId,
+                                      endParagraphId: item.endParagraphId
                                   });
                           });
                           
@@ -1983,9 +2147,7 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
               }
 
               // Optimisation avec optional chaining et court-circuit
-              const hasAudio = cachedPages[currentIndex]?.audiosMarkers?.some(m => 
-                String(m.mepsParagraphId) === pid
-              ) ?? false;
+              const hasAudio = cachedPages[currentIndex]?.audiosMarkers?.some(m => String(m.mepsParagraphId) === pid) ?? false;
               
               showToolbar([matchedElement], pid, selector, hasAudio, classFilter);
             }
@@ -2007,12 +2169,7 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
               // Trouver tous les éléments qui correspondent au même verset
               // (même livre, même chapitre, même verset, peu importe la partie)
               const versePattern = `\${vidParts[0]}-\${vidParts[1]}-\${verseNumber}-`; // v1-3-5-
-              console.log('versePattern', versePattern);
               const verseElements = pageCenter.querySelectorAll(`[\${idAttr}^="\${versePattern}"]`);
-              
-              console.log('verseElements', verseElements);
-              
-              console.log('verseNumber', verseNumber);
             
               // Utiliser le numéro de verset pour la vérification audio
               const hasAudio = cachedPages[currentIndex]?.audiosMarkers?.some(m => 
@@ -2040,11 +2197,6 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
             notes = userdata.notes;
             inputFields = userdata.inputFields;
             bookmarks = userdata.bookmarks;
-          
-            console.log('Highlights:', highlights);
-            console.log('Notes:', notes);
-            console.log('Input Fields:', inputFields);
-            console.log('Bookmarks:', bookmarks);
           
             // Pré-indexation des données pour un accès plus rapide
             const highlightsMap = new Map();
@@ -2600,8 +2752,6 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
               backdrop-filter: blur(10px);
             \`;
             
-            console.log('theUniqueTagsId', tagsId);
-          
             const currentTagIds = !tagsId || tagsId === '' ? [] : tagsId.split(',').map(id => parseInt(id));
             currentTagIds.forEach(tagId => {
               const tag = tags.find(t => t.TagId === tagId);
@@ -2922,11 +3072,14 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
           let directionChangeStartTime = 0;
           let directionChangeStartScroll = 0;
           let directionChangeTargetDirection = null;
+          let appBarHeight = 90;    // hauteur de l'AppBar
+          let bottomNavBarHeight = 85; // hauteur de la BottomBar
           
-          const DIRECTION_CHANGE_THRESHOLD_MS = 300;
+          const DIRECTION_CHANGE_THRESHOLD_MS = 250;
           const DIRECTION_CHANGE_THRESHOLD_PX = 40;
-          
+   
           pageCenter.addEventListener("scroll", () => {
+            closeToolbar();
             if (isLongPressing || isChangingParagraph) return;
           
             const scrollTop = pageCenter.scrollTop;
@@ -2937,65 +3090,66 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
             const scrollDirection = scrollDelta > 0 ? "down" : scrollDelta < 0 ? "up" : "none";
             const now = Date.now();
           
-            // Si direction a changé
+            // Détection de changement de direction
             if (
               scrollDirection !== "none" &&
               scrollDirection !== lastDirection &&
               !directionChangePending
             ) {
-              // On commence à surveiller
               directionChangePending = true;
               directionChangeStartTime = now;
               directionChangeStartScroll = scrollTop;
               directionChangeTargetDirection = scrollDirection;
             }
           
-            // Si on est en attente d'une validation de changement
+            // Validation d’un geste franc
             if (directionChangePending && scrollDirection === directionChangeTargetDirection) {
               const timeDiff = now - directionChangeStartTime;
               const scrollDiff = Math.abs(scrollTop - directionChangeStartScroll);
           
               if (timeDiff < DIRECTION_CHANGE_THRESHOLD_MS && scrollDiff > DIRECTION_CHANGE_THRESHOLD_PX) {
-                // Geste franc validé
                 window.flutter_inappwebview.callHandler('onScroll', scrollTop, scrollDirection);
                 lastDirection = scrollDirection;
                 directionChangePending = false;
               } else if (timeDiff >= DIRECTION_CHANGE_THRESHOLD_MS) {
-                // Trop lent → annuler
                 directionChangePending = false;
               }
             }
           
             lastScrollTop = scrollTop;
+            scrollTopPages[currentIndex] = scrollTop;
           
-            // Gestion UI (masquer/afficher barres)
-            if (scrollDirection === 'down') {
+            // Affichage automatique en haut de page
+            if (scrollTop === 0) {
+              appBarHeight = APPBAR_FIXED_HEIGHT;
+              bottomNavBarHeight = BOTTOMNAVBAR_FIXED_HEIGHT;
+            } else if (scrollDirection === 'down') {
+              // Masquer les barres
               appBarHeight = 0;
               bottomNavBarHeight = 0;
             } else if (scrollDirection === 'up') {
-              appBarHeight = 90;
-              bottomNavBarHeight = 55;
+              // Afficher les barres
+              appBarHeight = APPBAR_FIXED_HEIGHT;
+              bottomNavBarHeight = BOTTOMNAVBAR_FIXED_HEIGHT;
             }
-          
-            scrollTopPages[currentIndex] = scrollTop;
           
             // Scroll-bar
             const scrollableHeight = scrollHeight - clientHeight;
-            const visibleHeight = window.innerHeight - bottomNavBarHeight - 90;
+            const visibleHeight = window.innerHeight - bottomNavBarHeight - APPBAR_FIXED_HEIGHT;
             const scrollRatio = scrollTop / scrollableHeight;
-            const scrollBarTop = 90 + (visibleHeight - scrollBar.offsetHeight) * scrollRatio;
-            scrollBar.style.top = `\${scrollBarTop}px`; // ← corrigé ici : plus besoin d'échappement
+            const scrollBarTop = APPBAR_FIXED_HEIGHT + (visibleHeight - scrollBar.offsetHeight) * scrollRatio;
+            scrollBar.style.top = `\${scrollBarTop}px`;
           });
           
           // Variables globales pour éviter les redéclarations
           let currentGuid = '';
-          let currentTempHighlight = null;
-          let tempHighlightElements = []; 
           let pressTimer = null;
           let firstLongPressTarget = null;
           let lastLongPressTarget = null;
           let isLongPressing = false;
           let isLongTouchFix = false;
+          let isSelecting = false;
+          let sideHandle = null;
           let isDragging = false;
           let isVerticalScroll = false;
           let startX = 0;
@@ -3092,8 +3246,19 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
       
               if(href.startsWith('jwpub://p/')) {
                 const extract = await window.flutter_inappwebview.callHandler('fetchExtractPublication', href);
-                showExtractPublicationDialog(extract);
-                closeToolbar();
+                if (extract != null) {
+                  showExtractPublicationDialog(extract);
+                  closeToolbar();
+                }
+                return;
+              }
+              
+              if(href.startsWith('jwpub://c/')) {
+                const extract = await window.flutter_inappwebview.callHandler('fetchCommentaries', href);
+                if (extract != null) {
+                  //showExtractPublicationDialog(extract);
+                  closeToolbar();
+                }
                 return;
               }
               
@@ -3129,16 +3294,18 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
               return;
             }
             else if (highlightId) {
-              const highlightElement = pageCenter.querySelector(`[data-highlight-id="\${highlightId}"]`);
-              showToolbarHighlight(highlightElement, highlightId);
+              showToolbarHighlight(target, highlightId);
               return;
             }
             
             // Optimisation de la logique conditionnelle
             if (isBible()) {
               whenClickOnParagraph(target, '.v', 'id', 'verse');
-            } else {
+              return;
+            } 
+            else {
               whenClickOnParagraph(target, '[data-pid]', 'data-pid', 'paragraph');
+              return;
             }
           }
           
@@ -3148,36 +3315,101 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
           });
           
           // Gestionnaire touchstart optimisé
-          pageCenter.addEventListener('touchstart', async (event) => {
-            // Utilisation de clearTimeout avant setTimeout pour éviter les fuites
-            if (pressTimer) clearTimeout(pressTimer);
-            
-            pressTimer = setTimeout(async () => {
-              firstLongPressTarget = event.target;
-              currentGuid = '';
+          pageCenter.addEventListener('touchstart', (event) => {
+            // Vérification simple pour les handles
+            if (event.target.classList.contains('handle-left') || event.target.classList.contains('handle-right')) {
+              event.preventDefault();
+              closeToolbar();
+              isSelecting = true;
+              sideHandle = event.target.classList.contains('handle-left') ? 'left' : 'right';
+              setLongPressing(true);
+            }
+            else {
+              if (pressTimer) clearTimeout(pressTimer);
               
-              const firstTargetClassList = firstLongPressTarget?.classList;
-              if (firstTargetClassList && (firstTargetClassList.contains('word') || firstTargetClassList.contains('punctuation'))) {
-                try {
-                  const uuid = await window.flutter_inappwebview.callHandler('getHighlightGuid');
-                  currentGuid = uuid.guid;
+              firstLongPressTarget = event.target;
+              
+              pressTimer = setTimeout(async () => {
+                closeToolbar();
+                removeAllSelected();
+          
+                const firstTargetClassList = firstLongPressTarget?.classList;
+                if (firstLongPressTarget && firstTargetClassList && (firstTargetClassList.contains('word') || firstTargetClassList.contains('punctuation'))) {
+                  try {
+                    const uuid = await window.flutter_inappwebview.callHandler('getHighlightGuid');
+                    currentGuid = uuid.guid;
                   
-                  setLongPressing(true);
-                  isLongTouchFix = true;
-                  tempHighlightElements.length = 0; // Plus rapide que = []
-                } 
-                catch (error) {
-                  console.error('Error getting highlight GUID:', error);
+                    setLongPressing(true);
+                    isLongTouchFix = true;
+                  
+                    const highlightId = firstLongPressTarget.getAttribute('data-highlight-id');
+                    if (highlightId) {
+                      const newHighlightClass = `highlight-\${["transparent", "yellow", "green", "blue", "pink", "orange", "purple"][highlightColorIndex]}`;
+                  
+                      // Récupérer tous les éléments avec l'ancien highlightId
+                      const highlightElements = Array.from(pageCenter.querySelectorAll(`[data-highlight-id="\${highlightId}"]`));
+                      
+                      if (highlightElements.length > 0) {
+                        // Mettre à jour tous les éléments avec le nouveau GUID et nouvelle classe
+                        highlightElements.forEach(element => {
+                          element.setAttribute('data-highlight-id', currentGuid);
+                  
+                          element.classList.remove(
+                            'highlight-transparent', 'highlight-yellow', 'highlight-green', 'highlight-blue',
+                            'highlight-pink', 'highlight-orange', 'highlight-purple'
+                          );
+                          element.classList.add(newHighlightClass);
+                        });
+                  
+                        // Mettre à jour les targets : le premier et le dernier élément du groupe
+                        firstLongPressTarget = highlightElements[0];
+                        lastLongPressTarget = highlightElements[highlightElements.length - 1];
+                  
+                        // Appeler la méthode pour supprimer l'ancien highlight dans Flutter
+                        window.flutter_inappwebview.callHandler('removeHighlight', { guid: highlightId });
+                      }
+                    }
+                  
+                  } catch (error) {
+                    console.error('Error getting highlight GUID:', error);
+                  }
                 }
-              }
-            }, 250);
-          }, { passive: true });
+              }, 200);
+            }
+          }, { passive: false });
           
           // Gestionnaire touchmove optimisé avec throttle
           const handleTouchMove = throttle((event) => {
             isLongTouchFix = false;
-            
-            if (isLongPressing && currentGuid) {
+          
+            if(isSelecting) {
+              event.preventDefault(); // Empêche le scroll
+              
+              const touch = event.changedTouches[0];
+              const x = touch.clientX;
+              const y = touch.clientY;
+              
+              //updateMagnifier(x, y);
+                
+              const closestElement = getClosestElementHorizontally(x, y);
+              const elementClassList = closestElement?.classList;
+                
+              if (closestElement && elementClassList && (elementClassList.contains('word') || elementClassList.contains('punctuation'))) {
+                if(sideHandle === 'left') {
+                  if(closestElement !== firstLongPressTarget) {
+                    firstLongPressTarget = closestElement;
+                    updateSelected();
+                  }
+                }
+                else if(sideHandle === 'right') {
+                  if(closestElement !== lastLongPressTarget) {
+                    lastLongPressTarget = closestElement;
+                    updateSelected();
+                  }
+                }
+              }
+            }
+            else if (isLongPressing && currentGuid) {
               const touch = event.changedTouches[0];
               const x = touch.clientX;
               const y = touch.clientY;
@@ -3187,7 +3419,7 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
               const closestElement = getClosestElementHorizontally(x, y);
               const elementClassList = closestElement?.classList;
                 
-              if (elementClassList && (elementClassList.contains('word') || elementClassList.contains('punctuation'))) {
+              if (closestElement && elementClassList && (elementClassList.contains('word') || elementClassList.contains('punctuation'))) {
                 if(closestElement !== lastLongPressTarget) {
                   lastLongPressTarget = closestElement;
                   updateTempHighlight();
@@ -3200,20 +3432,33 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
             }
           }, 16); // ~60fps
           
-          pageCenter.addEventListener('touchmove', handleTouchMove, { passive: true });
+          pageCenter.addEventListener('touchmove', handleTouchMove, { passive: false });
           
           // Gestionnaire touchend optimisé
           pageCenter.addEventListener('touchend', (event) => {
-            if (pressTimer) {
+            if (isLongTouchFix) {
+              lastLongPressTarget = firstLongPressTarget;
+              onLongPressEnd();
+              isLongTouchFix = false;
+            }
+            else if (isSelecting) {
+              isSelecting = false;
+              sideHandle = null;
+              //hideMagnifier();
+              showSelectedToolbar(firstLongPressTarget);
+              firstLongPressTarget = null;
+              lastLongPressTarget = null;
+            }
+            else if (isLongPressing) {
+              hideMagnifier();
+              onLongPressEnd();
+              firstLongPressTarget = null;
+              lastLongPressTarget = null;
+            }
+            else if (pressTimer) {
               clearTimeout(pressTimer);
               pressTimer = null;
             }
-            
-            if (isLongPressing) {
-              hideMagnifier();
-              onLongPressEnd();
-            }
-            isLongTouchFix = false;
           }, { passive: true });
           
           function getClosestElementHorizontally(x, y) {
@@ -3241,9 +3486,10 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
             return closest;
           }
   
-          const paragraphTokensMap = new Map();
+          let oldHighlightsMap = new Map();
+          
           function updateTempHighlight() {
-            if (!firstLongPressTarget || !lastLongPressTarget) return;
+            if (!firstLongPressTarget && !lastLongPressTarget) return;
           
             const firstParagraphInfo = getTheFirstTargetParagraph(firstLongPressTarget);
             const lastParagraphInfo = getTheFirstTargetParagraph(lastLongPressTarget);
@@ -3263,18 +3509,24 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
           
             // 🔄 Inverser les cibles si nécessaire
             const startTarget = firstIndex <= lastIndex ? firstLongPressTarget : lastLongPressTarget;
-            const endTarget   = firstIndex <= lastIndex ? lastLongPressTarget  : firstLongPressTarget;
+            const endTarget = firstIndex <= lastIndex ? lastLongPressTarget  : firstLongPressTarget;
           
-            // Nettoyer l'ancien surlignage
-            removeTempHighlight();
-          
-            // Cache des tokens
-            paragraphTokensMap.clear();
-            for (let i = fromIndex; i <= toIndex; i++) {
-              const paragraph = paragraphs[i];
-              const tokens = Array.from(paragraph.querySelectorAll('.word, .punctuation'));
-              paragraphTokensMap.set(paragraph, tokens);
-            }
+            const currentHighlightElements = Array.from(pageCenter.querySelectorAll(`[data-highlight-id="\${currentGuid}"]`));
+
+            // Supprimer seulement les éléments temporaires qu'on a tracés
+            currentHighlightElements.forEach(element => {
+              element.classList.remove('highlight-transparent', 'highlight-yellow', 'highlight-green', 'highlight-blue', 'highlight-pink', 'highlight-orange', 'highlight-purple');
+              element.removeAttribute('data-highlight-id');
+            });
+            
+            oldHighlightsMap.forEach((value, token) => {
+              if (value.highlightId) {
+                token.setAttribute('data-highlight-id', value.highlightId);
+              }
+              if (value.highlightClass) {
+                token.classList.add(value.highlightClass);
+              }
+            });
           
             const highlightClass = `highlight-\${["transparent", "yellow", "green", "blue", "pink", "orange", "purple"][highlightColorIndex]}`;
           
@@ -3283,9 +3535,7 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
                 const paragraph = paragraphs[i];
           
                 const allTokens = Array.from(paragraph.querySelectorAll('.word, .punctuation, .escape'));
-                const wordAndPunctTokens = allTokens.filter(token =>
-                  token.classList.contains('word') || token.classList.contains('punctuation')
-                );
+                const wordAndPunctTokens = allTokens.filter(token => token.classList.contains('word') || token.classList.contains('punctuation'));
           
                 let startTokenIndex = 0;
                 let endTokenIndex = wordAndPunctTokens.length - 1;
@@ -3296,11 +3546,13 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
                   if (a === -1 || b === -1) continue;
                   startTokenIndex = Math.min(a, b);
                   endTokenIndex = Math.max(a, b);
-                } else if (paragraph.contains(startTarget)) {
+                } 
+                else if (paragraph.contains(startTarget)) {
                   const index = wordAndPunctTokens.indexOf(startTarget);
                   if (index === -1) continue;
                   startTokenIndex = index;
-                } else if (paragraph.contains(endTarget)) {
+                } 
+                else if (paragraph.contains(endTarget)) {
                   const index = wordAndPunctTokens.indexOf(endTarget);
                   if (index === -1) continue;
                   endTokenIndex = index;
@@ -3311,7 +3563,16 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
                   if (!token.hasAttribute('data-highlight-id')) {
                     token.classList.add(highlightClass);
                     token.setAttribute('data-highlight-id', currentGuid);
-                    tempHighlightElements.push(token);
+                  }
+                  else {
+                    oldHighlightsMap.set(token, {
+                      highlightId: token.getAttribute('data-highlight-id'),
+                      highlightClass: Array.from(token.classList).find(c => c.startsWith('highlight-'))
+                    });
+                    token.classList.remove('highlight-transparent', 'highlight-yellow', 'highlight-green', 'highlight-blue', 'highlight-pink', 'highlight-orange', 'highlight-purple');
+                    token.removeAttribute('data-highlight-id');
+                    token.classList.add(highlightClass);
+                    token.setAttribute('data-highlight-id', currentGuid);
                   }
           
                   const tokenIndexInAll = allTokens.indexOf(token);
@@ -3320,39 +3581,114 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
                     if (!next.hasAttribute('data-highlight-id')) {
                       next.classList.add(highlightClass);
                       next.setAttribute('data-highlight-id', currentGuid);
-                      tempHighlightElements.push(next);
+                    }
+                    else {
+                      oldHighlightsMap.set(next, {
+                        highlightId: next.getAttribute('data-highlight-id'),
+                        highlightClass: Array.from(next.classList).find(c => c.startsWith('highlight-'))
+                      });
+                      next.classList.remove('highlight-transparent', 'highlight-yellow', 'highlight-green', 'highlight-blue', 'highlight-pink', 'highlight-orange', 'highlight-purple');
+                      next.removeAttribute('data-highlight-id');
+                      next.classList.add(highlightClass);
+                      next.setAttribute('data-highlight-id', currentGuid);
                     }
                   }
                 }
               }
             });
-          
-            currentTempHighlight = true;
           }
           
-          // Fonction removeTempHighlight optimisée
-          function removeTempHighlight() {
-            // Supprimer seulement les éléments temporaires qu'on a tracés
-            tempHighlightElements.forEach(element => {
-              element.classList.remove('highlight-transparent', 'highlight-yellow', 'highlight-green', 'highlight-blue', 'highlight-pink', 'highlight-orange', 'highlight-purple');
-              element.removeAttribute('data-highlight-id');
+          // Fonction optimisée pour mettre à jour l'affichage de la sélection
+          function updateSelected() {
+            if (!firstLongPressTarget || !lastLongPressTarget) return;
+          
+            const firstInfo = getTheFirstTargetParagraph(firstLongPressTarget);
+            const lastInfo = getTheFirstTargetParagraph(lastLongPressTarget);
+            if (!firstInfo || !lastInfo) return;
+          
+            const paragraphs = getAllParagraphs(pageCenter);
+            const firstIndex = paragraphs.indexOf(firstInfo.paragraph);
+            const lastIndex = paragraphs.indexOf(lastInfo.paragraph);
+            if (firstIndex === -1 || lastIndex === -1) return;
+          
+            const fromIndex = Math.min(firstIndex, lastIndex);
+            const toIndex = Math.max(firstIndex, lastIndex);
+          
+            const startTarget = firstIndex <= lastIndex ? firstLongPressTarget : lastLongPressTarget;
+            const endTarget = firstIndex <= lastIndex ? lastLongPressTarget  : firstLongPressTarget;
+          
+            // ❌ Clear previous selections and handles
+            pageCenter.querySelectorAll('.word.selected, .punctuation.selected, .escape.selected').forEach(token => {
+              token.classList.remove('selected');
             });
+            pageCenter.querySelectorAll('.handle, .handle-left, .handle-right').forEach(handle => handle.remove());
           
-            tempHighlightElements = [];
-            currentTempHighlight = null;
+            // Sélection sans requestAnimationFrame pour plus de fluidité
+            for (let i = fromIndex; i <= toIndex; i++) {
+              const paragraph = paragraphs[i];
+              if (!paragraph.isConnected) continue;
+          
+              const allTokens = Array.from(paragraph.querySelectorAll('.word, .punctuation, .escape'));
+              const wordPunctTokens = allTokens.filter(t => t.classList.contains('word') || t.classList.contains('punctuation'));
+              if (wordPunctTokens.length === 0) continue;
+          
+              let startIndex = 0;
+              let endIndex = wordPunctTokens.length - 1;
+          
+              const containsStart = paragraph.contains(startTarget);
+              const containsEnd = paragraph.contains(endTarget);
+          
+              if (containsStart && containsEnd) {
+                const a = wordPunctTokens.indexOf(startTarget);
+                const b = wordPunctTokens.indexOf(endTarget);
+                if (a === -1 || b === -1) continue;
+                startIndex = Math.min(a, b);
+                endIndex = Math.max(a, b);
+              } else if (containsStart) {
+                const index = wordPunctTokens.indexOf(startTarget);
+                if (index !== -1) startIndex = index;
+              } else if (containsEnd) {
+                const index = wordPunctTokens.indexOf(endTarget);
+                if (index !== -1) endIndex = index;
+              }
+          
+              for (let j = startIndex; j <= endIndex; j++) {
+                const token = wordPunctTokens[j];
+                if (!token.isConnected) continue;
+                token.classList.add('selected');
+
+                const tokenIndex = allTokens.indexOf(token);
+                const next = allTokens[tokenIndex + 1];
+                if (next?.classList.contains('escape') && j !== endIndex) {
+                  next.classList.add('selected');
+                }
+              }
+            }
+          
+            // ✅ Add handles at the selection edges
+            if (firstLongPressTarget && lastLongPressTarget) {
+              const createHandle = (src, className) => {
+                const handle = document.createElement('img');
+                handle.src = src;
+                handle.classList.add('handle', className);
+                return handle;
+              };
+          
+              try {
+                firstLongPressTarget.appendChild(createHandle(handleLeft, 'handle-left'));
+                lastLongPressTarget.appendChild(createHandle(handleRight, 'handle-right'));
+              } 
+              catch (e) {
+                console.warn('Failed to add handles:', e);
+              }
+            }
           }
-          
+           
           // Fonction onLongPressEnd optimisée avec gestion d'erreurs et cache tokens
           async function onLongPressEnd() {
-            const firstTarget = firstLongPressTarget;
-            const lastTarget = lastLongPressTarget;
-          
             if (isLongTouchFix) {
-              removeAllSelected();
-              closeToolbar();
-              firstTarget.classList.add('selected');
-              firstTarget.setAttribute('data-highlight-id', currentGuid);
-              showToolbarHighlight(firstTarget, currentGuid);
+              showSelectedToolbar(firstLongPressTarget);
+              updateSelected();
             }
             else {
               let currentParagraph = null;
@@ -3362,9 +3698,44 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
               let lastTarget = null;
               
               const highlightsToSend = [];
+              let tempHighlightElements = Array.from(pageCenter.querySelectorAll(`[data-highlight-id="\${currentGuid}"]`));
+              
+              oldHighlightsMap.forEach((value, token) => {
+                if(token === tempHighlightElements[tempHighlightElements.length - 1] || token === tempHighlightElements[0]) {
+                  const highlightId = value.highlightId;
+                  if (highlightId) {
+                    const newHighlightClass = `highlight-\${["transparent", "yellow", "green", "blue", "pink", "orange", "purple"][highlightColorIndex]}`;
+                  
+                    // Récupérer tous les éléments avec l'ancien highlightId
+                    const highlightElements = Array.from(pageCenter.querySelectorAll(`[data-highlight-id="\${highlightId}"]`));
+                      
+                    if (highlightElements.length > 0) {
+                      // Mettre à jour tous les éléments avec le nouveau GUID et nouvelle classe
+                      highlightElements.forEach(element => {
+                        element.setAttribute('data-highlight-id', currentGuid);
+                  
+                        element.classList.remove('highlight-transparent', 'highlight-yellow', 'highlight-green', 'highlight-blue', 'highlight-pink', 'highlight-orange', 'highlight-purple');
+                        element.classList.add(newHighlightClass);
+                      });
+                      
+                      tempHighlightElements.push(...highlightElements);
+                     
+                      // Appeler la méthode pour supprimer l'ancien highlight dans Flutter
+                      window.flutter_inappwebview.callHandler('removeHighlight', { guid: highlightId });
+                    }
+                  }
+                }
+                if(tempHighlightElements.indexOf(token) !== -1) {
+                  window.flutter_inappwebview.callHandler('removeHighlight', {
+                    guid: value.highlightId
+                  });
+                }
+              });
+              
+              oldHighlightsMap.clear();
               
               showToolbarHighlight(tempHighlightElements[0], currentGuid);
-              
+
               for (let i = 0; i < tempHighlightElements.length; i++) {
                 const element = tempHighlightElements[i];
                 const { id, paragraph, isVerse } = getTheFirstTargetParagraph(element);
@@ -3499,7 +3870,6 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
           
           // Gestionnaires d'événements pour le conteneur optimisés
           container.addEventListener('touchstart', (e) => {
-            closeToolbar();
             if (isLongPressing) return;
             
             startX = e.touches[0].clientX;

@@ -48,7 +48,7 @@ class _LocalChapterBiblePageState extends State<LocalChapterBiblePage> {
   }
 
   Future<void> _fetchBooks() async {
-    File mepsFile = await getMepsFile();
+    File mepsFile = await getMepsUnitDatabaseFile();
     try {
       Database database = widget.bible.documentsManager!.database;
 

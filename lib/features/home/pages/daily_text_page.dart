@@ -1,9 +1,6 @@
-import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:intl/intl.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
@@ -17,8 +14,7 @@ import 'package:uuid/uuid.dart';
 import '../../../app/jwlife_app.dart';
 import '../../../app/services/global_key_service.dart';
 import '../../../app/services/settings_service.dart';
-import '../../../core/utils/directory_helper.dart';
-import '../../../core/utils/shared_preferences_helper.dart';
+import '../../../core/shared_preferences/shared_preferences_utils.dart';
 import '../../../core/utils/utils.dart';
 import '../../../core/utils/utils_video.dart';
 import '../../../core/utils/widgets_utils.dart';
@@ -30,12 +26,8 @@ import '../../../data/realm/catalog.dart';
 import '../../../widgets/dialog/language_dialog_pub.dart';
 import '../../../widgets/dialog/publication_dialogs.dart';
 import '../../../widgets/responsive_appbar_actions.dart';
-import '../../../widgets/searchfield/searchfield_widget.dart';
 import '../../personal/pages/tag_page.dart';
 import '../../publication/pages/document/local/dated_text_manager.dart';
-import '../../publication/pages/document/local/document_medias_page.dart';
-import '../../publication/pages/document/local/documents_manager.dart';
-import '../../publication/pages/document/local/full_screen_image_page.dart';
 
 class DailyTextPage extends StatefulWidget {
   final Publication publication;
@@ -118,15 +110,8 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
       widget.publication.datedTextManager!.selectedDatedTextIndex = page;
       await _controller.evaluateJavascript(source: 'jumpToPage($page);');
 
-      setControlsVisible(true);
-
       setState(() {});
     }
-  }
-
-  void setControlsVisible(bool visible) {
-    _controlsVisible = visible;
-    GlobalKeyService.jwLifePageKey.currentState!.toggleNavBarVisibility.call(_controlsVisible);
   }
 
   Future<bool> _canHandleBackPress() async {
@@ -148,42 +133,33 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
     return true; // Quitter la vue si aucun historique
   }
 
-  Future<void> handleBackPress() async {
+  Future<bool> handleBackPress({bool fromPopScope = false}) async {
     if(_isSearching) {
       setState(() {
         _isSearching = false;
       });
+      return false;
     }
     else if(_showDialog) {
       _showDialog = false;
       _controller.evaluateJavascript(source: "removeDialog();");
       setState(() {
-        setControlsVisible(_controlsVisibleSave);
+        _controlsVisible = _controlsVisibleSave;
       });
+      return false;
     }
     else {
       if (await _canHandleBackPress()) {
-        final jwLifeState = GlobalKeyService.jwLifePageKey.currentState;
-        if (jwLifeState == null) return;
-
-        final currentIndex = jwLifeState.currentIndex;
-        final webViewStack = jwLifeState.webViewPageKeys[currentIndex];
-
-        if (webViewStack.isNotEmpty) {
-          webViewStack.removeLast();
-        }
-
-        if (webViewStack.isEmpty) {
-          jwLifeState.handleBack(context);
+        if(fromPopScope) {
+          return true;
         }
         else {
-          final currentNavigator = jwLifeState.navigatorKeys[currentIndex].currentState;
-          if (currentNavigator?.canPop() ?? false) {
-            currentNavigator!.pop();
-          }
+          GlobalKeyService.jwLifePageKey.currentState!.handleBack(context);
+          return false;
         }
       }
     }
+    return true;
   }
 
   /*
@@ -275,10 +251,10 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
                     bool isMaximized = args[0] as bool;
                     setState(() {
                       if(isMaximized) {
-                        setControlsVisible(true);
+                        _controlsVisible = true;
                       }
                       else {
-                        setControlsVisible(_controlsVisibleSave);
+                        _controlsVisible = _controlsVisibleSave;
                       }
                     });
                   },
@@ -359,16 +335,12 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
                           _controlsVisible = false;
                           _controlsVisibleSave = false;
                         });
-                        // enelever la barre de noti en haut de l'ecran
-                        GlobalKeyService.jwLifePageKey.currentState!.toggleNavBarVisibility(false);
                       }
                       else if (args[1] == "up") {
                         setState(() {
                           _controlsVisible = true;
                           _controlsVisibleSave = true;
                         });
-                        // remettre la barre de noti en haut de l'ecran
-                        GlobalKeyService.jwLifePageKey.currentState!.toggleNavBarVisibility(true);
                       }
                     }
                   },
@@ -486,7 +458,6 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
                   },
                 );
 
-                // Gestionnaire pour les clics sur les images
                 controller.addJavaScriptHandler(
                   handlerName: 'fetchVerses',
                   callback: (args) async {
@@ -496,7 +467,6 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
                   },
                 );
 
-                // Gestionnaire pour les clics sur les images
                 controller.addJavaScriptHandler(
                   handlerName: 'fetchExtractPublication',
                   callback: (args) async {
@@ -508,7 +478,6 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
                   },
                 );
 
-                // Gestionnaire pour les clics sur les images
                 controller.addJavaScriptHandler(
                   handlerName: 'fetchFootnote',
                   callback: (args) async {
@@ -518,11 +487,10 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
                   },
                 );
 
-                // Gestionnaire pour les clics sur les images
                 controller.addJavaScriptHandler(
                   handlerName: 'fetchVersesReference',
                   callback: (args) async {
-                    Map<String, dynamic> versesReference = await fetchVersesReference(context, widget.publication, controller, args[0]);
+                    Map<String, dynamic> versesReference = await fetchVersesReference(context, widget.publication, args[0]);
                     return versesReference;
                   },
                 );
@@ -533,23 +501,9 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
                     Map<String, dynamic>? document = args[0];
                     if (document != null) {
                       if (document['mepsDocumentId'] != null) {
-                        bool saveControlsVisible = _controlsVisible;
-
-                        if (!saveControlsVisible) {
-                          GlobalKeyService.jwLifePageKey.currentState?.toggleNavBarVisibility(true);
-                        }
-
                         await showDocumentView(context, document['mepsDocumentId'], document['mepsLanguageId'], startParagraphId: document['startParagraphId'], endParagraphId: document['endParagraphId']);
-
-                        GlobalKeyService.jwLifePageKey.currentState?.toggleNavBarVisibility(saveControlsVisible);
                       }
                       else if (document['bookNumber'] != null && document['chapterNumber'] != null) {
-                        bool saveControlsVisible = _controlsVisible;
-
-                        if (!saveControlsVisible) {
-                          GlobalKeyService.jwLifePageKey.currentState?.toggleNavBarVisibility(true);
-                        }
-
                         await showChapterView(
                           context,
                           'nwtsty',
@@ -559,8 +513,6 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
                           firstVerseNumber: document["firstVerseNumber"],
                           lastVerseNumber: document["lastVerseNumber"],
                         );
-
-                        GlobalKeyService.jwLifePageKey.currentState?.toggleNavBarVisibility(saveControlsVisible);
                       }
                     }
                   },
@@ -658,7 +610,7 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
                     int? docId = uri.queryParameters['docid'] != null ? int.parse(uri.queryParameters['docid']!) : null;
                     int? track = uri.queryParameters['track'] != null ? int.parse(uri.queryParameters['track']!) : null;
 
-                    MediaItem? mediaItem = getVideoItem(pub, track, docId, issue, null);
+                    MediaItem? mediaItem = getMediaItem(pub, track, docId, issue, null);
 
                     if(mediaItem != null) {
                       showVideoDialog(context, mediaItem).then((result) {
@@ -730,9 +682,9 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
 
                       Publication? publication = await PubCatalog.searchPub(pub!, issueTagNumber, wtlocale!);
                       if (publication != null) {
-                        GlobalKeyService.jwLifePageKey.currentState!.toggleNavBarPositioned(false);
+                        GlobalKeyService.jwLifePageKey.currentState!.toggleNavBarDisable(false);
                         await publication.showMenu(context);
-                        GlobalKeyService.jwLifePageKey.currentState!.toggleNavBarPositioned(true);
+                        GlobalKeyService.jwLifePageKey.currentState!.toggleNavBarDisable(true);
                       }
                     }
                     else if(uri.queryParameters.containsKey('docID')) {
@@ -740,7 +692,7 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
                       _currentPageHistory = -1;
 
                       setState(() {
-                        setControlsVisible(true);
+                        _controlsVisible = true;
                       });
                       return NavigationActionPolicy.ALLOW;
                     }
@@ -754,7 +706,7 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
                 _currentPageHistory = -1;
 
                 setState(() {
-                  setControlsVisible(true);
+                  _controlsVisible = true;
                 });
                 // Permet la navigation pour tous les autres liens
                 return NavigationActionPolicy.ALLOW;
@@ -773,12 +725,19 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
           getLoadingWidget(Theme.of(context).primaryColor),
 
 
-        if (_controlsVisible)
-          Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              child: AppBar(
+    Positioned(
+    top: 0,
+    left: 0,
+    right: 0,
+    child: AnimatedSlide(
+    duration: const Duration(milliseconds: 300),
+    offset: _controlsVisible ? Offset.zero : const Offset(0, -1),
+    curve: Curves.easeInOut,
+    child: AnimatedOpacity(
+    duration: const Duration(milliseconds: 300),
+    opacity: _controlsVisible ? 1.0 : 0.0,
+    curve: Curves.easeInOut,
+    child: AppBar(
                 title: !_isLoadingData ? Container() : Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -871,7 +830,26 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
                     ),
                 ],
               )
+          )
+    )
+    ),
+
+        Positioned(
+          bottom: 0,
+          left: 0,
+          right: 0,
+          child: AnimatedSlide(
+            duration: const Duration(milliseconds: 300),
+            offset: _controlsVisible ? Offset.zero : const Offset(0, 1),
+            curve: Curves.easeInOut,
+            child: AnimatedOpacity(
+                duration: const Duration(milliseconds: 300),
+                opacity: _controlsVisible ? 1.0 : 0.0,
+                curve: Curves.easeInOut,
+                child: GlobalKeyService.jwLifePageKey.currentState!.getBottomNavigationBar()
+            ),
           ),
+        ),
       ]),
     );
   }

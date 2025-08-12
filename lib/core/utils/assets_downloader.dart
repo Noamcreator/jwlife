@@ -2,10 +2,10 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:archive/archive.dart';
 import 'package:jwlife/core/utils/directory_helper.dart';
-import 'package:jwlife/core/utils/shared_preferences_helper.dart';
 import 'package:jwlife/core/utils/utils.dart';
 
 import '../api.dart';
+import '../shared_preferences/shared_preferences_utils.dart';
 
 class AssetsDownload {
   static final String webappFileUrl = 'https://github.com/Noamcreator/jwlife/raw/refs/heads/main/webapp.zip';

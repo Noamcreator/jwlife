@@ -9,7 +9,7 @@ import 'package:jwlife/core/utils/utils_video.dart';
 import 'package:jwlife/data/models/video.dart';
 import 'package:jwlife/data/realm/catalog.dart';
 import 'package:jwlife/features/video/subtitles.dart';
-import 'package:jwlife/features/video/video_player_view.dart';
+import 'package:jwlife/features/video/video_player_page.dart';
 
 import '../../app/services/global_key_service.dart';
 import '../../app/services/settings_service.dart';
@@ -178,7 +178,7 @@ class _SubtitlesPageState extends State<SubtitlesPage> {
             onTap: () {
               //GlobalKeyService.jwLifePageKey.currentState!.toggleNavBarBlack(true);
               if (widget.localVideo != null) {
-                MediaItem? mediaItem = getVideoItem(widget.localVideo!.keySymbol, widget.localVideo!.track, widget.localVideo!.documentId, widget.localVideo!.issueTagNumber, JwLifeSettings().currentLanguage.id);
+                MediaItem? mediaItem = getMediaItem(widget.localVideo!.keySymbol, widget.localVideo!.track, widget.localVideo!.documentId, widget.localVideo!.issueTagNumber, JwLifeSettings().currentLanguage.id);
                 showPage(context, VideoPlayerPage(mediaItem: mediaItem!, localVideo: widget.localVideo, startPosition: subtitle.startTime));
               }
               else {

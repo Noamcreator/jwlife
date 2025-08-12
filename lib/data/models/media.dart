@@ -1,5 +1,6 @@
 class Media {
   final int mediaId;
+  final String? naturalKey;
   final String keySymbol;
   final String categoryKey;
   final int mediaType;
@@ -30,6 +31,7 @@ class Media {
 
   Media({
     required this.mediaId,
+    this.naturalKey,
     required this.keySymbol,
     required this.categoryKey,
     required this.imagePath,

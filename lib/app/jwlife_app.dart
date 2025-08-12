@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:jwlife/app/services/global_key_service.dart';
 import 'package:jwlife/app/services/settings_service.dart';
 import 'package:jwlife/app/startup/create_database.dart';
@@ -8,7 +11,6 @@ import 'package:jwlife/core/api.dart';
 import 'package:jwlife/core/constants.dart';
 import 'package:jwlife/core/theme.dart';
 import 'package:jwlife/core/utils/assets_downloader.dart';
-import 'package:jwlife/core/utils/shared_preferences_helper.dart';
 import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/data/databases/media_collections.dart';
 import 'package:jwlife/data/databases/pub_collections.dart';
@@ -16,9 +18,9 @@ import 'package:jwlife/data/models/publication_attribute.dart';
 import 'package:jwlife/data/models/publication_category.dart';
 import 'package:jwlife/data/databases/catalog.dart';
 import 'package:jwlife/data/databases/userdata.dart';
-import 'package:jwlife/features/publication/pages/document/local/dated_text_manager.dart';
 import 'package:jwlife/i18n/app_localizations.dart';
 
+import '../core/shared_preferences/shared_preferences_utils.dart';
 import '../data/databases/tiles_cache.dart';
 import '../features/audio/audio_player_model.dart';
 import '../features/home/pages/daily_text_page.dart';
@@ -128,7 +130,7 @@ class JwLifeAppState extends State<JwLifeApp> {
     printTime('Start: Initializing database...');
     await Future.wait([
       CreateDatabase.create(),
-      CopyAssets.copy()
+      CopyAssets.copy(),
     ]);
     printTime('End: Initializing database...');
 

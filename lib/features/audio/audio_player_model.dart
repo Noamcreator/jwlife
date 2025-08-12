@@ -155,6 +155,13 @@ class JwLifeAudioPlayer {
               album: audio.categoryKey,
               title: audio.title,
               artUri: imageUri,
+                extras: {
+                  'keySymbol': audio.keySymbol,
+                  'documentId': audio.documentId,
+                  'track': audio.track,
+                  'mepsLanguage': audio.mepsLanguage,
+                  'issueTagNumber': audio.issueTagNumber,
+                }
             ),
           );
         }
@@ -168,7 +175,12 @@ class JwLifeAudioPlayer {
                 title: audio.title,
                 artUri: imageUri,
                 extras: {
-                  'documentId': audio.documentId
+                  'keySymbol': audio.keySymbol,
+                  'documentId': audio.documentId,
+                  'track': audio.track,
+                  'mepsLanguage': audio.mepsLanguage,
+                  'issueTagNumber': audio.issueTagNumber,
+                  'naturalKey': audio.naturalKey
                 }
             ),
           );
@@ -252,8 +264,6 @@ class JwLifeAudioPlayer {
   }
 
   Future<void> play({Duration? start}) async {
-    printTime("play");
-    printTime("starPlayAudio: $start");
     if (start != null) await player.seek(start);
     if (!GlobalKeyService.jwLifePageKey.currentState!.audioWidgetVisible) {
       GlobalKeyService.jwLifePageKey.currentState!.toggleAudioWidgetVisibility(true);

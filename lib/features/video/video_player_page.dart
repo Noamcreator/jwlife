@@ -15,6 +15,7 @@ import 'package:video_player/video_player.dart';
 
 import '../../app/services/global_key_service.dart';
 import '../../core/api.dart';
+import '../../core/utils/utils_playlist.dart';
 import 'subtitles.dart';
 
 class VideoPlayerPage extends StatefulWidget {
@@ -58,13 +59,6 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
     else {
       getVideoApi();
     }
-
-    /*
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      GlobalKeyService.jwLifePageKey.currentState?.toggleNavBarBlack(true);
-    });
-
-     */
   }
 
   @override
@@ -218,7 +212,7 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
         }
       },
       child: Scaffold(
-        backgroundColor: Colors.black,
+        backgroundColor: Color(0xFF121212),
         body: Stack(
           children: [
             // Vidéo centrée, derrière l'AppBar
@@ -277,6 +271,14 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
                     },
                   ),
                   actions: [
+                    IconButton(
+                      icon: Icon(JwIcons.list_plus, color: Colors.white),
+                      onPressed: () {
+                        if(widget.mediaItem != null) {
+                          showAddPlaylistDialog(context, widget.mediaItem);
+                        }
+                      },
+                    ),
                     IconButton(
                       icon: Icon(JwIcons.screen_square_right, color: Colors.white),
                       onPressed: () async {
@@ -565,6 +567,24 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
                         ),
                       ),
                     ],
+                  ),
+                ),
+              ),
+
+            if (_controlsVisible)
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: AnimatedSlide(
+                  duration: const Duration(milliseconds: 300),
+                  offset: _controlsVisible ? Offset.zero : const Offset(0, 1),
+                  curve: Curves.easeInOut,
+                  child: AnimatedOpacity(
+                      duration: const Duration(milliseconds: 300),
+                      opacity: _controlsVisible ? 1.0 : 0.0,
+                      curve: Curves.easeInOut,
+                      child: GlobalKeyService.jwLifePageKey.currentState!.getBottomNavigationBar(isBlack: true)
                   ),
                 ),
               ),

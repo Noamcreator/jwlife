@@ -1,5 +1,3 @@
-// NotePage.dart
-
 import 'package:flutter/material.dart';
 import 'package:jwlife/core/utils/utils_document.dart';
 import 'package:jwlife/data/models/publication_category.dart';

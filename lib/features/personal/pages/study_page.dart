@@ -1,10 +1,19 @@
+import 'dart:io';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/data/models/userdata/note.dart';
+import 'package:jwlife/features/personal/pages/playlist_page.dart';
+import 'package:jwlife/features/personal/pages/playlists_page.dart';
 
-import '../../../core/utils/utils_note_tag.dart';
+import '../../../core/utils/utils_tag_dialogs.dart';
+import '../../../data/models/userdata/playlist.dart';
+import '../../../data/models/userdata/tag.dart';
+import '../../../widgets/image_cached_widget.dart';
+import '../widgets/empty_message.dart';
 import 'note_page.dart';
 import 'notes_categories_page.dart';
 import 'tag_page.dart';
@@ -18,43 +27,26 @@ class StudyTabView extends StatefulWidget {
 
 class _StudyTabViewState extends State<StudyTabView> {
   List<Note> notes = [];
+  List<Playlist> playlists = [];
 
   @override
   void initState() {
     super.initState();
-    init();
+    initNotes();
+    initPlaylist();
   }
 
-  Future<void> init() async {
+  Future<void> initNotes() async {
     notes = await JwLifeApp.userdata.getNotes(limit: 4);
     setState(() {});
   }
 
-  Widget buildEmptyMessage(IconData icon, String message) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 50),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Icon(
-            icon,
-            size: 55,
-            color: Color(0xFF8e8e8e),
-          ),
-          SizedBox(width: 20),
-          Expanded(
-            child: Text(
-              message,
-              style: TextStyle(
-                fontSize: 16,
-                color: Color(0xFF8e8e8e),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
+  Future<void> initPlaylist() async {
+    playlists = await JwLifeApp.userdata.getPlaylists(limit: 4);
+    setState(() {});
   }
+
+
 
   Widget buildSectionHeaderNotesTags() {
     return Padding(
@@ -65,7 +57,7 @@ class _StudyTabViewState extends State<StudyTabView> {
           InkWell(
             onTap: () async {
               await showPage(context, NotesTagsPage());
-              init();
+              initNotes();
             },
             child: Row(
               children: [
@@ -96,7 +88,7 @@ class _StudyTabViewState extends State<StudyTabView> {
                   size: 25,
                 ),
                 onPressed: () async {
-                  await showAddTagDialog(context);
+                  await showAddTagDialog(context, false);
                   setState(() {});
                 },
               ),
@@ -113,7 +105,7 @@ class _StudyTabViewState extends State<StudyTabView> {
                   if (note != null) {
                     await showPage(context, NotePage(note: note));
                     setState(() {
-                      init();
+                      initNotes();
                     });
                   }
                 },
@@ -125,14 +117,16 @@ class _StudyTabViewState extends State<StudyTabView> {
     );
   }
 
+  //allowedExtensions: ['png', 'jpg', 'jpeg', 'mp4', 'm4v', '3gp', 'mov', 'mp3', 'aac', 'heic', 'webp'], // adapte si besoin
+
   Widget buildSectionHeaderPlaylist() {
     return Padding(
-      padding: const EdgeInsets.only(left: 8, right: 8, top: 0, bottom: 32),
+      padding: const EdgeInsets.only(left: 8, right: 8, top: 0, bottom: 10),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           InkWell(
-            onTap: () => showPage(context, NotesTagsPage()),
+            onTap: () => showPage(context, PlaylistsPage()),
             child: Row(
               children: [
                 Text(
@@ -152,11 +146,51 @@ class _StudyTabViewState extends State<StudyTabView> {
               ],
             ),
           ),
-          Icon(
-            JwIcons.plus,
-            color: Theme.of(context).primaryColor,
-            size: 25,
-          ),
+          PopupMenuButton<void>(
+            icon: Icon(
+              JwIcons.plus,
+              color: Theme.of(context).primaryColor,
+              size: 25,
+            ),
+            itemBuilder: (ctx) => [
+              PopupMenuItem<void>(
+                child: const Text('Créer une liste de lecture'),
+                onTap: () async {
+                  // S’exécute après la fermeture du menu
+                  await Future.delayed(Duration.zero); // évite setState pendant la fermeture
+                  await showAddTagDialog(context, true);
+                  playlists = await JwLifeApp.userdata.getPlaylists(limit: 4);
+                  if (context.mounted) setState(() {});
+                },
+              ),
+              PopupMenuItem<void>(
+                child: const Text('Importer une liste de lecture'),
+                onTap: () async {
+                  await Future.delayed(Duration.zero); // idem
+                  final result = await FilePicker.platform.pickFiles(
+                    type: FileType.any,
+                  );
+                  if (result != null && result.files.isNotEmpty) {
+                    final path = result.files.single.path;
+                    if (path != null) {
+                      try {
+                        await JwLifeApp.userdata.importPlaylistFromFile(File(path));
+                        await initPlaylist();
+                        if (context.mounted) {
+                          showBottomMessage(context, 'Import réussi.');
+                        }
+                      }
+                      catch (e) {
+                        if (context.mounted) {
+                          showBottomMessage(context, 'Échec de l’import : $e');
+                        }
+                      }
+                    }
+                  }
+                },
+              ),
+            ],
+          )
         ],
       ),
     );
@@ -222,7 +256,7 @@ class _StudyTabViewState extends State<StudyTabView> {
                     ElevatedButton(
                       onPressed: () async {
                         await showPage(context, TagPage(tag: tag));
-                        init();
+                        initNotes();
                       },
                       style: ButtonStyle(
                         minimumSize: MaterialStateProperty.all<Size>(Size(0, 16)),
@@ -295,7 +329,7 @@ class _StudyTabViewState extends State<StudyTabView> {
                   child: TextButton(
                     onPressed: () async {
                       await showPage(context, NotePage(note: note));
-                      init();
+                      initNotes();
                     },
                     style: TextButton.styleFrom(
                       padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -333,13 +367,161 @@ class _StudyTabViewState extends State<StudyTabView> {
           // Header Listes de lectures
           buildSectionHeaderPlaylist(),
 
-          // Section Listes de lectures vide
-          buildEmptyMessage(
+          // Section Notes
+          playlists.isEmpty
+              ? buildEmptyMessage(
             JwIcons.plus,
-            'Aucune liste de lecture.',
+            'Aucune liste de lecture disponible.',
+          )
+              : Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: playlists.length,
+              itemBuilder: (BuildContext context, int index) {
+                Playlist playlist = playlists[index];
+                return Padding(
+                    padding: EdgeInsets.only(top: index == 0 ? 0 : 3),
+                    child: Material(
+                      color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF292929) : Colors.white,
+                      child: InkWell(
+                        onTap: () async {
+                          await showPage(context, PlaylistPage(playlist: playlist));
+                          initPlaylist();
+                        },
+                        child: SizedBox(
+                          height: 80,
+                          child: Stack(
+                            children: [
+                              Row(
+                                children: [
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(2.0),
+                                    child: FutureBuilder<File?>(
+                                      future: playlist.getThumbnailFile(),
+                                      builder: (context, snapshot) {
+                                        final placeholder = Container(
+                                          height: 80,
+                                          width: 80,
+                                          color: Colors.grey.shade300,
+                                        );
+
+                                        if (snapshot.connectionState == ConnectionState.waiting) {
+                                          return placeholder;
+                                        }
+
+                                        if (snapshot.hasError || snapshot.data == null) {
+                                          return Container(
+                                            height: 80,
+                                            width: 80,
+                                            color: Colors.grey,
+                                          );
+                                        }
+
+                                        return Image.file(
+                                          snapshot.data!,
+                                          height: 80,
+                                          width: 80,
+                                          fit: BoxFit.cover,
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                  Expanded(
+                                    child: Padding(
+                                      padding: EdgeInsets.only(
+                                        left: 6.0,
+                                        right: 25.0,
+                                        // publication.issueTitle remplacé par playlist.name.isNotEmpty pour éviter l'erreur
+                                        top: 4.0,
+                                        bottom: 2.0,
+                                      ),
+                                      child: Column(
+                                        mainAxisAlignment: MainAxisAlignment.start,
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            playlist.name,
+                                            style: TextStyle(
+                                              height: 1.2,
+                                              fontSize: 14.5,
+                                              color: Theme.of(context).secondaryHeaderColor,
+                                            ),
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+
+                              // Menu contextuel
+                              Positioned(
+                                top: -5,
+                                right: -10,
+                                child: PopupMenuButton(
+                                  popUpAnimationStyle: AnimationStyle.lerp(
+                                    const AnimationStyle(curve: Curves.ease),
+                                    const AnimationStyle(curve: Curves.ease),
+                                    0.5,
+                                  ),
+                                  icon: const Icon(Icons.more_vert, color: Color(0xFF9d9d9d)),
+                                  itemBuilder: (context) => [
+                                    PopupMenuItem(
+                                      child: Row(
+                                        children: [
+                                          Icon(JwIcons.pencil),
+                                          SizedBox(width: 8),
+                                          Text('Renommer'),
+                                        ],
+                                      ),
+                                      onTap: () async {
+                                        await showEditTagDialog(context, playlist);
+                                        initPlaylist();
+                                      },
+                                    ),
+                                    PopupMenuItem(
+                                      child: Row(
+                                        children: [
+                                          Icon(JwIcons.trash),
+                                          SizedBox(width: 8),
+                                          Text('Supprimer'),
+                                        ],
+                                      ),
+                                      onTap: () async {
+                                        await showDeleteTagDialog(context, playlist);
+                                        initPlaylist();
+                                      },
+                                    ),
+                                    PopupMenuItem(
+                                      child: Row(
+                                        children: [
+                                          Icon(JwIcons.share),
+                                          SizedBox(width: 8),
+                                          Text('Partager'),
+                                        ],
+                                      ),
+                                      onTap: () {
+                                        //sharePlaylist(context, playlist);
+                                      },
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                  )
+                );
+              },
+            ),
           ),
 
-          SizedBox(height: 20),
+        SizedBox(height: 20),
         ],
       ),
     );

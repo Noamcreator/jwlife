@@ -35,9 +35,9 @@ class _PendingUpdatesPageState extends State<PendingUpdatesPage> {
 
   Future<void> loadItems() async {
     // Chargement des publications
-    File pubCollectionsFile = await getPubCollectionsFile();
-    File catalogFile = await getCatalogFile();
-    File mepsFile = await getMepsFile();
+    File pubCollectionsFile = await getPubCollectionsDatabaseFile();
+    File catalogFile = await getCatalogDatabaseFile();
+    File mepsFile = await getMepsUnitDatabaseFile();
 
     if (await pubCollectionsFile.exists()) {
       Database pubCollectionsDB = await openReadOnlyDatabase(pubCollectionsFile.path);
@@ -93,7 +93,7 @@ class _PendingUpdatesPageState extends State<PendingUpdatesPage> {
     }
 
     // Chargement des médias
-    File mediasCollectionsFile = await getMediaCollectionsFile();
+    File mediasCollectionsFile = await getMediaCollectionsDatabaseFile();
     if (await mediasCollectionsFile.exists()) {
       Database mediaCollectionsDB = await openReadOnlyDatabase(mediasCollectionsFile.path);
 

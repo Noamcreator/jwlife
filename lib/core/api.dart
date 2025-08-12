@@ -1,10 +1,12 @@
 import 'dart:convert';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:jwlife/core/utils/shared_preferences_helper.dart';
+import 'package:jwlife/core/shared_preferences/shared_preferences_utils.dart';
 import 'package:jwlife/core/utils/utils.dart';
 import 'package:realm/realm.dart';
 import '../app/services/settings_service.dart';
+import '../data/models/audio.dart';
 import '../data/realm/catalog.dart';
 import '../data/realm/realm_library.dart';
 import 'utils/files_helper.dart';
@@ -15,15 +17,19 @@ class Api {
   static const String version = 'v5';
   static const String apiVersionUrl = 'https://app.jw-cdn.org/catalogs/publications/$version/manifest.json';
   static const String jwTokenUrl = 'https://b.jw-cdn.org/tokens/jworg.jwt';
+  //static const String jwTokenUrl = 'https://app.jw-cdn-qa.org/tokens/jwl-public.jwt';
   static const String catalogInfoUrl = 'https://app.jw-cdn.org/catalogs/publications/$version/{currentVersion}/catalog.info.json.gz';
   static const String catalogUrl = 'https://app.jw-cdn.org/catalogs/publications/$version/{currentVersion}/catalog.db.gz';
   static const String langCatalogUrl = 'https://app.jw-cdn.org/catalogs/media/{language_code}.json.gz';
+
+  static const String baseUrl = 'b.jw-cdn.org';
+  static const String getPubMediaLinks = '/apis/pub-media/GETPUBMEDIALINKS';
 
   // Variables pour stocker la version et le token JW.org
   static String currentVersion = '';
   static String currentJwToken = '';
 
-  static String lastServerCatalogDate = '';
+  static int lastRevisionAvailable = 0;
 
   /// Récupère la version actuelle de l'API.
   static Future<void> fetchCurrentVersion() async {
@@ -48,38 +54,36 @@ class Api {
   }
 
   /// Récupère la date de création du catalogue pour une version donnée.
-  static Future<String> fetchCatalogDate(String version) async {
+  static Future<int> fetchCatalogInfo() async {
     try {
-      final url = catalogInfoUrl.replaceFirst('{currentVersion}', version);
+      final url = catalogInfoUrl.replaceFirst('{currentVersion}', currentVersion);
       final response = await httpGetWithHeaders(url);
 
       if (response.statusCode == 200) {
         final json = await GZipOptimizer.decompressJSONResponse(response.bodyBytes);
-        return json['created'];
+        return json['revision'];
       }
     }
     catch (e) {
-      debugPrint('Erreur lors de la récupération de la date du catalogue : $e');
+      printTime('Erreur lors de la récupération de la dernière révision du catalogue : $e');
     }
-    return '';
+    return 0;
   }
 
   /// Vérifie si une mise à jour du catalogue est disponible.
   static Future<bool> isCatalogUpdateAvailable() async {
     try {
-      final catalogFile = await getCatalogFile();
-      final localDate = await getCatalogDate();
-      final serverDate = await fetchCatalogDate(currentVersion);
+      final catalogFile = await getCatalogDatabaseFile();
+      final lastRevisionDownloaded = await getLastCatalogRevision();
+      final lastRevisionAvailable = await fetchCatalogInfo();
+      Api.lastRevisionAvailable = lastRevisionAvailable;
 
-      lastServerCatalogDate = serverDate;
-
-      if (localDate != serverDate || !catalogFile.existsSync()) {
-        debugPrint('Une mise à jour de catalog.db est disponible.');
+      if (lastRevisionDownloaded != lastRevisionAvailable || !catalogFile.existsSync()) {
+        printTime('Une mise à jour de "catalog.db" est disponible.');
         return true;
       }
-    }
-    catch (e) {
-      debugPrint('Erreur lors de la vérification de mise à jour du catalogue : $e');
+    } catch (e) {
+      printTime('Erreur lors de la vérification de la mise à jour du catalogue : $e');
     }
     return false;
   }
@@ -87,7 +91,7 @@ class Api {
   /// Met à jour le fichier catalog.db en local.
   static Future<void> updateCatalog() async {
     try {
-      final catalogFile = await getCatalogFile();
+      final catalogFile = await getCatalogDatabaseFile();
       final url = catalogUrl.replaceFirst('{currentVersion}', currentVersion);
 
       printTime('Téléchargement de catalog.db en cours... $url');
@@ -99,8 +103,8 @@ class Api {
         await GZipOptimizer.decompressCatalogDb(response.bodyBytes, catalogFile);
         printTime('Le fichier "catalog.db" a été décompressé avec succés dans : $catalogFile');
 
-        printTime('On met à jour le timestamp ($lastServerCatalogDate) du catalogue dans les préférences');
-        setCatalogDate(lastServerCatalogDate);
+        printTime('On met à jour ala dernière revision ($lastRevisionAvailable) du catalogue dans les préférences');
+        setNewCatalogRevision(lastRevisionAvailable);
       }
       else {
         printTime('Erreur lors du téléchargement de catalog.db : ${response.statusCode}');
@@ -165,6 +169,44 @@ class Api {
     return false;
   }
 
+  static Future<List<Audio>?> getPubAudio({required String keySymbol, required int issueTagNumber, required String languageSymbol}) async {
+    try {
+      final pubKey = keySymbol.contains('nwt') ? 'nwt' : keySymbol;
+
+      final queryParams = {
+        'pub': pubKey,
+        'issue': issueTagNumber.toString(),
+        'langwritten': languageSymbol,
+        'fileformat': 'mp3',
+      };
+
+      final url = Uri.https(baseUrl, getPubMediaLinks, queryParams);
+      print('Generated URL: $url');
+
+      final response = await Dio().getUri(
+        url,
+        options: Options(
+          headers: Api.getHeaders(),
+          validateStatus: (status) => status != null && status < 500,
+        ),
+      );
+
+      if (response.statusCode == 200 && response.data != null) {
+        final data = response.data;
+
+        if (data.containsKey('files') && data['files'].containsKey(languageSymbol)) {
+          return data['files'][languageSymbol]['MP3'].map<Audio>((audio) => Audio.fromJson(audio, languageSymbol: languageSymbol)).toList();
+        }
+      }
+
+      return null;
+    }
+    catch (e) {
+      print('Error fetching audio: $e');
+      return null;
+    }
+  }
+
   static Future<http.Response> httpGetWithHeadersUri(Uri url, {Map<String, String>? headers}) async {
     try {
       final h = getHeaders();
@@ -196,6 +238,11 @@ class Api {
   }
 
   static Map<String, String> getHeaders() {
+    return {
+      'User-Agent': 'jwlibrary-android',
+      'Connection': 'keep-alive',
+    };
+
     return {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
       'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',

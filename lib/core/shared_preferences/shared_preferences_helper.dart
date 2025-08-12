@@ -3,14 +3,9 @@ import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/i18n/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../app/jwlife_app.dart';
-import '../../app/services/settings_service.dart';
-import '../../data/models/meps_language.dart';
-
-int LANGUAGE_ID = 0;
-int LANGUAGE_CODE = 1;
-int LANGUAGE_VERNACULAR = 2;
-int LANGUAGE_LOCALE = 3;
+import '../../../app/jwlife_app.dart';
+import '../../../app/services/settings_service.dart';
+import '../../../data/models/meps_language.dart';
 
 /* CATALOG DATE */
 Future<String> getTheme() async {
@@ -116,18 +111,18 @@ Future<void> setLocale(String locale) async {
   prefs.setString('locale', locale);
 }
 
-/* CATALOG DATE */
-Future<String> getCatalogDate() async {
+/* CATALOG REVISION */
+Future<int> getLastCatalogRevision() async {
   SharedPreferences prefs = await SharedPreferences.getInstance();
-  if (prefs.containsKey('catalog_date') == true) {
-    return prefs.getString('catalog_date')!;
+  if (prefs.containsKey('last_catalog_revision') == true) {
+    return prefs.getInt('last_catalog_revision')!;
   }
-  return '';
+  return 0;
 }
 
-Future<void> setCatalogDate(String catalogDate) async {
+Future<void> setNewCatalogRevision(int catalogRevision) async {
   SharedPreferences prefs = await SharedPreferences.getInstance();
-  prefs.setString('catalog_date', catalogDate);
+  prefs.setInt('last_catalog_revision', catalogRevision);
 }
 
 /* LIBRARY LANGUAGE */

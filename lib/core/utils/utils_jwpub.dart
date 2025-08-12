@@ -11,6 +11,7 @@ import 'package:jwlife/data/models/publication.dart';
 import 'dart:typed_data';
 import 'package:encrypt/encrypt.dart' as encrypt;
 
+import '../../app/services/notification_service.dart';
 import '../api.dart';
 import 'directory_helper.dart';
 
@@ -19,8 +20,7 @@ Future<Publication?> downloadJwpubFile(Publication publication, BuildContext con
     'pub': publication.keySymbol,
     'issue': publication.issueTagNumber.toString(),
     'langwritten': publication.mepsLanguage.symbol,
-    'fileformat': 'jwpub',
-    //'jwlversion':
+    'fileformat': 'jwpub'
   };
 
   /*
@@ -44,18 +44,29 @@ Future<Publication?> downloadJwpubFile(Publication publication, BuildContext con
 
       Map<String, String> headers = Api.getHeaders();
 
+      // Dans votre fonction downloadJwpubFile
       Dio dio = Dio();
       final responseBytes = await dio.get(
         downloadUrl,
         options: Options(
-          responseType: ResponseType.bytes,
-          headers: headers
+            responseType: ResponseType.bytes,
+            headers: headers
         ),
         cancelToken: cancelToken,
         onReceiveProgress: (received, total) {
           if (total != -1) {
             double progress = (received / total);
             publication.progressNotifier.value = progress > 1 ? -1 : progress;
+
+            // Mettre à jour la notification de progression
+            final progressPercent = (progress * 100).round();
+            NotificationService().showProgressNotification(
+              id: publication.hashCode,
+              title: 'Téléchargement en cours...',
+              body: '${publication.getTitle()} ($progressPercent%)',
+              progress: progressPercent,
+              maxProgress: 100,
+            );
           }
         },
       );

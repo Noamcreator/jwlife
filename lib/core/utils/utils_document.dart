@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
-import 'package:jwlife/core/utils/shared_preferences_helper.dart';
 import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/core/utils/webview_data.dart';
 import 'package:jwlife/data/models/publication.dart';
@@ -15,7 +14,8 @@ import 'package:jwlife/widgets/dialog/utils_dialog.dart';
 import '../../app/jwlife_app.dart';
 import '../../app/services/settings_service.dart';
 import '../../features/publication/pages/document/data/models/document.dart';
-import '../../features/publication/pages/document/local/document_page.dart';
+
+import '../shared_preferences/shared_preferences_utils.dart';
 
 Future<void> showDownloadPublicationDialog(BuildContext context, Publication publication, {int? mepsDocId, int? bookNumber, int? chapterNumber, int? startParagraphId, int? endParagraphId}) async {
   String publicationTitle = publication.getTitle();

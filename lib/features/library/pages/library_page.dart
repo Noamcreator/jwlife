@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:jwlife/app/jwlife_page.dart';
 import 'package:jwlife/core/icons.dart';
-import 'package:jwlife/core/utils/shared_preferences_helper.dart';
 import 'package:jwlife/core/utils/widgets_utils.dart';
 import 'package:jwlife/data/models/publication_category.dart';
 import 'package:jwlife/data/databases/history.dart';
@@ -12,6 +10,7 @@ import 'package:realm/realm.dart';
 
 import '../../../app/services/global_key_service.dart' show GlobalKeyService;
 import '../../../app/services/settings_service.dart';
+import '../../../core/shared_preferences/shared_preferences_utils.dart';
 import '../../../data/databases/catalog.dart';
 import 'audio/audio_page.dart';
 import 'download/download_page.dart';

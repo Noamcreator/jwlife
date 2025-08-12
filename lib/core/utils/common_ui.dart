@@ -1,18 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:jwlife/app/jwlife_page.dart';
+import 'package:jwlife/features/home/pages/daily_text_page.dart';
 import 'package:jwlife/features/publication/pages/document/local/document_page.dart';
 import 'package:jwlife/features/publication/pages/document/local/full_screen_image_page.dart';
-import 'package:jwlife/features/video/video_player_view.dart';
+import 'package:jwlife/features/video/video_player_page.dart';
 
 import '../../app/services/global_key_service.dart';
 import '../../data/models/audio.dart';
 import '../../data/models/publication.dart';
+import '../../features/image_page.dart';
+import '../api.dart';
 
-Future<void> showPageDocument(BuildContext context, Publication publication, int mepsDocumentId, {int? startParagraphId, int? endParagraphId, List<Audio>? audios, List<String>? wordsSelected}) {
-  GlobalKeyService.jwLifePageKey.currentState!.toggleNavBarPositioned(true);
+Future<void> showPageDocument(BuildContext context, Publication publication, int mepsDocumentId, {int? startParagraphId, int? endParagraphId, List<Audio>? audios, List<String>? wordsSelected}) async {
+  List<Audio>? pubAudios = audios;
+  if(audios == null) {
+    pubAudios = await Api.getPubAudio(keySymbol: publication.keySymbol, issueTagNumber: publication.issueTagNumber, languageSymbol: publication.mepsLanguage.symbol);
+  }
 
   final GlobalKey<DocumentPageState> documentPageKey = GlobalKey<DocumentPageState>();
-  GlobalKeyService.jwLifePageKey.currentState!.webViewPageKeys[GlobalKeyService.jwLifePageKey.currentState!.currentIndex].add(documentPageKey);
+  GlobalKeyService.jwLifePageKey.currentState!.webViewPageKeys[GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex].add(documentPageKey);
 
   return showPage(context, DocumentPage(
       key: documentPageKey,
@@ -20,17 +26,20 @@ Future<void> showPageDocument(BuildContext context, Publication publication, int
       mepsDocumentId: mepsDocumentId,
       startParagraphId: startParagraphId,
       endParagraphId: endParagraphId,
-      audios: audios ?? [],
+      audios: pubAudios ?? [],
       wordsSelected: wordsSelected ?? []
     )
   );
 }
 
-Future<void> showPageBibleChapter(BuildContext context, Publication bible, int book, int chapter, {int? firstVerse, int? lastVerse, List<Audio>? audios, List<String>? wordsSelected}) {
-  GlobalKeyService.jwLifePageKey.currentState!.toggleNavBarPositioned(true);
+Future<void> showPageBibleChapter(BuildContext context, Publication bible, int book, int chapter, {int? firstVerse, int? lastVerse, List<Audio>? audios, List<String>? wordsSelected}) async {
+  List<Audio>? pubAudios = audios;
+  if(audios == null) {
+    pubAudios = await Api.getPubAudio(keySymbol: bible.keySymbol, issueTagNumber: bible.issueTagNumber, languageSymbol: bible.mepsLanguage.symbol);
+  }
 
   final GlobalKey<DocumentPageState> documentPageKey = GlobalKey<DocumentPageState>();
-  GlobalKeyService.jwLifePageKey.currentState!.webViewPageKeys[GlobalKeyService.jwLifePageKey.currentState!.currentIndex].add(documentPageKey);
+  GlobalKeyService.jwLifePageKey.currentState!.webViewPageKeys[GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex].add(documentPageKey);
 
   return showPage(context, DocumentPage.bible(
       key: documentPageKey,
@@ -39,25 +48,37 @@ Future<void> showPageBibleChapter(BuildContext context, Publication bible, int b
       chapter: chapter,
       firstVerse: firstVerse,
       lastVerse: lastVerse,
-      audios: audios ?? [],
+      audios: pubAudios ?? [],
       wordsSelected: wordsSelected ?? []
   )
   );
 }
 
-Future<void> showPage(BuildContext context, Widget page) {
-  if (page is VideoPlayerPage || page is FullScreenImagePage) {
-    GlobalKeyService.jwLifePageKey.currentState!.toggleNavBarBlack(true);
-  }
+Future<void> showPage(BuildContext context, Widget page) async {
+  GlobalKeyService.jwLifePageKey.currentState!.addPageToTab(page);
 
-  return Navigator.of(context).push(
+  final isFullscreenPage = page is VideoPlayerPage ||
+      page is FullScreenImagePage ||
+      page is ImagePage ||
+      page is DocumentPage ||
+      page is DailyTextPage;
+
+  GlobalKeyService.jwLifePageKey.currentState!.toggleNavBarDisable(isFullscreenPage);
+
+  await Navigator.of(context).push(
     PageRouteBuilder(
-      pageBuilder: (_, __, ___) => page,
-      transitionsBuilder: (_, animation, __, child) => child,
+      opaque: true,
+      barrierColor: null,
+      fullscreenDialog: false,
       transitionDuration: Duration.zero,
       reverseTransitionDuration: Duration.zero,
+      pageBuilder: (_, __, ___) => page,
     ),
   );
+
+  print('showPage: ${page.runtimeType}');
+
+  GlobalKeyService.jwLifePageKey.currentState!.removePageFromTab();
 }
 
 /*
@@ -106,7 +127,7 @@ void showBottomMessageWithActionState(ScaffoldMessengerState messenger, bool isD
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(10.0),
       ),
-      margin: GlobalKeyService.jwLifePageKey.currentState!.navBarIsPositioned[GlobalKeyService.jwLifePageKey.currentState!.currentIndex] ? const EdgeInsets.only(bottom: 60) : null,
+      margin: GlobalKeyService.jwLifePageKey.currentState!.navBarIsDisable[GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex] ? const EdgeInsets.only(bottom: 60) : null,
       behavior: SnackBarBehavior.floating,
       backgroundColor: isDark ? Color(0xFFf1f1f1) : Color(0xFF3c3c3c),
     ),

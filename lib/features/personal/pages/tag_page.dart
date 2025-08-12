@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
-import 'package:jwlife/core/utils/utils_note_tag.dart';
+import 'package:jwlife/core/utils/utils_tag_dialogs.dart';
 import 'package:jwlife/data/models/userdata/tag.dart';
 import 'package:jwlife/data/models/userdata/note.dart';
 import '../widgets/note_item_widget.dart';

@@ -135,7 +135,7 @@
     },
     {
       "name": "built_value",
-      "rootUri": "file:///C:/Users/noamb/AppData/Local/Pub/Cache/hosted/pub.dev/built_value-8.11.0",
+      "rootUri": "file:///C:/Users/noamb/AppData/Local/Pub/Cache/hosted/pub.dev/built_value-8.11.1",
       "packageUri": "lib/",
       "languageVersion": "3.0"
     },
@@ -158,12 +158,6 @@
       "languageVersion": "3.8"
     },
     {
-      "name": "cli_util",
-      "rootUri": "file:///C:/Users/noamb/AppData/Local/Pub/Cache/hosted/pub.dev/cli_util-0.4.2",
-      "packageUri": "lib/",
-      "languageVersion": "3.4"
-    },
-    {
       "name": "clock",
       "rootUri": "file:///C:/Users/noamb/AppData/Local/Pub/Cache/hosted/pub.dev/clock-1.1.2",
       "packageUri": "lib/",
@@ -183,7 +177,7 @@
     },
     {
       "name": "connectivity_plus",
-      "rootUri": "file:///C:/Users/noamb/AppData/Local/Pub/Cache/hosted/pub.dev/connectivity_plus-6.1.4",
+      "rootUri": "file:///C:/Users/noamb/AppData/Local/Pub/Cache/hosted/pub.dev/connectivity_plus-6.1.5",
       "packageUri": "lib/",
       "languageVersion": "3.2"
     },
@@ -249,7 +243,7 @@
     },
     {
       "name": "dio",
-      "rootUri": "file:///C:/Users/noamb/AppData/Local/Pub/Cache/hosted/pub.dev/dio-5.8.0+1",
+      "rootUri": "file:///C:/Users/noamb/AppData/Local/Pub/Cache/hosted/pub.dev/dio-5.9.0",
       "packageUri": "lib/",
       "languageVersion": "2.18"
     },
@@ -258,6 +252,12 @@
       "rootUri": "file:///C:/Users/noamb/AppData/Local/Pub/Cache/hosted/pub.dev/dio_web_adapter-2.1.1",
       "packageUri": "lib/",
       "languageVersion": "3.3"
+    },
+    {
+      "name": "dotted_border",
+      "rootUri": "file:///C:/Users/noamb/AppData/Local/Pub/Cache/hosted/pub.dev/dotted_border-3.1.0",
+      "packageUri": "lib/",
+      "languageVersion": "3.7"
     },
     {
       "name": "ejson",
@@ -297,7 +297,7 @@
     },
     {
       "name": "file_picker",
-      "rootUri": "file:///C:/Users/noamb/AppData/Local/Pub/Cache/hosted/pub.dev/file_picker-10.2.0",
+      "rootUri": "file:///C:/Users/noamb/AppData/Local/Pub/Cache/hosted/pub.dev/file_picker-10.3.0",
       "packageUri": "lib/",
       "languageVersion": "3.4"
     },
@@ -386,16 +386,34 @@
       "languageVersion": "3.5"
     },
     {
-      "name": "flutter_launcher_icons",
-      "rootUri": "file:///C:/Users/noamb/AppData/Local/Pub/Cache/hosted/pub.dev/flutter_launcher_icons-0.14.4",
-      "packageUri": "lib/",
-      "languageVersion": "3.0"
-    },
-    {
       "name": "flutter_lints",
       "rootUri": "file:///C:/Users/noamb/AppData/Local/Pub/Cache/hosted/pub.dev/flutter_lints-6.0.0",
       "packageUri": "lib/",
       "languageVersion": "3.8"
+    },
+    {
+      "name": "flutter_local_notifications",
+      "rootUri": "file:///C:/Users/noamb/AppData/Local/Pub/Cache/hosted/pub.dev/flutter_local_notifications-19.4.0",
+      "packageUri": "lib/",
+      "languageVersion": "3.4"
+    },
+    {
+      "name": "flutter_local_notifications_linux",
+      "rootUri": "file:///C:/Users/noamb/AppData/Local/Pub/Cache/hosted/pub.dev/flutter_local_notifications_linux-6.0.0",
+      "packageUri": "lib/",
+      "languageVersion": "3.4"
+    },
+    {
+      "name": "flutter_local_notifications_platform_interface",
+      "rootUri": "file:///C:/Users/noamb/AppData/Local/Pub/Cache/hosted/pub.dev/flutter_local_notifications_platform_interface-9.1.0",
+      "packageUri": "lib/",
+      "languageVersion": "3.4"
+    },
+    {
+      "name": "flutter_local_notifications_windows",
+      "rootUri": "file:///C:/Users/noamb/AppData/Local/Pub/Cache/hosted/pub.dev/flutter_local_notifications_windows-1.0.2",
+      "packageUri": "lib/",
+      "languageVersion": "3.4"
     },
     {
       "name": "flutter_localizations",
@@ -405,7 +423,7 @@
     },
     {
       "name": "flutter_plugin_android_lifecycle",
-      "rootUri": "file:///C:/Users/noamb/AppData/Local/Pub/Cache/hosted/pub.dev/flutter_plugin_android_lifecycle-2.0.28",
+      "rootUri": "file:///C:/Users/noamb/AppData/Local/Pub/Cache/hosted/pub.dev/flutter_plugin_android_lifecycle-2.0.29",
       "packageUri": "lib/",
       "languageVersion": "3.6"
     },
@@ -434,6 +452,12 @@
       "languageVersion": "3.0"
     },
     {
+      "name": "gal",
+      "rootUri": "file:///C:/Users/noamb/AppData/Local/Pub/Cache/hosted/pub.dev/gal-2.3.2",
+      "packageUri": "lib/",
+      "languageVersion": "3.0"
+    },
+    {
       "name": "glob",
       "rootUri": "file:///C:/Users/noamb/AppData/Local/Pub/Cache/hosted/pub.dev/glob-2.1.3",
       "packageUri": "lib/",
@@ -453,7 +477,7 @@
     },
     {
       "name": "http",
-      "rootUri": "file:///C:/Users/noamb/AppData/Local/Pub/Cache/hosted/pub.dev/http-1.4.0",
+      "rootUri": "file:///C:/Users/noamb/AppData/Local/Pub/Cache/hosted/pub.dev/http-1.5.0",
       "packageUri": "lib/",
       "languageVersion": "3.4"
     },
@@ -645,13 +669,13 @@
     },
     {
       "name": "package_info_plus",
-      "rootUri": "file:///C:/Users/noamb/AppData/Local/Pub/Cache/hosted/pub.dev/package_info_plus-8.3.0",
+      "rootUri": "file:///C:/Users/noamb/AppData/Local/Pub/Cache/hosted/pub.dev/package_info_plus-8.3.1",
       "packageUri": "lib/",
       "languageVersion": "3.3"
     },
     {
       "name": "package_info_plus_platform_interface",
-      "rootUri": "file:///C:/Users/noamb/AppData/Local/Pub/Cache/hosted/pub.dev/package_info_plus_platform_interface-3.2.0",
+      "rootUri": "file:///C:/Users/noamb/AppData/Local/Pub/Cache/hosted/pub.dev/package_info_plus_platform_interface-3.2.1",
       "packageUri": "lib/",
       "languageVersion": "2.18"
     },
@@ -873,19 +897,19 @@
     },
     {
       "name": "searchfield",
-      "rootUri": "file:///C:/Users/noamb/AppData/Local/Pub/Cache/hosted/pub.dev/searchfield-1.3.2",
+      "rootUri": "file:///C:/Users/noamb/AppData/Local/Pub/Cache/hosted/pub.dev/searchfield-1.3.3",
       "packageUri": "lib/",
       "languageVersion": "3.3"
     },
     {
       "name": "share_plus",
-      "rootUri": "file:///C:/Users/noamb/AppData/Local/Pub/Cache/hosted/pub.dev/share_plus-11.0.0",
+      "rootUri": "file:///C:/Users/noamb/AppData/Local/Pub/Cache/hosted/pub.dev/share_plus-11.1.0",
       "packageUri": "lib/",
       "languageVersion": "3.4"
     },
     {
       "name": "share_plus_platform_interface",
-      "rootUri": "file:///C:/Users/noamb/AppData/Local/Pub/Cache/hosted/pub.dev/share_plus_platform_interface-6.0.0",
+      "rootUri": "file:///C:/Users/noamb/AppData/Local/Pub/Cache/hosted/pub.dev/share_plus_platform_interface-6.1.0",
       "packageUri": "lib/",
       "languageVersion": "2.18"
     },
@@ -897,7 +921,7 @@
     },
     {
       "name": "shared_preferences_android",
-      "rootUri": "file:///C:/Users/noamb/AppData/Local/Pub/Cache/hosted/pub.dev/shared_preferences_android-2.4.10",
+      "rootUri": "file:///C:/Users/noamb/AppData/Local/Pub/Cache/hosted/pub.dev/shared_preferences_android-2.4.11",
       "packageUri": "lib/",
       "languageVersion": "3.6"
     },
@@ -987,9 +1011,9 @@
     },
     {
       "name": "sqflite_common",
-      "rootUri": "file:///C:/Users/noamb/AppData/Local/Pub/Cache/hosted/pub.dev/sqflite_common-2.5.5",
+      "rootUri": "file:///C:/Users/noamb/AppData/Local/Pub/Cache/hosted/pub.dev/sqflite_common-2.5.6",
       "packageUri": "lib/",
-      "languageVersion": "3.7"
+      "languageVersion": "3.8"
     },
     {
       "name": "sqflite_darwin",
@@ -1058,6 +1082,12 @@
       "languageVersion": "3.5"
     },
     {
+      "name": "timezone",
+      "rootUri": "file:///C:/Users/noamb/AppData/Local/Pub/Cache/hosted/pub.dev/timezone-0.10.1",
+      "packageUri": "lib/",
+      "languageVersion": "2.19"
+    },
+    {
       "name": "timing",
       "rootUri": "file:///C:/Users/noamb/AppData/Local/Pub/Cache/hosted/pub.dev/timing-1.0.2",
       "packageUri": "lib/",
@@ -1083,7 +1113,7 @@
     },
     {
       "name": "url_launcher_android",
-      "rootUri": "file:///C:/Users/noamb/AppData/Local/Pub/Cache/hosted/pub.dev/url_launcher_android-6.3.16",
+      "rootUri": "file:///C:/Users/noamb/AppData/Local/Pub/Cache/hosted/pub.dev/url_launcher_android-6.3.17",
       "packageUri": "lib/",
       "languageVersion": "3.6"
     },
@@ -1161,13 +1191,13 @@
     },
     {
       "name": "video_player_android",
-      "rootUri": "file:///C:/Users/noamb/AppData/Local/Pub/Cache/hosted/pub.dev/video_player_android-2.8.9",
+      "rootUri": "file:///C:/Users/noamb/AppData/Local/Pub/Cache/hosted/pub.dev/video_player_android-2.8.11",
       "packageUri": "lib/",
       "languageVersion": "3.7"
     },
     {
       "name": "video_player_avfoundation",
-      "rootUri": "file:///C:/Users/noamb/AppData/Local/Pub/Cache/hosted/pub.dev/video_player_avfoundation-2.8.0",
+      "rootUri": "file:///C:/Users/noamb/AppData/Local/Pub/Cache/hosted/pub.dev/video_player_avfoundation-2.8.3",
       "packageUri": "lib/",
       "languageVersion": "3.6"
     },

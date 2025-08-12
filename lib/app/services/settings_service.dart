@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:jwlife/core/theme.dart';
-import 'package:jwlife/core/utils/shared_preferences_helper.dart';
 import 'package:jwlife/core/utils/webview_data.dart';
-
+import '../../core/shared_preferences/shared_preferences_utils.dart';
 import '../../data/models/meps_language.dart';
 
 class JwLifeSettings {
