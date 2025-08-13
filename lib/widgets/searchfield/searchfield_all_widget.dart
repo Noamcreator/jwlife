@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:jwlife/app/services/global_key_service.dart';
 import 'package:realm/realm.dart';
 import 'package:searchfield/searchfield.dart';
 import 'package:sqflite/sqflite.dart';
@@ -150,7 +151,13 @@ class _SearchFieldAllState extends State<SearchFieldAll> {
         .toList();
 
     for (final pub in pubsWithTopics) {
-      final db = await openReadOnlyDatabase(pub.databasePath!);
+      Database? db;
+      if (pub.documentsManager == null) {
+        db = await openReadOnlyDatabase(pub.databasePath!);
+      } else {
+        db = pub.documentsManager!.database;
+      }
+
       final topics = await db.rawQuery('''
         SELECT Topic.DisplayTopic, Document.MepsDocumentId
         FROM Topic
@@ -172,19 +179,22 @@ class _SearchFieldAllState extends State<SearchFieldAll> {
         ));
       }
 
-      if (!pub.isBible()) await db.close();
+      if(pub.documentsManager == null) await db.close();
     }
 
     // 📘 Recherche dans le catalogue principal
+    /*
     final catalogFile = await getCatalogDatabaseFile();
     final db = await openDatabase(catalogFile.path, readOnly: true);
 
-    //final result = await db.rawQuery(/* comme ton code source ci-dessus */);
-    //final fallbackResult = await db.rawQuery(/* fallback query */);
+    final result = await db.rawQuery(/* comme ton code source ci-dessus */);
+    final fallbackResult = await db.rawQuery(/* fallback query */);
 
     // Ajout des résultats à newSuggestions comme dans ton code
 
     await db.close();
+
+     */
 
     // 🎵 Recherche dans les médias Realm
     final medias = RealmLibrary.realm.all<MediaItem>().query(
@@ -216,10 +226,12 @@ class _SearchFieldAllState extends State<SearchFieldAll> {
   void _handleTap(SearchFieldListItem<SuggestionItem> item) async {
     widget.onClose?.call();
 
-    SuggestionItem selected = item.item!;
+    SuggestionItem? selected = item.item;
+    if (selected == null) return;
+    BuildContext context = GlobalKeyService.jwLifePageKey.currentState!.getCurrentState().context;
     switch (selected.type) {
       case 0:
-        showDocumentView(context, selected.query, JwLifeSettings().currentLanguage.id);
+        await showDocumentView(context, selected.query, JwLifeSettings().currentLanguage.id);
         break;
       case 1:
         showPage(context, SearchBiblePage(query: selected.query));

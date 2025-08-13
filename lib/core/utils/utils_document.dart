@@ -17,7 +17,7 @@ import '../../features/publication/pages/document/data/models/document.dart';
 
 import '../shared_preferences/shared_preferences_utils.dart';
 
-Future<void> showDownloadPublicationDialog(BuildContext context, Publication publication, {int? mepsDocId, int? bookNumber, int? chapterNumber, int? startParagraphId, int? endParagraphId}) async {
+Future<void> showDownloadPublicationDialog(BuildContext context, Publication publication, {int? mepsDocId, int? bookNumber, int? chapterNumber, int? startParagraphId, int? endParagraphId, String? textTag}) async {
   String publicationTitle = publication.getTitle();
 
   await showJwDialog<void>(
@@ -34,18 +34,18 @@ Future<void> showDownloadPublicationDialog(BuildContext context, Publication pub
         closeDialog: false,
         onPressed: (buildContext) async {
           Navigator.of(buildContext).pop(); // Ferme le 1er dialog
-          await showDownloadProgressDialog(context, publication, mepsDocId, bookNumber, chapterNumber, startParagraphId, endParagraphId); // Ouvre le 2nd proprement
+          await showDownloadProgressDialog(context, publication, mepsDocId, bookNumber, chapterNumber, startParagraphId, endParagraphId, textTag); // Ouvre le 2nd proprement
         },
       ),
     ],
   );
 }
 
-Future<void> showDownloadProgressDialog(BuildContext context, Publication publication, int? mepsDocId, int? bookNumber, int? chapterNumber, int? startParagraphId, int? endParagraphId) async {
+Future<void> showDownloadProgressDialog(BuildContext context, Publication publication, int? mepsDocId, int? bookNumber, int? chapterNumber, int? startParagraphId, int? endParagraphId, String? textTag) async {
   await showJwDialog<void>(
     context: context,
     titleText: "Téléchargement de « ${publication.getTitle()} »",
-    content: _DownloadDialogContent(publication: publication, mepsDocId: mepsDocId, bookNumber: bookNumber, chapterNumber: chapterNumber, startParagraphId: startParagraphId, endParagraphId: endParagraphId),
+    content: _DownloadDialogContent(publication: publication, mepsDocId: mepsDocId, bookNumber: bookNumber, chapterNumber: chapterNumber, startParagraphId: startParagraphId, endParagraphId: endParagraphId, textTag: textTag),
     buttons: [
       JwDialogButton(
         label: 'ANNULER',
@@ -65,8 +65,9 @@ class _DownloadDialogContent extends StatefulWidget {
   final int? chapterNumber;
   final int? startParagraphId;
   final int? endParagraphId;
+  final String? textTag;
 
-  const _DownloadDialogContent({required this.publication, this.mepsDocId, this.bookNumber, this.chapterNumber, this.startParagraphId, this.endParagraphId});
+  const _DownloadDialogContent({required this.publication, this.mepsDocId, this.bookNumber, this.chapterNumber, this.startParagraphId, this.endParagraphId, this.textTag});
 
   @override
   State<_DownloadDialogContent> createState() => __DownloadDialogContentState();
@@ -94,7 +95,7 @@ class __DownloadDialogContentState extends State<_DownloadDialogContent> {
           await showPageBibleChapter(context, widget.publication, widget.bookNumber!, widget.chapterNumber!, firstVerse: widget.startParagraphId, lastVerse: widget.endParagraphId);
         }
         else {
-          await showPageDocument(context, widget.publication, widget.mepsDocId!, startParagraphId: widget.startParagraphId, endParagraphId: widget.endParagraphId);
+          await showPageDocument(context, widget.publication, widget.mepsDocId!, startParagraphId: widget.startParagraphId, endParagraphId: widget.endParagraphId, textTag: widget.textTag);
         }
       }
     }
@@ -128,22 +129,22 @@ class __DownloadDialogContentState extends State<_DownloadDialogContent> {
   }
 }
 
-Future<void> showDocumentView(BuildContext context, int mepsDocId, int currentLanguageId, {int? startParagraphId, int? endParagraphId}) async {
+Future<void> showDocumentView(BuildContext context, int mepsDocId, int currentLanguageId, {int? startParagraphId, int? endParagraphId, String? textTag}) async {
   Publication? publication = await JwLifeApp.pubCollections.getDocumentFromMepsDocumentId(mepsDocId, currentLanguageId);
 
   if (publication != null) {
     if (publication.isDownloadedNotifier.value) {
-      await showPageDocument(context, publication, mepsDocId, startParagraphId: startParagraphId, endParagraphId: endParagraphId);
+      await showPageDocument(context, publication, mepsDocId, startParagraphId: startParagraphId, endParagraphId: endParagraphId, textTag: textTag);
     }
     else {
-      await showDownloadPublicationDialog(context, publication, mepsDocId: mepsDocId, startParagraphId: startParagraphId, endParagraphId: endParagraphId);
+      await showDownloadPublicationDialog(context, publication, mepsDocId: mepsDocId, startParagraphId: startParagraphId, endParagraphId: endParagraphId, textTag: textTag);
     }
   }
   else {
     if(await hasInternetConnection()) {
       publication = await PubCatalog.searchPubFromMepsDocumentId(mepsDocId, currentLanguageId);
       if (publication != null) {
-        await showDownloadPublicationDialog(context, publication, mepsDocId: mepsDocId, startParagraphId: startParagraphId, endParagraphId: endParagraphId);
+        await showDownloadPublicationDialog(context, publication, mepsDocId: mepsDocId, startParagraphId: startParagraphId, endParagraphId: endParagraphId, textTag: textTag);
       }
     }
     else {

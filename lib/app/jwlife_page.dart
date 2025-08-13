@@ -188,6 +188,21 @@ class JwLifePageState extends State<JwLifePage> {
     }
   }
 
+  void changeNavBarIndex(int index) {
+    if (index == currentNavigationBottomBarIndex) {
+      navigatorKeys[index].currentState!.popUntil((route) => route.isFirst);
+      webViewPageKeys[index].clear();
+      setState(() {
+        navBarIsDisable[index] = false;
+      });
+    }
+    else {
+      GlobalKeyService.setCurrentPage(navigatorKeys[index]);
+      setState(() {
+        currentNavigationBottomBarIndex = index;
+      });
+    }
+  }
 
   void addPageToTab(Widget page) {
     // Initialise la liste pour l'onglet s'il n'existe pas encore
@@ -202,6 +217,10 @@ class JwLifePageState extends State<JwLifePage> {
     if (pagesByNavigator[currentNavigationBottomBarIndex]!.isNotEmpty) {
       pagesByNavigator[currentNavigationBottomBarIndex]!.removeLast();
     }
+  }
+
+  NavigatorState getCurrentState() {
+    return navigatorKeys[currentNavigationBottomBarIndex].currentState!;
   }
 
   Widget getBottomNavigationBar({bool isBlack = false}) {
@@ -226,19 +245,7 @@ class JwLifePageState extends State<JwLifePage> {
         CustomBottomNavigationItem(label: localization(context).navigation_personal, icon: const Icon(JwIcons.person_studying)),
       ],
       onTap: (index) {
-        if (index == currentNavigationBottomBarIndex) {
-          navigatorKeys[index].currentState!.popUntil((route) => route.isFirst);
-          webViewPageKeys[index].clear();
-          setState(() {
-            navBarIsDisable[index] = false;
-          });
-        }
-        else {
-          GlobalKeyService.setCurrentPage(navigatorKeys[index]);
-          setState(() {
-            currentNavigationBottomBarIndex = index;
-          });
-        }
+        changeNavBarIndex(index);
       },
       onLongPress: (index) {
         if (index != currentNavigationBottomBarIndex) {

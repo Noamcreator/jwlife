@@ -12,10 +12,10 @@ class SharedPreferencesKeys {
 
   // Version
   static const lastCatalogRevision = _PrefKey('last_catalog_revision', 0);
-  static const lastMepsVersion = _PrefKey('last_meps_version', '0.0');
+  static const lastMepsTimestamp = _PrefKey('last_meps_timestamp', '');
 
   // Web app
-  static const webAppDownloadVersion = _PrefKey('webapp_version', '0.0.0');
+  static const webAppDownloadVersion = _PrefKey('webapp_version', '');
 
   // Document
   static const fontSize = _PrefKey('font_size', 20.0);

@@ -621,6 +621,23 @@ class Userdata {
     }
   }
 
+  Future<List<Map<String, dynamic>>> getInputFields(String query) async {
+    try {
+      final likeQuery = '%$query%';
+      final result = await _database.rawQuery('''
+      SELECT InputField.TextTag, InputField.Value, Location.*
+      FROM InputField
+      LEFT JOIN Location ON InputField.LocationId = Location.LocationId
+      WHERE InputField.Value LIKE ?
+    ''', [likeQuery]);
+
+      return result;
+    } catch (e) {
+      printTime('Error: $e');
+      throw Exception('Failed to load input fields for the given query.');
+    }
+  }
+
   Future<List<Map<String, dynamic>>> getInputFieldsFromDocId(int docId, int mepsLang) async {
     try {
       // Retrieve the unique LocationId
@@ -805,42 +822,54 @@ class Userdata {
     }
   }
 
-  Future<List<Note>> getNotes({int? limit}) async {
-    String limitClause = ';';
-    if (limit != null) {
-      limitClause = ' LIMIT $limit;';
+  Future<List<Note>> getNotes({int? limit, String? query}) async {
+    final params = <dynamic>[];
+    String whereClause = '';
+    if (query != null && query.trim().isNotEmpty) {
+      whereClause = 'WHERE (N.Title LIKE ? OR N.Content LIKE ?)';
+      final likeQuery = '%${query.trim()}%';
+      params.addAll([likeQuery, likeQuery]);
     }
-    List<Map<String, dynamic>> result = await _database.rawQuery('''
-        SELECT 
-          N.NoteId,
-          N.Guid,
-          N.Title,
-          N.Content,
-          N.BlockType,
-          N.BlockIdentifier,
-          N.LastModified,
-          N.Created,
-          UM.UserMarkId,
-          UM.ColorIndex,
-          UM.UserMarkGuid,
-          GROUP_CONCAT(DISTINCT T.TagId) AS TagsId,
-          L.LocationId,
-          L.BookNumber,
-          L.ChapterNumber,
-          L.DocumentId,
-          L.IssueTagNumber,
-          L.KeySymbol,
-          L.MepsLanguage
-        FROM Note N
-        LEFT JOIN Location L ON L.LocationId = N.LocationId
-        LEFT JOIN TagMap TM ON N.NoteId = TM.NoteId
-        LEFT JOIN Tag T ON TM.TagId = T.TagId
-        LEFT JOIN UserMark UM ON N.UserMarkId = UM.UserMarkId
-        GROUP BY N.NoteId
-        ORDER BY N.LastModified DESC
-        $limitClause
-    ''');
 
+    String limitClause = '';
+    if (limit != null) {
+      limitClause = 'LIMIT ?';
+      params.add(limit);
+    }
+
+    final sql = '''
+    SELECT 
+      N.NoteId,
+      N.Guid,
+      N.Title,
+      N.Content,
+      N.BlockType,
+      N.BlockIdentifier,
+      N.LastModified,
+      N.Created,
+      UM.UserMarkId,
+      UM.ColorIndex,
+      UM.UserMarkGuid,
+      GROUP_CONCAT(DISTINCT T.TagId) AS TagsId,
+      L.LocationId,
+      L.BookNumber,
+      L.ChapterNumber,
+      L.DocumentId,
+      L.IssueTagNumber,
+      L.KeySymbol,
+      L.MepsLanguage
+    FROM Note N
+    LEFT JOIN Location L ON L.LocationId = N.LocationId
+    LEFT JOIN TagMap TM ON N.NoteId = TM.NoteId
+    LEFT JOIN Tag T ON TM.TagId = T.TagId
+    LEFT JOIN UserMark UM ON N.UserMarkId = UM.UserMarkId
+    $whereClause
+    GROUP BY N.NoteId
+    ORDER BY N.LastModified DESC
+    $limitClause
+  ''';
+
+    final result = await _database.rawQuery(sql, params);
     return result.map((note) => Note.fromMap(note)).toList();
   }
 

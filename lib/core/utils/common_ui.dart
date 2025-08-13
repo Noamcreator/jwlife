@@ -11,7 +11,7 @@ import '../../data/models/publication.dart';
 import '../../features/image_page.dart';
 import '../api.dart';
 
-Future<void> showPageDocument(BuildContext context, Publication publication, int mepsDocumentId, {int? startParagraphId, int? endParagraphId, List<Audio>? audios, List<String>? wordsSelected}) async {
+Future<void> showPageDocument(BuildContext context, Publication publication, int mepsDocumentId, {int? startParagraphId, int? endParagraphId, String? textTag, List<Audio>? audios, List<String>? wordsSelected}) async {
   List<Audio>? pubAudios = audios;
   if(audios == null) {
     pubAudios = await Api.getPubAudio(keySymbol: publication.keySymbol, issueTagNumber: publication.issueTagNumber, languageSymbol: publication.mepsLanguage.symbol);
@@ -26,6 +26,7 @@ Future<void> showPageDocument(BuildContext context, Publication publication, int
       mepsDocumentId: mepsDocumentId,
       startParagraphId: startParagraphId,
       endParagraphId: endParagraphId,
+      textTag: textTag,
       audios: pubAudios ?? [],
       wordsSelected: wordsSelected ?? []
     )

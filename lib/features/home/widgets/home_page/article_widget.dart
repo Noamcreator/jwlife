@@ -2,41 +2,41 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 class ArticleWidget extends StatefulWidget {
-  final List<Map<String, dynamic>> articles;
   final bool lastArticleFirst;
   final void Function(Map<String, dynamic> article) onReadMore;
 
   const ArticleWidget({
     super.key,
-    required this.articles,
     this.lastArticleFirst = true,
     required this.onReadMore,
   });
 
   @override
-  State<ArticleWidget> createState() => _ArticleWidgetState();
+  State<ArticleWidget> createState() => ArticleWidgetState();
 }
 
-class _ArticleWidgetState extends State<ArticleWidget> {
+class ArticleWidgetState extends State<ArticleWidget> {
+  List<Map<String, dynamic>> _articles = [];
+
   int _currentArticleIndex = 0;
 
   List<Map<String, dynamic>> get _orderedArticles {
-    return widget.lastArticleFirst ? widget.articles.reversed.toList() : widget.articles;
+    return widget.lastArticleFirst ? _articles.reversed.toList() : _articles;
   }
 
   Map<String, dynamic> get _currentArticle => _orderedArticles[_currentArticleIndex];
 
-  @override
-  void didUpdateWidget(covariant ArticleWidget oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (widget.articles != oldWidget.articles) {
-      setState(() {
-        _currentArticleIndex = 0;
-      });
-    }
-    return;
+  void setArticles(List<Map<String, dynamic>> articles) {) {
+    setState(() {
+      _articles = articles;
+    });
   }
 
+  void addArticle(Map<String, dynamic> article) {
+    setState(() {
+      _articles.add(article);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {

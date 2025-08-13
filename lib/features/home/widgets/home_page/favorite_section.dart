@@ -12,10 +12,18 @@ import '../../../../data/realm/catalog.dart';
 import '../../../../i18n/localization.dart';
 
 class FavoritesSection extends StatelessWidget {
-  final List<dynamic> favorites;
   final void Function(int oldIndex, int newIndex) onReorder;
 
-  const FavoritesSection({required this.favorites, required this.onReorder, super.key});
+  const FavoritesSection({super.key, required this.onReorder});
+
+  @override
+  State<FavoritesSection> createState() => FavoritesSectionState();
+}
+
+class FavoritesSectionState extends State<FavoritesSection> {
+  List<dynamic> get favorites => JwLifeApp.of(context).favorites;
+
+  void refreshFavorites() => setState(() {});
 
   @override
   Widget build(BuildContext context) {

@@ -33,24 +33,22 @@ class JwLifeSettings {
     lightData = AppTheme.getLightTheme(lightColor);
     darkData = AppTheme.getDarkTheme(darkColor);
     
-    List<String>? libraryLanguage = await getLibraryLanguage();
-    if (libraryLanguage != null) {
-      currentLanguage = MepsLanguage(
-        id: int.parse(libraryLanguage[0]),
-        symbol: libraryLanguage[1],
-        vernacular: libraryLanguage[2],
-        primaryIetfCode: libraryLanguage[3],
-        isSignLanguage: libraryLanguage[4] == '1' ? true : false,
-        internalScriptName: libraryLanguage[5],
-        displayScriptName: libraryLanguage[6],
-        isBidirectional: libraryLanguage[7] == '1' ? true : false,
-        isRtl: libraryLanguage[8] == '1' ? true : false,
-        isCharacterSpaced: libraryLanguage[9] == '1' ? true : false,
-        isCharacterBreakable: libraryLanguage[10] == '1' ? true : false,
-        hasSystemDigits: libraryLanguage[11] == '1' ? true : false,
-        rsConf: libraryLanguage[12],
-        lib: libraryLanguage[13],
-      );
-    }
+    List<String> libraryLanguage = await getLibraryLanguage();
+    currentLanguage = MepsLanguage(
+      id: int.parse(libraryLanguage[0]),
+      symbol: libraryLanguage[1],
+      vernacular: libraryLanguage[2],
+      primaryIetfCode: libraryLanguage[3],
+      isSignLanguage: libraryLanguage[4] == '1' ? true : false,
+      internalScriptName: libraryLanguage[5],
+      displayScriptName: libraryLanguage[6],
+      isBidirectional: libraryLanguage[7] == '1' ? true : false,
+      isRtl: libraryLanguage[8] == '1' ? true : false,
+      isCharacterSpaced: libraryLanguage[9] == '1' ? true : false,
+      isCharacterBreakable: libraryLanguage[10] == '1' ? true : false,
+      hasSystemDigits: libraryLanguage[11] == '1' ? true : false,
+      rsConf: libraryLanguage[12],
+      lib: libraryLanguage[13],
+    );
   }
 }

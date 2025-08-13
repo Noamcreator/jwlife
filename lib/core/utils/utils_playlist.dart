@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:jwlife/app/jwlife_app.dart';
+import 'package:jwlife/app/services/global_key_service.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/data/models/userdata/playlist.dart';
 import 'package:jwlife/data/realm/catalog.dart';
@@ -92,8 +93,9 @@ Future<void> showAddPlaylistDialog(BuildContext context, dynamic item) async {
                               SnackBarAction(
                                 label: 'Aller à la liste de lecture',
                                 onPressed: () async {
+                                  GlobalKeyService.jwLifePageKey.currentState!.changeNavBarIndex(6);
                                   await showPage(
-                                      context,
+                                      GlobalKeyService.jwLifePageKey.currentState!.getCurrentState().context,
                                       PlaylistPage(playlist: playlist)
                                   );
                                 },

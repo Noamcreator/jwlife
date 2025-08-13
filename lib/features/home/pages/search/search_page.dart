@@ -3,6 +3,8 @@ import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/databases/catalog.dart';
+import 'package:jwlife/features/home/pages/search/input_fields_search_tab.dart';
+import 'package:jwlife/features/home/pages/search/notes_search_tab.dart';
 import 'package:jwlife/features/home/pages/search/search_model.dart';
 import 'package:jwlife/features/home/pages/search/verses_search_tab.dart';
 import 'package:searchfield/searchfield.dart';
@@ -40,7 +42,7 @@ class _SearchPageState extends State<SearchPage> with SingleTickerProviderStateM
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 7, vsync: this, initialIndex: widget.tab);
+    _tabController = TabController(length: 9, vsync: this, initialIndex: widget.tab);
     _searchController = TextEditingController(text: widget.query);
     _focusNode = FocusNode();
 
@@ -90,6 +92,8 @@ class _SearchPageState extends State<SearchPage> with SingleTickerProviderStateM
                 BibleSearchTab(model: _searchModel),
                 VersesSearchTab(model: _searchModel),
                 ImagesSearchTab(model: _searchModel),
+                NotesSearchTab(model: _searchModel),
+                InputFieldsSearchTab(model: _searchModel),
               ],
             )
                 : Center(child: CircularProgressIndicator()), // ou un autre widget de chargement
@@ -117,6 +121,8 @@ class _SearchPageState extends State<SearchPage> with SingleTickerProviderStateM
         Tab(text: 'BIBLE'),
         Tab(text: 'VERSETS'),
         Tab(text: 'IMAGES'),
+        Tab(text: 'NOTES'),
+        Tab(text: 'CHAMPS'),
       ],
     );
   }

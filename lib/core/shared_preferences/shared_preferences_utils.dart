@@ -5,15 +5,18 @@ import '../../i18n/app_localizations.dart';
 import '../../app/services/settings_service.dart';
 import '../../data/models/meps_language.dart';
 
+/// Récupère l’instance SharedPreferences (singleton)
+Future<SharedPreferences> _getSP() async => SharedPreferences.getInstance();
+
 /* THEME */
 Future<String> getTheme() async {
-  final prefs = await SharedPreferences.getInstance();
-  return prefs.getString(SharedPreferencesKeys.theme.key) ?? SharedPreferencesKeys.theme.defaultValue;
+  final sp = await _getSP();
+  return sp.getString(SharedPreferencesKeys.theme.key) ?? SharedPreferencesKeys.theme.defaultValue;
 }
 
 Future<void> setTheme(String theme) async {
-  final prefs = await SharedPreferences.getInstance();
-  await prefs.setString(SharedPreferencesKeys.theme.key, theme);
+  final sp = await _getSP();
+  await sp.setString(SharedPreferencesKeys.theme.key, theme);
 }
 
 /// Extension pour convertir une couleur en chaîne hexadécimale
@@ -39,12 +42,12 @@ final Color _defaultPrimaryDark = Color.lerp(_defaultPrimaryLight, Colors.white,
 
 /// Récupère la couleur primaire
 Future<Color> getPrimaryColor(ThemeMode theme) async {
-  final prefs = await SharedPreferences.getInstance();
+  final sp = await _getSP();
   final index = WidgetsBinding.instance.window.platformBrightness == Brightness.dark
       ? ThemeMode.dark.index
       : ThemeMode.light.index;
 
-  final colors = prefs.getStringList(SharedPreferencesKeys.primaryColor.key);
+  final colors = sp.getStringList(SharedPreferencesKeys.primaryColor.key);
   if (colors != null && colors.length > index) {
     try {
       return colors[index].fromHex();
@@ -57,10 +60,10 @@ Future<Color> getPrimaryColor(ThemeMode theme) async {
 
 /// Sauvegarde une couleur primaire
 Future<void> setPrimaryColor(ThemeMode theme, Color color) async {
-  final prefs = await SharedPreferences.getInstance();
+  final sp = await _getSP();
   final index = WidgetsBinding.instance.window.platformBrightness == Brightness.dark ? ThemeMode.dark.index : ThemeMode.light.index;
 
-  List<String> colors = prefs.getStringList(SharedPreferencesKeys.primaryColor.key) ?? [
+  List<String> colors = sp.getStringList(SharedPreferencesKeys.primaryColor.key) ?? [
     _defaultPrimaryLight.toHex(),
     _defaultPrimaryDark.toHex(),
     '#FF646496'
@@ -70,14 +73,14 @@ Future<void> setPrimaryColor(ThemeMode theme, Color color) async {
     colors.add('#FF646496');
   }
   colors[index] = color.toHex();
-  await prefs.setStringList(SharedPreferencesKeys.primaryColor.key, colors);
+  await sp.setStringList(SharedPreferencesKeys.primaryColor.key, colors);
 }
 
 /* LOCALE */
 Future<String> getLocale() async {
-  final prefs = await SharedPreferences.getInstance();
-  if (prefs.containsKey(SharedPreferencesKeys.locale.key)) {
-    return prefs.getString(SharedPreferencesKeys.locale.key) ?? SharedPreferencesKeys.locale.defaultValue;
+  final sp = await _getSP();
+  if (sp.containsKey(SharedPreferencesKeys.locale.key)) {
+    return sp.getString(SharedPreferencesKeys.locale.key) ?? SharedPreferencesKeys.locale.defaultValue;
   }
   Locale deviceLocale = WidgetsBinding.instance.window.locales.first;
   if (AppLocalizations.supportedLocales.contains(Locale(deviceLocale.languageCode))) {
@@ -87,31 +90,41 @@ Future<String> getLocale() async {
 }
 
 Future<void> setLocale(String locale) async {
-  final prefs = await SharedPreferences.getInstance();
-  await prefs.setString(SharedPreferencesKeys.locale.key, locale);
+  final sp = await _getSP();
+  await sp.setString(SharedPreferencesKeys.locale.key, locale);
 }
 
 /* CATALOG REVISION */
 Future<int> getLastCatalogRevision() async {
-  final prefs = await SharedPreferences.getInstance();
-  return prefs.getInt(SharedPreferencesKeys.lastCatalogRevision.key) ?? SharedPreferencesKeys.lastCatalogRevision.defaultValue;
+  final sp = await _getSP();
+  return sp.getInt(SharedPreferencesKeys.lastCatalogRevision.key) ?? SharedPreferencesKeys.lastCatalogRevision.defaultValue;
 }
 
 Future<void> setNewCatalogRevision(int catalogRevision) async {
-  final prefs = await SharedPreferences.getInstance();
-  await prefs.setInt(SharedPreferencesKeys.lastCatalogRevision.key, catalogRevision);
+  final sp = await _getSP();
+  await sp.setInt(SharedPreferencesKeys.lastCatalogRevision.key, catalogRevision);
+}
+
+Future<String> getLastMepsTimestamp() async {
+  final sp = await _getSP();
+  return sp.getString(SharedPreferencesKeys.lastMepsTimestamp.key) ?? SharedPreferencesKeys.lastMepsTimestamp.defaultValue;
+}
+
+Future<void> setNewMepsTimestamp(String lastMepsTimestamp) async {
+  final sp = await _getSP();
+  await sp.setString(SharedPreferencesKeys.lastMepsTimestamp.key, lastMepsTimestamp);
 }
 
 /* LIBRARY LANGUAGE */
 Future<List<String>> getLibraryLanguage() async {
-  final prefs = await SharedPreferences.getInstance();
-  return prefs.getStringList(SharedPreferencesKeys.libraryLanguage.key) ?? List<String>.from(SharedPreferencesKeys.libraryLanguage.defaultValue);
+  final sp = await _getSP();
+  return sp.getStringList(SharedPreferencesKeys.libraryLanguage.key) ?? List<String>.from(SharedPreferencesKeys.libraryLanguage.defaultValue);
 }
 
 Future<void> setLibraryLanguage(Map<String, dynamic> selectedLanguage) async {
   JwLifeSettings().currentLanguage = MepsLanguage.fromJson(selectedLanguage);
-  final prefs = await SharedPreferences.getInstance();
-  await prefs.setStringList(SharedPreferencesKeys.libraryLanguage.key, [
+  final sp = await _getSP();
+  await sp.setStringList(SharedPreferencesKeys.libraryLanguage.key, [
     JwLifeSettings().currentLanguage.id.toString(),
     JwLifeSettings().currentLanguage.symbol,
     JwLifeSettings().currentLanguage.vernacular,
@@ -131,44 +144,44 @@ Future<void> setLibraryLanguage(Map<String, dynamic> selectedLanguage) async {
 
 /* WEB APP FOLDER */
 Future<String> getWebAppVersion() async {
-  final prefs = await SharedPreferences.getInstance();
-  return prefs.getString(SharedPreferencesKeys.webAppDownloadVersion.key) ?? SharedPreferencesKeys.webAppDownloadVersion.defaultValue;
+  final sp = await _getSP();
+  return sp.getString(SharedPreferencesKeys.webAppDownloadVersion.key) ?? SharedPreferencesKeys.webAppDownloadVersion.defaultValue;
 }
 
 Future<void> setWebAppVersion(String webappVersion) async {
-  final prefs = await SharedPreferences.getInstance();
-  await prefs.setString(SharedPreferencesKeys.webAppDownloadVersion.key, webappVersion);
+  final sp = await _getSP();
+  await sp.setString(SharedPreferencesKeys.webAppDownloadVersion.key, webappVersion);
 }
 
 /* FONT SIZE PUBLICATION */
 Future<double> getFontSize() async {
-  final prefs = await SharedPreferences.getInstance();
-  return prefs.getDouble(SharedPreferencesKeys.fontSize.key) ?? SharedPreferencesKeys.fontSize.defaultValue;
+  final sp = await _getSP();
+  return sp.getDouble(SharedPreferencesKeys.fontSize.key) ?? SharedPreferencesKeys.fontSize.defaultValue;
 }
 
 Future<void> setFontSize(double fontSize) async {
-  final prefs = await SharedPreferences.getInstance();
-  await prefs.setDouble(SharedPreferencesKeys.fontSize.key, fontSize);
+  final sp = await _getSP();
+  await sp.setDouble(SharedPreferencesKeys.fontSize.key, fontSize);
 }
 
 /* FULLSCREEN PUBLICATION */
 Future<bool> getFullscreen() async {
-  final prefs = await SharedPreferences.getInstance();
-  return prefs.getBool(SharedPreferencesKeys.fullscreen.key) ?? SharedPreferencesKeys.fullscreen.defaultValue;
+  final sp = await _getSP();
+  return sp.getBool(SharedPreferencesKeys.fullscreen.key) ?? SharedPreferencesKeys.fullscreen.defaultValue;
 }
 
 Future<void> setFullscreen(bool fullscreen) async {
-  final prefs = await SharedPreferences.getInstance();
-  await prefs.setBool(SharedPreferencesKeys.fullscreen.key, fullscreen);
+  final sp = await _getSP();
+  await sp.setBool(SharedPreferencesKeys.fullscreen.key, fullscreen);
 }
 
 /* HIGHLIGHT */
 Future<int> getLastHighlightColorIndex() async {
-  final prefs = await SharedPreferences.getInstance();
-  return prefs.getInt(SharedPreferencesKeys.lastHighlightColorIndex.key) ?? SharedPreferencesKeys.lastHighlightColorIndex.defaultValue;
+  final sp = await _getSP();
+  return sp.getInt(SharedPreferencesKeys.lastHighlightColorIndex.key) ?? SharedPreferencesKeys.lastHighlightColorIndex.defaultValue;
 }
 
 Future<void> setLastHighlightColor(int lastColorIndex) async {
-  final prefs = await SharedPreferences.getInstance();
-  await prefs.setInt(SharedPreferencesKeys.lastHighlightColorIndex.key, lastColorIndex);
+  final sp = await _getSP();
+  await sp.setInt(SharedPreferencesKeys.lastHighlightColorIndex.key, lastColorIndex);
 }

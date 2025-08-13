@@ -208,8 +208,7 @@ class _NotePageState extends State<NotePage> {
                     onChanged: (int? newValue) {
                       if (newValue != null) {
                         _note.colorIndex = newValue;
-                        JwLifeApp.userdata
-                            .updateNote(_note, _titleController.text,
+                        JwLifeApp.userdata.updateNote(_note, _titleController.text,
                             _contentController.text,
                             colorIndex: newValue)
                             .then((updatedNote) {

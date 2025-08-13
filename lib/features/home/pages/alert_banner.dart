@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
@@ -8,15 +7,15 @@ import 'package:jwlife/features/home/pages/alert_info_page.dart';
 import 'package:html/dom.dart' as html_dom;
 
 class AlertBanner extends StatefulWidget {
-  final List<dynamic> alerts;
-
-  const AlertBanner({super.key, required this.alerts});
+  const AlertBanner({super.key});
 
   @override
-  _AlertBannerState createState() => _AlertBannerState();
+  AlertBannerState createState() => AlertBannerState();
 }
 
-class _AlertBannerState extends State<AlertBanner> {
+class AlertBannerState extends State<AlertBanner> {
+  List<Map<String, dynamic>> _alerts = [];
+
   late PageController _pageController;
   late Timer _timer;
   int _currentPage = 0;
@@ -28,7 +27,7 @@ class _AlertBannerState extends State<AlertBanner> {
 
     // Change d'alerte toutes les 3 secondes
     _timer = Timer.periodic(Duration(seconds: 5), (Timer timer) {
-      if (_currentPage < widget.alerts.length - 1) {
+      if (_currentPage < _alerts.length - 1) {
         _currentPage++;
       } else {
         _currentPage = 0;
@@ -48,13 +47,19 @@ class _AlertBannerState extends State<AlertBanner> {
     super.dispose();
   }
 
+  void setAlerts(List<Map<String, dynamic>> alerts) {
+    setState(() {
+      _alerts = alerts;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    if (widget.alerts.isEmpty) return SizedBox.shrink();
+    if (_alerts.isEmpty) return SizedBox.shrink();
 
     return GestureDetector(
       onTap: () {
-        showPage(context, AlertInfoPage(alerts: widget.alerts));
+        showPage(context, AlertInfoPage(alerts: _alerts));
       },
       child: Container(
         color: Theme.of(context).primaryColor,
@@ -63,9 +68,9 @@ class _AlertBannerState extends State<AlertBanner> {
         height: 55, // Ajustez la hauteur selon vos besoins
         child: PageView.builder(
           controller: _pageController,
-          itemCount: widget.alerts.length,
+          itemCount: _alerts.length,
           itemBuilder: (context, index) {
-            final alert = widget.alerts[index];
+            final alert = _alerts[index];
             return Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -78,9 +83,9 @@ class _AlertBannerState extends State<AlertBanner> {
                   ),
                 ),
                 const SizedBox(width: 8),
-                if (widget.alerts.length > 1)
+                if (_alerts.length > 1)
                   Text(
-                    '${index + 1} sur ${widget.alerts.length}',
+                    '${index + 1} sur ${_alerts.length}',
                     style: TextStyle(color: Colors.white),
                   ),
                 const SizedBox(width: 8),

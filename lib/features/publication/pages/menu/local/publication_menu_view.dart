@@ -89,6 +89,10 @@ class _PublicationMenuViewState extends State<PublicationMenuView> with SingleTi
   bool _isSearching = false;
   List<Map<String, dynamic>> suggestions = [];
 
+  bool multimediaExists = false;
+  bool documentMultimediaExists = false;
+  bool hasMultimediaColumns = false;
+
   @override
   void initState() {
     super.initState();
@@ -121,8 +125,7 @@ class _PublicationMenuViewState extends State<PublicationMenuView> with SingleTi
 
   Future<void> _fetchItems() async {
     try {
-      List<Map<String, dynamic>> tabs = await _documentsManager.database
-          .rawQuery('''
+      List<Map<String, dynamic>> tabs = await _documentsManager.database.rawQuery('''
         SELECT 
           pvi.PublicationViewItemId,
           pvi.Title,
@@ -134,49 +137,86 @@ class _PublicationMenuViewState extends State<PublicationMenuView> with SingleTi
               vs.DataType
           ) AS DataType
       FROM PublicationView pv
-      INNER JOIN PublicationViewItem pvi ON pvi.PublicationViewId = pv.PublicationViewId AND pvi.ParentPublicationViewItemId = -1
-      LEFT JOIN PublicationViewSchema vs ON pvi.SchemaType = vs.SchemaType
-      LEFT JOIN PublicationViewSchema cvs ON pvi.ChildTemplateSchemaType = cvs.SchemaType AND pvi.ChildTemplateSchemaType != pvi.SchemaType
+      INNER JOIN PublicationViewItem pvi 
+          ON pvi.PublicationViewId = pv.PublicationViewId
+         AND pvi.ParentPublicationViewItemId = -1
+      LEFT JOIN (
+          SELECT SchemaType, MIN(DataType) AS DataType
+          FROM PublicationViewSchema
+          GROUP BY SchemaType
+      ) vs ON pvi.SchemaType = vs.SchemaType
+      LEFT JOIN (
+          SELECT SchemaType, MIN(DataType) AS DataType
+          FROM PublicationViewSchema
+          GROUP BY SchemaType
+      ) cvs ON pvi.ChildTemplateSchemaType = cvs.SchemaType
+            AND pvi.ChildTemplateSchemaType != pvi.SchemaType
       WHERE pv.Symbol = 'jwpub';
       ''');
 
-      // Récupérer les items et sous-items pour chaque onglet
-      final List<TabWithItems> tabsWithItems = await Future.wait(
-          tabs.map((tab) async {
-            final items = await _getItemsForParent(tab['PublicationViewItemId']);
+      // Vérifications en parallèle
+      final List<bool> results = await Future.wait([
+        _checkIfTableExists('Multimedia'),
+        _checkIfTableExists('DocumentMultimedia'),
+      ]);
 
-            final itemList = await Future.wait(items.map((item) async {
-              if (item['DefaultDocumentId'] == -1) {
-                final subItems = await _getItemsForParent(item['PublicationViewItemId']);
-                bool isBibleBooks = subItems.any((subItem) =>
-                subItem['Type'] == 2);
+      multimediaExists = results[0];
+      documentMultimediaExists = results[1];
 
-                if (isBibleBooks && _initialTabIndex == 0) {
-                  _initialTabIndex = items.indexOf(item);
-                }
+      // Vérification des colonnes
+      hasMultimediaColumns = multimediaExists && (await _getColumnsForTable('Multimedia')).contains('CategoryType');
 
-                return ListItem(
+      // Récupérer tous les items pour chaque onglet en parallèle
+      final allItemsPerTab = await Future.wait(
+        tabs.map((tab) => _getItemsForParent(tab['PublicationViewItemId'])).toList(),
+      );
+
+      // Construire la liste des TabWithItems
+      final List<TabWithItems> tabsWithItems = [];
+
+      for (int i = 0; i < tabs.length; i++) {
+        final tab = tabs[i];
+        final items = allItemsPerTab[i];
+        final List<ListItem> itemList = [];
+
+        for (final item in items) {
+          // Vérifie que l'item n'est pas un sous-élément d'un autre
+          if (!items.any((subItem) => subItem['PublicationViewItemId'] == item['ParentPublicationViewItemId'])) {
+            if (item['DefaultDocumentId'] == -1) {
+              final subItems = items.where((subItem) => subItem['ParentPublicationViewItemId'] == item['PublicationViewItemId']).toList();
+              final bool isBibleBooks = subItems.any((subItem) => subItem['Type'] == 2);
+
+              if (isBibleBooks && _initialTabIndex == 0) {
+                _initialTabIndex = items.indexOf(item);
+              }
+
+              itemList.add(
+                ListItem(
                   title: item['DisplayTitle'],
                   isTitle: true,
                   isBibleBooks: isBibleBooks,
                   showImage: false,
                   subItems: subItems.map(_mapToListItem).toList(),
-                );
-              }
-              else {
-                return _mapToListItem(item);
-              }
-            }));
+                ),
+              );
+            } else {
+              itemList.add(_mapToListItem(item));
+            }
+          }
+        }
 
-            return TabWithItems(tab: tab, items: itemList);
-          }).toList());
+        tabsWithItems.add(TabWithItems(tab: tab, items: itemList));
+      }
 
+      // Met à jour l'état
       setState(() {
         _tabsWithItems = tabsWithItems;
+        _tabController = TabController(
+          initialIndex: _initialTabIndex,
+          length: _tabsWithItems.length,
+          vsync: this,
+        );
         _isLoading = false;
-        _tabController = TabController(initialIndex: _initialTabIndex,
-            length: _tabsWithItems.length,
-            vsync: this);
       });
     }
     catch (e) {
@@ -193,141 +233,126 @@ class _PublicationMenuViewState extends State<PublicationMenuView> with SingleTi
   }
 
   Future<List<String>> _getColumnsForTable(String tableName) async {
-    var result = await _documentsManager.database.rawQuery(
-        "PRAGMA table_info($tableName)");
+    var result = await _documentsManager.database.rawQuery("PRAGMA table_info($tableName)");
     return result.map((row) => row['name'] as String).toList();
   }
 
   Future<List<Map<String, dynamic>>> _getItemsForParent(int parentId) async {
     List<Map<String, dynamic>> result = [];
-    if (widget.publication.schemaVersion <= 8) {
-      String query = await getVersionSchema8();
-      result = await _documentsManager.database.rawQuery(query, [parentId]);
+    if (widget.publication.category.id != 1) {
+      String query = await getPublicationItems();
+      result = await _documentsManager.database.rawQuery(query, [parentId, parentId]);
     }
-    else if (widget.publication.schemaVersion == 9) {
-      result = await getVersionSchema9(parentId);
+    else {
+      result = await getBibleItems(parentId);
     }
     return result;
   }
 
-  Future<String> getVersionSchema8() async {
-    // Vérifications en parallèle
-    final futures = await Future.wait([
-      _checkIfTableExists('Multimedia'),
-      _checkIfTableExists('DocumentMultimedia'),
-    ]);
+  Future<String> getPublicationItems() async {
+    final buffer = StringBuffer()
+      ..writeln('SELECT')
+      ..writeln('  pvi.PublicationViewItemId,')
+      ..writeln('  pvi.ParentPublicationViewItemId,')
+      ..writeln('  pvi.Title AS DisplayTitle,')
+      ..writeln('  pvi.DefaultDocumentId,')
+      ..writeln('  pvs.DataType,');
 
-    final multimediaExists = futures[0];
-    final documentMultimediaExists = futures[1];
-
-    // Vérification des colonnes seulement si nécessaire
-    bool hasMultimediaColumns = false;
-    if (multimediaExists) {
-      final columns = await _getColumnsForTable('Multimedia');
-      hasMultimediaColumns = ['CategoryType'].every(columns.contains);
+    // Ajout conditionnel FilePath
+    if (hasMultimediaColumns && documentMultimediaExists && multimediaExists) {
+      buffer.writeln('  MAX(CASE WHEN m.CategoryType = 9 THEN m.FilePath END) AS FilePath');
+    }
+    else {
+      buffer.writeln('  NULL AS FilePath');
     }
 
-    // Construction optimisée de la requête avec StringBuffer
-    final buffer = StringBuffer('''
-      SELECT
-        PublicationViewItem.PublicationViewItemId,
-        PublicationViewItem.ParentPublicationViewItemId,
-        PublicationViewItem.Title AS DisplayTitle,
-        PublicationViewItem.DefaultDocumentId,
-        PublicationViewSchema.DataType,
-    ''');
+    // FROM & JOINS
+    buffer.writeln('FROM PublicationViewItem pvi');
+    buffer.writeln('LEFT JOIN PublicationViewSchema pvs ON pvi.SchemaType = pvs.SchemaType');
 
-    // Ajout conditionnel de FilePath
-    buffer.write(hasMultimediaColumns ? '''
-      MAX(CASE 
-          WHEN Multimedia.CategoryType = 9 
-          THEN Multimedia.FilePath 
-          ELSE NULL 
-      END) AS FilePath
-    ''' : '  NULL AS FilePath\n');
-
-    buffer.write('''
-      FROM PublicationViewItem
-      LEFT JOIN PublicationViewSchema ON PublicationViewItem.SchemaType = PublicationViewSchema.SchemaType
-    ''');
-
-    // Jointures conditionnelles
     if (documentMultimediaExists) {
-      buffer.write(
-          'LEFT JOIN DocumentMultimedia ON DocumentMultimedia.DocumentId = PublicationViewItem.DefaultDocumentId\n');
+      buffer.writeln('LEFT JOIN DocumentMultimedia dm ON dm.DocumentId = pvi.DefaultDocumentId');
+      if (multimediaExists && hasMultimediaColumns) {
+        buffer.writeln('LEFT JOIN Multimedia m ON dm.MultimediaId = m.MultimediaId');
+      }
     }
 
-    if (multimediaExists && documentMultimediaExists) {
-      buffer.write(
-          'LEFT JOIN Multimedia ON DocumentMultimedia.MultimediaId = Multimedia.MultimediaId\n');
-    }
+    // JOIN pour récupérer les enfants d'éléments avec DefaultDocumentId = -1
+    buffer.writeln('LEFT JOIN PublicationViewItem pvx');
+    buffer.writeln('  ON pvx.PublicationViewItemId = pvi.ParentPublicationViewItemId');
+    buffer.writeln('  AND pvx.ParentPublicationViewItemId = ?');
+    buffer.writeln('  AND pvx.DefaultDocumentId = -1');
 
-    buffer.write('''
-      WHERE PublicationViewItem.ParentPublicationViewItemId = ?
-      GROUP BY 
-        PublicationViewItem.PublicationViewItemId,
-        PublicationViewItem.ParentPublicationViewItemId,
-        PublicationViewItem.Title,
-        PublicationViewItem.DefaultDocumentId
-    ''');
+    // WHERE optimisé
+    buffer.writeln('WHERE pvi.ParentPublicationViewItemId = ?');
+    buffer.writeln('   OR pvx.PublicationViewItemId IS NOT NULL');
+
+    // GROUP BY
+    buffer.writeln('GROUP BY pvi.PublicationViewItemId');
 
     return buffer.toString();
   }
 
-  Future<List<Map<String, dynamic>>> getVersionSchema9(int parentId) async {
+  Future<List<Map<String, dynamic>>> getBibleItems(int parentId) async {
     const query = '''
-SELECT
-  PublicationViewItem.PublicationViewItemId,
-  PublicationViewItem.ParentPublicationViewItemId,
-  PublicationViewItem.Title AS DisplayTitle,
-  PublicationViewItem.DefaultDocumentId,
-  PublicationViewSchema.DataType,
-  Document.Type,
-  BibleBook.BibleBookId,
-  MAX(CASE 
-      WHEN Multimedia.Width = 600 AND Multimedia.Height = 600 AND Multimedia.CategoryType = 9 
-      THEN Multimedia.FilePath 
-      ELSE NULL 
-  END) AS FilePath
-FROM PublicationViewItem
-LEFT JOIN PublicationViewSchema ON PublicationViewItem.SchemaType = PublicationViewSchema.SchemaType
-LEFT JOIN DocumentMultimedia ON DocumentMultimedia.DocumentId = PublicationViewItem.DefaultDocumentId
-LEFT JOIN Multimedia ON DocumentMultimedia.MultimediaId = Multimedia.MultimediaId
-LEFT JOIN Document ON Document.DocumentId = PublicationViewItem.DefaultDocumentId
-LEFT JOIN BibleBook ON Document.ChapterNumber = BibleBook.BibleBookId
-WHERE PublicationViewItem.ParentPublicationViewItemId = ?
-GROUP BY 
-  PublicationViewItem.PublicationViewItemId,
-  PublicationViewItem.ParentPublicationViewItemId,
-  PublicationViewItem.Title,
-  PublicationViewItem.DefaultDocumentId''';
+    SELECT
+      pvi.PublicationViewItemId,
+      pvi.ParentPublicationViewItemId,
+      pvi.Title AS DisplayTitle,
+      pvi.DefaultDocumentId,
+      pvs.DataType,
+      d.Type,
+      bb.BibleBookId,
+      MAX(CASE WHEN m.CategoryType = 9 THEN m.FilePath END) AS FilePath
+    FROM PublicationViewItem pvi
+    LEFT JOIN PublicationViewSchema pvs 
+      ON pvi.SchemaType = pvs.SchemaType
+    LEFT JOIN DocumentMultimedia dm 
+      ON dm.DocumentId = pvi.DefaultDocumentId
+    LEFT JOIN Multimedia m 
+      ON dm.MultimediaId = m.MultimediaId
+    LEFT JOIN Document d 
+      ON d.DocumentId = pvi.DefaultDocumentId
+    LEFT JOIN BibleBook bb 
+      ON d.ChapterNumber = bb.BibleBookId
+    LEFT JOIN PublicationViewItem pvx
+      ON pvx.PublicationViewItemId = pvi.ParentPublicationViewItemId
+      AND pvx.ParentPublicationViewItemId = ?
+      AND pvx.DefaultDocumentId = -1  
+    WHERE pvi.ParentPublicationViewItemId = ? OR pvx.PublicationViewItemId IS NOT NULL
+    GROUP BY 
+      pvi.PublicationViewItemId,
+      pvi.ParentPublicationViewItemId,
+      pvi.Title,
+      pvi.DefaultDocumentId,
+      pvs.DataType;
+  ''';
 
-    final result = await _documentsManager.database.rawQuery(query, [parentId]);
+    final result = await _documentsManager.database.rawQuery(query, [parentId, parentId]);
 
-    // Séparation des éléments bibliques et non-bibliques
-    final items = <Map<String, dynamic>>[];
+    // Séparer les éléments Bible et non-Bible
     final bibleItems = <Map<String, dynamic>>[];
+    final nonBibleItems = <Map<String, dynamic>>[];
 
     for (final item in result) {
       if (item['Type'] == 2) {
         bibleItems.add(item);
       } else {
-        items.add(item);
+        nonBibleItems.add(item);
       }
     }
 
-    // Traitement optimisé des éléments bibliques
+    // Traiter les éléments Bible en parallèle si nécessaire
     if (bibleItems.isNotEmpty) {
       final processedBibleItems = await _processBibleItems(bibleItems);
-      items.addAll(processedBibleItems);
+      nonBibleItems.addAll(processedBibleItems);
     }
 
-    return items;
+    return nonBibleItems;
   }
 
-// Méthode helper pour traiter les éléments bibliques en batch
-  Future<List<Map<String, dynamic>>> _processBibleItems(
-      List<Map<String, dynamic>> bibleItems) async {
+  // Méthode helper pour traiter les éléments bibliques en batch
+  Future<List<Map<String, dynamic>>> _processBibleItems(List<Map<String, dynamic>> bibleItems) async {
     final mepsFile = await getMepsUnitDatabaseFile();
     final mepsDatabase = await openDatabase(mepsFile.path);
 
@@ -350,8 +375,8 @@ GROUP BY
           bbn.OfficialBookAbbreviation,
           bbg.GroupId
         FROM BibleBookName bbn
-        JOIN BibleCluesInfo bci ON bbn.BibleCluesInfoId = bci.BibleCluesInfoId
-        JOIN BibleBookGroup bbg ON bbg.BookNumber = bbn.BookNumber
+        INNER JOIN BibleCluesInfo bci ON bbn.BibleCluesInfoId = bci.BibleCluesInfoId
+        INNER JOIN BibleBookGroup bbg ON bbg.BookNumber = bbn.BookNumber
         WHERE bbn.BookNumber IN ($placeholders) AND bci.LanguageId = ?''';
 
       final bookNames = await mepsDatabase.rawQuery(
@@ -372,7 +397,8 @@ GROUP BY
         }
         return item;
       }).toList();
-    } finally {
+    }
+    finally {
       await mepsDatabase.close();
     }
   }
@@ -381,9 +407,7 @@ GROUP BY
     Document document = _documentsManager.documents.firstWhere((d) =>
     d.documentId == item['DefaultDocumentId']);
     return ListItem(
-      title: widget.publication.schemaVersion >= 8 ? document.type == 2
-          ? item['OfficialBookAbbreviation']
-          : document.title : item['DisplayTitle'].trim() ?? '',
+      title: widget.publication.schemaVersion >= 8 ? document.type == 2 ? item['OfficialBookAbbreviation'] : document.title : item['DisplayTitle'].trim() ?? '',
       landscapeDisplayTitle: document.type == 2 ? item['StandardBookName'] : '',
       displayTitle: item['DisplayTitle'] ?? '',
       subTitle: document.contextTitle ?? document.featureTitle ?? '',
@@ -979,7 +1003,7 @@ GROUP BY
 
       return ListView(
         children: [
-          if (widget.publication.schemaVersion != 9) ...[
+          if (widget.publication.category.id != 1) ...[
             if (widget.publication.imageLsr != null)
               GestureDetector(
                 onTap: () {
@@ -1129,7 +1153,7 @@ GROUP BY
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                if (widget.publication.schemaVersion != 9) ...[
+                if (widget.publication.category.id != 1) ...[
                   if (widget.publication.imageLsr != null)
                     Image.file(
                       File('${widget.publication.path}/${widget.publication.imageLsr!.split('/').last}'),
@@ -1157,7 +1181,7 @@ GROUP BY
                   ),
                 ],
                 // TabBar (si plus d'un onglet)
-                widget.publication.schemaVersion != 9 ? TabBar(
+                widget.publication.category.id != 1 ? TabBar(
                   controller: _tabController,
                   isScrollable: true,
                   labelColor: Theme

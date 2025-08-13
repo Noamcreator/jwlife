@@ -5,20 +5,15 @@ import 'dart:io';
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:intl/date_symbol_data_local.dart';
-import 'package:intl/intl.dart';
 import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/core/bible_clues_info.dart';
 import 'package:jwlife/core/api.dart';
-import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/core/utils/directory_helper.dart';
 import 'package:jwlife/core/utils/files_helper.dart';
 import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/core/utils/utils_jwpub.dart';
-import 'package:jwlife/core/utils/widgets_utils.dart';
 import 'package:jwlife/data/models/publication.dart';
-import 'package:jwlife/data/repositories/PublicationRepository.dart';
 import 'package:jwlife/data/databases/catalog.dart';
 import 'package:jwlife/data/realm/catalog.dart';
 import 'package:jwlife/data/realm/realm_library.dart';
@@ -38,10 +33,10 @@ import 'package:html/parser.dart' as html_parser;
 import '../../../app/services/global_key_service.dart';
 import '../../../app/services/settings_service.dart';
 import '../widgets/home_page/article_widget.dart';
+import '../widgets/home_page/daily_text_widget.dart';
 import '../widgets/home_page/home_appbar.dart';
 import 'article_page.dart';
 import '../../settings_page.dart';
-import 'daily_text_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -51,15 +46,17 @@ class HomePage extends StatefulWidget {
 }
 
 class HomePageState extends State<HomePage> {
-  List<dynamic> _alerts = [];
-  String _verseOfTheDay = '';
-  List<Map<String, dynamic>> _articles = [];
+  final GlobalKey<AlertBannerState> _alertBannerKey = GlobalKey<AlertBannerState>();
+  final GlobalKey<DailyTextWidgetState> _dailyTextKey = GlobalKey<DailyTextWidgetState>();
+  final GlobalKey<ArticleWidgetState> _articlesKey = GlobalKey<ArticleWidgetState>();
+
+  final GlobalKey<FavoriteSectionState> _favoritesKey = GlobalKey<FavoriteSectionState>();
 
   List<dynamic> _favorites = [];
   List<Publication> _recentPublications = [];
   List<Publication?> _teachingToolboxPublications = [];
   List<Publication> _latestPublications = [];
-  
+
   List<MediaItem> _teachingToolboxVideos = [];
   List<MediaItem> _latestAudiosVideos = [];
 
@@ -72,7 +69,7 @@ class HomePageState extends State<HomePage> {
       _init();
     });
   }
-  
+
   Future<void> _init({bool first = true}) async {
     printTime("Init start");
     _initPage();
@@ -94,8 +91,9 @@ class HomePageState extends State<HomePage> {
     fetchAlertInfo();
     fetchArticleInHomePage();
 
+    _favoritesKey.currentState?.refreshFavorites();
+
     setState(() {
-      _favorites = JwLifeApp.userdata.favorites;
       _recentPublications = PubCatalog.recentPublications;
       _teachingToolboxPublications = PubCatalog.teachingToolboxPublications;
       _latestPublications = PubCatalog.latestPublications;
@@ -226,12 +224,6 @@ class HomePageState extends State<HomePage> {
     });
   }
 
-  void refreshFavorites() {
-    setState(() {
-      _favorites = JwLifeApp.userdata.favorites;
-    });
-  }
-
   Future<void> fetchAlertInfo() async {
     printTime("fetchAlertInfo");
     // Préparer les paramètres de requête pour l'URL
@@ -257,9 +249,7 @@ class HomePageState extends State<HomePage> {
         // La requête a réussi, traiter la réponse JSON
         final data = jsonDecode(alertResponse.body);
 
-        setState(() {
-          _alerts = data['alerts'];
-        });
+        _alertBannerKey.currentState!.setAlerts(data['alerts']);
       }
       else {
         // Gérer une erreur de statut HTTP
@@ -304,9 +294,7 @@ class HomePageState extends State<HomePage> {
         final decodedHtml = decodeBlobContent(document!['Content'] as Uint8List, verseOfTheDayPub.hash!);
         final htmlDocument = html_parser.parse(decodedHtml);
 
-        setState(() {
-          _verseOfTheDay = htmlDocument.querySelector('.themeScrp')?.text ?? '';
-        });
+        _dailyTextKey.currentState!.setVerseOfTheDay(htmlDocument.querySelector('.themeScrp')?.text ?? '');
       }
     }
     printTime("fetchVerseOfTheDay end");
@@ -314,7 +302,6 @@ class HomePageState extends State<HomePage> {
 
   Future<void> fetchArticleInHomePage() async {
     printTime("fetchArticleInHomePage");
-    _articles = [];
 
     final languageSymbol = JwLifeSettings().currentLanguage.symbol;
     final articlesDbFile = await getArticlesDatabaseFile();
@@ -329,6 +316,7 @@ class HomePageState extends State<HomePage> {
           ContextTitle TEXT,
           Title TEXT,
           Description TEXT,
+          Timestamp TEXT,
           Link TEXT,
           Content TEXT,
           ButtonText TEXT,
@@ -358,14 +346,12 @@ class HomePageState extends State<HomePage> {
     LEFT JOIN Image i_lsr ON a.ArticleId = i_lsr.ArticleId AND i_lsr.Type = 'lsr'
     LEFT JOIN Image i_pnr ON a.ArticleId = i_pnr.ArticleId AND i_pnr.Type = 'pnr'
     WHERE a.LanguageSymbol = ?
-    ORDER BY a.ArticleId
+    ORDER BY a.Timestamp DESC
     LIMIT 3
   ''', [languageSymbol]);
 
     if (articles.isNotEmpty) {
-      setState(() {
-        _articles = List<Map<String, dynamic>>.from(articles);
-      }); // Mise à jour unique
+      _articlesKey.currentState!.setArticles(List<Map<String, dynamic>>.from(articles));
     }
 
     printTime('fetchArticleInHomePage request end');
@@ -380,20 +366,47 @@ class HomePageState extends State<HomePage> {
 
     final document = html_parser.parse(response.body);
 
-    String getImageUrl(String className) {
-      final style = document.querySelector('$className .billboard-media-image')?.attributes['style'] ?? '';
+    // Récupère le premier .billboard
+    final firstBillboard = document.querySelector('.billboard');
+
+    // Fonction pour récupérer l'URL à partir d'une classe interne
+    String getImageUrlFromFirst(String className) {
+      if (firstBillboard == null) return '';
+      final style = firstBillboard
+          .querySelector('$className .billboard-media-image')
+          ?.attributes['style'] ?? '';
       final match = RegExp(r'url\(([^)]+)\)').firstMatch(style);
       return match?.group(1) ?? '';
     }
 
-    final contextTitle = document.querySelector('.contextTitle')?.text.trim() ?? '';
-    final title = document.querySelector('.billboardTitle a')?.text.trim() ?? '';
-    final description = document.querySelector('.billboardDescription .bodyTxt .p2')?.text.trim() ?? '';
-    final link = document.querySelector('.billboardTitle a')?.attributes['href'] ?? '';
-    final buttonText = document.querySelector('.billboardButton .buttonText')?.text.trim() ?? '';
+    // Extraction des infos uniquement dans le premier billboard
+    final contextTitle = firstBillboard
+        ?.querySelector('.contextTitle')
+        ?.text
+        .trim() ?? '';
 
-    final imageUrlLsr = getImageUrl('.billboard-media.lsr');
-    final imageUrlPnr = getImageUrl('.billboard-media.pnr');
+    final title = firstBillboard
+        ?.querySelector('.billboardTitle a')
+        ?.text
+        .trim() ?? '';
+
+    final description = firstBillboard
+        ?.querySelector('.billboardDescription .bodyTxt .p2')
+        ?.text
+        .trim() ?? '';
+
+    final link = firstBillboard
+        ?.querySelector('.billboardTitle a')
+        ?.attributes['href'] ?? '';
+
+    final buttonText = firstBillboard
+        ?.querySelector('.billboardButton .buttonText')
+        ?.text
+        .trim() ?? '';
+
+    // Images du premier billboard
+    final imageUrlLsr = getImageUrlFromFirst('.billboard-media.lsr');
+    final imageUrlPnr = getImageUrlFromFirst('.billboard-media.pnr');
 
     // Si aucun article ou titre différent, on ajoute le nouvel article
     if (articles.isEmpty || !articles.any((article) => article['Title'] == title) ) {
@@ -414,6 +427,7 @@ class HomePageState extends State<HomePage> {
         'ContextTitle': contextTitle,
         'Title': title,
         'Description': description,
+        'Timestamp': DateTime.now().toString(),
         'Link': fullLink,
         'Content': '', // Ajouter contenu si besoin
         'ButtonText': buttonText,
@@ -422,9 +436,7 @@ class HomePageState extends State<HomePage> {
         'ImagePathPnr': imagePathPnr,
       };
 
-      setState(() {
-        _articles.add(newArticle);
-      }); // Mise à jour unique
+      _articlesKey.currentState!.addArticle(newArticle);
 
       // Enregistrement en base
       final articleId = await saveArticleToDatabase(db, newArticle);
@@ -435,7 +447,7 @@ class HomePageState extends State<HomePage> {
     printTime("fetchArticleInHomePage end");
   }
 
-// Enregistre un article et retourne son id
+  // Enregistre un article et retourne son id
   Future<int> saveArticleToDatabase(Database db, Map<String, dynamic> article) {
     return db.insert('Article', {
       'Title': article['Title'],
@@ -448,7 +460,7 @@ class HomePageState extends State<HomePage> {
     });
   }
 
-// Enregistre les images associées à un article
+  // Enregistre les images associées à un article
   Future<void> saveImagesToDatabase(Database db, int articleId, Map<String, dynamic> article) async {
     final inserts = <Future>[];
 
@@ -487,303 +499,6 @@ class HomePageState extends State<HomePage> {
     return '';
   }
 
-  /*
-      final bibleCluesInfo = JwLifeApp.bibleCluesInfo; // Obtient les informations de BibleCluesInfo
-
-      // Accéder aux séparateurs depuis l'objet BibleCluesInfo
-      final chapterVerseSeparator = RegExp.escape(bibleCluesInfo.chapterVerseSeparator); // 12:15
-      final separator = RegExp.escape(bibleCluesInfo.separator); // Gn 12:15, 13:16 ou Gn 12:15,17
-      final rangeSeparator = RegExp.escape(bibleCluesInfo.rangeSeparator); // Gn 12:15-16
-      final nonConsecutiveRangeSeparator = RegExp.escape(bibleCluesInfo.nonConsecutiveRangeSeparator); // Gn 12:15 ; Exode 2:16
-
-      // Expression régulière pour détecter un verset sous différents formats
-      final verseRegExp = RegExp(
-          // Format de verset simple (Ps 12:15)
-          '([A-Za-z]+)\\s?(\\d+)$chapterVerseSeparator(\\d+)'
-
-          // Format de plage (Gn 12:15,17)
-          '|([A-Za-z]+)\\s?(\\d+)$chapterVerseSeparator(\\d+)$separator(\\d+)'
-
-          // Format de plage (Gn 12:15-16)
-          '|([A-Za-z]+)\\s?(\\d+)$chapterVerseSeparator(\d+)$rangeSeparator(\\d+)'
-
-          // Format non consécutif (Gn 12:15 ; Exode 2:16)
-          '|([A-Za-z]+)\\s?(\\d+)\\s?($nonConsecutiveRangeSeparator)\\s?([A-Za-z]+)\\s?(\\d+)$chapterVerseSeparator(\\d+)'
-      );
-
-      final match = verseRegExp.firstMatch(query);
-
-      if (match != null) {
-        String? bookName;
-        String? bookName2;
-        int chapter = 0;
-        int verse = 0;
-        int chapter2 = 0;
-        int verse2 = 0;
-
-
-        // Cas : format simple "Ps 12:15"
-        if (match.group(1) != null && match.group(2) != null && match.group(3) != null) {
-          bookName = match.group(1)?.trim() ?? '';
-          chapter = int.parse(match.group(2) ?? '0');
-          verse = int.parse(match.group(3) ?? '0');
-        }
-        // Cas : format plage "Gn 12:15,17"
-        else if (match.group(4) != null && match.group(5) != null && match.group(6) != null && match.group(7) != null) {
-          bookName = match.group(4)?.trim() ?? '';
-          chapter = int.parse(match.group(5) ?? '0');
-          verse = int.parse(match.group(6) ?? '0');
-          chapter2 = int.parse(match.group(7) ?? '0');
-          verse2 = int.parse(match.group(8) ?? '0');
-        }
-        // Cas : format plage "Gn 12:15-16"
-        else if (match.group(9) != null && match.group(10) != null && match.group(11) != null && match.group(12) != null) {
-          bookName = match.group(9)?.trim() ?? '';
-          chapter = int.parse(match.group(10) ?? '0');
-          verse = int.parse(match.group(11) ?? '0');
-          chapter2 = int.parse(match.group(12) ?? '0');
-          verse2 = int.parse(match.group(13) ?? '0');
-        }
-        // Cas : format non consécutif "Gn 12:15 ; Exode 2:16"
-        else if (match.group(14) != null && match.group(15) != null && match.group(16) != null && match.group(17) != null) {
-          bookName = match.group(14)?.trim() ?? '';
-          chapter = int.parse(match.group(15) ?? '0');
-          verse = int.parse(match.group(16) ?? '0');
-          // Le second verset, si présent
-          bookName2 = match.group(17)?.trim() ?? '';
-          chapter2 = int.parse(match.group(18) ?? '0');
-          verse2 = int.parse(match.group(19) ?? '0');
-        }
-
-        if (bookName != null) {
-          // Chercher le livre correspondant dans BibleCluesInfo
-          final book = bibleCluesInfo.getBook(bookName);
-          final book2 = bookName2 != null ? bibleCluesInfo.getBook(bookName2) : null;
-
-          if (book != null) {
-            // Ajouter la suggestion de verset à la liste
-            setState(() {
-              suggestions.add({
-                'type': 3, // Type verset
-                'query': query,
-                'caption': '${book.standardBookName} $chapter:$verse', // Affiche le verset détecté
-                'icon': '',
-                'label': 'Verset',
-              });
-
-              // Si c'est un format de plage
-              if (chapter2 != 0 && verse2 != 0) {
-                suggestions.add({
-                  'type': 3, // Type verset
-                  'query': query,
-                  'caption': '${book.standardBookName} $chapter:$verse-$chapter2:$verse2',
-                  'icon': '',
-                  'label': 'Plage de versets',
-                });
-              }
-
-              // Si c'est un format non consécutif
-              if (chapter2 != 0 && verse2 != 0) {
-                suggestions.add({
-                  'type': 3, // Type verset
-                  'query': query,
-                  'caption': '${book.standardBookName} $chapter:$verse ; ${book2!.standardBookName} $chapter2:$verse2',
-                  'icon': '',
-                  'label': 'Versets non consécutifs',
-                });
-              }
-            });
-          }
-        }
-        return;
-      }
-
-       */
-
-  Widget _buildAlertBannerWidget() {
-    if (_alerts.isEmpty) return SizedBox.shrink(); // Retourne un widget vide si aucune alerte
-
-    return Column(
-      children: [
-        AlertBanner(alerts: _alerts),
-        SizedBox(height: 8), // Espace entre l'alerte et le texte du jour
-      ],
-    );
-  }
-
-  Widget _buildDailyTextWidget() {
-    // Vérifier si la locale est supportée
-    String locale = JwLifeSettings().currentLanguage.primaryIetfCode;
-    if (!DateFormat.allLocalesWithSymbols().contains(locale)) {
-      locale = 'en'; // Fallback vers l'anglais ou une autre langue par défaut
-    }
-
-    initializeDateFormatting(locale);
-    DateTime now = DateTime.now();
-    String formattedDate = capitalize(DateFormat('EEEE d MMMM yyyy', locale).format(now));
-
-    Publication? verseOfTheDayPub = PubCatalog.datedPublications.firstWhereOrNull((element) => element.keySymbol.contains('es'));
-
-    if (verseOfTheDayPub == null) {
-      return Column(
-        children: [
-          Container(
-            color: Theme.of(context).brightness == Brightness.dark
-                ? Color(0xFF121212)
-                : Colors.white,
-            height: 128,
-            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-            alignment: Alignment.center,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Text(
-                  'Bienvenue sur JW Life',
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).primaryColor,
-                  ),
-                  textAlign: TextAlign.center, // ← Optionnel pour s’assurer
-                ),
-                SizedBox(height: 8),
-                Text(
-                  "Une application pour la vie d'un Témoin de Jéhovah",
-                  style: TextStyle(
-                    fontSize: 16,
-                  ),
-                  textAlign: TextAlign.center, // ← Optionnel aussi
-                ),
-              ],
-            ),
-          ),
-          SizedBox(height: 10),
-        ],
-      );
-    }
-
-    Publication publication = PublicationRepository().getPublication(verseOfTheDayPub);
-
-    return Column(
-      children: [
-        GestureDetector(
-          onTap: () {
-            if (publication.isDownloadedNotifier.value) {
-              GlobalKeyService.jwLifePageKey.currentState!.toggleNavBarDisable(true);
-
-              final GlobalKey<DailyTextPageState> dailyTextPageKey = GlobalKey<DailyTextPageState>();
-              GlobalKeyService.jwLifePageKey.currentState!.webViewPageKeys[GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex].add(dailyTextPageKey);
-
-              showPage(context, DailyTextPage(key: dailyTextPageKey, publication: publication));
-            }
-            else {
-              publication.download(context);
-            }
-                    },
-          child: Stack(
-            children: [
-              Container(
-                color: Theme.of(context).brightness == Brightness.dark
-                    ? Color(0xFF121212)
-                    : Colors.white,
-                height: 128,
-                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    ValueListenableBuilder<bool>(
-                      valueListenable: publication.isDownloadedNotifier,
-                      builder: (context, isDownloaded, _) {
-                        return Column(
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: isDownloaded && _verseOfTheDay.isNotEmpty ? [
-                                Icon(JwIcons.calendar, size: 24),
-                                SizedBox(width: 8),
-                                Text(
-                                  formattedDate,
-                                  style: TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
-                                    color: Theme.of(context).primaryColor,
-                                  ),
-                                ),
-                                SizedBox(width: 8),
-                                Icon(JwIcons.chevron_right, size: 24),
-                              ]
-                                  : [
-                                Text(
-                                  'Bienvenue sur JW Life',
-                                  style: TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
-                                    color: Theme.of(context).primaryColor,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            SizedBox(height: 4),
-                            ValueListenableBuilder<bool>(
-                              valueListenable: publication.isDownloadedNotifier,
-                              builder: (context, isDownloaded, _) {
-                                if (isDownloaded) {
-                                  return _verseOfTheDay.isNotEmpty ? Text(
-                                    _verseOfTheDay,
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(fontSize: 16, height: 1.2),
-                                    maxLines: 4,
-                                  ) : getLoadingWidget(Theme.of(context).primaryColor);
-                                }
-                                else {
-                                  return Text(
-                                    "Télécharger le Texte du Jour de l'année ${DateFormat('yyyy').format(now)}",
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(fontSize: 16, height: 1.2),
-                                    maxLines: 4,
-                                  );
-                                }
-                              },
-                            ),
-                          ],
-                        );
-                      },
-                    ),
-                  ],
-                ),
-              ),
-              ValueListenableBuilder<bool>(
-                valueListenable: publication.isDownloadingNotifier,
-                builder: (context, isDownloading, _) {
-                  if (!isDownloading) return SizedBox.shrink();
-                  return Positioned(
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    child: ValueListenableBuilder<double>(
-                      valueListenable: publication.progressNotifier,
-                      builder: (context, progress, _) {
-                        return LinearProgressIndicator(
-                          value: progress == -1.0 ? null : progress,
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            Theme.of(context).primaryColor,
-                          ),
-                          backgroundColor: Colors.grey[300],
-                        );
-                      },
-                    ),
-                  );
-                },
-              ),
-            ],
-          ),
-        ),
-        SizedBox(height: 10),
-      ],
-    );
-  }
-
   Widget _buildLatestVideosWidget() {
     if (_latestAudiosVideos.isEmpty) {
       return const SizedBox(height: 15);
@@ -817,7 +532,6 @@ class HomePageState extends State<HomePage> {
         resizeToAvoidBottomInset: false,
         appBar: HomeAppBar(
           onOpenSettings: () {
-            //showPage(context, SettingsPage()).then((_) => setState(() {}));
             showPage(context, SettingsPage());
           },
         ),
@@ -841,14 +555,14 @@ class HomePageState extends State<HomePage> {
                     backgroundColor: Colors.grey[300]) : SizedBox(height: 8),
 
                 /* Afficher le banner */
-                _buildAlertBannerWidget(),
+                AlertBanner(key: _alertBannerKey),
 
                 /* Afficher le texte du jour */
-                _buildDailyTextWidget(),
+                DailyTextWidget(key: _dailyTextKey),
 
                 /* Afficher l'article en page d'accueil */
                 ArticleWidget(
-                  articles: _articles,
+                  key: _articlesKey,
                   onReadMore: (article) {
                     showPage(
                       context,
@@ -867,11 +581,14 @@ class HomePageState extends State<HomePage> {
                           const SizedBox(height: 20),
 
                           if (_favorites.isNotEmpty)
-                            FavoritesSection(favorites: _favorites, onReorder: (oldIndex, newIndex) {
-                              if (newIndex > oldIndex) newIndex -= 1;
-                              JwLifeApp.userdata.reorderFavorites(oldIndex, newIndex);
-                              refreshFavorites();
-                            }),
+                            FavoritesSection(
+                                key: _favoritesKey,
+                                onReorder: (oldIndex, newIndex) {
+                                  if (newIndex > oldIndex) newIndex -= 1;
+                                  JwLifeApp.userdata.reorderFavorites(oldIndex, newIndex);
+                                  _favoritesKey.currentState?.refreshFavorites();
+                                }
+                            ),
 
                           if (_recentPublications.isNotEmpty)
                             Text(
@@ -955,8 +672,8 @@ class HomePageState extends State<HomePage> {
                               itemCount: _latestPublications.length,
                               itemBuilder: (context, index) {
                                 return Padding(
-                                  padding: const EdgeInsets.only(right: 2.0), // Espacement entre les items
-                                  child: HomeRectanglePublicationItem(pub: _latestPublications[index])
+                                    padding: const EdgeInsets.only(right: 2.0), // Espacement entre les items
+                                    child: HomeRectanglePublicationItem(pub: _latestPublications[index])
                                 );
                               },
                             ),

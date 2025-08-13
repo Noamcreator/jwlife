@@ -9,7 +9,7 @@ import '../api.dart';
 import '../shared_preferences/shared_preferences_utils.dart';
 
 class AssetsDownload {
-  static final String webappApi = 'https://github.com/Noamcreator/jwlife/raw/refs/heads/main/api/';
+  static final String gitubApi = 'https://github.com/Noamcreator/jwlife/raw/refs/heads/main/api/';
 
   // Télécharge et enregistre les polices localement
   static Future<void> download() async {
@@ -21,7 +21,7 @@ class AssetsDownload {
 
     // récupérer la version du webapp
     try {
-      String webappInfoApi = '${webappApi}webapp_version.json';
+      String webappInfoApi = '${gitubApi}webapp_version.json';
       final response = await Api.httpGetWithHeaders(webappInfoApi);
       final jsonBody = json.decode(response.body);
       webappVersionServer = jsonBody['version'];
@@ -32,7 +32,7 @@ class AssetsDownload {
     }
 
     if (webappVersionServer != webappVersion) {
-      String webappFileUrl = '$webappApi$webappfileNameServer';
+      String webappFileUrl = '$gitubApi$webappfileNameServer';
       await webappDir.create(recursive: true);
       printTime('Downloading webapp...');
       try {

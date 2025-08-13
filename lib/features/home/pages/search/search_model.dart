@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/core/api.dart';
+import 'package:jwlife/data/models/userdata/note.dart';
 import 'package:jwlife/data/repositories/PublicationRepository.dart';
 import 'package:sqflite/sqflite.dart';
 
@@ -23,6 +24,9 @@ class SearchModel {
   List<Map<String, dynamic>> verses = [];
   List<Map<String, dynamic>> images = [];
 
+  List<Note> notes = [];
+  List<Map<String, dynamic>> inputFields = [];
+
   void clear() {
     allSearch = [];
     publications = [];
@@ -31,6 +35,8 @@ class SearchModel {
     bible = [];
     verses = [];
     images = [];
+    notes = [];
+    inputFields = [];
   }
 
   Future<void> fetchOnActiveTab(int index) async {
@@ -54,6 +60,10 @@ class SearchModel {
         await fetchVerses();
       case 6:
         await fetchImages();
+      case 7:
+        await fetchNotes();
+      case 8:
+        await fetchInputFields();
     }
   }
 
@@ -221,7 +231,8 @@ class SearchModel {
         ) m ON m.DocumentId = bc.DocumentId
         WHERE ? BETWEEN bc.FirstBibleVerseId AND bc.LastBibleVerseId
       ''', [verseId]);
-      } else {
+      }
+      else {
         results = await db.rawQuery('''
         SELECT 
           bc.*,
@@ -242,6 +253,8 @@ class SearchModel {
         WHERE ? BETWEEN bc.FirstBibleVerseId AND bc.LastBibleVerseId
       ''', [verseId]);
       }
+
+      if (documentsManager == null) await db.close();
     } catch (e) {
       // Log error if needed
     }
@@ -360,5 +373,15 @@ class SearchModel {
     }
 
     return result.first['BibleVerseId'] as int;
+  }
+
+  Future<List<Note>> fetchNotes() async {
+    if (notes.isNotEmpty) return notes;
+    return await JwLifeApp.userdata.getNotes(query: query);
+  }
+
+  Future<List<Map<String, dynamic>>> fetchInputFields() async {
+    if (inputFields.isNotEmpty) return inputFields;
+    return await JwLifeApp.userdata.getInputFields(query);
   }
 }

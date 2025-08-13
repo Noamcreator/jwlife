@@ -340,6 +340,9 @@ class Document {
     );
   }
 
+  String getDisplayTitle() {
+    return isBibleChapter() ? '$displayTitle $chapterNumber' : displayTitle.isNotEmpty ? displayTitle.trim() : title;
+  }
 
   bool isBibleChapter() {
     return bookNumber != null && chapterNumberBible != null;

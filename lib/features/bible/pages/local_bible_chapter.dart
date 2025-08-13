@@ -17,6 +17,7 @@ import 'package:jwlife/widgets/dialog/language_dialog_pub.dart';
 import 'package:jwlife/widgets/responsive_appbar_actions.dart';
 import 'package:sqflite/sqflite.dart';
 
+import '../../../app/services/settings_service.dart';
 import '../../../data/models/userdata/bookmark.dart';
 
 class LocalChapterBiblePage extends StatefulWidget {
@@ -30,21 +31,27 @@ class LocalChapterBiblePage extends StatefulWidget {
   _LocalChapterBiblePageState createState() => _LocalChapterBiblePageState();
 }
 
-class _LocalChapterBiblePageState extends State<LocalChapterBiblePage> {
-  bool _isLoading = true;
-  bool _isOverview = false;
-  bool _isLoadingOverview = false;
-  String _overviewHtml = '';
+class BookData {
+  final Map<String, dynamic> bookInfo;
+  List<dynamic>? chapters;
+  String? overviewHtml;
+  String? profileHtml;
+  bool isLoading;
+  bool isOverview;
 
+  BookData(this.bookInfo) : isLoading = true, isOverview = false;
+}
+
+class _LocalChapterBiblePageState extends State<LocalChapterBiblePage> {
+  bool _isInitialLoading = true;
   late PageController _pageController;
-  late List<Map<String, dynamic>> _books; // Liste de tous les livres
-  int _currentIndex = 1;
-  late List<dynamic> _chapters;
+  late List<BookData> _booksData;
+  int _currentIndex = 0;
 
   @override
   void initState() {
     super.initState();
-    _fetchBooks(); // Nouvelle méthode pour récupérer tous les livres
+    _fetchBooks();
   }
 
   Future<void> _fetchBooks() async {
@@ -78,29 +85,40 @@ class _LocalChapterBiblePageState extends State<LocalChapterBiblePage> {
 
       await database.execute("DETACH DATABASE meps");
 
-      setState(() {
-        _books = results;
-        _currentIndex = results.indexWhere((book) => book['BibleBookId'] == widget.book);
-      });
+      // Créer les BookData pour chaque livre
+      _booksData = results.map((book) => BookData(book)).toList();
+
+      // Trouver l'index du livre actuel
+      _currentIndex = _booksData.indexWhere((bookData) => bookData.bookInfo['BibleBookId'] == widget.book);
+      if (_currentIndex == -1) _currentIndex = 0;
 
       _pageController = PageController(initialPage: _currentIndex);
 
-      _fetchBookPage(); // Charge les chapitres du livre actuel
-    }
-    catch (e) {
+      setState(() {
+        _isInitialLoading = false;
+      });
+
+      // Charger les données du livre actuel
+      await _loadBookData(_currentIndex);
+
+    } catch (e) {
       throw Exception('Erreur lors de la récupération des livres: $e');
     }
   }
 
-  Future<void> _fetchBookPage() async {
-    setState(() {
-      _isLoadingOverview = true;
-    });
+  Future<void> _loadBookData(int bookIndex) async {
+    if (bookIndex < 0 || bookIndex >= _booksData.length) return;
+
+    BookData bookData = _booksData[bookIndex];
+
+    // Si les données sont déjà chargées, pas besoin de les recharger
+    if (!bookData.isLoading) return;
 
     try {
       Database database = widget.bible.documentsManager!.database;
 
-      List<Map<String, dynamic>> results2 = await database.rawQuery('''
+      // Charger les chapitres
+      List<Map<String, dynamic>> chaptersResults = await database.rawQuery('''
         SELECT
           BibleChapter.ChapterNumber,
           Document.MepsDocumentId
@@ -108,42 +126,81 @@ class _LocalChapterBiblePageState extends State<LocalChapterBiblePage> {
         INNER JOIN BibleBook ON BibleChapter.BookNumber = BibleBook.BibleBookId
         INNER JOIN Document ON BibleBook.BookDocumentId = Document.DocumentId
         WHERE BookNumber = ?
-      ''', [_currentIndex+1]);
+      ''', [bookData.bookInfo['BibleBookId']]);
 
-      Map<String, dynamic> book = _books[_currentIndex];
-
+      // Générer le HTML de l'aperçu
+      String overviewHtml = '';
       dynamic contentBlob;
-      if (book['OverviewContent'] != null) {
-        contentBlob = book['OverviewContent'] as Uint8List;
-
-      }
-      else {
-        contentBlob = book['OutlineContent'] as Uint8List;
+      if (bookData.bookInfo['OverviewContent'] != null) {
+        contentBlob = bookData.bookInfo['OverviewContent'] as Uint8List;
+      } else {
+        contentBlob = bookData.bookInfo['OutlineContent'] as Uint8List;
       }
 
-      final decodedHtml = decodeBlobContent(
-        contentBlob,
-        widget.bible.hash!,
-      );
+      if (contentBlob != null) {
+        final decodedHtml = decodeBlobContent(
+          contentBlob,
+          widget.bible.hash!,
+        );
 
-      String htmlContent = createHtmlContent(
-        decodedHtml,
-        '''jwac docClass-115 ms-ROMAN ml-F dir-ltr pub-${widget.bible.keySymbol} layout-reading layout-sidebar''',
-        widget.bible,
-        false
-      );
+        overviewHtml = createHtmlContent(
+            decodedHtml,
+            '''jwac docClass-115 ms-ROMAN ml-F dir-ltr pub-${widget.bible.keySymbol} layout-reading layout-sidebar''',
+            widget.bible,
+            false
+        );
+      }
 
-      setState(() {
-        _overviewHtml = htmlContent;
-        _chapters = results2;
-        _isLoadingOverview = false;
-        _isLoading = false;
-      });
+      String profileHtml = '';
+      dynamic contentBlobProfile;
+      if (bookData.bookInfo['Profile'] != null) {
+        contentBlobProfile = bookData.bookInfo['Profile'] as Uint8List;
+      } else {
+        contentBlobProfile = bookData.bookInfo['Profile'] as Uint8List;
+      }
+
+      if (contentBlobProfile != null) {
+        final decodedHtml = decodeBlobContent(
+          contentBlobProfile,
+          widget.bible.hash!,
+        );
+
+        profileHtml = createHtmlContent(
+            decodedHtml,
+            '''jwac docClass-115 ms-ROMAN ml-F dir-ltr pub-${widget.bible.keySymbol} layout-reading layout-sidebar''',
+            widget.bible,
+            false
+        );
+      }
+
+      // Mettre à jour les données du livre
+      bookData.chapters = chaptersResults;
+      bookData.overviewHtml = overviewHtml;
+      bookData.profileHtml = profileHtml;
+      bookData.isLoading = false;
+
+      // Mettre à jour l'UI si c'est le livre actuellement affiché
+      if (bookIndex == _currentIndex) {
+        setState(() {});
+      }
+
+    } catch (e) {
+      bookData.isLoading = false;
+      throw Exception('Erreur lors du chargement des données du livre: $e');
     }
-    catch (e) {
-      throw Exception(
-          'Erreur lors de l\'initialisation de la base de données: $e');
-    }
+  }
+
+  void _onPageChanged(int index) {
+    setState(() {
+      _currentIndex = index;
+    });
+
+    // Charger les données du nouveau livre si nécessaire
+    _loadBookData(index);
+
+    // Précharger les livres adjacents
+    if (index > 0) _loadBookData(index - 1);
+    if (index < _booksData.length - 1) _loadBookData(index + 1);
   }
 
   @override
@@ -161,7 +218,7 @@ class _LocalChapterBiblePageState extends State<LocalChapterBiblePage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              _isLoading ? '' : _books[_currentIndex]['StandardBookName'] ?? '',
+              _isInitialLoading ? '' : _booksData[_currentIndex].bookInfo['StandardBookName'] ?? '',
               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
             ),
             Text(
@@ -182,10 +239,11 @@ class _LocalChapterBiblePageState extends State<LocalChapterBiblePage> {
               ),
               IconTextButton(
                 text: "Aperçu",
-                icon: Icon(_isOverview ? JwIcons.grid_squares : JwIcons.outline),
-                onPressed: () {
+                icon: Icon(_isInitialLoading ? JwIcons.outline :
+                (_booksData[_currentIndex].isOverview ? JwIcons.grid_squares : JwIcons.outline)),
+                onPressed: _isInitialLoading ? null : () {
                   setState(() {
-                    _isOverview = !_isOverview;
+                    _booksData[_currentIndex].isOverview = !_booksData[_currentIndex].isOverview;
                   });
                 },
               ),
@@ -214,7 +272,7 @@ class _LocalChapterBiblePageState extends State<LocalChapterBiblePage> {
                     builder: (context) => languageDialog,
                   ).then((value) {
                     if (value != null) {
-                      //showPage(context, PublicationMenu(publication: widget.publication, publicationLanguage: value));
+                      //showPage(context, PublicationMenu(publication: widget.bible, publicationLanguage: value));
                     }
                   });
                 },
@@ -237,171 +295,238 @@ class _LocalChapterBiblePageState extends State<LocalChapterBiblePage> {
           ),
         ],
       ),
-      body: _isLoading ? const Center(child: CircularProgressIndicator()) : Stack(
-        children: [
-          if (_books[_currentIndex]['HasCommentary'] == 1)
-            Positioned(
-              top: 0, // Aligner l'image en haut de l'écran
-              left: 0,
-              right: 0,
-              child: Image.file(
-                File('${widget.bible.path}/${_books[_currentIndex]['FilePath']}'),
-                width: double.infinity,
-                height: 200,
-                fit: BoxFit.cover,
-              ),
-            ),
-          if (_books[_currentIndex]['HasCommentary'] == 1)
-            Positioned(
-              top: 150, // Aligner l'image en haut de l'écran
-              left: 0,
-              right: 0,
-              child: Container(
-                padding: const EdgeInsets.all(8.0),
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.55), // Fond semi-transparent
-                ),
-                child: Text(
-                  _books[_currentIndex]['BookDisplayTitle'] ?? '',
-                  style: const TextStyle(fontSize: 25, color: Colors.white), // Texte blanc pour contraster avec le fond
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            ),
-          Column(
-            children: [
-              if (_books[_currentIndex]['HasCommentary'] == 1) const SizedBox(height: 200), // Décalage pour éviter que le contenu chevauche l'image
-              Expanded(
-                child: PageView.builder(
-                  controller: _pageController,
-                  itemCount: _books.length,
-                  onPageChanged: (index) {
-                    setState(() {
-                      _currentIndex = index;
-                      _fetchBookPage();
-                    });
-                  },
-                  itemBuilder: (context, index) {
-                    return _isOverview
-                        ? _buildOutlineView()
-                        : SingleChildScrollView(
-                      padding: const EdgeInsets.symmetric(vertical: 20.0, horizontal: 16.0),
-                      scrollDirection: Axis.vertical,
-                      child: _buildChapterGrid(_chapters),
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        ],
+      body: _isInitialLoading
+          ? const Center(child: CircularProgressIndicator())
+          : PageView.builder(
+        controller: _pageController,
+        itemCount: _booksData.length,
+        onPageChanged: _onPageChanged,
+        itemBuilder: (context, index) {
+          return _buildBookPage(_booksData[index]);
+        },
       ),
     );
   }
 
-  Widget _buildOutlineView() {
-    return _isLoadingOverview ? const Center(child: CircularProgressIndicator()) : InAppWebView(
-      initialSettings: InAppWebViewSettings(
-        useShouldOverrideUrlLoading: true,
-        mediaPlaybackRequiresUserGesture: false,
-      ),
+  Widget _buildBookPage(BookData bookData) {
+    return Stack(
+      children: [
+        if (bookData.bookInfo['HasCommentary'] == 1)
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: Image.file(
+              File('${widget.bible.path}/${bookData.bookInfo['FilePath']}'),
+              width: double.infinity,
+              height: 200,
+              fit: BoxFit.cover,
+            ),
+          ),
+        if (bookData.bookInfo['HasCommentary'] == 1)
+          Positioned(
+            top: 150,
+            left: 0,
+            right: 0,
+            child: Container(
+              padding: const EdgeInsets.all(8.0),
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.55),
+              ),
+              child: Text(
+                bookData.bookInfo['BookDisplayTitle'] ?? '',
+                style: const TextStyle(fontSize: 25, color: Colors.white),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+        Column(
+          children: [
+            if (bookData.bookInfo['HasCommentary'] == 1) const SizedBox(height: 200),
+            Expanded(
+              child: bookData.isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : bookData.isOverview
+                  ? _buildHtmlView(bookData.overviewHtml!)
+                  : SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(vertical: 20.0, horizontal: 16.0),
+                scrollDirection: Axis.vertical,
+                child: _buildChapterGrid(bookData),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildHtmlView(String html) {
+    if (html.isEmpty) {
+      return const Center(child: Text('Aucun aperçu disponible'));
+    }
+
+    return InAppWebView(
+        initialSettings: InAppWebViewSettings(
+          useShouldOverrideUrlLoading: true,
+          mediaPlaybackRequiresUserGesture: false,
+        ),
         gestureRecognizers: Set()
           ..add(
             Factory<VerticalDragGestureRecognizer>(
                   () => VerticalDragGestureRecognizer()..dragStartBehavior = DragStartBehavior.start,
             ),
           ),
-      initialData: InAppWebViewInitialData(
-        data: _overviewHtml,
-        mimeType: 'text/html',
-        baseUrl: WebUri('file:///android_asset/flutter_assets/assets/webapp/'),
-      )
+        initialData: InAppWebViewInitialData(
+            data: html,
+            mimeType: 'text/html',
+            baseUrl: WebUri('file://${JwLifeSettings().webViewData.webappPath}/')
+        )
     );
   }
 
-  Widget _buildChapterGrid(List<dynamic> chapters) {
+  Widget _buildChapterGrid(BookData bookData) {
+    if (bookData.chapters == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        GridView.builder(
-          shrinkWrap: true,
-          physics: NeverScrollableScrollPhysics(),
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 6,
-            crossAxisSpacing: 2,
-            mainAxisSpacing: 2,
-            childAspectRatio: 1.0, // Adjust according to your UI design
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          GridView.builder(
+            shrinkWrap: true,
+            physics: NeverScrollableScrollPhysics(),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 6,
+              crossAxisSpacing: 2,
+              mainAxisSpacing: 2,
+              childAspectRatio: 1.0,
+            ),
+            itemCount: bookData.chapters!.length,
+            itemBuilder: (context, index) {
+              final chapter = bookData.chapters![index];
+              return _buildChapterContainer(bookData, chapter);
+            },
           ),
-          itemCount: chapters.length,
-          itemBuilder: (context, index) {
-            final chapter = chapters[index];
-            return _buildChapterContainer(chapter);
-          },
-        ),
-        if (_books[_currentIndex]['Title'] != null)
-          Padding(
-            padding: const EdgeInsets.only(top: 16.0),
-            child: FilledButton(
-                style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFF757575),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(0),
+          if (bookData.bookInfo['Title'] != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 16.0),
+              child: FilledButton(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFF757575),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(0),
+                    ),
                   ),
-                ),
-                onPressed: () {
-                  showPageDocument(context, widget.bible, _books[_currentIndex]['MepsDocumentId'], audios: widget.audios);
-                },
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 16.0),
-                  child: Row(
-                    children: [
-                      const Icon(JwIcons.information_circle, color: Colors.white, size: 24.0),
-                      const SizedBox(width: 8),
-                      Text(
-                        _books[_currentIndex]['Title'],
-                        style: const TextStyle(fontSize: 20.0, color: Colors.white),
+                  onPressed: () {
+                    showPageDocument(context, widget.bible, bookData.bookInfo['MepsDocumentId'], audios: widget.audios);
+                  },
+                  child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 16.0),
+                      child: Row(
+                        children: [
+                          const Icon(JwIcons.information_circle, color: Colors.white, size: 24.0),
+                          const SizedBox(width: 8),
+                          Text(
+                            bookData.bookInfo['Title'],
+                            style: const TextStyle(fontSize: 20.0, color: Colors.white),
+                          )
+                        ],
                       )
-                    ],
                   )
-                )
+              ),
             ),
-          ),
-        if (_books[_currentIndex]['HasCommentary'] == 1)
-          Padding(
-            padding: const EdgeInsets.only(top: 10.0),
-            child: FilledButton(
-                style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFF757575),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(0),
+          if (bookData.bookInfo['Title'] != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 16.0),
+              child: FilledButton(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFF757575),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(0),
+                    ),
                   ),
-                ),
-                onPressed: () {
-                  //showPage(context, PageLocalDocumentView(publication: widget.bible, mepsDocumentId: _books[_currentIndex]['MepsDocumentId']));
-                },
-                child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 16.0),
-                    child: Row(
-                      children: [
-                        const Icon(JwIcons.image_stack, color: Colors.white, size: 24.0),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Galerie multimédia',
-                          style: const TextStyle(fontSize: 20.0, color: Colors.white),
-                        )
-                      ],
-                    )
-                )
+                  onPressed: () {
+                    showDialog(
+                      context: context,
+                      builder: (context) => Dialog(
+                        child: SizedBox(
+                          width: 300,
+                          height: 400,
+                          child: Column(
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.all(12),
+                                child: Text(
+                                  'Aperçu du livre',
+                                ),
+                              ),
+                              Expanded(
+                                child: _buildHtmlView(bookData.profileHtml!),
+                              ),
+                              Align(
+                                alignment: Alignment.bottomRight,
+                                child: TextButton(
+                                  onPressed: () => Navigator.of(context).pop(),
+                                  child: const Text('Fermer'),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                  child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 16.0),
+                      child: Row(
+                        children: [
+                          const Icon(JwIcons.information_circle, color: Colors.white, size: 24.0),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Profile',
+                            style: const TextStyle(fontSize: 20.0, color: Colors.white),
+                          )
+                        ],
+                      )
+                  )
+              ),
             ),
-          ),
-      ]
+          if (bookData.bookInfo['HasCommentary'] == 1)
+            Padding(
+              padding: const EdgeInsets.only(top: 10.0),
+              child: FilledButton(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFF757575),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(0),
+                    ),
+                  ),
+                  onPressed: () {
+                    //showPage(context, PageLocalDocumentView(publication: widget.bible, mepsDocumentId: bookData.bookInfo['MepsDocumentId']));
+                  },
+                  child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 16.0),
+                      child: Row(
+                        children: [
+                          const Icon(JwIcons.image_stack, color: Colors.white, size: 24.0),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Galerie multimédia',
+                            style: const TextStyle(fontSize: 20.0, color: Colors.white),
+                          )
+                        ],
+                      )
+                  )
+              ),
+            ),
+        ]
     );
   }
 
-  Widget _buildChapterContainer(dynamic chapter) {
+  Widget _buildChapterContainer(BookData bookData, dynamic chapter) {
     return InkWell(
       onTap: () {
-        showPageBibleChapter(context, widget.bible, _books[_currentIndex]['BibleBookId'], chapter['ChapterNumber'], audios: widget.audios);
+        showPageBibleChapter(context, widget.bible, bookData.bookInfo['BibleBookId'], chapter['ChapterNumber'], audios: widget.audios);
       },
       child: Container(
         decoration: const BoxDecoration(
@@ -415,5 +540,11 @@ class _LocalChapterBiblePageState extends State<LocalChapterBiblePage> {
         ),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
   }
 }
