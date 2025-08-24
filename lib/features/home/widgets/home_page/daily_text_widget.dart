@@ -7,6 +7,8 @@ import '../../../../app/services/global_key_service.dart';
 import '../../../../app/services/settings_service.dart';
 import '../../../../core/icons.dart';
 import '../../../../core/utils/common_ui.dart';
+import '../../../../core/utils/utils.dart';
+import '../../../../core/utils/widgets_utils.dart';
 import '../../../../data/databases/catalog.dart';
 import '../../../../data/models/publication.dart';
 import '../../../../data/repositories/PublicationRepository.dart';
@@ -22,17 +24,18 @@ class DailyTextWidget extends StatefulWidget {
 class DailyTextWidgetState extends State<DailyTextWidget> {
   String _verseOfTheDay = "";
 
-  late String locale;
   late String formattedDate;
 
-  Publication? verseOfTheDayPub;
-  late Publication publication;
+  Publication? _verseOfTheDayPub;
 
   @override
   void initState() {
     super.initState();
+    _verseOfTheDayPub = PubCatalog.datedPublications.firstWhereOrNull((element) => element.keySymbol.contains('es'));
+  }
 
-    locale = JwLifeSettings().currentLanguage.primaryIetfCode;
+  void setVersePub(Publication pub) {
+    String locale = JwLifeSettings().currentLanguage.primaryIetfCode;
     if (!DateFormat.allLocalesWithSymbols().contains(locale)) {
       locale = 'en'; // fallback
     }
@@ -41,13 +44,9 @@ class DailyTextWidgetState extends State<DailyTextWidget> {
       final now = DateTime.now();
       setState(() {
         formattedDate = capitalize(DateFormat('EEEE d MMMM yyyy', locale).format(now));
+        _verseOfTheDayPub = pub;
       });
     });
-
-    verseOfTheDayPub = PubCatalog.datedPublications.firstWhereOrNull((element) => element.keySymbol.contains('es'));
-    if (verseOfTheDayPub != null) {
-      publication = PublicationRepository().getPublication(verseOfTheDayPub!);
-    }
   }
 
   void setVerseOfTheDay(String dailyText) {
@@ -58,7 +57,7 @@ class DailyTextWidgetState extends State<DailyTextWidget> {
 
   @override
   Widget build(BuildContext context) {
-    if (verseOfTheDayPub == null) {
+    if (_verseOfTheDayPub == null) {
       return Column(
         children: [
           Container(
@@ -100,15 +99,12 @@ class DailyTextWidgetState extends State<DailyTextWidget> {
       children: [
         GestureDetector(
           onTap: () {
-            if (publication.isDownloadedNotifier.value) {
-              GlobalKeyService.jwLifePageKey.currentState!.toggleNavBarDisable(true);
-
-              final GlobalKey<DailyTextPageState> dailyTextPageKey = GlobalKey<DailyTextPageState>();
-              GlobalKeyService.jwLifePageKey.currentState!.webViewPageKeys[GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex].add(dailyTextPageKey);
-
-              showPage(context, DailyTextPage(key: dailyTextPageKey, publication: publication));
-            } else {
-              publication.download(context);
+            if (_verseOfTheDayPub == null) return;
+            if (_verseOfTheDayPub!.isDownloadedNotifier.value) {
+              showPageDailyText(context, _verseOfTheDayPub!);
+            }
+            else {
+              _verseOfTheDayPub!.download(context);
             }
           },
           child: Stack(
@@ -123,7 +119,7 @@ class DailyTextWidgetState extends State<DailyTextWidget> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     ValueListenableBuilder<bool>(
-                      valueListenable: publication.isDownloadedNotifier,
+                      valueListenable: _verseOfTheDayPub!.isDownloadedNotifier,
                       builder: (context, isDownloaded, _) {
                         return Column(
                           children: [
@@ -143,8 +139,7 @@ class DailyTextWidgetState extends State<DailyTextWidget> {
                                 ),
                                 const SizedBox(width: 8),
                                 const Icon(JwIcons.chevron_right, size: 24),
-                              ]
-                                  : [
+                              ] : [
                                 Text(
                                   'Bienvenue sur JW Life',
                                   style: TextStyle(
@@ -157,18 +152,17 @@ class DailyTextWidgetState extends State<DailyTextWidget> {
                             ),
                             const SizedBox(height: 4),
                             ValueListenableBuilder<bool>(
-                              valueListenable: publication.isDownloadedNotifier,
+                              valueListenable: _verseOfTheDayPub!.isDownloadedNotifier,
                               builder: (context, isDownloaded, _) {
                                 if (isDownloaded) {
-                                  return _verseOfTheDay.isNotEmpty
-                                      ? Text(
+                                  return _verseOfTheDay.isNotEmpty ? Text(
                                     _verseOfTheDay,
                                     textAlign: TextAlign.center,
                                     style: const TextStyle(fontSize: 16, height: 1.2),
                                     maxLines: 4,
-                                  )
-                                      : getLoadingWidget(Theme.of(context).primaryColor);
-                                } else {
+                                  ) : getLoadingWidget(Theme.of(context).primaryColor);
+                                }
+                                else {
                                   return Text(
                                     "Télécharger le Texte du Jour de l'année ${DateFormat('yyyy').format(now)}",
                                     textAlign: TextAlign.center,
@@ -186,7 +180,7 @@ class DailyTextWidgetState extends State<DailyTextWidget> {
                 ),
               ),
               ValueListenableBuilder<bool>(
-                valueListenable: publication.isDownloadingNotifier,
+                valueListenable: _verseOfTheDayPub!.isDownloadingNotifier,
                 builder: (context, isDownloading, _) {
                   if (!isDownloading) return const SizedBox.shrink();
                   return Positioned(
@@ -194,7 +188,7 @@ class DailyTextWidgetState extends State<DailyTextWidget> {
                     left: 0,
                     right: 0,
                     child: ValueListenableBuilder<double>(
-                      valueListenable: publication.progressNotifier,
+                      valueListenable: _verseOfTheDayPub!.progressNotifier,
                       builder: (context, progress, _) {
                         return LinearProgressIndicator(
                           value: progress == -1.0 ? null : progress,
@@ -215,12 +209,4 @@ class DailyTextWidgetState extends State<DailyTextWidget> {
       ],
     );
   }
-}
-
-// Assure-toi d'avoir la fonction capitalize définie
-String capitalize(String s) => s.isNotEmpty ? s[0].toUpperCase() + s.substring(1) : s;
-
-// Placeholder pour getLoadingWidget, remplace par ta vraie fonction
-Widget getLoadingWidget(Color color) {
-  return CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(color));
 }

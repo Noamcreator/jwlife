@@ -5,6 +5,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:jwlife/core/icons.dart';
+import 'package:jwlife/core/jworg_uri.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/core/utils/files_helper.dart';
 import 'package:jwlife/core/utils/utils_document.dart';
@@ -15,6 +16,7 @@ import 'package:jwlife/data/databases/history.dart';
 import 'package:jwlife/features/publication/pages/document/local/document_page.dart';
 import 'package:jwlife/widgets/dialog/language_dialog_pub.dart';
 import 'package:jwlife/widgets/responsive_appbar_actions.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:sqflite/sqflite.dart';
 
 import '../../../app/services/settings_service.dart';
@@ -23,9 +25,8 @@ import '../../../data/models/userdata/bookmark.dart';
 class LocalChapterBiblePage extends StatefulWidget {
   final Publication bible;
   final int book;
-  final List<Audio> audios;
 
-  const LocalChapterBiblePage({super.key, required this.bible, required this.book, required this.audios});
+  const LocalChapterBiblePage({super.key, required this.bible, required this.book});
 
   @override
   _LocalChapterBiblePageState createState() => _LocalChapterBiblePageState();
@@ -254,10 +255,10 @@ class _LocalChapterBiblePageState extends State<LocalChapterBiblePage> {
                   Bookmark? bookmark = await showBookmarkDialog(context, widget.bible);
                   if (bookmark != null) {
                     if(bookmark.location.bookNumber!= null && bookmark.location.chapterNumber != null) {
-                      showPageBibleChapter(context, widget.bible, bookmark.location.bookNumber!, bookmark.location.chapterNumber!, firstVerse: bookmark.blockIdentifier, lastVerse: bookmark.blockIdentifier, audios: widget.audios);
+                      showPageBibleChapter(context, widget.bible, bookmark.location.bookNumber!, bookmark.location.chapterNumber!, firstVerse: bookmark.blockIdentifier, lastVerse: bookmark.blockIdentifier);
                     }
                     else if(bookmark.location.mepsDocumentId != null) {
-                      showPageDocument(context, widget.bible, bookmark.location.mepsDocumentId!, startParagraphId: bookmark.blockIdentifier, endParagraphId: bookmark.blockIdentifier, audios: widget.audios);
+                      showPageDocument(context, widget.bible, bookmark.location.mepsDocumentId!, startParagraphId: bookmark.blockIdentifier, endParagraphId: bookmark.blockIdentifier);
                     }
                   }
                 },
@@ -288,7 +289,18 @@ class _LocalChapterBiblePageState extends State<LocalChapterBiblePage> {
                 text: "Envoyer le lien",
                 icon: Icon(JwIcons.share),
                 onPressed: () {
-                  widget.bible.shareLink();
+                  String uri = JwOrgUri.bibleBook(
+                      wtlocale: widget.bible.mepsLanguage.symbol,
+                      pub: widget.bible.symbol,
+                      book: _booksData[_currentIndex].bookInfo['BibleBookId']
+                  ).toString();
+
+                  SharePlus.instance.share(
+                    ShareParams(
+                      title: _booksData[_currentIndex].bookInfo['StandardBookName'],
+                      uri: Uri.tryParse(uri),
+                    ),
+                  );
                 },
               ),
             ],
@@ -418,7 +430,7 @@ class _LocalChapterBiblePageState extends State<LocalChapterBiblePage> {
                     ),
                   ),
                   onPressed: () {
-                    showPageDocument(context, widget.bible, bookData.bookInfo['MepsDocumentId'], audios: widget.audios);
+                    showPageDocument(context, widget.bible, bookData.bookInfo['MepsDocumentId']);
                   },
                   child: Padding(
                       padding: const EdgeInsets.symmetric(vertical: 16.0),
@@ -437,7 +449,7 @@ class _LocalChapterBiblePageState extends State<LocalChapterBiblePage> {
             ),
           if (bookData.bookInfo['Title'] != null)
             Padding(
-              padding: const EdgeInsets.only(top: 16.0),
+              padding: const EdgeInsets.only(top: 10.0),
               child: FilledButton(
                   style: FilledButton.styleFrom(
                     backgroundColor: const Color(0xFF757575),
@@ -526,7 +538,7 @@ class _LocalChapterBiblePageState extends State<LocalChapterBiblePage> {
   Widget _buildChapterContainer(BookData bookData, dynamic chapter) {
     return InkWell(
       onTap: () {
-        showPageBibleChapter(context, widget.bible, bookData.bookInfo['BibleBookId'], chapter['ChapterNumber'], audios: widget.audios);
+        showPageBibleChapter(context, widget.bible, bookData.bookInfo['BibleBookId'], chapter['ChapterNumber']);
       },
       child: Container(
         decoration: const BoxDecoration(

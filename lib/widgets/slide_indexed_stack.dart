@@ -1,112 +1,63 @@
 import 'package:flutter/material.dart';
 
-class SlideIndexedStack extends StatefulWidget {
-  const SlideIndexedStack({
+class LazyIndexedStack extends StatefulWidget {
+  final int index;
+  final List<WidgetBuilder> builders;
+
+  /// Liste des index à charger immédiatement dès le démarrage
+  final List<int> initialIndexes;
+
+  const LazyIndexedStack({
     super.key,
     required this.index,
-    this.axis = Axis.horizontal,
-    this.slideOffset = 0.03,
-    required this.children,
-    this.duration = const Duration(milliseconds: 100),
+    required this.builders,
+    this.initialIndexes = const [], // Par défaut rien de plus
   });
 
-  final int index;
-  final List<Widget> children;
-  final Duration duration;
-  final double slideOffset;
-  final Axis axis;
-
   @override
-  State<SlideIndexedStack> createState() => _SlideIndexedStackState();
+  State<LazyIndexedStack> createState() => _LazyIndexedStackState();
 }
 
-class _SlideIndexedStackState extends State<SlideIndexedStack>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _animationController;
-
-  late final Animation<Offset> _slideAnimation;
-  late final Animation<Offset> _slideAnimation2;
-  late final Animation<double> _opacityAnimation;
-
-  bool _isForword = true;
+class _LazyIndexedStackState extends State<LazyIndexedStack> {
+  late List<bool> _isBuilt;
+  late List<Widget?> _pages;
 
   @override
   void initState() {
     super.initState();
 
-    _animationController = AnimationController(vsync: this, duration: widget.duration);
+    // Initialise les pages construites selon index et initialIndexes
+    _isBuilt = List.generate(
+      widget.builders.length,
+          (i) => i == widget.index || widget.initialIndexes.contains(i),
+    );
 
-    _slideAnimation = _getAnimationIn();
+    _pages = List.filled(widget.builders.length, null);
 
-    _slideAnimation2 = _getAnimationOut();
-
-    _opacityAnimation = Tween<double>(begin: 0, end: 1).animate(_animationController);
-
-    _animationController.forward();
-  }
-
-  @override
-  void didUpdateWidget(covariant SlideIndexedStack oldWidget) {
-    if (widget.index != oldWidget.index) {
-      bool flag = false;
-
-      if (widget.index > oldWidget.index) {
-        flag = true;
+    for (int i = 0; i < _isBuilt.length; i++) {
+      if (_isBuilt[i]) {
+        _pages[i] = widget.builders[i](context);
       }
-
-      setState(() {
-        _isForword = flag;
-      });
-
-      _animationController.forward(from: 0.0);
     }
-
-    super.didUpdateWidget(oldWidget);
   }
 
   @override
-  void dispose() {
-    _animationController.dispose();
-    super.dispose();
+  void didUpdateWidget(LazyIndexedStack oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!_isBuilt[widget.index]) {
+      _isBuilt[widget.index] = true;
+      _pages[widget.index] = widget.builders[widget.index](context);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _animationController,
-      builder: (context, child) {
-        return FadeTransition(
-          opacity: _opacityAnimation,
-          child: SlideTransition(
-            position: _isForword ? _slideAnimation : _slideAnimation2,
-            child: child,
-          ),
-        );
-      },
-      child: IndexedStack(
-        index: widget.index,
-        children: widget.children,
+    return IndexedStack(
+      index: widget.index,
+      children: List.generate(
+        widget.builders.length,
+            (i) => _isBuilt[i] ? _pages[i]! : const SizedBox.shrink(),
       ),
     );
-  }
-
-  Animation<Offset> _getAnimationIn() {
-    if (widget.axis == Axis.horizontal) {
-      return Tween(begin: Offset(widget.slideOffset, 0), end: Offset.zero)
-          .animate(_animationController);
-    } else {
-      return Tween(begin: Offset(0, widget.slideOffset), end: Offset.zero)
-          .animate(_animationController);
-    }
-  }
-
-  Animation<Offset> _getAnimationOut() {
-    if (widget.axis == Axis.horizontal) {
-      return Tween(begin: Offset(-widget.slideOffset, 0), end: Offset.zero)
-          .animate(_animationController);
-    } else {
-      return Tween(begin: Offset(0, -widget.slideOffset), end: Offset.zero)
-          .animate(_animationController);
-    }
   }
 }

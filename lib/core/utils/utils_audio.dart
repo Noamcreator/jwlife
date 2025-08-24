@@ -20,7 +20,8 @@ import 'package:jwlife/widgets/dialog/language_dialog.dart';
 import '../../app/services/settings_service.dart';
 import '../../features/audio/lyrics_page.dart';
 import '../../features/video/subtitles.dart';
-import '../api.dart';
+import '../api/api.dart';
+import '../jworg_uri.dart';
 import 'common_ui.dart';
 import 'utils_media.dart';
 
@@ -35,15 +36,15 @@ void showAudioPlayerForLink(BuildContext context, String url, audio_service.Medi
   }
 }
 
-void showAudioPlayer(BuildContext context, MediaItem mediaItem) async {
+void showAudioPlayer(BuildContext context, MediaItem mediaItem, {Duration initialPosition = Duration.zero}) async {
   Audio? audio = JwLifeApp.mediaCollections.getAudioFromMediaItem(mediaItem);
 
   if (audio != null) {
-    JwLifeApp.audioPlayer.playAudio(mediaItem, localAudio: audio);
+    JwLifeApp.audioPlayer.playAudio(mediaItem, localAudio: audio, initialPosition: initialPosition);
   }
   else {
     if(await hasInternetConnection()) {
-      JwLifeApp.audioPlayer.playAudio(mediaItem);
+      JwLifeApp.audioPlayer.playAudio(mediaItem, initialPosition: initialPosition);
     }
     else {
       showNoConnectionDialog(context);
@@ -51,12 +52,12 @@ void showAudioPlayer(BuildContext context, MediaItem mediaItem) async {
   }
 }
 
-void showAudioPlayerPublicationLink(BuildContext context, Publication publication, List<Audio> audios, int id, {Duration? start}) async {
-  Audio audio = audios.elementAt(id);
+void showAudioPlayerPublicationLink(BuildContext context, Publication publication, int id, {Duration? start}) async {
+  Audio audio = publication.audios.elementAt(id);
 
-  if(audios.isNotEmpty) {
+  if(publication.audios.isNotEmpty) {
     if(await hasInternetConnection() || audio.isDownloaded) {
-      JwLifeApp.audioPlayer.playAudioFromPublicationLink(publication, audios, id, start ?? Duration.zero);
+      JwLifeApp.audioPlayer.playAudioFromPublicationLink(publication, id, start ?? Duration.zero);
     }
     else {
       showNoConnectionDialog(context);
@@ -92,9 +93,16 @@ PopupMenuItem getAudioShareItem(MediaItem item) {
       ],
     ),
     onTap: () {
-      Uri uri = Uri.parse('https://www.jw.org/finder?srcid=jwlshare&wtlocale=${item.languageSymbol}&lank=${item.languageAgnosticNaturalKey}');
+      String uri = JwOrgUri.mediaItem(
+          wtlocale: item.languageSymbol!,
+          lank: item.languageAgnosticNaturalKey!
+      ).toString();
+
       SharePlus.instance.share(
-          ShareParams(title: item.title, uri: uri)
+        ShareParams(
+          title: item.title,
+          uri: Uri.parse(uri),
+        ),
       );
     },
   );

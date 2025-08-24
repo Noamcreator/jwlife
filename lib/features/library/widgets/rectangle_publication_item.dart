@@ -98,20 +98,22 @@ class RectanglePublicationItem extends StatelessWidget {
                     Positioned(
                       top: -5,
                       right: -10,
-                      child: PopupMenuButton(
-                        popUpAnimationStyle: AnimationStyle.lerp(
-                          const AnimationStyle(curve: Curves.ease),
-                          const AnimationStyle(curve: Curves.ease),
-                          0.5,
-                        ),
-                        icon: const Icon(Icons.more_vert, color: Color(0xFF9d9d9d)),
-                        itemBuilder: (context) => [
-                          getPubShareMenuItem(publication),
-                          getPubLanguagesItem(context, "Autres langues", publication),
-                          getPubFavoriteItem(publication),
-                          getPubDownloadItem(context, publication),
-                        ],
-                      ),
+                      child: RepaintBoundary(
+                        child: PopupMenuButton(
+                          popUpAnimationStyle: AnimationStyle.lerp(
+                            const AnimationStyle(curve: Curves.ease),
+                            const AnimationStyle(curve: Curves.ease),
+                            0.5,
+                          ),
+                          icon: const Icon(Icons.more_vert, color: Color(0xFF9d9d9d)),
+                          itemBuilder: (context) => [
+                            getPubShareMenuItem(publication),
+                            getPubLanguagesItem(context, "Autres langues", publication),
+                            getPubFavoriteItem(publication),
+                            getPubDownloadItem(context, publication),
+                          ],
+                        )
+                      )
                     ),
 
                     // Bouton dynamique
@@ -221,7 +223,7 @@ class RectanglePublicationItem extends StatelessWidget {
                                 valueColor: AlwaysStoppedAnimation<Color>(
                                   Theme.of(context).primaryColor,
                                 ),
-                                backgroundColor: Color(0xFF9d9d9d),
+                                backgroundColor: Color(0xFFbdbdbd),
                                 minHeight: 2,
                               );
                             },

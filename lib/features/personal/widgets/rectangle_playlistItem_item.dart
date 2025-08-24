@@ -5,13 +5,13 @@ import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/data/models/userdata/independentMedia.dart';
 import 'package:jwlife/data/models/userdata/playlistItem.dart';
-import 'package:jwlife/features/image_page.dart';
 
 import '../../../core/icons.dart';
 import '../../../core/utils/utils_audio.dart';
 import '../../../core/utils/utils_video.dart';
 import '../../../data/models/userdata/location.dart';
 import '../../../data/realm/catalog.dart';
+import '../../image/image_page.dart';
 
 class RectanglePlaylistItemItem extends StatelessWidget {
   final PlaylistItem item;
@@ -183,67 +183,69 @@ class RectanglePlaylistItemItem extends StatelessWidget {
               Positioned(
                 top: -5,
                 right: -10,
-                child: PopupMenuButton(
-                  popUpAnimationStyle: AnimationStyle.lerp(
-                    const AnimationStyle(curve: Curves.ease),
-                    const AnimationStyle(curve: Curves.ease),
-                    0.5,
+                child: RepaintBoundary(
+                  child: PopupMenuButton(
+                    popUpAnimationStyle: AnimationStyle.lerp(
+                      const AnimationStyle(curve: Curves.ease),
+                      const AnimationStyle(curve: Curves.ease),
+                      0.5,
+                    ),
+                    icon: const Icon(Icons.more_vert, color: Color(0xFF9d9d9d)),
+                    itemBuilder: (context) {
+                      final items = <PopupMenuEntry>[
+                        PopupMenuItem(
+                          child: Row(
+                            children: const [
+                              Icon(JwIcons.pencil),
+                              SizedBox(width: 8),
+                              Text('Renommer'),
+                            ],
+                          ),
+                          onTap: () async {
+
+                          },
+                        ),
+                        PopupMenuItem(
+                          child: Row(
+                            children: const [
+                              Icon(JwIcons.trash),
+                              SizedBox(width: 8),
+                              Text('Supprimer'),
+                            ],
+                          ),
+                          onTap: () async {
+
+                          },
+                        ),
+                        PopupMenuItem(
+                          child: Row(
+                            children: const [
+                              Icon(JwIcons.share),
+                              SizedBox(width: 8),
+                              Text('Partager'),
+                            ],
+                          ),
+                          onTap: () {
+                            // sharePlaylist(context, playlist);
+                          },
+                        ),
+                      ];
+
+                      if (mediaItem != null) {
+                        items.addAll([
+                          getVideoShareItem(mediaItem),
+                          getVideoLanguagesItem(context, mediaItem),
+                          getVideoFavoriteItem(mediaItem),
+                          getVideoDownloadItem(context, mediaItem),
+                          getShowSubtitlesItem(context, mediaItem),
+                          getCopySubtitlesItem(context, mediaItem),
+                        ]);
+                      }
+
+                      return items;
+                    },
                   ),
-                  icon: const Icon(Icons.more_vert, color: Color(0xFF9d9d9d)),
-                  itemBuilder: (context) {
-                    final items = <PopupMenuEntry>[
-                      PopupMenuItem(
-                        child: Row(
-                          children: const [
-                            Icon(JwIcons.pencil),
-                            SizedBox(width: 8),
-                            Text('Renommer'),
-                          ],
-                        ),
-                        onTap: () async {
-
-                        },
-                      ),
-                      PopupMenuItem(
-                        child: Row(
-                          children: const [
-                            Icon(JwIcons.trash),
-                            SizedBox(width: 8),
-                            Text('Supprimer'),
-                          ],
-                        ),
-                        onTap: () async {
-
-                        },
-                      ),
-                      PopupMenuItem(
-                        child: Row(
-                          children: const [
-                            Icon(JwIcons.share),
-                            SizedBox(width: 8),
-                            Text('Partager'),
-                          ],
-                        ),
-                        onTap: () {
-                          // sharePlaylist(context, playlist);
-                        },
-                      ),
-                    ];
-
-                    if (mediaItem != null) {
-                      items.addAll([
-                        getVideoShareItem(mediaItem),
-                        getVideoLanguagesItem(context, mediaItem),
-                        getVideoFavoriteItem(mediaItem),
-                        getVideoDownloadItem(context, mediaItem),
-                        getShowSubtitlesItem(context, mediaItem),
-                        getCopySubtitlesItem(context, mediaItem),
-                      ]);
-                    }
-
-                    return items;
-                  },
-                ),
+                )
               ),
 
               if((item.durationTicks != null && item.durationTicks != 40000000) || item.baseDurationTicks != null)

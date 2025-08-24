@@ -14,31 +14,11 @@ class AlertBanner extends StatefulWidget {
 }
 
 class AlertBannerState extends State<AlertBanner> {
-  List<Map<String, dynamic>> _alerts = [];
+  List<dynamic> _alerts = [];
 
   late PageController _pageController;
   late Timer _timer;
   int _currentPage = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    _pageController = PageController(initialPage: _currentPage);
-
-    // Change d'alerte toutes les 3 secondes
-    _timer = Timer.periodic(Duration(seconds: 5), (Timer timer) {
-      if (_currentPage < _alerts.length - 1) {
-        _currentPage++;
-      } else {
-        _currentPage = 0;
-      }
-      _pageController.animateToPage(
-        _currentPage,
-        duration: Duration(milliseconds: 500),
-        curve: Curves.easeInOut,
-      );
-    });
-  }
 
   @override
   void dispose() {
@@ -47,9 +27,32 @@ class AlertBannerState extends State<AlertBanner> {
     super.dispose();
   }
 
-  void setAlerts(List<Map<String, dynamic>> alerts) {
+  void setAlerts(List<dynamic> alerts) {
     setState(() {
       _alerts = alerts;
+      _pageController = PageController(initialPage: _currentPage);
+    });
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+
+      _timer = Timer.periodic(const Duration(seconds: 5), (Timer timer) {
+        if (_pageController.positions.isEmpty) return; // évite l'erreur
+
+        if (_currentPage < _alerts.length - 1) {
+          _currentPage++;
+        } else {
+          _currentPage = 0;
+        }
+        if (_pageController.hasClients) {
+          _pageController.animateToPage(
+            _currentPage,
+            duration: const Duration(milliseconds: 500),
+            curve: Curves.easeInOut,
+          );
+        }
+
+      });
     });
   }
 

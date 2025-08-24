@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:intl/intl.dart';
 import 'package:jwlife/app/jwlife_app.dart';
+import 'package:jwlife/core/jworg_uri.dart';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/databases/history.dart';
 import 'package:jwlife/data/models/userdata/bookmark.dart';
@@ -88,23 +89,15 @@ class DatedText {
 
 
   void share({String? id}) {
-    // Base de l'URL
-    final baseUrl = 'https://www.jw.org/finder';
-
-    late Uri uri;
-
-    uri = Uri.parse(baseUrl).replace(queryParameters: {
-      'srcid': 'jwlshare',
-      'wtlocale': publication.mepsLanguage.symbol,
-      'prefer': 'lang',
-      'docid': mepsDocumentId.toString(),
-      if (id != null) 'par': id,
-    });
+    String uri = JwOrgUri.dailyText(
+        wtlocale: publication.mepsLanguage.symbol,
+        date: firstDateOffset.toString()
+    ).toString();
 
     SharePlus.instance.share(
       ShareParams(
         title: getTitle(),
-        uri: uri,
+        uri: Uri.tryParse(uri),
       ),
     );
   }
@@ -152,17 +145,25 @@ class DatedText {
     return formattedDate;
   }
 
+  DateTime getDate() {
+    return DateTime.parse(firstDateOffset.toString());
+  }
+
   void removeHighlight(String uuid) {
     highlights.removeWhere((highlight) => highlight['UserMarkGuid'] == uuid);
     JwLifeApp.userdata.removeHighlightWithGuid(uuid);
   }
 
-  void changeHighlightColor(String uuid, int color) {
+  Future<void> changeHighlightColor(String uuid, int colorIndex) async {
     highlights.where((highlight) => highlight['UserMarkGuid'] == uuid).forEach((highlight) {
-      highlight['ColorIndex'] = color;
+      highlight['ColorIndex'] = colorIndex;
     });
 
-    JwLifeApp.userdata.changeColorHighlightWithGuid(uuid, color);
+    await JwLifeApp.userdata.changeColorHighlightWithGuid(uuid, colorIndex);
+
+    notes.where((note) => note['UserMarkGuid'] == uuid).forEach((note) {
+      note['ColorIndex'] = colorIndex;
+    });
   }
 
   void addNoteWithUserMarkGuid(int blockType, int identifier, String title, String uuid, String? userMarkGuid, int colorIndex) {
@@ -191,6 +192,27 @@ class DatedText {
     });
 
     JwLifeApp.userdata.updateNoteWithGuid(uuid, title, content);
+  }
+
+  void changeNoteUserMark(String uuid, String userMarkGuid, int colorIndex) {
+    notes.where((note) => note['Guid'] == uuid).forEach((note) {
+      note['UserMarkGuid'] = userMarkGuid;
+      note['ColorIndex'] = colorIndex;
+    });
+
+    JwLifeApp.userdata.changeNoteUserMark(uuid, userMarkGuid);
+  }
+
+  Future<void> changeNoteColor(String uuid, int colorIndex) async {
+    notes.where((note) => note['Guid'] == uuid).forEach((note) {
+      note['ColorIndex'] = colorIndex;
+
+      highlights.where((highlight) => highlight['UserMarkGuid'] == note['UserMarkGuid']).forEach((highlight) {
+        highlight['ColorIndex'] = colorIndex;
+      });
+    });
+
+    await JwLifeApp.userdata.updateNoteColorWithGuid(uuid, colorIndex);
   }
 
   void addTagToNote(String uuid, int tagId) {

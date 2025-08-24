@@ -1,22 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:jwlife/app/jwlife_page.dart';
 import 'package:jwlife/features/home/pages/daily_text_page.dart';
+import 'package:jwlife/features/personal/pages/note_page.dart';
 import 'package:jwlife/features/publication/pages/document/local/document_page.dart';
 import 'package:jwlife/features/publication/pages/document/local/full_screen_image_page.dart';
 import 'package:jwlife/features/video/video_player_page.dart';
 
 import '../../app/services/global_key_service.dart';
-import '../../data/models/audio.dart';
 import '../../data/models/publication.dart';
-import '../../features/image_page.dart';
-import '../api.dart';
+import '../../features/image/image_page.dart';
 
-Future<void> showPageDocument(BuildContext context, Publication publication, int mepsDocumentId, {int? startParagraphId, int? endParagraphId, String? textTag, List<Audio>? audios, List<String>? wordsSelected}) async {
-  List<Audio>? pubAudios = audios;
-  if(audios == null) {
-    pubAudios = await Api.getPubAudio(keySymbol: publication.keySymbol, issueTagNumber: publication.issueTagNumber, languageSymbol: publication.mepsLanguage.symbol);
-  }
-
+Future<void> showPageDocument(BuildContext context, Publication publication, int mepsDocumentId, {int? startParagraphId, int? endParagraphId, String? textTag, List<String>? wordsSelected}) async {
   final GlobalKey<DocumentPageState> documentPageKey = GlobalKey<DocumentPageState>();
   GlobalKeyService.jwLifePageKey.currentState!.webViewPageKeys[GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex].add(documentPageKey);
 
@@ -27,18 +20,12 @@ Future<void> showPageDocument(BuildContext context, Publication publication, int
       startParagraphId: startParagraphId,
       endParagraphId: endParagraphId,
       textTag: textTag,
-      audios: pubAudios ?? [],
       wordsSelected: wordsSelected ?? []
     )
   );
 }
 
-Future<void> showPageBibleChapter(BuildContext context, Publication bible, int book, int chapter, {int? firstVerse, int? lastVerse, List<Audio>? audios, List<String>? wordsSelected}) async {
-  List<Audio>? pubAudios = audios;
-  if(audios == null) {
-    pubAudios = await Api.getPubAudio(keySymbol: bible.keySymbol, issueTagNumber: bible.issueTagNumber, languageSymbol: bible.mepsLanguage.symbol);
-  }
-
+Future<void> showPageBibleChapter(BuildContext context, Publication bible, int book, int chapter, {int? firstVerse, int? lastVerse, List<String>? wordsSelected}) async {
   final GlobalKey<DocumentPageState> documentPageKey = GlobalKey<DocumentPageState>();
   GlobalKeyService.jwLifePageKey.currentState!.webViewPageKeys[GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex].add(documentPageKey);
 
@@ -49,10 +36,17 @@ Future<void> showPageBibleChapter(BuildContext context, Publication bible, int b
       chapter: chapter,
       firstVerse: firstVerse,
       lastVerse: lastVerse,
-      audios: pubAudios ?? [],
       wordsSelected: wordsSelected ?? []
   )
   );
+}
+
+
+Future<void> showPageDailyText(BuildContext context, Publication publication, {DateTime? date}) async {
+  final GlobalKey<DailyTextPageState> dailyTextKey = GlobalKey<DailyTextPageState>();
+  GlobalKeyService.jwLifePageKey.currentState!.webViewPageKeys[GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex].add(dailyTextKey);
+
+  return showPage(context, DailyTextPage(key: dailyTextKey, publication: publication, date: date));
 }
 
 Future<void> showPage(BuildContext context, Widget page) async {
@@ -66,14 +60,16 @@ Future<void> showPage(BuildContext context, Widget page) async {
 
   GlobalKeyService.jwLifePageKey.currentState!.toggleNavBarDisable(isFullscreenPage);
 
+  final isResizeToAvoidBottomInset = page is NotePage;
+
+  GlobalKeyService.jwLifePageKey.currentState!.toggleResizeToAvoidBottomInset(isResizeToAvoidBottomInset);
+
   await Navigator.of(context).push(
     PageRouteBuilder(
-      opaque: true,
-      barrierColor: null,
-      fullscreenDialog: false,
-      transitionDuration: Duration.zero,
-      reverseTransitionDuration: Duration.zero,
-      pageBuilder: (_, __, ___) => page,
+      pageBuilder: (context, animation, secondaryAnimation) => page,
+      transitionsBuilder: (context, animation, secondaryAnimation, child) => child,
+      transitionDuration: const Duration(milliseconds: 0),
+      reverseTransitionDuration: const Duration(milliseconds: 0),
     ),
   );
 
@@ -120,6 +116,9 @@ Future<void> showPage(BuildContext context, Widget page) {
 
 void showBottomMessageWithActionState(ScaffoldMessengerState messenger, bool isDark, String message, SnackBarAction? action) {
   messenger.clearSnackBars();
+  final isAudioPlayerWidget = GlobalKeyService.jwLifePageKey.currentState!.audioWidgetVisible;
+  final bottomPadding = GlobalKeyService.jwLifePageKey.currentState!.navBarIsDisable[GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex] ? (isAudioPlayerWidget ? 140.0 : 70.0) : 0.0;
+
   final controller = messenger.showSnackBar(
     SnackBar(
       action: action,
@@ -128,7 +127,7 @@ void showBottomMessageWithActionState(ScaffoldMessengerState messenger, bool isD
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(10.0),
       ),
-      margin: GlobalKeyService.jwLifePageKey.currentState!.navBarIsDisable[GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex] ? const EdgeInsets.only(bottom: 60) : null,
+      margin: EdgeInsets.only(bottom: bottomPadding),
       behavior: SnackBarBehavior.floating,
       backgroundColor: isDark ? Color(0xFFf1f1f1) : Color(0xFF3c3c3c),
     ),
@@ -141,6 +140,8 @@ void showBottomMessageWithActionState(ScaffoldMessengerState messenger, bool isD
 
 void showBottomMessageWithAction(BuildContext context, String message, SnackBarAction? action) {
   bool isDark = Theme.of(context).brightness == Brightness.dark;
+  final isAudioPlayerWidget = GlobalKeyService.jwLifePageKey.currentState!.audioWidgetVisible;
+  final bottomPadding = GlobalKeyService.jwLifePageKey.currentState!.navBarIsDisable[GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex] ? (isAudioPlayerWidget ? 140.0 : 70.0) : 0.0;
   ScaffoldMessenger.of(context).clearSnackBars();
   ScaffoldMessenger.of(context).showSnackBar(
     SnackBar(
@@ -150,7 +151,7 @@ void showBottomMessageWithAction(BuildContext context, String message, SnackBarA
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(10.0),
       ),
-      //margin: const EdgeInsets.only(bottom: 60),
+      margin: EdgeInsets.only(bottom: bottomPadding),
       behavior: SnackBarBehavior.floating,
       backgroundColor: isDark ? Color(0xFFf1f1f1) : Color(0xFF3c3c3c),
     ),

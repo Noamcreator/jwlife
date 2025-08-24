@@ -5,13 +5,16 @@ import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/i18n/localization.dart';
 import 'dart:convert';
-import 'package:searchfield/searchfield.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../app/services/settings_service.dart';
-import '../../../core/api.dart';
+import '../../../core/api/api.dart';
 import '../../../core/utils/utils.dart';
 import '../../../data/models/userdata/congregation.dart';
+import '../../../widgets/searchfield/searchfield_with_suggestions/decoration.dart';
+import '../../../widgets/searchfield/searchfield_with_suggestions/input_decoration.dart';
+import '../../../widgets/searchfield/searchfield_with_suggestions/searchfield.dart';
+import '../../../widgets/searchfield/searchfield_with_suggestions/searchfield_list_item.dart';
 
 class CongregationsPage extends StatefulWidget {
   const CongregationsPage({super.key});

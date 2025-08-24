@@ -28,7 +28,7 @@ class LibraryPage extends StatefulWidget {
 class LibraryPageState extends State<LibraryPage> {
   String language = '';
   List<PublicationCategory> catalogCategories = [];
-  late Category? video; // Initialise une catégorie vide
+  late Category? video;
   late Category? audio;
   bool _isMediaLoading = true;
 
@@ -67,8 +67,7 @@ class LibraryPageState extends State<LibraryPage> {
     setState(() {
       video = videoResults.isNotEmpty ? videoResults.first : null;
       audio = audioResults.isNotEmpty ? audioResults.first : null;
-
-      _isMediaLoading = false; // Indique que les données sont prêtes
+      _isMediaLoading = false;
     });
   }
 
@@ -86,14 +85,12 @@ class LibraryPageState extends State<LibraryPage> {
       length = length - 1;
     }
 
-    // Styles partagés
     final textStyleTitle = const TextStyle(fontSize: 20, fontWeight: FontWeight.bold);
     final textStyleSubtitle = TextStyle(
       fontSize: 14,
       color: Theme.of(context).brightness == Brightness.dark
           ? const Color(0xFFc3c3c3)
           : const Color(0xFF626262),
-
     );
 
     return DefaultTabController(
@@ -149,14 +146,30 @@ class LibraryPageState extends State<LibraryPage> {
             Expanded(
               child: TabBarView(
                 children: [
-                  if (catalogCategories.isNotEmpty)
-                    PublicationsPage(categories: catalogCategories),
-                  if (_isMediaLoading || video != null)
-                    _isMediaLoading ? getLoadingWidget(Theme.of(context).primaryColor) : VideoPage(video: video!),
-                  if (_isMediaLoading || audio != null)
-                    _isMediaLoading ? getLoadingWidget(Theme.of(context).primaryColor) : AudioPage(audio: audio!),
-                  DownloadPage(),
-                  PendingUpdatesPage(),
+                  // Onglet Publications
+                  catalogCategories.isNotEmpty
+                      ? PublicationsPage(categories: catalogCategories)
+                      : const SizedBox.shrink(),
+
+                  // Onglet Vidéo
+                  _isMediaLoading
+                      ? getLoadingWidget(Theme.of(context).primaryColor)
+                      : (video != null
+                      ? VideoPage(video: video!)
+                      : const SizedBox.shrink()),
+
+                  // Onglet Audio
+                  _isMediaLoading
+                      ? getLoadingWidget(Theme.of(context).primaryColor)
+                      : (audio != null
+                      ? AudioPage(audio: audio!)
+                      : const SizedBox.shrink()),
+
+                  // Onglet Téléchargements
+                  const DownloadPage(),
+
+                  // Onglet Mises à jour
+                  const PendingUpdatesPage(),
                 ],
               ),
             ),
@@ -166,4 +179,3 @@ class LibraryPageState extends State<LibraryPage> {
     );
   }
 }
-

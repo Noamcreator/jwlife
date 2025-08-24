@@ -3,38 +3,41 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:collection/collection.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/core/bible_clues_info.dart';
-import 'package:jwlife/core/api.dart';
+import 'package:jwlife/core/api/api.dart';
+import 'package:jwlife/core/jworg_uri.dart';
+import 'package:jwlife/core/shared_preferences/shared_preferences_utils.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/core/utils/directory_helper.dart';
 import 'package:jwlife/core/utils/files_helper.dart';
 import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/core/utils/utils_jwpub.dart';
+import 'package:jwlife/data/databases/mepsunit.dart';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/databases/catalog.dart';
-import 'package:jwlife/data/realm/catalog.dart';
-import 'package:jwlife/data/realm/realm_library.dart';
 import 'package:jwlife/features/home/widgets/home_page/favorite_section.dart';
-import 'package:jwlife/features/home/widgets/home_page/square_mediaitem_item.dart';
-import 'package:jwlife/i18n/localization.dart';
+import 'package:jwlife/features/home/widgets/home_page/latest_medias_section.dart';
 import 'package:jwlife/features/home/pages/alert_banner.dart';
-import 'package:jwlife/features/home/widgets/home_page/rectangle_publication_item.dart';
-import 'package:jwlife/features/home/widgets/home_page/square_publication_item.dart';
 import 'package:jwlife/widgets/dialog/utils_dialog.dart';
-import 'package:jwlife/widgets/mediaitem_item_widget.dart';
 import 'package:sqflite/sqflite.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:http/http.dart' as http;
 import 'package:html/parser.dart' as html_parser;
 
+import '../../../app/services/file_handler_service.dart';
 import '../../../app/services/global_key_service.dart';
 import '../../../app/services/settings_service.dart';
 import '../widgets/home_page/article_widget.dart';
 import '../widgets/home_page/daily_text_widget.dart';
+import '../widgets/home_page/frequently_used_section.dart';
 import '../widgets/home_page/home_appbar.dart';
+import '../widgets/home_page/latest_publications_section.dart';
+import '../widgets/home_page/linear_progress.dart';
+import '../widgets/home_page/online_section.dart';
+import '../widgets/home_page/toolbox_section.dart';
 import 'article_page.dart';
 import '../../settings_page.dart';
 
@@ -46,27 +49,31 @@ class HomePage extends StatefulWidget {
 }
 
 class HomePageState extends State<HomePage> {
+  final GlobalKey<LinearProgressState> _linearProgressKey = GlobalKey<LinearProgressState>();
+
   final GlobalKey<AlertBannerState> _alertBannerKey = GlobalKey<AlertBannerState>();
   final GlobalKey<DailyTextWidgetState> _dailyTextKey = GlobalKey<DailyTextWidgetState>();
   final GlobalKey<ArticleWidgetState> _articlesKey = GlobalKey<ArticleWidgetState>();
 
-  final GlobalKey<FavoriteSectionState> _favoritesKey = GlobalKey<FavoriteSectionState>();
+  final GlobalKey<FavoritesSectionState> _favoritesKey = GlobalKey<FavoritesSectionState>();
+  final GlobalKey<FrequentlyUsedSectionState> _frequentlyUsedKey = GlobalKey<FrequentlyUsedSectionState>();
+  final GlobalKey<ToolboxSectionState> _toolboxKey = GlobalKey<ToolboxSectionState>();
 
-  List<dynamic> _favorites = [];
-  List<Publication> _recentPublications = [];
-  List<Publication?> _teachingToolboxPublications = [];
-  List<Publication> _latestPublications = [];
-
-  List<MediaItem> _teachingToolboxVideos = [];
-  List<MediaItem> _latestAudiosVideos = [];
-
-  bool isRefreshing = false;
+  final GlobalKey<LatestPublicationsSectionState> _latestPublicationsKey = GlobalKey<LatestPublicationsSectionState>();
+  final GlobalKey<LatestMediasSectionState> _latestMediasKey = GlobalKey<LatestMediasSectionState>();
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _init();
+    WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
+      _init(first: true);
+
+      if(JwOrgUri.startUri != null) {
+        GlobalKeyService.jwLifeAppKey.currentState!.handleUri(JwOrgUri.startUri!);
+        JwOrgUri.startUri = null;
+      }
+
+      FileHandlerService().processPendingContent();
     });
   }
 
@@ -79,10 +86,12 @@ class HomePageState extends State<HomePage> {
     _refresh(first: first);
     printTime("Refresh page end");
 
-    await _loadBibleCluesInfo();
+    _loadWolInfo();
+    await Mepsunit.loadBibleCluesInfo();
     await PubCatalog.fetchAssemblyPublications();
 
     printTime("Refresh MeetingsView start");
+
     GlobalKeyService.meetingsKey.currentState?.refreshConventionsPubs();
   }
 
@@ -92,14 +101,10 @@ class HomePageState extends State<HomePage> {
     fetchArticleInHomePage();
 
     _favoritesKey.currentState?.refreshFavorites();
-
-    setState(() {
-      _recentPublications = PubCatalog.recentPublications;
-      _teachingToolboxPublications = PubCatalog.teachingToolboxPublications;
-      _latestPublications = PubCatalog.latestPublications;
-      _teachingToolboxVideos = RealmLibrary.loadTeachingToolboxVideos();
-      _latestAudiosVideos = RealmLibrary.loadLatestVideos();
-    });
+    _frequentlyUsedKey.currentState?.refreshFrequentlyUsed();
+    _toolboxKey.currentState?.refreshToolbox();
+    _latestPublicationsKey.currentState?.refreshLatestPublications();
+    _latestMediasKey.currentState?.refreshLatestMedias();
   }
 
   Future<void> changeLanguageAndRefresh() async {
@@ -110,39 +115,78 @@ class HomePageState extends State<HomePage> {
     // Enveloppe toute la première séquence dans un Future synchronisé
     PubCatalog.loadPublicationsInHomePage().then((_) async {
       printTime("Refresh Homepage start");
-      setState(() {
-        _recentPublications = PubCatalog.recentPublications;
-        _teachingToolboxPublications = PubCatalog.teachingToolboxPublications;
-        _latestPublications = PubCatalog.latestPublications;
-      });
+      _frequentlyUsedKey.currentState?.refreshFrequentlyUsed();
+      _toolboxKey.currentState?.refreshToolbox();
+      _latestPublicationsKey.currentState?.refreshLatestPublications();
+
+      fetchVerseOfTheDay();
 
       GlobalKeyService.meetingsKey.currentState?.refreshMeetingsPubs();
 
-      await _loadBibleCluesInfo();
+      await Mepsunit.loadBibleCluesInfo();
       await PubCatalog.fetchAssemblyPublications();
 
       printTime("Refresh MeetingsView start");
       GlobalKeyService.meetingsKey.currentState?.refreshConventionsPubs();
-
-      fetchVerseOfTheDay();
     });
 
+    _loadWolInfo();
     _initPage();
     _refresh(first: true);
   }
 
-  Future<void> _loadBibleCluesInfo() async {
-    File mepsFile = await getMepsUnitDatabaseFile();
+  Future<void> _loadWolInfo() async {
+    if(JwLifeSettings().currentLanguage.rsConf.isEmpty || JwLifeSettings().currentLanguage.lib.isEmpty) {
+      final wolLink = 'https://wol.jw.org/wol/finder?wtlocale=${JwLifeSettings().currentLanguage.symbol}';
+      printTime('WOL link: $wolLink');
 
-    if (await mepsFile.exists()) {
-      Database db = await openDatabase(mepsFile.path);
-      List<Map<String, dynamic>> result = await db.rawQuery("SELECT * FROM BibleCluesInfo WHERE LanguageId = ${JwLifeSettings().currentLanguage.id}");
-      List<Map<String, dynamic>> result2 = await db.rawQuery("SELECT * FROM BibleBookName WHERE BibleCluesInfoId = ${result[0]['BibleCluesInfoId']}");
+      try {
+        final headers = Api.getHeaders();
 
-      List<BibleBookName> bibleBookNames = result2.map((book) => BibleBookName.fromJson(book)).toList();
+        final response = await Api.dio.get(
+          wolLink,
+          options: Options(
+            headers: headers,
+            followRedirects: false, // Bloque la redirection automatique
+            maxRedirects: 0,
+            validateStatus: (status) => true,
+          ),
+        );
 
-      JwLifeApp.bibleCluesInfo = BibleCluesInfo.fromJson(result.first, bibleBookNames);
-      db.close();
+        // Afficher tous les headers de la réponse
+        printTime('All headers: ${response.headers}');
+
+        // Gestion des codes de redirection (301, 302, 307, 308)
+        if ([301, 302, 307, 308].contains(response.statusCode)) {
+          final location = response.headers.value('location');
+          if (location != null && location.isNotEmpty) {
+            // Analyse de l'URL de redirection
+            final parts = location.split('/');
+            if (parts.length >= 6) {
+              final rCode = parts[4];
+              final lpCode = parts[5];
+              printTime('rCode: $rCode');
+              printTime('lpCode: $lpCode');
+
+              JwLifeSettings().currentLanguage.setRsConf(rCode);
+              JwLifeSettings().currentLanguage.setLib(lpCode);
+
+              setLibraryLanguage(JwLifeSettings().currentLanguage);
+            }
+          } else {
+            printTime('No location header found in redirect response');
+          }
+        } else if (response.statusCode == 200) {
+          printTime('Direct response (no redirect)');
+          // Traitement si pas de redirection
+        } else {
+          printTime('Unexpected status code: ${response.statusCode}');
+        }
+
+      } catch (e, stack) {
+        printTime('Error loading WOL info: $e');
+        print(stack);
+      }
     }
   }
 
@@ -171,9 +215,7 @@ class HomePageState extends State<HomePage> {
 
     showBottomMessage(context, 'Mise à jour disponible');
 
-    setState(() {
-      isRefreshing = true;
-    });
+    _linearProgressKey.currentState?.startRefreshing();
 
     // Préparer les tâches de mise à jour
     final List<Future> updateTasks = [];
@@ -181,10 +223,8 @@ class HomePageState extends State<HomePage> {
     if (libraryUpdate) {
       updateTasks.add(
         Api.updateLibrary(JwLifeSettings().currentLanguage.symbol).then((_) {
-          setState(() {
-            _teachingToolboxVideos = RealmLibrary.loadTeachingToolboxVideos();
-            _latestAudiosVideos = RealmLibrary.loadLatestVideos();
-          });
+          _toolboxKey.currentState?.refreshToolbox();
+          _latestMediasKey.currentState?.refreshLatestMedias();
           GlobalKeyService.libraryKey.currentState?.refreshLibraryCategories();
         }),
       );
@@ -195,11 +235,11 @@ class HomePageState extends State<HomePage> {
         Api.updateCatalog().then((_) async {
           await PubCatalog.loadPublicationsInHomePage().then((_) async {
             printTime("Refresh Homepage start");
-            setState(() {
-              _recentPublications = PubCatalog.recentPublications;
-              _teachingToolboxPublications = PubCatalog.teachingToolboxPublications;
-              _latestPublications = PubCatalog.latestPublications;
-            });
+            _frequentlyUsedKey.currentState?.refreshFrequentlyUsed();
+            _toolboxKey.currentState?.refreshToolbox();
+            _latestPublicationsKey.currentState?.refreshLatestPublications();
+
+            fetchVerseOfTheDay();
 
             PubCatalog.updateCatalogCategories();
             GlobalKeyService.meetingsKey.currentState?.refreshMeetingsPubs();
@@ -207,8 +247,6 @@ class HomePageState extends State<HomePage> {
             await PubCatalog.fetchAssemblyPublications();
 
             GlobalKeyService.meetingsKey.currentState?.refreshConventionsPubs();
-
-            fetchVerseOfTheDay();
           });
         }),
       );
@@ -219,9 +257,7 @@ class HomePageState extends State<HomePage> {
 
     showBottomMessage(context, 'Mise à jour terminée');
 
-    setState(() {
-      isRefreshing = false;
-    });
+    _linearProgressKey.currentState?.stopRefreshing();
   }
 
   Future<void> fetchAlertInfo() async {
@@ -267,9 +303,10 @@ class HomePageState extends State<HomePage> {
   Future<void> fetchVerseOfTheDay() async {
     printTime("fetchVerseOfTheDay");
 
-    Publication? verseOfTheDayPub = PubCatalog.datedPublications.firstWhereOrNull((element) => element.keySymbol.contains('es'),);
+    Publication? verseOfTheDayPub = PubCatalog.datedPublications.firstWhereOrNull((element) => element.keySymbol.contains('es'));
 
     if (verseOfTheDayPub != null) {
+      _dailyTextKey.currentState!.setVersePub(verseOfTheDayPub);
       VoidCallback? listener;
 
       listener = () async {
@@ -499,34 +536,18 @@ class HomePageState extends State<HomePage> {
     return '';
   }
 
-  Widget _buildLatestVideosWidget() {
-    if (_latestAudiosVideos.isEmpty) {
-      return const SizedBox(height: 15);
-    }
-
-    return Column(
-      children: [
-        const SizedBox(height: 4),
-        SizedBox(
-          height: 140,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            itemCount: _latestAudiosVideos.length,
-            itemBuilder: (context, mediaIndex) {
-              return MediaItemItemWidget(
-                  mediaItem: _latestAudiosVideos[mediaIndex],
-                  timeAgoText: true
-              );
-            },
-          ),
-        ),
-      ],
-    );
+  void refreshFavorites() {
+    _favoritesKey.currentState?.refreshFavorites();
   }
 
   @override
   Widget build(BuildContext context) {
     print('Build HomePage');
+
+    double screenWidth = MediaQuery.of(context).size.width;
+
+    // Calcul du padding proportionnel
+    double horizontalPadding = (screenWidth * 0.03).clamp(8.0, 40.0);
 
     return Scaffold(
         resizeToAvoidBottomInset: false,
@@ -539,10 +560,10 @@ class HomePageState extends State<HomePage> {
           color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black,
           backgroundColor: Theme.of(context).brightness == Brightness.dark ? Colors.black : Colors.white,
           onRefresh: () async {
-            if (await hasInternetConnection() && !isRefreshing) {
+            if (await hasInternetConnection() && !_linearProgressKey.currentState!.isRefreshing) {
               await _refresh();
             }
-            else if (!isRefreshing) {
+            else if (!_linearProgressKey.currentState!.isRefreshing) {
               showNoConnectionDialog(context);
             }
           },
@@ -550,9 +571,8 @@ class HomePageState extends State<HomePage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                isRefreshing ? LinearProgressIndicator(
-                    valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).primaryColor),
-                    backgroundColor: Colors.grey[300]) : SizedBox(height: 8),
+                /* Afficher la progress bar de chargement */
+                LinearProgress(key: _linearProgressKey),
 
                 /* Afficher le banner */
                 AlertBanner(key: _alertBannerKey),
@@ -574,136 +594,36 @@ class HomePageState extends State<HomePage> {
                   },
                 ),
 
+                const SizedBox(height: 20),
+
                 Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 10),
+                    padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
                     child: Column(
                         children: [
-                          const SizedBox(height: 20),
-
-                          if (_favorites.isNotEmpty)
-                            FavoritesSection(
-                                key: _favoritesKey,
-                                onReorder: (oldIndex, newIndex) {
-                                  if (newIndex > oldIndex) newIndex -= 1;
-                                  JwLifeApp.userdata.reorderFavorites(oldIndex, newIndex);
-                                  _favoritesKey.currentState?.refreshFavorites();
-                                }
-                            ),
-
-                          if (_recentPublications.isNotEmpty)
-                            Text(
-                              'Publications récentes',
-                              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                            ),
-                          if (_recentPublications.isNotEmpty)
-                            const SizedBox(height: 4),
-                          if (_recentPublications.isNotEmpty)
-                            SizedBox(
-                              height: 120, // Hauteur à ajuster selon votre besoin
-                              child: ListView.builder(
-                                scrollDirection: Axis.horizontal,
-                                itemCount: _recentPublications.length,
-                                itemBuilder: (context, index) {
-                                  Publication publication = _recentPublications[index];
-                                  return Padding(
-                                    padding: const EdgeInsets.only(right: 2.0), // Espacement entre les items
-                                    child: HomeSquarePublicationItem(pub: publication),
-                                  );
-                                },
-                              ),
-                            ),
-
-                          /// Teaching Toolbox
-                          Text(
-                            localization(context).navigation_ministry,
-                            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                          FavoritesSection(
+                              key: _favoritesKey,
+                              onReorder: (oldIndex, newIndex) {
+                                if (newIndex > oldIndex) newIndex -= 1;
+                                JwLifeApp.userdata.reorderFavorites(oldIndex, newIndex);
+                                _favoritesKey.currentState?.refreshFavorites();
+                              }
                           ),
+
+                          /* Afficher la section des publications fréquemment utilisées */
+                          FrequentlyUsedSection(key: _frequentlyUsedKey),
+
+                          /* Afficher la section de la panoplie d'enseignants */
+                          ToolboxSection(key: _toolboxKey),
+
+                          /* Afficher la section des nouveaux */
+                          LatestPublicationSection(key: _latestPublicationsKey),
+
                           const SizedBox(height: 4),
 
-                          SizedBox(
-                            height: 120,
-                            child: ListView.builder(
-                              scrollDirection: Axis.horizontal,
-                              itemCount: _teachingToolboxVideos.length + _teachingToolboxPublications.length,
-                              itemBuilder: (context, index) {
-                                // Déterminer si l'élément est une vidéo ou une publication
-                                if (index < _teachingToolboxVideos.length) {
-                                  // Partie des vidéos
-                                  MediaItem mediaItem = _teachingToolboxVideos[index];
+                          LatestMediasSection(key: _latestMediasKey),
 
-                                  return Padding(
-                                    padding: const EdgeInsets.only(right: 2.0), // Espacement entre les items
-                                    child: HomeSquareMediaItemItem(mediaItem: mediaItem),
-                                  );
-                                }
-                                else {
-                                  int pubIndex = index - _teachingToolboxVideos.length;
-                                  Publication? pub = _teachingToolboxPublications[pubIndex];
-
-                                  // Vérifier si la valeur est présente dans availableTeachingToolBoxInt
-                                  if (pub != null) {
-                                    return Padding(
-                                      padding: const EdgeInsets.only(right: 2.0), // Espacement entre les items
-                                      child: HomeSquarePublicationItem(pub: pub),
-                                    );
-                                  }
-                                  else {
-                                    return Padding(
-                                        padding: EdgeInsets.symmetric(horizontal: 2.0),
-                                        child: SizedBox(
-                                            width: 20
-                                        )
-                                    );
-                                  }
-                                }
-                              },
-                            ),
-                          ),
-
-                          Text(
-                            localization(context).navigation_whats_new,
-                            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                          ),
-                          const SizedBox(height: 4),
-                          SizedBox(
-                            height: 80, // Adjust height as needed
-                            child: _latestPublications.isEmpty ? getLoadingWidget(Theme.of(context).primaryColor) : ListView.builder(
-                              scrollDirection: Axis.horizontal, // Définit le scroll en horizontal
-                              itemCount: _latestPublications.length,
-                              itemBuilder: (context, index) {
-                                return Padding(
-                                    padding: const EdgeInsets.only(right: 2.0), // Espacement entre les items
-                                    child: HomeRectanglePublicationItem(pub: _latestPublications[index])
-                                );
-                              },
-                            ),
-                          ),
-
-                          _buildLatestVideosWidget(),
-
-                          Text(
-                            localization(context).navigation_online,
-                            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                          ),
-                          SizedBox(height: 4),
-                          SizedBox(
-                            height: 110, // Augmenté pour tenir compte du texte sur 2 lignes
-                            child: ListView.builder(
-                              scrollDirection: Axis.horizontal,
-                              itemCount: _iconLinks(context).length,
-                              itemBuilder: (context, index) {
-                                final iconLinkInfo = _iconLinks(context)[index];
-                                return Padding(
-                                  padding: const EdgeInsets.only(right: 2.0), // Espacement entre chaque icône
-                                  child: IconLink(
-                                    imagePath: iconLinkInfo.imagePath,
-                                    url: iconLinkInfo.url,
-                                    description: iconLinkInfo.description,
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
+                          /* Afficher la section Online */
+                          const OnlineSection(),
 
                           const SizedBox(height: 25),
                         ]
@@ -715,83 +635,4 @@ class HomePageState extends State<HomePage> {
         )
     );
   }
-}
-
-class IconLink extends StatelessWidget {
-  final String imagePath;
-  final String url;
-  final String description;
-
-  const IconLink({
-    super.key,
-    required this.imagePath,
-    required this.url,
-    required this.description,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: () {
-        _launchURL(url);
-      },
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(2.0),
-            child: Image.asset(
-              imagePath,
-              width: 80,
-              height: 80,
-            ),
-          ),
-          SizedBox(height: 2), // Espacement entre l'image et le texte
-          SizedBox(
-            width: 80, // Assure que le texte s'aligne avec l'image
-            height: 28, // Hauteur fixe pour le texte (environ 2 lignes de texte)
-            child: Text(
-              description,
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis, // Si le texte est trop long, on coupe
-              style: TextStyle(fontSize: 10),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _launchURL(String url) async {
-    if (await canLaunch(url)) {
-      await launch(url);
-    } else {
-      throw 'Could not launch $url';
-    }
-  }
-}
-
-class IconLinkInfo {
-  final String imagePath;
-  final String description;
-  final String url;
-
-  IconLinkInfo(this.imagePath, this.description, this.url);
-}
-
-List<IconLinkInfo> _iconLinks(BuildContext context) {
-  return [
-    IconLinkInfo('assets/icons/nav_jworg.png', localization(context).navigation_official_website, 'https://www.jw.org/${JwLifeSettings().currentLanguage.primaryIetfCode}'),
-    IconLinkInfo('assets/icons/nav_jwb.png', localization(context).navigation_online_broadcasting, 'https://www.jw.org/open?docid=1011214&wtlocale=${JwLifeSettings().currentLanguage.symbol}'),
-    IconLinkInfo('assets/icons/nav_onlinelibrary.png', localization(context).navigation_online_library, 'https://wol.jw.org/wol/finder?wtlocale=${JwLifeSettings().currentLanguage.symbol}'),
-    IconLinkInfo('assets/icons/nav_donation.png', localization(context).navigation_online_donation, 'https://donate.jw.org/ui/${JwLifeSettings().currentLanguage.symbol}/donate-home.html'),
-    IconLinkInfo(
-      Theme.of(context).brightness == Brightness.dark
-          ? 'assets/icons/nav_github_light.png'
-          : 'assets/icons/nav_github_dark.png',
-      localization(context).navigation_online_gitub,
-      'https://github.com/Noamcreator/jwlife',
-    ),
-  ];
 }

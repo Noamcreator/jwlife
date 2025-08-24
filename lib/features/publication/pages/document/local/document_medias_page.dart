@@ -8,9 +8,11 @@ import 'package:jwlife/core/utils/utils_audio.dart';
 import 'package:jwlife/core/utils/utils_video.dart';
 import 'package:jwlife/data/databases/history.dart';
 import 'package:jwlife/data/realm/catalog.dart';
+import 'package:jwlife/features/library/widgets/rectangle_mediaItem_item.dart';
 import 'package:jwlife/widgets/image_cached_widget.dart';
 
 import '../../../../../app/services/global_key_service.dart';
+import '../../../../../widgets/mediaitem_item_widget.dart';
 import '../data/models/document.dart';
 import '../data/models/multimedia.dart';
 import 'full_screen_image_page.dart';
@@ -37,11 +39,84 @@ class _DocumentMediasViewState extends State<DocumentMediasView> {
     });
   }
 
+  // Fonction pour calculer le nombre de colonnes selon la largeur de l'écran (version compacte)
+  int _getCrossAxisCount(double screenWidth) {
+    if (screenWidth > 1200) {
+      return 6; // Très large écran - plus de colonnes
+    } else if (screenWidth > 900) {
+      return 4; // Écran large
+    } else if (screenWidth > 600) {
+      return 3; // Écran moyen (tablettes)
+    } else if (screenWidth > 400) {
+      return 2; // Mobiles en paysage
+    } else {
+      return 2; // Petits mobiles - minimum 2 colonnes
+    }
+  }
+
+  // Fonction pour calculer l'espacement selon la largeur de l'écran (version compacte)
+  double _getSpacing(double screenWidth) {
+    if (screenWidth > 1200) {
+      return 12.0; // Réduit
+    }
+    else if (screenWidth > 900) {
+      return 10.0; // Réduit
+    }
+    else if (screenWidth > 600) {
+      return 8.0; // Réduit
+    }
+    else {
+      return 6.0; // Réduit
+    }
+  }
+
+  // Fonction pour calculer le ratio d'aspect selon le type de contenu (version compacte)
+  double _getAspectRatio(double screenWidth, bool isVideo) {
+    // Ratios plus compacts pour afficher plus d'éléments
+    if (isVideo) {
+      return screenWidth > 600 ? 16 / 10.5 : 16 / 11.4; // Légèrement plus carré
+    }
+
+    // Pour les images, ratios plus compacts
+    if (screenWidth > 1200) {
+      return 1.2; // Plus carré sur grands écrans
+    }
+    else if (screenWidth > 600) {
+      return 1.4; // Presque carré sur tablettes
+    } else {
+      return 1.6; // Légèrement rectangulaire sur mobiles
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final crossAxisCount = _getCrossAxisCount(screenWidth);
+    final spacing = _getSpacing(screenWidth);
+
+    final textStyleTitle = TextStyle(fontSize: 20, fontWeight: FontWeight.bold);
+    final textStyleSubtitle = TextStyle(
+      fontSize: 14,
+      color: Theme.of(context).brightness == Brightness.dark
+          ? const Color(0xFFc3c3c3)
+          : const Color(0xFF626262),
+    );
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Voir les médias"),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Voir les médias',
+              style: textStyleTitle,
+            ),
+            Text(
+              widget.document.getDisplayTitle(),
+              style: textStyleSubtitle,
+            ),
+          ],
+        ),
         actions: [
           IconButton(
             icon: const Icon(JwIcons.arrow_circular_left_clock),
@@ -60,53 +135,66 @@ class _DocumentMediasViewState extends State<DocumentMediasView> {
       body: (videos.isEmpty && images.isEmpty)
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
-        padding: const EdgeInsets.all(8.0),
+        padding: EdgeInsets.all(spacing),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Section Vidéos
             if (videos.isNotEmpty) ...[
+              Padding(
+                padding: EdgeInsets.only(bottom: spacing),
+                child: Text(
+                  "Vidéos",
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+              ),
               GridView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 20.0,
-                  mainAxisSpacing: 5.0,
-                  childAspectRatio: 16 / 11,
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: crossAxisCount,
+                  crossAxisSpacing: spacing,
+                  mainAxisSpacing: spacing,
+                  childAspectRatio: _getAspectRatio(screenWidth, true),
                 ),
                 itemCount: videos.length,
                 itemBuilder: (context, index) {
                   final media = videos[index];
-                  MediaItem? mediaItem = getMediaItem(media.keySymbol, media.track, media.mepsDocumentId, media.issueTagNumber, media.mepsLanguageId);
+                  MediaItem? mediaItem = getMediaItem(media.keySymbol, media.track, media.mepsDocumentId, media.issueTagNumber, media.mepsLanguageId, isVideo: media.mimeType == 'video/mp4');
                   if (mediaItem == null) {
                     return Container();
                   }
-                  return videoTile(context, mediaItem);
+                  return videoTile(context, mediaItem, screenWidth);
                 },
               ),
+              SizedBox(height: spacing),
             ],
-            SizedBox(height: 20),
+
+            // Section Images
             if (images.isNotEmpty) ...[
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 10.0),
+              if (videos.isNotEmpty) ...[
+                SizedBox(height: spacing),
+              ],
+              Padding(
+                padding: EdgeInsets.only(bottom: spacing),
                 child: Text(
                   "Images",
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                 ),
               ),
               GridView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 20.0,
-                  mainAxisSpacing: 20.0,
-                  childAspectRatio: 16 / 9,
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: crossAxisCount,
+                  crossAxisSpacing: spacing,
+                  mainAxisSpacing: spacing,
+                  childAspectRatio: _getAspectRatio(screenWidth, false),
                 ),
                 itemCount: images.length,
                 itemBuilder: (context, index) {
                   final media = images[index];
-                  return imageTile(context, media);
+                  return imageTile(context, media, screenWidth);
                 },
               ),
             ],
@@ -116,111 +204,13 @@ class _DocumentMediasViewState extends State<DocumentMediasView> {
     );
   }
 
-  Widget videoTile(BuildContext context, MediaItem mediaItem) {
-    bool isAudio = mediaItem.type == 'AUDIO';
-
-    return Column(
-        children: [
-          GestureDetector(
-            onTap: () {
-              if (isAudio) {
-                showAudioPlayer(context, mediaItem);
-              } else {
-                showFullScreenVideo(context, mediaItem);
-              }
-            },
-            child: Stack(
-              children: [
-                ClipRRect(
-                  child: ImageCachedWidget(
-                    imageUrl:
-                        mediaItem.realmImages?.wideFullSizeImageUrl ??
-                        mediaItem.realmImages?.wideImageUrl ??
-                        mediaItem.realmImages?.squareImageUrl,
-                    pathNoImage: isAudio ? "pub_type_audio" : "pub_type_video",
-                    height: 90,
-                    width: 180,
-                    fit: BoxFit.fitHeight,
-                  ),
-                ),
-                Positioned(
-                  top: 5,
-                  left: 5,
-                  child: Container(
-                    color: Colors.black.withOpacity(0.8),
-                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                    child: Row(
-                      children: [
-                        Icon(
-                          isAudio ? JwIcons.headphones__simple : JwIcons.play,
-                          size: 12,
-                          color: Colors.white,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          formatDuration(mediaItem.duration!),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                Positioned(
-                  top: -6,
-                  right: -10,
-                  child: PopupMenuButton(
-                    popUpAnimationStyle: AnimationStyle.lerp(
-                      AnimationStyle(curve: Curves.ease),
-                      AnimationStyle(curve: Curves.ease),
-                      0.5,
-                    ),
-                    icon: const Icon(
-                      Icons.more_vert,
-                      color: Colors.white,
-                      shadows: [Shadow(color: Colors.black, blurRadius: 5)],
-                    ),
-                    shadowColor: Colors.black,
-                    elevation: 8,
-                    itemBuilder: (context) => isAudio
-                        ? [
-                      getAudioShareItem(mediaItem),
-                      getAudioLanguagesItem(context, mediaItem),
-                      getAudioFavoriteItem(mediaItem),
-                      getAudioDownloadItem(context, mediaItem),
-                      getAudioLyricsItem(context, mediaItem),
-                      getCopyLyricsItem(mediaItem),
-                    ]
-                        : [
-                      getVideoShareItem(mediaItem),
-                      getVideoLanguagesItem(context, mediaItem),
-                      getVideoFavoriteItem(mediaItem),
-                      getVideoDownloadItem(context, mediaItem),
-                      getShowSubtitlesItem(context, mediaItem),
-                      getCopySubtitlesItem(context, mediaItem),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            mediaItem.title ?? '',
-            style: const TextStyle(
-              fontSize: 11,
-            ),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.start,
-          ),
-        ]
-    );
+  Widget videoTile(BuildContext context, MediaItem mediaItem, double screenWidth) {
+    return MediaItemItemWidget(mediaItem: mediaItem, timeAgoText: false, width: 190);
   }
 
-  Widget imageTile(BuildContext context, Multimedia media) {
+  Widget imageTile(BuildContext context, Multimedia media, double screenWidth) {
+    final double captionFontSize = screenWidth > 600 ? 11.0 : 9.0;
+
     return GestureDetector(
       onTap: () {
         Multimedia? multimedia = widget.document.multimedias.firstWhereOrNull((img) => img.filePath.toLowerCase() == media.filePath.toLowerCase());
@@ -232,6 +222,7 @@ class _DocumentMediasViewState extends State<DocumentMediasView> {
         alignment: Alignment.center,
         children: [
           ClipRRect(
+            borderRadius: BorderRadius.circular(8.0),
             child: ImageCachedWidget(
               imageUrl: '${widget.document.publication.path}/${media.filePath}',
               pathNoImage: 'pub_type_video',
@@ -246,14 +237,34 @@ class _DocumentMediasViewState extends State<DocumentMediasView> {
               left: 0,
               right: 0,
               child: Container(
-                color: Colors.black54,
-                padding: const EdgeInsets.all(4.0),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.transparent,
+                      Colors.black.withOpacity(0.8),
+                    ],
+                  ),
+                  borderRadius: const BorderRadius.only(
+                    bottomLeft: Radius.circular(8.0),
+                    bottomRight: Radius.circular(8.0),
+                  ),
+                ),
+                padding: EdgeInsets.all(screenWidth > 600 ? 8.0 : 4.0),
                 child: Text(
                   media.caption,
-                  style: const TextStyle(
-                    fontSize: 12,
+                  style: TextStyle(
+                    fontSize: captionFontSize,
                     fontWeight: FontWeight.w500,
                     color: Colors.white,
+                    shadows: [
+                      Shadow(
+                        offset: Offset(1, 1),
+                        blurRadius: 2,
+                        color: Colors.black.withOpacity(0.8),
+                      ),
+                    ],
                   ),
                   textAlign: TextAlign.center,
                   maxLines: 2,

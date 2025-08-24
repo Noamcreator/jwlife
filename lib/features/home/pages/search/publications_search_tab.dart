@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:jwlife/core/api.dart';
+import 'package:jwlife/core/api/api.dart';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/databases/catalog.dart';
 import 'package:jwlife/features/home/pages/search/search_model.dart';
@@ -8,6 +8,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../app/services/settings_service.dart';
+import '../../../../core/jworg_uri.dart';
 import '../../../../core/utils/utils.dart';
 import '../../../../widgets/dialog/language_dialog.dart';
 
@@ -152,12 +153,39 @@ class _PublicationsSearchTabState extends State<PublicationsSearchTab> {
                                   itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
                                     PopupMenuItem(
                                       child: const Text('Envoyer le lien'),
-                                      onTap: () {
-                                        Uri uri = Uri.parse('https://www.jw.org/finder?srcid=jwlshare&wtlocale=${JwLifeSettings().currentLanguage.symbol}&lank=${item['lank']}');
-                                        SharePlus.instance.share(
-                                            ShareParams(title: item['title'], uri: uri)
-                                        );
-                                      },
+                                        onTap: () {
+                                          final lank = item['lank'].toString();
+
+                                          // Cas avec "-" (ex: wt-202510_01)
+                                          String? fullSymbol;
+                                          if (lank.contains('-')) {
+                                            fullSymbol = lank.split('-')[1];
+                                          } else {
+                                            fullSymbol = lank; // ex: "lff" ou "w_202510"
+                                          }
+
+                                          // Séparer symbole et numéro si disponible
+                                          String symbol;
+                                          int? issueTagNumber;
+                                          if (fullSymbol.contains('_')) {
+                                            symbol = fullSymbol.split('_')[0];
+                                            issueTagNumber = int.tryParse(fullSymbol.split('_')[1]);
+                                          } else {
+                                            symbol = fullSymbol; // juste le symbole (ex: "lff")
+                                            issueTagNumber = null;
+                                          }
+
+                                          final uri = JwOrgUri.publication(
+                                            wtlocale: JwLifeSettings().currentLanguage.symbol,
+                                            pub: symbol,
+                                            issue: issueTagNumber ?? 0, // 0 si pas d’édition
+                                          ).toString();
+
+                                          // Partager le lien
+                                          SharePlus.instance.share(
+                                            ShareParams(title: item['title'], uri: Uri.tryParse(uri)),
+                                          );
+                                        }
                                     ),
                                     PopupMenuItem(
                                       child: const Text('Autres langues'),

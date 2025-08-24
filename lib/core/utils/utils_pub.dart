@@ -10,7 +10,7 @@ import 'package:jwlife/widgets/dialog/language_dialog_pub.dart';
 
 import '../../app/services/global_key_service.dart';
 import '../../features/publication/pages/document/local/documents_manager.dart';
-import '../api.dart';
+import '../api/api.dart';
 
 PopupMenuItem getPubShareMenuItem(Publication publication) {
   return PopupMenuItem(
@@ -38,7 +38,7 @@ PopupMenuItem getPubLanguagesItem(BuildContext context, String title, Publicatio
     ),
     onTap: () {
       LanguagesPubDialog languageDialog = LanguagesPubDialog(publication: publication);
-      showDialog<Publication>(
+      showDialog<Publication?>(
         context: context,
         builder: (context) => languageDialog,
       ).then((languagePub) {

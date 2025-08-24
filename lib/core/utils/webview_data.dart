@@ -3,7 +3,10 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
+import '../../app/services/global_key_service.dart';
 import '../../app/services/settings_service.dart';
+import '../../features/home/pages/daily_text_page.dart';
+import '../../features/publication/pages/document/local/document_page.dart';
 import '../shared_preferences/shared_preferences_utils.dart';
 import 'directory_helper.dart';
 
@@ -14,7 +17,7 @@ class WebViewData {
   late String cssCode;
   late double fontSize;
   late int colorIndex;
-  late bool isFullScreen;
+  late bool isFullScreenMode;
 
   late String webappPath;
 
@@ -38,7 +41,7 @@ class WebViewData {
     //dialogBackgroundColor = isDark ? '#1d1d1d' : '#f7f7f5';
     fontSize = await getFontSize();
     colorIndex = await getLastHighlightColorIndex();
-    isFullScreen = await getFullscreen();
+    isFullScreenMode = await getFullscreen();
 
     Directory filesDirectory = await getAppFilesDirectory();
     webappPath = '${filesDirectory.path}/webapp_assets';
@@ -47,7 +50,7 @@ class WebViewData {
     headlessWebView.run();
   }
 
-  void update(ThemeMode themeMode) {
+  void updateTheme(ThemeMode themeMode) {
     bool isDark;
     if (themeMode == ThemeMode.dark) {
       isDark = true;
@@ -61,6 +64,19 @@ class WebViewData {
     theme = isDark ? 'cc-theme--dark' : 'cc-theme--light';
     backgroundColor = isDark ? '#121212' : '#ffffff';
     //dialogBackgroundColor = isDark ? '#1d1d1d' : '#f7f7f5';
+
+    for (var keys in GlobalKeyService.jwLifePageKey.currentState!.webViewPageKeys) {
+      for (var key in keys) {
+        final state = key.currentState;
+
+        if (state is DocumentPageState) {
+          state.changeTheme(themeMode);
+        }
+        else if (state is DailyTextPageState) {
+          state.changeTheme(themeMode);
+        }
+      }
+    }
   }
 
   void updateFontSize(double size) {
@@ -72,6 +88,19 @@ class WebViewData {
   }
 
   void updateFullscreen(bool value) {
-    isFullScreen = value;
+    isFullScreenMode = value;
+
+    for (var keys in GlobalKeyService.jwLifePageKey.currentState!.webViewPageKeys) {
+      for (var key in keys) {
+        final state = key.currentState;
+
+        if (state is DocumentPageState) {
+          state.changeFullScreenMode(value);
+        }
+        else if (state is DailyTextPageState) {
+          state.changeFullScreenMode(value);
+        }
+      }
+    }
   }
 }

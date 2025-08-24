@@ -3,7 +3,7 @@ import 'package:html/parser.dart' as htmlParser;
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/data/models/publication.dart';
 
-import '../../../../../core/api.dart';
+import '../../../../../core/api/api.dart';
 import '../../../../../core/utils/utils.dart';
 import '../../../../../core/utils/utils_pub.dart';
 

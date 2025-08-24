@@ -138,7 +138,7 @@ class _AllSearchTabState extends State<AllSearchTab> {
         itemCount: result['results'].length,
         itemBuilder: (context, videoIndex) {
           final item = result['results'][videoIndex];
-          MediaItem mediaItem = getVideoItemFromLank(item['lank'], JwLifeSettings().currentLanguage.symbol);
+          MediaItem mediaItem = getMediaItemFromLank(item['lank'], JwLifeSettings().currentLanguage.symbol);
           return GestureDetector(
             onTap: () async {
               showFullScreenVideo(context, mediaItem);
@@ -233,7 +233,7 @@ class _AllSearchTabState extends State<AllSearchTab> {
         itemCount: result['results'].length,
         itemBuilder: (context, audioIndex) {
           final item = result['results'][audioIndex];
-          MediaItem mediaItem = getVideoItemFromLank(item['lank'], JwLifeSettings().currentLanguage.symbol);
+          MediaItem mediaItem = getMediaItemFromLank(item['lank'], JwLifeSettings().currentLanguage.symbol);
           return GestureDetector(
             onTap: () async {
               showAudioPlayer(context, mediaItem);

@@ -14,7 +14,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:video_player/video_player.dart';
 
 import '../../app/services/global_key_service.dart';
-import '../../core/api.dart';
+import '../../core/api/api.dart';
 import '../../core/utils/utils_playlist.dart';
 import 'subtitles.dart';
 
@@ -22,9 +22,9 @@ class VideoPlayerPage extends StatefulWidget {
   final MediaItem mediaItem;
   final dynamic onlineVideo;
   final Video? localVideo;
-  final Duration startPosition;
+  final Duration initialPosition;
 
-  const VideoPlayerPage({super.key, required this.mediaItem, this.onlineVideo, this.localVideo, this.startPosition=Duration.zero});
+  const VideoPlayerPage({super.key, required this.mediaItem, this.onlineVideo, this.localVideo, this.initialPosition=Duration.zero});
 
   @override
   _VideoPlayerPageState createState() => _VideoPlayerPageState();
@@ -119,7 +119,7 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
       )
       ..initialize().then((_) {
         _controller!.play();
-        _controller!.seekTo(widget.startPosition);
+        _controller!.seekTo(widget.initialPosition);
         _controller!.addListener(() {
           setState(() {
             if(!_isPositionSeeking) {
@@ -146,7 +146,7 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
     _controller = VideoPlayerController.file(file)
       ..initialize().then((_) {
         _controller!.play();
-        _controller!.seekTo(widget.startPosition);
+        _controller!.seekTo(widget.initialPosition);
         _controller!.addListener(() {
           setState(() {
             if(!_isPositionSeeking) {

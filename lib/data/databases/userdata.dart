@@ -1088,6 +1088,56 @@ class Userdata {
     }
   }
 
+  Future<void> changeNoteUserMark(String noteGuid, String userMarkGuid) async {
+    final String datetime = formattedTimestamp;
+
+    try {
+      // Récupérer l'ID du UserMark
+      List<Map<String, dynamic>> userMarkResult = await _database.rawQuery('''
+      SELECT UserMarkId FROM UserMark WHERE UserMarkGuid = ?
+    ''', [userMarkGuid]);
+
+      if (userMarkResult.isEmpty) {
+        throw Exception('UserMarkGuid not found');
+      }
+
+      final int userMarkId = userMarkResult.first['UserMarkId'];
+
+      // Mise à jour de la note avec le UserMark et LastModified
+      await _database.rawUpdate('''
+      UPDATE Note
+      SET UserMarkId = ?, LastModified = ?
+      WHERE Guid = ?
+    ''', [userMarkId, datetime, noteGuid]);
+    } catch (e) {
+      printTime('Error: $e');
+      throw Exception('Failed to change UserMark for note.');
+    }
+  }
+
+  Future<void> updateNoteColorWithGuid(String guid, int colorIndex) async {
+    String datetime = formattedTimestamp;
+
+    try {
+      await _database.rawUpdate('''
+      UPDATE UserMark
+      SET ColorIndex = ?
+      WHERE UserMarkId = (
+        SELECT UserMarkId FROM Note WHERE Guid = ?
+      )
+    ''', [colorIndex, guid]);
+
+      await _database.rawUpdate('''
+      UPDATE Note
+      SET LastModified = ?
+      WHERE Guid = ?
+    ''', [datetime, guid]);
+    } catch (e) {
+      printTime('Error: $e');
+      throw Exception('Failed to change color for highlight with UserMarkGuid.');
+    }
+  }
+
   Future<void> addTagToNoteWithGuid(String guid, int tagId) async {
     String datetime = formattedTimestamp;
 

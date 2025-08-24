@@ -13,7 +13,7 @@ import 'package:jwlife/features/video/video_player_page.dart';
 
 import '../../app/services/global_key_service.dart';
 import '../../app/services/settings_service.dart';
-import '../../core/api.dart';
+import '../../core/api/api.dart';
 
 class SubtitlesPage extends StatefulWidget {
   final MediaItem? mediaItem;
@@ -179,10 +179,10 @@ class _SubtitlesPageState extends State<SubtitlesPage> {
               //GlobalKeyService.jwLifePageKey.currentState!.toggleNavBarBlack(true);
               if (widget.localVideo != null) {
                 MediaItem? mediaItem = getMediaItem(widget.localVideo!.keySymbol, widget.localVideo!.track, widget.localVideo!.documentId, widget.localVideo!.issueTagNumber, JwLifeSettings().currentLanguage.id);
-                showPage(context, VideoPlayerPage(mediaItem: mediaItem!, localVideo: widget.localVideo, startPosition: subtitle.startTime));
+                showPage(context, VideoPlayerPage(mediaItem: mediaItem!, localVideo: widget.localVideo, initialPosition: subtitle.startTime));
               }
               else {
-                showPage(context, VideoPlayerPage(mediaItem: widget.mediaItem!, onlineVideo: _mediaData, startPosition: subtitle.startTime));
+                showPage(context, VideoPlayerPage(mediaItem: widget.mediaItem!, onlineVideo: _mediaData, initialPosition: subtitle.startTime));
               }
             },
             child: Center( // Centrer horizontalement le texte

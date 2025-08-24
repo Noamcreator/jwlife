@@ -12,7 +12,7 @@ import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 
 import '../../app/services/settings_service.dart';
-import '../api.dart';
+import '../api/api.dart';
 import 'files_helper.dart';
 
 Future<dynamic> getVideoIfDownload(Database db, MediaItem item) async {
@@ -60,7 +60,7 @@ Future<void> downloadAudio(BuildContext context, String? pubSymbol, int? issueTa
 
   try {
     // Télécharger le fichier avec mise à jour de la progression
-    final response = await Dio().get(media['file']['url'],
+    final response = await Api.dio.get(media['file']['url'],
       options: Options(responseType: ResponseType.bytes),
       onReceiveProgress: (received, total) {
         if (total != -1) {
@@ -197,7 +197,7 @@ Future<void> downloadMedia(BuildContext context, MediaItem item, dynamic media, 
 
   try {
     // Télécharger le fichier avec mise à jour de la progression
-    final response = await Dio().get(media['files'][file]['progressiveDownloadURL'],
+    final response = await Api.dio.get(media['files'][file]['progressiveDownloadURL'],
       options: Options(
         headers: Api.getHeaders(),
         responseType: ResponseType.bytes,
@@ -240,7 +240,7 @@ Future<void> downloadMedia(BuildContext context, MediaItem item, dynamic media, 
       final subtitleFileName = media['files'][file]['subtitles']['url'].split('/').last;
       subtitleFilePath = '${subtitlesDirectory.path}/$subtitleFileName';
 
-      final subtitleResponse = await Dio().get(
+      final subtitleResponse = await Api.dio.get(
         media['files'][file]['subtitles']['url'],
         options: Options(responseType: ResponseType.bytes),
       );

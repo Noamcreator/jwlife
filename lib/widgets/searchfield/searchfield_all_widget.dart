@@ -1,13 +1,21 @@
+import 'dart:convert';
+
+import 'package:flutter/foundation.dart' hide Category;
 import 'package:flutter/material.dart';
 import 'package:jwlife/app/services/global_key_service.dart';
+import 'package:jwlife/widgets/searchfield/searchfield_with_suggestions/decoration.dart';
+import 'package:jwlife/widgets/searchfield/searchfield_with_suggestions/input_decoration.dart';
+import 'package:jwlife/widgets/searchfield/searchfield_with_suggestions/searchfield.dart';
+import 'package:jwlife/widgets/searchfield/searchfield_with_suggestions/searchfield_list_item.dart';
 import 'package:realm/realm.dart';
-import 'package:searchfield/searchfield.dart';
 import 'package:sqflite/sqflite.dart';
+import 'package:string_similarity/string_similarity.dart';
 
 import '../../app/services/settings_service.dart';
+import '../../core/api/api.dart';
 import '../../core/icons.dart';
 import '../../core/utils/common_ui.dart';
-import '../../core/utils/files_helper.dart';
+import '../../core/utils/utils.dart';
 import '../../core/utils/utils_audio.dart';
 import '../../core/utils/utils_document.dart';
 import '../../core/utils/utils_video.dart';
@@ -34,14 +42,14 @@ class SearchFieldAll extends StatefulWidget {
 }
 
 class _SearchFieldAllState extends State<SearchFieldAll> {
-  final TextEditingController _controller = TextEditingController();
+  late TextEditingController _controller;
   List<SuggestionItem> _suggestions = [];
   int _latestRequestId = 0;
 
   @override
   void initState() {
     super.initState();
-    _controller.text = widget.initialText ?? '';
+    _controller = TextEditingController(text: widget.initialText);
   }
 
   @override
@@ -82,8 +90,8 @@ class _SearchFieldAllState extends State<SearchFieldAll> {
         width: MediaQuery.of(context).size.width - 15,
       ),
       suggestions: _suggestions.map(_buildSuggestionItem).toList(),
-      onSearchTextChanged: (text) async {
-        await _fetchSuggestions(text);
+      onSearchTextChanged: (text) {
+        _fetchSuggestions(text);
         return [];
       },
       onSuggestionTap: _handleTap,
@@ -103,30 +111,30 @@ class _SearchFieldAllState extends State<SearchFieldAll> {
         padding: const EdgeInsets.symmetric(horizontal: 4),
         child: Row(
           children: [
-            if (item.icon?.isNotEmpty ?? false)
-              Row(
-                children: [
-                  ImageCachedWidget(
-                    imageUrl: item.icon!,
-                    pathNoImage: 'pub_type_placeholder',
-                    width: 40,
-                    height: 40,
-                  ),
-                  const SizedBox(width: 10),
-                ],
-              ),
+            Row(
+              children: [
+                item.icon?.isNotEmpty ?? false ? ImageCachedWidget(
+                  imageUrl: item.icon!,
+                  pathNoImage: 'pub_type_placeholder',
+                  width: 40,
+                  height: 40,
+                )
+                    : Container(width: 40, height: 40, color: Colors.grey[400],),
+                const SizedBox(width: 10),
+              ],
+            ),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(item.caption, style: const TextStyle(fontSize: 16), overflow: TextOverflow.ellipsis),
+                  Text(item.caption, style: TextStyle(fontSize: item.subtitle?.isNotEmpty ?? false ? 16 : 20), overflow: TextOverflow.ellipsis),
                   if (item.subtitle?.isNotEmpty ?? false)
                     Text(item.subtitle!, style: const TextStyle(fontSize: 12, color: Colors.grey), overflow: TextOverflow.ellipsis),
                 ],
               ),
             ),
-            if (item.type == 3) const SizedBox(width: 5),
-            if (item.type == 3)
+            if (item.type == 5) const SizedBox(width: 5),
+            if (item.type == 5)
               Icon(item.label == 'Audio' ? JwIcons.music : JwIcons.video),
           ],
         ),
@@ -136,12 +144,31 @@ class _SearchFieldAllState extends State<SearchFieldAll> {
 
   Future<void> _fetchSuggestions(String query) async {
     final requestId = ++_latestRequestId;
-    const baseImageUrl = "https://app.jw-cdn.org/catalogs/publications/";
+    setState(() {
+      _suggestions.clear();
+    });
+
+    String normalizedText = normalize(query);
+
+    String apiWol = 'https://wol.jw.org/wol/sg/${JwLifeSettings().currentLanguage.rsConf}/${JwLifeSettings().currentLanguage.lib}?q=$query';
+    printTime(apiWol);
+    final response = await Api.httpGetWithHeaders(apiWol);
+    final data = json.decode(response.body);
+    final items = (data['items'] as List).take(2); // prend seulement les 2 premiers
+
     List<SuggestionItem> newSuggestions = [];
 
-    if (query.isEmpty || requestId != _latestRequestId) {
-      setState(() => _suggestions = []);
-      return;
+    for (var item in items) {
+      newSuggestions.add(
+        SuggestionItem(
+          type: item['type'],
+          query: item['query'],
+          caption: item['caption'],
+          icon: '', // ton icône
+          subtitle: item['label'], // ton sous-titre
+          label: '',
+        ),
+      );
     }
 
     // 🔎 Recherches dans les publications téléchargées avec sujets
@@ -163,16 +190,26 @@ class _SearchFieldAllState extends State<SearchFieldAll> {
         FROM Topic
         LEFT JOIN TopicDocument ON Topic.TopicId = TopicDocument.TopicId
         LEFT JOIN Document ON TopicDocument.DocumentId = Document.DocumentId
-        WHERE Topic.Topic LIKE ?
-        LIMIT 1
-      ''', ['%$query%']);
+        WHERE LOWER(Topic.Topic) LIKE ?
+      ''', ['%$normalizedText%']); // recherche insensible à la casse
 
       if (topics.isNotEmpty && requestId == _latestRequestId) {
-        final topic = topics.first;
+        // trie par similarité
+        final normalizedQuery = normalize(query);
+        final topicsList = List<Map<String, dynamic>>.from(topics);
+
+        topicsList.sort((a, b) {
+          final s1 = normalize(a['DisplayTopic'] as String);
+          final s2 = normalize(b['DisplayTopic'] as String);
+          final scoreA = StringSimilarity.compareTwoStrings(normalizedQuery, s1);
+          final scoreB = StringSimilarity.compareTwoStrings(normalizedQuery, s2);
+          return scoreB.compareTo(scoreA);
+        });
+
         newSuggestions.add(SuggestionItem(
-          type: 0,
-          query: topic['MepsDocumentId'],
-          caption: topic['DisplayTopic'] as String,
+          type: 4,
+          query: topicsList.first['MepsDocumentId'],
+          caption: topicsList.first['DisplayTopic'] as String,
           icon: pub.imageSqr,
           subtitle: pub.title,
           label: 'Ouvrage de référence',
@@ -210,7 +247,7 @@ class _SearchFieldAllState extends State<SearchFieldAll> {
             .firstOrNull;
 
         newSuggestions.add(SuggestionItem(
-          type: 3,
+          type: 5,
           query: media,
           caption: media.title.toString(),
           icon: media.realmImages?.squareImageUrl ?? '',
@@ -220,7 +257,11 @@ class _SearchFieldAllState extends State<SearchFieldAll> {
       }
     }
 
-    setState(() => _suggestions = newSuggestions);
+    if (mounted) {
+      if (requestId == _latestRequestId) {
+        setState(() => _suggestions = newSuggestions);
+      }
+    }
   }
 
   void _handleTap(SearchFieldListItem<SuggestionItem> item) async {
@@ -230,13 +271,13 @@ class _SearchFieldAllState extends State<SearchFieldAll> {
     if (selected == null) return;
     BuildContext context = GlobalKeyService.jwLifePageKey.currentState!.getCurrentState().context;
     switch (selected.type) {
-      case 0:
+      case 4:
         await showDocumentView(context, selected.query, JwLifeSettings().currentLanguage.id);
         break;
-      case 1:
+      case 6:
         showPage(context, SearchBiblePage(query: selected.query));
         break;
-      case 2:
+      case 7:
         final publication = await PubCatalog.searchPub(selected.query, 0, JwLifeSettings().currentLanguage.id);
         if (publication != null) {
           publication.showMenu(context);
@@ -244,7 +285,7 @@ class _SearchFieldAllState extends State<SearchFieldAll> {
           showErrorDialog(context, "Aucune publication ${selected.query} n'a pu être trouvée.");
         }
         break;
-      case 3:
+      case 5:
         selected.label == 'Audio'
             ? showAudioPlayer(context, selected.query)
             : showFullScreenVideo(context, selected.query);

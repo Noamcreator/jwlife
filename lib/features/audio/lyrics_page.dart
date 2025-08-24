@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:html/parser.dart';
 
-import '../../core/api.dart';
+import '../../core/api/api.dart';
 import '../../core/icons.dart';
 import '../../core/utils/utils.dart';
 import '../video/subtitles.dart';

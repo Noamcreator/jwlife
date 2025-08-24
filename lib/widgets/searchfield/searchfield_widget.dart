@@ -1,7 +1,9 @@
-import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:jwlife/core/icons.dart';
-import 'package:searchfield/searchfield.dart';
+import 'package:jwlife/widgets/searchfield/searchfield_with_suggestions/decoration.dart';
+import 'package:jwlife/widgets/searchfield/searchfield_with_suggestions/input_decoration.dart';
+import 'package:jwlife/widgets/searchfield/searchfield_with_suggestions/searchfield.dart';
+import 'package:jwlife/widgets/searchfield/searchfield_with_suggestions/searchfield_list_item.dart';
 
 import '../../i18n/localization.dart';
 
@@ -34,6 +36,9 @@ class _SearchFieldWidgetState extends State<SearchFieldWidget> {
   void initState() {
     super.initState();
     _controller = TextEditingController(text: widget.query); // Initialiser le contrôleur avec la valeur de `query`
+    if(widget.query.isNotEmpty) {
+      widget.onSearchTextChanged(widget.query);
+    }
   }
 
   @override
@@ -48,23 +53,20 @@ class _SearchFieldWidgetState extends State<SearchFieldWidget> {
       searchInputDecoration: buildSearchInputDecoration(context),
       suggestionsDecoration: buildSuggestionsDecoration(context),
       onSearchTextChanged: (text) {
-        final fetchedSuggestions = widget.onSearchTextChanged(text);
-        return fetchedSuggestions ?? [];
+        widget.onSearchTextChanged(text);
+        return [];
       },
       onSuggestionTap: (item) {
         // Appel du callback sur la suggestion sélectionnée
         widget.onSuggestionTap(item);
       },
       onSubmit: widget.onSubmit,
-      suggestions: widget.suggestions
-          .map(
-            (item) => SearchFieldListItem<Map<String, dynamic>>(
+      suggestions: widget.suggestions.map((item) => SearchFieldListItem<Map<String, dynamic>>(
           item['query'],
           item: item,
           child: _buildSuggestionItem(context, item),
         ),
-      )
-          .toList(),
+      ).toList(),
     );
   }
 
@@ -100,7 +102,7 @@ class _SearchFieldWidgetState extends State<SearchFieldWidget> {
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              item['word'],
+              item['word'] ?? '',
               style: TextStyle(fontSize: 16, color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFFb8b8b8) : const Color(0xFF757575)),
               overflow: TextOverflow.ellipsis,
             ),

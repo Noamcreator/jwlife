@@ -108,8 +108,6 @@ Future<Map<String, dynamic>> fetchVerses(BuildContext context, String link) asyn
         bibleDb = bible.documentsManager!.database;
       }
 
-      print('Verse Id: ${versesIds.first['FirstVerseId']}');
-
       List<Map<String, dynamic>> results = await bibleDb.rawQuery("""
         SELECT *
         FROM BibleVerse
@@ -130,8 +128,6 @@ Future<Map<String, dynamic>> fetchVerses(BuildContext context, String link) asyn
         );
         htmlContent += decodedHtml;
       }
-
-      print(htmlContent);
 
       List<Map<String, dynamic>> highlights = await JwLifeApp.userdata.getHighlightsFromChapterNumber(book1, chapter1, bible.mepsLanguage.id);
       List<Map<String, dynamic>> notes = await JwLifeApp.userdata.getNotesFromChapterNumber(book1, chapter1, bible.mepsLanguage.id);
@@ -185,8 +181,7 @@ Future<Map<String, dynamic>?> fetchExtractPublication(BuildContext context, Stri
     List<Map<String, dynamic>> extractItems = [];
 
     for (var extract in response) {
-      Publication? refPub = PublicationRepository().getPublicationWithSymbol(extract['UndatedSymbol'], int.parse(extract['IssueTagNumber']), extract['MepsLanguageIndex']);
-      refPub ??= await PubCatalog.searchPub(extract['UndatedSymbol'], int.parse(extract['IssueTagNumber']), extract['MepsLanguageIndex']);
+      Publication? refPub = await PubCatalog.searchPub(extract['UndatedSymbol'], int.parse(extract['IssueTagNumber']), extract['MepsLanguageIndex']);
 
       var doc = parse(extract['Caption']);
       String caption = doc.querySelector('.etitle')?.text ?? '';

@@ -5,7 +5,7 @@ import 'package:archive/archive.dart';
 import 'package:jwlife/core/utils/directory_helper.dart';
 import 'package:jwlife/core/utils/utils.dart';
 
-import '../api.dart';
+import '../api/api.dart';
 import '../shared_preferences/shared_preferences_utils.dart';
 
 class AssetsDownload {

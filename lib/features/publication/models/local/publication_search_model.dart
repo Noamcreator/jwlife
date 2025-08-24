@@ -6,6 +6,7 @@ import 'package:jwlife/core/utils/utils_jwpub.dart';
 import 'package:jwlife/data/models/publication.dart';
 
 import '../../../../core/utils/utils.dart';
+import 'position_adjustement.dart';
 import '../../pages/document/local/documents_manager.dart';
 
 class PublicationSearchModel {
@@ -296,15 +297,17 @@ class PublicationSearchModel {
     return searchResults.isNotEmpty ? searchResults : [];
   }
 
-  Future<void> searchBibleVerses(String query) async {
+  Future<void> searchBibleVerses(String query, int mode) async {
     wordsSelectedVerse = query.trim().split(RegExp(r'\s+'));
 
     nbWordResultsInVerses = 0;
     verses.clear();
 
-    if (_verses.isEmpty) {
+    if ( _verses.isEmpty && wordsSelectedVerse.isNotEmpty) {
       List<Set<int>> verseIdSets = [];
       Map<int, Map<String, dynamic>> tempVerses = {};
+
+      findRankingBlob();
 
       await Future.wait(wordsSelectedVerse.map((queryWord) async {
         final results = await searchWordInBibleVerses(queryWord);
@@ -345,13 +348,60 @@ class PublicationSearchModel {
 
       if (verseIdSets.isNotEmpty) {
         final commonVerseIds = verseIdSets.reduce((a, b) => a.intersection(b));
-        _verses.addAll(tempVerses.entries
-            .where((entry) => commonVerseIds.contains(entry.key))
-            .map((e) => e.value));
+        _verses.addAll(tempVerses.entries.where((entry) => commonVerseIds.contains(entry.key)).map((e) => e.value));
       }
     }
 
-    verses = List<Map<String, dynamic>>.from(_verses);
+    if (mode == 1 || wordsSelectedVerse.length == 1) {
+      verses = List<Map<String, dynamic>>.from(_verses);
+    }
+    else if (mode == 2) {
+      final int expectedWordCount = wordsSelectedVerse.length;
+
+      final List<Map<String, dynamic>> matchingVerses = [];
+
+      for (final verse in _verses) {
+        final words = verse['words'] as List<dynamic>;
+
+        if (words.length < expectedWordCount) {
+          continue;
+        }
+
+        bool hasConsecutiveSequence = false;
+        for (int i = 0; i <= words.length - expectedWordCount; i++) {
+          bool sequenceMatch = true;
+
+          for (int j = 0; j < expectedWordCount; j++) {
+            // La condition de vérification de la séquence est à revoir
+            // La logique actuelle est probablement incorrecte.
+            // Si l'objectif est de trouver une séquence de mots consécutifs, il faut vérifier
+            // que les indices des mots sont croissants et consécutifs (ex: 1, 2, 3).
+            final int currentIndex = words[i + j]['index'] as int;
+
+            if (j > 0) {
+              final int prevIndex = words[i + j - 1]['index'] as int;
+              if (currentIndex != prevIndex + 1) {
+                sequenceMatch = false;
+                break;
+              }
+            }
+          }
+
+          if (sequenceMatch) {
+            hasConsecutiveSequence = true;
+            break;
+          }
+        }
+
+        if (hasConsecutiveSequence) {
+          matchingVerses.add({
+            ...verse,
+          });
+        }
+      }
+
+      verses = matchingVerses;
+    }
 
     // Calculer le nombre total de mots trouvés en fonction du mode
     for (var verse in verses) {
@@ -375,7 +425,6 @@ class PublicationSearchModel {
       final wordPositionalsListInVerses = getPositionsInDocument(searchResults.first['PositionalList'] as Uint8List, wordOccurrencesInVerses);
 
       final bibleVerses = await getVerses(bibleVerseIds);
-      findRankingBlob();
 
       for (int i = 0; i < bibleVerseIds.length; i++) {
         final verse = bibleVerses[i];
@@ -383,6 +432,8 @@ class PublicationSearchModel {
         final lengths = getWordsLengths(verse['TextLengths']);
 
         String verseHtml = decodeBlobContent(verse['Content'], publication.hash!);
+
+        List<PositionAdjustment> adjustments = verse['AdjustmentInfo'] == null ? [] : getAdjustmentsInfo(verse['AdjustmentInfo']);
 
         // Utilisation d'une expression régulière pour extraire les numéros
         RegExp regExp = RegExp(r'id="v(\d+)-(\d+)-(\d+)"');
@@ -423,13 +474,15 @@ class PublicationSearchModel {
           final wordPosition = positions.elementAtOrNull(wordPositionalsListInDocument);
           final wordLength = lengths.elementAtOrNull(wordPositionalsListInDocument);
 
-
           if (wordPosition != null && wordLength != null) {
+            int start = adjustPosition(wordPosition['position']!, adjustments);
+            int end = start + wordLength;
+
             // Ajouter la position et la longueur comme un seul objet
             verseEntry['words'].add({
               'index': wordPositionalsListInDocument,
-              'startHighlight': wordPosition['position'],
-              'endHighlight': (wordPosition['position'] ?? 0) + wordLength,
+              'startHighlight': start,
+              'endHighlight': end,
             });
           }
         }
@@ -512,6 +565,38 @@ class PublicationSearchModel {
     if (nbRanking > nbMaxVerses) {
       printTime("Trop de versets dans le BLOB");
     }
+  }
+
+  List<PositionAdjustment> getAdjustmentsInfo(Uint8List data) {
+    List<PositionAdjustment> adjustments = [];
+    int currentIndex = 0;
+
+    while (currentIndex < data.length) {
+      // Décode le code d'opération
+      final List<int> operationCodeHolder = [0];
+      final int bytesForOp = decodeVariableLengthInt(data, currentIndex, operationCodeHolder);
+      currentIndex += bytesForOp;
+
+      // Décode la position
+      final List<int> positionHolder = [0];
+      final int bytesForPos = decodeVariableLengthInt(data, currentIndex, positionHolder);
+      currentIndex += bytesForPos;
+
+      // Décode la longueur
+      final List<int> lengthHolder = [0];
+      final int bytesForLen = decodeVariableLengthInt(data, currentIndex, lengthHolder);
+      currentIndex += bytesForLen;
+
+      final AdjustmentType type = (operationCodeHolder[0] == 0) ? AdjustmentType.delete : AdjustmentType.insert;
+
+      adjustments.add(PositionAdjustment(
+        type: type,
+        position: positionHolder[0],
+        length: lengthHolder[0],
+      ));
+    }
+
+    return adjustments;
   }
 
   List<int> getTextUnitIds(Uint8List bytes) {
@@ -630,5 +715,43 @@ class PublicationSearchModel {
       readIndex++;
       shiftFactor++;
     }
+  }
+
+  int decodeVariableLengthInt(List<int> buffer, int startIndex, List<int> resultHolder) {
+    resultHolder[0] = 0;
+    int currentOffset = 0;
+    int shiftCount = 0;
+
+    while (true) {
+      int currentByte = buffer[startIndex + currentOffset];
+      if ((currentByte & 128) == 0) {
+        // Dernier byte (bit de continuation = 0)
+        currentOffset++;
+        resultHolder[0] = resultHolder[0] + (currentByte << (shiftCount * 7));
+        shiftCount++;
+      } else {
+        // Byte avec continuation (bit de continuation = 1)
+        int bytesRead = currentOffset + 1;
+        resultHolder[0] = resultHolder[0] + ((currentByte & 127) << (shiftCount * 7));
+        return bytesRead;
+      }
+    }
+  }
+
+  int adjustPosition(int originalPosition, List<PositionAdjustment> adjustments) {
+    int adjustedPosition = originalPosition;
+
+    for (final adj in adjustments) {
+      if (adj.position < adjustedPosition) {
+        if (adj.type == AdjustmentType.delete) {
+          adjustedPosition -= adj.length;
+        }
+        else if (adj.type == AdjustmentType.insert) {
+          adjustedPosition += adj.length;
+        }
+      }
+    }
+
+    return adjustedPosition;
   }
 }

@@ -25,19 +25,39 @@ class DownloadPage extends StatefulWidget {
 }
 
 class _DownloadPageState extends State<DownloadPage> {
-  late Future<void> _loadingFuture;
-  String categoryName = '';
-  String language = '';
-  Map<String, List<Map<String, dynamic>>> groupedMedias = {};
+  bool _isLoading = true;
+
+  // Données pré-calculées pour éviter les recalculs dans build
+  Map<String, List<Publication>> _groupedPublications = {};
+  Map<String, List<Map<String, dynamic>>> _groupedMedias = {};
+  double _itemWidth = 0;
 
   @override
   void initState() {
     super.initState();
-    _loadingFuture = loadItems();
+    _loadData();
   }
 
-  Future<void> loadItems() async {
-    // Chargement des médias
+  Future<void> _loadData() async {
+    try {
+      // Chargement des médias
+      await _loadMedias();
+
+      // Pré-calcul des publications groupées
+      await _loadAndGroupPublications();
+
+      setState(() {
+        _isLoading = false;
+      });
+    } catch (e) {
+      // Gestion d'erreur
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _loadMedias() async {
     File mediasCollectionsFile = await getMediaCollectionsDatabaseFile();
     if (await mediasCollectionsFile.exists()) {
       Database mediaCollectionsDB = await openReadOnlyDatabase(mediasCollectionsFile.path);
@@ -50,7 +70,7 @@ class _DownloadPageState extends State<DownloadPage> {
         SELECT MediaKey.*, Video.* FROM MediaKey JOIN Video ON MediaKey.MediaKeyId = Video.MediaKeyId
       ''');
 
-      groupedMedias = {
+      _groupedMedias = {
         if (resultAudios.isNotEmpty) 'Audios': resultAudios.map((a) => {...a, 'isDownload': 1}).toList(),
         if (resultVideos.isNotEmpty) 'Videos': resultVideos.map((v) => {...v, 'isDownload': 1}).toList(),
       };
@@ -59,87 +79,80 @@ class _DownloadPageState extends State<DownloadPage> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return FutureBuilder<void>(
-      future: _loadingFuture,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return Center(child: CircularProgressIndicator());
-        }
-        else if (snapshot.hasError) {
-          return Center(child: Text("Une erreur est survenue"));
-        }
-
-        return buildContent();
-      },
-    );
-  }
-
-  Widget buildContent() {
-    final screenWidth = MediaQuery.of(context).size.width;
-    double itemWidth = screenWidth > 800 ? (screenWidth / 2 - 16) : screenWidth;
-
-    return ListView.builder(
-      padding: const EdgeInsets.all(10.0),
-      itemCount: 3, // Vous pouvez ajuster cela en fonction du nombre de sections à afficher
-      itemBuilder: (context, index) {
-        switch (index) {
-          case 0:
-            return OutlinedButton.icon(
-              onPressed: _importJwpub,
-              icon: const Icon(JwIcons.publications_pile),
-              label: Text(localization(context).import_jwpub.toUpperCase()),
-              style: OutlinedButton.styleFrom(shape: const RoundedRectangleBorder()),
-            );
-          case 1:
-            return buildPublicationSections(itemWidth);
-          case 2:
-            return buildMediaSections(groupedMedias, itemWidth);
-          default:
-            return SizedBox(); // Par sécurité si l'index dépasse les options
-        }
-      },
-    );
-  }
-
-  Widget buildPublicationSections(double itemWidth) {
-    // On trie d'abord les publications par category.id
+  Future<void> _loadAndGroupPublications() async {
+    // Tri et groupement des publications - fait une seule fois
     List<Publication> sortedPublications = List.from(PublicationRepository().getAllDownloadedPublications())
       ..sort((a, b) => a.category.id.compareTo(b.category.id));
 
-    // On les groupe ensuite par nom de catégorie
-    Map<String, List<Publication>> groupedPublications = {};
+    _groupedPublications = {};
     for (Publication pub in sortedPublications) {
-      groupedPublications.putIfAbsent(pub.category.getName(context), () => []).add(pub);
+      final categoryName = pub.category.getName(context);
+      _groupedPublications.putIfAbsent(categoryName, () => []).add(pub);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Calcul de la largeur une seule fois
+    if (_itemWidth == 0) {
+      final screenWidth = MediaQuery.of(context).size.width;
+      _itemWidth = screenWidth > 800 ? (screenWidth / 2 - 16) : screenWidth;
     }
 
-    // On construit les sections
-    return Wrap(
-      spacing: 8.0,
-      runSpacing: 8.0,
-      children: groupedPublications.entries.map((entry) {
-        return buildSection<Publication>(
-          entry.key,
-          entry.value,
-          itemWidth,
-          _buildCategoryButton,
-        );
-      }).toList(),
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    return _buildContent();
+  }
+
+  Widget _buildContent() {
+    return ListView(
+      padding: const EdgeInsets.all(10.0),
+      children: [
+        // Bouton d'import
+        OutlinedButton.icon(
+          onPressed: _importJwpub,
+          icon: const Icon(JwIcons.publications_pile),
+          label: Text(localization(context).import_jwpub.toUpperCase()),
+          style: OutlinedButton.styleFrom(shape: const RoundedRectangleBorder()),
+        ),
+        const SizedBox(height: 10),
+
+        // Sections des publications
+        if (_groupedPublications.isNotEmpty) ..._buildPublicationSections(),
+
+        // Sections des médias
+        if (_groupedMedias.isNotEmpty) ..._buildMediaSections(),
+      ],
     );
   }
 
-  Widget buildMediaSections(Map<String, List<Map<String, dynamic>>> groupedMedias, double itemWidth) {
-    return Wrap(
-      spacing: 8.0, // Espacement horizontal entre les éléments
-      runSpacing: 8.0, // Espacement vertical entre les lignes
-      children: groupedMedias.entries.map((entry) {
-        return buildSection<Map<String, dynamic>>(entry.key, entry.value, itemWidth, _buildMediaButton);
-      }).toList(),
-    );
+  List<Widget> _buildPublicationSections() {
+    return _groupedPublications.entries.map((entry) {
+      return _buildSection<Publication>(
+        entry.key,
+        entry.value,
+        _buildCategoryButton,
+      );
+    }).toList();
   }
 
-  Widget buildSection<T>(String title, List<T> items, double itemWidth, Widget Function(BuildContext, T, double) buildItem) {
+  List<Widget> _buildMediaSections() {
+    return _groupedMedias.entries.map((entry) {
+      return _buildSection<Map<String, dynamic>>(
+        entry.key,
+        entry.value,
+        _buildMediaButton,
+      );
+    }).toList();
+  }
+
+  Widget _buildSection<T>(
+      String title,
+      List<T> items,
+      Widget Function(BuildContext, T) buildItem,
+      ) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 10.0),
       child: Column(
@@ -149,7 +162,7 @@ class _DownloadPageState extends State<DownloadPage> {
             padding: const EdgeInsets.only(bottom: 5.0),
             child: Text(
               title,
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
           ),
           Wrap(
@@ -163,10 +176,9 @@ class _DownloadPageState extends State<DownloadPage> {
                         ? const Color(0xFF292929)
                         : Colors.white,
                   ),
-                  child: buildItem(context, item, itemWidth),
+                  child: buildItem(context, item),
                 ),
                 onTap: () {
-                  // Exemple pour la publication, vous pouvez adapter pour d'autres types d'éléments
                   if (item is Publication) {
                     showPage(context, PublicationMenuView(publication: item));
                   }
@@ -179,9 +191,9 @@ class _DownloadPageState extends State<DownloadPage> {
     );
   }
 
-  Widget _buildCategoryButton(BuildContext context, Publication publication, double itemWidth) {
+  Widget _buildCategoryButton(BuildContext context, Publication publication) {
     return SizedBox(
-      width: itemWidth,
+      width: _itemWidth,
       height: 85,
       child: Stack(
         children: [
@@ -219,25 +231,25 @@ class _DownloadPageState extends State<DownloadPage> {
                       if (publication.coverTitle.isNotEmpty)
                         Text(
                           publication.coverTitle,
-                          style: TextStyle(
-                            fontSize: 14,
-                          ),
+                          style: const TextStyle(fontSize: 14),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
                       if (publication.issueTitle.isEmpty && publication.coverTitle.isEmpty)
                         Text(
                           publication.title,
-                          style: TextStyle(fontSize: 14),
+                          style: const TextStyle(fontSize: 14),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
-                      Spacer(),
+                      const Spacer(),
                       Text(
                         '${publication.year} · ${publication.symbol}',
-                        style: TextStyle(fontSize: 12, color: Theme.of(context).brightness == Brightness.dark
-                            ? const Color(0xFFc3c3c3)
-                            : const Color(0xFF626262),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? const Color(0xFFc3c3c3)
+                              : const Color(0xFF626262),
                         ),
                       ),
                     ],
@@ -250,9 +262,11 @@ class _DownloadPageState extends State<DownloadPage> {
             top: -5,
             right: -10,
             child: PopupMenuButton(
-              icon: Icon(Icons.more_vert, color: Theme.of(context).brightness == Brightness.dark
-                  ? const Color(0xFFc3c3c3)
-                  : const Color(0xFF626262),
+              icon: Icon(
+                Icons.more_vert,
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? const Color(0xFFc3c3c3)
+                    : const Color(0xFF626262),
               ),
               itemBuilder: (BuildContext context) {
                 return [
@@ -269,14 +283,13 @@ class _DownloadPageState extends State<DownloadPage> {
     );
   }
 
-  Widget _buildMediaButton(BuildContext context, Map<String, dynamic> publication, double itemWidth) {
-    var imageSqr = publication['ImagePath'] ?? '';
-    var title = publication['Title'] ?? '';
-
-    //var categoryImage = initializeCategories(context).firstWhere((category) => category['type'] == publication['PublicationType'] || category['type2'] == publication['PublicationType'])['image'];
+  Widget _buildMediaButton(BuildContext context, Map<String, dynamic> publication) {
+    final imageSqr = publication['ImagePath'] ?? '';
+    final title = publication['Title'] ?? '';
+    final mepsLanguage = publication['MepsLanguage'] ?? '';
 
     return SizedBox(
-      width: itemWidth,
+      width: _itemWidth,
       height: 80,
       child: Stack(
         children: [
@@ -301,16 +314,18 @@ class _DownloadPageState extends State<DownloadPage> {
                     children: [
                       Text(
                         title,
-                        style: TextStyle(fontSize: 14),
+                        style: const TextStyle(fontSize: 14),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      Spacer(),
+                      const Spacer(),
                       Text(
-                        '${publication['MepsLanguage']}',
-                        style: TextStyle(fontSize: 12, color: Theme.of(context).brightness == Brightness.dark
-                            ? const Color(0xFFc3c3c3)
-                            : const Color(0xFF626262),
+                        mepsLanguage,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? const Color(0xFFc3c3c3)
+                              : const Color(0xFF626262),
                         ),
                       ),
                     ],
@@ -323,16 +338,15 @@ class _DownloadPageState extends State<DownloadPage> {
             top: -5,
             right: -10,
             child: PopupMenuButton(
-              icon: Icon(Icons.more_vert, color: Theme.of(context).brightness == Brightness.dark ?
-              const Color(0xFFc3c3c3)
-                  : const Color(0xFF626262),
+              icon: Icon(
+                Icons.more_vert,
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? const Color(0xFFc3c3c3)
+                    : const Color(0xFF626262),
               ),
               itemBuilder: (BuildContext context) {
                 return [
-                  //getPubShareMenuItem(publication),
-                  //getPubLanguagesItem(context, "Autres langues", publication),
-                  //getPubFavoriteItem(publication),
-                  //getPubDownloadItem(context, publication, update: loadItems),
+                  // Ajoutez vos éléments de menu ici si nécessaire
                 ];
               },
             ),
@@ -347,12 +361,16 @@ class _DownloadPageState extends State<DownloadPage> {
       if (result != null) {
         for (PlatformFile f in result.files) {
           File file = File(f.path!);
-          if(file.path.endsWith('.jwpub')) {
-            Publication jwpub = await jwpubUnzip(file.readAsBytesSync(), context);
+          if (file.path.endsWith('.jwpub')) {
+            Publication jwpub = await jwpubUnzip(file.readAsBytesSync());
             if (f == result.files.last) {
               PubCatalog.updateCatalogCategories();
-              loadItems();
-              if(jwpub.symbol == 'S-34') {
+              // Recharger les données après import
+              _isLoading = true;
+              setState(() {});
+              await _loadData();
+
+              if (jwpub.symbol == 'S-34') {
                 GlobalKeyService.meetingsKey.currentState?.refreshMeetingsPubs();
               }
               showPage(context, PublicationMenuView(publication: jwpub));
@@ -361,5 +379,12 @@ class _DownloadPageState extends State<DownloadPage> {
         }
       }
     });
+  }
+
+  // Méthode pour recharger les données depuis l'extérieur si nécessaire
+  Future<void> refreshData() async {
+    _isLoading = true;
+    setState(() {});
+    await _loadData();
   }
 }

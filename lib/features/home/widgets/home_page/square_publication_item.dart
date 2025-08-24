@@ -40,21 +40,23 @@ class HomeSquarePublicationItem extends StatelessWidget {
                 Positioned(
                   top: -8,
                   right: -10,
-                  child: PopupMenuButton(
-                    icon: const Icon(
-                      Icons.more_vert,
-                      color: Colors.white,
-                      shadows: [Shadow(color: Colors.black, blurRadius: 5)],
-                    ),
-                    shadowColor: Colors.black,
-                    elevation: 8,
-                    itemBuilder: (context) => [
-                      getPubShareMenuItem(publication),
-                      getPubLanguagesItem(context, "Autres langues", publication),
-                      getPubFavoriteItem(publication),
-                      getPubDownloadItem(context, publication),
-                    ],
-                  ),
+                  child: RepaintBoundary(
+                    child: PopupMenuButton(
+                      icon: const Icon(
+                        Icons.more_vert,
+                        color: Colors.white,
+                        shadows: [Shadow(color: Colors.black, blurRadius: 5)],
+                      ),
+                      shadowColor: Colors.black,
+                      elevation: 8,
+                      itemBuilder: (context) => [
+                        getPubShareMenuItem(publication),
+                        getPubLanguagesItem(context, "Autres langues", publication),
+                        getPubFavoriteItem(publication),
+                        getPubDownloadItem(context, publication),
+                      ],
+                    )
+                  )
                 ),
                 // Bouton dynamique
                 ValueListenableBuilder<bool>(
@@ -161,7 +163,7 @@ class HomeSquarePublicationItem extends StatelessWidget {
                           return LinearProgressIndicator(
                             value: progress == -1 ? null : progress,
                             valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).primaryColor),
-                            backgroundColor: Colors.grey,
+                            backgroundColor: Color(0xFFbdbdbd),
                             minHeight: 2,
                           );
                         },

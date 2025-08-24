@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/core/icons.dart';
+import 'package:jwlife/core/jworg_uri.dart';
 import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/core/utils/utils_media.dart';
 import 'package:jwlife/data/models/video.dart';
@@ -27,23 +28,25 @@ import '../../features/home/pages/home_page.dart';
 import '../../features/video/subtitles.dart';
 import '../../features/video/subtitles_view.dart';
 import '../../features/video/video_player_page.dart';
-import '../api.dart';
+import '../api/api.dart';
 import 'common_ui.dart';
 import 'files_helper.dart';
 
-void showFullScreenVideo(BuildContext context, MediaItem mediaItem) async {
+void showFullScreenVideo(BuildContext context, MediaItem mediaItem, {Duration initialPosition=Duration.zero}) async {
   Video? video = JwLifeApp.mediaCollections.getVideo(mediaItem);
 
   if (video != null) {
     showPage(context, VideoPlayerPage(
       mediaItem: mediaItem,
-      localVideo: video
+      localVideo: video,
+        initialPosition: initialPosition
     ));
   }
   else {
     if(await hasInternetConnection()) {
       showPage(context, VideoPlayerPage(
-        mediaItem: mediaItem
+        mediaItem: mediaItem,
+          initialPosition: initialPosition
       ));
     }
     else {
@@ -52,10 +55,10 @@ void showFullScreenVideo(BuildContext context, MediaItem mediaItem) async {
   }
 }
 
-MediaItem getVideoItemFromLank(String lank, String wtlocale) => RealmLibrary.realm.all<MediaItem>().query("languageAgnosticNaturalKey == '$lank'").query("languageSymbol == '$wtlocale'").first;
+MediaItem getMediaItemFromLank(String lank, String wtlocale) => RealmLibrary.realm.all<MediaItem>().query("languageAgnosticNaturalKey == '$lank'").query("languageSymbol == '$wtlocale'").first;
 MediaItem getVideoItemFromDocId(String docId, String wtlocale) => RealmLibrary.realm.all<MediaItem>().query("documentId == '$docId'").query("languageSymbol == '$wtlocale'").first;
 
-MediaItem? getMediaItem(String? keySymbol, int? track, int? documentId, int? issueTagNumber, dynamic mepsLanguage) {
+MediaItem? getMediaItem(String? keySymbol, int? track, int? documentId, int? issueTagNumber, dynamic mepsLanguage, {bool? isVideo}) {
   var queryParts = <String>[];
 
   if (keySymbol != null) queryParts.add("pubSymbol == '$keySymbol'");
@@ -75,9 +78,13 @@ MediaItem? getMediaItem(String? keySymbol, int? track, int? documentId, int? iss
   }
   if (mepsLanguage != null) queryParts.add("languageSymbol == '$languageSymbol'");
 
+  if (isVideo != null) queryParts.add("type == '${isVideo ? 'VIDEO' : 'AUDIO'}'");
+
   if (queryParts.isEmpty) return null;
 
   String query = queryParts.join(" AND ");
+
+  print("Query: $query");
 
   final results = RealmLibrary.realm.all<MediaItem>().query(query);
   return results.isNotEmpty ? results.first : null;
@@ -93,20 +100,15 @@ PopupMenuItem getVideoShareItem(MediaItem item) {
       ],
     ),
     onTap: () {
-      final uri = Uri.https(
-        'www.jw.org',
-        '/finder',
-        {
-          'srcid': 'jwlshare',
-          'wtlocale': item.languageSymbol,
-          'lank': item.languageAgnosticNaturalKey,
-        },
-      );
+      String uri = JwOrgUri.mediaItem(
+          wtlocale: item.languageSymbol!,
+          lank: item.languageAgnosticNaturalKey!
+      ).toString();
 
       SharePlus.instance.share(
         ShareParams(
           title: item.title,
-          uri: uri,
+          uri: Uri.parse(uri),
         ),
       );
     },

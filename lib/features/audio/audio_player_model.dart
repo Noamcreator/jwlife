@@ -14,7 +14,7 @@ import 'package:realm/realm.dart';
 import '../../app/jwlife_app.dart';
 import '../../app/services/global_key_service.dart';
 import '../../app/services/settings_service.dart';
-import '../../core/api.dart';
+import '../../core/api/api.dart';
 import '../../data/models/audio.dart';
 
 class JwLifeAudioPlayer {
@@ -196,7 +196,7 @@ class JwLifeAudioPlayer {
   }
 
 
-  Future<void> playAudio(realm_catalog.MediaItem mediaItem, {Audio? localAudio}) async {
+  Future<void> playAudio(realm_catalog.MediaItem mediaItem, {Audio? localAudio, Duration initialPosition = Duration.zero}) async {
     History.insertAudioMediaItem(mediaItem);
 
     if(localAudio != null) {
@@ -205,7 +205,7 @@ class JwLifeAudioPlayer {
     else {
       await fetchAudioData(mediaItem);
     }
-    await play();
+    await play(initialPosition: initialPosition);
   }
 
   Future<void> playAudios(realm_catalog.Category category, List<realm_catalog.MediaItem> filteredAudios, {int id = 0, bool randomMode = false}) async {
@@ -245,13 +245,13 @@ class JwLifeAudioPlayer {
     await play();
   }
 
-  Future<void> playAudioFromPublicationLink(Publication publication, List<Audio> audios, int id, Duration position) async {
-    Audio audio = audios.elementAt(id);
+  Future<void> playAudioFromPublicationLink(Publication publication, int id, Duration position) async {
+    Audio audio = publication.audios.elementAt(id);
 
     History.insertAudio(audio);
 
     setRandomMode(false);
-    await setPlaylist(audios, pub: publication, id: id, position: position);
+    await setPlaylist(publication.audios, pub: publication, id: id, position: position);
     await play();
   }
 
@@ -263,8 +263,8 @@ class JwLifeAudioPlayer {
     this.randomMode = randomMode;
   }
 
-  Future<void> play({Duration? start}) async {
-    if (start != null) await player.seek(start);
+  Future<void> play({Duration? initialPosition}) async {
+    if (initialPosition != null) await player.seek(initialPosition);
     if (!GlobalKeyService.jwLifePageKey.currentState!.audioWidgetVisible) {
       GlobalKeyService.jwLifePageKey.currentState!.toggleAudioWidgetVisibility(true);
     }

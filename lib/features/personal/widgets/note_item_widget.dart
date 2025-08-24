@@ -8,6 +8,7 @@ import '../../../core/utils/common_ui.dart';
 import '../../../core/utils/utils_document.dart';
 import '../../../data/models/publication.dart';
 import '../../../data/models/userdata/note.dart';
+import '../../../data/models/userdata/tag.dart';
 import '../../../data/repositories/PublicationRepository.dart';
 import '../../../widgets/image_cached_widget.dart';
 import '../pages/note_page.dart';
@@ -15,11 +16,13 @@ import '../pages/tag_page.dart';
 
 class NoteItemWidget extends StatefulWidget {
   final Note note;
+  final Tag? tag;
   final VoidCallback? onUpdated;
 
   const NoteItemWidget({
     super.key,
     required this.note,
+    required this.tag,
     this.onUpdated,
   });
 
@@ -144,6 +147,7 @@ class _NoteItemWidgetState extends State<NoteItemWidget> {
                     if (tag == null) return SizedBox.shrink();
                     return ElevatedButton(
                       onPressed: () async {
+                        if(widget.tag != null && tag.id == widget.tag!.id) return;
                         await showPage(context, TagPage(tag: tag));
                         widget.onUpdated?.call();
                       },

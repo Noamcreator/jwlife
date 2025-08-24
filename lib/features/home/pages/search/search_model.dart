@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:jwlife/app/jwlife_app.dart';
-import 'package:jwlife/core/api.dart';
+import 'package:jwlife/core/api/api.dart';
+import 'package:jwlife/core/api/wikipedia_api.dart';
 import 'package:jwlife/data/models/userdata/note.dart';
 import 'package:jwlife/data/repositories/PublicationRepository.dart';
 import 'package:sqflite/sqflite.dart';
@@ -16,6 +17,8 @@ class SearchModel {
 
   SearchModel({required this.query});
 
+  List<WikipediaArticle> wikipediaArticles = [];
+
   List<Map<String, dynamic>> allSearch = [];
   List<Map<String, dynamic>> publications = [];
   List<Map<String, dynamic>> videos = [];
@@ -28,6 +31,7 @@ class SearchModel {
   List<Map<String, dynamic>> inputFields = [];
 
   void clear() {
+    wikipediaArticles = [];
     allSearch = [];
     publications = [];
     videos = [];
@@ -39,34 +43,6 @@ class SearchModel {
     inputFields = [];
   }
 
-  Future<void> fetchOnActiveTab(int index) async {
-    switch (index) {
-      case 0:
-        await _fetchData('all');
-        break;
-      case 1:
-        await _fetchData('publications');
-        break;
-      case 2:
-        await _fetchData('videos');
-        break;
-      case 3:
-        await _fetchData('audios');
-        break;
-      case 4:
-        await _fetchData('verses');
-        break;
-      case 5:
-        await fetchVerses();
-      case 6:
-        await fetchImages();
-      case 7:
-        await fetchNotes();
-      case 8:
-        await fetchInputFields();
-    }
-  }
-
   Future<List<Map<String, dynamic>>> _fetchData(String path) async {
     final queryParams = {'q': query};
     final url = Uri.https(
@@ -74,6 +50,8 @@ class SearchModel {
       '/apis/search/results/${JwLifeSettings().currentLanguage.symbol}/$path',
       queryParams,
     );
+
+    printTime('url: $url');
 
     try {
       final headers = {
@@ -128,6 +106,11 @@ class SearchModel {
     }
 
     return [];
+  }
+
+  Future<List<WikipediaArticle>> fetchWikipedia() async {
+    if (wikipediaArticles.isNotEmpty) return wikipediaArticles;
+    return await WikipediaApi.getWikipediaSummary(query);
   }
 
   // Les méthodes publiques qui renvoient directement les résultats en cache si disponibles

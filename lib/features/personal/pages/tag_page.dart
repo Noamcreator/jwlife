@@ -5,6 +5,7 @@ import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/core/utils/utils_tag_dialogs.dart';
 import 'package:jwlife/data/models/userdata/tag.dart';
 import 'package:jwlife/data/models/userdata/note.dart';
+import '../../../app/services/global_key_service.dart';
 import '../widgets/note_item_widget.dart';
 import 'note_page.dart';
 
@@ -46,7 +47,7 @@ class _TagPageState extends State<TagPage> {
         leading: IconButton(
           icon: Icon(Icons.arrow_back),
           onPressed: () {
-            Navigator.pop(context, _tag);
+            GlobalKeyService.jwLifePageKey.currentState?.handleBack(context, result: _tag);
           },
         ),
         title: Column(
@@ -110,6 +111,7 @@ class _TagPageState extends State<TagPage> {
 
             return NoteItemWidget(
               note: note,
+              tag: _tag,
               onUpdated: () => setState(() {}),
             );
           },

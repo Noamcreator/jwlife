@@ -5,12 +5,12 @@ import 'package:http/http.dart' as http;
 import 'package:jwlife/core/shared_preferences/shared_preferences_utils.dart';
 import 'package:jwlife/core/utils/utils.dart';
 import 'package:realm/realm.dart';
-import '../app/services/settings_service.dart';
-import '../data/models/audio.dart';
-import '../data/realm/catalog.dart';
-import '../data/realm/realm_library.dart';
-import 'utils/files_helper.dart';
-import 'utils/gzip_helper.dart';
+import '../../app/services/settings_service.dart';
+import '../../data/models/audio.dart';
+import '../../data/realm/catalog.dart';
+import '../../data/realm/realm_library.dart';
+import '../utils/files_helper.dart';
+import '../utils/gzip_helper.dart';
 
 class Api {
   // URLs des API nécessaires
@@ -30,6 +30,22 @@ class Api {
   static String currentJwToken = '';
 
   static int lastRevisionAvailable = 0;
+
+  static final Dio dio = Dio(
+      BaseOptions(
+          connectTimeout: const Duration(seconds: 10),
+          receiveTimeout: const Duration(seconds: 0),
+          headers: {
+            'User-Agent': "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36",
+            'Accept': "*/*",
+            'Accept-Encoding': "gzip, deflate, br, zstd",
+            'Connection': 'keep-alive',
+            'Content-Length': null,
+            'Host': null
+          },
+          persistentConnection: false
+      ),
+  );
 
   /// Récupère la version actuelle de l'API.
   static Future<void> fetchCurrentVersion() async {
@@ -183,7 +199,7 @@ class Api {
       final url = Uri.https(baseUrl, getPubMediaLinks, queryParams);
       print('Generated URL: $url');
 
-      final response = await Dio().getUri(
+      final response = await dio.getUri(
         url,
         options: Options(
           headers: Api.getHeaders(),
@@ -239,14 +255,8 @@ class Api {
 
   static Map<String, String> getHeaders() {
     return {
-      'User-Agent': 'jwlibrary-android',
-      'Connection': 'keep-alive',
-    };
-
-    return {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
       'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
-      'Accept-Language': 'fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7',
       'sec-ch-ua': '"Google Chrome";v="137", "Chromium";v="137", "Not/A)Brand";v="24"',
       'sec-ch-ua-mobile': '?0',
       'sec-ch-ua-platform': '"Android"',

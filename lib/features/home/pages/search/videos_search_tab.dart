@@ -40,7 +40,7 @@ class _VideosSearchTabState extends State<VideosSearchTab> {
               itemCount: results.length,
               itemBuilder: (context, index) {
                 final item = results[index];
-                MediaItem? mediaItem = getVideoItemFromLank(item['lank'], JwLifeSettings().currentLanguage.symbol);
+                MediaItem? mediaItem = getMediaItemFromLank(item['lank'], JwLifeSettings().currentLanguage.symbol);
 
                 return GestureDetector(
                   onTap: () {

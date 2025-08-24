@@ -4,7 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../app/jwlife_app.dart';
-import '../core/api.dart';
+import '../core/api/api.dart';
 import '../core/icons.dart';
 import '../core/utils/utils.dart';
 import '../core/utils/utils_audio.dart';
@@ -20,11 +20,13 @@ import 'image_cached_widget.dart';
 class MediaItemItemWidget extends StatefulWidget {
   final MediaItem mediaItem;
   final bool timeAgoText;
+  final double width;
 
   const MediaItemItemWidget({
     super.key,
     required this.mediaItem,
     required this.timeAgoText,
+    this.width = 165,
   });
 
   @override
@@ -71,14 +73,12 @@ class _MediaItemItemWidgetState extends State<MediaItemItemWidget> {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: () {
-        isAudio
-            ? showAudioPlayer(context, widget.mediaItem)
-            : showFullScreenVideo(context, widget.mediaItem);
+        isAudio ? showAudioPlayer(context, widget.mediaItem) : showFullScreenVideo(context, widget.mediaItem);
       },
       child: Padding(
         padding: const EdgeInsets.only(right: 2.0),
         child: SizedBox(
-          width: 165,
+          width: widget.width,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -125,8 +125,8 @@ class _MediaItemItemWidgetState extends State<MediaItemItemWidget> {
             return ClipRRect(
               borderRadius: BorderRadius.circular(2.0),
               child: Container(
-                width: 165,
-                height: 85,
+                width: widget.width,
+                height: widget.width / 2,
                 color: bgColor,
                 alignment: Alignment.center,
                 child: Image.file(
@@ -146,16 +146,12 @@ class _MediaItemItemWidgetState extends State<MediaItemItemWidget> {
   Widget _buildCachedImage(String? imageUrl) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(2.0),
-      child: SizedBox(
-        width: 165,
-        height: 85,
-        child: ImageCachedWidget(
-          imageUrl: imageUrl,
-          pathNoImage: isAudio ? "pub_type_audio" : "pub_type_video",
-          height: 85,
-          width: 165,
-          fit: BoxFit.cover,
-        ),
+      child: ImageCachedWidget(
+        imageUrl: imageUrl,
+        pathNoImage: isAudio ? "pub_type_audio" : "pub_type_video",
+        height: widget.width / 2,
+        width: widget.width,
+        fit: BoxFit.cover,
       ),
     );
   }

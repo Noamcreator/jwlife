@@ -88,15 +88,17 @@ class HomeRectanglePublicationItem extends StatelessWidget {
               Positioned(
                 top: -5,
                 right: -15,
-                child: PopupMenuButton(
-                  icon: const Icon(Icons.more_vert, color: Color(0xFF9d9d9d)),
-                  itemBuilder: (context) => [
-                    getPubShareMenuItem(publication),
-                    getPubLanguagesItem(context, "Autres langues", publication),
-                    getPubFavoriteItem(publication),
-                    getPubDownloadItem(context, publication),
-                  ],
-                ),
+                child: RepaintBoundary(
+                  child: PopupMenuButton(
+                    icon: const Icon(Icons.more_vert, color: Color(0xFF9d9d9d)),
+                    itemBuilder: (context) => [
+                      getPubShareMenuItem(publication),
+                      getPubLanguagesItem(context, "Autres langues", publication),
+                      getPubFavoriteItem(publication),
+                      getPubDownloadItem(context, publication),
+                    ],
+                  ),
+                )
               ),
 
         // Bouton dynamique
@@ -206,7 +208,7 @@ class HomeRectanglePublicationItem extends StatelessWidget {
                     valueColor: AlwaysStoppedAnimation<Color>(
                       Theme.of(context).primaryColor,
                     ),
-                    backgroundColor: Color(0xFF9d9d9d),
+                    backgroundColor: Color(0xFFbdbdbd),
                     minHeight: 2,
                   );
                 },

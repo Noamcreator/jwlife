@@ -2,19 +2,23 @@ import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:jwlife/core/icons.dart';
+import 'package:jwlife/core/jworg_uri.dart';
 import 'package:jwlife/core/utils/utils_document.dart';
 import 'package:jwlife/core/utils/widgets_utils.dart';
+import 'package:jwlife/data/models/meps_language.dart';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/repositories/PublicationRepository.dart';
 import 'package:jwlife/data/databases/catalog.dart';
 import 'package:jwlife/i18n/localization.dart';
 import 'package:jwlife/widgets/dialog/utils_dialog.dart';
 import 'package:jwlife/widgets/image_cached_widget.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:sqflite/sqflite.dart';
 
 import '../../../app/services/global_key_service.dart';
 import '../../../app/services/settings_service.dart';
 import '../../../core/utils/common_ui.dart';
+import '../../../core/utils/utils.dart';
 import '../../../data/databases/history.dart';
 import '../../../widgets/responsive_appbar_actions.dart';
 import '../../publication/pages/document/data/models/document.dart';
@@ -31,7 +35,8 @@ class MeetingsPage extends StatefulWidget {
 
 class MeetingsPageState extends State<MeetingsPage> {
   int _initialIndex = 0;
-  DateTime dateOfMeetingValue = DateTime.now();
+  DateTime _dateOfMeetingValue = DateTime.now();
+  MepsLanguage mepsLanguage = JwLifeSettings().currentLanguage;
   bool isLoading = true;
 
   Publication? _midweekMeetingPub;
@@ -60,6 +65,7 @@ class MeetingsPageState extends State<MeetingsPage> {
     }
 
     refreshMeetingsPubs();
+    refreshConventionsPubs();
 
     setState(() {
       isLoading = false;
@@ -71,9 +77,7 @@ class MeetingsPageState extends State<MeetingsPage> {
 
     _midweekMeetingPub = pubs.firstWhereOrNull((pub) => pub.keySymbol.contains('mwb'));
     _weekendMeetingPub = pubs.firstWhereOrNull((pub) => pub.keySymbol.contains(RegExp(r'(?<!m)w')));
-    _publicTalkPub = PublicationRepository()
-        .getAllDownloadedPublications()
-        .firstWhereOrNull((pub) => pub.keySymbol.contains('S-34'));
+    _publicTalkPub = PublicationRepository().getAllDownloadedPublications().firstWhereOrNull((pub) => pub.keySymbol.contains('S-34'));
 
     // Suppression et ajout des listeners comme vu plus haut
     _midweekMeetingPub?.isDownloadedNotifier.removeListener(_onMidweekDownloaded);
@@ -128,11 +132,17 @@ class MeetingsPageState extends State<MeetingsPage> {
     });
   }
 
+  void refreshSelectedDay(DateTime selectedDay) {
+    setState(() {
+      _dateOfMeetingValue = selectedDay;
+    });
+  }
+
   Future<Map<String, dynamic>?> fetchMidWeekMeeting(Publication? publication) async {
     if (publication != null && publication.isDownloadedNotifier.value) {
       Database db = await openReadOnlyDatabase(publication.databasePath!);
 
-      String weekRange = DateFormat('yyyyMMdd').format(dateOfMeetingValue);
+      String weekRange = DateFormat('yyyyMMdd').format(_dateOfMeetingValue);
 
       final List<Map<String, dynamic>> result = await db.rawQuery('''
         SELECT Document.MepsDocumentId, Document.Title, Document.Subtitle, Multimedia.FilePath
@@ -156,7 +166,7 @@ class MeetingsPageState extends State<MeetingsPage> {
     if (publication != null) {
       Database db = await openDatabase(publication.databasePath!);
 
-      String weekRange = DateFormat('yyyyMMdd').format(this.dateOfMeetingValue);
+      String weekRange = DateFormat('yyyyMMdd').format(this._dateOfMeetingValue);
 
       final List<Map<String, dynamic>> result = await db.rawQuery('''
         SELECT doc.MepsDocumentId, doc.Title, doc.ContextTitle, m.FilePath
@@ -344,185 +354,191 @@ class MeetingsPageState extends State<MeetingsPage> {
           : const Color(0xFF626262),
     );
 
-    if (GlobalKeyService.homeKey.currentState?.isRefreshing ?? true) {
-      return getLoadingWidget(Theme.of(context).primaryColor);
-    }
-    else {
-      return Scaffold(
-        resizeToAvoidBottomInset: false,
-        appBar: AppBar(
-          title: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Réunions et Assemblées', style: textStyleTitle),
-              Text(formatWeekRange(dateOfMeetingValue), style: textStyleSubtitle),
-            ],
-          ),
-          actions: [
-            ResponsiveAppBarActions(
-              allActions: [
-                IconTextButton(
-                  icon: Icon(JwIcons.language),
-                  text: 'Autres langues',
-                  onPressed: () {
-                    // Logique de changement de langue ici
-                  },
-                ),
-                IconTextButton(
-                  icon: Icon(JwIcons.calendar),
-                  text: 'Sélectionner une semaine',
-                  onPressed: () async {
-                    DateTime? selectedWeek = await showMonthCalendarDialog(context, dateOfMeetingValue);
-                    if (selectedWeek != null) {
-                      List<Publication> weeksPubs = await PubCatalog.getPublicationsForTheDay(date: selectedWeek);
-
-                      refreshMeetingsPubs(publications: weeksPubs);
-
-                      setState(() {
-                        dateOfMeetingValue = selectedWeek;
-                      });
-                    }
-                  },
-                ),
-                IconTextButton(
-                  text: "Historique",
-                  icon: const Icon(JwIcons.arrow_circular_left_clock),
-                  onPressed: () {
-                    History.showHistoryDialog(context);
-                  },
-                ),
-              ],
-            )
+    return Scaffold(
+      resizeToAvoidBottomInset: false,
+      appBar: AppBar(
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Réunions et Assemblées', style: textStyleTitle),
+            Text(formatWeekRange(_dateOfMeetingValue), style: textStyleSubtitle),
           ],
         ),
-        body: isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              /// 🔝 Prochaine réunion
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Colors.indigo[400]!, Colors.indigo[600]!],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'PROCHAINE RÉUNION',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      _initialIndex == 0 ? 'Réunion de semaine' : 'Réunion du week-end',
-                      style: const TextStyle(
-                        fontSize: 18,
-                        color: Colors.white70,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    const Text(
-                      'Mercredi 19 octobre à 19h30',
-                      style: TextStyle(
-                        fontSize: 18,
-                        color: Colors.white70,
-                      ),
-                    ),
-                  ],
-                ),
+        actions: [
+          ResponsiveAppBarActions(
+            allActions: [
+              IconTextButton(
+                icon: const Icon(JwIcons.language),
+                text: 'Autres langues',
+                onPressed: () {
+                  // Logique de changement de langue ici
+                },
               ),
-              const SizedBox(height: 40),
+              IconTextButton(
+                icon: const Icon(JwIcons.calendar),
+                text: 'Sélectionner une semaine',
+                onPressed: () async {
+                  DateTime? selectedDay = await showMonthCalendarDialog(context, _dateOfMeetingValue);
+                  if (selectedDay != null) {
+                    List<Publication> dayPubs = await PubCatalog.getPublicationsForTheDay(date: selectedDay);
 
-              /// 📌 Section Réunions
-              Text('Réunions', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24)),
-              const SizedBox(height: 8),
-
-              _buildMeetingCard(
-                context: context,
-                title: localization(context).navigation_meetings_life_and_ministry,
-                icon: JwIcons.sheep,
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF667eea), Color(0xFF764ba2)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                child: _isMidweekMeetingContentIsDownload(context, dateOfMeetingValue),
+                    refreshMeetingsPubs(publications: dayPubs);
+                    refreshSelectedDay(selectedDay);
+                  }
+                },
               ),
-              const SizedBox(height: 16),
-
-              _buildMeetingCard(
-                context: context,
-                title: localization(context).navigation_meetings_watchtower_study,
-                icon: JwIcons.watchtower,
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF11998e), Color(0xFF38ef7d)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                child: _isWeekendMeetingContentIsDownload(context, dateOfMeetingValue),
+              IconTextButton(
+                text: "Historique",
+                icon: const Icon(JwIcons.arrow_circular_left_clock),
+                onPressed: () {
+                  History.showHistoryDialog(context);
+                },
               ),
-              const SizedBox(height: 40),
+              IconTextButton(
+                text: "Envoyer le lien",
+                icon: const Icon(JwIcons.share),
+                onPressed: () {
+                  String uri = JwOrgUri.meetings(
+                      wtlocale: mepsLanguage.symbol,
+                      date: convertDateTimeToIntDate(_dateOfMeetingValue).toString()
+                  ).toString();
 
-              /// 🏟️ Section Assemblées
-              Text('Assemblées', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24)),
-              const SizedBox(height: 8),
-
-              _buildMeetingCard(
-                context: context,
-                title: localization(context).navigation_meetings_assembly_br,
-                icon: JwIcons.arena,
-                gradient: const LinearGradient(
-                  colors: [Color(0xFFfc4a1a), Color(0xFFf7b733)], // 🔁 Couleurs modifiées
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                child: _isCircuitBrContentIsDownload(context),
+                  SharePlus.instance.share(
+                      ShareParams(title: formatWeekRange(_dateOfMeetingValue), uri: Uri.tryParse(uri))
+                  );
+                },
               ),
-              const SizedBox(height: 16),
-
-              _buildMeetingCard(
-                context: context,
-                title: localization(context).navigation_meetings_assembly_co,
-                icon: JwIcons.arena,
-                gradient: const LinearGradient(
-                  colors: [Color(0xFFfd746c), Color(0xFFff9068)], // 🔁 Couleurs modifiées
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                child: _isCircuitCoContentIsDownload(context),
-              ),
-              const SizedBox(height: 16),
-
-              _buildMeetingCard(
-                context: context,
-                title: localization(context).navigation_meetings_convention,
-                icon: JwIcons.arena,
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF4facfe), Color(0xFF00f2fe)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                child: _isConventionContentIsDownload(context),
-              ),
-              const SizedBox(height: 40),
             ],
-          ),
+          )
+        ],
+      ),
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            /// 🔝 Prochaine réunion
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Colors.indigo[400]!, Colors.indigo[600]!],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'PROCHAINE RÉUNION',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    _initialIndex == 0 ? 'Réunion de semaine' : 'Réunion du week-end',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      color: Colors.white70,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Mercredi 19 octobre à 19h30',
+                    style: TextStyle(
+                      fontSize: 18,
+                      color: Colors.white70,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 40),
+
+            /// 📌 Section Réunions
+            Text('Réunions', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24)),
+            const SizedBox(height: 8),
+
+            _buildMeetingCard(
+              context: context,
+              title: localization(context).navigation_meetings_life_and_ministry,
+              icon: JwIcons.sheep,
+              gradient: const LinearGradient(
+                colors: [Color(0xFF667eea), Color(0xFF764ba2)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              child: _isMidweekMeetingContentIsDownload(context, _dateOfMeetingValue),
+            ),
+            const SizedBox(height: 16),
+
+            _buildMeetingCard(
+              context: context,
+              title: localization(context).navigation_meetings_watchtower_study,
+              icon: JwIcons.watchtower,
+              gradient: const LinearGradient(
+                colors: [Color(0xFF11998e), Color(0xFF38ef7d)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              child: _isWeekendMeetingContentIsDownload(context, _dateOfMeetingValue),
+            ),
+            const SizedBox(height: 40),
+
+            /// 🏟️ Section Assemblées
+            Text('Assemblées', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24)),
+            const SizedBox(height: 8),
+
+            _buildMeetingCard(
+              context: context,
+              title: localization(context).navigation_meetings_assembly_br,
+              icon: JwIcons.arena,
+              gradient: const LinearGradient(
+                colors: [Color(0xFFfc4a1a), Color(0xFFf7b733)], // 🔁 Couleurs modifiées
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              child: _isCircuitBrContentIsDownload(context),
+            ),
+            const SizedBox(height: 16),
+
+            _buildMeetingCard(
+              context: context,
+              title: localization(context).navigation_meetings_assembly_co,
+              icon: JwIcons.arena,
+              gradient: const LinearGradient(
+                colors: [Color(0xFFfd746c), Color(0xFFff9068)], // 🔁 Couleurs modifiées
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              child: _isCircuitCoContentIsDownload(context),
+            ),
+            const SizedBox(height: 16),
+
+            _buildMeetingCard(
+              context: context,
+              title: localization(context).navigation_meetings_convention,
+              icon: JwIcons.arena,
+              gradient: const LinearGradient(
+                colors: [Color(0xFF4facfe), Color(0xFF00f2fe)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              child: _isConventionContentIsDownload(context),
+            ),
+            const SizedBox(height: 40),
+          ],
         ),
-      );
-    }
+      ),
+    );
   }
 
   Widget _buildMeetingCard({

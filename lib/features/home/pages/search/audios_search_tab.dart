@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:jwlife/app/jwlife_app.dart';
-import 'package:jwlife/core/api.dart';
+import 'package:jwlife/core/api/api.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/core/utils/utils_audio.dart';
@@ -47,7 +47,7 @@ class _AudioSearchTabState extends State<AudioSearchTab> {
               itemCount: results.length,
               itemBuilder: (context, index) {
                 final item = results[index];
-                MediaItem mediaItem = getVideoItemFromLank(item['lank'], JwLifeSettings().currentLanguage.symbol);
+                MediaItem mediaItem = getMediaItemFromLank(item['lank'], JwLifeSettings().currentLanguage.symbol);
                 return GestureDetector(
                   onTap: () async {
                     showAudioPlayer(context, mediaItem);

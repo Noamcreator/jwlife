@@ -1,20 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:jwlife/core/icons.dart';
-import 'package:jwlife/core/utils/common_ui.dart';
-import 'package:jwlife/data/models/publication.dart';
-import 'package:jwlife/data/databases/catalog.dart';
 import 'package:jwlife/features/home/pages/search/input_fields_search_tab.dart';
 import 'package:jwlife/features/home/pages/search/notes_search_tab.dart';
 import 'package:jwlife/features/home/pages/search/search_model.dart';
 import 'package:jwlife/features/home/pages/search/verses_search_tab.dart';
-import 'package:searchfield/searchfield.dart';
+import 'package:jwlife/features/home/pages/search/wikipedia_search_tab.dart';
 
 import '../../../../app/services/global_key_service.dart';
-import '../../../../app/services/settings_service.dart';
 import '../../../../widgets/searchfield/searchfield_all_widget.dart';
 import 'all_search_tab.dart';
 import 'audios_search_tab.dart';
-import 'bible_search_page.dart';
 import 'bible_search_tab.dart';
 import 'images_search_tab.dart';
 import 'publications_search_tab.dart';
@@ -30,23 +24,34 @@ class SearchPage extends StatefulWidget {
   _SearchPageState createState() => _SearchPageState();
 }
 
-class _SearchPageState extends State<SearchPage> with SingleTickerProviderStateMixin {
+class _SearchPageState extends State<SearchPage> {
   late SearchModel _searchModel;
-  late TabController _tabController;
   late TextEditingController _searchController;
   late FocusNode _focusNode;
 
-  List<Map<String, dynamic>> suggestions = [];
   bool isInitialized = false;
+  int currentTab = 0;
+
+  final List<String> tabs = [
+    'WIKIPEDIA',
+    'TOUT',
+    'PUBLICATIONS',
+    'VIDÉOS',
+    'AUDIOS',
+    'BIBLE',
+    'VERSETS',
+    'IMAGES',
+    'NOTES',
+    'CHAMPS',
+  ];
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 9, vsync: this, initialIndex: widget.tab);
     _searchController = TextEditingController(text: widget.query);
     _focusNode = FocusNode();
+    currentTab = widget.tab;
 
-    // Initialisation async du modèle
     initializeModel();
   }
 
@@ -59,9 +64,15 @@ class _SearchPageState extends State<SearchPage> with SingleTickerProviderStateM
 
   @override
   void dispose() {
-    _tabController.dispose();
     _searchController.dispose();
+    _focusNode.dispose();
     super.dispose();
+  }
+
+  void selectTab(int index) {
+    setState(() {
+      currentTab = index;
+    });
   }
 
   @override
@@ -69,61 +80,49 @@ class _SearchPageState extends State<SearchPage> with SingleTickerProviderStateM
     return Scaffold(
       resizeToAvoidBottomInset: false,
       appBar: AppBar(
-        title: SearchFieldAll(autofocus: false,  initialText: widget.query),
+        title: SearchFieldAll(
+          autofocus: false,
+          initialText: widget.query,
+        ),
         leading: IconButton(
           icon: Icon(Icons.arrow_back),
           onPressed: () {
             GlobalKeyService.jwLifePageKey.currentState?.handleBack(context);
           },
         ),
-      ),
-      body: Column(
-        children: [
-          buildTabBar(context),
-          Expanded(
-            child: isInitialized
-                ? TabBarView(
-              controller: _tabController,
-              children: [
-                AllSearchTab(model: _searchModel),
-                PublicationsSearchTab(model: _searchModel),
-                VideosSearchTab(model: _searchModel),
-                AudioSearchTab(model: _searchModel),
-                BibleSearchTab(model: _searchModel),
-                VersesSearchTab(model: _searchModel),
-                ImagesSearchTab(model: _searchModel),
-                NotesSearchTab(model: _searchModel),
-                InputFieldsSearchTab(model: _searchModel),
-              ],
-            )
-                : Center(child: CircularProgressIndicator()), // ou un autre widget de chargement
+        actions: [
+          PopupMenuButton<int>(
+            icon: Icon(Icons.menu),
+            onSelected: selectTab,
+            itemBuilder: (context) {
+              return List.generate(
+                tabs.length,
+                    (index) => PopupMenuItem(
+                  value: index,
+                  child: Text(tabs[index]),
+                ),
+              );
+            },
           ),
         ],
       ),
-    );
-  }
-
-  Widget buildTabBar(BuildContext context) {
-    return TabBar(
-      controller: _tabController,
-      isScrollable: true,
-      tabAlignment: TabAlignment.start,
-      indicatorSize: TabBarIndicatorSize.label,
-      labelColor: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black,
-      labelStyle: TextStyle(fontSize: 15, letterSpacing: 2, fontWeight: FontWeight.bold),
-      unselectedLabelColor: Theme.of(context).brightness == Brightness.dark ? Colors.grey[600] : Colors.black,
-      unselectedLabelStyle: TextStyle(fontSize: 15, letterSpacing: 2),
-      tabs: [
-        Tab(text: 'TOUT'),
-        Tab(text: 'PUBLICATIONS'),
-        Tab(text: 'VIDÉOS'),
-        Tab(text: 'AUDIOS'),
-        Tab(text: 'BIBLE'),
-        Tab(text: 'VERSETS'),
-        Tab(text: 'IMAGES'),
-        Tab(text: 'NOTES'),
-        Tab(text: 'CHAMPS'),
-      ],
+      body: isInitialized
+          ? IndexedStack(
+        index: currentTab,
+        children: [
+          WikipediaSearchTab(model: _searchModel),
+          AllSearchTab(model: _searchModel),
+          PublicationsSearchTab(model: _searchModel),
+          VideosSearchTab(model: _searchModel),
+          AudioSearchTab(model: _searchModel),
+          BibleSearchTab(model: _searchModel),
+          VersesSearchTab(model: _searchModel),
+          ImagesSearchTab(model: _searchModel),
+          NotesSearchTab(model: _searchModel),
+          InputFieldsSearchTab(model: _searchModel),
+        ],
+      )
+          : Center(child: CircularProgressIndicator()),
     );
   }
 }

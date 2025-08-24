@@ -16,7 +16,7 @@ import 'package:open_file/open_file.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
 
-import '../../core/api.dart';
+import '../../core/api/api.dart';
 
 // Fonction pour afficher le dialogue de téléchargement
 Future<String?> showVideoDialog(BuildContext context, MediaItem mediaItem) async {
@@ -331,12 +331,11 @@ Future<void> _downloadAndOpenPdf(String fileUrl) async {
   printTime('fileUrl: $fileUrl');
   try {
     // Utiliser Dio pour télécharger le fichier PDF
-    Dio dio = Dio();
     Directory downloadDir = await getExternalStorageDirectory() ?? Directory('/storage/emulated/0/Download');
     String filePath = '${downloadDir.path}/${fileUrl.split('/').last}';
 
     // Télécharger le fichier
-    await dio.download(fileUrl, filePath);
+    await Api.dio.download(fileUrl, filePath);
 
     // Ouvrir le fichier après le téléchargement
     OpenFile.open(filePath);

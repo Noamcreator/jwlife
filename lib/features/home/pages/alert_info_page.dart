@@ -171,7 +171,7 @@ class _AlertInfoPageState extends State<AlertInfoPage> {
               MediaItem? mediaItem;
               if(uri.queryParameters.containsKey('lank')) {
                 final lank = uri.queryParameters['lank'];
-                mediaItem = getVideoItemFromLank(lank!, JwLifeSettings().currentLanguage.symbol);
+                mediaItem = getMediaItemFromLank(lank!, JwLifeSettings().currentLanguage.symbol);
               }
 
               showFullScreenVideo(context, mediaItem!);

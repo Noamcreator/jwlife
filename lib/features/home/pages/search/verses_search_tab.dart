@@ -91,7 +91,7 @@ class _VersesSearchTabState extends State<VersesSearchTab> {
                 paragraphText = parse(paragraphHtml).body?.text ?? '';
               }
 
-              Publication? downloadPub = PublicationRepository().getByCompositeKey(item['Symbol'], int.parse(item['IssueTagNumber']), item['MepsLanguageIndex']);
+              Publication? downloadPub = PublicationRepository().getPublicationWithMepsLanguageId(item['Symbol'], int.parse(item['IssueTagNumber']), item['MepsLanguageIndex']);
 
               return item['Content'] == null || downloadPub == null ? null : GestureDetector(
                 onTap: () async {

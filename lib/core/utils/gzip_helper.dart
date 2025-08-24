@@ -12,23 +12,29 @@ class GZipOptimizer {
   // Cache pour éviter de re-parser les mêmes JSONs
   static final Map<String, Map<String, dynamic>> _jsonCache = {};
 
-  // === FONCTIONS PRINCIPALES ===
-
   // Décompression optimisée pour catalog.db (55MB → 204MB)
   static Future<void> decompressCatalogDb(List<int> gzipBytes, File file) async {
-    final totalStopwatch = Stopwatch()..start();
     try {
-      // Méthode la plus rapide : décompression main thread + écriture optimisée
-      await _fastMainThreadDecompression(gzipBytes, file);
+      // Décompression dans un isolate
+      final Uint8List decompressed = await compute(_decompressInIsolate, gzipBytes);
 
-      final totalTime = totalStopwatch.elapsedMilliseconds;
-      printTime('Catalog.db décompressé en ${totalTime}ms');
+      // Écriture optimisée sur le thread principal
+      await file.writeAsBytes(decompressed, flush: true);
 
-    } catch (e) {
-      printTime('Erreur optimisation: $e');
+      printTime('Catalog.db décompressé avec succès');
+
+    }
+    catch (e) {
+      printTime('Erreur optimisation avec compute: $e');
       // Fallback sur méthode standard
       await _fallbackDecompression(gzipBytes, file);
     }
+  }
+
+    // Fonction exécutée dans un isolate
+  static Uint8List _decompressInIsolate(List<int> bytes) {
+    final archive = GZipDecoder().decodeBytes(bytes, verify: true);
+    return Uint8List.fromList(archive);
   }
 
   // Décompression JSON simple (retourne le JSON complet)
@@ -107,21 +113,13 @@ class GZipOptimizer {
 
   // Version optimisée main thread (plus rapide que isolate pour ce cas)
   static Future<void> _fastMainThreadDecompression(List<int> gzipBytes, File file) async {
-    final decompressStopwatch = Stopwatch()..start();
-
     // Décompression directe (plus rapide que isolate : 927ms vs 1294ms)
     final decoder = GZipDecoder();
     final decompressed = decoder.decodeBytes(gzipBytes);
 
-    final decompressTime = decompressStopwatch.elapsedMilliseconds;
-    printTime('Décompression: ${decompressTime}ms');
-
     // Écriture ultra-optimisée avec pré-allocation
     final writeStopwatch = Stopwatch()..start();
     await _ultraFastWrite(file, decompressed);
-
-    final writeTime = writeStopwatch.elapsedMilliseconds;
-    printTime('Écriture optimisée: ${writeTime}ms');
   }
 
   // Écriture ultra-optimisée avec buffer pré-alloué

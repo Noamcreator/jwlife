@@ -113,7 +113,7 @@ class _NotesSearchTabState extends State<NotesSearchTab> {
         title: Text(note.title ?? 'Note'),
         content: SingleChildScrollView(child: Text(note.content ?? '')),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Fermer')),
+          TextButton(onPressed: () {}, child: const Text('Fermer')),
         ],
       ),
     );

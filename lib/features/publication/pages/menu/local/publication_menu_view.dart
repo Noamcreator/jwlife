@@ -21,11 +21,11 @@ import 'package:jwlife/widgets/dialog/language_dialog_pub.dart';
 import 'package:jwlife/widgets/responsive_appbar_actions.dart';
 import 'package:jwlife/widgets/searchfield/searchfield_widget.dart';
 import 'package:sqflite/sqflite.dart';
+import 'package:string_similarity/string_similarity.dart';
 
 import '../../../../../app/services/global_key_service.dart';
-import '../../../../../core/api.dart';
 import '../../../../bible/pages/local_bible_chapter.dart';
-import '../../../../image_page.dart';
+import '../../../../image/image_page.dart';
 import '../../document/data/models/document.dart';
 import '../../document/local/documents_manager.dart';
 
@@ -81,7 +81,6 @@ class PublicationMenuView extends StatefulWidget {
 class _PublicationMenuViewState extends State<PublicationMenuView> with SingleTickerProviderStateMixin {
   late DocumentsManager _documentsManager;
   late List<TabWithItems> _tabsWithItems = [];
-  late List<Audio> _audios = [];
   bool _isLoading = true;
   TabController? _tabController;
   int _initialTabIndex = 0;
@@ -115,11 +114,9 @@ class _PublicationMenuViewState extends State<PublicationMenuView> with SingleTi
   }
 
   Future<void> _iniAudio() async {
-    List<Audio>? pubAudio = await Api.getPubAudio(keySymbol: widget.publication.keySymbol, issueTagNumber: widget.publication.issueTagNumber, languageSymbol: widget.publication.mepsLanguage.symbol);
-    if(pubAudio != null) {
-      setState(() {
-        _audios = pubAudio;
-      });
+    await widget.publication.fetchAudios();
+    if (mounted) {
+      setState(() {});
     }
   }
 
@@ -209,18 +206,22 @@ class _PublicationMenuViewState extends State<PublicationMenuView> with SingleTi
       }
 
       // Met à jour l'état
-      setState(() {
-        _tabsWithItems = tabsWithItems;
-        _tabController = TabController(
-          initialIndex: _initialTabIndex,
-          length: _tabsWithItems.length,
-          vsync: this,
-        );
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _tabsWithItems = tabsWithItems;
+          _tabController = TabController(
+            initialIndex: _initialTabIndex,
+            length: _tabsWithItems.length,
+            vsync: this,
+          );
+          _isLoading = false;
+        });
+      }
     }
     catch (e) {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
       throw Exception('Erreur lors de la récupération des données : $e');
     }
   }
@@ -427,7 +428,7 @@ class _PublicationMenuViewState extends State<PublicationMenuView> with SingleTi
       padding: const EdgeInsets.symmetric(vertical: 4.0),
       child: InkWell(
         onTap: () {
-          showPageDocument(context, widget.publication, item.mepsDocumentId, audios: _audios);
+          showPageDocument(context, widget.publication, item.mepsDocumentId);
         },
         child: Row(
           spacing: 8.0,
@@ -532,8 +533,7 @@ class _PublicationMenuViewState extends State<PublicationMenuView> with SingleTi
                   ),
                 ];
 
-                Audio? audio = _audios.firstWhereOrNull((audio) =>
-                audio.documentId == item.mepsDocumentId);
+                Audio? audio = widget.publication.audios.firstWhereOrNull((audio) => audio.documentId == item.mepsDocumentId);
                 if (audio != null) {
                   Audio localAudio = JwLifeApp.mediaCollections.getAudio(audio);
 
@@ -615,11 +615,10 @@ class _PublicationMenuViewState extends State<PublicationMenuView> with SingleTi
                         ],
                       ),
                       onTap: () {
-                        int? index = _audios.indexWhere((audio) =>
+                        int? index = widget.publication.audios.indexWhere((audio) =>
                         audio.documentId == item.mepsDocumentId);
                         if (index != -1) {
-                          showAudioPlayerPublicationLink(context, widget.publication,
-                              _audios, index);
+                          showAudioPlayerPublicationLink(context, widget.publication, index);
                         }
                       },
                     ),
@@ -653,14 +652,7 @@ class _PublicationMenuViewState extends State<PublicationMenuView> with SingleTi
           itemBuilder: (context, index) {
             return GestureDetector(
               onTap: () {
-                showPageDocument(context, widget.publication, items[index].mepsDocumentId, audios: _audios);
-                /*
-                showPage(context, DocumentPage(
-                  publication: widget.publication,
-                  mepsDocumentId: items[index].mepsDocumentId,
-                ));
-
-                 */
+                showPageDocument(context, widget.publication, items[index].mepsDocumentId);
               },
               child: Container(
                 alignment: Alignment.center,
@@ -688,9 +680,7 @@ class _PublicationMenuViewState extends State<PublicationMenuView> with SingleTi
   Widget buildBibleBooksList(BuildContext context, List<ListItem> items) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        bool isLandscape = MediaQuery
-            .of(context)
-            .orientation == Orientation.landscape;
+        bool isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
         double screenWidth = constraints.maxWidth;
 
         // Calculer le nombre de tuiles en fonction de la largeur de l'écran
@@ -719,8 +709,7 @@ class _PublicationMenuViewState extends State<PublicationMenuView> with SingleTi
               onTap: () {
                 showPage(context, LocalChapterBiblePage(
                   bible: widget.publication,
-                  book: items[index].bibleBookId!,
-                  audios: _audios,
+                  book: items[index].bibleBookId!
                 ));
               },
               child: Container(
@@ -852,8 +841,7 @@ class _PublicationMenuViewState extends State<PublicationMenuView> with SingleTi
                 PublicationSearchView(
                   query: query,
                   publication: widget.publication,
-                  documentsManager: _documentsManager,
-                  audios: _audios,
+                  documentsManager: _documentsManager
                 ),
               );
 
@@ -870,8 +858,7 @@ class _PublicationMenuViewState extends State<PublicationMenuView> with SingleTi
                 PublicationSearchView(
                   query: text,
                   publication: widget.publication,
-                  documentsManager: _documentsManager,
-                  audios: _audios,
+                  documentsManager: _documentsManager
                 ),
               );
             },
@@ -926,7 +913,7 @@ class _PublicationMenuViewState extends State<PublicationMenuView> with SingleTi
                       showPageBibleChapter(context, widget.publication, bookmark.location.bookNumber!, bookmark.location.chapterNumber!, firstVerse: bookmark.blockIdentifier, lastVerse: bookmark.blockIdentifier);
                     }
                     else if (bookmark.location.mepsDocumentId != null) {
-                      showPageDocument(context, widget.publication, bookmark.location.mepsDocumentId!, startParagraphId: bookmark.blockIdentifier, endParagraphId: bookmark.blockIdentifier, audios: _audios);
+                      showPageDocument(context, widget.publication, bookmark.location.mepsDocumentId!, startParagraphId: bookmark.blockIdentifier, endParagraphId: bookmark.blockIdentifier);
                     }
                   }
                 },
@@ -1001,145 +988,174 @@ class _PublicationMenuViewState extends State<PublicationMenuView> with SingleTi
 
       bool hasImageFilePath = tabWithItems.items.any((item) => item.imageFilePath != '');
 
-      return ListView(
-        children: [
-          if (widget.publication.category.id != 1) ...[
-            if (widget.publication.imageLsr != null)
-              GestureDetector(
-                onTap: () {
-                  showPage(
-                    context,
-                    ImagePage(
-                      filePath: '${widget.publication.path}/${widget.publication.imageLsr!.split('/').last}',
-                    ),
-                  );
-                },
-                onLongPress: () {
-                  showModalBottomSheet(
-                    context: context,
-                    builder: (ctx) => SafeArea(
-                      child: Wrap(
-                        children: [
-                          ListTile(
-                            tileColor: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF4f4f4f) : Colors.white,
-                            leading: const Icon(Icons.download),
-                            title: const Text('Enregistrer l’image'),
-                            onTap: () async {
-                              final imagePath = '${widget.publication.path}/${widget.publication.imageLsr!.split('/').last}';
-                              final file = File(imagePath);
+      final List<Widget> items = [];
 
-                              if (await file.exists()) {
-                                try {
-                                  await Gal.putImage(file.path);
+      // Partie image + titre + description
+      if (widget.publication.category.id != 1) {
+        if (widget.publication.imageLsr != null) {
+          items.add(
+            GestureDetector(
+              onTap: () {
+                showPage(
+                  context,
+                  ImagePage(
+                    filePath:
+                    '${widget.publication.path}/${widget.publication.imageLsr!.split('/').last}',
+                  ),
+                );
+              },
+              onLongPress: () {
+                showModalBottomSheet(
+                  context: context,
+                  builder: (ctx) => SafeArea(
+                    child: Wrap(
+                      children: [
+                        ListTile(
+                          tileColor: Theme.of(context).brightness == Brightness.dark
+                              ? const Color(0xFF4f4f4f)
+                              : Colors.white,
+                          leading: const Icon(Icons.download),
+                          title: const Text('Enregistrer l’image'),
+                          onTap: () async {
+                            final imagePath =
+                                '${widget.publication.path}/${widget.publication.imageLsr!.split('/').last}';
+                            final file = File(imagePath);
 
-                                  showBottomMessageWithAction(context, 'Image enregistrée', SnackBarAction(
+                            if (await file.exists()) {
+                              try {
+                                await Gal.putImage(file.path);
+                                showBottomMessageWithAction(
+                                  context,
+                                  'Image enregistrée',
+                                  SnackBarAction(
                                     label: 'Ouvrir',
                                     onPressed: () async {
                                       await Gal.open();
                                     },
-                                  ));
-                                }
-                                on GalException catch (e) {
-                                  log(e.type.message);
-                                }
-                              }
-                              else {
-                                Navigator.pop(ctx);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Fichier introuvable')),
+                                  ),
                                 );
+                              } on GalException catch (e) {
+                                log(e.type.message);
                               }
-                            },
-                          ),
-                        ],
+                            } else {
+                              Navigator.pop(ctx);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Fichier introuvable')),
+                              );
+                            }
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+              child: Image.file(
+                File(
+                    '${widget.publication.path}/${widget.publication.imageLsr!.split('/').last}'),
+                fit: BoxFit.fill,
+                width: double.infinity,
+              ),
+            ),
+          );
+        }
+
+        items.add(const SizedBox(height: 10));
+
+        items.add(
+          Text(
+            widget.publication.coverTitle.isNotEmpty
+                ? widget.publication.coverTitle
+                : widget.publication.title,
+            style: TextStyle(
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? Colors.white
+                  : Colors.black,
+              fontSize: 25,
+              fontWeight: FontWeight.bold,
+              height: 1.2,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        );
+
+        if (widget.publication.description.isEmpty) {
+          items.add(const SizedBox(height: 10));
+        } else {
+          items.add(
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Text(
+                widget.publication.description,
+                style: TextStyle(
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.white
+                      : Colors.black,
+                  fontSize: 14,
+                  height: 1.2,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          );
+        }
+      }
+
+      // Partie items
+      if (tabWithItems.tab['DataType'] == 'number') {
+        items.add(
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: buildNumberList(context, tabWithItems.items),
+          ),
+        );
+      } else {
+        for (var item in tabWithItems.items) {
+          if (item.isTitle) {
+            items.add(
+              Padding(
+                padding: const EdgeInsets.only(left: 8.0, right: 8.0, top: 16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      item.title,
+                      style: TextStyle(
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.white
+                            : Colors.black,
+                        fontSize: 20.0,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
-                  );
-                },
-                child: Image.file(
-                  File('${widget.publication.path}/${widget.publication.imageLsr!.split('/').last}'),
-                  fit: BoxFit.fill,
-                  width: double.infinity,
+                    const SizedBox(height: 2),
+                    const Divider(color: Color(0xFFa7a7a7), height: 1),
+                    const SizedBox(height: 10),
+                    if (item.isBibleBooks)
+                      buildBibleBooksList(context, item.subItems)
+                    else
+                      ...item.subItems.map((subItem) => buildNameItem(context, hasImageFilePath, subItem)),
+                  ],
                 ),
               ),
-            const SizedBox(height: 10),
-            Text(
-              widget.publication.coverTitle.isNotEmpty ? widget.publication.coverTitle : widget.publication.title,
-              style: TextStyle(
-                color: Theme
-                    .of(context)
-                    .brightness == Brightness.dark
-                    ? Colors.white
-                    : Colors.black,
-                fontSize: 25,
-                fontWeight: FontWeight.bold,
-                height: 1.2,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            if(widget.publication.description.isEmpty)
-              const SizedBox(height: 10),
-            if(widget.publication.description.isNotEmpty)
+            );
+          }
+          else {
+            items.add(
               Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Text(
-                  widget.publication.description,
-                  style: TextStyle(
-                    color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black,
-                    fontSize: 14,
-                    height: 1.2,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                child: buildNameItem(context, hasImageFilePath, item),
               ),
-          ],
-          if (tabWithItems.tab['DataType'] == 'number')
-            Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: buildNumberList(context, tabWithItems.items)
-            )
-          else
-            ...tabWithItems.items.map((item) {
-              if (item.isTitle) {
-                return Padding(
-                  padding: const EdgeInsets.only(left: 8.0, right: 8.0, top: 16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        item.title,
-                        style: TextStyle(
-                          color: Theme
-                              .of(context)
-                              .brightness == Brightness.dark
-                              ? Colors.white
-                              : Colors.black,
-                          fontSize: 20.0,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      SizedBox(height: 2),
-                      Divider(color: Color(0xFFa7a7a7), height: 1),
-                      SizedBox(height: 10),
-                      if (item.isBibleBooks)
-                        buildBibleBooksList(context, item.subItems),
-                      if (!item.isBibleBooks)
-                        ...item.subItems.map((subItem) =>
-                            buildNameItem(context, hasImageFilePath, subItem)),
-                    ],
-                  ),
-                );
-              }
-              else {
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                  child: buildNameItem(context, hasImageFilePath, item),
-                );
-              }
-            }
-          ),
-          const SizedBox(height: 20),
-        ],
+            );
+          }
+        }
+      }
+
+      items.add(const SizedBox(height: 20));
+
+      return ListView.builder(
+        itemCount: items.length,
+        itemBuilder: (context, index) => items[index],
       );
     }
 
@@ -1299,7 +1315,9 @@ class _PublicationMenuViewState extends State<PublicationMenuView> with SingleTi
       return;
     }
 
-    List<String> words = text.split(' ');
+    String normalizedText = normalize(text);
+
+    List<String> words = normalizedText.split(' ');
     List<Map<String, dynamic>> allSuggestions = [];
 
     for (String word in words) {
@@ -1315,6 +1333,13 @@ class _PublicationMenuViewState extends State<PublicationMenuView> with SingleTi
       allSuggestions.addAll(suggestionsForWord);
       if (requestId != _latestRequestId) return;
     }
+
+    // Trier par similarité avec le texte tapé
+    allSuggestions.sort((a, b) {
+      double simA = StringSimilarity.compareTwoStrings(normalize(a['Word']), normalizedText);
+      double simB = StringSimilarity.compareTwoStrings(normalize(b['Word']), normalizedText);
+      return simB.compareTo(simA); // du plus similaire au moins similaire
+    });
 
     List<Map<String, dynamic>> suggs = [];
     for (Map<String, dynamic> suggestion in allSuggestions) {

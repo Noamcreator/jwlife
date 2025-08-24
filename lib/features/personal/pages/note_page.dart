@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:jwlife/app/services/global_key_service.dart';
 import 'package:jwlife/core/utils/utils_document.dart';
 import 'package:jwlife/data/models/publication_category.dart';
 import 'package:jwlife/data/models/userdata/note.dart';
@@ -117,12 +118,14 @@ class _NotePageState extends State<NotePage> {
               : Colors.grey[900],
           child: ConstrainedBox(
             constraints: BoxConstraints(maxHeight: itemHeight * 5),
-            child: ListView(
+            child: ListView.builder(
               padding: EdgeInsets.zero,
               shrinkWrap: true,
-              children: [
-                if (showAdd)
-                  ListTile(
+              itemCount: (showAdd ? 1 : 0) + filteredTags.length,
+              itemBuilder: (context, index) {
+                // Si showAdd est activé et que l'index est 0 → bouton "Ajouter"
+                if (showAdd && index == 0) {
+                  return ListTile(
                     dense: true,
                     leading: Icon(JwIcons.plus),
                     title: Text(
@@ -143,24 +146,26 @@ class _NotePageState extends State<NotePage> {
                         _removeOverlay();
                       }
                     },
-                  ),
-                ...filteredTags.map(
-                      (tag) => ListTile(
-                    dense: true,
-                    title: Text(tag.name, style: TextStyle(fontSize: 15)),
-                    onTap: () async {
-                      await JwLifeApp.userdata
-                          .addTagToNoteWithGuid(_note.guid, tag.id);
-                      setState(() {
-                        _note.tagsId.add(tag.id);
-                        _categoriesController.clear();
-                        _showCategoryInput = false;
-                      });
-                      _removeOverlay();
-                    },
-                  ),
-                ),
-              ],
+                  );
+                }
+
+                // Sinon → élément de filteredTags
+                final tag = filteredTags[showAdd ? index - 1 : index];
+                return ListTile(
+                  dense: true,
+                  title: Text(tag.name, style: TextStyle(fontSize: 15)),
+                  onTap: () async {
+                    await JwLifeApp.userdata
+                        .addTagToNoteWithGuid(_note.guid, tag.id);
+                    setState(() {
+                      _note.tagsId.add(tag.id);
+                      _categoriesController.clear();
+                      _showCategoryInput = false;
+                    });
+                    _removeOverlay();
+                  },
+                );
+              },
             ),
           ),
         ),
@@ -181,6 +186,12 @@ class _NotePageState extends State<NotePage> {
       backgroundColor: _note.getColor(context),
       appBar: AppBar(
         backgroundColor: _note.getColor(context),
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back),
+          onPressed: () {
+            GlobalKeyService.jwLifePageKey.currentState?.handleBack(context, result: _note);
+          }
+        ),
         actions: [
           PopupMenuButton(
             itemBuilder: (context) => [

@@ -10,104 +10,70 @@ import 'package:jwlife/data/models/publication.dart';
 
 import 'dart:typed_data';
 import 'package:encrypt/encrypt.dart' as encrypt;
+import 'package:path_provider/path_provider.dart';
 
 import '../../app/services/notification_service.dart';
-import '../api.dart';
+import '../api/api.dart';
 import 'directory_helper.dart';
 
-Future<Publication?> downloadJwpubFile(Publication publication, BuildContext context, CancelToken? cancelToken, {void Function(double downloadProgress)? update}) async {
+Future<Publication?> downloadJwpubFile(Publication publication, BuildContext context, CancelToken? cancelToken) async {
   final queryParams = {
     'pub': publication.keySymbol,
     'issue': publication.issueTagNumber.toString(),
     'langwritten': publication.mepsLanguage.symbol,
-    'fileformat': 'jwpub'
+    'fileformat': 'jwpub',
   };
 
-  /*
-  headers: {
-    'User-Agent': 'jwlibrary-android',
-  'Accept-Encoding': 'identity',
-  'Host': host
-},
-
-   */
-
-  final url = Uri.https('b.jw-cdn.org', '/apis/pub-media/GETPUBMEDIALINKS', queryParams);
+  final url = Uri.https(
+    'b.jw-cdn.org',
+    '/apis/pub-media/GETPUBMEDIALINKS',
+    queryParams,
+  );
   printTime('Generated URL: $url');
 
-  try {
-    final response = await Dio().getUri(url);
-    if (response.statusCode == 200) {
-      final data = response.data;
-      final downloadUrl = data['files'][publication.mepsLanguage.symbol]['JWPUB'][0]['file']['url'];
-      printTime('downloadUrl: $downloadUrl');
+  // 📌 Étape 1 : Récupération du lien de téléchargement
+  final response = await Api.dio.getUri(url);
+  if (response.statusCode != 200) {
+    throw Exception('Erreur lors de la récupération des métadonnées');
+  }
 
-      Map<String, String> headers = Api.getHeaders();
+  final data = response.data;
+  final downloadUrl = data['files'][publication.mepsLanguage.symbol]['JWPUB'][0]['file']['url'];
+  printTime('downloadUrl: $downloadUrl');
 
-      // Dans votre fonction downloadJwpubFile
-      Dio dio = Dio();
-      final responseBytes = await dio.get(
-        downloadUrl,
-        options: Options(
-            responseType: ResponseType.bytes,
-            headers: headers
-        ),
-        cancelToken: cancelToken,
-        onReceiveProgress: (received, total) {
-          if (total != -1) {
-            double progress = (received / total);
-            publication.progressNotifier.value = progress > 1 ? -1 : progress;
+  // 📌 Étape 3 : Téléchargement en flux
+  Api.dio.interceptors.clear();
 
-            // Mettre à jour la notification de progression
-            final progressPercent = (progress * 100).round();
-            NotificationService().showProgressNotification(
-              id: publication.hashCode,
-              title: 'Téléchargement en cours...',
-              body: '${publication.getTitle()} ($progressPercent%)',
-              progress: progressPercent,
-              maxProgress: 100,
-            );
-          }
-        },
-      );
+  double lastProgress = 0.0;
 
-      if (responseBytes.statusCode == 200) {
-        publication.progressNotifier.value = -1;
-        return await jwpubUnzip(responseBytes.data, context, publication: publication);
+  final responseJwpub = await Api.dio.get<Uint8List>(
+    downloadUrl,
+    options: Options(responseType: ResponseType.bytes),
+    onReceiveProgress: (received, total) {
+      if (total != -1) {
+        double progress = received / total;
+
+        // Mise à jour seulement si +5% depuis la dernière update
+        if (progress - lastProgress >= 0.02 || progress == 1.0) {
+          lastProgress = progress;
+          publication.progressNotifier.value = progress;
+        }
       }
-      return null;
-    }
-    else {
-      throw Exception('Erreur lors de la récupération des données');
-    }
+    },
+    cancelToken: cancelToken,
+  );
+
+  publication.progressNotifier.value = -1;
+
+  if (responseJwpub.statusCode != 200) {
+    publication.progressNotifier.value = 0.0;
+    throw Exception('Erreur lors du téléchargement du fichier JWPUB');
   }
-  catch (e) {
-    if (e is DioException && CancelToken.isCancel(e)) {
-      printTime('Téléchargement annulé');
-    } else {
-      showDialog(
-        context: context,
-        builder: (BuildContext context) {
-          return AlertDialog(
-            title: Text('Erreur'),
-            content: Text('Échec de la récupération des données : $e'),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                },
-                child: Text('OK'),
-              ),
-            ],
-          );
-        },
-      );
-    }
-  }
-  return null;
+
+  return await jwpubUnzip(responseJwpub.data!, publication: publication);
 }
 
-Future<Publication> jwpubUnzip(List<int> bytes, BuildContext context, {Publication? publication}) async {
+Future<Publication> jwpubUnzip(Uint8List bytes, {Publication? publication}) async {
   // Décoder l'archive principale
   final archive = ZipDecoder().decodeBytes(bytes);
 

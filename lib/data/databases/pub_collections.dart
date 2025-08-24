@@ -74,14 +74,28 @@ class PubCollections {
   }
 
   Future<Publication> insertPublicationFromManifest(dynamic manifestData, String path, {Publication? publication}) async {
-    await open();
+    //await open();
 
     dynamic pub = manifestData['publication'];
+    String timeStamp = manifestData['timestamp'];
 
     int languageId = pub['language'];
     String symbol = pub['symbol'];
     int year = pub['year'] is String ? int.parse(pub['year']) : pub['year'];
     int issueTagNum = pub['issueId'];
+
+    // Vérifier si la publication existe déjà
+    Publication? existPub = PublicationRepository().getByCompositeKeyForDownloadWithMepsLanguageId(symbol, issueTagNum, languageId);
+
+    // Si la publication existe
+    if (existPub != null) {
+      // Comparer les timestamps
+      if (existPub.timeStamp == timeStamp) {
+        // Le timestamp est identique, retourner la publication existante
+        return existPub;
+      }
+      // Le timestamp est différent, on procède à la mise à jour
+    }
 
     Future<String> descriptionFuture = extractPublicationDescription(publication, symbol: symbol, issueTagNumber: issueTagNum, mepsLanguage: 'F');
 
@@ -130,7 +144,7 @@ class PubCollections {
       'RootSymbol': pub['rootSymbol'],
       'RootYear': pub['rootYear'] is String ? int.parse(pub['rootYear']) : pub['rootYear'],
       'Hash': hashPublication,
-      'Timestamp': pub['timestamp'],
+      'Timestamp': timeStamp, // Utiliser le nouveau timestamp
       'Path': path,
       'DatabasePath': "$path/${pub['fileName']}",
       'ExpandedSize': manifestData['expandedSize'],
@@ -139,7 +153,31 @@ class PubCollections {
       'VerseCommentary': hasVerseCommentaryTable ? 1 : 0,
     };
 
-    int publicationId = await _database.insert('Publication', pubDb);
+    int publicationId;
+
+    if (existPub != null) {
+      // Mise à jour de la publication existante
+      publicationId = existPub.id; // Supposons que existPub a un id
+      pubDb['PublicationId'] = publicationId; // Ajouter l'ID pour l'update
+
+      await _database.update(
+          'Publication',
+          pubDb,
+          where: 'PublicationId = ?',
+          whereArgs: [publicationId]
+      );
+
+      // Supprimer les anciennes données liées
+      await _database.delete('Image', where: 'PublicationId = ?', whereArgs: [publicationId]);
+      await _database.delete('PublicationAttribute', where: 'PublicationId = ?', whereArgs: [publicationId]);
+      await _database.delete('PublicationIssueAttribute', where: 'PublicationId = ?', whereArgs: [publicationId]);
+      await _database.delete('PublicationIssueProperty', where: 'PublicationId = ?', whereArgs: [publicationId]);
+      await _database.delete('Document', where: 'PublicationId = ?', whereArgs: [publicationId]);
+
+    } else {
+      // Insertion d'une nouvelle publication
+      publicationId = await _database.insert('Publication', pubDb);
+    }
 
     dynamic images = pub['images'];
 
@@ -156,7 +194,7 @@ class PubCollections {
           'Signature': image['signature'].split(':').first,
         };
         imagesDb.add(imageDb);
-        _database.insert('Image', imageDb);
+        await _database.insert('Image', imageDb);
       }
     }
 
@@ -167,7 +205,7 @@ class PubCollections {
           'PublicationId': publicationId,
           'Attribute': attribute,
         };
-        _database.insert('PublicationAttribute', attributeDb);
+        await _database.insert('PublicationAttribute', attributeDb);
 
         pubDb['Attribute'] = attribute;
       }
@@ -180,7 +218,7 @@ class PubCollections {
           'PublicationId': publicationId,
           'Attribute': issueAttribute,
         };
-        _database.insert('PublicationIssueAttribute', issueAttributeDb);
+        await _database.insert('PublicationIssueAttribute', issueAttributeDb);
       }
     }
 
@@ -200,7 +238,7 @@ class PubCollections {
           'Symbol': issueProperties['symbol'],
           'UndatedSymbol': issueProperties['undatedSymbol'],
         };
-        _database.insert('PublicationIssueProperty', issuePropertiesDb);
+        await _database.insert('PublicationIssueProperty', issuePropertiesDb);
 
         pubDb['IssueTitle'] = issueProperties['title'];
         pubDb['CoverTitle'] = issueProperties['coverTitle'];
@@ -219,7 +257,7 @@ class PubCollections {
           'MepsDocumentId': document['MepsDocumentId'],
           'PublicationId': publicationId
         };
-        _database.insert('Document', documentDb);
+        await _database.insert('Document', documentDb);
       }
     }
 
@@ -247,7 +285,7 @@ class PubCollections {
     var imageSqr = imagesDb
         .where((element) => element['Type'] == 't')
         .toList()
-        ..sort((a, b) {
+      ..sort((a, b) {
         // Trier par largeur et hauteur en ordre décroissant
         int widthComparison = b['Width'].compareTo(a['Width']);
         if (widthComparison != 0) {
@@ -278,7 +316,7 @@ class PubCollections {
   }
 
   Future<void> deletePublication(Publication publication) async {
-    await open(); // Assure-toi que la base est ouverte
+    //await open(); // Assure-toi que la base est ouverte
 
     await _database.transaction((txn) async {
       // 1. Récupérer l'ID de la publication à supprimer
@@ -409,7 +447,7 @@ class PubCollections {
   }
 
   Future<Publication?> getDocumentFromMepsDocumentId(int mepsDocId, int currentLanguageId) async {
-    await open();
+    //await open();
 
     List<Map<String, dynamic>> result = await _database.rawQuery('''
       SELECT 
@@ -423,7 +461,7 @@ class PubCollections {
     ''', [mepsDocId, currentLanguageId]);
 
     if (result.isNotEmpty) {
-      return PublicationRepository().getPublicationWithSymbol(result.first['Symbol'], result.first['IssueTagNumber'], result.first['MepsLanguageId']);
+      return PublicationRepository().getPublicationWithMepsLanguageId(result.first['Symbol'], result.first['IssueTagNumber'], result.first['MepsLanguageId']);
     }
     return null;
   }

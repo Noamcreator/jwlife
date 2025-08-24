@@ -17,7 +17,6 @@ class ArticleWidget extends StatefulWidget {
 
 class ArticleWidgetState extends State<ArticleWidget> {
   List<Map<String, dynamic>> _articles = [];
-
   int _currentArticleIndex = 0;
 
   List<Map<String, dynamic>> get _orderedArticles {
@@ -26,7 +25,7 @@ class ArticleWidgetState extends State<ArticleWidget> {
 
   Map<String, dynamic> get _currentArticle => _orderedArticles[_currentArticleIndex];
 
-  void setArticles(List<Map<String, dynamic>> articles) {) {
+  void setArticles(List<Map<String, dynamic>> articles) {
     setState(() {
       _articles = articles;
     });
@@ -114,8 +113,7 @@ class ArticleWidgetState extends State<ArticleWidget> {
     });
   }
 
-  Widget _buildContentContainer(
-      Map<String, dynamic> article, Size screenSize) {
+  Widget _buildContentContainer(Map<String, dynamic> article, Size screenSize) {
     return Center(
       child: Container(
         width: screenSize.width * 0.9,

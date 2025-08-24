@@ -1,10 +1,13 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:searchfield/searchfield.dart';
 
-import '../../../../core/api.dart';
+import '../../../../core/api/api.dart';
 import '../../../../core/utils/utils.dart';
+import '../../../../widgets/searchfield/searchfield_with_suggestions/decoration.dart';
+import '../../../../widgets/searchfield/searchfield_with_suggestions/input_decoration.dart';
+import '../../../../widgets/searchfield/searchfield_with_suggestions/searchfield.dart';
+import '../../../../widgets/searchfield/searchfield_with_suggestions/searchfield_list_item.dart';
 
 class SearchBiblePage extends StatefulWidget {
   final String query;

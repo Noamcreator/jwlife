@@ -16,6 +16,8 @@ class JwLifeSettings {
   Locale locale = const Locale('en');
   late MepsLanguage currentLanguage;
   WebViewData webViewData = WebViewData();
+  Color lightPrimaryColor = const Color(0xFF646496);
+  Color darkPrimaryColor = Color.lerp(const Color(0xFF646496), Colors.white, 0.3)!;
 
   Future<void> init() async {
     final theme = await getTheme();
@@ -27,9 +29,13 @@ class JwLifeSettings {
 
     final lightColor = await getPrimaryColor(ThemeMode.light);
     final darkColor = await getPrimaryColor(ThemeMode.dark);
+    lightPrimaryColor = lightColor;
+    darkPrimaryColor = darkColor;
+
     final localeCode = await getLocale();
-    themeMode = themeMod;
     locale = Locale(localeCode);
+
+    themeMode = themeMod;
     lightData = AppTheme.getLightTheme(lightColor);
     darkData = AppTheme.getDarkTheme(darkColor);
     

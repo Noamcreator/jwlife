@@ -4,19 +4,28 @@ import 'dart:ui' as ui;
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:crypto/crypto.dart';
-import 'package:flutter/cupertino.dart';
+import 'package:diacritic/diacritic.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
 
 import 'package:image/image.dart' as img;
 
 String capitalize(String s) => s[0].toUpperCase() + s.substring(1);
 
+String normalize(String s) {
+  return removeDiacritics(s).toLowerCase();
+}
+
+int convertDateTimeToIntDate(DateTime dateTime) {
+  String formatted = DateFormat('yyyyMMdd').format(dateTime);
+  return int.parse(formatted);
+}
+
 int durationSecondsToTicks(double seconds) {
   return (seconds * 10000000).round();
 }
-
 
 String formatTick(int ticks) {
   // 1 tick = 100 ns → 10 000 000 ticks = 1 seconde
@@ -261,4 +270,18 @@ img.Image resizeAndCropCenter(img.Image originalImage, int targetSize) {
 
   // Si la largeur est déjà <= targetSize, retourner l'image redimensionnée telle quelle
   return resized;
+}
+
+String toHex(Color color) {
+  return '#${color.value.toRadixString(16).substring(2).toUpperCase()}';
+}
+
+
+Future<File> getTempFile(String fileName) async {
+  final tempDir = await getTemporaryDirectory();
+  final tempFile = File('${tempDir.path}/$fileName');
+  if (!await tempFile.exists()) {
+    await tempFile.create(recursive: true);
+  }
+  return tempFile;
 }

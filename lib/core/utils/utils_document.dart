@@ -2,6 +2,7 @@ import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'package:jwlife/app/services/global_key_service.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/core/utils/webview_data.dart';
@@ -17,7 +18,7 @@ import '../../features/publication/pages/document/data/models/document.dart';
 
 import '../shared_preferences/shared_preferences_utils.dart';
 
-Future<void> showDownloadPublicationDialog(BuildContext context, Publication publication, {int? mepsDocId, int? bookNumber, int? chapterNumber, int? startParagraphId, int? endParagraphId, String? textTag}) async {
+Future<void> showDownloadPublicationDialog(BuildContext context, Publication publication, {int? mepsDocId, int? bookNumber, int? chapterNumber, DateTime? date, int? startParagraphId, int? endParagraphId, String? textTag}) async {
   String publicationTitle = publication.getTitle();
 
   await showJwDialog<void>(
@@ -34,18 +35,18 @@ Future<void> showDownloadPublicationDialog(BuildContext context, Publication pub
         closeDialog: false,
         onPressed: (buildContext) async {
           Navigator.of(buildContext).pop(); // Ferme le 1er dialog
-          await showDownloadProgressDialog(context, publication, mepsDocId, bookNumber, chapterNumber, startParagraphId, endParagraphId, textTag); // Ouvre le 2nd proprement
+          await showDownloadProgressDialog(context, publication, mepsDocId, bookNumber, chapterNumber, date, startParagraphId, endParagraphId, textTag); // Ouvre le 2nd proprement
         },
       ),
     ],
   );
 }
 
-Future<void> showDownloadProgressDialog(BuildContext context, Publication publication, int? mepsDocId, int? bookNumber, int? chapterNumber, int? startParagraphId, int? endParagraphId, String? textTag) async {
+Future<void> showDownloadProgressDialog(BuildContext context, Publication publication, int? mepsDocId, int? bookNumber, int? chapterNumber, DateTime? date, int? startParagraphId, int? endParagraphId, String? textTag) async {
   await showJwDialog<void>(
     context: context,
     titleText: "Téléchargement de « ${publication.getTitle()} »",
-    content: _DownloadDialogContent(publication: publication, mepsDocId: mepsDocId, bookNumber: bookNumber, chapterNumber: chapterNumber, startParagraphId: startParagraphId, endParagraphId: endParagraphId, textTag: textTag),
+    content: _DownloadDialogContent(publication: publication, mepsDocId: mepsDocId, bookNumber: bookNumber, chapterNumber: chapterNumber, date: date, startParagraphId: startParagraphId, endParagraphId: endParagraphId, textTag: textTag),
     buttons: [
       JwDialogButton(
         label: 'ANNULER',
@@ -63,11 +64,12 @@ class _DownloadDialogContent extends StatefulWidget {
   final int? mepsDocId;
   final int? bookNumber;
   final int? chapterNumber;
+  final DateTime? date;
   final int? startParagraphId;
   final int? endParagraphId;
   final String? textTag;
 
-  const _DownloadDialogContent({required this.publication, this.mepsDocId, this.bookNumber, this.chapterNumber, this.startParagraphId, this.endParagraphId, this.textTag});
+  const _DownloadDialogContent({required this.publication, this.mepsDocId, this.bookNumber, this.chapterNumber, this.date, this.startParagraphId, this.endParagraphId, this.textTag});
 
   @override
   State<_DownloadDialogContent> createState() => __DownloadDialogContentState();
@@ -90,13 +92,17 @@ class __DownloadDialogContentState extends State<_DownloadDialogContent> {
     await widget.publication.download(context); // ← maintenant dans un contexte sûr
     if (mounted) {
       Navigator.pop(context);
-      if (widget.publication.isDownloadedNotifier.value) {
-        if (widget.bookNumber != null && widget.chapterNumber != null) {
-          await showPageBibleChapter(context, widget.publication, widget.bookNumber!, widget.chapterNumber!, firstVerse: widget.startParagraphId, lastVerse: widget.endParagraphId);
-        }
-        else {
-          await showPageDocument(context, widget.publication, widget.mepsDocId!, startParagraphId: widget.startParagraphId, endParagraphId: widget.endParagraphId, textTag: widget.textTag);
-        }
+    }
+    if (widget.publication.isDownloadedNotifier.value) {
+      BuildContext ctx = GlobalKeyService.jwLifePageKey.currentState!.getCurrentState().context;
+      if (widget.bookNumber != null && widget.chapterNumber != null) {
+        await showPageBibleChapter(ctx, widget.publication, widget.bookNumber!, widget.chapterNumber!, firstVerse: widget.startParagraphId, lastVerse: widget.endParagraphId);
+      }
+      else if (widget.date != null) {
+        await showPageDailyText(ctx, widget.publication, date: widget.date!);
+      }
+      else {
+        await showPageDocument(ctx, widget.publication, widget.mepsDocId!, startParagraphId: widget.startParagraphId, endParagraphId: widget.endParagraphId, textTag: widget.textTag);
       }
     }
   }
@@ -170,6 +176,20 @@ Future<void> showChapterView(BuildContext context, String keySymbol, int current
       if (bible != null) {
         await showDownloadPublicationDialog(context, bible, bookNumber: bookNumber, chapterNumber: chapterNumber, startParagraphId: firstVerseNumber, endParagraphId: lastVerseNumber);
       }
+    }
+    else {
+      await showNoConnectionDialog(context);
+    }
+  }
+}
+
+Future<void> showDailyText(BuildContext context, Publication publication, {DateTime? date}) async {
+  if (publication.isDownloadedNotifier.value) {
+    await showPageDailyText(context, publication, date: date);
+  }
+  else {
+    if(await hasInternetConnection()) {
+      await showDownloadPublicationDialog(context, publication, date: date);
     }
     else {
       await showNoConnectionDialog(context);
@@ -333,7 +353,6 @@ String getArticleClass(Document document) {
   final scriptName = document.publication.mepsLanguage.internalScriptName;
   final languageSymbol = document.publication.mepsLanguage.symbol;
   final direction = document.publication.mepsLanguage.isRtl ? 'rtl' : 'ltr';
-  final theme = JwLifeSettings().webViewData.theme;
 
   return [
     publication,
@@ -345,8 +364,7 @@ String getArticleClass(Document document) {
     'ml-$languageSymbol',
     'dir-$direction',
     'layout-reading',
-    'layout-sidebar',
-    theme,
+    'layout-sidebar'
   ].join(' ');
 }
 
@@ -619,7 +637,7 @@ Future<Bookmark?> showBookmarkDialog(BuildContext context, Publication publicati
                                         publication.documentsManager!.getCurrentDocument().addBookmark(bookmark);
                                       }
                                       if(webViewController != null) {
-                                        webViewController.evaluateJavascript(source: 'addBookmark(null, ${bookmark.blockType}, ${bookmark.blockIdentifier}, ${bookmark.slot})');
+                                        webViewController.evaluateJavascript(source: 'addBookmark(null, null, ${bookmark.blockType}, ${bookmark.blockIdentifier}, ${bookmark.slot})');
                                       }
                                     }
                                   }
@@ -633,7 +651,7 @@ Future<Bookmark?> showBookmarkDialog(BuildContext context, Publication publicati
                                         publication.documentsManager!.getCurrentDocument().addBookmark(bookmark);
                                       }
                                       if(webViewController != null) {
-                                        webViewController.evaluateJavascript(source: 'addBookmark(null, ${bookmark.blockType}, ${bookmark.blockIdentifier}, ${bookmark.slot})');
+                                        webViewController.evaluateJavascript(source: 'addBookmark(null, null, ${bookmark.blockType}, ${bookmark.blockIdentifier}, ${bookmark.slot})');
                                       }
                                     }
                                   }
@@ -703,7 +721,7 @@ Future<Bookmark?> showBookmarkDialog(BuildContext context, Publication publicati
                                                         publication.documentsManager!.getCurrentDocument().removeBookmark(bookmark);
                                                       }
                                                       if(webViewController != null) {
-                                                        webViewController.evaluateJavascript(source: 'removeBookmark(${bookmark.blockIdentifier}, ${bookmark.slot})');
+                                                        webViewController.evaluateJavascript(source: 'removeBookmark(null, ${bookmark.blockIdentifier}, ${bookmark.slot})');
                                                       }
                                                     }
                                                   },
@@ -723,8 +741,8 @@ Future<Bookmark?> showBookmarkDialog(BuildContext context, Publication publicati
                                                           publication.documentsManager!.getCurrentDocument().addBookmark(updatedBookmark);
                                                         }
                                                         if(webViewController != null) {
-                                                          webViewController.evaluateJavascript(source: 'removeBookmark(${bookmark.blockIdentifier}, ${bookmark.slot})');
-                                                          webViewController.evaluateJavascript(source: 'addBookmark(null, ${updatedBookmark.blockType}, ${updatedBookmark.blockIdentifier}, ${updatedBookmark.slot})');
+                                                          webViewController.evaluateJavascript(source: 'removeBookmark(null, ${bookmark.blockIdentifier}, ${bookmark.slot})');
+                                                          webViewController.evaluateJavascript(source: 'addBookmark(null, null, ${updatedBookmark.blockType}, ${updatedBookmark.blockIdentifier}, ${updatedBookmark.slot})');
                                                         }
                                                       }
                                                     }
@@ -740,8 +758,8 @@ Future<Bookmark?> showBookmarkDialog(BuildContext context, Publication publicati
                                                           publication.documentsManager!.getCurrentDocument().addBookmark(updatedBookmark);
                                                         }
                                                         if(webViewController != null) {
-                                                          webViewController.evaluateJavascript(source: 'removeBookmark(${bookmark.blockIdentifier}, ${bookmark.slot})');
-                                                          webViewController.evaluateJavascript(source: 'addBookmark(null, ${updatedBookmark.blockType}, ${updatedBookmark.blockIdentifier}, ${updatedBookmark.slot})');
+                                                          webViewController.evaluateJavascript(source: 'removeBookmark(null, ${bookmark.blockIdentifier}, ${bookmark.slot})');
+                                                          webViewController.evaluateJavascript(source: 'addBookmark(null, null, ${updatedBookmark.blockType}, ${updatedBookmark.blockIdentifier}, ${updatedBookmark.slot})');
                                                         }
                                                       }
                                                     }

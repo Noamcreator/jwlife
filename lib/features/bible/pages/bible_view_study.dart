@@ -3,7 +3,7 @@ import 'package:html/parser.dart' as html_parser;
 import 'package:html/dom.dart' as html;
 import 'package:jwlife/core/icons.dart';
 
-import '../../../core/api.dart';
+import '../../../core/api/api.dart';
 import '../../../core/utils/utils.dart';
 
 class BibleView extends StatefulWidget {

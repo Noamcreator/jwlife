@@ -231,6 +231,7 @@ class _NotesTagsPageState extends State<NotesTagsPage> {
                     (context, index) {
                   return NoteItemWidget(
                     note: filteredNotes[index],
+                    tag: null,
                     onUpdated: () => setState(() {}),
                   );
                 },

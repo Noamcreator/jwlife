@@ -828,15 +828,13 @@ class _FullAudioViewState extends State<FullAudioView> {
                       backgroundColor: Colors.transparent,
                       elevation: 0,
                       leading: IconButton(
-                        icon: Icon(
-                            Icons.keyboard_arrow_down, color: Colors.white,
-                            size: 32),
+                        icon: const Icon(Icons.keyboard_arrow_down, color: Colors.white, size: 32),
                         onPressed: () {
                           _playerStateSubscription.cancel();
                           _sequenceStateSubscription.cancel();
                           _durationSubscription.cancel();
                           _positionSubscription.cancel();
-                          Navigator.pop(context);
+                          GlobalKeyService.jwLifePageKey.currentState?.handleBack(context);
                         },
                       ),
                       actions: [

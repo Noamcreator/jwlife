@@ -10,7 +10,7 @@ import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../../../../app/services/settings_service.dart';
-import '../../../../../core/api.dart';
+import '../../../../../core/api/api.dart';
 import '../../../../../core/utils/utils.dart';
 import 'publication_media_items_view.dart';
 import 'publication_svg_view.dart';

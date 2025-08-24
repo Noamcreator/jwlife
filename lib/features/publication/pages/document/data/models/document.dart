@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:jwlife/app/jwlife_app.dart';
+import 'package:jwlife/core/jworg_uri.dart';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/databases/history.dart';
 import 'package:jwlife/data/models/userdata/bookmark.dart';
@@ -291,14 +292,11 @@ class Document {
   }
 
   void share(bool isBible, {String? id}) {
-    // Base de l'URL
-    final baseUrl = 'https://www.jw.org/finder';
-
-    late Uri uri;
+    String uri;
 
     if (isBible) {
       // Vérifie que les propriétés nécessaires sont bien définies
-      if (bookNumber == null || chapterNumberBible == null) {
+      if (!isBibleChapter()) {
         throw Exception('bookNumber et chapterNumberBible doivent être définis.');
       }
 
@@ -310,32 +308,26 @@ class Document {
       final String verseStr = verseNum.toString().padLeft(3, '0');
       final String bookStr = bookNum.toString().padLeft(2, '0');
 
-      final String bibleParam = id != null
-          ? '$bookNum$chapterStr$verseStr'
-          : '$bookStr${chapterStr}000-$bookStr${chapterStr}999';
+      final String bibleParam = id != null ? '$bookNum$chapterStr$verseStr' : '$bookStr${chapterStr}000-$bookStr${chapterStr}999';
 
-      uri = Uri.parse(baseUrl).replace(queryParameters: {
-        'srcid': 'jwlshare',
-        'wtlocale': publication.mepsLanguage.symbol,
-        'prefer': 'lang',
-        'bible': bibleParam,
-        'pub': publication.keySymbol,
-      });
+      uri = JwOrgUri.bibleChapter(
+          wtlocale: publication.mepsLanguage.symbol,
+          pub: publication.keySymbol,
+          bible: bibleParam
+      ).toString();
     }
     else {
-      uri = Uri.parse(baseUrl).replace(queryParameters: {
-        'srcid': 'jwlshare',
-        'wtlocale': publication.mepsLanguage.symbol,
-        'prefer': 'lang',
-        'docid': mepsDocumentId.toString(),
-        if (id != null) 'par': id,
-      });
+      uri = JwOrgUri.document(
+          wtlocale: publication.mepsLanguage.symbol,
+          docid: mepsDocumentId,
+          par: id
+      ).toString();
     }
 
     SharePlus.instance.share(
       ShareParams(
         title: title,
-        uri: uri,
+        uri: Uri.tryParse(uri),
       ),
     );
   }
@@ -385,12 +377,16 @@ class Document {
     JwLifeApp.userdata.removeHighlightWithGuid(uuid);
   }
 
-  void changeHighlightColor(String uuid, int color) {
+  Future<void> changeHighlightColor(String uuid, int colorIndex) async {
     highlights.where((highlight) => highlight['UserMarkGuid'] == uuid).forEach((highlight) {
-      highlight['ColorIndex'] = color;
+      highlight['ColorIndex'] = colorIndex;
     });
 
-    JwLifeApp.userdata.changeColorHighlightWithGuid(uuid, color);
+    await JwLifeApp.userdata.changeColorHighlightWithGuid(uuid, colorIndex);
+
+    notes.where((note) => note['UserMarkGuid'] == uuid).forEach((note) {
+      note['ColorIndex'] = colorIndex;
+    });
   }
 
   void addNoteWithUserMarkGuid(int blockType, int identifier, String title, String uuid, String? userMarkGuid, int colorIndex) {
@@ -419,6 +415,27 @@ class Document {
     });
 
     JwLifeApp.userdata.updateNoteWithGuid(uuid, title, content);
+  }
+
+  void changeNoteUserMark(String uuid, String userMarkGuid, int colorIndex) {
+    notes.where((note) => note['Guid'] == uuid).forEach((note) {
+      note['UserMarkGuid'] = userMarkGuid;
+      note['ColorIndex'] = colorIndex;
+    });
+
+    JwLifeApp.userdata.changeNoteUserMark(uuid, userMarkGuid);
+  }
+
+  Future<void> changeNoteColor(String uuid, int colorIndex) async {
+    notes.where((note) => note['Guid'] == uuid).forEach((note) {
+      note['ColorIndex'] = colorIndex;
+
+      highlights.where((highlight) => highlight['UserMarkGuid'] == note['UserMarkGuid']).forEach((highlight) {
+        highlight['ColorIndex'] = colorIndex;
+      });
+    });
+
+    await JwLifeApp.userdata.updateNoteColorWithGuid(uuid, colorIndex);
   }
 
   void addTagToNote(String uuid, int tagId) {

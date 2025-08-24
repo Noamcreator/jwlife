@@ -15,10 +15,13 @@ import 'package:share_plus/share_plus.dart';
 import '../../app/services/global_key_service.dart';
 import '../../app/services/notification_service.dart';
 import '../../app/services/settings_service.dart';
+import '../../core/api/api.dart';
+import '../../core/jworg_uri.dart';
 import '../../features/publication/pages/document/local/documents_manager.dart';
 import '../../features/publication/pages/menu/local/publication_menu_view.dart';
 import '../../features/publication/pages/menu/online/publication_menu.dart';
 import '../repositories/PublicationRepository.dart';
+import 'audio.dart';
 
 class Publication {
   final int id;
@@ -56,6 +59,8 @@ class Publication {
   bool hasCommentary = false;
   DocumentsManager? documentsManager;
   DatedTextManager? datedTextManager;
+
+  List<Audio> audios = [];
 
   CancelableOperation? _downloadOperation;
   CancelableOperation? _updateOperation;
@@ -117,7 +122,7 @@ class Publication {
     final mepsLanguageId = json['MepsLanguageId'] ?? 0;
 
     // Recherche dans le repository une publication existante
-    Publication? existing = PublicationRepository().getByCompositeKey(symbol, issueTagNumber, mepsLanguageId);
+    Publication? existing = PublicationRepository().getPublicationWithMepsLanguageId(symbol, issueTagNumber, mepsLanguageId);
 
     if (existing != null) { // Si la publication est trouvée
       if(!existing.isDownloadedNotifier.value) {
@@ -193,25 +198,15 @@ class Publication {
   }
 
   void shareLink() {
-    // Créer une map avec les paramètres de l'URL
-    Map<String, String> queryParams = {
-      'srcid': 'jwlshare',
-      'wtlocale': mepsLanguage.symbol,
-      'prefer': 'lang',
-      'pub': symbol,
-    };
-
-    // Ajouter le paramètre issue si nécessaire
-    if (issueTagNumber != 0) {
-      queryParams['issue'] = issueTagNumber.toString();
-    }
-
-    // Créer l'URL avec les paramètres
-    final uri = Uri.https('www.jw.org', '/finder', queryParams);
+    String uri = JwOrgUri.publication(
+       wtlocale: mepsLanguage.symbol,
+       pub: symbol,
+       issue: issueTagNumber
+    ).toString();
 
     // Partager le lien
     SharePlus.instance.share(
-        ShareParams(title: getTitle(), uri: uri)
+        ShareParams(title: getTitle(), uri: Uri.tryParse(uri))
     );
   }
 
@@ -222,15 +217,6 @@ class Publication {
 
       final cancelToken = CancelToken();
       _cancelToken = cancelToken;
-
-      // Afficher la notification initiale
-      await NotificationService().showProgressNotification(
-        id: hashCode, // ID unique basé sur la publication
-        title: 'Téléchargement en cours...',
-        body: getTitle(),
-        progress: 0,
-        maxProgress: 100,
-      );
 
       _downloadOperation = CancelableOperation.fromFuture(
         downloadJwpubFile(this, context, cancelToken),
@@ -259,9 +245,14 @@ class Publication {
           id: hashCode,
           title: '✅ Téléchargement terminé',
           body: getTitle(),
-          payload: 'pub:${symbol}_${mepsLanguage.id}_$issueTagNumber', // Pour identifier la publication
+          payload: JwOrgUri.publication(
+            wtlocale: mepsLanguage.symbol,
+            pub: symbol,
+            issue: issueTagNumber
+          ).toString()
         );
-      } else {
+      }
+      else {
         // Téléchargement annulé ou échoué
         await NotificationService().cancelNotification(hashCode);
       }
@@ -367,7 +358,7 @@ class Publication {
     }
   }
 
-  Future<void> showMenu(BuildContext context, {int? mepsLanguage}) async {
+  Future<void> showMenu(BuildContext context) async {
     if(isDownloadedNotifier.value && !isDownloadingNotifier.value) {
       await showPage(context, PublicationMenuView(publication: this));
     }
@@ -399,6 +390,15 @@ class Publication {
     }
 
     return lastModDate.isAfter(pubDate);
+  }
+
+  Future<void> fetchAudios() async {
+    if(audios.isEmpty) {
+      List<Audio>? audios = await Api.getPubAudio(keySymbol: keySymbol, issueTagNumber: issueTagNumber, languageSymbol: mepsLanguage.symbol);
+      if(audios != null) {
+        this.audios = audios;
+      }
+    }
   }
 
   String getTitle() {

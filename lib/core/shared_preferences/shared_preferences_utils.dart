@@ -121,8 +121,11 @@ Future<List<String>> getLibraryLanguage() async {
   return sp.getStringList(SharedPreferencesKeys.libraryLanguage.key) ?? List<String>.from(SharedPreferencesKeys.libraryLanguage.defaultValue);
 }
 
-Future<void> setLibraryLanguage(Map<String, dynamic> selectedLanguage) async {
-  JwLifeSettings().currentLanguage = MepsLanguage.fromJson(selectedLanguage);
+Future<void> setLibraryLanguage(dynamic selectedLanguage) async {
+  if(selectedLanguage is Map<String, dynamic>) {
+    JwLifeSettings().currentLanguage = MepsLanguage.fromJson(selectedLanguage);
+  }
+
   final sp = await _getSP();
   await sp.setStringList(SharedPreferencesKeys.libraryLanguage.key, [
     JwLifeSettings().currentLanguage.id.toString(),
@@ -137,8 +140,8 @@ Future<void> setLibraryLanguage(Map<String, dynamic> selectedLanguage) async {
     JwLifeSettings().currentLanguage.isCharacterSpaced ? '1' : '0',
     JwLifeSettings().currentLanguage.isCharacterBreakable ? '1' : '0',
     JwLifeSettings().currentLanguage.hasSystemDigits ? '1' : '0',
-    JwLifeSettings().currentLanguage.rsConf,
-    JwLifeSettings().currentLanguage.lib,
+    JwLifeSettings().currentLanguage.rsConf ?? '',
+    JwLifeSettings().currentLanguage.lib ?? '',
   ]);
 }
 

@@ -35,23 +35,25 @@ class ResponsiveAppBarActions extends StatelessWidget {
             onPressed: action.onPressed,
             icon: action.icon
         )),
-        PopupMenuButton<IconTextButton>(
-          icon: const Icon(Icons.more_vert),
-          itemBuilder: (context) => menuItems.map((action) =>
-              PopupMenuItem(
-                value: action,
-                child: ListTile(
-                  iconColor: Theme.of(context).primaryColor,
-                  leading: action.icon,
-                  title: Text(action.text),
-                  onTap: () {
-                    Navigator.pop(context); // Ferme le menu
-                    action.onPressed?.call(); // Exécute l'action
-                  },
+        RepaintBoundary(
+          child: PopupMenuButton<IconTextButton>(
+            icon: const Icon(Icons.more_vert),
+            itemBuilder: (context) => menuItems.map((action) =>
+                PopupMenuItem(
+                  value: action,
+                  child: ListTile(
+                    iconColor: Theme.of(context).primaryColor,
+                    leading: action.icon,
+                    title: Text(action.text),
+                    onTap: () {
+                      Navigator.pop(context); // Ferme le menu
+                      action.onPressed?.call(); // Exécute l'action
+                    },
+                  ),
                 ),
-              ),
-          ).toList(),
-        ),
+            ).toList(),
+          ),
+        )
       ],
     );
   }

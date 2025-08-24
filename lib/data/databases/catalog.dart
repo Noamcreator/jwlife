@@ -309,6 +309,15 @@ class PubCatalog {
 
   /// Rechercher une publication par symbole et la date d'issue.
   static Future<Publication?> searchPub(String pubSymbol, int issueTagNumber, dynamic language) async {
+    if (language is String) {
+      Publication? pub = PublicationRepository().getPublicationWithSymbol(pubSymbol, issueTagNumber, language);
+      if (pub != null) return pub;
+    }
+    else {
+      Publication? pub = PublicationRepository().getPublicationWithMepsLanguageId(pubSymbol, issueTagNumber, language);
+      if (pub != null) return pub;
+    }
+
     final catalogFile = await getCatalogDatabaseFile();
     final mepsFile = await getMepsUnitDatabaseFile();
 
@@ -317,10 +326,10 @@ class PubCatalog {
 
       String languageRequest = '';
       if (language is String) {
-        languageRequest = 'WHERE meps.Language.Symbol = ? ';
+        languageRequest = 'WHERE meps.Language.Symbol = ?';
       }
       else {
-        languageRequest = 'WHERE pa.MepsLanguageId = ? ';
+        languageRequest = 'WHERE pa.MepsLanguageId = ?';
       }
 
       try {
@@ -478,6 +487,8 @@ class PubCatalog {
   static Future<void> fetchAssemblyPublications() async {
     final catalogFile = await getCatalogDatabaseFile();
     final mepsFile = await getMepsUnitDatabaseFile();
+
+    assembliesPublications.clear();
 
     if (allFilesExist([catalogFile, mepsFile])) {
       final catalog = await openReadOnlyDatabase(catalogFile.path);

@@ -32,7 +32,7 @@ class DatedTextManager {
   }
 
   Future<void> fetchDatedText() async {
-    int dateInt = convertDateToInt(dateTime);
+    int dateInt = convertDateTimeToIntDate(dateTime);
 
     try {
       List<Map<String, dynamic>> result = await database.rawQuery("""
@@ -57,12 +57,6 @@ class DatedTextManager {
       printTime('Error fetching all documents: $e');
     }
   }
-
-  int convertDateToInt(DateTime dateTime) {
-    String formatted = DateFormat('yyyyMMdd').format(dateTime);
-    return int.parse(formatted);
-  }
-
 
   DatedText getCurrentDatedText() => datedTexts[selectedDatedTextIndex];
 

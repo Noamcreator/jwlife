@@ -3,9 +3,26 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz;
 
-import '../../data/models/publication.dart';
-import '../../data/repositories/PublicationRepository.dart';
+import '../../core/jworg_uri.dart';
 import 'global_key_service.dart';
+
+@pragma('vm:entry-point')
+void notificationTapBackground(NotificationResponse notificationResponse) {
+  print('Notification tapée depuis le fond - Action: ${notificationResponse.actionId}, Payload: ${notificationResponse.payload}');
+
+  if (notificationResponse.actionId == 'id_dismiss') {
+    print('Bouton "Plus tard" pressé');
+    return;
+  }
+
+  try {
+    final uri = JwOrgUri.parse(notificationResponse.payload!);
+    JwOrgUri.startUri = uri;
+  }
+  catch (e) {
+    print('ERREUR: $e');
+  }
+}
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -17,6 +34,8 @@ class NotificationService {
   Future<void> initNotification() async {
     // Initialiser les fuseaux horaires
     tz.initializeTimeZones();
+
+    tz.setLocalLocation(tz.getLocation('Europe/Paris'));
 
     const initSettingsAndroid = AndroidInitializationSettings('@mipmap/ic_launcher');
 
@@ -35,6 +54,7 @@ class NotificationService {
     await notificationPlugin.initialize(
       initSettings,
       onDidReceiveNotificationResponse: _onNotificationTapped,
+      onDidReceiveBackgroundNotificationResponse: notificationTapBackground
     );
 
     scheduleDailyTextReminder();
@@ -44,36 +64,17 @@ class NotificationService {
   void _onNotificationTapped(NotificationResponse response) {
     print('Notification tapée - Action: ${response.actionId}, Payload: ${response.payload}');
 
-    if (response.actionId == 'id_open') {
-      if(response.payload != null && response.payload!.isNotEmpty) {
-        if(response.payload!.contains('pub')) {
-          String payload = response.payload!;
-          // Retirer "pub:" au début
-          String content = payload.replaceFirst('pub:', '');
-
-          // Séparer par "_"
-          List<String> parts = content.split('_');
-
-          String keySymbol = parts[0];            // "wp"
-          int mepsLanguageId = int.parse(parts[1]); // 4
-          int issueTagNumber = int.parse(parts[2]); // 202408
-
-          Publication? publication = PublicationRepository().getByCompositeKeyForDownload(keySymbol, issueTagNumber, mepsLanguageId);
-          if(publication != null) {
-            publication.showMenu(GlobalKeyService.jwLifePageKey.currentState!.navigatorKeys[GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex].currentState!.context);
-          }
-        }
-      }
-    }
-    else if (response.actionId == 'id_read_text' || response.payload == 'daily_text') {
-      Publication? publication = PublicationRepository().getByCompositeKeyForDownload('es25', 0, 3);
-      if(publication != null) {
-        publication.showMenu(GlobalKeyService.jwLifePageKey.currentState!.navigatorKeys[GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex].currentState!.context);
-      }
-    }
-    else if (response.actionId == 'id_dismiss') {
+    if (response.actionId == 'id_dismiss') {
       print('Bouton "Plus tard" pressé');
-      // Ne rien faire, la notification disparaît
+      return;
+    }
+
+    try {
+      final uri = JwOrgUri.parse(response.payload!);
+      GlobalKeyService.jwLifeAppKey.currentState!.handleUri(uri);
+    }
+    catch (e) {
+      print('ERREUR: $e');
     }
   }
 
@@ -139,8 +140,10 @@ class NotificationService {
     int maxProgress = 100,
   }) async {
     try {
-      final hasPermission = await _checkNotificationPermission();
-      if (!hasPermission) return;
+      if (progress == 0) {
+        final hasPermission = await _checkNotificationPermission();
+        if (!hasPermission) return;
+      }
 
       final androidDetails = AndroidNotificationDetails(
         'download_channel_id',
@@ -263,11 +266,14 @@ class NotificationService {
       await notificationPlugin.zonedSchedule(
         100, // ID fixe pour pouvoir l'annuler/modifier
         '📖 Texte du jour',
-        'Il est temps de lire votre texte quotidien !',
+        'Cliquez ici pour ouvrir le texte du jour',
         scheduledDate,
         notificationDetails,
         matchDateTimeComponents: DateTimeComponents.time, // Répète chaque jour à la même heure
-        payload: 'daily_text',
+        payload: JwOrgUri.dailyText(
+          wtlocale: 'F',
+          date: 'today'
+        ).toString(),
         androidScheduleMode: AndroidScheduleMode.exact,
       );
 

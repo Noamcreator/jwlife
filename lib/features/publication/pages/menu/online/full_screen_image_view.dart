@@ -78,7 +78,7 @@ class _FullScreenImageViewState extends State<FullScreenImageView> {
                           String lank = uri.queryParameters['lank']!;
                           String lang = uri.queryParameters['wtlocale']!;
 
-                          MediaItem mediaItem = getVideoItemFromLank(lank, lang);
+                          MediaItem mediaItem = getMediaItemFromLank(lank, lang);
                           showFullScreenVideo(context, mediaItem);
                         },
                         child: Icon(

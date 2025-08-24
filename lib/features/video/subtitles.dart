@@ -1,9 +1,9 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 import 'package:jwlife/core/utils/utils.dart';
 
-import '../../core/api.dart';
+import '../../core/api/api.dart';
 
 class Subtitles {
   late List<Subtitle> subtitles = [];

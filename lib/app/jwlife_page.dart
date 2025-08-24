@@ -1,18 +1,17 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:jwlife/app/services/global_key_service.dart';
 import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/features/home/pages/daily_text_page.dart';
 import 'package:jwlife/features/home/pages/home_page.dart';
+import 'package:jwlife/features/personal/pages/note_page.dart';
 import 'package:jwlife/features/publication/pages/document/local/document_page.dart';
 import 'package:jwlife/features/publication/pages/document/local/full_screen_image_page.dart';
 import 'package:jwlife/features/video/video_player_page.dart';
 import 'package:jwlife/widgets/dialog/utils_dialog.dart';
 import '../data/databases/history.dart';
 import '../features/bible/pages/bible_page.dart';
-import '../features/image_page.dart';
+import '../features/image/image_page.dart';
 import '../features/meetings/pages/meeting_page.dart';
 import '../features/predication/pages/predication_page.dart';
 import 'package:jwlife/features/congregation/pages/congregation_page.dart';
@@ -24,6 +23,7 @@ import 'package:jwlife/i18n/localization.dart';
 
 import '../features/audio/audio_player_widget.dart';
 import '../widgets/custom_bottom_navigation_item.dart';
+import '../widgets/slide_indexed_stack.dart';
 
 class JwLifePage extends StatefulWidget {
   const JwLifePage({super.key});
@@ -34,10 +34,10 @@ class JwLifePage extends StatefulWidget {
 
 class JwLifePageState extends State<JwLifePage> {
   final List<bool> navBarIsDisable = [false, false, false, false, false, false, false];
+  final List<bool> resizeToAvoidBottomInset = [false, false, false, false, false, false, false];
 
   bool audioWidgetVisible = false;
   int currentNavigationBottomBarIndex = 0;
-  bool resizeToAvoidBottomInset = false;
 
   late final List<Widget> _pages;
 
@@ -94,13 +94,15 @@ class JwLifePageState extends State<JwLifePage> {
     }
   }
 
-  void toggleResizeToAvoidBottomInset(bool resize) {
-    setState(() {
-      resizeToAvoidBottomInset = resize;
-    });
+  void toggleResizeToAvoidBottomInset(bool resizeToAvoidBottom) {
+    if (resizeToAvoidBottomInset[currentNavigationBottomBarIndex] != resizeToAvoidBottom) {
+      setState(() {
+        resizeToAvoidBottomInset[currentNavigationBottomBarIndex] = resizeToAvoidBottom;
+      });
+    }
   }
 
-  Future<void> handleBack(BuildContext context) async {
+  Future<void> handleBack<T>(BuildContext context, {T? result}) async {
     final currentNavigator = navigatorKeys[currentNavigationBottomBarIndex].currentState!;
 
     final currentPages = pagesByNavigator[currentNavigationBottomBarIndex];
@@ -109,7 +111,7 @@ class JwLifePageState extends State<JwLifePage> {
     if (currentPages != null && currentPages.isNotEmpty) {
       final lastPage = currentPages.last;
 
-      if (currentWebKeys.isNotEmpty && lastPage is DocumentPage) {
+      if (currentWebKeys.isNotEmpty && (lastPage is DocumentPage || lastPage is DailyTextPage)) {
         final webViewPageState = currentWebKeys.last.currentState;
         if (webViewPageState is DocumentPageState) {
           if (!await webViewPageState.handleBackPress(fromPopScope: true)) {
@@ -133,13 +135,21 @@ class JwLifePageState extends State<JwLifePage> {
     }
 
     if (currentNavigator.canPop()) {
-      currentNavigator.pop();
+      result == null ? currentNavigator.pop() : currentNavigator.pop(result);
 
       final currentPages = pagesByNavigator[currentNavigationBottomBarIndex];
       if (currentPages != null && currentPages.isNotEmpty) {
         final lastPage = currentPages.last;
 
         printTime('lastPage: ${lastPage.runtimeType}');
+
+        if (lastPage is NotePage) {
+          if (resizeToAvoidBottomInset[currentNavigationBottomBarIndex]) {
+            setState(() {
+              resizeToAvoidBottomInset[currentNavigationBottomBarIndex] = false;
+            });
+          }
+        }
 
         if (pageBeforePop != null) {
           printTime('previousPage: ${pageBeforePop.runtimeType}');
@@ -274,10 +284,11 @@ class JwLifePageState extends State<JwLifePage> {
         if (didPop) return;
         handleBack(context);
       },
-      child: IndexedStack(
+      child: LazyIndexedStack(
         index: currentNavigationBottomBarIndex,
-        children: List.generate(_pages.length, (index) {
-          return Navigator(
+        initialIndexes: [0, 2],
+        builders: List.generate(_pages.length, (index) {
+          return (_) => Navigator(
             key: navigatorKeys[index],
             onGenerateRoute: (settings) {
               return MaterialPageRoute(
@@ -287,11 +298,11 @@ class JwLifePageState extends State<JwLifePage> {
             },
           );
         }),
-      ),
+      )
     );
 
     return Scaffold(
-      resizeToAvoidBottomInset: navBarIsDisable[currentNavigationBottomBarIndex] ? false : resizeToAvoidBottomInset,
+      resizeToAvoidBottomInset: navBarIsDisable[currentNavigationBottomBarIndex] ? false : resizeToAvoidBottomInset[currentNavigationBottomBarIndex],
       body: Column(
         children: [
           Expanded(child: content),

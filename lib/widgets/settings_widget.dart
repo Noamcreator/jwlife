@@ -88,7 +88,7 @@ class SettingsColorTile extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+            Text(title, style: const TextStyle(fontSize: 16)),
             const SizedBox(height: 4),
             ColoredBox(
               color: color,

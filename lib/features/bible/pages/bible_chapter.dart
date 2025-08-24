@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:html/parser.dart' as html_parser;
 
-import '../../../core/api.dart';
+import '../../../core/api/api.dart';
 import '../../../core/utils/utils.dart';
 import 'online_bible_view.dart';
 

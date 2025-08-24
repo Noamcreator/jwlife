@@ -147,6 +147,7 @@ class _FullScreenImagePageState extends State<FullScreenImagePage> {
                   documentId,
                   issueTagNumber,
                   mepsLanguageId,
+                  isVideo: isVideo
                 );
               }
 
@@ -269,6 +270,7 @@ class _FullScreenImagePageState extends State<FullScreenImagePage> {
                 documentId,
                 issueTagNumber,
                 mepsLanguageId,
+                isVideo: true
               );
             }
 

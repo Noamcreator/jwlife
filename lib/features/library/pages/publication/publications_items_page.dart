@@ -1,18 +1,11 @@
-import 'dart:io';
-
-import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
-import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/core/icons.dart';
-import 'package:jwlife/core/utils/utils.dart';
-import 'package:jwlife/core/utils/utils_pub.dart';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/models/publication_category.dart';
 import 'package:jwlife/data/repositories/PublicationRepository.dart';
 import 'package:jwlife/data/databases/catalog.dart';
 import 'package:jwlife/features/library/widgets/rectangle_publication_item.dart';
 import 'package:jwlife/widgets/dialog/language_dialog.dart';
-import 'package:jwlife/widgets/image_cached_widget.dart';
 
 import '../../../../app/services/settings_service.dart';
 import '../../../../data/models/publication_attribute.dart';
@@ -29,6 +22,7 @@ class PublicationsItemsView extends StatefulWidget {
 
 class _PublicationsItemsViewState extends State<PublicationsItemsView> {
   Map<PublicationAttribute, List<Publication>> publications = {};
+  List<dynamic> flattenedItems = []; // Liste plate contenant les titres et publications
 
   @override
   void initState() {
@@ -61,16 +55,58 @@ class _PublicationsItemsViewState extends State<PublicationsItemsView> {
       }
     }
 
-    var sortedEntries = this.publications.keys.toList()
-      ..sort((a, b) => a.id.compareTo(b.id)); // Trie par ordre croissant des clés
+    var sortedEntries = this.publications.keys.toList()..sort((a, b) => a.id.compareTo(b.id));
+    this.publications = Map.fromEntries(sortedEntries.map((key) => MapEntry(key, this.publications[key]!)));
+
+    // Création de la liste plate
+    _createFlattenedList();
 
     // Rafraîchit l'interface
-    setState(() {
-      this.publications = Map.fromEntries(
-          sortedEntries.map((key) => MapEntry(key, this.publications[key]!))
-      );
-    });
+    setState(() {});
+  }
 
+  void _createFlattenedList() {
+    flattenedItems.clear();
+
+    publications.forEach((attribute, publicationsFromAttribute) {
+      // Tri des publications selon la logique appropriée
+      if (widget.category.hasYears) {
+        publicationsFromAttribute.sort((a, b) => a.issueTagNumber.compareTo(b.issueTagNumber));
+      }
+      else {
+        bool shouldSortByYear = attribute.id != -1 && attribute.order == 1;
+
+        if (shouldSortByYear) {
+          publicationsFromAttribute.sort((a, b) => b.year.compareTo(a.year));
+        }
+        else {
+          publicationsFromAttribute.sort((a, b) {
+            String titleA = a.title.toLowerCase();
+            String titleB = b.title.toLowerCase();
+            bool isSpecialA = RegExp(r'^[^a-zA-Z]').hasMatch(titleA);
+            bool isSpecialB = RegExp(r'^[^a-zA-Z]').hasMatch(titleB);
+            return isSpecialA == isSpecialB ? titleA.compareTo(titleB) : (isSpecialA ? -1 : 1);
+          });
+        }
+      }
+
+      // Ajouter le titre de la section si nécessaire
+      if (attribute.id != 0) {
+        flattenedItems.add({
+          'type': 'header',
+          'attribute': attribute,
+          'isFirst': flattenedItems.isEmpty,
+        });
+      }
+
+      // Ajouter toutes les publications de cette section
+      for (var publication in publicationsFromAttribute) {
+        flattenedItems.add({
+          'type': 'publication',
+          'publication': publication,
+        });
+      }
+    });
   }
 
   @override
@@ -82,12 +118,6 @@ class _PublicationsItemsViewState extends State<PublicationsItemsView> {
       color: Theme.of(context).brightness == Brightness.dark
           ? const Color(0xFFc3c3c3)
           : const Color(0xFF626262),
-    );
-
-    final boxDecoration = BoxDecoration(
-      color: Theme.of(context).brightness == Brightness.dark
-          ? const Color(0xFF292929)
-          : Colors.white,
     );
 
     return Scaffold(
@@ -115,63 +145,39 @@ class _PublicationsItemsViewState extends State<PublicationsItemsView> {
           ),
         ],
       ),
-        body: Padding(
-          padding: const EdgeInsets.all(10.0),
-          child: ListView.builder(
-            itemCount: publications.length,
-            itemBuilder: (context, index) {
-              PublicationAttribute attribute = publications.keys.elementAt(index);
-              List<Publication> publicationsFromAttribute = publications[attribute]!;
+      body: Padding(
+        padding: const EdgeInsets.all(10.0),
+        child: ListView.builder(
+          itemCount: flattenedItems.length,
+          itemBuilder: (context, index) {
+            final item = flattenedItems[index];
 
-              // Tri des publications selon la logique appropriée
-              if (widget.category.hasYears) {
-                publicationsFromAttribute.sort((a, b) => a.issueTagNumber.compareTo(b.issueTagNumber));
-              }
-              else {
-                bool shouldSortByYear = attribute.id != -1 && attribute.order == 1;
-
-                if (shouldSortByYear) {
-                  publicationsFromAttribute.sort((a, b) => b.year.compareTo(a.year));
-                } else {
-                  publicationsFromAttribute.sort((a, b) {
-                    String titleA = a.title.toLowerCase();
-                    String titleB = b.title.toLowerCase();
-                    bool isSpecialA = RegExp(r'^[^a-zA-Z]').hasMatch(titleA);
-                    bool isSpecialB = RegExp(r'^[^a-zA-Z]').hasMatch(titleB);
-                    return isSpecialA == isSpecialB ? titleA.compareTo(titleB) : (isSpecialA ? -1 : 1);
-                  });
-                }
-              }
-
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (attribute.id != 0)
-                    Padding(
-                      padding: EdgeInsets.only(top: index == 0 ? 0.0 : 40.0, bottom: 5.0),
-                      child: Text(
-                        attribute.name,
-                        style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                          color: Theme.of(context).brightness == Brightness.dark
-                              ? Colors.white
-                              : Colors.black,
-                        ),
-                      ),
-                    ),
-                  Wrap(
-                    spacing: 3.0,
-                    runSpacing: 3.0,
-                    children: publicationsFromAttribute.map((publication) {
-                      return RectanglePublicationItem(pub: publication);
-                    }).toList(),
+            if (item['type'] == 'header') {
+              return Padding(
+                padding: EdgeInsets.only(
+                  top: item['isFirst'] ? 0.0 : 40.0,
+                  bottom: 5.0,
+                ),
+                child: Text(
+                  item['attribute'].name,
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? Colors.white
+                        : Colors.black,
                   ),
-                ],
+                ),
               );
-            },
-          ),
-        )
+            } else {
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 3.0),
+                child: RectanglePublicationItem(pub: item['publication']),
+              );
+            }
+          },
+        ),
+      ),
     );
   }
 }

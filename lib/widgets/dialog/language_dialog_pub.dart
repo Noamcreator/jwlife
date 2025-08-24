@@ -24,6 +24,7 @@ class LanguagesPubDialog extends StatefulWidget {
 class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
   String? selectedLanguage;
   String? selectedSymbol;
+  int? selectedIssueTagNumber;
   final TextEditingController _searchController = TextEditingController();
   List<Map<String, dynamic>> filteredLanguagesList = [];
   List<Map<String, dynamic>> favoriteLanguages = []; // Liste pour les langues favorites
@@ -321,40 +322,36 @@ class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
     );
   }
 
-// Variable pour suivre quelle langue est en cours de téléchargement
-  String? _downloadingLanguage;
+  // Variable pour suivre quelle langue est en cours de téléchargement
+  Publication? _publication;
 
   Widget _buildLanguageItem(BuildContext context, Map<String, dynamic> languageData, Color dividerColor) {
     final String languageSymbol = languageData['LanguageSymbol'];
+    final String keySymbol = languageData['KeySymbol'];
+    final int issueTagNumber = languageData['IssueTagNumber'] ?? 0;
 
     return InkWell(
       onTap: () async {
         setState(() {
           selectedLanguage = languageSymbol;
-          selectedSymbol = languageData['KeySymbol'];
+          selectedSymbol = keySymbol;
+          selectedIssueTagNumber = issueTagNumber;
         });
 
-        String? keySymbol = widget.publication?.keySymbol != null ? widget.publication!.keySymbol : selectedSymbol;
-        int? issueTagNumber = widget.publication?.issueTagNumber != null ? widget.publication!.issueTagNumber : 0;
-
-        Publication? publication = PublicationRepository()
-            .getAllPublications()
-            .firstWhereOrNull((p) =>
-        p.mepsLanguage.symbol == selectedLanguage &&
+        Publication? publication = PublicationRepository().getAllPublications().firstWhereOrNull((p) =>
+        p.mepsLanguage.symbol == languageSymbol &&
             p.keySymbol == keySymbol &&
             p.issueTagNumber == issueTagNumber);
 
-        publication ??= await PubCatalog.searchPub(
-            keySymbol!,
-            issueTagNumber,
-            selectedLanguage);
+        publication ??= await PubCatalog.searchPub(keySymbol, issueTagNumber, languageSymbol);
 
         if (publication != null) {
+          setState(() {
+            _publication = publication;
+          });
+
           if (publication.isDownloadedNotifier.value == false) {
             // Démarrer le téléchargement et rafraîchir l'UI
-            setState(() {
-              _downloadingLanguage = languageSymbol;
-            });
 
             try {
               await publication.download(context);
@@ -369,11 +366,15 @@ class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
               );
             }
             finally {
-              setState(() {
-                _downloadingLanguage = null;
-              });
+              if (mounted) {
+                setState(() {
+                  _publication = null;
+                });
+              }
+              Navigator.of(context).pop(publication);
             }
-          } else {
+          }
+          else {
             Navigator.of(context).pop(publication);
           }
         }
@@ -389,11 +390,12 @@ class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
                 Radio(
                   value: languageSymbol,
                   activeColor: Theme.of(context).primaryColor,
-                  groupValue: widget.publication == null ? '${selectedLanguage}_$selectedSymbol' : selectedLanguage,
+                  groupValue: widget.publication == null ? '${selectedLanguage}_${selectedSymbol}_$selectedIssueTagNumber' : selectedLanguage,
                   onChanged: (value) {
                     setState(() {
                       selectedLanguage = languageSymbol;
                       selectedSymbol = languageData['KeySymbol'];
+                      selectedIssueTagNumber = languageData['IssueTagNumber'];
                     });
                   },
                 ),
@@ -420,6 +422,19 @@ class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
                               : const Color(0xFF626262),
                         ),
                       ),
+                      if(widget.publication == null)
+                        SizedBox(height: 2),
+                      if(widget.publication == null)
+                        Text(
+                          '${languageData['Year']} - ${languageData['KeySymbol']}',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Theme.of(context).brightness == Brightness.dark
+                                ? const Color(0xFFa0a0a0)
+                                : const Color(0xFFa0a0a0),
+                          ),
+                        ),
+
                     ],
                   ),
                 ),
@@ -428,67 +443,58 @@ class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
             ),
 
             // PopupMenuButton (positionné à droite)
-            if (_downloadingLanguage != languageSymbol)
-              Positioned(
-                right: 0,
-                top: 0,
-                child: PopupMenuButton(
-                  icon: Icon(
-                    Icons.more_vert,
-                    color: Color(0xFF9d9d9d),
-                  ),
-                  itemBuilder: (context) {
-                    return [
-                      PopupMenuItem(
-                        onTap: () async {
-                          Publication? publication = PublicationRepository()
-                              .getAllPublications()
-                              .firstWhereOrNull((p) =>
-                          p.mepsLanguage.symbol == languageSymbol &&
-                              p.symbol == widget.publication!.symbol &&
-                              p.issueTagNumber == widget.publication!.issueTagNumber);
-
-                          publication ??= await PubCatalog.searchPub(
-                              widget.publication!.keySymbol,
-                              widget.publication!.issueTagNumber,
-                              languageSymbol);
-
-                          if (publication != null && publication.isDownloadedNotifier.value == false) {
-                            setState(() {
-                              selectedLanguage = languageSymbol;
-                              _downloadingLanguage = languageSymbol;
-                            });
-
-                            try {
-                              await publication.download(context);
-                            } catch (error) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('Erreur lors du téléchargement: $error'),
-                                  backgroundColor: Colors.red,
-                                ),
-                              );
-                            } finally {
-                              setState(() {
-                                _downloadingLanguage = null;
-                              });
-                            }
-                          }
-                        },
-                        child: Text('Télécharger'),
-                      ),
-                    ];
-                  },
+            Positioned(
+              right: 0,
+              top: 0,
+              child: PopupMenuButton(
+                icon: Icon(
+                  Icons.more_vert,
+                  color: Color(0xFF9d9d9d),
                 ),
+                itemBuilder: (context) {
+                  return [
+                    PopupMenuItem(
+                      onTap: () async {
+                        Publication? publication = await PubCatalog.searchPub(widget.publication!.keySymbol, widget.publication!.issueTagNumber, languageSymbol);
+
+                        if (publication != null && publication.isDownloadedNotifier.value == false) {
+                          setState(() {
+                            selectedLanguage = languageSymbol;
+                            _publication = publication;
+                          });
+
+                          try {
+                            await publication.download(context);
+                          }
+                          catch (error) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Erreur lors du téléchargement: $error'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          } finally {
+                            setState(() {
+                              _publication = null;
+                            });
+                          }
+                        }
+                      },
+                      child: Text('Télécharger'),
+                    ),
+                  ];
+                },
               ),
+            ),
+
 
             // ProgressBar (positionné en bas à gauche, sous les textes)
-            if (_downloadingLanguage == languageSymbol)
+            if (_publication != null && _publication?.mepsLanguage.symbol == languageSymbol && _publication?.keySymbol == keySymbol && _publication?.issueTagNumber == issueTagNumber)
               Positioned(
-                left: 60, // pour laisser de l’espace au Radio
+                left: 65, // pour laisser de l’espace au Radio
                 right: 35, // pour éviter d’écraser le menu
-                bottom: -2,
-                child: _buildProgressBar(context, languageSymbol),
+                bottom: 0,
+                child: _buildProgressBar(context),
               ),
           ],
         ),
@@ -497,24 +503,11 @@ class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
     );
   }
 
-  Widget _buildProgressBar(BuildContext context, String languageSymbol) {
-    // Trouver la publication en cours de téléchargement
-    String? keySymbol = widget.publication?.keySymbol != null ? widget.publication!.keySymbol : selectedSymbol;
-    int? issueTagNumber = widget.publication?.issueTagNumber != null ? widget.publication!.issueTagNumber : 0;
-
-    Publication? publication = PublicationRepository()
-        .getAllPublications()
-        .firstWhereOrNull((p) =>
-    p.mepsLanguage.symbol == selectedLanguage &&
-        p.keySymbol == keySymbol &&
-        p.issueTagNumber == issueTagNumber);
-
-    if (publication == null) return Container();
-
+  Widget _buildProgressBar(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(top: 6),
+      padding: const EdgeInsets.only(top: 10),
       child: ValueListenableBuilder<double>(
-        valueListenable: publication.progressNotifier,
+        valueListenable: _publication!.progressNotifier,
         builder: (context, progress, child) {
           return LinearProgressIndicator(
             value: progress,

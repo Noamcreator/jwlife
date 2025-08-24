@@ -79,22 +79,24 @@ class RectangleMediaItemItem extends StatelessWidget {
               Positioned(
                 top: -5,
                 right: -10,
-                child: PopupMenuButton(
-                  popUpAnimationStyle: AnimationStyle.lerp(
-                    const AnimationStyle(curve: Curves.ease),
-                    const AnimationStyle(curve: Curves.ease),
-                    0.5,
+                child: RepaintBoundary(
+                  child: PopupMenuButton(
+                    popUpAnimationStyle: AnimationStyle.lerp(
+                      const AnimationStyle(curve: Curves.ease),
+                      const AnimationStyle(curve: Curves.ease),
+                      0.5,
+                    ),
+                    icon: const Icon(Icons.more_vert, color: Color(0xFF9d9d9d)),
+                    itemBuilder: (context) => [
+                      getVideoShareItem(mediaItem),
+                      getVideoLanguagesItem(context, mediaItem),
+                      getVideoFavoriteItem(mediaItem),
+                      getVideoDownloadItem(context, mediaItem),
+                      getShowSubtitlesItem(context, mediaItem),
+                      getCopySubtitlesItem(context, mediaItem),
+                    ],
                   ),
-                  icon: const Icon(Icons.more_vert, color: Color(0xFF9d9d9d)),
-                  itemBuilder: (context) => [
-                    getVideoShareItem(mediaItem),
-                    getVideoLanguagesItem(context, mediaItem),
-                    getVideoFavoriteItem(mediaItem),
-                    getVideoDownloadItem(context, mediaItem),
-                    getShowSubtitlesItem(context, mediaItem),
-                    getCopySubtitlesItem(context, mediaItem),
-                  ],
-                ),
+                )
               ),
 
               Positioned(

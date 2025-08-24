@@ -29,13 +29,13 @@ class RealmLibrary {
     return [];
   }
 
-  static List<MediaItem> loadLatestVideos() {
-    List<MediaItem> latestAudiosVideos = [];
-    latestAudiosVideos.clear();
+  static List<MediaItem> loadLatestMedias() {
+    List<MediaItem> latestMedias = [];
+    latestMedias.clear();
     String languageSymbol = JwLifeSettings().currentLanguage.symbol;
 
     // Rechercher les médias associés à la catégorie 'LatestAudioVideo' dans la langue correspondante
-    latestAudiosVideos.addAll(
+    latestMedias.addAll(
       realm.all<Category>()
           .query("key == 'LatestAudioVideo' AND language == '$languageSymbol'")
           .expand((category) => category.media)
@@ -43,8 +43,8 @@ class RealmLibrary {
           .whereType<MediaItem>(),
     );
 
-    if (latestAudiosVideos.isNotEmpty) {
-      return latestAudiosVideos;
+    if (latestMedias.isNotEmpty) {
+      return latestMedias;
     }
     return [];
   }

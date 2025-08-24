@@ -1,14 +1,10 @@
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
-import 'package:jwlife/app/jwlife_page.dart';
-import 'package:jwlife/core/utils/widgets_utils.dart';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/repositories/PublicationRepository.dart';
-import 'package:jwlife/data/databases/catalog.dart';
 import 'package:jwlife/i18n/localization.dart';
-import 'package:jwlife/features/home/pages/home_page.dart';
 import 'package:jwlife/widgets/dialog/language_dialog_pub.dart';
 
-import '../../../app/services/global_key_service.dart';
 import '../../../app/services/settings_service.dart';
 import '../../../core/icons.dart';
 import '../../publication/pages/menu/local/publication_menu_view.dart';
@@ -21,21 +17,21 @@ class BiblePage extends StatefulWidget {
 }
 
 class BiblePageState extends State<BiblePage> {
-  Publication? _currentBible;
+  Publication? currentBible;
   @override
   void initState() {
     super.initState();
 
     List<Publication> bibles = PublicationRepository().getAllBibles();
     if (bibles.isNotEmpty) {
-      _currentBible = bibles.first;
+      currentBible = bibles.first;
     }
   }
 
   void refreshBiblePage() {
     List<Publication> bibles = PublicationRepository().getAllBibles();
     setState(() {
-      _currentBible = bibles.firstWhere((element) => element.mepsLanguage.id == JwLifeSettings().currentLanguage.id, orElse: () => bibles.first);
+      currentBible = bibles.firstWhereOrNull((element) => element.mepsLanguage.id == JwLifeSettings().currentLanguage.id);
     });
   }
 
@@ -43,11 +39,8 @@ class BiblePageState extends State<BiblePage> {
   Widget build(BuildContext context) {
     print('Build BiblePage');
 
-    if (GlobalKeyService.homeKey.currentState?.isRefreshing ?? true) {
-      return getLoadingWidget(Theme.of(context).primaryColor);
-    }
-    else if (_currentBible != null) {
-      return PublicationMenuView(publication: _currentBible!);
+    if (currentBible != null) {
+      return PublicationMenuView(publication: currentBible!);
     }
     else {
       return Scaffold(
@@ -93,7 +86,7 @@ class BiblePageState extends State<BiblePage> {
                           await publication.download(context);
                         }
                         setState(() {
-                          _currentBible = publication;
+                          currentBible = publication;
                         });
                       }
                     });

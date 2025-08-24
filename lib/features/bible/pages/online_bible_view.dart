@@ -5,7 +5,7 @@ import 'package:html/dom.dart' as html;
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
 
-import '../../../core/api.dart';
+import '../../../core/api/api.dart';
 import 'bible_chapter.dart';
 
 class BiblePage extends StatefulWidget {

@@ -20,9 +20,9 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
-    <!-- ou : <uses-permission android:name="android.permission.USE_EXACT_ALARM"/> -->
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT"/>
     <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY"/>
+
     <!-- Android 13+ : permission pour afficher les notifications -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <uses-permission android:name="android.permission.VIBRATE"/>
@@ -37,10 +37,10 @@
 
         <!-- Activity principale optimisée pour InAppWebView et clavier -->
         <activity
-            android:name="com.ryanheise.audioservice.AudioServiceActivity"
+            android:name=".MainActivity"
             android:supportsPictureInPicture="true"
             android:exported="true"
-            android:launchMode="singleTop"
+            android:launchMode="singleTask"
             android:taskAffinity=""
             android:theme="@style/LaunchTheme"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
@@ -53,10 +53,205 @@
                 android:name="io.flutter.embedding.android.NormalTheme"
                 android:resource="@style/NormalTheme" />
 
+            <!-- Intent filter principal pour lancer l'app -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+
+            <!-- Intent filters pour recevoir les liens partagés -->
+
+            <!-- Pour recevoir tous les liens partagés via ACTION_SEND -->
+            <intent-filter android:label="JW Life">
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+
+            <!-- Intent filter générique pour tous les liens HTTPS -->
+            <intent-filter android:label="JW Life">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" />
+            </intent-filter>
+
+            <!-- Intent filter générique pour tous les liens HTTP -->
+            <intent-filter android:label="JW Life">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="http" />
+            </intent-filter>
+
+            <!-- Intent filters pour ouvrir les fichiers JW -->
+
+            <!-- Fichiers .jwlibrary depuis le système de fichiers -->
+            <intent-filter android:label="JW Life">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="file"
+                    android:mimeType="*/*"
+                    android:pathPattern=".*\\.jwlibrary"
+                    android:host="*" />
+            </intent-filter>
+
+            <!-- Fichiers .jwplaylist depuis le système de fichiers -->
+            <intent-filter android:label="JW Life">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="file"
+                    android:mimeType="*/*"
+                    android:pathPattern=".*\\.jwplaylist"
+                    android:host="*" />
+            </intent-filter>
+
+            <!-- Fichiers .jwpub depuis le système de fichiers -->
+            <intent-filter android:label="JW Life">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="file"
+                    android:mimeType="*/*"
+                    android:pathPattern=".*\\.jwpub"
+                    android:host="*" />
+            </intent-filter>
+
+            <!-- Fichiers depuis content:// URIs (depuis d'autres apps comme Gmail, Drive, etc.) -->
+            <intent-filter android:label="JW Life">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content"
+                    android:mimeType="application/octet-stream" />
+            </intent-filter>
+
+            <!-- Pour les fichiers avec MIME types spécifiques si définis -->
+            <intent-filter android:label="JW Life">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content"
+                    android:mimeType="application/vnd.jw.library" />
+            </intent-filter>
+
+            <intent-filter android:label="JW Life">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content"
+                    android:mimeType="application/vnd.jw.playlist" />
+            </intent-filter>
+
+            <intent-filter android:label="JW Life">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content"
+                    android:mimeType="application/vnd.jw.publication" />
+            </intent-filter>
+
+            <!-- Intent filters pour les liens web avec des extensions spécifiques JW -->
+            <intent-filter android:label="JW Life">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="http"
+                    android:pathPattern=".*\\.jwlibrary" />
+            </intent-filter>
+
+            <intent-filter android:label="JW Life">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="http"
+                    android:pathPattern=".*\\.jwplaylist" />
+            </intent-filter>
+
+            <intent-filter android:label="JW Life">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="http"
+                    android:pathPattern=".*\\.jwpub" />
+            </intent-filter>
+
+            <intent-filter android:label="JW Life">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https"
+                    android:pathPattern=".*\\.jwlibrary" />
+            </intent-filter>
+
+            <intent-filter android:label="JW Life">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https"
+                    android:pathPattern=".*\\.jwplaylist" />
+            </intent-filter>
+
+            <intent-filter android:label="JW Life">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https"
+                    android:pathPattern=".*\\.jwpub" />
+            </intent-filter>
+
+            <!-- Intent filter pour les fichiers partagés via ACTION_SEND -->
+            <intent-filter android:label="JW Life">
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="application/octet-stream" />
+            </intent-filter>
+
+            <!-- Intent filters spécifiques pour les domaines JW.org -->
+            <!-- Note: J'ai retiré android:autoVerify pour éviter les problèmes de vérification -->
+
+            <!-- Liens jw.org génériques -->
+            <intent-filter android:label="JW Life">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https"
+                    android:host="www.jw.org" />
+            </intent-filter>
+
+            <!-- Liens jw.org sans www -->
+            <intent-filter android:label="JW Life">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https"
+                    android:host="jw.org" />
+            </intent-filter>
+
+            <!-- Liens http jw.org (au cas où) -->
+            <intent-filter android:label="JW Life">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="http"
+                    android:host="www.jw.org" />
+            </intent-filter>
+
+            <intent-filter android:label="JW Life">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="http"
+                    android:host="jw.org" />
+            </intent-filter>
+
+            <!-- Liens wol.jw.org (Watchtower Online Library) -->
+            <intent-filter android:label="JW Life">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https"
+                    android:host="wol.jw.org" />
+            </intent-filter>
+
         </activity>
 
         <!-- Service audio -->
@@ -109,6 +304,19 @@
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT" />
             <data android:mimeType="text/plain" />
+        </intent>
+        <!-- Ajout pour pouvoir voir les apps qui gèrent nos types de fichiers -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:mimeType="application/vnd.jw.library" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:mimeType="application/vnd.jw.playlist" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:mimeType="application/vnd.jw.publication" />
         </intent>
     </queries>
 

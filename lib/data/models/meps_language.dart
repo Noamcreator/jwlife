@@ -27,13 +27,9 @@ class MepsLanguage {
     this.isCharacterSpaced = false,
     this.isCharacterBreakable = false,
     this.hasSystemDigits = true,
-
-    String? rsConf,
-    String? lib,
-  }) {
-    this.rsConf = rsConf ?? '';
-    this.lib = lib ?? '';
-  }
+    this.rsConf = '',
+    this.lib = '',
+  });
 
   MepsLanguage.fromJson(Map<String, dynamic> json)
       : id = json['LanguageId'],
@@ -48,8 +44,8 @@ class MepsLanguage {
         isCharacterSpaced = json['IsCharacterSpaced'] != null ? json['IsCharacterSpaced'] == 1 : false,
         isCharacterBreakable = json['IsCharacterBreakable'] != null ? json['IsCharacterBreakable'] == 1 : false,
         hasSystemDigits = json['HasSystemDigits'] != null ? json['HasSystemDigits'] == 1 : true,
-        rsConf = json['RsConf'] ?? 'r1',
-        lib = json['Lib'] ?? 'lp-e';
+        rsConf = json['RsConf'] ?? '',
+        lib = json['Lib'] ?? '';
 
 
   void setRsConf(String newRsConf) {
