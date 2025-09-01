@@ -236,7 +236,7 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
 
   Future<void> changePageAt(int index) async {
     if (index <= widget.publication.documentsManager!.documents.length - 1 && index >= 0) {
-      controlsKey.currentState?.changePageAt(index);
+      controlsKey.currentState?.changePageAt(index, false);
 
       int? startBlockIdentifier;
       int? endBlockIdentifier;
@@ -254,7 +254,10 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
         insertBlockIdentifier = true;
       }
 
-      await widget.publication.documentsManager!.getCurrentDocument().changePageAt(startBlockIdentifier, endBlockIdentifier);
+      Document currentDocument = widget.publication.documentsManager!.getCurrentDocument();
+      await currentDocument.changePageAt(startBlockIdentifier, endBlockIdentifier);
+      bool imageMode = currentDocument.preferredPresentation == null && currentDocument.svgs.isNotEmpty ? true : false;
+      controlsKey.currentState?.changePageAt(index, imageMode);
     }
   }
 
@@ -469,7 +472,7 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
                   callback: (args) async {
                     final index = args[0] as int;
                     if (index < 0 || index >= widget.publication.documentsManager!.documents.length) {
-                      return {'html': '', 'className': '', 'audiosMarkers': '', 'isBibleChapter': false, 'link': ''};
+                      return {'html': '', 'className': '', 'audiosMarkers': '', 'isBibleChapter': false, 'link': '', 'svgs': '', 'preferredPresentation': 'text'};
                     }
 
                     final doc = widget.publication.documentsManager!.documents[index];
@@ -506,12 +509,22 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
                     }
                     final className = getArticleClass(doc);
 
+                    await doc.fetchSvgs();
+
+                    String svg = '';
+                    if (doc.svgs.isNotEmpty) {
+                      svg = '${widget.publication.path}/${doc.svgs.first['FilePath']}';
+
+                    }
+
                     return {
                       'html': html,
                       'className': className,
                       'audiosMarkers': audioMarkersJson,
                       'isBibleChapter': doc.isBibleChapter(),
-                      'link': ''
+                      'link': '',
+                      'svgs': svg,
+                      'preferredPresentation': doc.preferredPresentation == null && svg.isNotEmpty ? 'image' : 'text'
                     };
                   },
                 );
@@ -1303,10 +1316,11 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
     return false;
   }
 
-  void changePageAt(int index) {
+  void changePageAt(int index, bool imageMode) {
     setState(() {
       widget.publication.documentsManager!.selectedDocumentIndex = index;
       _controlsVisible = true;
+      _isImageMode = imageMode;
     });
   }
 
@@ -1315,11 +1329,15 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
   }
 
   Future<void> switchImageMode() async {
-    if (_isImageMode) {
-      //_controller.loadData(data: widget.publication.documentsManager!.getCurrentDocument().htmlContent, baseUrl: WebUri('file://$webappPath/'));
-      _isImageMode = false;
-    }
-    else {
+      setState(() {
+          if (_isImageMode) {
+            _isImageMode = false;
+          }
+          else {
+            _isImageMode = true;
+          }
+        });
+          /*
       String path = '${widget.publication.path}/${widget.publication.documentsManager!.getCurrentDocument().svgs[0]['FilePath']}';
       File file = File(path);
       String colorBackground = Theme.of(context).brightness == Brightness.dark ? '#202020' : '#ecebe7';
@@ -1334,8 +1352,9 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
       </html>
       ''';
       _controller.loadData(data: base64Html, mimeType: 'text/html', encoding: 'utf8');
-      _isImageMode = true;
-    }
+
+       */
+    _controller.evaluateJavascript(source: "switchImageMode($_isImageMode)");
   }
 
   @override

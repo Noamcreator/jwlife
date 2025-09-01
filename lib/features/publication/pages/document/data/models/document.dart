@@ -174,10 +174,7 @@ class Document {
     }
     else {
       if (!hasAlreadyBeenRead) {
-        await Future.wait([
-          fetchMedias(),
-          fetchSvgs(),
-        ]);
+        await fetchMedias();
       }
       History.insertDocument(title, publication, mepsDocumentId, startBlockIdentifier, endBlockIdentifier);
     }

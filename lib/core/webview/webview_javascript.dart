@@ -260,6 +260,8 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
 
           let isFullscreenMode = $isFullscreenMode;
           let controlsVisible = true;
+          
+          let imageMode = true;
 
           let cachedPages = {};
           let scrollTopPages = {};
@@ -316,6 +318,74 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
             const page = await window.flutter_inappwebview.callHandler('getPage', index);
             cachedPages[index] = page;
             return page;
+          }
+          
+          async function loadImageSvg(article, svgPath) {
+            const colorBackground = isDarkTheme() ? '#202020' : '#ecebe7';
+          
+            // Supprimer un ancien container si déjà présent
+            const existingSvgContainer = article.querySelector('#svg-container');
+            if (existingSvgContainer) {
+              existingSvgContainer.remove();
+            }
+          
+            // Création du conteneur
+            const svgContainer = document.createElement('div');
+            svgContainer.id = 'svg-container';
+            svgContainer.style.position = 'absolute';
+            svgContainer.style.top = '0';
+            svgContainer.style.left = '0';
+            svgContainer.style.width = '100%';
+            svgContainer.style.height = '100%';
+            svgContainer.style.zIndex = '10';
+            svgContainer.style.backgroundColor = colorBackground;
+            svgContainer.style.display = 'flex';
+            svgContainer.style.alignItems = 'center';
+            svgContainer.style.justifyContent = 'center';
+          
+            // Container interne type "carte"
+            const innerBox = document.createElement('div');
+            innerBox.style.backgroundColor = '#ffffff';
+            innerBox.style.height = '65%';
+            innerBox.style.boxShadow = '0 4px 10px rgba(0,0,0,0.2)';
+            innerBox.style.display = 'flex';
+            innerBox.style.alignItems = 'center';
+            innerBox.style.justifyContent = 'center';
+          
+            // Image en base64
+            const svgImage = document.createElement('img');
+            svgImage.src = 'file://' + svgPath;
+            svgImage.style.width = '100%';
+            svgImage.style.height = '100%';
+            svgImage.style.objectFit = 'contain';
+          
+            innerBox.appendChild(svgImage);
+            svgContainer.appendChild(innerBox);
+            article.appendChild(svgContainer);
+          }
+
+          function switchImageMode(mode) {
+            imageMode = mode;
+            const curr = cachedPages[currentIndex];
+            const prev = cachedPages[currentIndex-1];
+            const next = cachedPages[currentIndex+1];
+            
+            function renderPage(container, item, position) {
+              if (item.preferredPresentation === 'image' && imageMode) {
+                container.innerHTML = ""; // vider avant de charger
+                loadImageSvg(container, item.svgs);
+              } else {
+                container.innerHTML = `<article id="article-\${position}" class="\${item.className}">
+                                          \${item.html}
+                                       </article>`;
+                adjustArticle(`article-\${position}`, item.link);
+                addVideoCover(`article-\${position}`);
+              }
+            }
+            
+            renderPage(pageCenter, curr, "center");
+            renderPage(pageLeft, prev, "left");
+            renderPage(pageRight, next, "right");
           }
     
           function adjustArticle(articleId, link) {
@@ -563,16 +633,22 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
           // Fonction pour charger une page de manière optimisée
           async function loadIndexPage(index, isFirst) {
             const curr = await fetchPage(index);
-            pageCenter.innerHTML = `<article id="article-center" class="\${curr.className}">\${curr.html}</article>`;
-            adjustArticle('article-center', curr.link);
-            addVideoCover('article-center');
+            const isImageMode = curr.preferredPresentation === 'image' && imageMode
+            if (isImageMode) {
+              loadImageSvg(pageCenter, curr.svgs);
+            }
+            else {
+              pageCenter.innerHTML = `<article id="article-center" class="\${curr.className}">\${curr.html}</article>`;
+              adjustArticle('article-center', curr.link);
+              addVideoCover('article-center');
+            }
            
             container.style.transition = "none";
             container.style.transform = "translateX(-100%)";
             void container.offsetWidth;
             container.style.transition = "transform 0.3s ease-in-out";
             
-            if (!isFirst) {
+            if (!isFirst && !isImageMode) {
               const article = document.getElementById("article-center");
               wrapWordsWithSpan(article, isBible());
             }
@@ -581,14 +657,24 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
           async function loadPrevAndNextPages(index) {
             const prev = await fetchPage(index - 1);
             const next = await fetchPage(index + 1);
-    
-            document.getElementById("page-left").innerHTML = `<article id="article-left" class="\${prev.className}">\${prev.html}</article>`;
-            document.getElementById("page-right").innerHTML = `<article id="article-right" class="\${next.className}">\${next.html}</article>`;
-    
-            adjustArticle('article-left', prev.link);
-            addVideoCover('article-left');
-            adjustArticle('article-right', next.link);
-            addVideoCover('article-right');
+            
+            if (prev.preferredPresentation === 'image' && imageMode) {
+              loadImageSvg(pageLeft, prev.svgs);
+            }
+            else {
+              pageLeft.innerHTML = `<article id="article-left" class="\${prev.className}">\${prev.html}</article>`;
+              adjustArticle('article-left', prev.link);
+              addVideoCover('article-left');
+            }
+            
+            if (next.preferredPresentation === 'image' && imageMode) {
+              loadImageSvg(pageRight, next.svgs);
+            } 
+            else {
+              pageRight.innerHTML = `<article id="article-right" class="\${next.className}">\${next.html}</article>`;
+              adjustArticle('article-right', next.link);
+              addVideoCover('article-right');
+            }
           }
     
           // Fonction de chargement optimisée avec gestion des états
@@ -3746,9 +3832,12 @@ function createOptionsMenu(noteGuid, popup, isDark) {
             pageCenter.classList.add('visible');
             window.flutter_inappwebview.callHandler('fontsLoaded');
             
-            const article = document.getElementById("article-center");
-            wrapWordsWithSpan(article, isBible());
-
+            const curr = cachedPages[currentIndex];
+            if (curr.preferredPresentation !== 'image' || !imageMode) {
+              const article = document.getElementById("article-center");
+              wrapWordsWithSpan(article, isBible());
+            }
+          
             // Ajouter la scrollBar
             scrollBar = document.createElement('img');
             scrollBar.className = 'scroll-bar';

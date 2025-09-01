@@ -219,7 +219,7 @@ class Publication {
       _cancelToken = cancelToken;
 
       _downloadOperation = CancelableOperation.fromFuture(
-        downloadJwpubFile(this, context, cancelToken),
+        downloadJwpubFile(this, context, cancelToken, false),
         onCancel: () {
           isDownloadingNotifier.value = false;
           isDownloadedNotifier.value = false;
@@ -277,20 +277,17 @@ class Publication {
       isDownloadingNotifier.value = true;
       isDownloadedNotifier.value = false;
 
-      await removeJwpubFile(this);
-
       final cancelToken = CancelToken();
       _cancelToken = cancelToken;
 
-      final messenger = ScaffoldMessenger.of(context);   // ✅ capture en avance
-      final theme = Theme.of(context); // ✅ capture en avance
-
       _updateOperation = CancelableOperation.fromFuture(
-        downloadJwpubFile(this, context, cancelToken),
+        downloadJwpubFile(this, context, cancelToken, true),
         onCancel: () {
           isDownloadingNotifier.value = false;
           isDownloadedNotifier.value = false;
           progressNotifier.value = 0;
+          // Annuler la notification
+          NotificationService().cancelNotification(hashCode);
         },
       );
 
@@ -305,20 +302,26 @@ class Publication {
 
         progressNotifier.value = 1.0;
 
-        // ✅ Utilise messenger capturé
-        showBottomMessageWithActionState(messenger, theme.brightness == Brightness.dark, '« ${getTitle()} » a été mis à jour', SnackBarAction(
-          label: 'Ouvrir',
-          textColor: theme.primaryColor,
-          onPressed: () {
-              pubDownloaded.showMenu(GlobalKeyService.currentPageKey?.currentContext ?? context);
-            },
-          ),
+        // ✅ Notification de fin avec bouton "Ouvrir" (comme dans download)
+        await NotificationService().showCompletionNotification(
+          id: hashCode,
+          title: '✅ Mise à jour terminée',
+          body: getTitle(),
+          payload: JwOrgUri.publication(
+            wtlocale: mepsLanguage.symbol,
+            pub: symbol,
+            issue: issueTagNumber,
+          ).toString(),
         );
+      } else {
+        // Téléchargement annulé ou échoué
+        await NotificationService().cancelNotification(hashCode);
       }
 
       isDownloadingNotifier.value = false;
     }
   }
+
 
   Future<void> cancelUpdate(BuildContext context, {void Function(double progress)? update}) async {
     if (isDownloadingNotifier.value && _cancelToken != null && _updateOperation != null) {

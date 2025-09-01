@@ -73,36 +73,57 @@ class LibraryPageState extends State<LibraryPage> {
 
   @override
   Widget build(BuildContext context) {
-    int length = 5;
+    final tabs = <Tab>[];
+    final views = <Widget>[];
 
-    if(catalogCategories.isEmpty) {
-      length = length - 1;
-    }
-    if(!_isMediaLoading && video == null) {
-      length = length - 1;
-    }
-    if(!_isMediaLoading && audio == null) {
-      length = length - 1;
+    if (catalogCategories.isNotEmpty) {
+      tabs.add(Tab(text: localization(context).navigation_publications.toUpperCase()));
+      views.add(PublicationsPage(categories: catalogCategories));
     }
 
-    final textStyleTitle = const TextStyle(fontSize: 20, fontWeight: FontWeight.bold);
-    final textStyleSubtitle = TextStyle(
-      fontSize: 14,
-      color: Theme.of(context).brightness == Brightness.dark
-          ? const Color(0xFFc3c3c3)
-          : const Color(0xFF626262),
-    );
+    if (_isMediaLoading || video != null) {
+      tabs.add(Tab(text: localization(context).navigation_videos.toUpperCase()));
+      views.add(
+        _isMediaLoading
+            ? getLoadingWidget(Theme.of(context).primaryColor)
+            : (video != null ? VideoPage(video: video!) : const SizedBox.shrink()),
+      );
+    }
+
+    if (_isMediaLoading || audio != null) {
+      tabs.add(Tab(text: localization(context).navigation_audios.toUpperCase()));
+      views.add(
+        _isMediaLoading
+            ? getLoadingWidget(Theme.of(context).primaryColor)
+            : (audio != null ? AudioPage(audio: audio!) : const SizedBox.shrink()),
+      );
+    }
+
+    tabs.add(Tab(text: localization(context).navigation_download.toUpperCase()));
+    views.add(const DownloadPage());
+
+    tabs.add(Tab(text: localization(context).navigation_pending_updates.toUpperCase()));
+    views.add(const PendingUpdatesPage());
 
     return DefaultTabController(
-      length: length,
+      length: tabs.length,
       child: Scaffold(
         resizeToAvoidBottomInset: false,
         appBar: AppBar(
           title: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(localization(context).navigation_library, style: textStyleTitle),
-              Text(language, style: textStyleSubtitle),
+              Text(localization(context).navigation_library,
+                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              Text(
+                language,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? const Color(0xFFc3c3c3)
+                      : const Color(0xFF626262),
+                ),
+              ),
             ],
           ),
           actions: [
@@ -130,49 +151,8 @@ class LibraryPageState extends State<LibraryPage> {
         ),
         body: Column(
           children: [
-            TabBar(
-              isScrollable: true,
-              tabs: [
-                if (catalogCategories.isNotEmpty)
-                  Tab(text: localization(context).navigation_publications.toUpperCase()),
-                if (_isMediaLoading || video != null)
-                  Tab(text: localization(context).navigation_videos.toUpperCase()),
-                if (_isMediaLoading || audio != null)
-                  Tab(text: localization(context).navigation_audios.toUpperCase()),
-                Tab(text: localization(context).navigation_download.toUpperCase()),
-                Tab(text: localization(context).navigation_pending_updates.toUpperCase()),
-              ],
-            ),
-            Expanded(
-              child: TabBarView(
-                children: [
-                  // Onglet Publications
-                  catalogCategories.isNotEmpty
-                      ? PublicationsPage(categories: catalogCategories)
-                      : const SizedBox.shrink(),
-
-                  // Onglet Vidéo
-                  _isMediaLoading
-                      ? getLoadingWidget(Theme.of(context).primaryColor)
-                      : (video != null
-                      ? VideoPage(video: video!)
-                      : const SizedBox.shrink()),
-
-                  // Onglet Audio
-                  _isMediaLoading
-                      ? getLoadingWidget(Theme.of(context).primaryColor)
-                      : (audio != null
-                      ? AudioPage(audio: audio!)
-                      : const SizedBox.shrink()),
-
-                  // Onglet Téléchargements
-                  const DownloadPage(),
-
-                  // Onglet Mises à jour
-                  const PendingUpdatesPage(),
-                ],
-              ),
-            ),
+            TabBar(isScrollable: true, tabs: tabs),
+            Expanded(child: TabBarView(children: views)),
           ],
         ),
       ),

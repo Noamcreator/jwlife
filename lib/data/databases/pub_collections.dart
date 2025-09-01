@@ -316,7 +316,7 @@ class PubCollections {
   }
 
   Future<void> deletePublication(Publication publication) async {
-    //await open(); // Assure-toi que la base est ouverte
+    await open(); // Assure-toi que la base est ouverte
 
     await _database.transaction((txn) async {
       // 1. Récupérer l'ID de la publication à supprimer

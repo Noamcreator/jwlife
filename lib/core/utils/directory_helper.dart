@@ -72,6 +72,11 @@ Future<Directory> getAppFilesDirectory() async { // Get the default application 
   return directory;
 }
 
+Future<Directory> getAppSharedPreferencesDirectory() async { // Get the default application databases directory
+  String databasePath = await getDatabasesPath();
+  return Directory('${databasePath.substring(0, databasePath.lastIndexOf('/'))}/shared_prefs');
+}
+
 Future<Directory> getAppUserDataDirectory() async { // Get the default application databases directory
   String databasePath = await getDatabasesPath();
   return Directory('${databasePath.substring(0, databasePath.lastIndexOf('/'))}/userData');

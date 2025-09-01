@@ -16,7 +16,7 @@ import '../../app/services/notification_service.dart';
 import '../api/api.dart';
 import 'directory_helper.dart';
 
-Future<Publication?> downloadJwpubFile(Publication publication, BuildContext context, CancelToken? cancelToken) async {
+Future<Publication?> downloadJwpubFile(Publication publication, BuildContext context, CancelToken? cancelToken, bool update) async {
   final queryParams = {
     'pub': publication.keySymbol,
     'issue': publication.issueTagNumber.toString(),
@@ -70,10 +70,14 @@ Future<Publication?> downloadJwpubFile(Publication publication, BuildContext con
     throw Exception('Erreur lors du téléchargement du fichier JWPUB');
   }
 
-  return await jwpubUnzip(responseJwpub.data!, publication: publication);
+  return await jwpubUnzip(responseJwpub.data!, publication: publication, update: update);
 }
 
-Future<Publication> jwpubUnzip(Uint8List bytes, {Publication? publication}) async {
+Future<Publication> jwpubUnzip(Uint8List bytes, {Publication? publication, bool update = false}) async {
+  if(update && publication != null) {
+    await removeJwpubFile(publication);
+  }
+
   // Décoder l'archive principale
   final archive = ZipDecoder().decodeBytes(bytes);
 

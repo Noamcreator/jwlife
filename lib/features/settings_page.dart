@@ -1,15 +1,24 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:archive/archive.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
+import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart' as http_parser;
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
+import 'package:jwlife/core/api/api.dart';
 import 'package:jwlife/core/icons.dart';
+import 'package:jwlife/core/utils/common_ui.dart';
+import 'package:jwlife/core/utils/utils_backup_app.dart';
 import 'package:jwlife/data/models/meps_language.dart';
 import 'package:jwlife/i18n/app_localizations.dart';
 import 'package:jwlife/i18n/localization.dart';
 import 'package:jwlife/widgets/dialog/utils_dialog.dart';
+import 'package:mime/mime.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:realm/realm.dart';
 import 'package:share_plus/share_plus.dart';
@@ -17,6 +26,7 @@ import 'package:sqflite/sqflite.dart';
 import '../app/jwlife_app.dart';
 import '../app/services/global_key_service.dart';
 import '../app/services/settings_service.dart';
+import '../core/api/api_key.dart';
 import '../core/constants.dart';
 import '../core/shared_preferences/shared_preferences_utils.dart';
 import '../core/utils/files_helper.dart';
@@ -393,7 +403,7 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
       final filePath = file.path ?? '';
 
       // Validation du fichier
-      final allowedExtensions = ['jwlife', 'jwlibrary'];
+      final allowedExtensions = ['jwlibrary'];
       final fileExtension = filePath.split('.').last.toLowerCase();
 
       if (!allowedExtensions.contains(fileExtension)) {
@@ -413,10 +423,41 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
         return;
       }
 
-      final shouldRestore = await _showRestoreConfirmation(info);
+      final shouldRestore = await _showRestoreConfirmation('Les données de votre étude individuelle sur cet appareil seront écrasées.', info);
       if (shouldRestore != true) return;
 
       await _performRestore(File(filePath));
+    } catch (e) {
+      await _showErrorDialog('Erreur', 'Une erreur est survenue lors de l\'importation.');
+    }
+  }
+
+  Future<void> _handleAppImport() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(type: FileType.any);
+      if (result == null) return;
+
+      final file = result.files.first;
+      final filePath = file.path ?? '';
+
+      // Validation du fichier
+      final allowedExtensions = ['jwlife'];
+      final fileExtension = filePath.split('.').last.toLowerCase();
+
+      if (!allowedExtensions.contains(fileExtension)) {
+        await _showErrorDialog('Fichier invalide', 'Le fichier doit avoir une extension .jwlife ou .jwlibrary.');
+        return;
+      }
+
+      // Validation ZIP
+      if (!await _isValidZipFile(filePath)) {
+        return;
+      }
+
+      final shouldRestore = await _showRestoreConfirmation('Les données de votre applications seront écrasées par les nouvelles données.', null);
+      if (shouldRestore != true) return;
+
+      await _performAppRestore(File(filePath));
     } catch (e) {
       await _showErrorDialog('Erreur', 'Une erreur est survenue lors de l\'importation.');
     }
@@ -447,7 +488,7 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
     );
   }
 
-  Future<bool?> _showRestoreConfirmation(dynamic info) async {
+  Future<bool?> _showRestoreConfirmation(String content, dynamic info) async {
     return await showJwDialog<bool>(
       context: context,
       titleText: 'Importer une sauvegarde',
@@ -457,20 +498,20 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 10),
-            const Text(
-              'Les données de votre étude individuelle sur cet appareil seront écrasées.',
+            Text(
+              content,
               style: TextStyle(
                 fontSize: 16,
                 color: Color(0xFF676767),
               ),
             ),
             const SizedBox(height: 15),
-            Text(
+            info == null  ? SizedBox.shrink() : Text(
               'Appareil : ${info.deviceName}',
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 5),
-            Text('Dernière modification : ${timeAgo(info.lastModified)}'),
+            info == null  ? SizedBox.shrink() : const SizedBox(height: 5),
+            info == null  ? SizedBox.shrink() : Text('Dernière modification : ${timeAgo(info.lastModified)}'),
           ],
         ),
       ),
@@ -536,11 +577,266 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
     }
   }
 
+  Future<void> _performAppRestore(File file) async {
+    BuildContext? dialogContext;
+
+    showJwDialog(
+      context: context,
+      titleText: "Importation des données de l'app en cours…",
+      content: Builder(
+        builder: (ctx) {
+          dialogContext = ctx;
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 25),
+            child: SizedBox(
+              height: 50,
+              child: getLoadingWidget(Theme.of(context).primaryColor),
+            ),
+          );
+        },
+      ),
+    );
+
+    try {
+      await importAppBackup(file);
+
+      if (dialogContext != null) Navigator.of(dialogContext!).pop();
+
+      await showJwDialog(
+        context: context,
+        titleText: 'Sauvegarde importée',
+        contentText: 'La sauvegarde a bien été importée.',
+        buttons: [
+          JwDialogButton(
+            label: 'OK',
+            closeDialog: true,
+          ),
+        ],
+        buttonAxisAlignment: MainAxisAlignment.end,
+      );
+
+      // redémarer l'application
+
+      if (mounted) Navigator.pop(context);
+    } catch (e) {
+      if (dialogContext != null) Navigator.of(dialogContext!).pop();
+      await _showErrorDialog('Erreur', 'Erreur lors de l\'importation de la sauvegarde.');
+    }
+  }
+
+  Future<String> uploadImageToImgbb(File imageFile) async {
+    const String imgbbApiKey = ApiKey.imgbbApiKey;
+    const String albumId = ApiKey.albumId;
+    final url = Uri.parse('https://api.imgbb.com/1/upload');
+
+    final request = http.MultipartRequest('POST', url)
+      ..fields['key'] = imgbbApiKey
+      ..fields['album'] = albumId // Ajout du paramètre pour l'album
+      ..files.add(await http.MultipartFile.fromPath('image', imageFile.path));
+
+    final streamedResponse = await request.send();
+    final response = await http.Response.fromStream(streamedResponse);
+
+    if (response.statusCode == 200) {
+      final Map<String, dynamic> data = jsonDecode(response.body);
+      if (data['success'] == true) {
+        return data['data']['url'];
+      } else {
+        throw Exception('Échec de l\'upload de l\'image sur Imgbb: ${data['error']['message']}');
+      }
+    } else {
+      print("Erreur upload Imgbb: ${response.statusCode} - ${response.body}");
+      throw Exception('Échec de l\'upload de l\'image sur Imgbb : ${response.body}');
+    }
+  }
+
+
+// Fonction pour envoyer l'issue à GitHub
+  Future<void> sendIssues(
+      BuildContext context,
+      String title,
+      String textBody,
+      String type,
+      String username,
+      String? imageUrl,
+      ) async {
+    final DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
+    String deviceModel = 'Unknown';
+    String deviceManufacturer = 'Unknown';
+    String androidVersion = 'Unknown';
+    try {
+      if (Platform.isAndroid) {
+        final androidInfo = await deviceInfo.androidInfo;
+        deviceModel = androidInfo.model;
+        deviceManufacturer = androidInfo.manufacturer;
+        androidVersion = androidInfo.version.release;
+      } else if (Platform.isIOS) {
+        final iosInfo = await deviceInfo.iosInfo;
+        deviceModel = iosInfo.model;
+        deviceManufacturer = 'Apple';
+        androidVersion = iosInfo.systemVersion;
+      }
+    } catch (e) {
+      print("Erreur lors de la récupération des infos de l'appareil: $e");
+    }
+
+    final buffer = StringBuffer()
+      ..writeln(textBody)
+      ..writeln()
+      ..writeln("---")
+      ..writeln("## Informations utilisateur et système")
+      ..writeln("- **Nom:** $username")
+      ..writeln("- **Appareil:** $deviceManufacturer ($deviceModel)")
+      ..writeln("- **Version OS:** $androidVersion ${Platform.isAndroid ? '(Android)' : Platform.isIOS ? '(iOS)' : ''}")
+      ..writeln("- **Version ${Constants.appName}:** ${Constants.appVersion}")
+      ..writeln("- **Timestamp:** ${DateTime.now().toIso8601String()}");
+
+    if (imageUrl != null) {
+      buffer.writeln("\n## Capture d'écran jointe\n");
+      buffer.writeln("![Capture d'écran]($imageUrl)");
+    }
+
+    final issueUrl = Uri.parse("https://api.github.com/repos/${ApiKey.githubOwner}/${Constants.appRepo}/issues");
+    final issueResponse = await http.post(
+      issueUrl,
+      headers: {
+        "Authorization": "Bearer ${ApiKey.githubToken}",
+        "Accept": "application/vnd.github.v3+json",
+        "Content-Type": "application/json",
+      },
+      body: jsonEncode({
+        "title": title,
+        "body": buffer.toString(),
+        "labels": type == "suggestion" ? ["suggestion"] : ["bug"],
+      }),
+    );
+
+    if (issueResponse.statusCode == 201) {
+      showBottomMessage(context, "${type == 'suggestion' ? 'Suggestion' : 'Bug'} envoyé avec succès ✅");
+    } else {
+      showBottomMessage(context, "Échec de l'envoi de ${type == 'suggestion' ? 'la suggestion' : 'du bug'} ❌");
+      print("Erreur d'envoi de l'issue (statut: ${issueResponse.statusCode}) : ${issueResponse.body}");
+    }
+  }
+
+// Fonction pour afficher le dialogue de soumission
+  Future<void> sendIssuesDialog(BuildContext context, String type) async {
+    final TextEditingController nameController = TextEditingController();
+    final TextEditingController titleController = TextEditingController();
+    final TextEditingController textController = TextEditingController();
+    File? imageFile;
+
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setState) {
+            return AlertDialog(
+              title: Text(type == 'suggestion' ? 'Envoyer une suggestion' : 'Signaler un bug'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: nameController,
+                      decoration: const InputDecoration(
+                        hintText: 'Votre nom',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: titleController,
+                      decoration: InputDecoration(
+                        hintText: type == 'suggestion' ? 'Titre de la suggestion' : 'Titre du bug',
+                        border: const OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: textController,
+                      maxLines: 5,
+                      decoration: InputDecoration(
+                        hintText: type == 'suggestion' ? 'Écrivez ici votre suggestion...' : 'Décrivez le bug ici...',
+                        border: const OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    ElevatedButton.icon(
+                      onPressed: () async {
+                        final picker = ImagePicker();
+                        final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+                        if (pickedFile != null) {
+                          setState(() {
+                            imageFile = File(pickedFile.path);
+                          });
+                        }
+                      },
+                      icon: const Icon(Icons.add_a_photo),
+                      label: const Text('Ajouter une capture d\'écran'),
+                    ),
+                    if (imageFile != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8.0),
+                        child: Text('Image sélectionnée : ${imageFile!.path.split('/').last}', style: const TextStyle(fontStyle: FontStyle.italic)),
+                      ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Annuler'),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    final name = nameController.text.trim();
+                    final title = titleController.text.trim();
+                    final text = textController.text.trim();
+                    String? imageUrl;
+
+                    if (name.isEmpty || title.isEmpty || text.isEmpty) {
+                      showBottomMessage(context, "Veuillez remplir tous les champs.");
+                      return;
+                    }
+
+                    // Si une image est sélectionnée, on l'upload via Imgbb
+                    if (imageFile != null) {
+                      try {
+                        showBottomMessage(context, "Téléchargement de l'image en cours...");
+                        imageUrl = await uploadImageToImgbb(imageFile!);
+                        showBottomMessage(context, "Image téléchargée ✅");
+                      } catch (e) {
+                        print("Erreur générale lors de l'upload de l'image : $e");
+                        showBottomMessage(context, "Échec de l'envoi de l'image ❌");
+                        // Continue sans l'image en cas d'échec
+                      }
+                    }
+
+                    if (Navigator.of(context).mounted) {
+                      await sendIssues(context, title, text, type, name, imageUrl);
+                    }
+
+                    if (Navigator.of(context).mounted) {
+                      Navigator.of(context).pop();
+                    }
+                  },
+                  child: const Text('Envoyer'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context); // Important pour AutomaticKeepAliveClientMixin
 
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       appBar: AppBar(
         title: Text(
           localization(context).navigation_settings,
@@ -695,6 +991,49 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
           }
         },
       ),
+      SettingsTile(
+        title: "Importer les données d'application",
+        trailing: const Icon(JwIcons.cloud_arrow_down),
+        onTap: _handleAppImport,
+      ),
+      SettingsTile(
+        title: "Exporter les données d'application",
+        trailing: const Icon(JwIcons.cloud_arrow_up),
+        onTap: () async {
+          BuildContext? dialogContext;
+
+          showJwDialog(
+            context: context,
+            titleText: 'Exportation…',
+            content: Builder(
+              builder: (ctx) {
+                dialogContext = ctx;
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 25),
+                  child: SizedBox(
+                    height: 50,
+                    child: getLoadingWidget(Theme.of(context).primaryColor),
+                  ),
+                );
+              },
+            ),
+          );
+
+          try {
+            final backupFile = await exportAppBackup();
+            if (dialogContext != null) Navigator.of(dialogContext!).pop();
+
+            if (backupFile != null) {
+              SharePlus.instance.share(ShareParams(files: [XFile(backupFile.path)]));
+            }
+
+            if (mounted) Navigator.pop(context);
+          } catch (e) {
+            if (dialogContext != null) Navigator.of(dialogContext!).pop();
+            await _showErrorDialog('Erreur', 'Erreur lors de l\'exportation.');
+          }
+        },
+      ),
       const Divider(),
 
       SettingsSectionHeader('Cache'),
@@ -777,6 +1116,23 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
           }
         },
       ),
+      const Divider(),
+      SettingsSectionHeader('Suggestions & Bugs'),
+      SettingsTile(
+          title: 'Envoyer une suggestion',
+          subtitle: 'Écrivez votre suggestion dans un champ qui sera automatiquement envoyé au développeur',
+          onTap: () {
+            sendIssuesDialog(context, 'suggestion');
+          }
+      ),
+      SettingsTile(
+          title: 'Décrire un bug rencontré',
+          subtitle: 'Décrivez votre bug dans un champ qui sera automatiquement envoyé au développeur',
+          onTap: () {
+            sendIssuesDialog(context, 'bug');
+          }
+      ),
+
       const Divider(),
 
       SettingsSectionHeader(localization(context).settings_about),
