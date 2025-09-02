@@ -166,6 +166,10 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
     await _controller.evaluateJavascript(source: "changePrimaryColor($lightPrimaryColor, $darkPrimaryColor);");
   }
 
+  Future<void> updateBottomBar() async {
+    controlsKey.currentState?.refreshWidget();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -862,7 +866,7 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
     });
   }
 
-  void updateAudio() {
+  void refreshWidget() {
     setState(() {});
   }
 

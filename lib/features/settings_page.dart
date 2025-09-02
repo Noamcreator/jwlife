@@ -18,7 +18,6 @@ import 'package:jwlife/data/models/meps_language.dart';
 import 'package:jwlife/i18n/app_localizations.dart';
 import 'package:jwlife/i18n/localization.dart';
 import 'package:jwlife/widgets/dialog/utils_dialog.dart';
-import 'package:mime/mime.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:realm/realm.dart';
 import 'package:share_plus/share_plus.dart';
@@ -26,7 +25,7 @@ import 'package:sqflite/sqflite.dart';
 import '../app/jwlife_app.dart';
 import '../app/services/global_key_service.dart';
 import '../app/services/settings_service.dart';
-import '../core/api/api_key.dart';
+import '../core/api/api_keys.dart';
 import '../core/constants.dart';
 import '../core/shared_preferences/shared_preferences_utils.dart';
 import '../core/utils/files_helper.dart';
@@ -304,16 +303,34 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
         style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
       ),
       buttonAxisAlignment: MainAxisAlignment.end,
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          ColorPicker(
-            pickerColor: tempColor,
-            onColorChanged: (Color color) {
-              tempColor = color;
-            },
-          ),
-        ],
+      content: StatefulBuilder(
+        builder: (context, setState) {
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ColorPicker(
+                pickerColor: tempColor,
+                labelTypes: const [],
+                onColorChanged: (Color color) {
+                  // Met à jour la variable locale, mais ne reconstruit pas le widget
+                  tempColor = color;
+                },
+              ),
+              ElevatedButton(
+                child: const Text('COULEUR PAR DÉFAUT'),
+                onPressed: () {
+                  // Met à jour la couleur et reconstruit la boîte de dialogue pour mettre à jour le sélecteur
+                  setState(() {
+                    tempColor = Theme.of(context).brightness == Brightness.dark
+                        ? Constants.defaultDarkPrimaryColor
+                        : Constants.defaultLightPrimaryColor;
+                  });
+                  _updatePrimaryColor(tempColor);
+                },
+              ),
+            ],
+          );
+        },
       ),
       buttons: [
         JwDialogButton(

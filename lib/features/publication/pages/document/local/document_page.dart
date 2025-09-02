@@ -155,7 +155,7 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
     }
 
     widget.publication.fetchAudios().then((value) {
-      controlsKey.currentState?.updateAudio();
+      controlsKey.currentState?.refreshWidget();
     });
 
     setState(() {
@@ -352,6 +352,10 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
     final darkPrimaryColor = toHex(darkColor);
 
     await _controller.evaluateJavascript(source: "changePrimaryColor('$lightPrimaryColor', '$darkPrimaryColor');");
+  }
+
+  Future<void> updateBottomBar() async {
+    controlsKey.currentState?.refreshWidget();
   }
 
   @override
@@ -778,14 +782,8 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
                 controller.addJavaScriptHandler(
                   handlerName: 'fetchCommentaries',
                   callback: (args) async {
-                    /*
-                    Map<String, dynamic>? extractPublication = await fetchExtractPublication(context, 'document', widget.publication.documentsManager!.database, widget.publication, args[0], _jumpToPage, _jumpToParagraph);
-                    if (extractPublication != null) {
-                      printTime('fetchExtractPublication $extractPublication');
-                      return extractPublication;
-                    }
-
-                     */
+                    Map<String, dynamic> versesCommentaries = await fetchCommentaries(context, widget.publication, args[0]);
+                    return versesCommentaries;
                   },
                 );
 
@@ -1324,7 +1322,7 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
     });
   }
 
-  void updateAudio() {
+  void refreshWidget() {
     setState(() {});
   }
 

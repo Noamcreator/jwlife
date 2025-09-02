@@ -513,11 +513,64 @@ class _PublicationSearchViewState extends State<PublicationSearchView> {
       ),
     );
 
-    return widget.publication.isBible() ? DefaultTabController(
+    return DefaultTabController(
       length: 2,
       child: Scaffold(
+        backgroundColor: Theme.of(context).brightness == Brightness.dark
+            ? Colors.black
+            : const Color(0xFFf1f1f1),
         resizeToAvoidBottomInset: false,
-        appBar: AppBar(
+        appBar: _isSearching
+            ? AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () {
+              setState(() {
+                _isSearching = false;
+              });
+            },
+          ),
+          title: SearchFieldWidget(
+            query: _query,
+            onSearchTextChanged: (text) {
+              fetchSuggestions(text);
+            },
+            onSuggestionTap: (item) async {
+              String query = item.item!['word'];
+              showPage(
+                context,
+                PublicationSearchView(
+                  query: query,
+                  publication: widget.publication,
+                  documentsManager: widget.publication.documentsManager!,
+                ),
+              );
+              setState(() {
+                _isSearching = false;
+              });
+            },
+            onSubmit: (text) async {
+              setState(() {
+                _isSearching = false;
+              });
+              showPage(
+                context,
+                PublicationSearchView(
+                  query: text,
+                  publication: widget.publication,
+                  documentsManager: widget.publication.documentsManager!,
+                ),
+              );
+            },
+            onTapOutside: (event) {
+              setState(() {
+                _isSearching = false;
+              });
+            },
+            suggestions: suggestions,
+          ),
+        )
+            : AppBar(
           title: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -534,7 +587,9 @@ class _PublicationSearchViewState extends State<PublicationSearchView> {
             IconButton(
               icon: const Icon(JwIcons.magnifying_glass),
               onPressed: () {
-                History.showHistoryDialog(context);
+                setState(() {
+                  _isSearching = true;
+                });
               },
             ),
             IconButton(
@@ -545,112 +600,28 @@ class _PublicationSearchViewState extends State<PublicationSearchView> {
             ),
           ],
         ),
-        body: Column(
-            children: [
-              TabBar(
-                isScrollable: true, // Permet d'utiliser TabAlignment.start
-                tabs: [
-                  Tab(text: "VERSETS"),
-                  Tab(text: "DOCUMENTS"),
-                ],
-              ),
-              Expanded(child: TabBarView(
+        body: widget.publication.isBible()
+            ? Column(
+          children: [
+            const TabBar(
+              isScrollable: true,
+              tabs: [
+                Tab(text: 'VERSETS'),
+                Tab(text: 'DOCUMENTS'),
+              ],
+            ),
+            Expanded(
+              child: TabBarView(
                 children: [
                   versesList,
-                  versesList,
+                  documentsList, // J'ai corrigé ici pour afficher documentsList
                 ],
               ),
-              )
-            ]
-        )
-      ),
-    ) : Scaffold(
-      backgroundColor: Theme
-          .of(context)
-          .brightness == Brightness.dark ? Colors.black : Color(0xFFf1f1f1),
-      resizeToAvoidBottomInset: false,
-      appBar: _isSearching ? AppBar(
-          leading: IconButton(
-            icon: Icon(Icons.arrow_back),
-            onPressed: () {
-              setState(() {
-                _isSearching = false;
-              });
-            },
-          ),
-          title: SearchFieldWidget(
-            query: _query,
-            onSearchTextChanged: (text) {
-              fetchSuggestions(text);
-            },
-            onSuggestionTap: (item) async {
-              // Accéder à l'élément encapsulé
-              String query = item.item!['word']; // Utilise 'item.item' au lieu de 'item['query']'
-
-              showPage(
-                context,
-                PublicationSearchView(
-                  query: query,
-                  publication: widget.publication,
-                  documentsManager: widget.publication.documentsManager!
-                ),
-              );
-
-              setState(() {
-                _isSearching = false;
-              });
-            },
-            onSubmit: (text) async {
-              setState(() {
-                _isSearching = false;
-              });
-              showPage(
-                context,
-                PublicationSearchView(
-                  query: text,
-                  publication: widget.publication,
-                  documentsManager: widget.publication.documentsManager!
-                ),
-              );
-            },
-            onTapOutside: (event) {
-              setState(() {
-                _isSearching = false;
-              });
-            },
-            suggestions: suggestions,
-          )
-      ) : AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(_query, style: textStyleTitle),
-            Text(
-              widget.publication.issueTitle.isNotEmpty
-                  ? widget.publication.issueTitle
-                  : widget.publication.shortTitle,
-              style: textStyleSubtitle,
             ),
           ],
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(JwIcons.magnifying_glass),
-            onPressed: () {
-              setState(() {
-                _isSearching = true;
-              });
-            },
-          ),
-          IconButton(
-            icon: const Icon(JwIcons.arrow_circular_left_clock),
-            onPressed: () {
-              History.showHistoryDialog(context);
-            },
-          ),
-        ],
+        )
+            : documentsList,
       ),
-      body: documentsList,
     );
   }
 

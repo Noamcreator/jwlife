@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:jwlife/core/theme.dart';
 import 'package:jwlife/core/utils/webview_data.dart';
+import '../../core/constants.dart';
 import '../../core/shared_preferences/shared_preferences_utils.dart';
 import '../../data/models/meps_language.dart';
 
@@ -11,13 +12,13 @@ class JwLifeSettings {
   JwLifeSettings._internal();
 
   ThemeMode themeMode = ThemeMode.system;
-  ThemeData lightData = AppTheme.getLightTheme(const Color(0xFF646496));
-  ThemeData darkData = AppTheme.getDarkTheme(Color.lerp(const Color(0xFF646496), Colors.white, 0.3)!);
+  ThemeData lightData = AppTheme.getLightTheme(Constants.defaultLightPrimaryColor);
+  ThemeData darkData = AppTheme.getDarkTheme(Constants.defaultDarkPrimaryColor);
   Locale locale = const Locale('en');
   late MepsLanguage currentLanguage;
   WebViewData webViewData = WebViewData();
-  Color lightPrimaryColor = const Color(0xFF646496);
-  Color darkPrimaryColor = Color.lerp(const Color(0xFF646496), Colors.white, 0.3)!;
+  Color lightPrimaryColor = Constants.defaultLightPrimaryColor;
+  Color darkPrimaryColor = Constants.defaultDarkPrimaryColor;
 
   Future<void> init() async {
     final theme = await getTheme();

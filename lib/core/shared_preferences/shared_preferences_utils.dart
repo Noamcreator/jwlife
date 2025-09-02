@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../i18n/app_localizations.dart';
 import '../../app/services/settings_service.dart';
 import '../../data/models/meps_language.dart';
+import '../constants.dart';
 
 /// Récupère l’instance SharedPreferences (singleton)
 Future<SharedPreferences> _getSP() async => SharedPreferences.getInstance();
@@ -36,10 +37,6 @@ extension HexStringColor on String {
   }
 }
 
-/// Couleurs par défaut
-const Color _defaultPrimaryLight = Color(0xFF646496);
-final Color _defaultPrimaryDark = Color.lerp(_defaultPrimaryLight, Colors.white, 0.3)!;
-
 /// Récupère la couleur primaire
 Future<Color> getPrimaryColor(ThemeMode theme) async {
   final sp = await _getSP();
@@ -55,7 +52,7 @@ Future<Color> getPrimaryColor(ThemeMode theme) async {
       debugPrint('Erreur conversion couleur : $e');
     }
   }
-  return index == ThemeMode.dark.index ? _defaultPrimaryDark : _defaultPrimaryLight;
+  return index == ThemeMode.dark.index ? Constants.defaultDarkPrimaryColor : Constants.defaultLightPrimaryColor;
 }
 
 /// Sauvegarde une couleur primaire
@@ -64,8 +61,8 @@ Future<void> setPrimaryColor(ThemeMode theme, Color color) async {
   final index = WidgetsBinding.instance.window.platformBrightness == Brightness.dark ? ThemeMode.dark.index : ThemeMode.light.index;
 
   List<String> colors = sp.getStringList(SharedPreferencesKeys.primaryColor.key) ?? [
-    _defaultPrimaryLight.toHex(),
-    _defaultPrimaryDark.toHex(),
+    Constants.defaultLightPrimaryColor.toHex(),
+    Constants.defaultDarkPrimaryColor.toHex(),
     '#FF646496'
   ];
 

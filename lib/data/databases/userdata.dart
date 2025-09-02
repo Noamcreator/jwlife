@@ -954,7 +954,7 @@ class Userdata {
       }
 
       // Si on n’a pas encore de locationId, on l’obtient via insertLocation
-      locationId ??= await insertLocationWithDocument(publication, null, datedText: datedText);
+      locationId ??= await insertLocationWithDocument(publication, document, datedText: datedText);
 
       final timestamp = DateTime.now().toIso8601String();
 

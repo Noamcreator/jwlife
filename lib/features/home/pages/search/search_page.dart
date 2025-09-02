@@ -33,7 +33,6 @@ class _SearchPageState extends State<SearchPage> {
   int currentTab = 0;
 
   final List<String> tabs = [
-    'WIKIPEDIA',
     'TOUT',
     'PUBLICATIONS',
     'VIDÉOS',
@@ -43,6 +42,7 @@ class _SearchPageState extends State<SearchPage> {
     'IMAGES',
     'NOTES',
     'CHAMPS',
+    'WIKIPEDIA',
   ];
 
   @override
@@ -110,7 +110,6 @@ class _SearchPageState extends State<SearchPage> {
           ? IndexedStack(
         index: currentTab,
         children: [
-          WikipediaSearchTab(model: _searchModel),
           AllSearchTab(model: _searchModel),
           PublicationsSearchTab(model: _searchModel),
           VideosSearchTab(model: _searchModel),
@@ -120,6 +119,7 @@ class _SearchPageState extends State<SearchPage> {
           ImagesSearchTab(model: _searchModel),
           NotesSearchTab(model: _searchModel),
           InputFieldsSearchTab(model: _searchModel),
+          WikipediaSearchTab(model: _searchModel)
         ],
       )
           : Center(child: CircularProgressIndicator()),

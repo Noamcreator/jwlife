@@ -389,204 +389,210 @@ class History {
     // Variables d'état
     TextEditingController searchController = TextEditingController();
     List<Map<String, dynamic>> allHistory = await loadAllHistory(bottomBarIndex);
-    List<Map<String, dynamic>> filteredHistory = List.from(allHistory); // Initialisation de la liste filtrée
-
-    // Fonction pour filtrer l'historique
-    void filterHistory(String query) {
-      if (query.isEmpty) {
-        filteredHistory = List.from(allHistory); // Réinitialise la liste filtrée si la recherche est vide
-      }
-      else {
-        filteredHistory = allHistory.where((element) {
-          return element["DisplayTitle"]
-              .toString()
-              .toLowerCase()
-              .contains(query.toLowerCase());
-        }).toList();
-      }
-    }
+    List<Map<String, dynamic>> filteredHistory = List.from(allHistory);
 
     showDialog(
       context: mainContext,
       builder: (context) {
-        return Dialog(
-          insetPadding: const EdgeInsets.all(20),
-          child: Container(
-            width: MediaQuery.of(context).size.width,
-            padding: EdgeInsets.symmetric(vertical: 16, horizontal: 5),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Titre avec séparation
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: Text(
-                    "Historique",
-                    style: TextStyle(fontFamily: 'Roboto', fontSize: 22, fontWeight: FontWeight.bold),
-                  ),
-                ),
+        // Utilisez un StatefulWidget pour gérer l'état local du dialogue.
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setState) {
+            // Fonction pour filtrer l'historique et mettre à jour l'état du dialogue
+            void filterHistory(String query) {
+              setState(() { // <== Appel crucial pour reconstruire le widget
+                if (query.isEmpty) {
+                  filteredHistory = List.from(allHistory);
+                } else {
+                  filteredHistory = allHistory.where((element) {
+                    return element["DisplayTitle"]
+                        .toString()
+                        .toLowerCase()
+                        .contains(query.toLowerCase());
+                  }).toList();
+                }
+              });
+            }
 
-                Divider(color: isDarkMode ? Colors.black : Color(0xFFf1f1f1)),
-
-                // Champ de recherche
-                TextField(
-                  controller: searchController,
-                  decoration: InputDecoration(
-                    labelText: 'Rechercher...',
-                    border: OutlineInputBorder(),
-                    contentPadding: EdgeInsets.symmetric(vertical: 10, horizontal: 12),
-                    prefixIcon: Icon(JwIcons.magnifying_glass),
-                  ),
-                  onEditingComplete: () {
-                    filterHistory(searchController.text);
-                  },
-                  onChanged: (value) {
-                    filterHistory(value);
-                  },
-                ),
-
-                Divider(color: isDarkMode ? Colors.black : Color(0xFFf1f1f1)),
-
-                Expanded(
-                  child: ListView.separated(
-                    shrinkWrap: true,
-                    itemCount: filteredHistory.length,
-                    separatorBuilder: (context, index) => Divider(color: isDarkMode ? Colors.black : Color(0xFFf1f1f1)),
-                    itemBuilder: (context, index) {
-                      var item = filteredHistory[index];
-                      IconData icon = item["Type"] == 'webview' ? item['PublicationTypeId'] != null ? PublicationCategory.all.firstWhere(
-                            (category) => category.id == item['PublicationTypeId']).icon
-                          : JwIcons.document : JwIcons.document;
-
-                      return InkWell(
-                        onTap: () {
-                          Navigator.pop(context);
-
-                          if (item["Type"] == "video") {
-                            MediaItem? mediaItem = getMediaItem(
-                              item["KeySymbol"],
-                              item["Track"],
-                              item["DocumentId"],
-                              item["IssueTagNumber"],
-                              item["MepsLanguageId"],
-                            );
-                            printTime("mediaItem: ${mediaItem!.title}");
-
-                            showFullScreenVideo(mainContext, mediaItem);
-                          }
-                          else if (item["Type"] == "audio") {
-                            MediaItem? mediaItem = getAudioItem(
-                              item["KeySymbol"],
-                              item["Track"],
-                              item["DocumentId"],
-                              item["IssueTagNumber"],
-                              item["MepsLanguageId"],
-                            );
-                            showAudioPlayer(mainContext, mediaItem!);
-                          }
-                          else if (item["Type"] == "chapter") {
-                            printTime("item: $item");
-                            showChapterView(
-                              mainContext,
-                              item["KeySymbol"],
-                              item["MepsLanguageId"],
-                              item["BookNumber"],
-                              item["ChapterNumber"],
-                              firstVerseNumber: item["StartBlockIdentifier"],
-                              lastVerseNumber: item["EndBlockIdentifier"],
-                            );
-                          }
-                          else if (item["Type"] == "document") {
-                            showDocumentView(mainContext, item["DocumentId"], item["MepsLanguageId"], startParagraphId: item["StartBlockIdentifier"], endParagraphId: item["EndBlockIdentifier"]);
-                          }
-                        },
-                        child: Container(
-                          padding: EdgeInsets.symmetric(vertical: 8, horizontal: 15),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              Icon(
-                                item["Type"] == "video"
-                                    ? JwIcons.video
-                                    : item["Type"] == "audio"
-                                    ? JwIcons.music
-                                    : icon,
-                                color: Theme.of(context).primaryColor,
-                                size: 25,
-                              ),
-                              SizedBox(width: 20), // Espacement entre l'icône et le texte
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      item["DisplayTitle"] ?? "Sans titre",
-                                      style: TextStyle(fontSize: 14),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                    SizedBox(height: 2),
-                                    Text(
-                                      item["Type"] == "video"
-                                          ? "Vidéo"
-                                          : item["Type"] == "audio"
-                                          ? "Audio"
-                                          : (item["PublicationIssueTitle"] ?? item["PublicationTitle"] ?? item['KeySymbol']),
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        color: Theme.of(context).brightness == Brightness.dark
-                                            ? Color(0xFFc0c0c0)
-                                            : Color(0xFF5a5a5a),
-                                      ),
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-
-                // Séparation et boutons
-                Divider(color: isDarkMode ? Colors.black : Color(0xFFf1f1f1)),
-
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  crossAxisAlignment: CrossAxisAlignment.center,
+            return Dialog(
+              insetPadding: const EdgeInsets.all(20),
+              child: Container(
+                width: MediaQuery.of(context).size.width,
+                padding: EdgeInsets.symmetric(vertical: 16, horizontal: 5),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    TextButton(
-                      onPressed: () => deleteAllHistory().then((value) => Navigator.pop(context)),
+                    // Titre avec séparation
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       child: Text(
-                        "TOUT EFFACER",
-                        style: TextStyle(
-                            fontFamily: 'Roboto',
-                            letterSpacing: 1,
-                            fontWeight: FontWeight.bold,
-                            color: Theme.of(context).primaryColor),
+                        "Historique",
+                        style: TextStyle(fontFamily: 'Roboto', fontSize: 22, fontWeight: FontWeight.bold),
                       ),
                     ),
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: Text(
-                        "FERMER",
-                        style: TextStyle(
-                            fontFamily: 'Roboto',
-                            letterSpacing: 1,
-                            fontWeight: FontWeight.bold,
-                            color: Theme.of(context).primaryColor),
+
+                    Divider(color: isDarkMode ? Colors.black : Color(0xFFf1f1f1)),
+
+                    // Champ de recherche
+                    TextField(
+                      controller: searchController,
+                      decoration: InputDecoration(
+                        labelText: 'Rechercher...',
+                        border: OutlineInputBorder(),
+                        contentPadding: EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                        prefixIcon: Icon(JwIcons.magnifying_glass),
                       ),
+                      onEditingComplete: () {
+                        filterHistory(searchController.text);
+                      },
+                      onChanged: (value) {
+                        filterHistory(value);
+                      },
+                    ),
+
+                    Divider(color: isDarkMode ? Colors.black : Color(0xFFf1f1f1)),
+
+                    Expanded(
+                      child: ListView.separated(
+                        shrinkWrap: true,
+                        itemCount: filteredHistory.length, // <== Utilisez la liste filtrée ici
+                        separatorBuilder: (context, index) => Divider(color: isDarkMode ? Colors.black : Color(0xFFf1f1f1)),
+                        itemBuilder: (context, index) {
+                          var item = filteredHistory[index];
+                          IconData icon = item["Type"] == 'webview' ? item['PublicationTypeId'] != null ? PublicationCategory.all.firstWhere(
+                                  (category) => category.id == item['PublicationTypeId']).icon
+                              : JwIcons.document : JwIcons.document;
+
+                          return InkWell(
+                            onTap: () {
+                              Navigator.pop(context);
+
+                              if (item["Type"] == "video") {
+                                MediaItem? mediaItem = getMediaItem(
+                                  item["KeySymbol"],
+                                  item["Track"],
+                                  item["DocumentId"],
+                                  item["IssueTagNumber"],
+                                  item["MepsLanguageId"],
+                                );
+                                printTime("mediaItem: ${mediaItem!.title}");
+
+                                showFullScreenVideo(mainContext, mediaItem);
+                              }
+                              else if (item["Type"] == "audio") {
+                                MediaItem? mediaItem = getAudioItem(
+                                  item["KeySymbol"],
+                                  item["Track"],
+                                  item["DocumentId"],
+                                  item["IssueTagNumber"],
+                                  item["MepsLanguageId"],
+                                );
+                                showAudioPlayer(mainContext, mediaItem!);
+                              }
+                              else if (item["Type"] == "chapter") {
+                                printTime("item: $item");
+                                showChapterView(
+                                  mainContext,
+                                  item["KeySymbol"],
+                                  item["MepsLanguageId"],
+                                  item["BookNumber"],
+                                  item["ChapterNumber"],
+                                  firstVerseNumber: item["StartBlockIdentifier"],
+                                  lastVerseNumber: item["EndBlockIdentifier"],
+                                );
+                              }
+                              else if (item["Type"] == "document") {
+                                showDocumentView(mainContext, item["DocumentId"], item["MepsLanguageId"], startParagraphId: item["StartBlockIdentifier"], endParagraphId: item["EndBlockIdentifier"]);
+                              }
+                            },
+                            child: Container(
+                              padding: EdgeInsets.symmetric(vertical: 8, horizontal: 15),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    item["Type"] == "video"
+                                        ? JwIcons.video
+                                        : item["Type"] == "audio"
+                                        ? JwIcons.music
+                                        : icon,
+                                    color: Theme.of(context).primaryColor,
+                                    size: 25,
+                                  ),
+                                  SizedBox(width: 20),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          item["DisplayTitle"] ?? "Sans titre",
+                                          style: TextStyle(fontSize: 14),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                        SizedBox(height: 2),
+                                        Text(
+                                          item["Type"] == "video"
+                                              ? "Vidéo"
+                                              : item["Type"] == "audio"
+                                              ? "Audio"
+                                              : (item["PublicationIssueTitle"] ?? item["PublicationTitle"] ?? item['KeySymbol']),
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            color: Theme.of(context).brightness == Brightness.dark
+                                                ? Color(0xFFc0c0c0)
+                                                : Color(0xFF5a5a5a),
+                                          ),
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+
+                    // Séparation et boutons
+                    Divider(color: isDarkMode ? Colors.black : Color(0xFFf1f1f1)),
+
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        TextButton(
+                          onPressed: () => deleteAllHistory().then((value) => Navigator.pop(context)),
+                          child: Text(
+                            "TOUT EFFACER",
+                            style: TextStyle(
+                                fontFamily: 'Roboto',
+                                letterSpacing: 1,
+                                fontWeight: FontWeight.bold,
+                                color: Theme.of(context).primaryColor),
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: Text(
+                            "FERMER",
+                            style: TextStyle(
+                                fontFamily: 'Roboto',
+                                letterSpacing: 1,
+                                fontWeight: FontWeight.bold,
+                                color: Theme.of(context).primaryColor),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         );
       },
     );

@@ -73,7 +73,7 @@ Future<Map<String, dynamic>> fetchVerses(BuildContext context, String link) asyn
             WHEN EXISTS (
               SELECT 1 FROM BibleSuperscriptionLocation
               WHERE BookNumber = ? AND ChapterNumber = ?
-            ) AND ? > 1 THEN 1 ELSE 0
+            ) AND ? > 0 THEN 1 ELSE 0
           END
         FROM BibleRange
         INNER JOIN BibleInfo ON BibleRange.BibleInfoId = BibleInfo.BibleInfoId
@@ -87,7 +87,7 @@ Future<Map<String, dynamic>> fetchVerses(BuildContext context, String link) asyn
             WHEN EXISTS (
               SELECT 1 FROM BibleSuperscriptionLocation
               WHERE BookNumber = ? AND ChapterNumber = ?
-            ) AND ? > 1 THEN 1 ELSE 0
+            ) AND ? > 0 THEN 1 ELSE 0
           END
         FROM BibleRange
         INNER JOIN BibleInfo ON BibleRange.BibleInfoId = BibleInfo.BibleInfoId
@@ -97,6 +97,9 @@ Future<Map<String, dynamic>> fetchVerses(BuildContext context, String link) asyn
       verse1, book1, chapter1, verse1, bibleInfoName, book1, chapter1,
       verse2, book2, chapter2, verse2, bibleInfoName, book2, chapter2,
     ]);
+
+    //print('book1: $book1, chapter1: $chapter1, verse1: $verse1, book2: $book2, chapter2: $chapter2, verse2: $verse2');
+
     db.close();
 
     for (var bible in PublicationRepository().getAllBibles()) {
@@ -408,7 +411,41 @@ Future<Map<String, dynamic>> fetchVersesReference(BuildContext context, Publicat
   };
 }
 
-Future<List<Map<String, dynamic>>> fetchCommentaries(BuildContext context, Publication publication, int verseId, bool showLabel) async {
+Future<Map<String, dynamic>> fetchCommentaries(BuildContext context, Publication publication, String link) async {
+  final result = <String, dynamic>{};
+
+  // On sépare la partie avant et après $p
+  final parts = link.split(r'$p');
+  if (parts.length != 2) return {};
+
+  // Partie principale
+  final mainPart = parts[0].replaceAll('jwpub://c/', ''); // F:1001070144/3:1
+  final mainSegments = mainPart.split('/');
+  if (mainSegments.length == 2) {
+    final langAndBook = mainSegments[0].split(':'); // F:1001070144
+    final chapterAndVerse = mainSegments[1].split(':'); // 3:1
+
+    result['languageSymbolVerse'] = langAndBook[0];
+    result['mepsDocumentIdBook'] = int.parse(langAndBook[1]);
+    result['chapterId'] = int.parse(chapterAndVerse[0]);
+    result['verseId'] = int.parse(chapterAndVerse[1]);
+  }
+
+  // Partie commentaire
+  final commentaryPart = parts[1]; // F:1001070603/6-6:273
+  print(commentaryPart);
+  final commentarySegments = commentaryPart.split('/');
+  if (commentarySegments.length >= 2) {
+    final langAndDoc = commentarySegments[1].split(':'); // F:1001070603
+    final beginParagraphPart = commentarySegments[2].split('-')[0]; // 6
+    final endParagraphPart = commentarySegments[2].split('-')[1].split(':')[0]; // 6
+
+    result['languageSymbolCommentary'] = langAndDoc[0];
+    result['mepsDocumentIdCommentary'] = int.parse(langAndDoc[1]);
+    result['beginParagraphId'] = int.parse(beginParagraphPart);
+    result['endParagraphId'] = int.parse(endParagraphPart);
+  }
+
   try {
     List<Map<String, dynamic>> response =
     await publication.documentsManager!.database.rawQuery('''
@@ -417,39 +454,46 @@ Future<List<Map<String, dynamic>>> fetchCommentaries(BuildContext context, Publi
         Content, 
         CommentaryMepsDocumentId
       FROM VerseCommentary
-      INNER JOIN VerseCommentaryMap 
-        ON VerseCommentary.VerseCommentaryId = VerseCommentaryMap.VerseCommentaryId
-      WHERE VerseCommentaryMap.BibleVerseId = ?
-    ''', [verseId]);
+      WHERE CommentaryMepsDocumentId = ? AND EndParagraphOrdinal >= ? AND BeginParagraphOrdinal <= ?
+    ''', [result['mepsDocumentIdCommentary'], result['beginParagraphId'], result['endParagraphId']]);
+
+    Publication bible = PublicationRepository().getAllBibles().first;
 
     if (response.isNotEmpty) {
-      return response.map((commentary) {
-        String htmlContent = '';
-        if (showLabel) {
-          htmlContent += commentary['Label'] ?? '';
-        }
+      final items = response.map((commentary) {
         final decodedHtml = decodeBlobContent(
           commentary['Content'] as Uint8List,
           publication.hash!,
         );
-        htmlContent += decodedHtml;
 
         return {
           'type': 'commentary',
-          'content': htmlContent,
+          'content': decodedHtml,
           'className': "scriptureIndexLink html5 layout-reading layout-sidebar",
-          'subtitle': publication.mepsLanguage.vernacular,
-          'imageUrl': publication.imageSqr,
-          'publicationTitle': publication.getTitle(),
+          'imageUrl': bible.imageSqr,
+          'publicationTitle': bible.shortTitle,
+          'subtitle': bible.mepsLanguage.vernacular,
         };
       }).toList();
+
+      return {
+        'items': items,
+        'title': 'Note d\'étude',
+      };
     }
-  } catch (e) {
+
+    // Cas où response est vide
+    return {
+      'items': [],
+      'title': 'Note d\'étude',
+    };
+  }
+  catch (e) {
     print(e);
   }
 
   // Retourne une liste vide si aucun commentaire
-  return [];
+  return {};
 }
 
 Future<List<Map<String, dynamic>>> fetchVerseCommentaries(
@@ -629,7 +673,7 @@ Future<List<Map<String, dynamic>>> fetchVerseResearchGuide(BuildContext context,
 
 Future<List<Map<String, dynamic>>> fetchVerseFootnotes(BuildContext context, Publication publication, int verseId) async {
   try {
-    List<Map<String, dynamic>> response = await publication.documentsManager!.database.rawQuery('''
+    List<Map<String, dynamic>> response1 = await publication.documentsManager!.database.rawQuery('''
           SELECT
             Content
           FROM Footnote
@@ -637,23 +681,53 @@ Future<List<Map<String, dynamic>>> fetchVerseFootnotes(BuildContext context, Pub
           ''', [verseId]
     );
 
-    if (response.isNotEmpty) {
-      List<Map<String, dynamic>> footnotes = [];
-      for (var footnote in response) {
+    List<Map<String, dynamic>> response2 = await publication.documentsManager!.database.rawQuery('''
+          SELECT 
+            BibleVerse.Content
+          FROM BibleCitation
+          LEFT JOIN BibleVerse ON BibleCitation.BibleVerseId = BibleVerse.BibleVerseId
+          WHERE BibleCitation.BibleVerseId = ?
+          ''', [verseId]
+    );
+
+    List<Map<String, dynamic>> footnotesAndVerseReferences = [];
+
+    if (response1.isNotEmpty) {
+      for (var footnote in response1) {
         final decodedHtml = decodeBlobContent(
             footnote['Content'] as Uint8List,
             publication.hash!
         );
         String htmlContent = decodedHtml;
 
-        footnotes.add({
+        footnotesAndVerseReferences.add({
           'type': 'footnote',
           'content': htmlContent,
           'className': "document html5 layout-reading layout-sidebar"
         });
       }
 
-      return footnotes;
+      if(response2.isNotEmpty) {
+        for (var verseReference in response2) {
+          final decodedHtml = decodeBlobContent(
+              verseReference['Content'] as Uint8List,
+              publication.hash!
+          );
+          String htmlContent = decodedHtml;
+
+          footnotesAndVerseReferences.add({
+            'type': 'versesReference',
+            'content': htmlContent,
+            'className': "document html5 layout-reading layout-sidebar"
+          });
+        }
+      }
+
+      for(var footnote in footnotesAndVerseReferences) {
+        print('FOOTNOTE VERSEREFERENCE $footnote');
+      }
+
+      return footnotesAndVerseReferences;
     }
   }
   catch (e) {

@@ -22,7 +22,7 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
     <!DOCTYPE html>
     <html style="overflow: hidden;">
       <meta content="text/html" charset="UTF-8">
-      <meta name="viewport" content="initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no">
+      <meta name="viewport" content="initial-scale=1.0">
       <link rel="stylesheet" href="jw-styles.css" />
       <head>
         <meta charset="utf-8">
@@ -374,12 +374,34 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
               if (item.preferredPresentation === 'image' && imageMode) {
                 container.innerHTML = ""; // vider avant de charger
                 loadImageSvg(container, item.svgs);
-              } else {
+                
+                // Désactiver le zoom
+                let viewport = document.querySelector('meta[name="viewport"]');
+                if (!viewport) {
+                  viewport = document.createElement('meta');
+                  viewport.name = 'viewport';
+                  document.head.appendChild(viewport);
+                }
+                viewport.content = 'width=device-width, initial-scale=1.0';
+              } 
+              else {
                 container.innerHTML = `<article id="article-\${position}" class="\${item.className}">
                                           \${item.html}
                                        </article>`;
                 adjustArticle(`article-\${position}`, item.link);
                 addVideoCover(`article-\${position}`);
+                
+                // Désactiver le zoom
+                let viewport = document.querySelector('meta[name="viewport"]');
+                if (!viewport) {
+                  viewport = document.createElement('meta');
+                  viewport.name = 'viewport';
+                  document.head.appendChild(viewport);
+                }
+                viewport.content = 'width=device-width, initial-scale=1.0, user-scalable=no';
+                
+                wrapWordsWithSpan(container, false);
+                loadUserdata();
               }
             }
             
@@ -490,7 +512,7 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
           }
 
           function processTextNodes(element) {
-              const skipClasses = new Set(["fn", "m", "cl", "vl", "dc-button--primary"]);
+              const skipClasses = new Set(["fn", "m", "cl", "vl", "dc-button--primary", "gen-field"]);
              
               function walkNodes(node) {
                   if (node.nodeType === Node.TEXT_NODE) {
@@ -641,6 +663,15 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
               pageCenter.innerHTML = `<article id="article-center" class="\${curr.className}">\${curr.html}</article>`;
               adjustArticle('article-center', curr.link);
               addVideoCover('article-center');
+              
+              // Désactiver le zoom
+              let viewport = document.querySelector('meta[name="viewport"]');
+              if (!viewport) {
+                viewport = document.createElement('meta');
+                viewport.name = 'viewport';
+                document.head.appendChild(viewport);
+              }
+              viewport.content = 'width=device-width, initial-scale=1.0, user-scalable=no';
             }
            
             container.style.transition = "none";
@@ -1257,8 +1288,8 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
               ['&#xE681;', () => isSelected ? addNote(paragraphs[0], id, isVerse, text) : addNoteWithHighlight(target, highlightId)],
               ...(!isSelected && highlightId ? [['&#xE6C5;', () => removeHighlight(highlightId)]] : []),
               ['&#xE651;', () => callHandler('copyText', { text })],
-              ['&#xE676;', () => callHandler('search', { query: text })],
-              ['&#xE696;', () => callHandler('copyText', { text })]
+              ['&#xE676;', () => callHandler('search', { query: text })]
+              //['&#xE696;', () => callHandler('copyText', { text })]
             ];
           
             buttons.forEach(([icon, handler]) => toolbar.appendChild(createToolbarButton(icon, handler)));
@@ -1332,9 +1363,28 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
             let buttons = [];
             
             let allParagraphsText = '';
-            paragraphs.forEach(paragraph => {
-              allParagraphsText += paragraph.innerText;
+
+            paragraphs.forEach((paragraph, pIndex) => {
+                // Sélectionne uniquement les descendants avec les classes souhaitées
+                const relevantElements = paragraph.querySelectorAll('.word, .punctuation, .escape');
+            
+                // Concatène le texte des éléments pertinents
+                let paragraphText = '';
+                relevantElements.forEach((elem, index) => {
+                    const text = index === 0 ? elem.textContent.trim() : elem.textContent;
+                    if (!text) return;
+            
+                    paragraphText += text;
+                });
+            
+                // Ajoute le texte du paragraphe à la chaîne globale
+                if (paragraphText) {
+                    if (allParagraphsText) allParagraphsText += ' '; // espace entre les paragraphes
+                    allParagraphsText += paragraphText;
+                }
             });
+            
+            console.log(allParagraphsText);
             
             if (type === 'verse') {
               buttons = [
@@ -1874,12 +1924,10 @@ function setupDragSystem(header, dialog) {
         startX = e.clientX || (e.touches && e.touches[0].clientX);
         startY = e.clientY || (e.touches && e.touches[0].clientY);
 
-        // Récupérer la position visuelle réelle du dialog
         const rect = dialog.getBoundingClientRect();
         startLeft = rect.left;
         startTop = rect.top;
 
-        // Supprimer immédiatement la transformation pour passer en position absolue
         dialog.style.transform = 'none';
         dialog.style.left = `\${startLeft}px`;
         dialog.style.top = `\${startTop}px`;
@@ -1903,17 +1951,21 @@ function setupDragSystem(header, dialog) {
         const newLeft = startLeft + (currentX - startX);
         const newTop = startTop + (currentY - startY);
     
-        // Limites de la fenêtre
         const dialogRect = dialog.getBoundingClientRect();
+        const headerRect = header.getBoundingClientRect();
         
-        // On prend en compte si l'appbar et le bottom navbar sont visibles
+        // Limites de la fenêtre
         const minTop = controlsVisible ? APPBAR_FIXED_HEIGHT : 0;
-        const maxBottomLimit = window.innerHeight - (controlsVisible ? BOTTOMNAVBAR_FIXED_HEIGHT : 0);
-        
         const maxLeft = window.innerWidth - dialogRect.width;
-        
+
+        // Limite verticale pour que le header ne se cache pas derrière le bottom navbar
+        let maxDialogTop = window.innerHeight - headerRect.height;
+        if (controlsVisible) {
+            maxDialogTop -= BOTTOMNAVBAR_FIXED_HEIGHT;
+        }
+
         dialog.style.left = `\${Math.max(0, Math.min(newLeft, maxLeft))}px`;
-        dialog.style.top = `\${Math.max(minTop, Math.min(newTop, maxBottomLimit - dialogRect.height))}px`;
+        dialog.style.top = `\${Math.max(minTop, Math.min(newTop, maxDialogTop))}px`;
     };
 
     const stopDrag = () => {
@@ -2819,128 +2871,148 @@ function createOptionsMenu(noteGuid, popup, isDark) {
           }
           
           function showVerseInfoDialog(article, verseInfo) {
-              showDialog({
-                  title: verseInfo.title,
-                  type: 'verse-info',
-                  article: article,
-                  contentRenderer: (contentContainer) => {
-                      // Crée l'en-tête d'onglets
-                      const tabBar = document.createElement('div');
-                      tabBar.style.cssText = `
-                          display: flex;
-                          border-bottom: 1px solid \${isDarkTheme() ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)'};
-                          background-color: \${isDarkTheme() ? '#111' : '#f9f9f9'};
-                      `;
-          
-                      const tabs = [
-                        { key: 'commentary', iconClass: 'jwi-bible-speech-balloon' },
-                        { key: 'versions', iconClass: 'jwi-bible-comparison' },
-                        { key: 'guide', iconClass: 'jwi-publications-pile' },
-                        { key: 'footnotes', iconClass: 'jwi-bible-quote' },
-                        { key: 'notes', iconClass: 'jwi-text-pencil' },
-                      ];
-                      
-                      let currentTab = 'commentary';
-                      
-                      const tabButtons = tabs.map(({ key, iconClass }) => {
-                        const btn = document.createElement('button');
-                        btn.classList.add('jwf-jw-icons-external', iconClass);
-                      
-                        btn.style.cssText = `
-                          flex: 1;
-                          padding: 10px;
-                          border: none;
-                          background: none;
-                          cursor: pointer;
-                          font-size: 30px;
-                          color: \${isDarkTheme() ? '#fff' : '#000'};
-                          border-bottom: 2px solid \${key === currentTab ? (isDarkTheme() ? '#fff' : '#000') : 'transparent'};
+            showDialog({
+                title: verseInfo.title,
+                type: 'verse-info',
+                article: article,
+                contentRenderer: (contentContainer) => {
+        
+                    // Définir les onglets et leurs icônes.
+                    // On ajoute une propriété 'label' pour les messages d'erreur.
+                    const tabsDefinition = [
+                        { key: 'commentary', iconClass: 'jwi-bible-speech-balloon', label: "commentaire" },
+                        { key: 'versions', iconClass: 'jwi-bible-comparison', label: "versions" },
+                        { key: 'guide', iconClass: 'jwi-publications-pile', label: "guide" },
+                        { key: 'footnotes', iconClass: 'jwi-bible-quote', label: "notes de bas de page" },
+                        { key: 'notes', iconClass: 'jwi-text-pencil', label: "notes personnelles" },
+                    ];
+        
+                    // 1. Filtrer les onglets pour n'afficher que ceux qui ont du contenu.
+                    const filteredTabs = tabsDefinition.filter(tab => {
+                        const items = verseInfo[tab.key] || [];
+                        return items.length > 0;
+                    });
+                    
+                    // Si le dialogue ne contient qu'un seul onglet (ou aucun),
+                    // on ne crée pas la barre d'onglets.
+                    const hasTabBar = filteredTabs.length > 1;
+                    let currentTab = filteredTabs.length > 0 ? filteredTabs[0].key : null;
+        
+                    // Si une barre d'onglets est nécessaire, on la crée.
+                    if (hasTabBar) {
+                        // Crée l'en-tête d'onglets
+                        const tabBar = document.createElement('div');
+                        tabBar.style.cssText = `
+                            display: flex;
+                            border-bottom: 1px solid \${isDarkTheme() ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)'};
+                            background-color: \${isDarkTheme() ? '#111' : '#f9f9f9'};
                         `;
-                      
-                        btn.addEventListener('click', () => {
-                          currentTab = key;
-                          updateTabContent();
-                      
-                          tabButtons.forEach(b => {
-                            b.style.borderBottom = '2px solid transparent';
-                          });
-                          btn.style.borderBottom = `2px solid \${isDarkTheme() ? '#fff' : '#000'}`;
+        
+                        // Crée les boutons d'onglets basés sur le tableau filtré.
+                        const tabButtons = filteredTabs.map(({ key, iconClass }) => {
+                            const btn = document.createElement('button');
+                            btn.classList.add('jwf-jw-icons-external', iconClass);
+                            btn.style.cssText = `
+                                flex: 1;
+                                padding: 10px;
+                                border: none;
+                                background: none;
+                                cursor: pointer;
+                                font-size: 30px;
+                                color: \${isDarkTheme() ? '#fff' : '#000'};
+                                border-bottom: 2px solid \${key === currentTab ? (isDarkTheme() ? '#fff' : '#000') : 'transparent'};
+                            `;
+        
+                            btn.addEventListener('click', () => {
+                                currentTab = key;
+                                updateTabContent();
+                                // Met à jour le style de tous les boutons pour marquer l'onglet actif.
+                                tabButtons.forEach(b => {
+                                    b.style.borderBottom = '2px solid transparent';
+                                });
+                                btn.style.borderBottom = `2px solid \${isDarkTheme() ? '#fff' : '#000'}`;
+                            });
+        
+                            tabBar.appendChild(btn);
+                            return btn;
                         });
-                      
-                        return btn;
-                      });
-          
-                      tabButtons.forEach(btn => tabBar.appendChild(btn));
-                      contentContainer.appendChild(tabBar);
-          
-                      // Conteneur pour le contenu dynamique
-                      const dynamicContent = document.createElement('div');
-                      dynamicContent.style.padding = '10px';
-                      contentContainer.appendChild(dynamicContent);
-          
-                      function updateTabContent() {
-                        dynamicContent.innerHTML = ''; // reset
-                    
-                        const key = currentTab.toLowerCase();
-                        const items = verseInfo[key] || [];
-                    
-                        // Textes pour message vide
-                        const emptyMessages = {
-                            commentary: "Il n'y a pas de commentaire pour ce verset.",
-                            versions: "Il n'y a pas d'autres versions pour ce verset.",
-                            guide: "Il n'y a pas de guide pour ce verset.",
-                            footnotes: "Il n'y a pas de notes de bas de page pour ce verset.",
-                            notes: "Il n'y a pas de notes personnelles pour ce verset."
-                        };
-                    
-                        // Si vide → afficher message
-                        if (items.length === 0) {
+                        contentContainer.appendChild(tabBar);
+                    }
+        
+                    // Conteneur pour le contenu dynamique
+                    const dynamicContent = document.createElement('div');
+                    dynamicContent.style.padding = '10px';
+                    contentContainer.appendChild(dynamicContent);
+        
+                    /**
+                     * Met à jour le contenu affiché en fonction de l'onglet actif.
+                     */
+                    function updateTabContent() {
+                        dynamicContent.innerHTML = ''; // Réinitialise le conteneur
+        
+                        if (!currentTab) {
+                            // Gère le cas où aucun onglet n'est disponible (verseInfo vide).
                             const emptyDiv = document.createElement('div');
+                            emptyDiv.textContent = "Aucun contenu disponible.";
                             emptyDiv.style.cssText = `
                                 padding: 15px;
                                 font-style: italic;
                                 opacity: 0.7;
                             `;
-                            emptyDiv.textContent = emptyMessages[key] || "Aucun contenu disponible.";
                             dynamicContent.appendChild(emptyDiv);
                             return;
                         }
-                    
-                        if (key === 'notes') {
+        
+                        const key = currentTab;
+                        const items = verseInfo[key] || [];
+        
+                        // Si le contenu est un tableau non vide, on l'affiche.
+                        if (Array.isArray(items) && items.length > 0) {
                             items.forEach((item) => {
-                                const article = document.createElement('div');
-                                article.innerHTML = `
-                                    <article id="verse-info-dialog" class="\${item.className || ''}">
-                                        <h3>\${item.Title}</h3>
-                                        <p>\${item.Content}</p>
-                                    </article>
-                                `;
-                                article.addEventListener('click', async (event) => {
+                                const articleDiv = document.createElement('div');
+                                let contentHtml = '';
+        
+                                // Le rendu du contenu varie selon l'onglet 'notes'.
+                                if (key === 'notes') {
+                                    contentHtml = `
+                                        <article id="verse-info-dialog" class="\${item.className || ''}">
+                                            <h3>\${item.Title}</h3>
+                                            <p>\${item.Content}</p>
+                                        </article>
+                                    `;
+                                } else {
+                                    contentHtml = `
+                                        <article id="verse-info-dialog" class="\${item.className || ''}">
+                                            \${item.content}
+                                        </article>
+                                    `;
+                                }
+                                articleDiv.innerHTML = contentHtml;
+                                articleDiv.addEventListener('click', async (event) => {
                                     onClickOnPage(article, event.target);
                                 });
-                                dynamicContent.appendChild(article);
+                                dynamicContent.appendChild(articleDiv);
                             });
-                        } 
-                        else {
-                            items.forEach((item) => {
-                                const article = document.createElement('div');
-                                article.innerHTML = `
-                                    <article id="verse-info-dialog" class="\${item.className}">
-                                        \${item.content}
-                                    </article>
-                                `;
-                                article.addEventListener('click', async (event) => {
-                                    onClickOnPage(article, event.target);
-                                });
-                                dynamicContent.appendChild(article);
-                            });
+                        } else {
+                            // Cas où l'onglet est vide (cela ne devrait plus arriver avec le filtrage initial)
+                            // mais on garde la logique de message vide par sécurité.
+                            const emptyMessage = tabsDefinition.find(t => t.key === key)?.label || "Contenu";
+                            const emptyDiv = document.createElement('div');
+                            emptyDiv.textContent = `Il n'y a pas de \${emptyMessage} pour ce verset.`;
+                            emptyDiv.style.cssText = `
+                                padding: 15px;
+                                font-style: italic;
+                                opacity: 0.7;
+                            `;
+                            dynamicContent.appendChild(emptyDiv);
                         }
                     }
-          
-                      updateTabContent(); // initial display
-                  }
-              });
-          }
+        
+                    // Affiche le premier onglet disponible lors de l'ouverture du dialogue.
+                    updateTabContent();
+                }
+            });
+        }
           
           function showExtractPublicationDialog(article, extractData) {
               showDialog({
@@ -3109,6 +3181,84 @@ function createOptionsMenu(noteGuid, popup, isDark) {
               });
           }
           
+          function showVerseCommentaryDialog(article, commentaries) {
+              showDialog({
+                  title: commentaries.title,
+                  type: 'commentary',
+                  article: article,
+                  contentRenderer: (contentContainer) => {
+                      commentaries.items.forEach((item, index) => {
+                          const infoBar = document.createElement('div');
+                          infoBar.style.cssText = `
+                              display: flex;
+                              align-items: center;
+                              padding-inline: 10px;
+                              padding-block: 6px;
+                              background: \${isDarkTheme() ? '#000000' : '#f1f1f1'};
+                              border-bottom: 1px solid \${isDarkTheme() ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)'};
+                          `;
+                         
+                          const img = document.createElement('img');
+                          img.src = 'file://' + item.imageUrl;
+                          img.style.cssText = `
+                              height: 50px;
+                              width: 50px;
+                              border-radius: 8px;
+                              object-fit: cover;
+                              margin-right: 8px;
+                              box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+                          `;
+                          
+                          const textContainer = document.createElement('div');
+                          textContainer.style.cssText = 'flex-grow: 1; margin-left: 8px; padding: 8px 0;';
+                          
+                          const pubText = document.createElement('div');
+                          pubText.textContent = item.publicationTitle;
+                          pubText.style.cssText = `
+                              font-size: 16px;
+                              font-weight: 700;
+                              margin-bottom: 4px;
+                              line-height: 1.3;
+                              white-space: nowrap;
+                              overflow: hidden;
+                              text-overflow: ellipsis;
+                          `;
+                          
+                          const subtitleText = document.createElement('div');
+                          subtitleText.textContent = item.subtitle;
+                          subtitleText.style.cssText = `
+                              font-size: 12px;
+                              opacity: 0.8;
+                              line-height: 1.4;
+                              white-space: nowrap;
+                              overflow: hidden;
+                              text-overflow: ellipsis;
+                          `;
+                          
+                          textContainer.appendChild(pubText);
+                          textContainer.appendChild(subtitleText);
+                          
+                          infoBar.addEventListener('click', function() {
+                              window.flutter_inappwebview?.callHandler('openMepsDocument', item);
+                          });
+                          
+                          infoBar.appendChild(img);
+                          infoBar.appendChild(textContainer);
+                          
+                          const article = document.createElement('div');
+                          article.innerHTML = `<article id="commentary-dialog" class="\${item.className}">\${item.content}</article>`;
+                          article.style.cssText = `
+                            padding-top: 10px;
+                            padding-bottom: 16px;
+                          `;
+                      
+                          contentContainer.appendChild(infoBar);
+                          contentContainer.appendChild(article);
+                      });
+                  }
+              });
+          }
+          
           function showFootNoteDialog(article, footnote) {
               showDialog({
                   title: footnote.title,
@@ -3205,19 +3355,40 @@ function createOptionsMenu(noteGuid, popup, isDark) {
               
               // Récupère le texte entre le premier et le dernier élément avec le même highlightGuid
               let title = '';
+
               if (allHighlights.length > 0) {
-                  const first = allHighlights[0];
-                  const last = allHighlights[allHighlights.length - 1];
-                  
-                  const range = document.createRange();
-                  range.setStartBefore(first);
-                  range.setEndAfter(last);
-                  
-                  const content = range.cloneContents();
-                  const div = document.createElement('div');
-                  div.appendChild(content);
-                  title = div.textContent.trim(); // Le texte à utiliser dans le titre
-              }
+                const range = document.createRange();
+                range.setStartBefore(allHighlights[0]);
+                range.setEndAfter(allHighlights[allHighlights.length - 1]);
+            
+                const content = range.cloneContents();
+                const relevantElements = Array.from(content.querySelectorAll('.word, .punctuation, .escape'));
+            
+                let titleParts = [];
+                for (let i = 0; i < relevantElements.length; i++) {
+                    const elem = relevantElements[i];
+                    const text = elem.textContent
+            
+                    if (!text) continue;
+            
+                    // Ajoute un espace si le précédent et le courant sont des mots
+                    if (i > 0) {
+                        const prev = relevantElements[i - 1];
+                        if (prev.classList.contains('word') && elem.classList.contains('word')) {
+                            titleParts.push(' ');
+                        }
+                        else if (prev.classList.contains('punctuation') && elem.classList.contains('word')) {
+                            titleParts.push(' ');
+                        }
+                    }
+            
+                    titleParts.push(text);
+                }
+            
+                title = titleParts.join('').trim();
+            }
+                          
+              console.log(title);
           
               let colorIndex = colorClasses.findIndex(cls => highlightTarget.classList.contains(cls));
           
@@ -4075,9 +4246,9 @@ function createOptionsMenu(noteGuid, popup, isDark) {
               }
               
               if(href.startsWith('jwpub://c/')) {
-                const extract = await window.flutter_inappwebview.callHandler('fetchCommentaries', href);
-                if (extract != null) {
-                  //showExtractPublicationDialog(article, extract);
+                const commentary = await window.flutter_inappwebview.callHandler('fetchCommentaries', href);
+                if (commentary != null) {
+                  showVerseCommentaryDialog(article, commentary);
                   closeToolbar();
                 }
                 return;

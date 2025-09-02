@@ -87,7 +87,15 @@ class RectangleMediaItemItem extends StatelessWidget {
                       0.5,
                     ),
                     icon: const Icon(Icons.more_vert, color: Color(0xFF9d9d9d)),
-                    itemBuilder: (context) => [
+                    itemBuilder: (context) => isAudio ?  [
+                      getAudioShareItem(mediaItem),
+                      getAudioLanguagesItem(context, mediaItem),
+                      getAudioFavoriteItem(mediaItem),
+                      getAudioDownloadItem(context, mediaItem),
+                      getAudioLyricsItem(context, mediaItem),
+                      getCopyLyricsItem(mediaItem)
+                    ]
+                    : [
                       getVideoShareItem(mediaItem),
                       getVideoLanguagesItem(context, mediaItem),
                       getVideoFavoriteItem(mediaItem),

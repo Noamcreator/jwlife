@@ -179,6 +179,10 @@ class JwLifePageState extends State<JwLifePage> {
       }
       _updateSystemUiMode(true);
     }
+    else if (currentNavigationBottomBarIndex != 0) {
+      // Aller sur la page d'accueil
+      changeNavBarIndex(0);
+    }
     else {
       showJwDialog(
         context: context,
@@ -211,6 +215,18 @@ class JwLifePageState extends State<JwLifePage> {
       setState(() {
         currentNavigationBottomBarIndex = index;
       });
+
+
+      for (var key in GlobalKeyService.jwLifePageKey.currentState!.webViewPageKeys[index]) {
+        final state = key.currentState;
+
+        if (state is DocumentPageState) {
+          state.updateBottomBar();
+        }
+        else if (state is DailyTextPageState) {
+          state.updateBottomBar();
+        }
+      }
     }
   }
 
