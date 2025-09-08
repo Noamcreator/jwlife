@@ -3,14 +3,18 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/core/utils/utils.dart';
+import 'package:jwlife/data/models/media.dart';
 import 'package:jwlife/data/models/userdata/independentMedia.dart';
 import 'package:jwlife/data/models/userdata/playlistItem.dart';
 
 import '../../../core/icons.dart';
 import '../../../core/utils/utils_audio.dart';
 import '../../../core/utils/utils_video.dart';
+import '../../../data/models/audio.dart';
 import '../../../data/models/userdata/location.dart';
+import '../../../data/models/video.dart';
 import '../../../data/realm/catalog.dart';
+import '../../../data/repositories/MediaRepository.dart';
 import '../../image/image_page.dart';
 
 class RectanglePlaylistItemItem extends StatelessWidget {
@@ -71,14 +75,14 @@ class RectanglePlaylistItemItem extends StatelessWidget {
 
     print(location);
 
-    MediaItem? mediaItem;
+    Media? media;
     bool isAudio = false;
     String title = playlistItem.label ?? '';
     if (!location.isNull()) {
       print(playlistItem.location);
-      mediaItem = getMediaItem(playlistItem.location?.keySymbol, playlistItem.location?.track, playlistItem.location?.mepsDocumentId, playlistItem.location?.issueTagNumber, playlistItem.location?.mepsLanguageId);
+      media = MediaRepository().getByCompositeKey(getMediaItem(playlistItem.location?.keySymbol, playlistItem.location?.track, playlistItem.location?.mepsDocumentId, playlistItem.location?.issueTagNumber, playlistItem.location?.mepsLanguageId)!);
 
-      isAudio = mediaItem?.type == 'AUDIO';
+      isAudio = media is Audio;
     }
     else if (independentMedia != null) {
 
@@ -87,21 +91,14 @@ class RectanglePlaylistItemItem extends StatelessWidget {
       return Container();
     }
 
-    print(mediaItem);
-
     return Material(
       color: Theme.of(context).brightness == Brightness.dark
           ? const Color(0xFF292929)
           : Colors.white,
       child: InkWell(
         onTap: () async {
-          if (mediaItem != null) {
-            if (isAudio) {
-              showAudioPlayer(context, mediaItem);
-            }
-            else {
-              showFullScreenVideo(context, mediaItem);
-            }
+          if (media != null) {
+            media.showPlayer(context);
           }
           else if (independentMedia != null) {
             if(independentMedia.mimeType!.contains('image')) {
@@ -109,13 +106,13 @@ class RectanglePlaylistItemItem extends StatelessWidget {
               showPage(context, ImagePage(filePath: independentMedia.path));
             }
             else if(independentMedia.mimeType!.contains('video')) {
-              if(mediaItem != null) {
-                showFullScreenVideo(context, mediaItem);
+              if(media != null) {
+                media.showPlayer(context);
               }
             }
             else if(independentMedia.mimeType!.contains('audio')) {
-              if(mediaItem != null) {
-                showAudioPlayer(context, mediaItem);
+              if(media != null) {
+                media.showPlayer(context);
               }
             }
           }
@@ -231,14 +228,14 @@ class RectanglePlaylistItemItem extends StatelessWidget {
                         ),
                       ];
 
-                      if (mediaItem != null) {
+                      if (media != null) {
                         items.addAll([
-                          getVideoShareItem(mediaItem),
-                          getVideoLanguagesItem(context, mediaItem),
-                          getVideoFavoriteItem(mediaItem),
-                          getVideoDownloadItem(context, mediaItem),
-                          getShowSubtitlesItem(context, mediaItem),
-                          getCopySubtitlesItem(context, mediaItem),
+                          getVideoShareItem(media as Video),
+                          getVideoLanguagesItem(context, media),
+                          getVideoFavoriteItem(media),
+                          getVideoDownloadItem(context, media),
+                          getShowSubtitlesItem(context, media),
+                          getCopySubtitlesItem(context, media),
                         ]);
                       }
 

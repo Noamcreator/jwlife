@@ -10,6 +10,8 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../app/services/settings_service.dart';
 import '../../../../core/utils/utils.dart';
+import '../../../../data/models/audio.dart';
+import '../../../../data/models/video.dart';
 
 class AllSearchTab extends StatefulWidget {
   final SearchModel model;
@@ -139,9 +141,10 @@ class _AllSearchTabState extends State<AllSearchTab> {
         itemBuilder: (context, videoIndex) {
           final item = result['results'][videoIndex];
           MediaItem mediaItem = getMediaItemFromLank(item['lank'], JwLifeSettings().currentLanguage.symbol);
+          Video video = Video.fromJson(mediaItem: mediaItem);
           return GestureDetector(
             onTap: () async {
-              showFullScreenVideo(context, mediaItem);
+              video.showPlayer(context);
             },
             child: Card(
               color: Theme.of(context).brightness == Brightness.dark ? Color(0xFF292929) : Colors.white,
@@ -190,12 +193,12 @@ class _AllSearchTabState extends State<AllSearchTab> {
                           shadowColor: Colors.black,
                           elevation: 8,
                           itemBuilder: (context) => [
-                            getVideoShareItem(mediaItem),
-                            getVideoLanguagesItem(context, mediaItem),
-                            getVideoFavoriteItem(mediaItem),
-                            getVideoDownloadItem(context, mediaItem),
-                            getShowSubtitlesItem(context, mediaItem),
-                            getCopySubtitlesItem(context, mediaItem),
+                            getVideoShareItem(video),
+                            getVideoLanguagesItem(context, video),
+                            getVideoFavoriteItem(video),
+                            getVideoDownloadItem(context, video),
+                            getShowSubtitlesItem(context, video),
+                            getCopySubtitlesItem(context, video),
                           ],
                         ),
                       ),
@@ -234,9 +237,11 @@ class _AllSearchTabState extends State<AllSearchTab> {
         itemBuilder: (context, audioIndex) {
           final item = result['results'][audioIndex];
           MediaItem mediaItem = getMediaItemFromLank(item['lank'], JwLifeSettings().currentLanguage.symbol);
+          Audio audio = Audio.fromJson(mediaItem: mediaItem);
+
           return GestureDetector(
             onTap: () async {
-              showAudioPlayer(context, mediaItem);
+              audio.showPlayer(context);
             },
             child: Card(
               color: Theme.of(context).brightness == Brightness.dark ? Color(0xFF292929) : Colors.white,
@@ -285,12 +290,12 @@ class _AllSearchTabState extends State<AllSearchTab> {
                           shadowColor: Colors.black,
                           elevation: 8,
                           itemBuilder: (context) => [
-                            getVideoShareItem(mediaItem),
-                            getVideoLanguagesItem(context, mediaItem),
-                            getVideoFavoriteItem(mediaItem),
-                            getVideoDownloadItem(context, mediaItem),
-                            getShowSubtitlesItem(context, mediaItem),
-                            getCopySubtitlesItem(context, mediaItem),
+                            getAudioShareItem(audio),
+                            getAudioLanguagesItem(context, audio),
+                            getAudioFavoriteItem(audio),
+                            getAudioDownloadItem(context, audio),
+                            getAudioLyricsItem(context, audio),
+                            getCopyLyricsItem(audio),
                           ],
                         ),
                       ),

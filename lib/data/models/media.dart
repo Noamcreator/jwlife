@@ -1,98 +1,223 @@
-class Media {
-  final int mediaId;
-  final String? naturalKey;
-  final String keySymbol;
-  final String categoryKey;
-  final int mediaType;
-  final int documentId;
-  final String mepsLanguage;
-  final int issueTagNumber;
-  final int track;
-  final int bookNumber;
-  final String title;
-  final int version;
-  final String mimeType;
-  final num bitRate;
-  final num duration;
-  final String checkSum;
-  final int fileSize;
-  final String filePath;
-  final int source;
-  final String modifiedDateTime;
+import 'package:flutter/material.dart';
+import 'package:dio/dio.dart';
+import 'package:async/async.dart';
+import 'package:flutter/foundation.dart';
 
-  String imagePath;
+import '../../app/services/notification_service.dart';
+import '../../core/jworg_uri.dart';
+import '../../core/utils/common_ui.dart';
+import '../../core/utils/utils_media.dart';
+
+abstract class Media {
+  final int mediaId;
+  String? naturalKey;
+  String? keySymbol;
+  int? documentId;
+  int? issueTagNumber;
+  int? track;
+  int? bookNumber;
+  String? mepsLanguage;
+  String categoryKey;
+  String title;
+  int? version;
+  String? mimeType;
+  double? bitRate;
+  double duration;
+  String? checkSum;
+  int? fileSize;
+  String? filePath;
+  int? source;
+  String? firstPublished;
+  String? lastModified;
+  String? timeStamp;
+  String? imagePath;
+  String? networkImageSqr;
+  String? networkImageLsr;
 
   /* Media */
-  String fileUrl = '';
-  bool isDownloading = false;
-  bool isDownloaded = false;
-  double downloadProgress = 0.0;
-  List<Marker> markers = [];
+  String? fileUrl;
+  CancelableOperation? _downloadOperation;
+  CancelableOperation? _updateOperation;
+  CancelToken? _cancelToken;
+
+  final ValueNotifier<double> progressNotifier;
+  final ValueNotifier<bool> isDownloadingNotifier;
+  final ValueNotifier<bool> isDownloadedNotifier;
+  final ValueNotifier<bool> isFavoriteNotifier;
 
   Media({
     required this.mediaId,
     this.naturalKey,
-    required this.keySymbol,
-    required this.categoryKey,
-    required this.imagePath,
-    required this.mediaType,
-    required this.documentId,
-    required this.mepsLanguage,
-    required this.issueTagNumber,
-    required this.track,
-    required this.bookNumber,
-    required this.title,
-    required this.version,
-    required this.mimeType,
-    required this.bitRate,
-    required this.duration,
-    required this.checkSum,
-    required this.fileSize,
-    required this.filePath,
-    required this.source,
-    required this.modifiedDateTime,
-    this.fileUrl = '',
-    this.markers = const [],
-    this.isDownloaded = false
-  });
-}
+    this.keySymbol,
+    this.documentId,
+    this.mepsLanguage,
+    this.issueTagNumber,
+    this.track,
+    this.bookNumber,
+    this.categoryKey = '',
+    this.duration = 0.0,
+    this.title = '',
+    this.version,
+    this.mimeType,
+    this.bitRate,
+    this.imagePath,
+    this.networkImageSqr,
+    this.networkImageLsr,
+    this.checkSum,
+    this.fileSize,
+    this.filePath,
+    this.source,
+    this.firstPublished,
+    this.lastModified,
+    this.timeStamp,
+    this.fileUrl,
+    ValueNotifier<double>? progressNotifier,
+    ValueNotifier<bool>? isDownloadingNotifier,
+    ValueNotifier<bool>? isDownloadedNotifier,
+    ValueNotifier<bool>? isFavoriteNotifier,
+  })  : progressNotifier = progressNotifier ?? ValueNotifier(0.0),
+        isDownloadingNotifier = isDownloadingNotifier ?? ValueNotifier(false),
+        isDownloadedNotifier = isDownloadedNotifier ?? ValueNotifier(false),
+        isFavoriteNotifier = isFavoriteNotifier ?? ValueNotifier(false);
 
-class Marker {
-  final String duration;
-  final String startTime;
-  int? mepsParagraphId;
-  int? verseNumber;
+  Future<void> download(BuildContext context);
 
-  Marker({
-    required this.duration,
-    required this.startTime,
-    this.mepsParagraphId,
-    this.verseNumber
-  });
+  Future<void> performDownload(BuildContext context, Map<String, dynamic>? mediaJson, {int? file = 0}) async {
+    isDownloadingNotifier.value = true;
+    progressNotifier.value = 0;
 
-  factory Marker.fromJson(Map<String, dynamic> json) {
-    return Marker(
-      duration: json['duration'] ?? '',
-      startTime: json['startTime'] ?? '',
-      verseNumber: json['verseNumber'] ?? -1,
-      mepsParagraphId: json['mepsParagraphId'] ?? -1,
+    final cancelToken = CancelToken();
+    _cancelToken = cancelToken;
+
+    _downloadOperation = CancelableOperation.fromFuture(
+      downloadMedia(context, this, mediaJson, fileUrl, cancelToken, false, file: file),
+      onCancel: () {
+        isDownloadingNotifier.value = false;
+        isDownloadedNotifier.value = false;
+        progressNotifier.value = 0;
+        // Annuler la notification
+        NotificationService().cancelNotification(hashCode);
+      },
     );
+
+    Media? media = await _downloadOperation!.valueOrCancellation();
+
+    if (media != null) {
+      isDownloadedNotifier.value = true;
+
+      progressNotifier.value = 1.0;
+
+      // Notification de fin avec bouton "Ouvrir"
+      await NotificationService().showCompletionNotification(
+          id: hashCode,
+          title: '✅ Téléchargement terminé',
+          body: title,
+          payload: naturalKey != null ? JwOrgUri.mediaItem(
+              wtlocale: mepsLanguage!,
+              lank: naturalKey!,
+          ).toString() : '',
+      );
+    }
+    else {
+      // Téléchargement annulé ou échoué
+      await NotificationService().cancelNotification(hashCode);
+    }
+
+    isDownloadingNotifier.value = false;
   }
 
-  Map<String, dynamic> toJson() {
-    final Map<String, dynamic> data = {
-      'duration': duration,
-      'startTime': startTime,
-    };
+  Future<void> cancelDownload(BuildContext context, {void Function(double progress)? update}) async {
+    if (isDownloadingNotifier.value && _cancelToken != null && _downloadOperation != null) {
+      _cancelToken!.cancel();
+      _downloadOperation!.cancel();
+      _cancelToken = null;
+      _downloadOperation = null;
+      showBottomMessage(context, 'Téléchargement annulé');
+    }
+  }
 
-    if (verseNumber != null) {
-      data['verseNumber'] = verseNumber;
+  Future<void> update(BuildContext context, Map<String, dynamic> mediaJson) async {
+    progressNotifier.value = -1;
+    isDownloadingNotifier.value = true;
+    isDownloadedNotifier.value = false;
+
+    final cancelToken = CancelToken();
+    _cancelToken = cancelToken;
+
+    _updateOperation = CancelableOperation.fromFuture(
+      downloadMedia(context, this, mediaJson, fileUrl, cancelToken, true, file: 0), // TODO mettre le bon file pour la mise à jour
+      onCancel: () {
+        isDownloadingNotifier.value = false;
+        isDownloadedNotifier.value = false;
+        progressNotifier.value = 0;
+        // Annuler la notification
+        NotificationService().cancelNotification(hashCode);
+      },
+    );
+
+    Media? media = await _updateOperation!.valueOrCancellation();
+
+    if (media != null) {
+      isDownloadedNotifier.value = true;
+
+      progressNotifier.value = 1.0;
+
+      // Notification de fin avec bouton "Ouvrir"
+      await NotificationService().showCompletionNotification(
+          id: hashCode,
+          title: '✅ Mise à jour terminée',
+          body: title,
+          payload: JwOrgUri.mediaItem(
+            wtlocale: mepsLanguage!,
+            lank: naturalKey!,
+          ).toString()
+      );
+    }
+    else {
+      // Téléchargement annulé ou échoué
+      await NotificationService().cancelNotification(hashCode);
     }
 
-    if (mepsParagraphId != null) {
-      data['mepsParagraphId'] = mepsParagraphId;
+    isDownloadingNotifier.value = false;
+  }
+
+  Future<void> cancelUpdate(BuildContext context, {void Function(double progress)? update}) async {
+    if (isDownloadingNotifier.value && _cancelToken != null && _updateOperation != null) {
+      _cancelToken!.cancel();
+      _updateOperation!.cancel();
+      _cancelToken = null;
+      _updateOperation = null;
+      showBottomMessage(context, 'Mis à jour annulée');
+    }
+  }
+
+  Future<void> remove(BuildContext context) async {
+    progressNotifier.value = -1;
+    await removeMedia(this);
+
+    imagePath = null;
+    filePath = null;
+    isDownloadingNotifier.value = false;
+    isDownloadedNotifier.value = false;
+    progressNotifier.value = 0;
+
+    showBottomMessage(context, 'Media supprimé');
+  }
+
+  Future<void> showPlayer(BuildContext context, {Duration initialPosition = Duration.zero});
+
+  bool hasUpdate() {
+    if (lastModified == null || timeStamp == null) {
+      return false;
     }
 
-    return data;
+    DateTime lastModDate = DateTime.parse(lastModified!);
+    DateTime pubDate = DateTime.parse(timeStamp!);
+
+    if (lastModDate.isAtSameMomentAs(pubDate)) {
+      return false;
+    }
+
+    return lastModDate.isAfter(pubDate);
   }
 }

@@ -7,6 +7,7 @@ import 'package:jwlife/features/home/widgets/home_page/square_publication_item.d
 import '../../../../app/services/global_key_service.dart';
 import '../../../../core/icons.dart';
 import '../../../../data/databases/catalog.dart';
+import '../../../../data/models/media.dart';
 import '../../../../data/models/publication.dart';
 import '../../../../data/realm/catalog.dart';
 import '../../../../data/realm/realm_library.dart';
@@ -25,7 +26,7 @@ class ToolboxSectionState extends State<ToolboxSection> {
   void refreshToolbox() {
     setState(() {
       _toolbox.clear();
-      _toolbox.addAll( RealmLibrary.loadTeachingToolboxVideos());
+      _toolbox.addAll(RealmLibrary.loadTeachingToolboxVideos());
       _toolbox.addAll(PubCatalog.teachingToolboxPublications);
     });
   }
@@ -62,8 +63,8 @@ class ToolboxSectionState extends State<ToolboxSection> {
     if (item is Publication) {
       return HomeSquarePublicationItem(pub: item);
     }
-    if (item is MediaItem) {
-      return HomeSquareMediaItemItem(mediaItem: item);
+    if (item is Media) {
+      return HomeSquareMediaItemItem(media: item);
     }
     else {
       return const SizedBox(width: 20);

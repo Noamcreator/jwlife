@@ -6,8 +6,11 @@ import 'dart:typed_data';
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:jwlife/app/jwlife_page.dart';
 import 'package:jwlife/app/services/global_key_service.dart';
+import 'package:jwlife/core/utils/utils_audio.dart';
 import 'package:jwlife/core/utils/utils_playlist.dart';
+import 'package:jwlife/data/models/audio.dart';
 import 'package:jwlife/data/realm/catalog.dart' as realm;
 import 'package:palette_generator/palette_generator.dart';
 import 'package:realm/realm.dart';
@@ -17,6 +20,7 @@ import '../../core/icons.dart';
 import '../../core/utils/common_ui.dart';
 import '../../core/utils/utils.dart';
 import '../../core/utils/utils_video.dart';
+import '../../data/models/video.dart';
 import '../../data/realm/realm_library.dart';
 import '../../widgets/image_cached_widget.dart';
 import 'audio_player_model.dart';
@@ -42,7 +46,7 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
 
   double _volume = 1.0;
   double _speed = 1.0;
-  int _pitch = 1;
+  int _pitch = 0;
 
   late final StreamSubscription<PlayerState> _playerStateSub;
   late final StreamSubscription<SequenceState?> _sequenceStateSub;
@@ -179,7 +183,8 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () {
-        showPage(context, FullAudioView());
+        BuildContext ctx = GlobalKeyService.jwLifePageKey.currentState!.navigatorKeys[GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex].currentState!.context;
+        showPage(ctx, FullAudioView());
       },
       child: Container(
         height: 80,
@@ -362,6 +367,9 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
                                     JwIcons.gear,
                                     size: 22,
                                   ),
+                                  onOpened: () => GlobalKeyService.jwLifePageKey.currentState!.togglePopMenuOpen(true),
+                                  onSelected: (value) => GlobalKeyService.jwLifePageKey.currentState!.togglePopMenuOpen(false),
+                                  onCanceled: () => GlobalKeyService.jwLifePageKey.currentState!.togglePopMenuOpen(false),
                                   // augmenter la taille en largeur
                                   constraints: const BoxConstraints(minWidth: 2.0),
                                   // monter le menu vers le haut
@@ -382,14 +390,16 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
                                           .all<realm.MediaItem>()
                                           .query("naturalKey == '$naturalKey'")
                                           .firstOrNull;
-                                    } else {
+                                    }
+                                    else {
                                       mediaItem = getMediaItem(keySymbol, track, mepsDocumentId, issueTagNumber, mepsLanguage);
                                     }
 
                                     final List<PopupMenuEntry> items = [];
 
                                     if (mediaItem != null) {
-                                      items.add(getVideoShareItem(mediaItem));
+                                      Audio audio = Audio.fromJson(mediaItem: mediaItem);
+                                      items.add(getAudioShareItem(audio));
                                       items.add(
                                         PopupMenuItem(
                                           child: Row(
@@ -430,6 +440,7 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
                                             ],
                                           ),
                                           onSelected: (String value) {
+                                            GlobalKeyService.jwLifePageKey.currentState!.togglePopMenuOpen(false);
                                             switch (value) {
                                               case 'off':
                                                 jwAudioPlayer.player.setLoopMode(LoopMode.off);
@@ -459,6 +470,8 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
                                               child: Text('La piste'),
                                             ),
                                           ],
+                                          onOpened: () => GlobalKeyService.jwLifePageKey.currentState!.togglePopMenuOpen(true),
+                                          onCanceled: () => GlobalKeyService.jwLifePageKey.currentState!.togglePopMenuOpen(false),
                                         ),
                                       ),
                                     );
@@ -811,6 +824,7 @@ class _FullAudioViewState extends State<FullAudioView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       body: Container(
         decoration: BoxDecoration(
           color: _dominantColor,

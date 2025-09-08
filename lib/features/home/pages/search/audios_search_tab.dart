@@ -12,6 +12,7 @@ import 'package:jwlife/widgets/dialog/language_dialog.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../../../app/services/settings_service.dart';
+import '../../../../data/models/audio.dart';
 import 'search_model.dart';
 
 class AudioSearchTab extends StatefulWidget {
@@ -48,9 +49,11 @@ class _AudioSearchTabState extends State<AudioSearchTab> {
               itemBuilder: (context, index) {
                 final item = results[index];
                 MediaItem mediaItem = getMediaItemFromLank(item['lank'], JwLifeSettings().currentLanguage.symbol);
+                Audio audio = Audio.fromJson(mediaItem: mediaItem);
+
                 return GestureDetector(
                   onTap: () async {
-                    showAudioPlayer(context, mediaItem);
+                    audio.showPlayer(context);
                   },
                   child: Card(
                     color: Theme.of(context).brightness == Brightness.dark ? Color(0xFF292929) : Colors.white,
@@ -76,48 +79,46 @@ class _AudioSearchTabState extends State<AudioSearchTab> {
                               height: 150,
                               color: Colors.grey,
                             ),
-                            if (mediaItem != null)
-                              Positioned(
-                                top: 8,
-                                left: 8,
-                                child: Container(
+                            Positioned(
+                              top: 8,
+                              left: 8,
+                              child: Container(
                                   padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 6),
                                   color: Colors.black.withOpacity(0.7),
                                   child: Row(
-                                    children: [
-                                      const Icon(
-                                        JwIcons.headphones,
-                                        color: Colors.white,
-                                        size: 16,
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        formatDuration(mediaItem.duration!),
-                                        style: const TextStyle(
+                                      children: [
+                                        const Icon(
+                                          JwIcons.headphones,
                                           color: Colors.white,
-                                          fontSize: 16,
+                                          size: 16,
                                         ),
-                                      ),
-                                    ]
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          formatDuration(audio.duration),
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 16,
+                                          ),
+                                        ),
+                                      ]
                                   )
-                                ),
                               ),
-                            if (mediaItem != null)
-                              Positioned(
-                                top: 8,
-                                right: 8,
-                                child: PopupMenuButton(
-                                  icon: const Icon(Icons.more_vert, color: Colors.white, size: 30),
-                                  itemBuilder: (context) => [
-                                    getAudioShareItem(mediaItem),
-                                    getAudioLanguagesItem(context, mediaItem),
-                                    getAudioFavoriteItem(mediaItem),
-                                    getAudioDownloadItem(context, mediaItem),
-                                    getAudioLyricsItem(context, mediaItem),
-                                    getCopyLyricsItem(mediaItem)
-                                  ],
-                                ),
+                            ),
+                            Positioned(
+                              top: 8,
+                              right: 8,
+                              child: PopupMenuButton(
+                                icon: const Icon(Icons.more_vert, color: Colors.white, size: 30),
+                                itemBuilder: (context) => [
+                                  getAudioShareItem(audio),
+                                  getAudioLanguagesItem(context, audio),
+                                  getAudioFavoriteItem(audio),
+                                  getAudioDownloadItem(context, audio),
+                                  getAudioLyricsItem(context, audio),
+                                  getCopyLyricsItem(audio)
+                                ],
                               ),
+                            ),
                           ],
                         ),
                         Padding(

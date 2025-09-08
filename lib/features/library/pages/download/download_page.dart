@@ -7,12 +7,20 @@ import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/core/utils/files_helper.dart';
 import 'package:jwlife/core/utils/utils_jwpub.dart';
 import 'package:jwlife/core/utils/utils_pub.dart';
+import 'package:jwlife/core/utils/utils_video.dart';
 import 'package:jwlife/data/models/publication.dart';
+import 'package:jwlife/data/realm/catalog.dart';
+import 'package:jwlife/data/repositories/MediaRepository.dart';
 import 'package:jwlife/i18n/localization.dart';
 import 'package:jwlife/widgets/image_cached_widget.dart';
 import 'package:sqflite/sqflite.dart';
 
 import '../../../../app/services/global_key_service.dart';
+import '../../../../core/utils/utils.dart';
+import '../../../../core/utils/utils_audio.dart';
+import '../../../../data/models/audio.dart';
+import '../../../../data/models/media.dart';
+import '../../../../data/models/video.dart';
 import '../../../../data/repositories/PublicationRepository.dart';
 import '../../../../data/databases/catalog.dart';
 import '../../../publication/pages/menu/local/publication_menu_view.dart';
@@ -29,7 +37,7 @@ class _DownloadPageState extends State<DownloadPage> {
 
   // Données pré-calculées pour éviter les recalculs dans build
   Map<String, List<Publication>> _groupedPublications = {};
-  Map<String, List<Map<String, dynamic>>> _groupedMedias = {};
+  Map<String, List<Media>> _groupedMedias = {};
   double _itemWidth = 0;
 
   @override
@@ -58,25 +66,14 @@ class _DownloadPageState extends State<DownloadPage> {
   }
 
   Future<void> _loadMedias() async {
-    File mediasCollectionsFile = await getMediaCollectionsDatabaseFile();
-    if (await mediasCollectionsFile.exists()) {
-      Database mediaCollectionsDB = await openReadOnlyDatabase(mediasCollectionsFile.path);
+    List<Media> mediasDownload = List.from(MediaRepository().getAllDownloadedMedias());
+    List<Audio> audiosDownload = mediasDownload.whereType<Audio>().toList();
+    List<Video> videosDownload = mediasDownload.whereType<Video>().toList();
 
-      List<Map<String, dynamic>> resultAudios = await mediaCollectionsDB.rawQuery('''
-        SELECT MediaKey.*, Audio.* FROM MediaKey JOIN Audio ON MediaKey.MediaKeyId = Audio.MediaKeyId
-      ''');
-
-      List<Map<String, dynamic>> resultVideos = await mediaCollectionsDB.rawQuery('''
-        SELECT MediaKey.*, Video.* FROM MediaKey JOIN Video ON MediaKey.MediaKeyId = Video.MediaKeyId
-      ''');
-
-      _groupedMedias = {
-        if (resultAudios.isNotEmpty) 'Audios': resultAudios.map((a) => {...a, 'isDownload': 1}).toList(),
-        if (resultVideos.isNotEmpty) 'Videos': resultVideos.map((v) => {...v, 'isDownload': 1}).toList(),
-      };
-
-      mediaCollectionsDB.close();
-    }
+    _groupedMedias = {
+      if (audiosDownload.isNotEmpty) 'Audios': audiosDownload.toList(),
+      if (videosDownload.isNotEmpty) 'Videos': videosDownload.toList(),
+    };
   }
 
   Future<void> _loadAndGroupPublications() async {
@@ -140,7 +137,7 @@ class _DownloadPageState extends State<DownloadPage> {
 
   List<Widget> _buildMediaSections() {
     return _groupedMedias.entries.map((entry) {
-      return _buildSection<Map<String, dynamic>>(
+      return _buildSection<Media>(
         entry.key,
         entry.value,
         _buildMediaButton,
@@ -181,6 +178,9 @@ class _DownloadPageState extends State<DownloadPage> {
                 onTap: () {
                   if (item is Publication) {
                     showPage(context, PublicationMenuView(publication: item));
+                  }
+                  else if (item is Media) {
+                    item.showPlayer(context);
                   }
                 },
               );
@@ -283,11 +283,7 @@ class _DownloadPageState extends State<DownloadPage> {
     );
   }
 
-  Widget _buildMediaButton(BuildContext context, Map<String, dynamic> publication) {
-    final imageSqr = publication['ImagePath'] ?? '';
-    final title = publication['Title'] ?? '';
-    final mepsLanguage = publication['MepsLanguage'] ?? '';
-
+  Widget _buildMediaButton(BuildContext context, Media media) {
     return SizedBox(
       width: _itemWidth,
       height: 80,
@@ -298,8 +294,8 @@ class _DownloadPageState extends State<DownloadPage> {
               ClipRRect(
                 borderRadius: BorderRadius.circular(0),
                 child: ImageCachedWidget(
-                  imageUrl: imageSqr,
-                  pathNoImage: '',
+                  imageUrl: media.networkImageSqr,
+                  pathNoImage: media is Audio ? "pub_type_audio" : "pub_type_video",
                   height: 80,
                   width: 80,
                 ),
@@ -313,14 +309,14 @@ class _DownloadPageState extends State<DownloadPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        title,
+                        media.title,
                         style: const TextStyle(fontSize: 14),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
                       const Spacer(),
                       Text(
-                        mepsLanguage,
+                        '${formatDateTime(media.lastModified!).year} - ${media.keySymbol}',
                         style: TextStyle(
                           fontSize: 12,
                           color: Theme.of(context).brightness == Brightness.dark
@@ -344,11 +340,21 @@ class _DownloadPageState extends State<DownloadPage> {
                     ? const Color(0xFFc3c3c3)
                     : const Color(0xFF626262),
               ),
-              itemBuilder: (BuildContext context) {
-                return [
-                  // Ajoutez vos éléments de menu ici si nécessaire
-                ];
-              },
+              itemBuilder: (context) => media is Audio ?  [
+                getAudioShareItem(media),
+                getAudioLanguagesItem(context, media),
+                getAudioFavoriteItem(media),
+                getAudioDownloadItem(context, media),
+                getAudioLyricsItem(context, media),
+                getCopyLyricsItem(media)
+              ] : media is Video ? [
+                getVideoShareItem(media),
+                getVideoLanguagesItem(context, media),
+                getVideoFavoriteItem(media),
+                getVideoDownloadItem(context, media),
+                getShowSubtitlesItem(context, media),
+                getCopySubtitlesItem(context, media),
+              ] : [],
             ),
           ),
         ],

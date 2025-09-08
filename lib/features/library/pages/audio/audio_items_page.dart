@@ -7,6 +7,7 @@ import 'package:jwlife/app/services/settings_service.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/core/utils/utils_audio.dart';
+import 'package:jwlife/data/models/audio.dart';
 import 'package:jwlife/data/realm/catalog.dart';
 import 'package:jwlife/data/realm/realm_library.dart';
 import 'package:jwlife/widgets/dialog/language_dialog.dart';
@@ -31,10 +32,10 @@ class _AudioItemsPageState extends State<AudioItemsPage> {
   String language = '';
 
   // Liste complète des médias
-  List<MediaItem> allAudios = [];
+  List<Audio> allAudios = [];
 
   // Liste filtrée (change selon recherche)
-  List<MediaItem> filteredAudios = [];
+  List<Audio> filteredAudios = [];
 
   bool _isSearching = false;
 
@@ -67,7 +68,7 @@ class _AudioItemsPageState extends State<AudioItemsPage> {
 
     // On charge la liste complète uniquement ici
     allAudios = widget.category.media.map((key) {
-      return RealmLibrary.realm.all<MediaItem>().query("naturalKey == '$key'").first;
+      return Audio.fromJson(mediaItem: RealmLibrary.realm.all<MediaItem>().query("naturalKey == '$key'").first);
     }).toList();
 
     // Au début, filteredAudios = allAudios (pas de filtre)
@@ -88,7 +89,7 @@ class _AudioItemsPageState extends State<AudioItemsPage> {
     } else {
       setState(() {
         filteredAudios = allAudios.where((mediaItem) {
-          return mediaItem.title!.toLowerCase().contains(query.toLowerCase());
+          return mediaItem.title.toLowerCase().contains(query.toLowerCase());
         }).toList();
       });
     }
@@ -231,17 +232,15 @@ class _AudioItemsPageState extends State<AudioItemsPage> {
   }
 
   Widget buildAudioItem(int index) {
-    MediaItem mediaItem = filteredAudios[index];
-    int id = allAudios.indexOf(mediaItem);
+    Audio audio = filteredAudios[index];
+    int id = allAudios.indexOf(audio);
 
     return Stack(
       children: [
         SizedBox(
           height: 60,
           child: InkWell(
-            onTap: () {
-              _play(id);
-            },
+            onTap: () => _play(id),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 15),
               child: Row(
@@ -249,7 +248,7 @@ class _AudioItemsPageState extends State<AudioItemsPage> {
                   ClipRRect(
                     borderRadius: BorderRadius.circular(5),
                     child: ImageCachedWidget(
-                      imageUrl: mediaItem.realmImages!.squareFullSizeImageUrl ?? mediaItem.realmImages!.squareImageUrl,
+                      imageUrl: audio.networkImageSqr,
                       pathNoImage: "pub_type_audio",
                       height: 55,
                       width: 55,
@@ -262,7 +261,7 @@ class _AudioItemsPageState extends State<AudioItemsPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          mediaItem.title!,
+                          audio.title,
                           style: TextStyle(
                             fontSize: 15.5,
                             fontWeight: FontWeight.bold,
@@ -275,39 +274,158 @@ class _AudioItemsPageState extends State<AudioItemsPage> {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          formatDuration(mediaItem.duration!),
+                          formatDuration(audio.duration),
                           style: TextStyle(
                             fontSize: 14,
-                            color: Theme.of(context).brightness == Brightness.dark ? Color(0xFF8e8e8e) : Color(0xFF757575),
+                            color: Theme.of(context).brightness == Brightness.dark
+                                ? const Color(0xFF8e8e8e)
+                                : const Color(0xFF757575),
                           ),
                         ),
                       ],
                     ),
                   ),
-                  SizedBox(width: 20),
+                  const SizedBox(width: 60), // espace réservé pour les icônes à droite
                 ],
               ),
             ),
           ),
         ),
+
+        /// --- Bouton menu ---
         Positioned(
-          right: -5,
+          right: 0,
+          top: 0,
+          bottom: 0,
           child: PopupMenuButton(
             icon: Icon(
               Icons.more_vert,
-              color: Theme.of(context).brightness == Brightness.dark ? Color(0xFF8e8e8e) : Color(0xFF757575),
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? const Color(0xFF8e8e8e)
+                  : const Color(0xFF757575),
               size: 25,
             ),
             itemBuilder: (context) => [
-              getAudioShareItem(mediaItem),
-              getAudioLanguagesItem(context, mediaItem),
-              getAudioFavoriteItem(mediaItem),
-              getAudioDownloadItem(context, mediaItem),
-              getAudioLyricsItem(context, mediaItem),
-              getCopyLyricsItem(mediaItem)
+              getAudioShareItem(audio),
+              getAudioLanguagesItem(context, audio),
+              getAudioFavoriteItem(audio),
+              getAudioDownloadItem(context, audio),
+              getAudioLyricsItem(context, audio),
+              getCopyLyricsItem(audio),
             ],
           ),
-        )
+        ),
+
+        /// --- Icône / Actions téléchargement + favoris ---
+        ValueListenableBuilder<bool>(
+          valueListenable: audio.isDownloadingNotifier,
+          builder: (context, isDownloading, _) {
+            if (isDownloading) {
+              // --- Icône pour annuler le téléchargement ---
+              return Positioned(
+                right: 30,
+                top: 0,
+                bottom: 0,
+                child: IconButton(
+                  padding: EdgeInsets.zero,
+                  iconSize: 20,
+                  onPressed: () => audio.cancelDownload(context),
+                  icon: const Icon(
+                    JwIcons.x,
+                    color: Colors.grey,
+                  ),
+                ),
+              );
+            }
+
+            return ValueListenableBuilder<bool>(
+              valueListenable: audio.isDownloadedNotifier,
+              builder: (context, isDownloaded, _) {
+                return ValueListenableBuilder<bool>(
+                  valueListenable: audio.isFavoriteNotifier,
+                  builder: (context, isFavorite, _) {
+                    final hasUpdate = audio.hasUpdate();
+
+                    if (!isDownloaded) {
+                      // --- Icône nuage (pas téléchargé) ---
+                      return Positioned(
+                        right: 30,
+                        top: 0,
+                        bottom: 0,
+                        child: IconButton(
+                          padding: EdgeInsets.zero,
+                          iconSize: 20,
+                          onPressed: () => audio.download(context),
+                          icon: const Icon(
+                            JwIcons.cloud_arrow_down,
+                            color: Colors.grey,
+                          ),
+                        ),
+                      );
+                    } else if (hasUpdate) {
+                      // --- Icône mise à jour ---
+                      return Positioned(
+                        right: 30,
+                        top: 0,
+                        bottom: 0,
+                        child: IconButton(
+                          padding: EdgeInsets.zero,
+                          iconSize: 20,
+                          onPressed: () => audio.download(context),
+                          icon: const Icon(
+                            JwIcons.arrows_circular,
+                            color: Colors.grey,
+                          ),
+                        ),
+                      );
+                    } else if (isFavorite) {
+                      // --- Icône favoris ---
+                      return const Positioned(
+                        right: 45,
+                        top: 0,
+                        bottom: 0,
+                        child: Icon(
+                          JwIcons.star,
+                          color: Colors.amber,
+                          size: 20,
+                        ),
+                      );
+                    }
+
+                    return const SizedBox.shrink();
+                  },
+                );
+              },
+            );
+          },
+        ),
+
+        /// --- Barre de progression ---
+        ValueListenableBuilder<bool>(
+          valueListenable: audio.isDownloadingNotifier,
+          builder: (context, isDownloading, _) {
+            if (!isDownloading) return const SizedBox.shrink();
+
+            return Positioned(
+              left: 80,
+              right: 20,
+              bottom: 3,
+              child: ValueListenableBuilder<double>(
+                valueListenable: audio.progressNotifier,
+                builder: (context, progress, _) {
+                  return LinearProgressIndicator(
+                    value: progress == -1 ? null : progress,
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      Theme.of(context).primaryColor,
+                    ),
+                    backgroundColor: Colors.black.withOpacity(0.2),
+                    minHeight: 2,
+                  );
+                },
+              ),
+            );
+          },
+        ),
       ],
     );
   }

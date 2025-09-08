@@ -97,6 +97,7 @@ class DailyTextWidgetState extends State<DailyTextWidget> {
 
     return Column(
       children: [
+        const SizedBox(height: 5),
         GestureDetector(
           onTap: () {
             if (_verseOfTheDayPub == null) return;

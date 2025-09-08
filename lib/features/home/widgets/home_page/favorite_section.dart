@@ -5,6 +5,7 @@ import 'package:jwlife/features/home/widgets/home_page/square_mediaitem_item.dar
 import 'package:jwlife/features/home/widgets/home_page/square_publication_item.dart';
 
 import '../../../../core/icons.dart';
+import '../../../../data/models/media.dart';
 import '../../../../data/models/publication.dart';
 import '../../../../data/realm/catalog.dart';
 import '../../../../i18n/localization.dart';
@@ -73,8 +74,8 @@ class FavoritesSectionState extends State<FavoritesSection> {
     if (item is Publication) {
       return HomeSquarePublicationItem(pub: item);
     }
-    if (item is MediaItem) {
-      return HomeSquareMediaItemItem(mediaItem: item);
+    if (item is Media) {
+      return HomeSquareMediaItemItem(media: item);
     }
 
     // fallback custom widget for other types

@@ -19,8 +19,8 @@ class PublicationRepository {
     return '${pub.symbol}_${pub.issueTagNumber}_${pub.mepsLanguage.id}';
   }
 
-  void addPublication(Publication publications) {
-    _publications[_generateKey(publications)] = publications;
+  void addPublication(Publication publication) {
+    _publications[_generateKey(publication)] = publication;
   }
 
   /// Retourne toutes les publications centralisées

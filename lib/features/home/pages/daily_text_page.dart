@@ -24,6 +24,7 @@ import '../../../core/webview/webview_utils.dart';
 import '../../../data/databases/history.dart';
 import '../../../data/models/userdata/bookmark.dart';
 import '../../../data/models/userdata/tag.dart';
+import '../../../data/models/video.dart';
 import '../../../data/realm/catalog.dart';
 import '../../../widgets/dialog/language_dialog_pub.dart';
 import '../../../widgets/dialog/publication_dialogs.dart';
@@ -534,6 +535,16 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
                       );
 
                       controller.addJavaScriptHandler(
+                        handlerName: 'fetchGuideVerse',
+                        callback: (args) async {
+                          Map<String, dynamic>? extractPublication = await fetchGuideVerse(context, args[0]);
+                          if (extractPublication != null) {
+                            return extractPublication;
+                          }
+                        },
+                      );
+
+                      controller.addJavaScriptHandler(
                         handlerName: 'fetchExtractPublication',
                         callback: (args) async {
                           Map<String, dynamic>? extractPublication = await fetchExtractPublication(context, 'daily', widget.publication.datedTextManager!.database, widget.publication, args[0], _jumpToPage, _jumpToParagraph);
@@ -678,11 +689,8 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
                           MediaItem? mediaItem = getMediaItem(pub, track, docId, issue, null);
 
                           if(mediaItem != null) {
-                            showVideoDialog(context, mediaItem).then((result) {
-                              if (result == 'play') { // Vérifiez si le résultat est 'play'
-                                showFullScreenVideo(context, mediaItem);
-                              }
-                            });
+                            Video video = Video.fromJson(mediaItem: mediaItem);
+                            video.showPlayer(context);
                           }
                           else {
 
@@ -735,11 +743,8 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
                               mediaItem = getMediaItemFromLank(lank!, wtlocale!);
                             }
 
-                            showVideoDialog(context, mediaItem!).then((result) {
-                              if (result == 'play') { // Vérifiez si le résultat est 'play'
-                                showFullScreenVideo(context, mediaItem!);
-                              }
-                            });
+                            Video video = Video.fromJson(mediaItem: mediaItem!);
+                            video.showPlayer(context);
                           }
                           else if (uri.queryParameters.containsKey('pub')) {
                             // Récupère les paramètres

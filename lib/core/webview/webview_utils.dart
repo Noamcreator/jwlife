@@ -296,6 +296,90 @@ Future<Map<String, dynamic>?> fetchExtractPublication(BuildContext context, Stri
   }
 }
 
+Future<Map<String, dynamic>?> fetchGuideVerse(BuildContext context, String guideVerseId) async {
+  Publication? guideVersePub = await PubCatalog.searchPub('rsg19', 0, JwLifeSettings().currentLanguage.id);
+  if(guideVersePub == null) return null;
+
+  Database? guideVersePubDb;
+  if(guideVersePub.documentsManager == null) {
+    guideVersePubDb = await openDatabase(guideVersePub.databasePath!);
+  }
+  else {
+    guideVersePubDb = guideVersePub.documentsManager!.database;
+  }
+
+  List<Map<String, dynamic>> response = await guideVersePubDb.rawQuery('''
+    SELECT 
+      Extract.*,
+      RefPublication.*
+    FROM Extract
+    LEFT JOIN RefPublication ON Extract.RefPublicationId = RefPublication.RefPublicationId
+    WHERE ExtractId = $guideVerseId
+  ''');
+
+  if (response.isNotEmpty) {
+    List<Map<String, dynamic>> extractItems = [];
+
+    for (var extract in response) {
+      Publication? refPub = await PubCatalog.searchPub(extract['UndatedSymbol'], int.parse(extract['IssueTagNumber']), extract['MepsLanguageIndex']);
+
+      var doc = parse(extract['Caption']);
+      String caption = doc.querySelector('.etitle')?.text ?? '';
+
+      String image = refPub?.imageSqr ?? refPub?.networkImageSqr ?? '';
+      if (image.isNotEmpty) {
+        if(image.startsWith('https')) {
+          image = (await TilesCache().getOrDownloadImage(image))!.file.path;
+        }
+      }
+      if (refPub == null || refPub.imageSqr == null) {
+        String type = PublicationCategory.all.firstWhere((element) => element.type == extract['PublicationType']).image;
+        bool isDark = Theme.of(context).brightness == Brightness.dark;
+        String path = isDark ? 'assets/images/${type}_gray.png' : 'assets/images/$type.png';
+        image = '/android_asset/flutter_assets/$path';
+      }
+
+      /// Décoder le contenu
+      final decodedHtml = decodeBlobContent(extract['Content'] as Uint8List, guideVersePub.hash!);
+
+      int? extractMepsDocumentId = extract['RefMepsDocumentId'];
+      int? firstParagraphId = extract['RefBeginParagraphOrdinal'];
+      int? lastParagraphId = extract['RefEndParagraphOrdinal'];
+
+      List<Map<String, dynamic>> highlights = [];
+      List<Map<String, dynamic>> notes = [];
+      if (extractMepsDocumentId != null) {
+        highlights = await JwLifeApp.userdata.getHighlightsFromDocId(extractMepsDocumentId, extract['MepsLanguageIndex']);
+        notes = await JwLifeApp.userdata.getNotesFromDocId(extractMepsDocumentId, extract['MepsLanguageIndex']);
+      }
+
+      dynamic article = {
+        'type': 'publication',
+        'content': decodedHtml,
+        'className': "publicationCitation html5 pub-${extract['UndatedSymbol']} docId-$extractMepsDocumentId docClass-${extract['RefMepsDocumentClass']} jwac showRuby ml-${refPub?.mepsLanguage.symbol} ms-ROMAN dir-ltr layout-reading layout-sidebar",
+        'subtitle': caption,
+        'imageUrl': image,
+        'mepsDocumentId': extractMepsDocumentId ?? -1,
+        'mepsLanguageId': extract['MepsLanguageIndex'],
+        'startParagraphId': firstParagraphId,
+        'endParagraphId': lastParagraphId,
+        'publicationTitle': refPub == null ? extract['ShortTitle'] : refPub.getShortTitle(),
+        'highlights': highlights,
+        'notes': notes
+      };
+
+      // Ajouter l'élément document à la liste versesItems
+      extractItems.add(article);
+    }
+
+    return {
+      'items': extractItems,
+      'title': 'Extrait de publication',
+    };
+  }
+  return null;
+}
+
 Future<Map<String, dynamic>> fetchFootnote(BuildContext context, Publication publication, String footNoteId, {String? bibleVerseId}) async {
   List<Map<String, dynamic>> response = [];
 

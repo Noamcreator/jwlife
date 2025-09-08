@@ -74,8 +74,6 @@ class PubCollections {
   }
 
   Future<Publication> insertPublicationFromManifest(dynamic manifestData, String path, {Publication? publication}) async {
-    //await open();
-
     dynamic pub = manifestData['publication'];
     String timeStamp = manifestData['timestamp'];
 

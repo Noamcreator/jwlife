@@ -1,16 +1,13 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
-import 'package:jwlife/core/utils/directory_helper.dart';
 import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/core/utils/utils_audio.dart';
 import 'package:jwlife/core/utils/utils_document.dart';
@@ -28,7 +25,6 @@ import 'package:jwlife/widgets/dialog/language_dialog_pub.dart';
 import 'package:jwlife/widgets/dialog/publication_dialogs.dart';
 import 'package:jwlife/widgets/responsive_appbar_actions.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 import 'package:audio_service/audio_service.dart' as audio_service;
 
@@ -41,6 +37,7 @@ import '../../../../../core/shared_preferences/shared_preferences_utils.dart';
 import '../../../../../core/webview/webview_javascript.dart';
 import '../../../../../core/webview/webview_utils.dart';
 import '../../../../../data/models/userdata/tag.dart';
+import '../../../../../data/models/video.dart';
 import '../../../../../widgets/searchfield/searchfield_widget.dart';
 import '../../../../personal/pages/tag_page.dart';
 import '../data/models/multimedia.dart';
@@ -770,6 +767,16 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
                 );
 
                 controller.addJavaScriptHandler(
+                  handlerName: 'fetchGuideVerse',
+                  callback: (args) async {
+                    Map<String, dynamic>? extractPublication = await fetchGuideVerse(context, args[0]);
+                    if (extractPublication != null) {
+                      return extractPublication;
+                    }
+                  },
+                );
+
+                controller.addJavaScriptHandler(
                   handlerName: 'fetchExtractPublication',
                   callback: (args) async {
                     Map<String, dynamic>? extractPublication = await fetchExtractPublication(context, 'document', widget.publication.documentsManager!.database, widget.publication, args[0], _jumpToPage, _jumpToParagraph);
@@ -1112,15 +1119,8 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
                     MediaItem? mediaItem = getMediaItem(pub, track, docId, issue, langwritten);
 
                     if(mediaItem != null) {
-                      showFullScreenVideo(context, mediaItem);
-                      /*
-                  showVideoDialog(context, mediaItem).then((result) {
-                    if (result == 'play') { // Vérifiez si le résultat est 'play'
-                      showFullScreenVideo(context, mediaItem);
-                    }
-                  });
-
-                   */
+                      Video video = Video.fromJson(mediaItem: mediaItem);
+                      video.showPlayer(context);
                     }
                   },
                 );
@@ -1183,10 +1183,12 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
                     MediaItem mediaItem = getMediaItemFromLank(jwOrgUri.lank!, jwOrgUri.wtlocale);
 
                     if(mediaItem.type == 'AUDIO') {
-                      showAudioPlayer(context, mediaItem, initialPosition: startTime);
+                      Audio audio = Audio.fromJson(mediaItem: mediaItem);
+                      audio.showPlayer(context, initialPosition: startTime);
                     }
                     else {
-                      showFullScreenVideo(context, mediaItem, initialPosition: startTime);
+                      Video video = Video.fromJson(mediaItem: mediaItem);
+                      video.showPlayer(context, initialPosition: startTime);
                     }
                   }
                   else {

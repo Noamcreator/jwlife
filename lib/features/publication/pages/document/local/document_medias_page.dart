@@ -7,11 +7,13 @@ import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/core/utils/utils_audio.dart';
 import 'package:jwlife/core/utils/utils_video.dart';
 import 'package:jwlife/data/databases/history.dart';
+import 'package:jwlife/data/models/media.dart';
 import 'package:jwlife/data/realm/catalog.dart';
 import 'package:jwlife/features/library/widgets/rectangle_mediaItem_item.dart';
 import 'package:jwlife/widgets/image_cached_widget.dart';
 
 import '../../../../../app/services/global_key_service.dart';
+import '../../../../../data/models/video.dart';
 import '../../../../../widgets/mediaitem_item_widget.dart';
 import '../data/models/document.dart';
 import '../data/models/multimedia.dart';
@@ -164,7 +166,8 @@ class _DocumentMediasViewState extends State<DocumentMediasView> {
                   if (mediaItem == null) {
                     return Container();
                   }
-                  return videoTile(context, mediaItem, screenWidth);
+                  Video video = Video.fromJson(mediaItem: mediaItem);
+                  return videoTile(context, video, screenWidth);
                 },
               ),
               SizedBox(height: spacing),
@@ -204,8 +207,8 @@ class _DocumentMediasViewState extends State<DocumentMediasView> {
     );
   }
 
-  Widget videoTile(BuildContext context, MediaItem mediaItem, double screenWidth) {
-    return MediaItemItemWidget(mediaItem: mediaItem, timeAgoText: false, width: 190);
+  Widget videoTile(BuildContext context, Media media, double screenWidth) {
+    return MediaItemItemWidget(media: media, timeAgoText: false, width: 190);
   }
 
   Widget imageTile(BuildContext context, Multimedia media, double screenWidth) {

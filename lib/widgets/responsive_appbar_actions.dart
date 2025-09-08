@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:jwlife/app/services/global_key_service.dart';
 
 class ResponsiveAppBarActions extends StatelessWidget {
   final List<IconTextButton> allActions;
@@ -37,6 +38,7 @@ class ResponsiveAppBarActions extends StatelessWidget {
         )),
         RepaintBoundary(
           child: PopupMenuButton<IconTextButton>(
+            popUpAnimationStyle: AnimationStyle(curve: Curves.easeInExpo, duration: const Duration(milliseconds: 200)),
             icon: const Icon(Icons.more_vert),
             itemBuilder: (context) => menuItems.map((action) =>
                 PopupMenuItem(
@@ -52,6 +54,9 @@ class ResponsiveAppBarActions extends StatelessWidget {
                   ),
                 ),
             ).toList(),
+            onOpened: () => GlobalKeyService.jwLifePageKey.currentState!.togglePopMenuOpen(true),
+            onSelected: (value) => GlobalKeyService.jwLifePageKey.currentState!.togglePopMenuOpen(false),
+            onCanceled: () => GlobalKeyService.jwLifePageKey.currentState!.togglePopMenuOpen(false),
           ),
         )
       ],

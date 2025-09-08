@@ -4,10 +4,9 @@ import 'dart:io';
 import 'package:floating/floating.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:jwlife/app/jwlife_page.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/utils.dart';
-import 'package:jwlife/data/models/video.dart';
+import 'package:jwlife/data/models/video.dart' hide Subtitles;
 import 'package:jwlife/data/databases/history.dart';
 import 'package:jwlife/data/realm/catalog.dart';
 import 'package:share_plus/share_plus.dart';
@@ -19,12 +18,11 @@ import '../../core/utils/utils_playlist.dart';
 import 'subtitles.dart';
 
 class VideoPlayerPage extends StatefulWidget {
-  final MediaItem mediaItem;
+  final Video video;
   final dynamic onlineVideo;
-  final Video? localVideo;
   final Duration initialPosition;
 
-  const VideoPlayerPage({super.key, required this.mediaItem, this.onlineVideo, this.localVideo, this.initialPosition=Duration.zero});
+  const VideoPlayerPage({super.key, required this.video, this.onlineVideo, this.initialPosition=Duration.zero});
 
   @override
   _VideoPlayerPageState createState() => _VideoPlayerPageState();
@@ -45,12 +43,12 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
   @override
   void initState() {
     super.initState();
-    _title = widget.mediaItem.title ?? '';
-    _duration = Duration(seconds: widget.mediaItem.duration!.toInt());
+    _title = widget.video.title;
+    _duration = Duration(seconds: widget.video.duration.toInt());
 
-    History.insertVideo(widget.mediaItem);
+    History.insertVideo(widget.video);
 
-    if(widget.localVideo != null) {
+    if(widget.video.isDownloadedNotifier.value) {
       playLocalVideo();
     }
     else if (widget.onlineVideo != null) {
@@ -70,8 +68,8 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
 
   // Method to play the video
   Future<void> getVideoApi() async {
-    String lank = widget.mediaItem.languageAgnosticNaturalKey!;
-    String lang = widget.mediaItem.languageSymbol!;
+    String lank = widget.video.naturalKey!;
+    String lang = widget.video.mepsLanguage!;
     if (lank.isNotEmpty && lang.isNotEmpty) {
       final apiUrl = 'https://b.jw-cdn.org/apis/mediator/v1/media-items/$lang/$lank?clientType=www';
       printTime('apiUrl: $apiUrl');
@@ -141,7 +139,7 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
 
   // Method to play the video
   Future<void> playLocalVideo() async {
-    File file = File(widget.localVideo!.filePath);
+    File file = File(widget.video.filePath!);
 
     _controller = VideoPlayerController.file(file)
       ..initialize().then((_) {
@@ -274,9 +272,7 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
                     IconButton(
                       icon: Icon(JwIcons.list_plus, color: Colors.white),
                       onPressed: () {
-                        if(widget.mediaItem != null) {
-                          showAddPlaylistDialog(context, widget.mediaItem);
-                        }
+                        showAddPlaylistDialog(context, widget.video);
                       },
                     ),
                     IconButton(
@@ -441,9 +437,9 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
                                     ],
                                   ),
                                   onTap: () {
-                                    Uri uri = Uri.parse('https://www.jw.org/finder?srcid=jwlshare&wtlocale=${widget.mediaItem.languageSymbol}&lank=${widget.mediaItem.languageAgnosticNaturalKey}');
+                                    Uri uri = Uri.parse('https://www.jw.org/finder?srcid=jwlshare&wtlocale=${widget.video.mepsLanguage}&lank=${widget.video.naturalKey}');
                                     SharePlus.instance.share(
-                                        ShareParams(title: widget.mediaItem.title, uri: uri)
+                                        ShareParams(title: widget.video.title, uri: uri)
                                     );
                                   },
                                 ),
@@ -488,8 +484,8 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
                                           child: Text('Français'),
                                           onTap: () async {
                                             Subtitles subtitles = Subtitles();
-                                            if(widget.localVideo != null) {
-                                              File file = File(widget.localVideo!.subtitlesFilePath);
+                                            if(widget.video.isDownloadedNotifier.value) {
+                                              File file = File(widget.video.subtitlesFilePath);
                                               await subtitles.loadSubtitlesFromFile(file);
                                             }
                                             else {
@@ -498,7 +494,7 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
                                                 jsonData = widget.onlineVideo;
                                               }
                                               else {
-                                                String link = 'https://b.jw-cdn.org/apis/mediator/v1/media-items/${widget.mediaItem.languageSymbol}/${widget.mediaItem.languageAgnosticNaturalKey}';
+                                                String link = 'https://b.jw-cdn.org/apis/mediator/v1/media-items/${widget.video.mepsLanguage}/${widget.video.naturalKey}';
                                                 final response = await Api.httpGetWithHeaders(link);
                                                 if (response.statusCode == 200) {
                                                   final jsonFile = response.body;

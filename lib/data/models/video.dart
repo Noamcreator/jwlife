@@ -1,88 +1,221 @@
-import 'package:jwlife/data/realm/catalog.dart';
+import 'dart:convert';
 
+import 'package:flutter/material.dart';
+import 'package:jwlife/data/realm/catalog.dart';
+import '../../app/jwlife_app.dart';
+import '../../app/services/settings_service.dart';
+import '../../core/api/api.dart';
+import '../../core/utils/common_ui.dart';
+import '../../core/utils/utils.dart';
+import '../../core/utils/utils_video.dart';
+import '../../features/video/video_player_page.dart';
+import '../../widgets/dialog/utils_dialog.dart';
+import '../repositories/MediaRepository.dart';
 import 'media.dart';
 
 class Video extends Media {
   final int videoId;
+  double? frameRate;
+  int? frameHeight;
+  int? frameWidth;
+  String? label;
+  String? specialtyDescription;
+  Subtitles? subtitles;
 
   Video({
     required this.videoId,
-    super.naturalKey,
     required super.mediaId,
-    required super.keySymbol,
-    required super.categoryKey,
-    required super.imagePath,
-    required super.mediaType,
-    required super.documentId,
-    required super.mepsLanguage,
-    required super.issueTagNumber,
-    required super.track,
-    required super.bookNumber,
-    required super.title,
-    required super.version,
-    required super.mimeType,
-    required super.bitRate,
-    required super.duration,
-    required super.checkSum,
-    required super.fileSize,
-    required super.filePath,
-    required super.source,
-    required super.modifiedDateTime,
-    super.fileUrl = '',
-    super.markers = const [],
-    super.isDownloaded = false,
+    super.naturalKey,
+    super.keySymbol,
+    super.categoryKey,
+    super.documentId,
+    super.mepsLanguage,
+    super.issueTagNumber,
+    super.track,
+    super.bookNumber,
+    super.title,
+    super.version,
+    super.mimeType,
+    super.bitRate,
+    super.duration,
+    super.imagePath,
+    super.networkImageSqr,
+    super.networkImageLsr,
+    super.checkSum,
+    super.fileSize,
+    super.filePath,
+    super.source,
+    super.firstPublished,
+    super.lastModified,
+    super.timeStamp,
+    super.fileUrl,
+    super.progressNotifier,
+    super.isDownloadingNotifier,
+    super.isDownloadedNotifier,
+    super.isFavoriteNotifier,
+    this.frameRate,
+    this.frameHeight,
+    this.frameWidth,
+    this.label,
+    this.specialtyDescription,
+    this.subtitles,
   });
 
-  factory Video.fromJson(
-      Map<String, dynamic> json, {String? languageSymbol, MediaItem? mediaItem}) {
-    final files = json['files'];
+  factory Video.fromJson({Map<String, dynamic>? json, MediaItem? mediaItem, bool? isFavorite}) {
+    final keySymbol = json?['KeySymbol'] ?? mediaItem?.pubSymbol;
+    final documentId = json?['DocumentId'] ?? mediaItem?.documentId;
+    final issueTagNumber = json?['IssueTagNumber'] ?? mediaItem?.issueDate;
+    final track = json?['Track'] ?? mediaItem?.track;
 
-    Map<String, dynamic>? firstFile;
-    if (files is List && files.isNotEmpty && files[0] is Map<String, dynamic>) {
-      firstFile = files[0];
+    final mepsLanguage = json?['MepsLanguage'] ?? mediaItem?.languageSymbol ?? JwLifeSettings().currentLanguage.symbol;
+
+    mediaItem ??= getMediaItem(keySymbol, track, documentId, issueTagNumber, mepsLanguage, isVideo: true);
+
+    // Recherche existant
+    final existing = MediaRepository().getMediaWithMepsLanguageId(
+      keySymbol ?? '',
+      documentId ?? 0,
+      issueTagNumber ?? 0,
+      track ?? 0,
+      mepsLanguage,
+      false, // isAudio
+    );
+
+    if (existing is Video) {
+      if (!existing.isDownloadedNotifier.value && json != null) {
+        existing.fileSize = json['FileSize'] ?? existing.fileSize;
+        existing.filePath = json['FilePath'] ?? existing.filePath;
+        existing.imagePath = json['ImagePath'] ?? existing.imagePath;
+      }
+      existing.lastModified = json?['ModifiedDateTime'] ?? existing.lastModified;
+      existing.isFavoriteNotifier.value = isFavorite ?? existing.isFavoriteNotifier.value;
+      return existing;
     }
 
-    return Video(
-      videoId: json['VideoId'] ?? -1,
-      naturalKey: json['naturalKey'] ?? '',
-      mediaId: json['MediaKeyId'] ?? -1,
-      keySymbol: json['KeySymbol'] ?? json['pub'] ?? '',
-      categoryKey: json['CategoryKey'] ?? '',
-      imagePath: json['ImagePath'] ?? '',
-      mediaType: json['MediaType'] ?? 0,
-      documentId: json['DocumentId'] ?? json['docid'] ?? 0,
-      mepsLanguage: json['MepsLanguage'] ?? languageSymbol ?? '',
-      issueTagNumber: json['IssueTagNumber'] ?? 0,
-      track: json['Track'] ?? json['track'] ?? 0,
-      bookNumber: json['BookNumber'] ?? json['booknum'] ?? 0,
-      title: json['Title'] ?? json['title'] ?? '',
-      version: json['Version'] ?? 1,
-      mimeType: json['MimeType'] ??
-          json['mimeType'] ??
-          firstFile?['mimeType'] ??
-          '',
-      bitRate: json['BitRate'] ??
-          json['bitRate'] ??
-          firstFile?['bitrate'] ??
-          0.0,
-      duration: json['Duration'] ??
-          json['duration'] ??
-          0.0,
-      checkSum: json['Checksum'] ??
-          firstFile?['checksum'] ??
-          '',
-      fileSize: json['FileSize'] ??
-          json['filesize'] ??
-          firstFile?['filesize'] ??
-          0,
-      filePath: json['FilePath'] ?? '',
-      source: json['Source'] ?? 0,
-      modifiedDateTime: json['ModifiedDateTime'] ??
-          firstFile?['modifiedDatetime'] ??
-          '',
-      isDownloaded: json['FilePath'] != null,
+    final video = Video(
+      videoId: json?['VideoId'] ?? -1,
+      mediaId: json?['MediaKeyId'] ?? -1,
+      naturalKey: mediaItem?.languageAgnosticNaturalKey,
+      keySymbol: keySymbol,
+      documentId: documentId,
+      issueTagNumber: issueTagNumber,
+      track: track,
+      mepsLanguage: mepsLanguage,
+      categoryKey: json?['CategoryKey'] ?? mediaItem?.primaryCategory ?? '',
+      bookNumber: json?['BookNumber'] ?? 0,
+      title: json?['Title'] ?? mediaItem?.title ?? '',
+      version: json?['Version'],
+      mimeType: json?['MimeType'],
+      bitRate: (json?['BitRate'] ?? 0).toDouble(),
+      duration: (json?['Duration'] ?? mediaItem?.duration ?? 0).toDouble(),
+      imagePath: json?['ImagePath'] ?? '',
+      networkImageSqr: mediaItem?.realmImages!.squareFullSizeImageUrl ?? mediaItem?.realmImages!.squareImageUrl,
+      networkImageLsr: mediaItem?.realmImages!.wideFullSizeImageUrl ?? mediaItem?.realmImages!.wideImageUrl ?? mediaItem?.realmImages!.squareFullSizeImageUrl ?? mediaItem?.realmImages!.squareImageUrl,
+      checkSum: json?['Checksum'],
+      fileSize: json?['FileSize'],
+      filePath: json?['FilePath'],
+      source: json?['Source'],
+      firstPublished: mediaItem?.firstPublished,
+      lastModified: json?['ModifiedDateTime'],
+      timeStamp: json?['ModifiedDateTime'],
+      fileUrl: json?['FileUrl'],
+      isDownloadedNotifier: ValueNotifier((json?['FilePath'] != null) && ((json?['FileSize'] ?? 0) > 0)),
+      isFavoriteNotifier: ValueNotifier(
+        isFavorite ??
+            JwLifeApp.userdata.favorites.any(
+                  (fav) =>
+              fav is Video &&
+                  fav.keySymbol == keySymbol &&
+                  fav.documentId == documentId &&
+                  fav.issueTagNumber == issueTagNumber &&
+                  fav.track == track &&
+                  fav.mepsLanguage == mepsLanguage,
+            ),
+      ),
+      frameRate: json?['FrameRate'],
+      frameHeight: json?['FrameHeight'],
+      frameWidth: json?['FrameWidth'],
+      label: json?['Label'],
+      specialtyDescription: json?['SpecialtyDescription'],
+      subtitles: json != null ? Subtitles.fromJson(json) : null
     );
+
+    MediaRepository().addMedia(video);
+    return video;
   }
 
-  String get subtitlesFilePath => filePath.replaceAll('.mp4', '.vtt');
+  /// Exemple d’helper spécifique aux vidéos
+  String get subtitlesFilePath => filePath!.replaceAll('.mp4', '.vtt');
+
+  @override
+  Future<void> download(BuildContext context) async {
+    if (await hasInternetConnection()) {
+      if (!isDownloadingNotifier.value) {
+        String link = 'https://b.jw-cdn.org/apis/mediator/v1/media-items/$mepsLanguage/$naturalKey';
+        final response = await Api.httpGetWithHeaders(link);
+        if (response.statusCode == 200) {
+          final jsonData = json.decode(response.body);
+          showVideoDownloadDialog(context, jsonData['media'][0]['files']).then((value) async {
+            if (value != null) {
+              await super.performDownload(context, jsonData['media'][0], file: value);
+            }
+          });
+        }
+      }
+    }
+    else {
+      showNoConnectionDialog(context);
+    }
+  }
+
+  @override
+  Future<void> showPlayer(BuildContext context, {Duration initialPosition = Duration.zero}) async {
+    if(isDownloadedNotifier.value) {
+      showPage(context, VideoPlayerPage(
+          video: this,
+          initialPosition: initialPosition
+      ));
+    }
+    else {
+      if(await hasInternetConnection()) {
+        showPage(context, VideoPlayerPage(
+            video: this,
+            initialPosition: initialPosition
+        ));
+      }
+      else {
+        showNoConnectionDialog(context);
+      }
+    }
+  }
 }
+
+class Subtitles {
+  final int subtitleId;
+  final int videoId;
+  String? checkSum;
+  String? timeStamp;
+  String? mepsLanguage;
+  String? filePath;
+
+  Subtitles({
+    this.subtitleId = -1,
+    this.videoId = -1,
+    this.checkSum,
+    this.timeStamp,
+    this.mepsLanguage,
+    this.filePath,
+  });
+
+  factory Subtitles.fromJson(Map<String, dynamic> json) {
+    return Subtitles(
+      subtitleId: json['SubtitleId'] ?? -1,
+      videoId: json['VideoId'] ?? -1,
+      checkSum: json['Checksum'],
+      timeStamp: json['ModifiedDateTime'],
+      mepsLanguage: json['MepsLanguage'],
+      filePath: json['FilePath'],
+    );
+  }
+}
+

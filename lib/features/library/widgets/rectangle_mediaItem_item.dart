@@ -1,21 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:jwlife/core/utils/utils.dart';
+import 'package:jwlife/data/models/media.dart';
 
 import '../../../core/icons.dart';
 import '../../../core/utils/utils_audio.dart';
 import '../../../core/utils/utils_video.dart';
+import '../../../data/models/audio.dart';
+import '../../../data/models/video.dart';
 import '../../../data/realm/catalog.dart';
+import '../../../data/repositories/MediaRepository.dart';
 import '../../../widgets/image_cached_widget.dart';
 
 class RectangleMediaItemItem extends StatelessWidget {
-  final MediaItem media;
+  final Media media;
 
   const RectangleMediaItemItem({super.key, required this.media});
 
   @override
   Widget build(BuildContext context) {
-    MediaItem mediaItem = media;
-    bool isAudio = mediaItem.type == "AUDIO";
+    final m = MediaRepository().getMedia(media);
 
     return Material(
       color: Theme.of(context).brightness == Brightness.dark
@@ -23,12 +26,7 @@ class RectangleMediaItemItem extends StatelessWidget {
           : Colors.white,
       child: InkWell(
         onTap: () {
-          if (isAudio) {
-            showAudioPlayer(context, mediaItem);
-          }
-          else {
-            showFullScreenVideo(context, mediaItem);
-          }
+          m.showPlayer(context);
         },
         child: SizedBox(
           height: 80,
@@ -39,7 +37,7 @@ class RectangleMediaItemItem extends StatelessWidget {
                   ClipRRect(
                     borderRadius: BorderRadius.circular(2.0),
                     child: ImageCachedWidget(
-                      imageUrl: mediaItem.realmImages?.squareImageUrl ?? mediaItem.realmImages?.squareFullSizeImageUrl,
+                      imageUrl: m.networkImageSqr,
                       pathNoImage: "pub_type_video",
                       height: 80,
                       width: 80,
@@ -53,14 +51,14 @@ class RectangleMediaItemItem extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            mediaItem.title!,
+                            m.title,
                             style: const TextStyle(fontSize: 14),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                           ),
                           const Spacer(),
                           Text(
-                            '${formatDateTime(mediaItem.firstPublished!).year} - ${mediaItem.pubSymbol}',
+                            '${formatDateTime(m.lastModified!).year} - ${m.keySymbol}',
                             style: TextStyle(
                               fontSize: 11,
                               color: Theme.of(context).brightness == Brightness.dark
@@ -87,22 +85,22 @@ class RectangleMediaItemItem extends StatelessWidget {
                       0.5,
                     ),
                     icon: const Icon(Icons.more_vert, color: Color(0xFF9d9d9d)),
-                    itemBuilder: (context) => isAudio ?  [
-                      getAudioShareItem(mediaItem),
-                      getAudioLanguagesItem(context, mediaItem),
-                      getAudioFavoriteItem(mediaItem),
-                      getAudioDownloadItem(context, mediaItem),
-                      getAudioLyricsItem(context, mediaItem),
-                      getCopyLyricsItem(mediaItem)
+                    itemBuilder: (context) => m is Audio ? [
+                      getAudioShareItem(m),
+                      getAudioLanguagesItem(context, m),
+                      getAudioFavoriteItem(m),
+                      getAudioDownloadItem(context, m),
+                      getAudioLyricsItem(context, m),
+                      getCopyLyricsItem(m)
                     ]
-                    : [
-                      getVideoShareItem(mediaItem),
-                      getVideoLanguagesItem(context, mediaItem),
-                      getVideoFavoriteItem(mediaItem),
-                      getVideoDownloadItem(context, mediaItem),
-                      getShowSubtitlesItem(context, mediaItem),
-                      getCopySubtitlesItem(context, mediaItem),
-                    ],
+                    : m is Video ? [
+                      getVideoShareItem(m),
+                      getVideoLanguagesItem(context, m),
+                      getVideoFavoriteItem(m),
+                      getVideoDownloadItem(context, m),
+                      getShowSubtitlesItem(context, m),
+                      getCopySubtitlesItem(context, m),
+                    ] : [],
                   ),
                 )
               ),
@@ -116,13 +114,13 @@ class RectangleMediaItemItem extends StatelessWidget {
                   child: Row(
                     children: [
                       Icon(
-                        isAudio ? JwIcons.headphones__simple : JwIcons.play,
+                        m is Audio ? JwIcons.headphones__simple : JwIcons.play,
                         size: 10,
                         color: Colors.white,
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        formatDuration(mediaItem.duration ?? 0),
+                        formatDuration(m.duration),
                         style: const TextStyle(color: Colors.white, fontSize: 9),
                       ),
                     ],
@@ -130,12 +128,11 @@ class RectangleMediaItemItem extends StatelessWidget {
                 ),
               ),
 
-              /*
               Stack(
                 children: [
                   // Éléments dynamiques en fonction de l'état
                   ValueListenableBuilder<bool>(
-                    valueListenable: MediaItem.isDownloadingNotifier,
+                    valueListenable: media.isDownloadingNotifier,
                     builder: (context, isDownloading, _) {
                       if (isDownloading) {
                         return Positioned(
@@ -144,19 +141,19 @@ class RectangleMediaItemItem extends StatelessWidget {
                           height: 40,
                           child: IconButton(
                             padding: EdgeInsets.zero,
-                            onPressed: () => MediaItem.cancelDownload(context),
+                            onPressed: () => media.cancelDownload(context),
                             icon: const Icon(JwIcons.x, color: Color(0xFF9d9d9d)),
                           ),
                         );
                       }
 
                       return ValueListenableBuilder<bool>(
-                        valueListenable: MediaItem.isDownloadedNotifier,
+                        valueListenable: media.isDownloadedNotifier,
                         builder: (context, isDownloaded, _) {
                           return ValueListenableBuilder<bool>(
-                            valueListenable: MediaItem.isFavoriteNotifier,
+                            valueListenable: media.isFavoriteNotifier,
                             builder: (context, isFavorite, _) {
-                              final hasUpdate = MediaItem.hasUpdate();
+                              final hasUpdate = media.hasUpdate();
 
                               if (!isDownloaded) {
                                 // Nuage de téléchargement + taille
@@ -168,23 +165,8 @@ class RectangleMediaItemItem extends StatelessWidget {
                                       height: 40,
                                       child: IconButton(
                                         padding: EdgeInsets.zero,
-                                        onPressed: () => MediaItem.download(context),
+                                        onPressed: () => media.download(context),
                                         icon: const Icon(JwIcons.cloud_arrow_down, color: Color(0xFF9d9d9d)),
-                                      ),
-                                    ),
-                                    Positioned(
-                                      bottom: 0,
-                                      right: -5,
-                                      width: 50,
-                                      child: Text(
-                                        textAlign: TextAlign.center,
-                                        formatFileSize(MediaItem.expandedSize),
-                                        style: TextStyle(
-                                          fontSize: 11,
-                                          color: Theme.of(context).brightness == Brightness.dark
-                                              ? const Color(0xFFc3c3c3)
-                                              : const Color(0xFF626262),
-                                        ),
                                       ),
                                     ),
                                   ],
@@ -200,23 +182,8 @@ class RectangleMediaItemItem extends StatelessWidget {
                                       height: 40,
                                       child: IconButton(
                                         padding: EdgeInsets.zero,
-                                        onPressed: () => MediaItem.update(context),
+                                        onPressed: () => media.download(context),
                                         icon: const Icon(JwIcons.arrows_circular, color: Color(0xFF9d9d9d)),
-                                      ),
-                                    ),
-                                    Positioned(
-                                      bottom: 0,
-                                      right: -5,
-                                      width: 50,
-                                      child: Text(
-                                        textAlign: TextAlign.center,
-                                        formatFileSize(MediaItem.expandedSize),
-                                        style: TextStyle(
-                                          fontSize: 11,
-                                          color: Theme.of(context).brightness == Brightness.dark
-                                              ? const Color(0xFFc3c3c3)
-                                              : const Color(0xFF626262),
-                                        ),
                                       ),
                                     ),
                                   ],
@@ -246,7 +213,7 @@ class RectangleMediaItemItem extends StatelessWidget {
 
                   // Barre de progression
                   ValueListenableBuilder<bool>(
-                    valueListenable: MediaItem.isDownloadingNotifier,
+                    valueListenable: media.isDownloadingNotifier,
                     builder: (context, isDownloading, _) {
                       if (!isDownloading) return const SizedBox.shrink();
                       return Positioned(
@@ -255,7 +222,7 @@ class RectangleMediaItemItem extends StatelessWidget {
                         height: 2,
                         width: 302,
                         child: ValueListenableBuilder<double>(
-                          valueListenable: MediaItem.progressNotifier,
+                          valueListenable: media.progressNotifier,
                           builder: (context, progress, _) {
                             return LinearProgressIndicator(
                               value: progress == -1 ? null : progress,
@@ -272,8 +239,6 @@ class RectangleMediaItemItem extends StatelessWidget {
                   ),
                 ],
               ),
-
-               */
             ],
           ),
         ),

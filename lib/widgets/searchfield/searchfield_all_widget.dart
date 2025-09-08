@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart' hide Category;
 import 'package:flutter/material.dart';
 import 'package:jwlife/app/services/global_key_service.dart';
+import 'package:jwlife/data/models/media.dart';
 import 'package:jwlife/widgets/searchfield/searchfield_with_suggestions/decoration.dart';
 import 'package:jwlife/widgets/searchfield/searchfield_with_suggestions/input_decoration.dart';
 import 'package:jwlife/widgets/searchfield/searchfield_with_suggestions/searchfield.dart';
@@ -20,6 +21,8 @@ import '../../core/utils/utils_audio.dart';
 import '../../core/utils/utils_document.dart';
 import '../../core/utils/utils_video.dart';
 import '../../data/databases/catalog.dart';
+import '../../data/models/audio.dart';
+import '../../data/models/video.dart';
 import '../../data/realm/catalog.dart';
 import '../../data/realm/realm_library.dart';
 import '../../data/repositories/PublicationRepository.dart';
@@ -241,19 +244,34 @@ class _SearchFieldAllState extends State<SearchFieldAll> {
 
     if (requestId == _latestRequestId) {
       for (final media in medias.take(10)) {
+
         final category = RealmLibrary.realm
             .all<Category>()
             .query(r"key == $0", [media.primaryCategory ?? ''])
             .firstOrNull;
 
-        newSuggestions.add(SuggestionItem(
-          type: 5,
-          query: media,
-          caption: media.title.toString(),
-          icon: media.realmImages?.squareImageUrl ?? '',
-          subtitle: category?.localizedName ?? '',
-          label: media.type == 'AUDIO' ? 'Audio' : 'Vidéo',
-        ));
+        if(media.type == 'AUDIO') {
+          Audio audio = Audio.fromJson(mediaItem: media);
+          newSuggestions.add(SuggestionItem(
+            type: 5,
+            query: media,
+            caption: audio.title,
+            icon: audio.networkImageSqr,
+            subtitle: category?.localizedName ?? '',
+            label: 'Audio',
+          ));
+        }
+        else {
+          Video video = Video.fromJson(mediaItem: media);
+          newSuggestions.add(SuggestionItem(
+            type: 5,
+            query: video,
+            caption: video.title,
+            icon: video.networkImageSqr,
+            subtitle: category?.localizedName ?? '',
+            label: 'Vidéo',
+          ));
+        }
       }
     }
 
@@ -286,9 +304,7 @@ class _SearchFieldAllState extends State<SearchFieldAll> {
         }
         break;
       case 5:
-        selected.label == 'Audio'
-            ? showAudioPlayer(context, selected.query)
-            : showFullScreenVideo(context, selected.query);
+        selected.query.showPlayer(context);
         break;
       default:
         showPage(context, SearchPage(query: selected.query));

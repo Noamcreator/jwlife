@@ -2,32 +2,26 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:jwlife/app/jwlife_page.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
-import 'package:jwlife/core/utils/utils_video.dart';
-import 'package:jwlife/data/models/video.dart';
-import 'package:jwlife/data/realm/catalog.dart';
+import 'package:jwlife/data/models/video.dart' hide Subtitles;
 import 'package:jwlife/features/video/subtitles.dart';
 import 'package:jwlife/features/video/video_player_page.dart';
 
-import '../../app/services/global_key_service.dart';
-import '../../app/services/settings_service.dart';
 import '../../core/api/api.dart';
 
 class SubtitlesPage extends StatefulWidget {
-  final MediaItem? mediaItem;
+  final Video? video;
   final String query;
-  final Video? localVideo;
 
-  const SubtitlesPage({super.key, this.mediaItem, this.query="", this.localVideo});
+  const SubtitlesPage({super.key, this.video, this.query=""});
 
   @override
   _SubtitlesPageState createState() => _SubtitlesPageState();
 }
 
 class _SubtitlesPageState extends State<SubtitlesPage> {
-  Subtitles _subtitles = Subtitles(); // Direct list initialization
+  final Subtitles _subtitles = Subtitles(); // Direct list initialization
   dynamic _mediaData = {};
   List<Subtitle> _searchResults = [];
 
@@ -37,22 +31,22 @@ class _SubtitlesPageState extends State<SubtitlesPage> {
   @override
   void initState() {
     super.initState();
-    if(widget.localVideo != null) {
-      fetchLocalSubtitles(widget.localVideo!); // Fetch subtitles when the page initializes
+    if(widget.video!.isDownloadedNotifier.value) {
+      fetchLocalSubtitles(widget.video!); // Fetch subtitles when the page initializes
     }
     else {
       fetchOnlineSubtitles(); // Fetch subtitles when the page initializes
     }
   }
 
-  void fetchLocalSubtitles(dynamic localVideo) async {
-    File file = File(localVideo['SubtitleFilePath']);
+  void fetchLocalSubtitles(Video localVideo) async {
+    File file = File(localVideo.subtitlesFilePath);
     await _subtitles.loadSubtitlesFromFile(file);
     _loadSubtitles();
   }
 
   void fetchOnlineSubtitles() async {
-    String link = 'https://b.jw-cdn.org/apis/mediator/v1/media-items/${widget.mediaItem!.languageSymbol}/${widget.mediaItem!.languageAgnosticNaturalKey}';
+    String link = 'https://b.jw-cdn.org/apis/mediator/v1/media-items/${widget.video!.mepsLanguage}/${widget.video!.naturalKey}';
 
     final response = await Api.httpGetWithHeaders(link);
     if (response.statusCode == 200) {
@@ -148,7 +142,7 @@ class _SubtitlesPageState extends State<SubtitlesPage> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            widget.mediaItem != null ? Text(widget.mediaItem!.title!, style: const TextStyle(fontSize: 18.0)) : Container(),
+            widget.video != null ? Text(widget.video!.title!, style: const TextStyle(fontSize: 18.0)) : Container(),
             const Text('Sous-titres', style: TextStyle(fontSize: 12.0)),
           ],
         ),
@@ -176,13 +170,11 @@ class _SubtitlesPageState extends State<SubtitlesPage> {
           final subtitle = _searchResults[index];
           return GestureDetector(
             onTap: () {
-              //GlobalKeyService.jwLifePageKey.currentState!.toggleNavBarBlack(true);
-              if (widget.localVideo != null) {
-                MediaItem? mediaItem = getMediaItem(widget.localVideo!.keySymbol, widget.localVideo!.track, widget.localVideo!.documentId, widget.localVideo!.issueTagNumber, JwLifeSettings().currentLanguage.id);
-                showPage(context, VideoPlayerPage(mediaItem: mediaItem!, localVideo: widget.localVideo, initialPosition: subtitle.startTime));
+              if (widget.video!.isDownloadedNotifier.value) {
+                showPage(context, VideoPlayerPage(video: widget.video!, initialPosition: subtitle.startTime));
               }
               else {
-                showPage(context, VideoPlayerPage(mediaItem: widget.mediaItem!, onlineVideo: _mediaData, initialPosition: subtitle.startTime));
+                showPage(context, VideoPlayerPage(video: widget.video!, onlineVideo: _mediaData, initialPosition: subtitle.startTime));
               }
             },
             child: Center( // Centrer horizontalement le texte

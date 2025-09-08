@@ -2881,10 +2881,10 @@ function createOptionsMenu(noteGuid, popup, isDark) {
                     // On ajoute une propriété 'label' pour les messages d'erreur.
                     const tabsDefinition = [
                         { key: 'commentary', iconClass: 'jwi-bible-speech-balloon', label: "commentaire" },
-                        { key: 'versions', iconClass: 'jwi-bible-comparison', label: "versions" },
                         { key: 'guide', iconClass: 'jwi-publications-pile', label: "guide" },
                         { key: 'footnotes', iconClass: 'jwi-bible-quote', label: "notes de bas de page" },
                         { key: 'notes', iconClass: 'jwi-text-pencil', label: "notes personnelles" },
+                        { key: 'versions', iconClass: 'jwi-bible-comparison', label: "versions" },
                     ];
         
                     // 1. Filtrer les onglets pour n'afficher que ceux qui ont du contenu.
@@ -2970,6 +2970,7 @@ function createOptionsMenu(noteGuid, popup, isDark) {
                         if (Array.isArray(items) && items.length > 0) {
                             items.forEach((item) => {
                                 const articleDiv = document.createElement('div');
+                                articleDiv.id = 'verse-info-dialog-id';
                                 let contentHtml = '';
         
                                 // Le rendu du contenu varie selon l'onglet 'notes'.
@@ -2980,7 +2981,16 @@ function createOptionsMenu(noteGuid, popup, isDark) {
                                             <p>\${item.Content}</p>
                                         </article>
                                     `;
-                                } else {
+                                } 
+                                else if (key === 'guide') {
+                                  articleDiv.id = 'verse-info-dialog-guide-id';
+                                  contentHtml = `
+                                        <article id="verse-info-dialog" class="\${item.className || ''}">
+                                            \${item.content}
+                                        </article>
+                                  `;
+                                }
+                                else {
                                     contentHtml = `
                                         <article id="verse-info-dialog" class="\${item.className || ''}">
                                             \${item.content}
@@ -2989,11 +2999,12 @@ function createOptionsMenu(noteGuid, popup, isDark) {
                                 }
                                 articleDiv.innerHTML = contentHtml;
                                 articleDiv.addEventListener('click', async (event) => {
-                                    onClickOnPage(article, event.target);
+                                    onClickOnPage(articleDiv, event.target);
                                 });
                                 dynamicContent.appendChild(articleDiv);
                             });
-                        } else {
+                        } 
+                        else {
                             // Cas où l'onglet est vide (cela ne devrait plus arriver avec le filtrage initial)
                             // mais on garde la logique de message vide par sécurité.
                             const emptyMessage = tabsDefinition.find(t => t.key === key)?.label || "Contenu";
@@ -4235,14 +4246,27 @@ function createOptionsMenu(noteGuid, popup, isDark) {
                 closeToolbar();
                 return;
               }
-      
-              if(href.startsWith('jwpub://p/')) {
-                const extract = await window.flutter_inappwebview.callHandler('fetchExtractPublication', href);
-                if (extract != null) {
-                  showExtractPublicationDialog(article, extract);
-                  closeToolbar();
-                }
-                return;
+              
+              if(href.startsWith('jwpub://p/')) { 
+                  if(article.id === 'verse-info-dialog-guide-id') { 
+                      const dataXtId = matchedElement.getAttribute('data-xtid'); 
+              
+                      if (dataXtId) { 
+                          const extract = await window.flutter_inappwebview.callHandler('fetchGuideVerse', dataXtId); 
+              
+                          if(extract != null) { 
+                              showExtractPublicationDialog(article, extract); 
+                              closeToolbar(); 
+                          } 
+                      } 
+                  } else { 
+                      const extract = await window.flutter_inappwebview.callHandler('fetchExtractPublication', href); 
+                      if (extract != null) { 
+                          showExtractPublicationDialog(article, extract); 
+                          closeToolbar(); 
+                      } 
+                  } 
+                  return; 
               }
               
               if(href.startsWith('jwpub://c/')) {

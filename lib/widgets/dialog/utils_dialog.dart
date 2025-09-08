@@ -231,9 +231,7 @@ Future<void> showNoConnectionDialog(BuildContext context) async {
     buttons: [
       JwDialogButton(
         label: 'OK',
-        onPressed: (buildContext) {
-          Navigator.of(buildContext).pop();
-        },
+        closeDialog: true,
       ),
       JwDialogButton(
         label: 'PARAMÈTRES',

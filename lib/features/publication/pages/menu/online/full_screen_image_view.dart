@@ -5,6 +5,8 @@ import 'package:jwlife/data/realm/catalog.dart';
 import 'package:jwlife/data/realm/realm_library.dart';
 import 'package:realm/realm.dart';
 
+import '../../../../../data/models/video.dart';
+
 class FullScreenImageView extends StatefulWidget {
   final List<Map<String, String>> images;
   final Map<String, String> image;
@@ -79,7 +81,10 @@ class _FullScreenImageViewState extends State<FullScreenImageView> {
                           String lang = uri.queryParameters['wtlocale']!;
 
                           MediaItem mediaItem = getMediaItemFromLank(lank, lang);
-                          showFullScreenVideo(context, mediaItem);
+                          if(mediaItem != null) {
+                            Video video = Video.fromJson(mediaItem: mediaItem);
+                            video.showPlayer(context);
+                          }
                         },
                         child: Icon(
                           JwIcons.play_circle, // Icône de lecture

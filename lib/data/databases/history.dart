@@ -8,6 +8,7 @@ import 'package:jwlife/core/utils/utils_database.dart';
 import 'package:jwlife/core/utils/utils_document.dart';
 import 'package:jwlife/core/utils/utils_video.dart';
 import 'package:jwlife/data/models/publication_category.dart';
+import 'package:jwlife/data/models/video.dart';
 import 'package:jwlife/data/realm/catalog.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:jwlife/core/utils/files_helper.dart';
@@ -178,14 +179,14 @@ class History {
     await db.close();
   }
 
-  static Future<void> insertVideo(MediaItem mediaItem) async {
+  static Future<void> insertVideo(Video video) async {
     final db = await getHistoryDb();
 
-    String? keySymbol = mediaItem.pubSymbol;
-    int? track = mediaItem.track;
-    int? documentId = mediaItem.documentId;
-    int? issueTagNumber = mediaItem.issueDate;
-    String? displayTitle = mediaItem.title;
+    String? keySymbol = video.keySymbol;
+    int? track = video.track;
+    int? documentId = video.documentId;
+    int? issueTagNumber = video.issueTagNumber;
+    String? displayTitle = video.title;
     int mepsLanguageId = JwLifeSettings().currentLanguage.id;
 
     String whereClause = "Type = ?";
@@ -246,14 +247,14 @@ class History {
     await db.close();
   }
 
-  static Future<void> insertAudioMediaItem(MediaItem mediaItem) async {
+  static Future<void> insertAudioMediaItem(Audio audio) async {
     final db = await getHistoryDb();
 
-    String? keySymbol = mediaItem.pubSymbol;
-    int? track = mediaItem.track;
-    int? documentId = mediaItem.documentId;
-    int? issueTagNumber = mediaItem.issueDate;
-    String? displayTitle = mediaItem.title;
+    String? keySymbol = audio.keySymbol;
+    int? track = audio.track;
+    int? documentId = audio.documentId;
+    int? issueTagNumber = audio.issueTagNumber;
+    String? displayTitle = audio.title;
     int mepsLanguageId = JwLifeSettings().currentLanguage.id;
 
     String whereClause = "Type = ?";
@@ -477,7 +478,8 @@ class History {
                                 );
                                 printTime("mediaItem: ${mediaItem!.title}");
 
-                                showFullScreenVideo(mainContext, mediaItem);
+                                Video video = Video.fromJson(mediaItem: mediaItem);
+                                video.showPlayer(mainContext);
                               }
                               else if (item["Type"] == "audio") {
                                 MediaItem? mediaItem = getAudioItem(
@@ -487,7 +489,9 @@ class History {
                                   item["IssueTagNumber"],
                                   item["MepsLanguageId"],
                                 );
-                                showAudioPlayer(mainContext, mediaItem!);
+
+                                Audio audio = Audio.fromJson(mediaItem: mediaItem);
+                                audio.showPlayer(mainContext);
                               }
                               else if (item["Type"] == "chapter") {
                                 printTime("item: $item");

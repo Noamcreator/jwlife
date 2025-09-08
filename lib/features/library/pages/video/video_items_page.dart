@@ -10,6 +10,9 @@ import 'package:jwlife/data/realm/realm_library.dart';
 import 'package:jwlife/widgets/dialog/language_dialog.dart';
 import 'package:jwlife/widgets/image_cached_widget.dart';
 
+import '../../../../data/models/audio.dart';
+import '../../../../data/models/media.dart';
+import '../../../../data/models/video.dart';
 import '../../../../widgets/mediaitem_item_widget.dart';
 import '../../../../widgets/searchfield/searchfield_widget.dart';
 
@@ -217,8 +220,10 @@ class _VideoItemsPageState extends State<VideoItemsPage> {
                         .query("naturalKey == '$mediaKey'")
                         .first;
 
+                    Media media = mediaItem.type == 'AUDIO' ? Audio.fromJson(mediaItem: mediaItem) : Video.fromJson(mediaItem: mediaItem);
+
                     return MediaItemItemWidget(
-                      mediaItem: mediaItem,
+                      media: media,
                         timeAgoText: false
                     );
                   },

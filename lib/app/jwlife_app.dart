@@ -33,6 +33,10 @@ import 'package:realm/realm.dart';
 import '../core/shared_preferences/shared_preferences_utils.dart';
 import '../core/utils/common_ui.dart';
 import '../data/databases/tiles_cache.dart';
+import '../data/models/audio.dart';
+import '../data/models/media.dart';
+import '../data/models/video.dart';
+import '../data/repositories/MediaRepository.dart';
 import '../data/repositories/PublicationRepository.dart';
 import '../features/audio/audio_player_model.dart';
 import '../features/bible/pages/local_bible_chapter.dart';
@@ -293,10 +297,12 @@ class JwLifeAppState extends State<JwLifeApp> {
 
         GlobalKeyService.jwLifePageKey.currentState!.changeNavBarIndex(0);
         if(mediaItem.type == 'AUDIO') {
-          showAudioPlayer(ctx, mediaItem, initialPosition: startTime);
+          Audio audio = Audio.fromJson(mediaItem: mediaItem);
+          audio.showPlayer(context, initialPosition: startTime);
         }
         else {
-          showFullScreenVideo(ctx, mediaItem, initialPosition: startTime);
+          Video video = Video.fromJson(mediaItem: mediaItem);
+          video.showPlayer(context, initialPosition: startTime);
         }
       }
       else if (uri.isDailyText) {

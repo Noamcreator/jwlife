@@ -58,6 +58,7 @@ class HomeSquarePublicationItem extends StatelessWidget {
                     )
                   )
                 ),
+
                 // Bouton dynamique
                 ValueListenableBuilder<bool>(
                   valueListenable: publication.isDownloadingNotifier,

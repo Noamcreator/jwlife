@@ -464,7 +464,7 @@ class HomePageState extends State<HomePage> {
         'ContextTitle': contextTitle,
         'Title': title,
         'Description': description,
-        'Timestamp': DateTime.now().toString(),
+        'Timestamp': DateTime.now().toIso8601String(),
         'Link': fullLink,
         'Content': '', // Ajouter contenu si besoin
         'ButtonText': buttonText,
@@ -490,6 +490,7 @@ class HomePageState extends State<HomePage> {
       'Title': article['Title'],
       'ContextTitle': article['ContextTitle'],
       'Description': article['Description'],
+      'Timestamp': article['Timestamp'],
       'Link': article['Link'],
       'Content': article['Content'],
       'ButtonText': article['ButtonText'],

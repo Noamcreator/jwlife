@@ -210,8 +210,42 @@ class Api {
       if (response.statusCode == 200 && response.data != null) {
         final data = response.data;
 
-        if (data.containsKey('files') && data['files'].containsKey(languageSymbol)) {
-          return data['files'][languageSymbol]['MP3'].map<Audio>((audio) => Audio.fromJson(audio, languageSymbol: languageSymbol)).toList();
+        List<Audio> audioList = [];
+
+        if (data.containsKey('files') && data['files'][languageSymbol] != null) {
+          final files = data['files'][languageSymbol];
+
+          if (files.containsKey('MP3') && files['MP3'] is List) {
+            for (final audio in files['MP3']) {
+              if (audio.containsKey('file')) {
+                final file = audio['file'] as Map<String, dynamic>? ?? {};
+
+                final Map<String, dynamic> audioMap = {
+                  "KeySymbol": audio['pub'] ?? '',
+                  "DocumentId": audio['docid'] ?? '',
+                  "Track": audio['track'] ?? 0,
+                  "BookNumber": audio['booknum'] ?? 0,
+                  "Title": audio['title'] ?? '',
+                  "FileSize": audio['filesize'] ?? 0,
+                  "FileUrl": file['url'] ?? '',
+                  "ModifiedDateTime": file['modifiedDatetime'] ?? '',
+                  "Markers": audio['markers']['markers'] ?? [],
+                  "Version": 1,
+                  "MimeType": audio['mimetype'] ?? '',
+                  "BitRate": audio['bitRate'] ?? 0,
+                  "Duration": audio['duration'] ?? 0,
+                  "Checksum": file['checksum'] ?? '',
+                  "Source": 0,
+                };
+
+                audioList.add(Audio.fromJson(
+                  json: audioMap,
+                  languageSymbol: languageSymbol,
+                ));
+              }
+            }
+          }
+          return audioList;
         }
       }
 

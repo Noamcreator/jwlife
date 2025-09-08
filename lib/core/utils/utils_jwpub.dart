@@ -75,7 +75,7 @@ Future<Publication?> downloadJwpubFile(Publication publication, BuildContext con
 
 Future<Publication> jwpubUnzip(Uint8List bytes, {Publication? publication, bool update = false}) async {
   if(update && publication != null) {
-    await removeJwpubFile(publication);
+    await removePublication(publication);
   }
 
   // Décoder l'archive principale
@@ -111,7 +111,7 @@ Future<Publication> jwpubUnzip(Uint8List bytes, {Publication? publication, bool 
   return await JwLifeApp.pubCollections.insertPublicationFromManifest(manifestData, destinationDir.path, publication: publication);
 }
 
-Future<void> removeJwpubFile(Publication pub) async {
+Future<void> removePublication(Publication pub) async {
   Directory path = Directory(pub.path!);
   if (await path.exists()) {
     try {

@@ -7,6 +7,7 @@ import 'package:jwlife/features/video/video_player_page.dart';
 
 import '../../app/services/global_key_service.dart';
 import '../../data/models/publication.dart';
+import '../../features/audio/audio_player_widget.dart';
 import '../../features/image/image_page.dart';
 
 Future<void> showPageDocument(BuildContext context, Publication publication, int mepsDocumentId, {int? startParagraphId, int? endParagraphId, String? textTag, List<String>? wordsSelected}) async {
@@ -56,7 +57,8 @@ Future<void> showPage(BuildContext context, Widget page) async {
       page is FullScreenImagePage ||
       page is ImagePage ||
       page is DocumentPage ||
-      page is DailyTextPage;
+      page is DailyTextPage ||
+      page is FullAudioView;
 
   GlobalKeyService.jwLifePageKey.currentState!.toggleNavBarDisable(isFullscreenPage);
 
@@ -141,36 +143,36 @@ void showBottomMessageWithActionState(ScaffoldMessengerState messenger, bool isD
 void showBottomMessageWithAction(BuildContext context, String message, SnackBarAction? action) {
   bool isDark = Theme.of(context).brightness == Brightness.dark;
   final isAudioPlayerWidget = GlobalKeyService.jwLifePageKey.currentState!.audioWidgetVisible;
-  final bottomPadding = GlobalKeyService.jwLifePageKey.currentState!.navBarIsDisable[GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex] ? (isAudioPlayerWidget ? 140.0 : 70.0) : 0.0;
+  final bottomPadding = GlobalKeyService.jwLifePageKey.currentState!.navBarIsDisable[GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex] ? (isAudioPlayerWidget ? 140.0 : 80.0) : 0.0;
+  final horizontalMargin = 10.0; // marge à gauche/droite
+  final bottomMargin = bottomPadding + 10.0; // décalage du bas
+
   ScaffoldMessenger.of(context).clearSnackBars();
-  ScaffoldMessenger.of(context).showSnackBar(
+  ScaffoldFeatureController controller = ScaffoldMessenger.of(context).showSnackBar(
     SnackBar(
       action: action,
       duration: const Duration(seconds: 1),
-      content: Text(message, style: TextStyle(color: isDark ? Colors.black : Colors.white, fontSize: 15)),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10.0),
+      content: Text(
+        message,
+        style: TextStyle(color: isDark ? Colors.black : Colors.white, fontSize: 15),
       ),
-      margin: EdgeInsets.only(bottom: bottomPadding),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12.0), // coins arrondis pour flotter
+      ),
+      margin: EdgeInsets.fromLTRB(horizontalMargin, 0, horizontalMargin, bottomMargin),
       behavior: SnackBarBehavior.floating,
       backgroundColor: isDark ? Color(0xFFf1f1f1) : Color(0xFF3c3c3c),
     ),
   );
-}
 
-/*
-void showBottomMessage(BuildContext context, String message) {
-  if(FirebaseAuth.instance.currentUser != null) { // si l'utilisateur n'est pas connecté, ne pas afficher le message
-    showBottomMessageWithAction(context, message, null);
-  }
+  Future.delayed(Duration(seconds: 2), () {
+    controller.close(); // force la fermeture
+  });
 }
-
- */
 
 void showBottomMessage(BuildContext context, String message) {
   showBottomMessageWithAction(context, message, null);
 }
-
 
 Future<void> showErrorDialog(BuildContext context, String message) {
   return showDialog<void>(

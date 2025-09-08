@@ -45,10 +45,8 @@ class TilesCache {
     }
   }
 
-  Tile? getImagePath(String imageUrl, String filename) {
-    return tiles.firstWhereOrNull(
-          (tile) => tile.fileName.toLowerCase() == filename.toLowerCase(),
-    );
+  Tile? getImagePath(String filename) {
+    return tiles.firstWhereOrNull((tile) => tile.fileName.toLowerCase() == filename.toLowerCase());
   }
 
   Future<void> _addImageToDatabase(String filename, File file) async {
@@ -86,7 +84,7 @@ class TilesCache {
     String filename = basename(imageUrl);
 
     if (imageUrl.startsWith('https')) {
-      Tile? existingPath = getImagePath(imageUrl, filename);
+      Tile? existingPath = getImagePath(filename);
 
       if (existingPath != null) {
         return existingPath;

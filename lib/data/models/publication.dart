@@ -1,5 +1,5 @@
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:dio/dio.dart';
 import 'package:async/async.dart';
 import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
@@ -99,18 +99,16 @@ class Publication {
     this.imageLsr,
     this.networkImageSqr,
     this.networkImageLsr,
-
-    ValueNotifier<double>? progressNotifier,
-    ValueNotifier<bool>? isDownloadingNotifier,
-    ValueNotifier<bool>? isDownloadedNotifier,
-    ValueNotifier<bool>? isFavoriteNotifier,
-
     this.hash,
     this.timeStamp,
     this.path,
     this.databasePath,
     this.hasTopics = false,
     this.hasCommentary = false,
+    ValueNotifier<double>? progressNotifier,
+    ValueNotifier<bool>? isDownloadingNotifier,
+    ValueNotifier<bool>? isDownloadedNotifier,
+    ValueNotifier<bool>? isFavoriteNotifier
   }) : progressNotifier = progressNotifier ?? ValueNotifier(0.0),
         isDownloadingNotifier = isDownloadingNotifier ?? ValueNotifier(false),
         isDownloadedNotifier = isDownloadedNotifier ?? ValueNotifier(false),
@@ -148,7 +146,7 @@ class Publication {
 
     // Sinon, en créer une nouvelle
     Publication publication = Publication(
-      id: json['Id'] ?? json['PublicationId'] ?? 0,
+      id: json['Id'] ?? json['PublicationId'] ?? -1,
       mepsLanguage: json['LanguageSymbol'] != null ? MepsLanguage(id: json['MepsLanguageId'], symbol: json['LanguageSymbol'], vernacular: json['LanguageVernacularName'], primaryIetfCode: json['LanguagePrimaryIetfCode'], isSignLanguage: json['IsSignLanguage'] == 1) : JwLifeSettings().currentLanguage,
       title: json['Title'] ?? '',
       issueTitle: json['IssueTitle'] ?? '',
@@ -182,8 +180,6 @@ class Publication {
       hasTopics: json['TopicSearch'] == 1,
       hasCommentary: json['VerseCommentary'] == 1,
 
-      progressNotifier: ValueNotifier(0.0),
-      isDownloadingNotifier: ValueNotifier(false),
       isDownloadedNotifier: ValueNotifier(json['Hash'] != null && json['DatabasePath'] != null && json['Path'] != null),
       isFavoriteNotifier: ValueNotifier(isFavorite ?? JwLifeApp.userdata.favorites.any((p) => p is Publication && (p.symbol == symbol && p.mepsLanguage.id == mepsLanguageId && p.issueTagNumber == issueTagNumber))),
     );
@@ -211,53 +207,58 @@ class Publication {
   }
 
   Future<void> download(BuildContext context) async {
-    if (!isDownloadingNotifier.value) {
-      isDownloadingNotifier.value = true;
-      progressNotifier.value = 0;
+    if(await hasInternetConnection()) {
+      if (!isDownloadingNotifier.value) {
+        isDownloadingNotifier.value = true;
+        progressNotifier.value = 0;
 
-      final cancelToken = CancelToken();
-      _cancelToken = cancelToken;
+        final cancelToken = CancelToken();
+        _cancelToken = cancelToken;
 
-      _downloadOperation = CancelableOperation.fromFuture(
-        downloadJwpubFile(this, context, cancelToken, false),
-        onCancel: () {
-          isDownloadingNotifier.value = false;
-          isDownloadedNotifier.value = false;
-          progressNotifier.value = 0;
-          // Annuler la notification
-          NotificationService().cancelNotification(hashCode);
-        },
-      );
+        _downloadOperation = CancelableOperation.fromFuture(
+          downloadJwpubFile(this, context, cancelToken, false),
+          onCancel: () {
+            isDownloadingNotifier.value = false;
+            isDownloadedNotifier.value = false;
+            progressNotifier.value = 0;
+            // Annuler la notification
+            NotificationService().cancelNotification(hashCode);
+          },
+        );
 
-      Publication? pubDownloaded = await _downloadOperation!.valueOrCancellation();
+        Publication? pubDownloaded = await _downloadOperation!.valueOrCancellation();
 
-      if (pubDownloaded != null) {
-        isDownloadedNotifier.value = true;
+        if (pubDownloaded != null) {
+          isDownloadedNotifier.value = true;
 
-        if (category.id == 1) {
-          GlobalKeyService.bibleKey.currentState?.refreshBiblePage();
+          if (category.id == 1) {
+            GlobalKeyService.bibleKey.currentState?.refreshBiblePage();
+          }
+
+          progressNotifier.value = 1.0;
+
+          // Notification de fin avec bouton "Ouvrir"
+          await NotificationService().showCompletionNotification(
+              id: hashCode,
+              title: '✅ Téléchargement terminé',
+              body: getTitle(),
+              payload: JwOrgUri.publication(
+                  wtlocale: mepsLanguage.symbol,
+                  pub: symbol,
+                  issue: issueTagNumber
+              ).toString()
+          );
+        }
+        else {
+          // Téléchargement annulé ou échoué
+          await NotificationService().cancelNotification(hashCode);
         }
 
-        progressNotifier.value = 1.0;
-
-        // Notification de fin avec bouton "Ouvrir"
-        await NotificationService().showCompletionNotification(
-          id: hashCode,
-          title: '✅ Téléchargement terminé',
-          body: getTitle(),
-          payload: JwOrgUri.publication(
-            wtlocale: mepsLanguage.symbol,
-            pub: symbol,
-            issue: issueTagNumber
-          ).toString()
-        );
+        isDownloadingNotifier.value = false;
       }
-      else {
-        // Téléchargement annulé ou échoué
-        await NotificationService().cancelNotification(hashCode);
-      }
-
-      isDownloadingNotifier.value = false;
+    }
+    else {
+      showNoConnectionDialog(context);
     }
   }
 
@@ -272,53 +273,58 @@ class Publication {
   }
 
   Future<void> update(BuildContext context) async {
-    if (!isDownloadingNotifier.value) {
-      progressNotifier.value = -1;
-      isDownloadingNotifier.value = true;
-      isDownloadedNotifier.value = false;
+    if(await hasInternetConnection()) {
+      if (!isDownloadingNotifier.value) {
+        progressNotifier.value = -1;
+        isDownloadingNotifier.value = true;
+        isDownloadedNotifier.value = false;
 
-      final cancelToken = CancelToken();
-      _cancelToken = cancelToken;
+        final cancelToken = CancelToken();
+        _cancelToken = cancelToken;
 
-      _updateOperation = CancelableOperation.fromFuture(
-        downloadJwpubFile(this, context, cancelToken, true),
-        onCancel: () {
-          isDownloadingNotifier.value = false;
-          isDownloadedNotifier.value = false;
-          progressNotifier.value = 0;
-          // Annuler la notification
-          NotificationService().cancelNotification(hashCode);
-        },
-      );
+        _updateOperation = CancelableOperation.fromFuture(
+          downloadJwpubFile(this, context, cancelToken, true),
+          onCancel: () {
+            isDownloadingNotifier.value = false;
+            isDownloadedNotifier.value = false;
+            progressNotifier.value = 0;
+            // Annuler la notification
+            NotificationService().cancelNotification(hashCode);
+          },
+        );
 
-      Publication? pubDownloaded = await _updateOperation!.valueOrCancellation();
+        Publication? pubDownloaded = await _updateOperation!.valueOrCancellation();
 
-      if (pubDownloaded != null) {
-        isDownloadedNotifier.value = true;
+        if (pubDownloaded != null) {
+          isDownloadedNotifier.value = true;
 
-        if (category.id == 1) {
-          GlobalKeyService.bibleKey.currentState?.refreshBiblePage();
+          if (category.id == 1) {
+            GlobalKeyService.bibleKey.currentState?.refreshBiblePage();
+          }
+
+          progressNotifier.value = 1.0;
+
+          // ✅ Notification de fin avec bouton "Ouvrir" (comme dans download)
+          await NotificationService().showCompletionNotification(
+            id: hashCode,
+            title: '✅ Mise à jour terminée',
+            body: getTitle(),
+            payload: JwOrgUri.publication(
+              wtlocale: mepsLanguage.symbol,
+              pub: symbol,
+              issue: issueTagNumber,
+            ).toString(),
+          );
+        } else {
+          // Téléchargement annulé ou échoué
+          await NotificationService().cancelNotification(hashCode);
         }
 
-        progressNotifier.value = 1.0;
-
-        // ✅ Notification de fin avec bouton "Ouvrir" (comme dans download)
-        await NotificationService().showCompletionNotification(
-          id: hashCode,
-          title: '✅ Mise à jour terminée',
-          body: getTitle(),
-          payload: JwOrgUri.publication(
-            wtlocale: mepsLanguage.symbol,
-            pub: symbol,
-            issue: issueTagNumber,
-          ).toString(),
-        );
-      } else {
-        // Téléchargement annulé ou échoué
-        await NotificationService().cancelNotification(hashCode);
+        isDownloadingNotifier.value = false;
       }
-
-      isDownloadingNotifier.value = false;
+    }
+    else {
+      showNoConnectionDialog(context);
     }
   }
 
@@ -335,7 +341,7 @@ class Publication {
 
   Future<void> remove(BuildContext context) async {
     progressNotifier.value = -1;
-    await removeJwpubFile(this);
+    await removePublication(this);
 
     documentsManager = null;
     datedTextManager = null;

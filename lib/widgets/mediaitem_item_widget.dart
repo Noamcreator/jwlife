@@ -11,20 +11,23 @@ import '../core/utils/utils_audio.dart';
 import '../core/utils/utils_media.dart';
 import '../core/utils/utils_video.dart';
 import '../data/databases/tiles_cache.dart';
+import '../data/models/audio.dart';
+import '../data/models/media.dart';
 import '../data/models/tile.dart';
 import '../data/models/video.dart';
 import '../data/realm/catalog.dart';
+import '../data/repositories/MediaRepository.dart';
 import 'dialog/publication_dialogs.dart';
 import 'image_cached_widget.dart';
 
 class MediaItemItemWidget extends StatefulWidget {
-  final MediaItem mediaItem;
+  final Media media;
   final bool timeAgoText;
   final double width;
 
   const MediaItemItemWidget({
     super.key,
-    required this.mediaItem,
+    required this.media,
     required this.timeAgoText,
     this.width = 165,
   });
@@ -46,16 +49,13 @@ class _MediaItemItemWidgetState extends State<MediaItemItemWidget> {
   @override
   void didUpdateWidget(covariant MediaItemItemWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.mediaItem.naturalKey != oldWidget.mediaItem.naturalKey) {
+    if (widget.media.naturalKey != oldWidget.media.naturalKey) {
       _updateImageIfNeeded();
     }
   }
 
   void _updateImageIfNeeded() {
-    final images = widget.mediaItem.realmImages!;
-    final wideImageUrl = images.wideFullSizeImageUrl ?? images.wideImageUrl;
-    final squareImageUrl = images.squareFullSizeImageUrl ?? images.squareImageUrl;
-    final newImageUrl = wideImageUrl ?? squareImageUrl;
+    final newImageUrl = widget.media.networkImageLsr ?? widget.media.networkImageSqr;
 
     if (_imageUrl != newImageUrl) {
       _imageUrl = newImageUrl;
@@ -67,13 +67,13 @@ class _MediaItemItemWidgetState extends State<MediaItemItemWidget> {
     }
   }
 
-  bool get isAudio => widget.mediaItem.type == "AUDIO";
-
   @override
   Widget build(BuildContext context) {
+    final m = MediaRepository().getMedia(widget.media);
+
     return InkWell(
       onTap: () {
-        isAudio ? showAudioPlayer(context, widget.mediaItem) : showFullScreenVideo(context, widget.mediaItem);
+        m.showPlayer(context);
       },
       child: Padding(
         padding: const EdgeInsets.only(right: 2.0),
@@ -87,7 +87,111 @@ class _MediaItemItemWidgetState extends State<MediaItemItemWidget> {
                   _buildMediaImage(),
                   _buildPopupMenu(context),
                   _buildMediaInfoOverlay(),
-                  _buildRightBottom(context),
+                  // icônes / favoris
+                  ValueListenableBuilder<bool>(
+                    valueListenable: widget.media.isDownloadingNotifier,
+                    builder: (context, isDownloading, _) {
+                      if (isDownloading) {
+                        return Positioned(
+                          bottom: -7,
+                          right: -7,
+                          child: IconButton(
+                            iconSize: 22,
+                            padding: EdgeInsets.zero,
+                            onPressed: () => widget.media.cancelDownload(context),
+                            icon: const Icon(
+                              JwIcons.x,
+                              color: Colors.white,
+                              shadows: [Shadow(color: Colors.black, blurRadius: 10)],
+                            ),
+                          ),
+                        );
+                      }
+
+                      return ValueListenableBuilder<bool>(
+                        valueListenable: widget.media.isDownloadedNotifier,
+                        builder: (context, isDownloaded, _) {
+                          return ValueListenableBuilder<bool>(
+                            valueListenable: widget.media.isFavoriteNotifier,
+                            builder: (context, isFavorite, _) {
+                              final hasUpdate = widget.media.hasUpdate();
+
+                              if (!isDownloaded) {
+                                return Positioned(
+                                  bottom: -7,
+                                  right: -7,
+                                  child: IconButton(
+                                    iconSize: 22,
+                                    padding: EdgeInsets.zero,
+                                    onPressed: () => widget.media.download(context),
+                                    icon: const Icon(
+                                      JwIcons.cloud_arrow_down,
+                                      color: Colors.white,
+                                      shadows: [Shadow(color: Colors.black, blurRadius: 10)],
+                                    ),
+                                  ),
+                                );
+                              } else if (hasUpdate) {
+                                return Positioned(
+                                  bottom: -7,
+                                  right: -7,
+                                  child: IconButton(
+                                    iconSize: 22,
+                                    padding: EdgeInsets.zero,
+                                    onPressed: () => widget.media.download(context),
+                                    icon: const Icon(
+                                      JwIcons.arrows_circular,
+                                      color: Colors.white,
+                                      shadows: [Shadow(color: Colors.black, blurRadius: 10)],
+                                    ),
+                                  ),
+                                );
+                              } else if (isFavorite) {
+                                return Positioned(
+                                  bottom: 4,
+                                  right: 4,
+                                  child: const Icon(
+                                    JwIcons.star,
+                                    color: Colors.white,
+                                    shadows: [Shadow(color: Colors.black, blurRadius: 10)],
+                                  ),
+                                );
+                              }
+
+                              return const SizedBox.shrink();
+                            },
+                          );
+                        },
+                      );
+                    },
+                  ),
+
+                  // barre de progression
+                  ValueListenableBuilder<bool>(
+                    valueListenable: widget.media.isDownloadingNotifier,
+                    builder: (context, isDownloading, _) {
+                      if (!isDownloading) return const SizedBox.shrink();
+
+                      return Positioned(
+                        bottom: 0,
+                        left: 0,
+                        right: 0,
+                        child: ValueListenableBuilder<double>(
+                          valueListenable: widget.media.progressNotifier,
+                          builder: (context, progress, _) {
+                            return LinearProgressIndicator(
+                              value: progress == -1 ? null : progress,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Theme.of(context).primaryColor,
+                              ),
+                              backgroundColor: Colors.black.withOpacity(0.3),
+                              minHeight: 2,
+                            );
+                          },
+                        ),
+                      );
+                    },
+                  ),
                 ],
               ),
               const SizedBox(height: 4),
@@ -100,9 +204,8 @@ class _MediaItemItemWidgetState extends State<MediaItemItemWidget> {
   }
 
   Widget _buildMediaImage() {
-    final images = widget.mediaItem.realmImages!;
-    final wideImageUrl = images.wideFullSizeImageUrl ?? images.wideImageUrl;
-    final squareImageUrl = images.squareFullSizeImageUrl ?? images.squareImageUrl;
+    final wideImageUrl = widget.media.networkImageLsr;
+    final squareImageUrl = widget.media.networkImageSqr;
     final isWide = wideImageUrl != null;
     final imageUrl = wideImageUrl ?? squareImageUrl;
 
@@ -148,7 +251,7 @@ class _MediaItemItemWidgetState extends State<MediaItemItemWidget> {
       borderRadius: BorderRadius.circular(2.0),
       child: ImageCachedWidget(
         imageUrl: imageUrl,
-        pathNoImage: isAudio ? "pub_type_audio" : "pub_type_video",
+        pathNoImage: widget.media is Audio ? "pub_type_audio" : "pub_type_video",
         height: widget.width / 2,
         width: widget.width,
         fit: BoxFit.cover,
@@ -169,22 +272,22 @@ class _MediaItemItemWidgetState extends State<MediaItemItemWidget> {
         shadowColor: Colors.black,
         elevation: 8,
         itemBuilder: (context) {
-          return isAudio
+          return widget.media is Audio
               ? [
-            getAudioShareItem(widget.mediaItem),
-            getAudioLanguagesItem(context, widget.mediaItem),
-            getAudioFavoriteItem(widget.mediaItem),
-            getAudioDownloadItem(context, widget.mediaItem),
-            getAudioLyricsItem(context, widget.mediaItem),
-            getCopyLyricsItem(widget.mediaItem),
+            getAudioShareItem(widget.media as Audio),
+            getAudioLanguagesItem(context, widget.media as Audio),
+            getAudioFavoriteItem(widget.media as Audio),
+            getAudioDownloadItem(context, widget.media as Audio),
+            getAudioLyricsItem(context, widget.media as Audio),
+            getCopyLyricsItem(widget.media as Audio),
           ]
               : [
-            getVideoShareItem(widget.mediaItem),
-            getVideoLanguagesItem(context, widget.mediaItem),
-            getVideoFavoriteItem(widget.mediaItem),
-            getVideoDownloadItem(context, widget.mediaItem),
-            getShowSubtitlesItem(context, widget.mediaItem),
-            getCopySubtitlesItem(context, widget.mediaItem),
+            getVideoShareItem(widget.media as Video),
+            getVideoLanguagesItem(context, widget.media as Video),
+            getVideoFavoriteItem(widget.media as Video),
+            getVideoDownloadItem(context, widget.media as Video),
+            getShowSubtitlesItem(context, widget.media as Video),
+            getCopySubtitlesItem(context, widget.media as Video),
           ];
         },
       ),
@@ -200,10 +303,10 @@ class _MediaItemItemWidgetState extends State<MediaItemItemWidget> {
         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
         child: Row(
           children: [
-            Icon(isAudio ? JwIcons.headphones__simple : JwIcons.play, size: 12, color: Colors.white),
+            Icon(widget.media is Audio ? JwIcons.headphones__simple : JwIcons.play, size: 12, color: Colors.white),
             const SizedBox(width: 4),
             Text(
-              formatDuration(widget.mediaItem.duration!),
+              formatDuration(widget.media.duration),
               style: const TextStyle(color: Colors.white, fontSize: 10),
             ),
           ],
@@ -212,52 +315,10 @@ class _MediaItemItemWidgetState extends State<MediaItemItemWidget> {
     );
   }
 
-  Widget _buildRightBottom(BuildContext context) {
-    Video? video = JwLifeApp.mediaCollections.getVideo(widget.mediaItem);
-
-    return video != null && video.isDownloaded == true
-        ? JwLifeApp.userdata.favorites.contains(widget.mediaItem)
-        ? Positioned(
-      bottom: 4,
-      right: 4,
-      child: const Icon(
-        JwIcons.star,
-        color: Colors.white,
-        shadows: [Shadow(color: Colors.black, blurRadius: 10)],
-      ),
-    )
-        : const SizedBox()
-        : Positioned(
-      bottom: -7,
-      right: -7,
-      child: IconButton(
-        iconSize: 22,
-        padding: const EdgeInsets.all(0),
-        onPressed: () async {
-          if (await hasInternetConnection()) {
-            String link =
-                'https://b.jw-cdn.org/apis/mediator/v1/media-items/${widget.mediaItem.languageSymbol}/${widget.mediaItem.languageAgnosticNaturalKey}';
-            final response = await Api.httpGetWithHeaders(link);
-            if (response.statusCode == 200) {
-              final jsonData = json.decode(response.body);
-              showVideoDownloadDialog(context, jsonData['media'][0]['files']).then((value) {
-                if (value != null) {
-                  downloadMedia(context, widget.mediaItem, jsonData['media'][0], file: value);
-                }
-              });
-            }
-          }
-        },
-        icon: const Icon(JwIcons.cloud_arrow_down,
-            color: Colors.white, shadows: [Shadow(color: Colors.black, blurRadius: 10)]),
-      ),
-    );
-  }
-
   Widget _buildMediaTitle(BuildContext context) {
     String timeAgo = '';
     if (widget.timeAgoText) {
-      DateTime firstPublished = DateTime.parse(widget.mediaItem.firstPublished!);
+      DateTime firstPublished = DateTime.parse(widget.media.firstPublished ?? '');
       DateTime publishedDate = DateTime(firstPublished.year, firstPublished.month, firstPublished.day);
       DateTime today = DateTime.now();
       DateTime currentDate = DateTime(today.year, today.month, today.day);
@@ -276,7 +337,7 @@ class _MediaItemItemWidgetState extends State<MediaItemItemWidget> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            widget.mediaItem.title!,
+            widget.media.title,
             style: TextStyle(fontSize: widget.timeAgoText == true ? 10 : 11.5, height: 1.1),
             maxLines: 3,
             overflow: TextOverflow.ellipsis,

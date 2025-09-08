@@ -11,6 +11,12 @@ import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/widgets/image_cached_widget.dart';
 import 'package:sqflite/sqflite.dart';
 
+import '../../../../core/utils/utils_audio.dart';
+import '../../../../core/utils/utils_video.dart';
+import '../../../../data/models/audio.dart';
+import '../../../../data/models/media.dart';
+import '../../../../data/models/video.dart';
+import '../../../../data/repositories/MediaRepository.dart';
 import '../../../publication/pages/menu/local/publication_menu_view.dart';
 
 class PendingUpdatesPage extends StatefulWidget {
@@ -21,28 +27,60 @@ class PendingUpdatesPage extends StatefulWidget {
 }
 
 class _PendingUpdatesPageState extends State<PendingUpdatesPage> {
-  late Future<void> _loadingFuture;
-  String categoryName = '';
-  String language = '';
-  Map<String, List<Publication>> groupedPublications = {};
-  Map<String, List<Map<String, dynamic>>> groupedMedias = {};
+  bool _isLoading = true;
+
+  Map<String, List<Publication>> _groupedPublications = {};
+  Map<String, List<Media>> _groupedMedias = {};
+  double _itemWidth = 0;
 
   @override
   void initState() {
     super.initState();
-    _loadingFuture = loadItems();
+    _loadData();
   }
 
-  Future<void> loadItems() async {
-    // Chargement des publications
+  Future<void> _loadData() async {
+    try {
+      // Chargement des médias
+      await _loadMedias();
+
+      // Pré-calcul des publications groupées
+      await _loadAndGroupPublications();
+
+      setState(() {
+        _isLoading = false;
+      });
+    } catch (e) {
+      // Gestion d'erreur
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _loadMedias() async {
+    List<Media> mediasDownload = List.from(MediaRepository().getAllDownloadedMedias());
+    List<Audio> audiosDownload = mediasDownload.whereType<Audio>().toList();
+    List<Video> videosDownload = mediasDownload.whereType<Video>().toList();
+
+    _groupedMedias = {
+      if (audiosDownload.isNotEmpty) 'Audios': audiosDownload.toList(),
+      if (videosDownload.isNotEmpty) 'Videos': videosDownload.toList(),
+    };
+  }
+
+  Future<void> _loadAndGroupPublications() async {
     File pubCollectionsFile = await getPubCollectionsDatabaseFile();
     File catalogFile = await getCatalogDatabaseFile();
     File mepsFile = await getMepsUnitDatabaseFile();
 
     if (await pubCollectionsFile.exists()) {
-      Database pubCollectionsDB = await openReadOnlyDatabase(pubCollectionsFile.path);
-      await pubCollectionsDB.execute("ATTACH DATABASE '${mepsFile.path}' AS meps");
-      await pubCollectionsDB.execute("ATTACH DATABASE '${catalogFile.path}' AS catalog");
+      Database pubCollectionsDB = await openReadOnlyDatabase(
+          pubCollectionsFile.path);
+      await pubCollectionsDB.execute(
+          "ATTACH DATABASE '${mepsFile.path}' AS meps");
+      await pubCollectionsDB.execute(
+          "ATTACH DATABASE '${catalogFile.path}' AS catalog");
 
       List<Map<String, dynamic>> result = await pubCollectionsDB.rawQuery('''
         SELECT DISTINCT
@@ -80,10 +118,11 @@ class _PendingUpdatesPageState extends State<PendingUpdatesPage> {
       ''');
 
       setState(() {
-        groupedPublications = {};
+        _groupedPublications = {};
         for (var pub in result) {
           Publication publication = Publication.fromJson(pub);
-          groupedPublications.putIfAbsent(publication.category.getName(context), () => []).add(publication);
+          _groupedPublications.putIfAbsent(
+              publication.category.getName(context), () => []).add(publication);
         }
       });
 
@@ -91,115 +130,102 @@ class _PendingUpdatesPageState extends State<PendingUpdatesPage> {
       await pubCollectionsDB.execute("DETACH DATABASE meps");
       await pubCollectionsDB.close();
     }
-
-    // Chargement des médias
-    File mediasCollectionsFile = await getMediaCollectionsDatabaseFile();
-    if (await mediasCollectionsFile.exists()) {
-      Database mediaCollectionsDB = await openReadOnlyDatabase(mediasCollectionsFile.path);
-
-      List<Map<String, dynamic>> resultAudios = await mediaCollectionsDB.rawQuery('''
-        SELECT MediaKey.*, Audio.* FROM MediaKey JOIN Audio ON MediaKey.MediaKeyId = Audio.MediaKeyId
-      ''');
-
-      List<Map<String, dynamic>> resultVideos = await mediaCollectionsDB.rawQuery('''
-        SELECT MediaKey.*, Video.* FROM MediaKey JOIN Video ON MediaKey.MediaKeyId = Video.MediaKeyId
-      ''');
-
-      groupedMedias = {
-        if (resultAudios.isNotEmpty) 'Audios': resultAudios.map((a) => {...a, 'isDownload': 1}).toList(),
-        if (resultVideos.isNotEmpty) 'Videos': resultVideos.map((v) => {...v, 'isDownload': 1}).toList(),
-      };
-
-      mediaCollectionsDB.close();
-    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<void>(
-      future: _loadingFuture,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return Center(child: CircularProgressIndicator());
-        } else if (snapshot.hasError) {
-          return Center(child: Text("Une erreur est survenue"));
-        }
+    // Calcul de la largeur une seule fois
+    if (_itemWidth == 0) {
+      final screenWidth = MediaQuery.of(context).size.width;
+      _itemWidth = screenWidth > 800 ? (screenWidth / 2 - 16) : screenWidth;
+    }
 
-        return groupedPublications.isEmpty && groupedMedias.isEmpty ? Center(child: Text('Pas de mise à jour en attente', style: Theme.of(context).textTheme.titleLarge)) : buildContent();
-      },
-    );
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    return _buildContent();
   }
 
-  Widget buildContent() {
-    final screenWidth = MediaQuery.of(context).size.width;
-    double itemWidth = screenWidth > 800 ? (screenWidth / 2 - 16) : screenWidth;
-
-    return SingleChildScrollView(
+  Widget _buildContent() {
+    return ListView(
       padding: const EdgeInsets.all(10.0),
-      child: Column(children: [
-        buildPublicationSections(groupedPublications, itemWidth),
-        buildMediaSections(groupedMedias, itemWidth),
-      ]),
-    );
-  }
-
-  Widget buildPublicationSections(Map<String, List<Publication>> groupedByCategory, double itemWidth) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: groupedByCategory.entries.map((entry) {
-        return buildSection(entry.key, entry.value, itemWidth, _buildCategoryButton);
-      }).toList(),
-    );
-  }
-
-  Widget buildMediaSections(Map<String, List<Map<String, dynamic>>> groupedMedias, double itemWidth) {
-    return Column();
-    /*
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: groupedMedias.entries.map((entry) {
-        return buildSection(entry.key, entry.value, itemWidth, _buildMediaButton);
-      }).toList(),
-    );
-
-     */
-  }
-
-  Widget buildSection(String title, List<Publication> items, double itemWidth, Function(BuildContext, Publication, double) buildItem) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.only(top: 10.0, bottom: 5.0),
-          child: Text(
-            title,
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-          ),
-        ),
-        Wrap(
-          spacing: 3.0,
-          runSpacing: 3.0,
-          children: items.map((item) {
-            return GestureDetector(
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? const Color(0xFF292929)
-                      : Colors.white,
-                ),
-                child: buildItem(context, item, itemWidth),
-              ),
-              onTap: () {
-                showPage(context, PublicationMenuView(publication: item));
-              },
-            );
-          }).toList(),
-        ),
+        // Sections des publications
+        if (_groupedPublications.isNotEmpty) ..._buildPublicationSections(),
+
+        // Sections des médias
+        if (_groupedMedias.isNotEmpty) ..._buildMediaSections(),
       ],
     );
   }
 
-  Widget _buildCategoryButton(BuildContext context, Publication publication, double itemWidth) {
+  List<Widget> _buildPublicationSections() {
+    return _groupedPublications.entries.map((entry) {
+      return _buildSection<Publication>(
+        entry.key,
+        entry.value,
+        _buildCategoryButton,
+      );
+    }).toList();
+  }
+
+  List<Widget> _buildMediaSections() {
+    return _groupedMedias.entries.map((entry) {
+      return _buildSection<Media>(
+        entry.key,
+        entry.value,
+        _buildMediaButton,
+      );
+    }).toList();
+  }
+  Widget _buildSection<T>(
+      String title,
+      List<T> items,
+      Widget Function(BuildContext, T) buildItem,
+      ) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 10.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(bottom: 5.0),
+            child: Text(
+              title,
+              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+            ),
+          ),
+          Wrap(
+            spacing: 3.0,
+            runSpacing: 3.0,
+            children: items.map((item) {
+              return GestureDetector(
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? const Color(0xFF292929)
+                        : Colors.white,
+                  ),
+                  child: buildItem(context, item),
+                ),
+                onTap: () {
+                  if (item is Publication) {
+                    showPage(context, PublicationMenuView(publication: item));
+                  }
+                  else if (item is Media) {
+                    item.showPlayer(context);
+                  }
+                },
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCategoryButton(BuildContext context, Publication publication) {
     // Gestion des dates : Version actuelle
     String? lastModified = publication.lastModified;
     String formattedDate = "N/A";  // Valeur par défaut
@@ -225,7 +251,7 @@ class _PendingUpdatesPageState extends State<PendingUpdatesPage> {
     }
 
     return SizedBox(
-      width: itemWidth,
+      width: _itemWidth,
       height: 85,
       child: Stack(
         children: [
@@ -327,8 +353,8 @@ class _PendingUpdatesPageState extends State<PendingUpdatesPage> {
               onPressed: () async {
                 await publication.update(context);
                 setState(() {
-                  groupedPublications[publication.category.getName(context)]?.remove(publication);
-                  if(groupedPublications[publication.category.getName(context)]!.isEmpty) groupedPublications.remove(publication.category.getName(context));
+                  _groupedPublications[publication.category.getName(context)]?.remove(publication);
+                  if(_groupedPublications[publication.category.getName(context)]!.isEmpty) _groupedPublications.remove(publication.category.getName(context));
                 });
               },
               icon: Icon(JwIcons.arrows_circular, color: Color(0xFF9d9d9d)),
@@ -368,14 +394,9 @@ class _PendingUpdatesPageState extends State<PendingUpdatesPage> {
     );
   }
 
-  Widget _buildMediaButton(BuildContext context, Map<String, dynamic> publication, double itemWidth) {
-    var imageSqr = publication['ImagePath'] ?? '';
-    var title = publication['Title'] ?? '';
-
-    //var categoryImage = initializeCategories(context).firstWhere((category) => category['type'] == publication['PublicationType'] || category['type2'] == publication['PublicationType'])['image'];
-
+  Widget _buildMediaButton(BuildContext context, Media media) {
     return SizedBox(
-      width: itemWidth,
+      width: _itemWidth,
       height: 85,
       child: Stack(
         children: [
@@ -384,8 +405,8 @@ class _PendingUpdatesPageState extends State<PendingUpdatesPage> {
               ClipRRect(
                 borderRadius: BorderRadius.circular(0),
                 child: ImageCachedWidget(
-                  imageUrl: imageSqr,
-                  pathNoImage: '',
+                  imageUrl: media.networkImageSqr,
+                  pathNoImage: media is Audio ? "pub_type_audio" : "pub_type_video",
                   height: 85,
                   width: 85,
                 ),
@@ -399,14 +420,14 @@ class _PendingUpdatesPageState extends State<PendingUpdatesPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        title,
+                        media.title,
                         style: TextStyle(fontSize: 14),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
                       Spacer(),
                       Text(
-                        '${publication['MepsLanguage']}',
+                        '${formatDateTime(media.lastModified!).year} - ${media.keySymbol}',
                         style: TextStyle(fontSize: 12, color: Theme.of(context).brightness == Brightness.dark
                             ? const Color(0xFFc3c3c3)
                             : const Color(0xFF626262),
@@ -422,18 +443,27 @@ class _PendingUpdatesPageState extends State<PendingUpdatesPage> {
             top: -5,
             right: -10,
             child: PopupMenuButton(
-              icon: Icon(Icons.more_vert, color: Theme.of(context).brightness == Brightness.dark ?
-              const Color(0xFFc3c3c3)
-                  : const Color(0xFF626262),
+              icon: Icon(
+                Icons.more_vert,
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? const Color(0xFFc3c3c3)
+                    : const Color(0xFF626262),
               ),
-              itemBuilder: (BuildContext context) {
-                return [
-                  //getPubShareMenuItem(publication),
-                  //getPubLanguagesItem(context, "Autres langues", publication),
-                  //getPubFavoriteItem(publication),
-                  //getPubDownloadItem(context, publication, update: loadItems),
-                ];
-              },
+              itemBuilder: (context) => media is Audio ?  [
+                getAudioShareItem(media),
+                getAudioLanguagesItem(context, media),
+                getAudioFavoriteItem(media),
+                getAudioDownloadItem(context, media),
+                getAudioLyricsItem(context, media),
+                getCopyLyricsItem(media)
+              ] : media is Video ? [
+                getVideoShareItem(media),
+                getVideoLanguagesItem(context, media),
+                getVideoFavoriteItem(media),
+                getVideoDownloadItem(context, media),
+                getShowSubtitlesItem(context, media),
+                getCopySubtitlesItem(context, media),
+              ] : [],
             ),
           ),
         ],

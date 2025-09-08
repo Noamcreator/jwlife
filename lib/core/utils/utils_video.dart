@@ -9,7 +9,7 @@ import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/jworg_uri.dart';
 import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/core/utils/utils_media.dart';
-import 'package:jwlife/data/models/video.dart';
+import 'package:jwlife/data/models/video.dart' hide Subtitles;
 import 'package:jwlife/widgets/dialog/language_dialog.dart';
 import 'package:jwlife/widgets/dialog/utils_dialog.dart';
 import 'package:jwlife/widgets/dialog/publication_dialogs.dart';
@@ -32,29 +32,6 @@ import '../api/api.dart';
 import 'common_ui.dart';
 import 'files_helper.dart';
 
-void showFullScreenVideo(BuildContext context, MediaItem mediaItem, {Duration initialPosition=Duration.zero}) async {
-  Video? video = JwLifeApp.mediaCollections.getVideo(mediaItem);
-
-  if (video != null) {
-    showPage(context, VideoPlayerPage(
-      mediaItem: mediaItem,
-      localVideo: video,
-        initialPosition: initialPosition
-    ));
-  }
-  else {
-    if(await hasInternetConnection()) {
-      showPage(context, VideoPlayerPage(
-        mediaItem: mediaItem,
-          initialPosition: initialPosition
-      ));
-    }
-    else {
-      showNoConnectionDialog(context);
-    }
-  }
-}
-
 MediaItem getMediaItemFromLank(String lank, String wtlocale) => RealmLibrary.realm.all<MediaItem>().query("languageAgnosticNaturalKey == '$lank'").query("languageSymbol == '$wtlocale'").first;
 MediaItem getVideoItemFromDocId(String docId, String wtlocale) => RealmLibrary.realm.all<MediaItem>().query("documentId == '$docId'").query("languageSymbol == '$wtlocale'").first;
 
@@ -63,7 +40,7 @@ MediaItem? getMediaItem(String? keySymbol, int? track, int? documentId, int? iss
 
   if (keySymbol != null) queryParts.add("pubSymbol == '$keySymbol'");
   if (track != null) queryParts.add("track == '$track'");
-  if (documentId != null) queryParts.add("documentId == '$documentId'");
+  if (documentId != null && documentId != 0) queryParts.add("documentId == '$documentId'");
   if (issueTagNumber != null && issueTagNumber != 0) {
     String issueStr = issueTagNumber.toString();
     if (issueStr.endsWith("00")) {
@@ -90,7 +67,7 @@ MediaItem? getMediaItem(String? keySymbol, int? track, int? documentId, int? iss
   return results.isNotEmpty ? results.first : null;
 }
 
-PopupMenuItem getVideoShareItem(MediaItem item) {
+PopupMenuItem getVideoShareItem(Video video) {
   return PopupMenuItem(
     child: Row(
       children: const [
@@ -101,13 +78,13 @@ PopupMenuItem getVideoShareItem(MediaItem item) {
     ),
     onTap: () {
       String uri = JwOrgUri.mediaItem(
-          wtlocale: item.languageSymbol!,
-          lank: item.languageAgnosticNaturalKey!
+          wtlocale: video.mepsLanguage!,
+          lank: video.naturalKey!
       ).toString();
 
       SharePlus.instance.share(
         ShareParams(
-          title: item.title,
+          title: video.title,
           uri: Uri.parse(uri),
         ),
       );
@@ -115,7 +92,7 @@ PopupMenuItem getVideoShareItem(MediaItem item) {
   );
 }
 
-PopupMenuItem getVideoLanguagesItem(BuildContext context, MediaItem item) {
+PopupMenuItem getVideoLanguagesItem(BuildContext context, Video video) {
   return PopupMenuItem(
     child: Row(
       children: [
@@ -125,10 +102,8 @@ PopupMenuItem getVideoLanguagesItem(BuildContext context, MediaItem item) {
       ],
     ),
     onTap: () async {
-      final List<ConnectivityResult> connectivityResult = await (Connectivity().checkConnectivity());
-
-      if(connectivityResult.contains(ConnectivityResult.wifi) || connectivityResult.contains(ConnectivityResult.mobile) || connectivityResult.contains(ConnectivityResult.ethernet)) {
-        String link = 'https://b.jw-cdn.org/apis/mediator/v1/media-item-availability/${item.languageAgnosticNaturalKey}?clientType=www';
+      if(await hasInternetConnection()) {
+        String link = 'https://b.jw-cdn.org/apis/mediator/v1/media-item-availability/${video.naturalKey}?clientType=www';
         final response = await Api.httpGetWithHeaders(link);
         if (response.statusCode == 200) {
           final jsonFile = response.body;
@@ -148,22 +123,23 @@ PopupMenuItem getVideoLanguagesItem(BuildContext context, MediaItem item) {
   );
 }
 
-PopupMenuItem getVideoFavoriteItem(MediaItem item) {
-  bool isFavorite = JwLifeApp.userdata.favorites.contains(item);
+PopupMenuItem getVideoFavoriteItem(Video video) {
   return PopupMenuItem(
     child: Row(
       children: [
-        Icon(isFavorite ? JwIcons.star__fill : JwIcons.star),
+        Icon(video.isFavoriteNotifier.value ? JwIcons.star__fill : JwIcons.star),
         SizedBox(width: 8),
-        Text(isFavorite ? 'Supprimer des favoris' : 'Ajouter aux favoris'),
+        Text(video.isFavoriteNotifier.value ? 'Supprimer des favoris' : 'Ajouter aux favoris'),
       ],
     ),
     onTap: () async {
-      if(isFavorite) {
-        await JwLifeApp.userdata.removeAFavorite(item);
+      if(video.isFavoriteNotifier.value) {
+        await JwLifeApp.userdata.removeAFavorite(video);
+        video.isFavoriteNotifier.value = false;
       }
       else {
-        await JwLifeApp.userdata.addInFavorite(item);
+        await JwLifeApp.userdata.addInFavorite(video);
+        video.isFavoriteNotifier.value = true;
       }
 
       GlobalKeyService.homeKey.currentState?.refreshFavorites();
@@ -171,40 +147,27 @@ PopupMenuItem getVideoFavoriteItem(MediaItem item) {
   );
 }
 
-PopupMenuItem getVideoDownloadItem(BuildContext context, MediaItem item) {
+PopupMenuItem getVideoDownloadItem(BuildContext context, Video video) {
   return PopupMenuItem(
     child: Row(
       children: [
-        Icon(JwIcons.cloud_arrow_down),
+        Icon(video.isDownloadedNotifier.value ? JwIcons.trash : JwIcons.cloud_arrow_down),
         SizedBox(width: 8),
-        Text('Télécharger'),
+        Text(video.isDownloadedNotifier.value ? 'Supprimer' : 'Télécharger'),
       ],
     ),
     onTap: () async {
-      if(await hasInternetConnection()) {
-        String link = 'https://b.jw-cdn.org/apis/mediator/v1/media-items/${item.languageSymbol}/${item.languageAgnosticNaturalKey}';
-        final response = await Api.httpGetWithHeaders(link);
-        if (response.statusCode == 200) {
-          final jsonFile = response.body;
-          final jsonData = json.decode(jsonFile);
-
-          printTime(link);
-
-          showVideoDownloadDialog(context, jsonData['media'][0]['files']).then((value) {
-            if (value != null) {
-              downloadMedia(context, item, jsonData['media'][0], file: value);
-            }
-          });
-        }
+      if(video.isDownloadedNotifier.value) {
+        video.remove(context);
       }
       else {
-        showNoConnectionDialog(context);
+        video.download(context);
       }
     },
   );
 }
 
-PopupMenuItem getShowSubtitlesItem(BuildContext context, MediaItem item, {String query=''}) {
+PopupMenuItem getShowSubtitlesItem(BuildContext context, Video video, {String query=''}) {
   return PopupMenuItem(
     child: Row(
       children: [
@@ -214,19 +177,16 @@ PopupMenuItem getShowSubtitlesItem(BuildContext context, MediaItem item, {String
       ],
     ),
     onTap: () async {
-      Video? video = JwLifeApp.mediaCollections.getVideo(item);
-      if (video != null) {
+      if (video.isDownloadedNotifier.value) {
         showPage(context, SubtitlesPage(
-            localVideo: video,
+            video: video,
             query: query
         ));
       }
       else {
-        final List<ConnectivityResult> connectivityResult = await (Connectivity().checkConnectivity());
-
-        if(connectivityResult.contains(ConnectivityResult.wifi) || connectivityResult.contains(ConnectivityResult.mobile) || connectivityResult.contains(ConnectivityResult.ethernet)) {
+        if(await hasInternetConnection()) {
           showPage(context, SubtitlesPage(
-              mediaItem: item,
+              video: video,
               query: query
           ));
         }
@@ -238,7 +198,7 @@ PopupMenuItem getShowSubtitlesItem(BuildContext context, MediaItem item, {String
   );
 }
 
-PopupMenuItem getCopySubtitlesItem(BuildContext context, MediaItem item) {
+PopupMenuItem getCopySubtitlesItem(BuildContext context, Video video) {
   return PopupMenuItem(
     child: Row(
       children: [
@@ -248,20 +208,14 @@ PopupMenuItem getCopySubtitlesItem(BuildContext context, MediaItem item) {
       ],
     ),
     onTap: () async {
-      File mediaCollectionFile = await getMediaCollectionsDatabaseFile();
-      Database db = await openDatabase(mediaCollectionFile.path, readOnly: true, version: 1);
-      dynamic media = await getVideoIfDownload(db, item);
-
       Subtitles subtitles = Subtitles();
-      if (media != null) {
-        File file = File(media['SubtitleFilePath']);
+      if (video.isDownloadedNotifier.value) {
+        File file = File(video.subtitlesFilePath);
         await subtitles.loadSubtitlesFromFile(file);
       }
       else {
-        final List<ConnectivityResult> connectivityResult = await (Connectivity().checkConnectivity());
-
-        if(connectivityResult.contains(ConnectivityResult.wifi) || connectivityResult.contains(ConnectivityResult.mobile) || connectivityResult.contains(ConnectivityResult.ethernet)) {
-          String link = 'https://b.jw-cdn.org/apis/mediator/v1/media-items/${item.languageSymbol}/${item.languageAgnosticNaturalKey}';
+        if(await hasInternetConnection()) {
+          String link = 'https://b.jw-cdn.org/apis/mediator/v1/media-items/${video.mepsLanguage}/${video.naturalKey}';
           final response = await Api.httpGetWithHeaders(link);
 
           if (response.statusCode == 200) {
@@ -281,4 +235,61 @@ PopupMenuItem getCopySubtitlesItem(BuildContext context, MediaItem item) {
   );
 }
 
+// Fonction pour afficher le dialogue de téléchargement
+Future<int?> showVideoDownloadDialog(BuildContext context, List<dynamic> files) async {
+  // Trier les fichiers par taille décroissante
+  files.sort((a, b) => b['filesize'].compareTo(a['filesize']));
 
+  return showDialog<int>(
+    context: context,
+    builder: (BuildContext context) {
+      return Dialog(
+        child: Container(
+          width: MediaQuery.of(context).size.width * 0.8, // Largeur personnalisée
+          padding: EdgeInsets.all(20.0), // Ajouter un padding
+          child: Column(
+            mainAxisSize: MainAxisSize.min, // Pour ne pas remplir tout l'espace
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                "Résolution",
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              SizedBox(height: 10),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: files.map<Widget>((file) {
+                  // Convertir la taille en Mo ou Go
+                  double fileSize = file['filesize'] / (1024 * 1024); // Taille en Mo
+                  String sizeText = fileSize < 1024
+                      ? "${fileSize.toStringAsFixed(2)} Mo"
+                      : "${(fileSize / 1024).toStringAsFixed(2)} Go"; // Si la taille est plus grande que 1 Go
+
+                  return ListTile(
+                    title: Text("Télécharger ${file['label']} ($sizeText)"),
+                    onTap: () {
+                      // Gérer le téléchargement ici
+                      printTime("Télécharger: ${file['progressiveDownloadURL']}");
+
+                      Navigator.of(context).pop(files.indexOf(file)); // Retourner l'index du fichier sélectionné
+                    },
+                  );
+                }).toList(),
+              ),
+              SizedBox(height: 20),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop(); // Fermer le dialogue et retourner -1 en cas d'annulation
+                  },
+                  child: Text('ANNULER'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    },
+  );
+}

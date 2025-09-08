@@ -17,6 +17,7 @@ import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/models/userdata/bookmark.dart';
 import 'package:jwlife/data/models/userdata/tag.dart';
+import 'package:jwlife/data/models/video.dart';
 import 'package:jwlife/data/repositories/PublicationRepository.dart';
 import 'package:jwlife/features/publication/pages/document/data/models/dated_text.dart';
 import 'package:path_provider/path_provider.dart';
@@ -28,6 +29,8 @@ import 'package:uuid/uuid.dart';
 
 import '../../core/utils/utils_video.dart';
 import '../../features/publication/pages/document/data/models/document.dart';
+import '../models/audio.dart';
+import '../models/media.dart';
 import '../models/userdata/congregation.dart';
 import '../models/userdata/independentMedia.dart';
 import '../models/userdata/location.dart';
@@ -115,16 +118,29 @@ class Userdata {
             publicationsToLoad.add({...row, 'index': i});
           }
         }
-        else if (type == 2 || type == 3) {
+        else if (type == 2) {
           final mediaItem = getMediaItem(
               row['KeySymbol'] as String?,
               row['Track'] as int?,
               row['DocumentId'] as int?,
               row['IssueTagNumber'] as int?,
-              row['MepsLanguage']
+              row['MepsLanguage'],
+              isVideo: false
           );
 
-          orderedFavorites[i] = mediaItem ?? row; // fallback brut si null
+          orderedFavorites[i] = Audio.fromJson(mediaItem: mediaItem);
+        }
+        else if (type == 3) {
+          final mediaItem = getMediaItem(
+              row['KeySymbol'] as String?,
+              row['Track'] as int?,
+              row['DocumentId'] as int?,
+              row['IssueTagNumber'] as int?,
+              row['MepsLanguage'],
+              isVideo: true
+          );
+
+          orderedFavorites[i] = Video.fromJson(mediaItem: mediaItem);
         }
         else {
           orderedFavorites[i] = row; // fallback brut
@@ -212,14 +228,12 @@ class Userdata {
       if (object is Publication) {
         locationId = await insertLocation(null, null, null, null, object.issueTagNumber, object.symbol, object.mepsLanguage.id, type: 1);
       }
-      else if (object is MediaItem) {
-        if (object.type == 'AUDIO') {
-          //TODO changer pour avoir le bon mepsLanguage ID
-          locationId = await insertLocation(null, null, null, object.track, object.issueDate, object.pubSymbol, 3, type: 2);
-        }
-        else {
-          locationId = await insertLocation(null, null, null, object.track, object.issueDate, object.pubSymbol, 3, type: 3);
-        }
+      else if (object is Audio) {
+        locationId = await insertLocation(null, null, null, object.track, object.issueTagNumber, object.keySymbol, 3, type: 2);
+        //TODO changer pour avoir le bon mepsLanguage ID
+      }
+      else if (object is Video) {
+        locationId = await insertLocation(null, null, null, object.track, object.issueTagNumber, object.keySymbol, 3, type: 3);
       }
       else {
         return;
@@ -324,15 +338,13 @@ class Userdata {
           type: 1,
         );
       }
-      else if (object is MediaItem) {
-        // Pour MediaItem (Audio ou Vidéo)
-        final typeCode = object.type == 'AUDIO' ? 2 : 3;
+      else if (object is Media) {
         locationId = await _getLocationId(
           track: object.track,
-          issueTagNumber: object.issueDate,
-          keySymbol: object.pubSymbol,
+          issueTagNumber: object.issueTagNumber,
+          keySymbol: object.keySymbol,
           mepsLanguageId: 3, // TODO: ajuster dynamiquement si besoin
-          type: typeCode,
+          type: object is Audio ? 2 : 3,
         );
       }
       else if (object is Map<String, dynamic>) {
@@ -344,7 +356,8 @@ class Userdata {
           mepsLanguageId: object['MepsLanguage'],
           type: object['Type'],
         );
-      } else {
+      }
+      else {
         throw Exception('Type non reconnu pour suppression');
       }
 
@@ -360,11 +373,13 @@ class Userdata {
           return item.keySymbol == object.keySymbol &&
               item.issueTagNumber == object.issueTagNumber &&
               item.mepsLanguage.id == object.mepsLanguage.id;
-        } else if (object is MediaItem && item is MediaItem) {
-          return item.pubSymbol == object.pubSymbol &&
-              item.issueDate == object.issueDate &&
+        }
+        else if (object is Media && item is Media) {
+          return item.keySymbol == object.keySymbol &&
+              item.issueTagNumber == object.issueTagNumber &&
               item.track == object.track;
-        } else if (object is Map && item is Map) {
+        }
+        else if (object is Map && item is Map) {
           return item['KeySymbol'] == object['KeySymbol'] &&
               item['IssueTagNumber'] == object['IssueTagNumber'] &&
               item['MepsLanguage'] == object['MepsLanguage'];

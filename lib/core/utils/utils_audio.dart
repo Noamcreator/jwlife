@@ -17,6 +17,7 @@ import 'package:http/http.dart' as http;
 import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/widgets/dialog/language_dialog.dart';
 
+import '../../app/services/global_key_service.dart';
 import '../../app/services/settings_service.dart';
 import '../../features/audio/lyrics_page.dart';
 import '../../features/video/subtitles.dart';
@@ -36,27 +37,11 @@ void showAudioPlayerForLink(BuildContext context, String url, audio_service.Medi
   }
 }
 
-void showAudioPlayer(BuildContext context, MediaItem mediaItem, {Duration initialPosition = Duration.zero}) async {
-  Audio? audio = JwLifeApp.mediaCollections.getAudioFromMediaItem(mediaItem);
-
-  if (audio != null) {
-    JwLifeApp.audioPlayer.playAudio(mediaItem, localAudio: audio, initialPosition: initialPosition);
-  }
-  else {
-    if(await hasInternetConnection()) {
-      JwLifeApp.audioPlayer.playAudio(mediaItem, initialPosition: initialPosition);
-    }
-    else {
-      showNoConnectionDialog(context);
-    }
-  }
-}
-
 void showAudioPlayerPublicationLink(BuildContext context, Publication publication, int id, {Duration? start}) async {
   Audio audio = publication.audios.elementAt(id);
 
   if(publication.audios.isNotEmpty) {
-    if(await hasInternetConnection() || audio.isDownloaded) {
+    if(await hasInternetConnection() || audio.isDownloadedNotifier.value) {
       JwLifeApp.audioPlayer.playAudioFromPublicationLink(publication, id, start ?? Duration.zero);
     }
     else {
@@ -83,7 +68,7 @@ MediaItem? getAudioItem(String? keySymbol, int? track, int? documentId, int? iss
   return RealmLibrary.realm.all<MediaItem>().query(query).firstOrNull;
 }
 
-PopupMenuItem getAudioShareItem(MediaItem item) {
+PopupMenuItem getAudioShareItem(Audio audio) {
   return PopupMenuItem(
     child: Row(
       children: [
@@ -94,13 +79,13 @@ PopupMenuItem getAudioShareItem(MediaItem item) {
     ),
     onTap: () {
       String uri = JwOrgUri.mediaItem(
-          wtlocale: item.languageSymbol!,
-          lank: item.languageAgnosticNaturalKey!
+          wtlocale: audio.mepsLanguage!,
+          lank: audio.naturalKey!
       ).toString();
 
       SharePlus.instance.share(
         ShareParams(
-          title: item.title,
+          title: audio.title,
           uri: Uri.parse(uri),
         ),
       );
@@ -108,7 +93,7 @@ PopupMenuItem getAudioShareItem(MediaItem item) {
   );
 }
 
-PopupMenuItem getAudioLanguagesItem(BuildContext context, MediaItem item) {
+PopupMenuItem getAudioLanguagesItem(BuildContext context, Audio audio) {
   return PopupMenuItem(
     child: Row(
       children: [
@@ -118,7 +103,7 @@ PopupMenuItem getAudioLanguagesItem(BuildContext context, MediaItem item) {
       ],
     ),
     onTap: () async {
-      String link = 'https://b.jw-cdn.org/apis/mediator/v1/media-item-availability/${item.languageAgnosticNaturalKey}?clientType=www';
+      String link = 'https://b.jw-cdn.org/apis/mediator/v1/media-item-availability/${audio.naturalKey}?clientType=www';
       final response = await Api.httpGetWithHeaders(link);
       if (response.statusCode == 200) {
         final jsonFile = response.body;
@@ -138,23 +123,32 @@ PopupMenuItem getAudioLanguagesItem(BuildContext context, MediaItem item) {
   );
 }
 
-PopupMenuItem getAudioFavoriteItem(MediaItem item) {
+PopupMenuItem getAudioFavoriteItem(Audio audio) {
   return PopupMenuItem(
     child: Row(
       children: [
-        Icon(JwIcons.star),
+        Icon(audio.isFavoriteNotifier.value ? JwIcons.star__fill : JwIcons.star),
         SizedBox(width: 8),
-        Text('Ajouter aux favoris'),
+        Text(audio.isFavoriteNotifier.value ? 'Supprimer des favoris' : 'Ajouter aux favoris'),
       ],
     ),
     onTap: () async {
-      // Ajoutez ici votre logique d'ajout aux favoris
+      if(audio.isFavoriteNotifier.value) {
+        await JwLifeApp.userdata.removeAFavorite(audio);
+        audio.isFavoriteNotifier.value = false;
+      }
+      else {
+        await JwLifeApp.userdata.addInFavorite(audio);
+        audio.isFavoriteNotifier.value = true;
+      }
+
+      GlobalKeyService.homeKey.currentState?.refreshFavorites();
     },
   );
 }
 
-PopupMenuItem getAudioDownloadItem(BuildContext context, MediaItem item) {
-  bool isDownload = JwLifeApp.mediaCollections.getAudioFromMediaItem(item) != null;
+PopupMenuItem getAudioDownloadItem(BuildContext context, Audio audio) {
+  bool isDownload = audio.isDownloadedNotifier.value;
 
   return PopupMenuItem(
     child: Row(
@@ -166,30 +160,16 @@ PopupMenuItem getAudioDownloadItem(BuildContext context, MediaItem item) {
     ),
     onTap: () async {
       if (isDownload) {
-        await removeMedia(item);
+        audio.remove(context);
       }
       else {
-        if(await hasInternetConnection()) {
-          String link = 'https://b.jw-cdn.org/apis/mediator/v1/media-items/${item.languageSymbol}/${item.languageAgnosticNaturalKey}';
-          final response = await Api.httpGetWithHeaders(link);
-          if (response.statusCode == 200) {
-            final jsonFile = response.body;
-            final jsonData = json.decode(jsonFile);
-
-            printTime(link);
-
-            downloadMedia(context, item, jsonData['media'][0]);
-          }
-        }
-        else {
-          showNoConnectionDialog(context);
-        }
+        audio.download(context);
       }
     },
   );
 }
 
-PopupMenuItem getAudioLyricsItem(BuildContext context, MediaItem item, {String query=''}) {
+PopupMenuItem getAudioLyricsItem(BuildContext context, Audio audio, {String query=''}) {
   return PopupMenuItem(
     child: Row(
       children: [
@@ -199,7 +179,7 @@ PopupMenuItem getAudioLyricsItem(BuildContext context, MediaItem item, {String q
       ],
     ),
     onTap: () async {
-      String link = 'https://www.jw.org/finder?wtlocale=${item.languageSymbol}&lank=${item.languageAgnosticNaturalKey}';
+      String link = 'https://www.jw.org/finder?wtlocale=${audio.mepsLanguage}&lank=${audio.naturalKey}';
 
       showPage(context, LyricsPage(
           audioJwPage: link,
@@ -209,7 +189,7 @@ PopupMenuItem getAudioLyricsItem(BuildContext context, MediaItem item, {String q
   );
 }
 
-PopupMenuItem getCopyLyricsItem(MediaItem item) {
+PopupMenuItem getCopyLyricsItem(Audio audio) {
   return PopupMenuItem(
     child: Row(
       children: [
@@ -219,7 +199,7 @@ PopupMenuItem getCopyLyricsItem(MediaItem item) {
       ],
     ),
     onTap: () async {
-      String link = 'https://b.jw-cdn.org/apis/mediator/v1/media-items/${item.languageSymbol}/${item.languageAgnosticNaturalKey}';
+      String link = 'https://b.jw-cdn.org/apis/mediator/v1/media-items/${audio.mepsLanguage}/${audio.naturalKey}';
       final response = await Api.httpGetWithHeaders(link);
       if (response.statusCode == 200) {
         final jsonFile = response.body;

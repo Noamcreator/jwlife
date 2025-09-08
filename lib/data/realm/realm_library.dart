@@ -1,52 +1,60 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:jwlife/app/jwlife_app.dart';
+import 'package:jwlife/data/models/media.dart';
 import 'package:realm/realm.dart';
 
 import '../../app/services/settings_service.dart';
+import '../models/audio.dart';
+import '../models/video.dart';
 import 'catalog.dart';
 
 class RealmLibrary {
   static Realm realm = Realm(Configuration.local([MediaItem.schema, Language.schema, Images.schema, Category.schema]));
 
-  static List<MediaItem> loadTeachingToolboxVideos() {
-    List<MediaItem> teachingToolboxVideos = [];
-    teachingToolboxVideos.clear();
+  static List<Media> loadTeachingToolboxVideos() {
+    List<Media> teachingToolboxVideos = [];
     String languageSymbol = JwLifeSettings().currentLanguage.symbol;
 
-    // Rechercher les médias associés à la catégorie 'TeachingToolbox' dans la langue correspondante
-    teachingToolboxVideos.addAll(
-      realm.all<Category>()
-          .query("key == 'TeachingToolbox' AND language == '$languageSymbol'")
-          .expand((category) => category.media)
-          .map((mediaKey) => realm.all<MediaItem>().query("naturalKey == '$mediaKey'").firstOrNull)
-          .whereType<MediaItem>(), // Filtrer les valeurs nulles
-    );
+    // Récupérer tous les MediaItem correspondant à la catégorie 'TeachingToolbox'
+    final items = realm.all<Category>()
+        .query("key == 'TeachingToolbox' AND language == '$languageSymbol'")
+        .expand((category) => category.media)
+        .map((mediaKey) => realm.all<MediaItem>().query("naturalKey == '$mediaKey'").firstOrNull)
+        .whereType<MediaItem>();
 
-    if (teachingToolboxVideos.isNotEmpty) {
-      return teachingToolboxVideos;
+    // Transformer chaque MediaItem en Video ou Audio
+    for (final item in items) {
+      if (item.type == 'VIDEO') {
+        teachingToolboxVideos.add(Video.fromJson(mediaItem: item));
+      } else if (item.type == 'AUDIO') {
+        teachingToolboxVideos.add(Audio.fromJson(mediaItem: item));
+      }
     }
-    return [];
+
+    return teachingToolboxVideos;
   }
 
-  static List<MediaItem> loadLatestMedias() {
-    List<MediaItem> latestMedias = [];
-    latestMedias.clear();
+  static List<Media> loadLatestMedias() {
+    List<Media> latestMedias = [];
     String languageSymbol = JwLifeSettings().currentLanguage.symbol;
 
     // Rechercher les médias associés à la catégorie 'LatestAudioVideo' dans la langue correspondante
-    latestMedias.addAll(
-      realm.all<Category>()
+    final items = realm.all<Category>()
           .query("key == 'LatestAudioVideo' AND language == '$languageSymbol'")
           .expand((category) => category.media)
           .map((mediaKey) => realm.all<MediaItem>().query("naturalKey == '$mediaKey'").firstOrNull)
-          .whereType<MediaItem>(),
-    );
+          .whereType<MediaItem>();
 
-    if (latestMedias.isNotEmpty) {
-      return latestMedias;
+    for (final item in items) {
+      if (item.type == 'VIDEO') {
+        latestMedias.add(Video.fromJson(mediaItem: item));
+      } else if (item.type == 'AUDIO') {
+        latestMedias.add(Audio.fromJson(mediaItem: item));
+      }
     }
-    return [];
+
+    return latestMedias;
   }
 
   static Future<void> convertMediaJsonToRealm(var bodyBytes) async {

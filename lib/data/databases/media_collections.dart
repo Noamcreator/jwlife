@@ -1,14 +1,20 @@
 import 'dart:io';
 
 import 'package:collection/collection.dart';
+import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/core/utils/files_helper.dart';
+import 'package:jwlife/data/databases/tiles_cache.dart';
 import 'package:jwlife/data/models/audio.dart';
+import 'package:jwlife/data/models/media.dart';
 import 'package:jwlife/data/models/video.dart';
 import 'package:jwlife/data/realm/catalog.dart';
 import 'package:sqflite/sqflite.dart';
+import 'package:path/path.dart';
 
 import '../../app/services/settings_service.dart';
+import '../../core/utils/utils.dart';
 import '../models/publication.dart';
+import '../models/tile.dart';
 
 class MediaCollections {
   late Database _database;
@@ -33,7 +39,7 @@ class MediaCollections {
       ''');
 
     if (audiosResult.isNotEmpty) {
-      audios = audiosResult.map((a) => Audio.fromJson(a)).toList();
+      audios = audiosResult.map((a) => Audio.fromJson(json: a)).toList();
     }
 
     List<Map<String, dynamic>> videosResult = await _database.rawQuery('''
@@ -42,7 +48,7 @@ class MediaCollections {
       ''');
 
     if (videosResult.isNotEmpty) {
-      videos = videosResult.map((a) => Video.fromJson(a)).toList();
+      videos = videosResult.map((a) => Video.fromJson(json: a)).toList();
     }
 
     //_database.execute("DETACH DATABASE meps");
@@ -187,5 +193,213 @@ class MediaCollections {
       );
     ''');
     });
+  }
+
+  Future<Media?> insertMedia(Media media, {int? file = 0}) async {
+    final existingMediaKey = await _database.query(
+      "MediaKey",
+      where: "KeySymbol = ? AND DocumentId = ? AND MepsLanguage = ? AND IssueTagNumber = ? AND Track = ?",
+      whereArgs: [
+        media.keySymbol ?? '',
+        media.documentId ?? 0,
+        media.mepsLanguage ?? JwLifeSettings().currentLanguage.symbol,
+        media.issueTagNumber ?? 0,
+        media.track ?? 0,
+      ],
+    );
+
+    String? imageUrl = media is Audio ? media.networkImageSqr : media.networkImageLsr;
+    String imagePath = '';
+    if (imageUrl != null && imageUrl.startsWith('https')) {
+      Tile? tile = await TilesCache().getOrDownloadImage(imageUrl);
+      imagePath = tile?.file.path ?? '';
+    }
+
+    int mediaKeyId;
+    if (existingMediaKey.isNotEmpty) {
+      mediaKeyId = existingMediaKey.first['MediaKeyId'] as int;
+    }
+    else {
+      mediaKeyId = await _database.insert(
+        "MediaKey",
+        {
+          "KeySymbol": media.keySymbol ?? '',
+          "CategoryKey": media.categoryKey,
+          "ImagePath": imagePath,
+          "MediaType": media is Audio ? 2 : 1,
+          "DocumentId": media.documentId ?? 0,
+          "MepsLanguage": media.mepsLanguage ?? JwLifeSettings().currentLanguage.symbol,
+          "IssueTagNumber": media.issueTagNumber ?? 0,
+          "Track": media.track ?? 0,
+          "BookNumber": media.bookNumber ?? 0,
+        },
+      );
+    }
+
+    if (media is Audio) {
+      return await insertAudio(media, mediaKeyId);
+    }
+    else if (media is Video) {
+      return await insertVideo(media, file ?? 0, mediaKeyId);
+    }
+    return null;
+  }
+
+  Future<Audio> insertAudio(Audio audio, int mediaKeyId) async {
+    // Insérer une ligne dans la table Audio
+    await _database.insert(
+      "Audio",
+      {
+        "MediaKeyId": mediaKeyId,
+        "Title": audio.title,
+        "Version": audio.version,
+        "MimeType": audio.mimeType,
+        "BitRate": audio.bitRate,
+        "Duration": audio.duration,
+        "Checksum": audio.checkSum,
+        "FileSize": audio.fileSize,
+        "FilePath": audio.filePath,
+        "Source": audio.source,
+        "ModifiedDateTime": audio.lastModified,
+      },
+    );
+
+    printTime('Audio inserted successfully: ${audio.filePath}');
+
+    return audio;
+  }
+
+  Future<Video> insertVideo(Video video, int file, int mediaKeyId) async {
+    // Insérer une ligne dans la table Video
+    int videoId = await _database.insert(
+      "Video",
+      {
+        "MediaKeyId": mediaKeyId,
+        "Title": video.title,
+        "Version": video.version,
+        "MimeType": video.mimeType,
+        "BitRate": video.bitRate,
+        "FrameRate": video.frameRate,
+        "Duration": video.duration,
+        "Checksum": video.checkSum,
+        "FileSize": video.fileSize,
+        "FrameHeight": video.frameHeight,
+        "FrameWidth": video.frameWidth,
+        "Label": video.label,
+        "SpecialtyDescription": video.specialtyDescription, // à compléter si nécessaire
+        "FilePath": video.filePath,
+        "Source": video.source,
+        "ModifiedDateTime": video.lastModified,
+      },
+    );
+
+    // Insérer une ligne dans la table Subtitle (si fourni)
+    if (video.subtitles != null) {
+      await _database.insert(
+        "Subtitle",
+        {
+          "VideoId": videoId,
+          "Checksum": video.subtitles!.checkSum,
+          "ModifiedDateTime": video.subtitles!.timeStamp,
+          "MepsLanguage": video.subtitles!.mepsLanguage,
+          "FilePath": video.subtitles!.filePath,
+        },
+      );
+    }
+
+    printTime('Video inserted successfully: ${video.filePath} and ${video.subtitles!.filePath}');
+
+    return video;
+  }
+
+  Future<void> deleteMedia(Media media) async {
+    // Récupérer le MediaKeyId avant suppression
+    final keyResult = await _database.query(
+      "MediaKey",
+      columns: ["MediaKeyId"],
+      where: "KeySymbol = ? AND DocumentId = ? AND MepsLanguage = ? AND IssueTagNumber = ? AND Track = ?",
+      whereArgs: [
+        media.keySymbol ?? '',
+        media.documentId ?? 0,
+        media.mepsLanguage ?? JwLifeSettings().currentLanguage.symbol,
+        media.issueTagNumber ?? 0,
+        media.track ?? 0,
+      ],
+    );
+
+    if (keyResult.isEmpty) return; // rien à supprimer
+
+    final mediaKeyId = keyResult.first["MediaKeyId"] as int;
+
+    // Supprimer les dépendances
+    if (media is Audio) {
+      await _database.delete(
+        "Audio",
+        where: "MediaKeyId = ?",
+        whereArgs: [mediaKeyId],
+      );
+    } else if (media is Video) {
+      await _database.delete(
+        "Video",
+        where: "MediaKeyId = ?",
+        whereArgs: [mediaKeyId],
+      );
+
+      await _database.delete(
+        "Subtitle",
+        where: "VideoId = ?",
+        whereArgs: [mediaKeyId],
+      );
+    }
+
+    // Enfin, supprimer la clé
+    await _database.delete(
+      "MediaKey",
+      where: "MediaKeyId = ?",
+      whereArgs: [mediaKeyId],
+    );
+  }
+
+  Future<void> downloadPubAudioFile(dynamic audio, int mediaKeyId, String audioFilePath, Database db) async {
+    // Insérer une ligne dans la table Video
+    int audioId = await db.insert(
+      "Audio",
+      {
+        "MediaKeyId": mediaKeyId,
+        "Title": audio['title'],
+        "Version": 0, // Remplacer par la version si nécessaire
+        "MimeType": audio['mimetype'] ?? '',
+        "BitRate": audio['bitRate'] ?? 0,
+        "Duration": audio['duration'] ?? 0,
+        "Checksum": audio['file']['checksum'] ?? '',
+        "FileSize": audio['filesize'] ?? 0,
+        "FilePath": audioFilePath,
+        "Source": 0,
+        "ModifiedDateTime": audio['file']['modifiedDatetime'] ?? "",
+      },
+    );
+    printTime('Audio file downloaded successfully: $audioFilePath');
+  }
+
+  Future<void> deletePubAudioFile(int mediaKeyId, Database db) async {
+    await db.delete(
+      "MediaKey",
+      where: "MediaKeyId = ?",
+      whereArgs: [mediaKeyId],
+    );
+
+    int audioId = await db.delete(
+      "Audio",
+      where: "MediaKeyId = ?",
+      whereArgs: [mediaKeyId],
+    );
+
+    await db.delete(
+      "AudioMarker",
+      where: "AudioId = ?",
+      whereArgs: [audioId],
+    );
+
+    printTime('Audio file deleted successfully');
   }
 }

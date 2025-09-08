@@ -17,28 +17,29 @@ import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
 
 import '../../core/api/api.dart';
+import '../../core/utils/utils_video.dart';
+import '../../data/models/media.dart';
+import '../../data/models/video.dart';
 
 // Fonction pour afficher le dialogue de téléchargement
-Future<String?> showVideoDialog(BuildContext context, MediaItem mediaItem) async {
+Future<String?> showVideoDialog(BuildContext context, Video video) async {
   File mediaCollectionFile = await getMediaCollectionsDatabaseFile();
   Database db = await openDatabase(mediaCollectionFile.path, readOnly: true, version: 1);
 
   final List<ConnectivityResult> connectivityResult = await (Connectivity().checkConnectivity());
 
-  dynamic media = await getVideoIfDownload(db, mediaItem);
-
-  if (media != null) {
-    return _showLocalVideoDialog(context, mediaItem, connectivityResult);
+  if (video.isDownloadedNotifier.value) {
+    return _showLocalVideoDialog(context, video, connectivityResult);
   }
   else {
     if(connectivityResult.contains(ConnectivityResult.wifi) || connectivityResult.contains(ConnectivityResult.mobile) || connectivityResult.contains(ConnectivityResult.ethernet)) {
-      final apiUrl = 'https://b.jw-cdn.org/apis/mediator/v1/media-items/${mediaItem.languageSymbol}/${mediaItem.languageAgnosticNaturalKey}';
+      final apiUrl = 'https://b.jw-cdn.org/apis/mediator/v1/media-items/${video.mepsLanguage}/${video.naturalKey}';
       try {
         final response = await http.get(Uri.parse(apiUrl));
 
         if (response.statusCode == 200) {
           final data = json.decode(response.body);
-          return _showOnlineVideoDialog(context, mediaItem, data);
+          return _showOnlineVideoDialog(context, video, data);
         }
         else {
           printTime('Loading error: ${response.statusCode}');
@@ -55,7 +56,7 @@ Future<String?> showVideoDialog(BuildContext context, MediaItem mediaItem) async
   return null; // Retourne null en cas d'échec
 }
 
-Future<String?> _showLocalVideoDialog(BuildContext context, MediaItem mediaItem, List<ConnectivityResult> connectivityResult) {
+Future<String?> _showLocalVideoDialog(BuildContext context, Video video, List<ConnectivityResult> connectivityResult) {
   return showDialog<String>(
     context: context,
     builder: (BuildContext context) {
@@ -67,14 +68,14 @@ Future<String?> _showLocalVideoDialog(BuildContext context, MediaItem mediaItem,
             mainAxisSize: MainAxisSize.min, // Pour ne pas remplir tout l'espace
             children: [
               Text(
-                "VIDÉO: ${mediaItem.title!}",
+                "VIDÉO: ${video.title}",
                 style: TextStyle(fontSize: 23, fontWeight: FontWeight.bold),
               ),
               SizedBox(height: 10),
               Row(
                 children: [
                   ImageCachedWidget(
-                      imageUrl: mediaItem.realmImages!.squareImageUrl!,
+                      imageUrl: video.networkImageSqr,
                       pathNoImage: 'pub_type_video',
                       width: 100,
                       height: 100
@@ -83,8 +84,8 @@ Future<String?> _showLocalVideoDialog(BuildContext context, MediaItem mediaItem,
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text("Durée: ${formatDuration(mediaItem.duration!)}"),
-                      Text("Date: ${DateFormat('dd/MM/yyyy').format(DateTime.parse(mediaItem.firstPublished!))}"),
+                      Text("Durée: ${formatDuration(video.duration)}"),
+                      Text("Date: ${DateFormat('dd/MM/yyyy').format(DateTime.parse(video.lastModified!))}"),
                     ],
                   ),
                 ],
@@ -102,7 +103,8 @@ Future<String?> _showLocalVideoDialog(BuildContext context, MediaItem mediaItem,
                   if(connectivityResult.contains(ConnectivityResult.wifi) || connectivityResult.contains(ConnectivityResult.mobile) || connectivityResult.contains(ConnectivityResult.ethernet))
                     TextButton(
                       onPressed: () async {
-                        final apiUrl = 'https://b.jw-cdn.org/apis/mediator/v1/media-items/${mediaItem.languageSymbol}/${mediaItem.languageAgnosticNaturalKey}';
+                        /*
+                        final apiUrl = 'https://b.jw-cdn.org/apis/mediator/v1/media-items/${video.mepsLanguage}/${video.naturalKey}';
                         try {
                           final response = await http.get(Uri.parse(apiUrl));
 
@@ -110,7 +112,7 @@ Future<String?> _showLocalVideoDialog(BuildContext context, MediaItem mediaItem,
                             final data = json.decode(response.body);
                             showVideoDownloadDialog(context, data['media'][0]['files']).then((value) {
                               if (value != null) {
-                                downloadMedia(context, mediaItem, data['media'][0], file: value);
+                                downloadMedia(context, video, data['media'][0], file: value);
                               }
                             });
                           }
@@ -121,6 +123,8 @@ Future<String?> _showLocalVideoDialog(BuildContext context, MediaItem mediaItem,
                         catch (e) {
                           printTime('An exception occurred: $e');
                         }
+
+                         */
                       },
                       child: Text('TÉLÉCHARGER'),
                     ),
@@ -140,7 +144,7 @@ Future<String?> _showLocalVideoDialog(BuildContext context, MediaItem mediaItem,
   );
 }
 
-Future<String?> _showOnlineVideoDialog(BuildContext context, MediaItem mediaItem, dynamic data) {
+Future<String?> _showOnlineVideoDialog(BuildContext context, Video video, dynamic data) {
   return showDialog<String>(
     context: context,
     builder: (BuildContext context) {
@@ -182,11 +186,14 @@ Future<String?> _showOnlineVideoDialog(BuildContext context, MediaItem mediaItem
                   ),
                   TextButton(
                     onPressed: () {
+                      /*
                       showVideoDownloadDialog(context, data['media'][0]['files']).then((value) {
                         if (value != null) {
-                          downloadMedia(context, mediaItem, data['media'][0], file: value);
+                          downloadMedia(context, video, data['media'][0], file: value);
                         }
                       });
+
+                       */
                     },
                     child: Text(
                       'TÉLÉCHARGER',
@@ -343,63 +350,4 @@ Future<void> _downloadAndOpenPdf(String fileUrl) async {
   catch (e) {
     printTime("Erreur lors du téléchargement ou de l'ouverture du fichier: $e");
   }
-}
-
-// Fonction pour afficher le dialogue de téléchargement
-Future<int?> showVideoDownloadDialog(BuildContext context, List<dynamic> files) async {
-  // Trier les fichiers par taille décroissante
-  files.sort((a, b) => b['filesize'].compareTo(a['filesize']));
-
-  return showDialog<int>(
-    context: context,
-    builder: (BuildContext context) {
-      return Dialog(
-        child: Container(
-          width: MediaQuery.of(context).size.width * 0.8, // Largeur personnalisée
-          padding: EdgeInsets.all(20.0), // Ajouter un padding
-          child: Column(
-            mainAxisSize: MainAxisSize.min, // Pour ne pas remplir tout l'espace
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                "Résolution",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              SizedBox(height: 10),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: files.map<Widget>((file) {
-                  // Convertir la taille en Mo ou Go
-                  double fileSize = file['filesize'] / (1024 * 1024); // Taille en Mo
-                  String sizeText = fileSize < 1024
-                      ? "${fileSize.toStringAsFixed(2)} Mo"
-                      : "${(fileSize / 1024).toStringAsFixed(2)} Go"; // Si la taille est plus grande que 1 Go
-
-                  return ListTile(
-                    title: Text("Télécharger ${file['label']} ($sizeText)"),
-                    onTap: () {
-                      // Gérer le téléchargement ici
-                      printTime("Télécharger: ${file['progressiveDownloadURL']}");
-
-                      Navigator.of(context).pop(files.indexOf(file)); // Retourner l'index du fichier sélectionné
-                    },
-                  );
-                }).toList(),
-              ),
-              SizedBox(height: 20),
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: () {
-                    Navigator.of(context).pop(); // Fermer le dialogue et retourner -1 en cas d'annulation
-                  },
-                  child: Text('ANNULER'),
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    },
-  );
 }

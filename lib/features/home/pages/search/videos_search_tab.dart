@@ -6,6 +6,7 @@ import 'package:jwlife/features/home/pages/search/search_model.dart';
 
 import '../../../../app/services/settings_service.dart';
 import '../../../../core/icons.dart';
+import '../../../../data/models/video.dart';
 
 class VideosSearchTab extends StatefulWidget {
   final SearchModel model;
@@ -41,10 +42,11 @@ class _VideosSearchTabState extends State<VideosSearchTab> {
               itemBuilder: (context, index) {
                 final item = results[index];
                 MediaItem? mediaItem = getMediaItemFromLank(item['lank'], JwLifeSettings().currentLanguage.symbol);
+                Video video = Video.fromJson(mediaItem: mediaItem);
 
                 return GestureDetector(
                   onTap: () {
-                    showFullScreenVideo(context, mediaItem);
+                    video.showPlayer(context);
                   },
                   child: Card(
                     color: Theme.of(context).brightness == Brightness.dark
@@ -72,48 +74,46 @@ class _VideosSearchTabState extends State<VideosSearchTab> {
                               height: 200,
                               color: Colors.grey,
                             ),
-                            if (mediaItem != null)
-                              Positioned(
-                                top: 8,
-                                left: 8,
-                                child: Container(
-                                    padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 6),
-                                    color: Colors.black.withOpacity(0.7),
-                                    child: Row(
-                                        children: [
-                                          const Icon(
-                                            JwIcons.play,
+                            Positioned(
+                              top: 8,
+                              left: 8,
+                              child: Container(
+                                  padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 6),
+                                  color: Colors.black.withOpacity(0.7),
+                                  child: Row(
+                                      children: [
+                                        const Icon(
+                                          JwIcons.play,
+                                          color: Colors.white,
+                                          size: 16,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          formatDuration(mediaItem.duration!),
+                                          style: const TextStyle(
                                             color: Colors.white,
-                                            size: 16,
+                                            fontSize: 16,
                                           ),
-                                          const SizedBox(width: 8),
-                                          Text(
-                                            formatDuration(mediaItem.duration!),
-                                            style: const TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 16,
-                                            ),
-                                          ),
-                                        ]
-                                    )
-                                ),
+                                        ),
+                                      ]
+                                  )
                               ),
-                            if (mediaItem != null)
-                              Positioned(
-                                top: 8,
-                                right: 8,
-                                child: PopupMenuButton(
-                                  icon: const Icon(Icons.more_vert, color: Colors.white, size: 30),
-                                  itemBuilder: (context) => [
-                                    getVideoShareItem(mediaItem),
-                                    getVideoLanguagesItem(context, mediaItem),
-                                    getVideoFavoriteItem(mediaItem),
-                                    getVideoDownloadItem(context, mediaItem),
-                                    getShowSubtitlesItem(context, mediaItem, query: widget.model.query),
-                                    getCopySubtitlesItem(context, mediaItem),
-                                  ],
-                                ),
+                            ),
+                            Positioned(
+                              top: 8,
+                              right: 8,
+                              child: PopupMenuButton(
+                                icon: const Icon(Icons.more_vert, color: Colors.white, size: 30),
+                                itemBuilder: (context) => [
+                                  getVideoShareItem(video),
+                                  getVideoLanguagesItem(context, video),
+                                  getVideoFavoriteItem(video),
+                                  getVideoDownloadItem(context, video),
+                                  getShowSubtitlesItem(context, video, query: widget.model.query),
+                                  getCopySubtitlesItem(context, video),
+                                ],
                               ),
+                            ),
                           ],
                         ),
                         Padding(

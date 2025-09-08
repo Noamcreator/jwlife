@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:jwlife/app/jwlife_app.dart';
+import 'package:jwlife/data/models/media.dart';
 import 'package:jwlife/data/realm/realm_library.dart';
 import 'package:jwlife/features/home/widgets/home_page/rectangle_publication_item.dart';
 import 'package:jwlife/features/home/widgets/home_page/square_mediaitem_item.dart';
@@ -22,7 +23,7 @@ class LatestMediasSection extends StatefulWidget {
 }
 
 class LatestMediasSectionState extends State<LatestMediasSection> {
-  List<MediaItem> _latestMedias = [];
+  List<Media> _latestMedias = [];
 
   void refreshLatestMedias() {
     setState(() {
@@ -43,7 +44,7 @@ class LatestMediasSectionState extends State<LatestMediasSection> {
             itemCount: _latestMedias.length,
             itemBuilder: (context, mediaIndex) {
               return MediaItemItemWidget(
-                  mediaItem: _latestMedias[mediaIndex],
+                  media: _latestMedias[mediaIndex],
                   timeAgoText: true
               );
             },

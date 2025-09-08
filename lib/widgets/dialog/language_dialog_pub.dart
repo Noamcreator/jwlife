@@ -371,7 +371,6 @@ class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
                   _publication = null;
                 });
               }
-              Navigator.of(context).pop(publication);
             }
           }
           else {
@@ -473,7 +472,8 @@ class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
                                 backgroundColor: Colors.red,
                               ),
                             );
-                          } finally {
+                          }
+                          finally {
                             setState(() {
                               _publication = null;
                             });

@@ -10,6 +10,7 @@ import 'package:jwlife/data/realm/catalog.dart';
 import 'package:jwlife/widgets/image_cached_widget.dart';
 
 import '../../../../../app/services/global_key_service.dart';
+import '../../../../../data/models/video.dart';
 import '../data/models/multimedia.dart';
 
 class FullScreenImagePage extends StatefulWidget {
@@ -160,7 +161,8 @@ class _FullScreenImagePageState extends State<FullScreenImagePage> {
                 child: GestureDetector(
                   onTap: () {
                     if (isVideo && mediaItem != null) {
-                      showFullScreenVideo(context, mediaItem);
+                      Video video = Video.fromJson(mediaItem: mediaItem);
+                      video.showPlayer(context);
                     }
                     else {
                       setState(() {

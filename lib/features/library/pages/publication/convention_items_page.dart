@@ -8,6 +8,7 @@ import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/core/utils/utils_pub.dart';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/models/publication_category.dart';
+import 'package:jwlife/data/models/video.dart';
 import 'package:jwlife/data/repositories/PublicationRepository.dart';
 import 'package:jwlife/data/databases/catalog.dart';
 import 'package:jwlife/data/realm/catalog.dart';
@@ -17,8 +18,10 @@ import 'package:jwlife/widgets/image_cached_widget.dart';
 import 'package:realm/realm.dart';
 
 import '../../../../app/services/settings_service.dart';
+import '../../../../data/models/audio.dart';
 import '../../../../data/models/publication_attribute.dart';
 import '../../../../data/realm/realm_library.dart';
+import '../../../../data/repositories/MediaRepository.dart';
 import '../../widgets/rectangle_mediaItem_item.dart';
 
 class ConventionItemsView extends StatefulWidget {
@@ -114,7 +117,14 @@ class _ConventionItemsViewState extends State<ConventionItemsView> {
               }
               else {
                 MediaItem media = RealmLibrary.realm.all<MediaItem>().query("naturalKey == '$item'").first;
-                return RectangleMediaItemItem(media: media);
+                if(media.type == 'AUDIO') {
+                  Audio audio = Audio.fromJson(mediaItem: media);
+                  return RectangleMediaItemItem(media: audio);
+                }
+                else {
+                  Video video = Video.fromJson(mediaItem: media);
+                  return RectangleMediaItemItem(media: video);
+                }
               }
             }).toList(),
           )

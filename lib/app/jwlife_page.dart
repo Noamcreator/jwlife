@@ -38,6 +38,7 @@ class JwLifePageState extends State<JwLifePage> {
 
   bool audioWidgetVisible = false;
   int currentNavigationBottomBarIndex = 0;
+  bool _popMenuOpen = false;
 
   late final List<Widget> _pages;
 
@@ -85,6 +86,12 @@ class JwLifePageState extends State<JwLifePage> {
     }
   }
 
+  void togglePopMenuOpen(bool isOpen) {
+    if (_popMenuOpen != isOpen) {
+      _popMenuOpen = isOpen;
+    }
+  }
+
   void _updateSystemUiMode(bool isVisible) {
     if (!isVisible) {
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.leanBack, overlays: SystemUiOverlay.values);
@@ -111,19 +118,28 @@ class JwLifePageState extends State<JwLifePage> {
     if (currentPages != null && currentPages.isNotEmpty) {
       final lastPage = currentPages.last;
 
-      if (currentWebKeys.isNotEmpty && (lastPage is DocumentPage || lastPage is DailyTextPage)) {
-        final webViewPageState = currentWebKeys.last.currentState;
-        if (webViewPageState is DocumentPageState) {
-          if (!await webViewPageState.handleBackPress(fromPopScope: true)) {
-            return;
-          }
-          currentWebKeys.removeLast();
+      if(_popMenuOpen) {
+        togglePopMenuOpen(false);
+        if (currentNavigator.canPop()) {
+          result == null ? currentNavigator.pop() : currentNavigator.pop(result);
         }
-        else if (webViewPageState is DailyTextPageState) {
-          if (!await webViewPageState.handleBackPress(fromPopScope: true)) {
-            return;
+        return;
+      }
+      else {
+        if (currentWebKeys.isNotEmpty && (lastPage is DocumentPage || lastPage is DailyTextPage)) {
+          final webViewPageState = currentWebKeys.last.currentState;
+          if (webViewPageState is DocumentPageState) {
+            if (!await webViewPageState.handleBackPress(fromPopScope: true)) {
+              return;
+            }
+            currentWebKeys.removeLast();
           }
-          currentWebKeys.removeLast();
+          else if (webViewPageState is DailyTextPageState) {
+            if (!await webViewPageState.handleBackPress(fromPopScope: true)) {
+              return;
+            }
+            currentWebKeys.removeLast();
+          }
         }
       }
     }

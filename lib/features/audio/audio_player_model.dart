@@ -27,9 +27,9 @@ class JwLifeAudioPlayer {
 
   bool isSettingPlaylist = false;
 
-  Future<void> fetchAudioData(realm_catalog.MediaItem mediaItem) async {
-    String lank = mediaItem.languageAgnosticNaturalKey!;
-    String lang = mediaItem.languageSymbol!;
+  Future<void> fetchAudioData(Audio audio) async {
+    String lank = audio.naturalKey!;
+    String lang = audio.mepsLanguage!;
 
     if (lank.isNotEmpty && lang.isNotEmpty) {
       album = '';
@@ -39,10 +39,10 @@ class JwLifeAudioPlayer {
 
         if (response.statusCode == 200) {
           final data = json.decode(response.body);
-          album = RealmLibrary.realm.all<realm_catalog.Category>().query("key == '${mediaItem.primaryCategory}'").first.localizedName!;
+          album = RealmLibrary.realm.all<realm_catalog.Category>().query("key == '${audio.categoryKey}'").first.localizedName!;
 
-          Audio audio = Audio.fromJson(data['media'][0]);
-          audio.imagePath = mediaItem.realmImages!.squareFullSizeImageUrl ?? mediaItem.realmImages!.squareImageUrl ?? '';
+          //Audio audio = Audio.fromJson(json:data['media'][0]);
+          audio.imagePath = audio.networkImageSqr;
           await setPlaylist([audio]);
         }
         else {
@@ -58,7 +58,7 @@ class JwLifeAudioPlayer {
     }
   }
 
-  Future<void> fetchAudiosCategoryData(realm_catalog.Category category, List<realm_catalog.MediaItem> filteredAudios, {int? id}) async {
+  Future<void> fetchAudiosCategoryData(realm_catalog.Category category, List<Audio> filteredAudios, {int? id}) async {
     List<Audio> audios = [];
 
     if(album != category.localizedName) {
@@ -80,18 +80,21 @@ class JwLifeAudioPlayer {
           bool onlineIsNotEmpty = jsonData['category'] != null && jsonData['category']['media'] != null;
 
           for (int i = 0; i < filteredAudios.length; i++) {
-            realm_catalog.MediaItem mediaItem = filteredAudios[i];
+            Audio audio = filteredAudios[i];
 
-            Audio? localAudio = JwLifeApp.mediaCollections.getAudioFromMediaItem(mediaItem);
-
-            if (localAudio != null) {
-              audios.add(localAudio);
+            if (audio.isDownloadedNotifier.value) {
+              audios.add(audio);
             }
             else {
+              final apiMedia = jsonData['category']['media'][i];
               if (onlineIsNotEmpty) {
-                if (jsonData['category']['media'][i]['naturalKey'] != null) {
-                  Audio audio = Audio.fromJson(jsonData['category']['media'][i]);
-                  audio.imagePath = mediaItem.realmImages!.squareFullSizeImageUrl ?? mediaItem.realmImages!.squareImageUrl ?? '';
+                if (apiMedia['naturalKey'] != null) {
+                  audio.imagePath = audio.networkImageSqr;
+                  audio.fileUrl = apiMedia['files'][0]['progressiveDownloadURL'];
+                  audio.lastModified = apiMedia['files'][0]['modifiedDatetime'];
+                  audio.bitRate = apiMedia['files'][0]['bitRate'];
+                  audio.duration = apiMedia['files'][0]['duration'];
+                  audio.mimeType = apiMedia['files'][0]['mimetype'];
                   audios.add(audio);
                 }
               }
@@ -125,8 +128,8 @@ class JwLifeAudioPlayer {
 
       // Télécharge ou récupère les images nécessaires en parallèle
       final List<Future<Uri>> imageFutures = audios.map((audio) async {
-        if (audio.isDownloaded) {
-          return Uri.file(audio.imagePath);
+        if (audio.isDownloadedNotifier.value) {
+          return Uri.file(audio.imagePath!);
         }
         else if (pub != null && pub.imageSqr != null) {
           return Uri.file(pub.imageSqr!);
@@ -147,9 +150,9 @@ class JwLifeAudioPlayer {
 
         AudioSource audioSource;
 
-        if (audio.isDownloaded) {
+        if (audio.isDownloadedNotifier.value) {
           audioSource = AudioSource.file(
-            audio.filePath,
+            audio.filePath!,
             tag: MediaItem(
               id: '$i',
               album: audio.categoryKey,
@@ -167,7 +170,7 @@ class JwLifeAudioPlayer {
         }
         else {
           audioSource = AudioSource.uri(
-            Uri.parse(audio.fileUrl),
+            Uri.parse(audio.fileUrl!),
             headers: Api.getHeaders(),
             tag: MediaItem(
                 id: '$i',
@@ -196,19 +199,19 @@ class JwLifeAudioPlayer {
   }
 
 
-  Future<void> playAudio(realm_catalog.MediaItem mediaItem, {Audio? localAudio, Duration initialPosition = Duration.zero}) async {
-    History.insertAudioMediaItem(mediaItem);
+  Future<void> playAudio(Audio audio, {Duration initialPosition = Duration.zero}) async {
+    History.insertAudioMediaItem(audio);
 
-    if(localAudio != null) {
-      await setPlaylist([localAudio]);
+    if(audio.isDownloadedNotifier.value) {
+      await setPlaylist([audio]);
     }
     else {
-      await fetchAudioData(mediaItem);
+      await fetchAudioData(audio);
     }
     await play(initialPosition: initialPosition);
   }
 
-  Future<void> playAudios(realm_catalog.Category category, List<realm_catalog.MediaItem> filteredAudios, {int id = 0, bool randomMode = false}) async {
+  Future<void> playAudios(realm_catalog.Category category, List<Audio> filteredAudios, {int id = 0, bool randomMode = false}) async {
     History.insertAudioMediaItem(filteredAudios[id]);
 
     setRandomMode(randomMode);

@@ -11,6 +11,7 @@ import 'package:jwlife/widgets/dialog/publication_dialogs.dart';
 import '../../../app/services/settings_service.dart';
 import '../../../core/utils/directory_helper.dart';
 import '../../../core/utils/utils.dart';
+import '../../../data/models/video.dart';
 import '../../../widgets/dialog/language_dialog.dart';
 
 class AlertInfoPage extends StatefulWidget {
@@ -168,13 +169,14 @@ class _AlertInfoPageState extends State<AlertInfoPage> {
           }
           else if (uri.host == 'www.jw.org' && uri.path == '/finder') {
             if (uri.queryParameters.containsKey('lank')) {
-              MediaItem? mediaItem;
               if(uri.queryParameters.containsKey('lank')) {
+                MediaItem? mediaItem;
                 final lank = uri.queryParameters['lank'];
                 mediaItem = getMediaItemFromLank(lank!, JwLifeSettings().currentLanguage.symbol);
-              }
 
-              showFullScreenVideo(context, mediaItem!);
+                Video video = Video.fromJson(mediaItem: mediaItem);
+                video.showPlayer(context);
+              }
             }
 
             // Annule la navigation pour gérer le lien manuellement

@@ -535,8 +535,6 @@ class _PublicationMenuViewState extends State<PublicationMenuView> with SingleTi
 
                 Audio? audio = widget.publication.audios.firstWhereOrNull((audio) => audio.documentId == item.mepsDocumentId);
                 if (audio != null) {
-                  Audio localAudio = JwLifeApp.mediaCollections.getAudio(audio);
-
                   items.add(
                     PopupMenuItem(
                       child: Row(
@@ -551,11 +549,7 @@ class _PublicationMenuViewState extends State<PublicationMenuView> with SingleTi
                           ),
                           const SizedBox(width: 8.0),
                           Text(
-                            localAudio.isDownloaded
-                                ? "Supprimer l'audio (${formatFileSize(
-                                localAudio.fileSize)})"
-                                : "Télécharger l'audio (${formatFileSize(
-                                localAudio.fileSize)})",
+                            audio.isDownloadedNotifier.value ? "Supprimer l'audio (${formatFileSize(audio.fileSize!)})" : "Télécharger l'audio (${formatFileSize(audio.fileSize!)})",
                             style: TextStyle(
                               color: Theme
                                   .of(context)
@@ -567,23 +561,11 @@ class _PublicationMenuViewState extends State<PublicationMenuView> with SingleTi
                         ],
                       ),
                       onTap: () {
-                        if (localAudio.isDownloaded) {
-                          deleteAudio(context, widget.publication.keySymbol,
-                              widget.publication.issueTagNumber, localAudio
-                                  .documentId, localAudio.track, widget
-                                  .publication.mepsLanguage.symbol);
+                        if (audio.isDownloadedNotifier.value) {
+                          audio.remove(context);
                         }
                         else {
-                          downloadAudio(
-                              context,
-                              widget.publication.keySymbol,
-                              widget.publication.issueTagNumber,
-                              localAudio.documentId,
-                              localAudio.track,
-                              widget.publication.mepsLanguage.symbol,
-                              '${widget.publication.path}/${item
-                                  .imageFilePath}',
-                              audio);
+                          audio.download(context);
                         }
                       },
                     ),
