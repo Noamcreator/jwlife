@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/core/api/api.dart';
 import 'package:jwlife/core/api/wikipedia_api.dart';
@@ -8,6 +9,7 @@ import 'package:sqflite/sqflite.dart';
 
 import '../../../../app/services/settings_service.dart';
 import '../../../../core/bible_clues_info.dart';
+import '../../../../core/utils/files_helper.dart';
 import '../../../../core/utils/utils.dart';
 import '../../../../data/models/publication.dart';
 import '../../../publication/pages/document/local/documents_manager.dart';
@@ -312,50 +314,99 @@ class SearchModel {
   }
 
   Future<int?> getVerse(String reference) async {
-    final regex = RegExp(r'^([\w\s]+)\s+(\d+):(\d+)$', caseSensitive: false);
-    final match = regex.firstMatch(reference.trim().toLowerCase());
+    final regex = RegExp(r'^(.+)\s+(\d+):(\d+)', caseSensitive: false);
+    final match = regex.firstMatch(reference.trim());
 
     if (match == null) {
       return null;
     }
 
-    String bookNameInput = match.group(1)!.trim();
-    int chapterNumber = int.parse(match.group(2)!);
-    int verseNumber = int.parse(match.group(3)!);
+    String bookNameInput = match.group(1)!.trim().toLowerCase();
+    int chapter1 = int.parse(match.group(2)!);
+    int verse1 = int.parse(match.group(3)!);
 
     // Trouve le bookNumber correspondant au nom du livre
     List<BibleBookName> books = JwLifeApp.bibleCluesInfo.bibleBookNames;
 
-    BibleBookName? matchedBook = books.firstWhere(
-          (book) =>
-      book.standardBookName.toLowerCase() == bookNameInput ||
+    BibleBookName? matchedBook;
+
+    for (final book in books) {
+      if (book.standardBookName.toLowerCase() == bookNameInput ||
           book.standardBookAbbreviation.toLowerCase() == bookNameInput ||
           book.officialBookAbbreviation.toLowerCase() == bookNameInput ||
           book.standardSingularBookName.toLowerCase() == bookNameInput ||
           book.standardSingularBookAbbreviation.toLowerCase() == bookNameInput ||
-          book.officialSingularBookAbbreviation.toLowerCase() == bookNameInput,
-      orElse: () => throw Exception("Livre biblique introuvable : $bookNameInput"),
-    );
-
-    int bookNumber = matchedBook.bookNumber;
-
-    // Ouvre la base de données
-    Database bibleDatabase = await openDatabase(
-      PublicationRepository().getAllBibles().first.databasePath!,
-    );
-
-    // Récupère le BibleVerseId
-    final List<Map<String, Object?>> result = await bibleDatabase.rawQuery('''
-    SELECT BibleChapter.FirstVerseId + (? - 1) AS BibleVerseId
-    FROM BibleChapter
-    WHERE BookNumber = ? AND ChapterNumber = ?
-  ''', [verseNumber, bookNumber, chapterNumber]);
-
-    if (result.isEmpty) {
-      return null;
+          book.officialSingularBookAbbreviation.toLowerCase() == bookNameInput) {
+        matchedBook = book;
+        break; // Sort de la boucle dès qu'une correspondance est trouvée
+      }
     }
 
-    return result.first['BibleVerseId'] as int;
+    if (matchedBook == null) {
+      return null; // Retourne null si le livre n'est pas trouvé
+    }
+
+    int book1 = matchedBook.bookNumber;
+
+    int book2 = book1;
+    int chapter2 = chapter1;
+    int verse2 = verse1;
+
+    String bibleInfoName = 'NWTR';
+
+    File mepsFile = await getMepsUnitDatabaseFile();
+
+    try {
+      Database db = await openDatabase(mepsFile.path);
+      List<Map<String, dynamic>> versesIds = await db.rawQuery("""
+      SELECT
+      (
+        SELECT
+          FirstBibleVerseId +
+        CASE
+            WHEN EXISTS (
+                SELECT 1 FROM BibleSuperscriptionLocation
+                WHERE BookNumber = ? AND ChapterNumber = ?
+            ) THEN
+                CASE
+                    WHEN ? = 0 OR ? = 1 THEN 0
+                    ELSE (? - FirstOrdinal) + 1
+                END
+            ELSE (? - FirstOrdinal)
+        END
+        FROM BibleRange
+        INNER JOIN BibleInfo ON BibleRange.BibleInfoId = BibleInfo.BibleInfoId
+        WHERE BibleInfo.Name = ? AND BookNumber = ? AND ChapterNumber = ?
+      ) AS FirstVerseId,
+      
+      (
+        SELECT 
+          FirstBibleVerseId + (? - FirstOrdinal) + 
+          CASE 
+            WHEN EXISTS (
+              SELECT 1 FROM BibleSuperscriptionLocation
+              WHERE BookNumber = ? AND ChapterNumber = ?
+            ) AND ? > 0 THEN 1 ELSE 0
+          END
+        FROM BibleRange
+        INNER JOIN BibleInfo ON BibleRange.BibleInfoId = BibleInfo.BibleInfoId
+        WHERE BibleInfo.Name = ? AND BookNumber = ? AND ChapterNumber = ?
+      ) AS LastVerseId;
+      """, [book1, chapter1, verse1, verse1, verse1, verse1, bibleInfoName, book1, chapter1, verse2, book2, chapter2, verse2, bibleInfoName, book2, chapter2]);
+
+      db.close();
+
+      if (versesIds.isEmpty) {
+        return null;
+      }
+
+      return versesIds.first['FirstVerseId'] as int;
+    }
+    catch (e) {
+      printTime('Error reading database ${mepsFile.path}: $e');
+    }
+
+    return -1;
   }
 
   Future<List<Note>> fetchNotes() async {

@@ -107,7 +107,13 @@ class _PublicationMenuViewState extends State<PublicationMenuView> with SingleTi
 
   // Méthode pour initialiser la base de données
   Future<void> _init() async {
-    _documentsManager = DocumentsManager(publication: widget.publication, mepsDocumentId: -1);
+    if(widget.publication.documentsManager == null) {
+      _documentsManager = DocumentsManager(publication: widget.publication, mepsDocumentId: -1);
+    }
+    else {
+      _documentsManager = widget.publication.documentsManager!;
+    }
+
     await _documentsManager.initializeDatabaseAndData();
     widget.publication.documentsManager = _documentsManager;
     await _fetchItems();
@@ -424,192 +430,209 @@ class _PublicationMenuViewState extends State<PublicationMenuView> with SingleTi
   Widget buildNameItem(BuildContext context, bool showImage, ListItem item) {
     String subtitle = item.subTitle.replaceAll('​', '');
     bool showSubTitle = item.subTitle.isNotEmpty && subtitle != item.title;
+
+    Audio? audio = widget.publication.audios.firstWhereOrNull((audio) => audio.documentId == item.mepsDocumentId);
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4.0),
       child: InkWell(
         onTap: () {
           showPageDocument(context, widget.publication, item.mepsDocumentId);
         },
-        child: Row(
-          spacing: 8.0,
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Stack(
           children: [
-            // Affichage de l'image ou d'un conteneur de remplacement
-            showImage ? SizedBox(
-              width: 60.0, // Largeur fixe
-              height: 60.0, // Hauteur fixe égale à la largeur
-              child: item.imageFilePath.isNotEmpty == true
-                  ? ClipRRect(
-                child: Image.file(
-                  File('${widget.publication.path}/${item.imageFilePath}'),
-                  fit: BoxFit.cover,
-                ),
-              )
-                  : Container(
-                color: Theme
-                    .of(context)
-                    .brightness == Brightness.dark
-                    ? const Color(0xFF4f4f4f)
-                    : const Color(0xFF8e8e8e), // Couleur de fond par défaut
-              ),
-            ) : Container(),
-            // Affichage du texte
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if(showSubTitle) ...[
-                    Text(
-                      item.subTitle,
-                      style: TextStyle(
-                        color: Theme
-                            .of(context)
-                            .brightness == Brightness.dark
-                            ? const Color(0xFFc0c0c0)
-                            : const Color(0xFF626262),
-                        fontSize: 14,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+            Row(
+              // ... votre code existant pour l'image, le texte et le PopupMenuButton
+              spacing: 8.0,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Affichage de l'image
+                showImage ? SizedBox(
+                  width: 60.0,
+                  height: 60.0,
+                  child: item.imageFilePath.isNotEmpty == true
+                      ? ClipRRect(
+                    child: Image.file(
+                      File('${widget.publication.path}/${item.imageFilePath}'),
+                      fit: BoxFit.cover,
                     ),
-                  ],
-                  const SizedBox(height: 2.0), // Espacement entre les textes
-                  Text(
-                    item.title,
-                    style: TextStyle(
-                      color: Theme
-                          .of(context)
-                          .brightness == Brightness.dark
-                          ? const Color(0xFF9fb9e3)
-                          : const Color(0xFF4a6da7),
-                      fontSize: showSubTitle ? 15.0 : 16.0,
-                      height: 1.2, // Espacement vertical des lignes
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
+                  )
+                      : Container(
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? const Color(0xFF4f4f4f)
+                        : const Color(0xFF8e8e8e),
                   ),
-                ],
-              ),
-            ),
-            // Menu d'options
-            PopupMenuButton(
-              icon: Icon(
-                Icons.more_vert,
-                color: Theme
-                    .of(context)
-                    .brightness == Brightness.dark
-                    ? Color(0xFF8e8e8e)
-                    : Color(0xFF757575),
-              ),
-              itemBuilder: (context) {
-                List<PopupMenuEntry> items = [
-                  PopupMenuItem(
-                    child: Row(
-                      children: [
-                        Icon(
-                          JwIcons.share,
-                          color: Theme
-                              .of(context)
-                              .brightness == Brightness.dark
-                              ? Colors.white
-                              : Colors.black,
-                        ),
-                        const SizedBox(width: 8.0),
+                ) : Container(),
+                // Affichage du texte
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if(showSubTitle) ...[
                         Text(
-                          'Envoyer le lien',
+                          item.subTitle,
                           style: TextStyle(
-                            color: Theme
-                                .of(context)
-                                .brightness == Brightness.dark
-                                ? Colors.white
-                                : Colors.black,
+                            color: Theme.of(context).brightness == Brightness.dark
+                                ? const Color(0xFFc0c0c0)
+                                : const Color(0xFF626262),
+                            fontSize: 14,
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ],
-                    ),
-                    onTap: () {
-                      _documentsManager.getDocumentFromMepsDocumentId(item.mepsDocumentId).share(false);
-                    },
+                      const SizedBox(height: 2.0),
+                      Text(
+                        item.title,
+                        style: TextStyle(
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? const Color(0xFF9fb9e3)
+                              : const Color(0xFF4a6da7),
+                          fontSize: showSubTitle ? 15.0 : 16.0,
+                          height: 1.2,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
                   ),
-                ];
-
-                Audio? audio = widget.publication.audios.firstWhereOrNull((audio) => audio.documentId == item.mepsDocumentId);
-                if (audio != null) {
-                  items.add(
-                    PopupMenuItem(
-                      child: Row(
-                        children: [
-                          Icon(
-                            JwIcons.cloud_arrow_down,
-                            color: Theme
-                                .of(context)
-                                .brightness == Brightness.dark
-                                ? Colors.white
-                                : Colors.black,
-                          ),
-                          const SizedBox(width: 8.0),
-                          Text(
-                            audio.isDownloadedNotifier.value ? "Supprimer l'audio (${formatFileSize(audio.fileSize!)})" : "Télécharger l'audio (${formatFileSize(audio.fileSize!)})",
-                            style: TextStyle(
-                              color: Theme
-                                  .of(context)
-                                  .brightness == Brightness.dark
+                ),
+                // Menu d'options
+                PopupMenuButton(
+                  icon: Icon(
+                    Icons.more_vert,
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? const Color(0xFF8e8e8e)
+                        : const Color(0xFF757575),
+                  ),
+                  itemBuilder: (context) {
+                    List<PopupMenuEntry> items = [
+                      PopupMenuItem(
+                        child: Row(
+                          children: [
+                            Icon(
+                              JwIcons.share,
+                              color: Theme.of(context).brightness == Brightness.dark
                                   ? Colors.white
                                   : Colors.black,
                             ),
-                          ),
-                        ],
-                      ),
-                      onTap: () {
-                        if (audio.isDownloadedNotifier.value) {
-                          audio.remove(context);
-                        }
-                        else {
-                          audio.download(context);
-                        }
-                      },
-                    ),
-                  );
-
-                  items.add(
-                    PopupMenuItem(
-                      child: Row(
-                        children: [
-                          Icon(
-                            JwIcons.headphones__simple,
-                            color: Theme
-                                .of(context)
-                                .brightness == Brightness.dark
-                                ? Colors.white
-                                : Colors.black,
-                          ),
-                          const SizedBox(width: 8.0),
-                          Text(
-                            "Écouter l'audio",
-                            style: TextStyle(
-                              color: Theme
-                                  .of(context)
-                                  .brightness == Brightness.dark
-                                  ? Colors.white
-                                  : Colors.black,
+                            const SizedBox(width: 8.0),
+                            Text(
+                              'Envoyer le lien',
+                              style: TextStyle(
+                                color: Theme.of(context).brightness == Brightness.dark
+                                    ? Colors.white
+                                    : Colors.black,
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
+                        onTap: () {
+                          _documentsManager.getDocumentFromMepsDocumentId(item.mepsDocumentId).share(false);
+                        },
                       ),
-                      onTap: () {
-                        int? index = widget.publication.audios.indexWhere((audio) =>
-                        audio.documentId == item.mepsDocumentId);
-                        if (index != -1) {
-                          showAudioPlayerPublicationLink(context, widget.publication, index);
-                        }
-                      },
-                    ),
-                  );
-                }
+                    ];
+                    if (audio != null) {
+                      items.add(
+                        PopupMenuItem(
+                          child: Row(
+                            children: [
+                              Icon(
+                                JwIcons.cloud_arrow_down,
+                                color: Theme.of(context).brightness == Brightness.dark
+                                    ? Colors.white
+                                    : Colors.black,
+                              ),
+                              const SizedBox(width: 8.0),
+                              ValueListenableBuilder<bool>(
+                                valueListenable: audio.isDownloadingNotifier,
+                                builder: (context, isDownloading, child) {
+                                  return Text(
+                                    isDownloading
+                                        ? "Téléchargement en cours..."
+                                        : audio.isDownloadedNotifier.value
+                                        ? "Supprimer l'audio (${formatFileSize(audio.fileSize!)})"
+                                        : "Télécharger l'audio (${formatFileSize(audio.fileSize!)})",
+                                    style: TextStyle(
+                                      color: Theme.of(context).brightness == Brightness.dark
+                                          ? Colors.white
+                                          : Colors.black,
+                                    ),
+                                  );
+                                },
+                              ),
+                            ],
+                          ),
+                          onTap: () {
+                            if (audio.isDownloadedNotifier.value) {
+                              audio.remove(context);
+                            } else {
+                              audio.download(context);
+                            }
+                          },
+                        ),
+                      );
 
-                return items;
-              },
-            )
+                      items.add(
+                        PopupMenuItem(
+                          child: Row(
+                            children: [
+                              Icon(
+                                JwIcons.headphones__simple,
+                                color: Theme.of(context).brightness == Brightness.dark
+                                    ? Colors.white
+                                    : Colors.black,
+                              ),
+                              const SizedBox(width: 8.0),
+                              Text(
+                                "Écouter l'audio",
+                                style: TextStyle(
+                                  color: Theme.of(context).brightness == Brightness.dark
+                                      ? Colors.white
+                                      : Colors.black,
+                                ),
+                              ),
+                            ],
+                          ),
+                          onTap: () {
+                            int? index = widget.publication.audios.indexWhere((audio) => audio.documentId == item.mepsDocumentId);
+                            if (index != -1) {
+                              showAudioPlayerPublicationLink(context, widget.publication, index);
+                            }
+                          },
+                        ),
+                      );
+                    }
+                    return items;
+                  },
+                ),
+              ],
+            ),
+            if (audio != null)
+              ValueListenableBuilder<bool>(
+                valueListenable: audio.isDownloadingNotifier,
+                builder: (context, isDownloading, child) {
+                  if (isDownloading) {
+                    return Positioned(
+                      bottom: 0,
+                      left: 65,
+                      right: 20,
+                      child: ValueListenableBuilder<double>( // Écoute le progressNotifier
+                        valueListenable: audio.progressNotifier,
+                        builder: (context, progress, child) {
+                          return LinearProgressIndicator(
+                            value: progress, // Utilise la valeur de la progression
+                            minHeight: 2.0,
+                            backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.2),
+                            valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).colorScheme.primary),
+                          );
+                        },
+                      ),
+                    );
+                  }
+                  return const SizedBox.shrink();
+                },
+              ),
           ],
         ),
       ),

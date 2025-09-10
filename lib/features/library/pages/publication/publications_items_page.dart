@@ -9,6 +9,7 @@ import 'package:jwlife/widgets/dialog/language_dialog.dart';
 
 import '../../../../app/services/settings_service.dart';
 import '../../../../data/models/publication_attribute.dart';
+import '../../../../widgets/searchfield/searchfield_widget.dart';
 
 class PublicationsItemsView extends StatefulWidget {
   final PublicationCategory category;
@@ -21,8 +22,16 @@ class PublicationsItemsView extends StatefulWidget {
 }
 
 class _PublicationsItemsViewState extends State<PublicationsItemsView> {
+  // Liste complète des publications, telle que chargée depuis la base de données
   Map<PublicationAttribute, List<Publication>> publications = {};
-  List<dynamic> flattenedItems = []; // Liste plate contenant les titres et publications
+
+  // Liste plate (titres et publications)
+  List<dynamic> _flattenedItems = [];
+
+  // Variables pour la recherche
+  final TextEditingController _searchController = TextEditingController();
+  Map<PublicationAttribute, List<Publication>> _filteredPublications = {};
+  bool _isSearching = false;
 
   @override
   void initState() {
@@ -30,25 +39,27 @@ class _PublicationsItemsViewState extends State<PublicationsItemsView> {
     loadItems();
   }
 
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
   void loadItems() async {
     Map<PublicationAttribute, List<Publication>> publications;
 
     if (widget.year != null) {
-      // Récupération des publications pour une année spécifique
       publications = await PubCatalog.getPublicationsFromCategory(
         widget.category.id,
         year: widget.year,
       );
     }
     else {
-      // Récupération de toutes les publications sans filtrage par année
       publications = await PubCatalog.getPublicationsFromCategory(widget.category.id);
     }
 
-    // Remplace les publications existantes
     this.publications = publications;
 
-    // Ajoute les publications manquantes provenant des collections personnelles
     for (var pub in PublicationRepository().getAllDownloadedPublications()) {
       if (pub.category.id == widget.category.id && pub.mepsLanguage.id == JwLifeSettings().currentLanguage.id && (widget.year == null || pub.year == widget.year) && !this.publications.values.expand((list) => list).any((p) => p.symbol == pub.symbol && p.issueTagNumber == pub.issueTagNumber)) {
         this.publications.putIfAbsent(pub.attribute, () => []).add(pub);
@@ -58,18 +69,39 @@ class _PublicationsItemsViewState extends State<PublicationsItemsView> {
     var sortedEntries = this.publications.keys.toList()..sort((a, b) => a.id.compareTo(b.id));
     this.publications = Map.fromEntries(sortedEntries.map((key) => MapEntry(key, this.publications[key]!)));
 
-    // Création de la liste plate
-    _createFlattenedList();
+    // Initialise la liste filtrée avec toutes les publications
+    _filteredPublications = Map.from(this.publications);
 
-    // Rafraîchit l'interface
+    _createFlattenedList();
     setState(() {});
   }
 
-  void _createFlattenedList() {
-    flattenedItems.clear();
+  void _filterPublications(String query) {
+    setState(() {
+      _filteredPublications = {}; // Réinitialise la carte filtrée
+      if (query.isEmpty) {
+        // Si la recherche est vide, on affiche toutes les publications
+        _filteredPublications = Map.from(publications);
+      } else {
+        // Sinon, on filtre les publications
+        publications.forEach((attribute, publicationList) {
+          final filteredList = publicationList.where((pub) {
+            return pub.title.toLowerCase().contains(query.toLowerCase()) || pub.symbol.toLowerCase().contains(query.toLowerCase());
+          }).toList();
 
-    publications.forEach((attribute, publicationsFromAttribute) {
-      // Tri des publications selon la logique appropriée
+          if (filteredList.isNotEmpty) {
+            _filteredPublications[attribute] = filteredList;
+          }
+        });
+      }
+      _createFlattenedList();
+    });
+  }
+
+  void _createFlattenedList() {
+    _flattenedItems.clear();
+
+    _filteredPublications.forEach((attribute, publicationsFromAttribute) {
       if (widget.category.hasYears) {
         publicationsFromAttribute.sort((a, b) => a.issueTagNumber.compareTo(b.issueTagNumber));
       }
@@ -90,18 +122,16 @@ class _PublicationsItemsViewState extends State<PublicationsItemsView> {
         }
       }
 
-      // Ajouter le titre de la section si nécessaire
       if (attribute.id != 0) {
-        flattenedItems.add({
+        _flattenedItems.add({
           'type': 'header',
           'attribute': attribute,
-          'isFirst': flattenedItems.isEmpty,
+          'isFirst': _flattenedItems.isEmpty,
         });
       }
 
-      // Ajouter toutes les publications de cette section
       for (var publication in publicationsFromAttribute) {
-        flattenedItems.add({
+        _flattenedItems.add({
           'type': 'publication',
           'publication': publication,
         });
@@ -111,7 +141,6 @@ class _PublicationsItemsViewState extends State<PublicationsItemsView> {
 
   @override
   Widget build(BuildContext context) {
-    // Styles partagés
     final textStyleTitle = const TextStyle(fontSize: 20, fontWeight: FontWeight.bold);
     final textStyleSubtitle = TextStyle(
       fontSize: 14,
@@ -121,7 +150,40 @@ class _PublicationsItemsViewState extends State<PublicationsItemsView> {
     );
 
     return Scaffold(
-      appBar: AppBar(
+      resizeToAvoidBottomInset: false,
+      appBar: _isSearching
+          ? AppBar(
+        title: SearchFieldWidget(
+          query: '',
+          onSearchTextChanged: (text) {
+            setState(() {
+              _filterPublications(text);
+            });
+            return null;
+          },
+          onSuggestionTap: (item) {},
+          onSubmit: (item) {
+            setState(() {
+              _isSearching = false;
+            });
+          },
+          onTapOutside: (event) {
+            setState(() {
+              _isSearching = false;
+            });
+          },
+          suggestions: [],
+        ),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            setState(() {
+              _isSearching = false;
+              _filterPublications('');
+            });
+          },
+        ),
+      ) : AppBar(
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -132,7 +194,14 @@ class _PublicationsItemsViewState extends State<PublicationsItemsView> {
         actions: [
           IconButton(
             icon: Icon(JwIcons.magnifying_glass),
-            onPressed: () {},
+            onPressed: () {
+              setState(() {
+                setState(() {
+                  _isSearching = true;
+                  _filterPublications('');
+                });
+              });
+            },
           ),
           IconButton(
             icon: const Icon(JwIcons.language),
@@ -148,9 +217,9 @@ class _PublicationsItemsViewState extends State<PublicationsItemsView> {
       body: Padding(
         padding: const EdgeInsets.all(10.0),
         child: ListView.builder(
-          itemCount: flattenedItems.length,
+          itemCount: _flattenedItems.length,
           itemBuilder: (context, index) {
-            final item = flattenedItems[index];
+            final item = _flattenedItems[index];
 
             if (item['type'] == 'header') {
               return Padding(

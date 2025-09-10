@@ -24,6 +24,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:sqflite/sqflite.dart';
 import '../app/jwlife_app.dart';
 import '../app/services/global_key_service.dart';
+import '../app/services/notification_service.dart';
 import '../app/services/settings_service.dart';
 import '../core/api/api_keys.dart';
 import '../core/constants.dart';
@@ -56,6 +57,14 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
   String cacheSize = '';
   double _fontSize = 16;
   int _colorIndex = 1;
+
+  bool _dailyTextNotification = false;
+  DateTime _dailyTextNotificationTime = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day, 8, 0);
+
+  bool _bibleReadingNotification = false;
+  DateTime _bibleReadingNotificationTime = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day, 8, 0);
+
+  bool _downloadNotification = false;
 
   // Cache des styles pour éviter les recréations
   late final TextStyle _subtitleStyle;
@@ -93,6 +102,11 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
       getPrimaryColor(_theme),
       getFontSize(),
       getLastHighlightColorIndex(),
+      getDailyTextNotification(),
+      getDailyTextNotificationTime(),
+      getBibleReadingNotification(),
+      getBibleReadingNotificationTime(),
+      getDownloadNotification()
     ]);
 
     final theme = futures[0] as String;
@@ -100,6 +114,13 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
     final primaryColor = futures[2] as Color;
     final fontSize = futures[3] as double;
     final colorIndex = futures[4] as int;
+
+    final dailyTextNotification = futures[5] as bool;
+    final dailyTextNotificationTime = futures[6] as DateTime;
+    final bibleReadingNotification = futures[7] as bool;
+    final bibleReadingNotificationTime = futures[8] as DateTime;
+
+    final downloadNotification = futures[9] as bool;
 
     final themeMode = theme == 'dark'
         ? ThemeMode.dark
@@ -122,6 +143,13 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
         _selectedColor = primaryColor;
         _fontSize = fontSize;
         _colorIndex = colorIndex;
+
+        _dailyTextNotification = dailyTextNotification;
+        _dailyTextNotificationTime = dailyTextNotificationTime;
+        _bibleReadingNotification = bibleReadingNotification;
+        _bibleReadingNotificationTime = bibleReadingNotificationTime;
+
+        _downloadNotification = downloadNotification;
       });
     }
 
@@ -641,6 +669,24 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
     }
   }
 
+  Future<void> _showTimeSelector(BuildContext context, DateTime initialTime, Function(DateTime) onTimeSelected) async {
+    final TimeOfDay? newTime = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(initialTime),
+    );
+
+    if (newTime != null) {
+      final DateTime updatedDateTime = DateTime(
+        initialTime.year,
+        initialTime.month,
+        initialTime.day,
+        newTime.hour,
+        newTime.minute,
+      );
+      onTimeSelected(updatedDateTime);
+    }
+  }
+
   Future<String> uploadImageToImgbb(File imageFile) async {
     const String imgbbApiKey = ApiKey.imgbbApiKey;
     const String albumId = ApiKey.albumId;
@@ -1053,46 +1099,6 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
       ),
       const Divider(),
 
-      SettingsSectionHeader('Cache'),
-      SettingsTile(
-        title: 'Vider le cache',
-        trailing: Text(cacheSize),
-        onTap: () async {
-          BuildContext? dialogContext;
-
-          showJwDialog(
-            context: context,
-            titleText: 'Suppression du cache…',
-            content: Builder(
-              builder: (ctx) {
-                dialogContext = ctx;
-                return const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 25),
-                  child: SizedBox(
-                    height: 50,
-                    child: Center(child: CircularProgressIndicator()),
-                  ),
-                );
-              },
-            ),
-          );
-
-          try {
-            final cacheDir = await getTemporaryDirectory();
-            if (await cacheDir.exists()) {
-              await cacheDir.delete(recursive: true);
-            }
-
-            if (dialogContext != null) Navigator.of(dialogContext!).pop();
-            await _loadCacheSize();
-          } catch (e) {
-            if (dialogContext != null) Navigator.of(dialogContext!).pop();
-            await _showErrorDialog('Erreur', 'Erreur lors de la suppression du cache.');
-          }
-        },
-      ),
-      const Divider(),
-
       SettingsSectionHeader('Document'),
       SettingsTile(
         title: 'Taille de la police',
@@ -1133,18 +1139,147 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
           }
         },
       ),
+
       const Divider(),
+
+      SettingsSectionHeader('Notifications & Rappels'),
+      SettingsTile(
+        title: 'Rappels pour le texte du jour',
+        subtitle: 'Heure du rappel: ${_dailyTextNotificationTime.hour}:${_dailyTextNotificationTime.minute.toString().padLeft(2, '0')}',
+        trailing: Switch(
+          value: _dailyTextNotification, // Remplacez 'true' par la variable d'état qui contrôle le switch (e.g., _rappelTexteJourActive)
+          onChanged: (bool value) async {
+            setState(() {
+              _dailyTextNotification = value;
+            });
+            await setDailyTextNotification(value);
+            if(_dailyTextNotification) {
+              await NotificationService().scheduleDailyTextReminder(hour: _dailyTextNotificationTime.hour, minute: _dailyTextNotificationTime.minute);
+            }
+            else {
+              await NotificationService().cancelDailyTextReminder();
+            }
+          },
+        ),
+        onTap: () {
+          _showTimeSelector(
+              context,
+              _dailyTextNotificationTime,
+              (time) async {
+                setState(() {
+                  _dailyTextNotificationTime = time;
+                });
+                await setDailyTextNotificationTime(time);
+                if(_dailyTextNotification) {
+                  await NotificationService().scheduleDailyTextReminder(hour: _dailyTextNotificationTime.hour, minute: _dailyTextNotificationTime.minute);
+                }
+              }
+          );
+        }
+      ),
+      SettingsTile(
+        title: 'Rappels pour la lecture de la bible',
+        subtitle: 'Heure du rappel: ${_bibleReadingNotificationTime.hour}:${_bibleReadingNotificationTime.minute.toString().padLeft(2, '0')}',
+        trailing: Switch(
+          value: _bibleReadingNotification, // Remplacez 'false' par la variable d'état qui contrôle le switch (e.g., _rappelLectureBibleActive)
+          onChanged: (bool value) async {
+            setState(() {
+              _bibleReadingNotification = value;
+            });
+            await setBibleReadingNotification(value);
+            if(_bibleReadingNotification) {
+              await NotificationService().scheduleBibleReadingReminder(hour: _bibleReadingNotificationTime.hour, minute: _bibleReadingNotificationTime.minute);
+            }
+            else {
+              await NotificationService().cancelBibleReadingReminder();
+            }
+          },
+        ),
+        onTap: () {
+          _showTimeSelector(
+            context,
+            _bibleReadingNotificationTime,
+            (time) async {
+              setState(() {
+                _bibleReadingNotificationTime = time;
+              });
+              await setBibleReadingNotificationTime(time);
+              if(_bibleReadingNotification) {
+                await NotificationService().scheduleBibleReadingReminder(hour: _bibleReadingNotificationTime.hour, minute: _bibleReadingNotificationTime.minute);
+              }
+            }
+          );
+        }
+      ),
+      SettingsTile(
+          title: 'Notifications de fichiers téléchargés',
+          subtitle: 'Une notification est envoyée chaque fois qu’un fichier est téléchargé.',
+          trailing: Switch(
+            value: _downloadNotification, // Remplacez 'false' par la variable d'état qui contrôle le switch (e.g., _rappelLectureBibleActive)
+            onChanged: (bool value) async {
+              setState(() {
+                _downloadNotification = value;
+              });
+              await setDownloadNotification(value);
+              JwLifeSettings().notificationDownload = value;
+            },
+          ),
+      ),
+
+      const Divider(),
+
+      SettingsSectionHeader('Cache'),
+      SettingsTile(
+        title: 'Vider le cache',
+        trailing: Text(cacheSize),
+        onTap: () async {
+          BuildContext? dialogContext;
+
+          showJwDialog(
+            context: context,
+            titleText: 'Suppression du cache…',
+            content: Builder(
+              builder: (ctx) {
+                dialogContext = ctx;
+                return const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 25),
+                  child: SizedBox(
+                    height: 50,
+                    child: Center(child: CircularProgressIndicator()),
+                  ),
+                );
+              },
+            ),
+          );
+
+          try {
+            final cacheDir = await getTemporaryDirectory();
+            if (await cacheDir.exists()) {
+              await cacheDir.delete(recursive: true);
+            }
+
+            if (dialogContext != null) Navigator.of(dialogContext!).pop();
+            await _loadCacheSize();
+          } catch (e) {
+            if (dialogContext != null) Navigator.of(dialogContext!).pop();
+            await _showErrorDialog('Erreur', 'Erreur lors de la suppression du cache.');
+          }
+        },
+      ),
+
+      const Divider(),
+
       SettingsSectionHeader('Suggestions & Bugs'),
       SettingsTile(
           title: 'Envoyer une suggestion',
-          subtitle: 'Écrivez votre suggestion dans un champ qui sera automatiquement envoyé au développeur',
+          subtitle: 'Écrivez votre suggestion dans un champ qui sera automatiquement envoyé au développeur.',
           onTap: () {
             sendIssuesDialog(context, 'suggestion');
           }
       ),
       SettingsTile(
           title: 'Décrire un bug rencontré',
-          subtitle: 'Décrivez votre bug dans un champ qui sera automatiquement envoyé au développeur',
+          subtitle: 'Décrivez votre bug dans un champ qui sera automatiquement envoyé au développeur.',
           onTap: () {
             sendIssuesDialog(context, 'bug');
           }

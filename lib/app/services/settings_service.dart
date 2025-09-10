@@ -20,6 +20,8 @@ class JwLifeSettings {
   Color lightPrimaryColor = Constants.defaultLightPrimaryColor;
   Color darkPrimaryColor = Constants.defaultDarkPrimaryColor;
 
+  bool notificationDownload = false;
+
   Future<void> init() async {
     final theme = await getTheme();
     final themeMod = theme == 'dark'
@@ -57,5 +59,7 @@ class JwLifeSettings {
       rsConf: libraryLanguage[12],
       lib: libraryLanguage[13],
     );
+
+    notificationDownload = await getDownloadNotification();
   }
 }

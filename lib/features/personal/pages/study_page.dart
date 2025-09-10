@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
+import 'package:jwlife/core/utils/utils_document.dart';
 import 'package:jwlife/data/models/userdata/note.dart';
 import 'package:jwlife/features/personal/pages/playlist_page.dart';
 import 'package:jwlife/features/personal/pages/playlists_page.dart';
@@ -46,7 +47,54 @@ class _StudyTabViewState extends State<StudyTabView> {
     setState(() {});
   }
 
+  Widget buildSectionHeaderBibleReading() {
+    return Padding(
+      padding: const EdgeInsets.only(left: 8, right: 8, top: 0, bottom: 0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          InkWell(
+            onTap: () async {
 
+            },
+            child: Row(
+              children: [
+                Text(
+                  'Ma lecture de la Bible',
+                  style: TextStyle(
+                    color: Theme.of(context).primaryColor,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                SizedBox(width: 4),
+                Icon(
+                  JwIcons.chevron_right,
+                  color: Theme.of(context).primaryColor,
+                  size: 24,
+                ),
+              ],
+            ),
+          ),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                icon: Icon(
+                  JwIcons.bible,
+                  color: Theme.of(context).primaryColor,
+                  size: 25,
+                ),
+                onPressed: () async {
+
+                },
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget buildSectionHeaderNotesTags() {
     return Padding(
@@ -202,6 +250,52 @@ class _StudyTabViewState extends State<StudyTabView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Header Lecture de la Bible
+          buildSectionHeaderBibleReading(),
+
+          // Lecture de la bible
+          Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: InkWell(
+                onTap: () {
+                  showChapterView(context, 'nwtsty', 3, 43, 3, firstVerseNumber: 16, lastVerseNumber: 16);
+                },
+                child: Card(
+                  color: Theme.of(context).brightness == Brightness.light ? Colors.white : Colors.black,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  elevation: 2,
+                  child: Padding(
+                    padding: const EdgeInsets.all(10),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "Jean 3:16",
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.secondary,
+                          ),
+                        ),
+                        SizedBox(height: 4),
+                        Text(
+                          "Car Dieu a tant aimé le monde qu’il a donné son Fils unique, "
+                              "afin que tout homme qui exerce la foi en lui ne soit pas détruit, "
+                              "mais ait la vie éternelle.",
+                          style: TextStyle(
+                            fontSize: 14,
+                            height: 1.4,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              )
+          ),
+
           // Header Notes et Catégories
           buildSectionHeaderNotesTags(),
 
@@ -225,7 +319,7 @@ class _StudyTabViewState extends State<StudyTabView> {
                 double currentLineWidth = 0;
                 int currentLine = 0;
                 const double spacing = 8;
-                const double maxLines = 5;
+                const double maxLines = 4;
 
                 for (var tag in JwLifeApp.userdata.tags) {
                   // Calcul approximatif de la largeur du bouton
@@ -362,7 +456,7 @@ class _StudyTabViewState extends State<StudyTabView> {
             )
           ),
 
-          SizedBox(height: 32),
+          SizedBox(height: 10),
 
           // Header Listes de lectures
           buildSectionHeaderPlaylist(),

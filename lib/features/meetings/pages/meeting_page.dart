@@ -15,11 +15,13 @@ import 'package:jwlife/widgets/image_cached_widget.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:sqflite/sqflite.dart';
 
+import '../../../app/jwlife_app.dart';
 import '../../../app/services/global_key_service.dart';
 import '../../../app/services/settings_service.dart';
 import '../../../core/utils/common_ui.dart';
 import '../../../core/utils/utils.dart';
 import '../../../data/databases/history.dart';
+import '../../../data/models/userdata/congregation.dart';
 import '../../../widgets/responsive_appbar_actions.dart';
 import '../../publication/pages/document/data/models/document.dart';
 import '../../publication/pages/document/local/document_page.dart';
@@ -34,7 +36,7 @@ class MeetingsPage extends StatefulWidget {
 }
 
 class MeetingsPageState extends State<MeetingsPage> {
-  int _initialIndex = 0;
+  Congregation? _congregation;
   DateTime _dateOfMeetingValue = DateTime.now();
   MepsLanguage mepsLanguage = JwLifeSettings().currentLanguage;
   bool isLoading = true;
@@ -55,20 +57,20 @@ class MeetingsPageState extends State<MeetingsPage> {
   void initState() {
     super.initState();
 
-    // Déterminer le jour de la semaine
-    final now = DateTime.now();
-    if (now.weekday >= DateTime.monday && now.weekday <= DateTime.friday) {
-      _initialIndex = 0; // Du lundi au vendredi
-    }
-    else {
-      _initialIndex = 1; // Samedi et dimanche
-    }
-
     refreshMeetingsPubs();
     refreshConventionsPubs();
 
+    fetchFirstCongregation();
+
     setState(() {
       isLoading = false;
+    });
+  }
+
+  Future<void> fetchFirstCongregation() async {
+    final congregation = await JwLifeApp.userdata.getCongregations();
+    setState(() {
+      _congregation = congregation.first;
     });
   }
 
@@ -420,48 +422,55 @@ class MeetingsPageState extends State<MeetingsPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             /// 🔝 Prochaine réunion
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Colors.indigo[400]!, Colors.indigo[600]!],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'PROCHAINE RÉUNION',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
+            _congregation != null
+                ? Builder(
+              builder: (_) {
+                final meeting = _congregation!.nextMeeting();
+                if (meeting == null) return const SizedBox.shrink();
+
+                final date = meeting["date"] as DateTime;
+                final type = meeting["type"] as String;
+
+                final dateStr = DateFormat("EEEE d MMMM 'à' HH'h'mm", JwLifeSettings().currentLanguage.primaryIetfCode).format(date);
+
+                final typeStr = type == "midweek" ? "Réunion de semaine" : "Réunion de week-end";
+
+                return Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Colors.indigo[400]!, Colors.indigo[600]!],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
                     ),
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    _initialIndex == 0 ? 'Réunion de semaine' : 'Réunion du week-end',
-                    style: const TextStyle(
-                      fontSize: 18,
-                      color: Colors.white70,
-                    ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'PROCHAINE RÉUNION',
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        dateStr,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          color: Colors.white70,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    'Mercredi 19 octobre à 19h30',
-                    style: TextStyle(
-                      fontSize: 18,
-                      color: Colors.white70,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 40),
+                );
+              },
+            ) : const SizedBox.shrink(),
+            _congregation != null ? const SizedBox(height: 35) : const SizedBox.shrink(),
 
             /// 📌 Section Réunions
             Text('Réunions', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24)),
@@ -569,7 +578,7 @@ class MeetingsPageState extends State<MeetingsPage> {
             children: [
               // Header de la card avec glassmorphism
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(0.1),
                 ),

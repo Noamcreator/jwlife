@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:jwlife/app/jwlife_app.dart';
+import 'package:jwlife/app/services/global_key_service.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/i18n/localization.dart';
 import 'dart:convert';
@@ -139,6 +140,8 @@ class _CongregationsPageState extends State<CongregationsPage> {
         _congregations.add(data);
         _showSearchBar = false;
       });
+
+      GlobalKeyService.meetingsKey.currentState!.fetchFirstCongregation();
 
       debugPrint('Congrégation enregistrée avec succès.');
     } catch (e) {

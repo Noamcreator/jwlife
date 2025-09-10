@@ -67,14 +67,19 @@ Future<Map<String, dynamic>> fetchVerses(BuildContext context, String link) asyn
     List<Map<String, dynamic>> versesIds = await db.rawQuery("""
       SELECT
       (
-        SELECT 
-          FirstBibleVerseId + (? - FirstOrdinal) + 
-          CASE 
+        SELECT
+          FirstBibleVerseId +
+        CASE
             WHEN EXISTS (
-              SELECT 1 FROM BibleSuperscriptionLocation
-              WHERE BookNumber = ? AND ChapterNumber = ?
-            ) AND ? > 0 THEN 1 ELSE 0
-          END
+                SELECT 1 FROM BibleSuperscriptionLocation
+                WHERE BookNumber = ? AND ChapterNumber = ?
+            ) THEN
+                CASE
+                    WHEN ? = 0 OR ? = 1 THEN 0
+                    ELSE (? - FirstOrdinal) + 1
+                END
+            ELSE (? - FirstOrdinal)
+        END
         FROM BibleRange
         INNER JOIN BibleInfo ON BibleRange.BibleInfoId = BibleInfo.BibleInfoId
         WHERE BibleInfo.Name = ? AND BookNumber = ? AND ChapterNumber = ?
@@ -94,7 +99,7 @@ Future<Map<String, dynamic>> fetchVerses(BuildContext context, String link) asyn
         WHERE BibleInfo.Name = ? AND BookNumber = ? AND ChapterNumber = ?
       ) AS LastVerseId;
       """, [
-      verse1, book1, chapter1, verse1, bibleInfoName, book1, chapter1,
+      book1, chapter1, verse1, verse1, verse1, verse1, bibleInfoName, book1, chapter1,
       verse2, book2, chapter2, verse2, bibleInfoName, book2, chapter2,
     ]);
 
@@ -124,13 +129,27 @@ Future<Map<String, dynamic>> fetchVerses(BuildContext context, String link) asyn
               (match) => '<span class="cl"><strong>${match.group(1)}</strong> </span>',
         );
 
+
         htmlContent += label;
-        final decodedHtml = decodeBlobContent(
+
+        String decodedHtml = decodeBlobContent(
           row['Content'] as Uint8List,
           bible.hash!,
         );
+
+        if (label.isEmpty) {
+          // row['BeginParagraphOrdinal'] te donne ton pid
+          final pid = row['BeginParagraphOrdinal'];
+
+          // on encapsule dans un <p>
+          decodedHtml =
+          '<p id="p$pid" data-pid="$pid" class="sw">$decodedHtml</p>';
+        }
+
         htmlContent += decodedHtml;
       }
+
+      print(htmlContent);
 
       List<Map<String, dynamic>> highlights = await JwLifeApp.userdata.getHighlightsFromChapterNumber(book1, chapter1, bible.mepsLanguage.id);
       List<Map<String, dynamic>> notes = await JwLifeApp.userdata.getNotesFromChapterNumber(book1, chapter1, bible.mepsLanguage.id);

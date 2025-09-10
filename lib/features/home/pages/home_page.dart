@@ -6,6 +6,7 @@ import 'package:collection/collection.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
 import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/core/bible_clues_info.dart';
 import 'package:jwlife/core/api/api.dart';
@@ -383,7 +384,7 @@ class HomePageState extends State<HomePage> {
     LEFT JOIN Image i_lsr ON a.ArticleId = i_lsr.ArticleId AND i_lsr.Type = 'lsr'
     LEFT JOIN Image i_pnr ON a.ArticleId = i_pnr.ArticleId AND i_pnr.Type = 'pnr'
     WHERE a.LanguageSymbol = ?
-    ORDER BY a.Timestamp DESC
+    ORDER BY a.Timestamp
     LIMIT 3
   ''', [languageSymbol]);
 
@@ -409,9 +410,7 @@ class HomePageState extends State<HomePage> {
     // Fonction pour récupérer l'URL à partir d'une classe interne
     String getImageUrlFromFirst(String className) {
       if (firstBillboard == null) return '';
-      final style = firstBillboard
-          .querySelector('$className .billboard-media-image')
-          ?.attributes['style'] ?? '';
+      final style = firstBillboard.querySelector('$className .billboard-media-image')?.attributes['style'] ?? '';
       final match = RegExp(r'url\(([^)]+)\)').firstMatch(style);
       return match?.group(1) ?? '';
     }
@@ -464,7 +463,7 @@ class HomePageState extends State<HomePage> {
         'ContextTitle': contextTitle,
         'Title': title,
         'Description': description,
-        'Timestamp': DateTime.now().toIso8601String(),
+        'Timestamp': DateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'").format(DateTime.now().toUtc()),
         'Link': fullLink,
         'Content': '', // Ajouter contenu si besoin
         'ButtonText': buttonText,

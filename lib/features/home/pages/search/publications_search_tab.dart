@@ -190,8 +190,7 @@ class _PublicationsSearchTabState extends State<PublicationsSearchTab> {
                                     PopupMenuItem(
                                       child: const Text('Autres langues'),
                                       onTap: () async {
-                                        String link =
-                                            'https://b.jw-cdn.org/apis/mediator/v1/media-item-availability/${item['lank']}?clientType=www';
+                                        String link = 'https://b.jw-cdn.org/apis/mediator/v1/media-item-availability/${item['lank']}?clientType=www';
                                         final response = await Api.httpGetWithHeaders(link);
                                         if (response.statusCode == 200) {
                                           final jsonData = json.decode(response.body);

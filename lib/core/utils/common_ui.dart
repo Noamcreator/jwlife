@@ -42,7 +42,6 @@ Future<void> showPageBibleChapter(BuildContext context, Publication bible, int b
   );
 }
 
-
 Future<void> showPageDailyText(BuildContext context, Publication publication, {DateTime? date}) async {
   final GlobalKey<DailyTextPageState> dailyTextKey = GlobalKey<DailyTextPageState>();
   GlobalKeyService.jwLifePageKey.currentState!.webViewPageKeys[GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex].add(dailyTextKey);

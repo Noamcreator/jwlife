@@ -185,3 +185,84 @@ Future<void> setLastHighlightColor(int lastColorIndex) async {
   final sp = await _getSP();
   await sp.setInt(SharedPreferencesKeys.lastHighlightColorIndex.key, lastColorIndex);
 }
+
+/* Rappeles et notifications */
+Future<bool> getDailyTextNotification() async {
+  final sp = await _getSP();
+  return sp.getBool(SharedPreferencesKeys.dailyTextNotification.key) ?? SharedPreferencesKeys.dailyTextNotification.defaultValue;
+}
+
+Future<void> setDailyTextNotification(bool active) async {
+  final sp = await _getSP();
+  await sp.setBool(SharedPreferencesKeys.dailyTextNotification.key, active);
+}
+
+Future<DateTime> getDailyTextNotificationTime() async {
+  final sp = await _getSP();
+  String timeString = sp.getString(SharedPreferencesKeys.dailyTextNotificationTime.key) ?? SharedPreferencesKeys.dailyTextNotificationTime.defaultValue;
+
+  // Sépare la chaîne en heures et minutes
+  List<String> parts = timeString.split(':');
+  int hour = int.parse(parts[0]);
+  int minute = int.parse(parts[1]);
+
+  // Crée un nouvel objet DateTime avec la date d'aujourd'hui et l'heure stockée
+  return DateTime(
+    DateTime.now().year,
+    DateTime.now().month,
+    DateTime.now().day,
+    hour,
+    minute,
+  );
+}
+
+Future<void> setDailyTextNotificationTime(DateTime time) async {
+  final sp = await _getSP();
+  String formattedTime = '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+  await sp.setString(SharedPreferencesKeys.dailyTextNotificationTime.key, formattedTime);
+}
+
+Future<bool> getBibleReadingNotification() async {
+  final sp = await _getSP();
+  return sp.getBool(SharedPreferencesKeys.bibleReadingNotification.key) ?? SharedPreferencesKeys.bibleReadingNotification.defaultValue;
+}
+
+Future<void> setBibleReadingNotification(bool active) async {
+  final sp = await _getSP();
+  await sp.setBool(SharedPreferencesKeys.bibleReadingNotification.key, active);
+}
+
+Future<DateTime> getBibleReadingNotificationTime() async {
+  final sp = await _getSP();
+  String timeString = sp.getString(SharedPreferencesKeys.bibleReadingNotificationTime.key) ?? SharedPreferencesKeys.bibleReadingNotificationTime.defaultValue;
+
+  // Sépare la chaîne en heures et minutes
+  List<String> parts = timeString.split(':');
+  int hour = int.parse(parts[0]);
+  int minute = int.parse(parts[1]);
+
+  // Crée un nouvel objet DateTime avec la date d'aujourd'hui et l'heure stockée
+  return DateTime(
+    DateTime.now().year,
+    DateTime.now().month,
+    DateTime.now().day,
+    hour,
+    minute,
+  );
+}
+
+Future<void> setBibleReadingNotificationTime(DateTime time) async {
+  final sp = await _getSP();
+  String formattedTime = '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+  await sp.setString(SharedPreferencesKeys.bibleReadingNotificationTime.key, formattedTime);
+}
+
+Future<bool> getDownloadNotification() async {
+  final sp = await _getSP();
+  return sp.getBool(SharedPreferencesKeys.downloadNotification.key) ?? SharedPreferencesKeys.downloadNotification.defaultValue;
+}
+
+Future<void> setDownloadNotification(bool active) async {
+  final sp = await _getSP();
+  await sp.setBool(SharedPreferencesKeys.downloadNotification.key, active);
+}

@@ -1,4 +1,5 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:jwlife/app/services/settings_service.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz;
@@ -56,8 +57,6 @@ class NotificationService {
       onDidReceiveNotificationResponse: _onNotificationTapped,
       onDidReceiveBackgroundNotificationResponse: notificationTapBackground
     );
-
-    scheduleDailyTextReminder();
   }
 
   // Callback quand une notification ou action est tapée
@@ -265,13 +264,13 @@ class NotificationService {
 
       await notificationPlugin.zonedSchedule(
         100, // ID fixe pour pouvoir l'annuler/modifier
-        '📖 Texte du jour',
-        'Cliquez ici pour ouvrir le texte du jour',
+        'Texte du jour',
+        'Cliquez ici pour lire le texte du jour',
         scheduledDate,
         notificationDetails,
         matchDateTimeComponents: DateTimeComponents.time, // Répète chaque jour à la même heure
         payload: JwOrgUri.dailyText(
-          wtlocale: 'F',
+          wtlocale: JwLifeSettings().currentLanguage.symbol,
           date: 'today'
         ).toString(),
         androidScheduleMode: AndroidScheduleMode.exact,
@@ -279,6 +278,78 @@ class NotificationService {
 
       print('Notification quotidienne programmée pour ${hour}h${minute.toString().padLeft(2, '0')}');
     } catch (e) {
+      print('Erreur lors de la programmation du rappel quotidien: $e');
+    }
+  }
+
+  Future<void> scheduleBibleReadingReminder({
+    int hour = 8,
+    int minute = 0,
+  }) async {
+    try {
+      final hasPermission = await _checkNotificationPermission();
+      if (!hasPermission) return;
+
+      // Demander permission pour les alarmes exactes (Android 12+)
+      await _requestExactAlarmPermission();
+
+      const androidDetails = AndroidNotificationDetails(
+        'bible_reading_channel_id',
+        'Lecture de la Bible',
+        channelDescription: 'Rappel quotidien pour lire la Bible',
+        importance: Importance.high,
+        priority: Priority.high,
+        enableVibration: true,
+        playSound: true,
+        actions: [
+          AndroidNotificationAction(
+            'id_read_bible',
+            'Lire la Bible',
+            showsUserInterface: true,
+          ),
+          AndroidNotificationAction(
+            'id_dismiss',
+            'Plus tard',
+          ),
+        ],
+      );
+
+      const notificationDetails = NotificationDetails(
+        android: androidDetails,
+        iOS: DarwinNotificationDetails(
+          presentAlert: true,
+          presentBadge: true,
+          presentSound: true,
+        ),
+      );
+
+      // Calculer la prochaine occurrence à 8h
+      final now = tz.TZDateTime.now(tz.local);
+      var scheduledDate = tz.TZDateTime(tz.local, now.year, now.month, now.day, hour, minute);
+
+      // Si l'heure est déjà passée aujourd'hui, programmer pour demain
+      if (scheduledDate.isBefore(now)) {
+        scheduledDate = scheduledDate.add(const Duration(days: 1));
+      }
+
+      await notificationPlugin.zonedSchedule(
+        101, // ID fixe pour pouvoir l'annuler/modifier
+        'Lecture de la Bible',
+        'Cliquez ici pour ouvrir la Bible',
+        scheduledDate,
+        notificationDetails,
+        matchDateTimeComponents: DateTimeComponents.time, // Répète chaque jour à la même heure
+        payload: JwOrgUri.bibleBook(
+            wtlocale: JwLifeSettings().currentLanguage.symbol,
+            pub: 'nwtsty',
+            book: 1,
+        ).toString(),
+        androidScheduleMode: AndroidScheduleMode.exact,
+      );
+
+      print('Notification quotidienne programmée pour ${hour}h${minute.toString().padLeft(2, '0')}');
+    }
+    catch (e) {
       print('Erreur lors de la programmation du rappel quotidien: $e');
     }
   }
@@ -296,10 +367,20 @@ class NotificationService {
     print('Rappel quotidien annulé');
   }
 
+  Future<void> cancelBibleReadingReminder() async {
+    await notificationPlugin.cancel(101);
+    print('Rappel quotidien annulé');
+  }
+
   // Vérifier si le rappel est programmé
   Future<bool> isDailyTextReminderActive() async {
     final pendingNotifications = await notificationPlugin.pendingNotificationRequests();
     return pendingNotifications.any((notification) => notification.id == 100);
+  }
+
+  Future<bool> isBibleReadingReminderActive() async {
+    final pendingNotifications = await notificationPlugin.pendingNotificationRequests();
+    return pendingNotifications.any((notification) => notification.id == 101);
   }
 
   Future<bool> _checkNotificationPermission() async {

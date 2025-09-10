@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
+import 'package:just_audio/just_audio.dart';
 import 'package:jwlife/app/startup/copy_assets.dart';
 import 'package:jwlife/core/assets.dart';
 import 'package:jwlife/core/utils/directory_helper.dart';
@@ -61,6 +62,26 @@ class Userdata {
   Future<void> reload_db() async {
     await _database.close();
     await init();
+
+    // vérifier si les nouvelles tables sont présentes
+    if(!await tableExists(_database, "Congregation")) {
+      await _database.execute('''
+        CREATE TABLE "Congregation" (
+          "CongregationId"	INTEGER NOT NULL,
+          "Guid"	TEXT NOT NULL,
+          "Name"	TEXT NOT NULL,
+          "Address"	TEXT,
+          "LanguageCode"	TEXT NOT NULL,
+          "Latitude"	REAL NOT NULL,
+          "Longitude"	REAL NOT NULL,
+          "WeekendWeekday"	INTEGER,
+          "WeekendTime"	TEXT,
+          "MidweekWeekday"	INTEGER,
+          "MidweekTime"	TEXT,
+          PRIMARY KEY("CongregationId")
+        );
+      ''');
+    }
   }
 
   Future<void> getFavorites() async {
@@ -106,7 +127,12 @@ class Userdata {
         final row = userResults[i];
         final type = row['Type'] as int?;
 
-        if (type == 1) {
+        if (type == 0) {
+          final match = allPublications.firstWhereOrNull((p) => p.symbol == row['KeySymbol'] && p.issueTagNumber == row['IssueTagNumber'] && p.mepsLanguage.id == row['MepsLanguage']);
+
+          // TODO: Implémenter le chargement des documents en favoris
+        }
+        else if (type == 1) {
           final match = allPublications.firstWhereOrNull((p) => p.symbol == row['KeySymbol'] && p.issueTagNumber == row['IssueTagNumber'] && p.mepsLanguage.id == row['MepsLanguage']);
 
           if (match != null) {
@@ -222,60 +248,6 @@ class Userdata {
     }
   }
 
-  Future<void> addInFavorite(dynamic object) async {
-    try {
-      int? locationId;
-      if (object is Publication) {
-        locationId = await insertLocation(null, null, null, null, object.issueTagNumber, object.symbol, object.mepsLanguage.id, type: 1);
-      }
-      else if (object is Audio) {
-        locationId = await insertLocation(null, null, null, object.track, object.issueTagNumber, object.keySymbol, 3, type: 2);
-        //TODO changer pour avoir le bon mepsLanguage ID
-      }
-      else if (object is Video) {
-        locationId = await insertLocation(null, null, null, object.track, object.issueTagNumber, object.keySymbol, 3, type: 3);
-      }
-      else {
-        return;
-      }
-
-      // Récupère la position maximale pour ce LocationId
-      var maxPositionResult = await _database.rawQuery('''
-      SELECT MAX(Position) as maxPosition FROM TagMap WHERE LocationId = ?
-    ''', [locationId]);
-
-      int maxPosition = maxPositionResult.first['maxPosition'] != null
-          ? maxPositionResult.first['maxPosition'] as int : -1;
-
-      int position = maxPosition + 1;
-
-      // Vérifie si le TagId et la Position existent déjà
-      while (true) {
-        var checkExistsResult = await _database.rawQuery('''
-        SELECT COUNT(*) as count FROM TagMap WHERE TagId = ? AND Position = ?
-      ''', [1, position]); // Remplace 1 par la valeur appropriée pour TagId
-
-        int count = checkExistsResult.first['count'] as int;
-        if (count == 0) {
-          break; // Trouvé une position unique
-        }
-        position++; // Incrémente la position pour essayer la suivante
-      }
-
-      // Insère dans la table TagMap avec la nouvelle position unique
-      await _database.rawInsert('''
-      INSERT INTO TagMap (TagMapId, LocationId, TagId, Position)
-      VALUES (NULL, ?, 1, ?)
-    ''', [locationId, position]);
-
-      favorites.add(object);
-    }
-    catch (e) {
-      printTime('Error: $e');
-      throw Exception('Failed to insert into TagMap and Location.');
-    }
-  }
-
   Future<int?> _getLocationId({
     int? bookNumber,
     int? chapterNumber,
@@ -325,6 +297,64 @@ class Userdata {
   }
 
 
+  Future<void> addInFavorite(dynamic object) async {
+    try {
+      int? locationId;
+      if (object is Publication) {
+        locationId = await insertLocation(null, null, null, null, object.issueTagNumber, object.symbol, object.mepsLanguage.id, type: 1);
+      }
+      else if (object is Document) {
+        bool isBibleChapter = object.isBibleChapter();
+        locationId = await insertLocation(object.bookNumber, object.chapterNumber, isBibleChapter ? null : object.mepsDocumentId, null, object.publication.issueTagNumber, object.publication.symbol, object.publication.mepsLanguage.id, type: 0);
+      }
+      else if (object is Audio) {
+        locationId = await insertLocation(null, null, null, object.track, object.issueTagNumber, object.keySymbol, 3, type: 2);
+        //TODO changer pour avoir le bon mepsLanguage ID
+      }
+      else if (object is Video) {
+        locationId = await insertLocation(null, null, null, object.track, object.issueTagNumber, object.keySymbol, 3, type: 3);
+      }
+      else {
+        return;
+      }
+
+      // Récupère la position maximale pour ce LocationId
+      var maxPositionResult = await _database.rawQuery('''
+      SELECT MAX(Position) as maxPosition FROM TagMap WHERE LocationId = ?
+    ''', [locationId]);
+
+      int maxPosition = maxPositionResult.first['maxPosition'] != null
+          ? maxPositionResult.first['maxPosition'] as int : -1;
+
+      int position = maxPosition + 1;
+
+      // Vérifie si le TagId et la Position existent déjà
+      while (true) {
+        var checkExistsResult = await _database.rawQuery('''
+        SELECT COUNT(*) as count FROM TagMap WHERE TagId = ? AND Position = ?
+      ''', [1, position]); // Remplace 1 par la valeur appropriée pour TagId
+
+        int count = checkExistsResult.first['count'] as int;
+        if (count == 0) {
+          break; // Trouvé une position unique
+        }
+        position++; // Incrémente la position pour essayer la suivante
+      }
+
+      // Insère dans la table TagMap avec la nouvelle position unique
+      await _database.rawInsert('''
+      INSERT INTO TagMap (TagMapId, LocationId, TagId, Position)
+      VALUES (NULL, ?, 1, ?)
+    ''', [locationId, position]);
+
+      favorites.add(object);
+    }
+    catch (e) {
+      printTime('Error: $e');
+      throw Exception('Failed to insert into TagMap and Location.');
+    }
+  }
+
   Future<void> removeAFavorite(dynamic object) async {
     try {
       int? locationId;
@@ -338,12 +368,24 @@ class Userdata {
           type: 1,
         );
       }
+      if (object is Document) {
+        bool isBibleChapter = object.isBibleChapter();
+        locationId = await _getLocationId(
+          bookNumber: isBibleChapter ? object.bookNumber : null,
+          chapterNumber: isBibleChapter ? object.chapterNumber : null,
+          mepsDocumentId: isBibleChapter ? null : object.mepsDocumentId,
+          issueTagNumber: object.publication.issueTagNumber,
+          keySymbol: object.publication.symbol,
+          mepsLanguageId: object.publication.mepsLanguage.id,
+          type: 0,
+        );
+      }
       else if (object is Media) {
         locationId = await _getLocationId(
           track: object.track,
           issueTagNumber: object.issueTagNumber,
           keySymbol: object.keySymbol,
-          mepsLanguageId: 3, // TODO: ajuster dynamiquement si besoin
+          mepsLanguageId: 3, // TODO: ajuster dynamiquement
           type: object is Audio ? 2 : 3,
         );
       }
@@ -426,14 +468,33 @@ class Userdata {
         WHERE Tag.Type = 0
         ''', [i, item.issueTagNumber, item.symbol, item.mepsLanguage.id, 1]);
       }
-      else if (item is MediaItem) {
+      if (item is Document) {
+        bool isBibleChapter = item.isBibleChapter();
+        batch.rawInsert('''
+          INSERT INTO TagMap (TagId, LocationId, Position)
+          SELECT Tag.TagId, Location.LocationId, ?
+          FROM Tag
+          JOIN Location ON Location.BookNumber = ? AND Location.ChapterNumber = ? AND Location.DocumentId = ? AND Location.IssueTagNumber = ? AND Location.KeySymbol = ? AND Location.MepsLanguage = ? AND Location.Type = ?
+          WHERE Tag.Type = 0
+        ''', [i, item.bookNumber, item.chapterNumber, isBibleChapter ? null : item.mepsDocumentId, item.publication.issueTagNumber, item.publication.symbol, item.publication.mepsLanguage.id, 0]);
+      }
+      else if (item is Audio) {
         batch.rawInsert('''
         INSERT INTO TagMap (TagId, LocationId, Position)
         SELECT Tag.TagId, Location.LocationId, ?
         FROM Tag
         JOIN Location ON Location.Track = ? AND Location.IssueTagNumber = ? AND Location.KeySymbol = ? AND Location.MepsLanguage = ? AND Location.Type = ?
         WHERE Tag.Type = 0
-        ''', [i, item.track, item.issueDate ?? 0, item.pubSymbol, 3, item.type == 'AUDIO' ? 2 : 3]);
+        ''', [i, item.track, item.issueTagNumber ?? 0, item.keySymbol, 3, 2]);
+      }
+      else if (item is Video) {
+        batch.rawInsert('''
+        INSERT INTO TagMap (TagId, LocationId, Position)
+        SELECT Tag.TagId, Location.LocationId, ?
+        FROM Tag
+        JOIN Location ON Location.Track = ? AND Location.IssueTagNumber = ? AND Location.KeySymbol = ? AND Location.MepsLanguage = ? AND Location.Type = ?
+        WHERE Tag.Type = 0
+        ''', [i, item.track, item.issueTagNumber ?? 0, item.keySymbol, 3, 3]);
       }
       else {
         printTime('Unknown item type: $item');

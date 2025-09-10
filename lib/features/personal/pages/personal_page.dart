@@ -19,7 +19,17 @@ class PersonalPageState extends State<PersonalPage> {
 
   @override
   Widget build(BuildContext context) {
-    return DefaultTabController(
+    return true ? Scaffold(
+      resizeToAvoidBottomInset: false,
+      appBar: AppBar(
+        title: Text(
+          localization(context).navigation_personal,
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+        ),
+      ),
+      body: StudyTabView(),
+    ) :
+    DefaultTabController(
         length: 5,
         child: Scaffold(
             resizeToAvoidBottomInset: false,
@@ -34,8 +44,8 @@ class PersonalPageState extends State<PersonalPage> {
                 TabBar(
                   isScrollable: true,
                   tabs: [
-                    Tab(text: localization(context).navigation_personal_bible_reading.toUpperCase()),
                     Tab(text: localization(context).navigation_personal_study.toUpperCase()),
+                    Tab(text: localization(context).navigation_personal_bible_reading.toUpperCase()),
                     Tab(text: localization(context).navigation_personal_predication_meetings.toUpperCase()),
                     Tab(text: localization(context).navigation_personal_talks.toUpperCase()),
                     Tab(text: localization(context).navigation_personal_about_me.toUpperCase()),
@@ -44,8 +54,8 @@ class PersonalPageState extends State<PersonalPage> {
                 Expanded(
                   child: TabBarView(
                     children: [
-                      Center(child: Text('Contenu pour Lecture de la Bible')),
                       StudyTabView(),
+                      Center(child: Text('Contenu pour Lecture de la Bible')),
                       Center(child: Text('Contenu pour Réunions pour la prédication')),
                       Center(child: Text('Contenu pour Sujets')),
                       AboutMePage()

@@ -4,6 +4,7 @@ import 'package:jwlife/features/home/pages/search/notes_search_tab.dart';
 import 'package:jwlife/features/home/pages/search/search_model.dart';
 import 'package:jwlife/features/home/pages/search/verses_search_tab.dart';
 import 'package:jwlife/features/home/pages/search/wikipedia_search_tab.dart';
+import 'package:jwlife/widgets/slide_indexed_stack.dart';
 
 import '../../../../app/services/global_key_service.dart';
 import '../../../../widgets/searchfield/searchfield_all_widget.dart';
@@ -107,19 +108,19 @@ class _SearchPageState extends State<SearchPage> {
         ],
       ),
       body: isInitialized
-          ? IndexedStack(
+          ? LazyIndexedStack(
         index: currentTab,
-        children: [
-          AllSearchTab(model: _searchModel),
-          PublicationsSearchTab(model: _searchModel),
-          VideosSearchTab(model: _searchModel),
-          AudioSearchTab(model: _searchModel),
-          BibleSearchTab(model: _searchModel),
-          VersesSearchTab(model: _searchModel),
-          ImagesSearchTab(model: _searchModel),
-          NotesSearchTab(model: _searchModel),
-          InputFieldsSearchTab(model: _searchModel),
-          WikipediaSearchTab(model: _searchModel)
+        builders: [
+              (context) => AllSearchTab(model: _searchModel),
+              (context) => PublicationsSearchTab(model: _searchModel),
+              (context) => VideosSearchTab(model: _searchModel),
+              (context) => AudioSearchTab(model: _searchModel),
+              (context) => BibleSearchTab(model: _searchModel),
+              (context) => VersesSearchTab(model: _searchModel),
+              (context) => ImagesSearchTab(model: _searchModel),
+              (context) => NotesSearchTab(model: _searchModel),
+              (context) => InputFieldsSearchTab(model: _searchModel),
+              (context) => WikipediaSearchTab(model: _searchModel),
         ],
       )
           : Center(child: CircularProgressIndicator()),

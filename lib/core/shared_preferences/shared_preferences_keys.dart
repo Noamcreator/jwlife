@@ -1,3 +1,5 @@
+import 'package:flutter/material.dart';
+
 /// Centralise les clés et valeurs par défaut de SharedPreferences
 class SharedPreferencesKeys {
   const SharedPreferencesKeys._(); // empêche l'instanciation
@@ -23,6 +25,15 @@ class SharedPreferencesKeys {
 
   // Surbrillance
   static const lastHighlightColorIndex = _PrefKey('last_highlight_color_index', 1);
+
+  // Notifications
+  static const dailyTextNotification = _PrefKey('daily_text_notification', false);
+  static final dailyTextNotificationTime = _PrefKey('daily_text_notification_time', '08:00'); // Format: HH:mm
+
+  static const bibleReadingNotification = _PrefKey('bible_reading_notification', false);
+  static final bibleReadingNotificationTime = _PrefKey('bible_reading_notification_time', '08:00'); // Format: HH:mm
+
+  static final downloadNotification = _PrefKey('download_notification', false);
 }
 
 /// Modèle interne pour associer une clé à une valeur par défaut

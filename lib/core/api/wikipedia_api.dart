@@ -14,14 +14,10 @@ class WikipediaApi {
 
       String queryEncoded = 'https://$lang.wikipedia.org/w/rest.php/v1/search/title?q=${Uri.encodeComponent(query.toLowerCase())}&limit=4';
 
-      print(queryEncoded);
-
       // 1️⃣ Recherche des mots
       final searchResponse = await http.get(
         Uri.parse(queryEncoded),
       );
-
-      print(searchResponse.body);
 
       if (searchResponse.statusCode != 200) return articles;
 

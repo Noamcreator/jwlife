@@ -513,7 +513,6 @@ class _AllSearchTabState extends State<AllSearchTab> {
             itemCount: results.length,
             itemBuilder: (context, index) {
               final result = results[index];
-              printTime('result: $result');
               if (result['type'] == 'group' && result['results'].isNotEmpty) {
                 return Padding(
                   padding: const EdgeInsets.all(8.0),

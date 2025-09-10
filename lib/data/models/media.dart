@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import 'package:async/async.dart';
 import 'package:flutter/foundation.dart';
+import 'package:jwlife/app/services/settings_service.dart';
 
+import '../../app/services/global_key_service.dart';
 import '../../app/services/notification_service.dart';
 import '../../core/jworg_uri.dart';
 import '../../core/utils/common_ui.dart';
@@ -82,6 +84,27 @@ abstract class Media {
 
   Future<void> download(BuildContext context);
 
+  Future<void> notifyDownload(String title) async {
+    if(JwLifeSettings().notificationDownload) {
+      // Notification de fin avec bouton "Ouvrir"
+      await NotificationService().showCompletionNotification(
+        id: hashCode,
+        title: title,
+        body: this.title,
+        payload: naturalKey != null ? JwOrgUri.mediaItem(
+          wtlocale: mepsLanguage!,
+          lank: naturalKey!,
+        ).toString() : '',
+      );
+    }
+    else {
+      BuildContext context = GlobalKeyService.jwLifePageKey.currentState!.getCurrentState().context;
+      showBottomMessageWithAction(context, this.title, SnackBarAction(label: 'Lire', onPressed: () {
+        showPlayer(context);
+      }));
+    }
+  }
+
   Future<void> performDownload(BuildContext context, Map<String, dynamic>? mediaJson, {int? file = 0}) async {
     isDownloadingNotifier.value = true;
     progressNotifier.value = 0;
@@ -107,16 +130,7 @@ abstract class Media {
 
       progressNotifier.value = 1.0;
 
-      // Notification de fin avec bouton "Ouvrir"
-      await NotificationService().showCompletionNotification(
-          id: hashCode,
-          title: '✅ Téléchargement terminé',
-          body: title,
-          payload: naturalKey != null ? JwOrgUri.mediaItem(
-              wtlocale: mepsLanguage!,
-              lank: naturalKey!,
-          ).toString() : '',
-      );
+      notifyDownload('Téléchargement terminé');
     }
     else {
       // Téléchargement annulé ou échoué
@@ -163,15 +177,7 @@ abstract class Media {
       progressNotifier.value = 1.0;
 
       // Notification de fin avec bouton "Ouvrir"
-      await NotificationService().showCompletionNotification(
-          id: hashCode,
-          title: '✅ Mise à jour terminée',
-          body: title,
-          payload: JwOrgUri.mediaItem(
-            wtlocale: mepsLanguage!,
-            lank: naturalKey!,
-          ).toString()
-      );
+      notifyDownload('Mise à jour terminée');
     }
     else {
       // Téléchargement annulé ou échoué

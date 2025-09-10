@@ -206,6 +206,28 @@ class Publication {
     );
   }
 
+  Future<void> notifyDownload(String title) async {
+    if(JwLifeSettings().notificationDownload) {
+      // Notification de fin avec bouton "Ouvrir"
+      await NotificationService().showCompletionNotification(
+          id: hashCode,
+          title: title,
+          body: getTitle(),
+          payload: JwOrgUri.publication(
+              wtlocale: mepsLanguage.symbol,
+              pub: symbol,
+              issue: issueTagNumber
+          ).toString()
+      );
+    }
+    else {
+      BuildContext context = GlobalKeyService.jwLifePageKey.currentState!.getCurrentState().context;
+      showBottomMessageWithAction(context, getTitle(), SnackBarAction(label: 'Ouvrir', onPressed: () {
+        showMenu(context);
+      }));
+    }
+  }
+
   Future<void> download(BuildContext context) async {
     if(await hasInternetConnection()) {
       if (!isDownloadingNotifier.value) {
@@ -238,16 +260,7 @@ class Publication {
           progressNotifier.value = 1.0;
 
           // Notification de fin avec bouton "Ouvrir"
-          await NotificationService().showCompletionNotification(
-              id: hashCode,
-              title: '✅ Téléchargement terminé',
-              body: getTitle(),
-              payload: JwOrgUri.publication(
-                  wtlocale: mepsLanguage.symbol,
-                  pub: symbol,
-                  issue: issueTagNumber
-              ).toString()
-          );
+          notifyDownload('Téléchargement terminé');
         }
         else {
           // Téléchargement annulé ou échoué
@@ -305,16 +318,7 @@ class Publication {
           progressNotifier.value = 1.0;
 
           // ✅ Notification de fin avec bouton "Ouvrir" (comme dans download)
-          await NotificationService().showCompletionNotification(
-            id: hashCode,
-            title: '✅ Mise à jour terminée',
-            body: getTitle(),
-            payload: JwOrgUri.publication(
-              wtlocale: mepsLanguage.symbol,
-              pub: symbol,
-              issue: issueTagNumber,
-            ).toString(),
-          );
+          notifyDownload('Mise à jour terminée');
         } else {
           // Téléchargement annulé ou échoué
           await NotificationService().cancelNotification(hashCode);

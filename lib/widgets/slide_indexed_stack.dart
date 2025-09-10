@@ -11,7 +11,7 @@ class LazyIndexedStack extends StatefulWidget {
     super.key,
     required this.index,
     required this.builders,
-    this.initialIndexes = const [], // Par défaut rien de plus
+    this.initialIndexes = const [],
   });
 
   @override
@@ -26,27 +26,38 @@ class _LazyIndexedStackState extends State<LazyIndexedStack> {
   void initState() {
     super.initState();
 
-    // Initialise les pages construites selon index et initialIndexes
     _isBuilt = List.generate(
       widget.builders.length,
           (i) => i == widget.index || widget.initialIndexes.contains(i),
     );
 
-    _pages = List.filled(widget.builders.length, null);
-
-    for (int i = 0; i < _isBuilt.length; i++) {
-      if (_isBuilt[i]) {
-        _pages[i] = widget.builders[i](context);
-      }
-    }
+    _pages = List.generate(
+      widget.builders.length,
+          (i) => _isBuilt[i] ? widget.builders[i](context) : null,
+    );
   }
 
   @override
   void didUpdateWidget(LazyIndexedStack oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (!_isBuilt[widget.index]) {
-      _isBuilt[widget.index] = true;
-      _pages[widget.index] = widget.builders[widget.index](context);
+
+    // Si le nombre de builders change, on réinitialise
+    if (widget.builders.length != oldWidget.builders.length) {
+      _isBuilt = List.generate(
+        widget.builders.length,
+            (i) => i == widget.index || widget.initialIndexes.contains(i),
+      );
+
+      _pages = List.generate(
+        widget.builders.length,
+            (i) => _isBuilt[i] ? widget.builders[i](context) : null,
+      );
+    } else {
+      // Sinon on ne construit que l’index demandé si pas encore construit
+      if (!_isBuilt[widget.index]) {
+        _isBuilt[widget.index] = true;
+        _pages[widget.index] = widget.builders[widget.index](context);
+      }
     }
   }
 
