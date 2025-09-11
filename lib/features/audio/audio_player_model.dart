@@ -19,7 +19,7 @@ import '../../data/models/audio.dart';
 
 class JwLifeAudioPlayer {
   int? currentId;
-  AudioPlayer player = AudioPlayer();
+  final player = AudioPlayer();
   String album = '';
   Publication? publication;
   String query = '';
@@ -161,9 +161,10 @@ class JwLifeAudioPlayer {
                 extras: {
                   'keySymbol': audio.keySymbol,
                   'documentId': audio.documentId,
+                  'bookNumber': audio.bookNumber,
                   'track': audio.track,
                   'mepsLanguage': audio.mepsLanguage,
-                  'issueTagNumber': audio.issueTagNumber,
+                  'issueTagNumber': audio.issueTagNumber
                 }
             ),
           );
@@ -180,10 +181,10 @@ class JwLifeAudioPlayer {
                 extras: {
                   'keySymbol': audio.keySymbol,
                   'documentId': audio.documentId,
+                  'bookNumber': audio.bookNumber,
                   'track': audio.track,
                   'mepsLanguage': audio.mepsLanguage,
-                  'issueTagNumber': audio.issueTagNumber,
-                  'naturalKey': audio.naturalKey
+                  'issueTagNumber': audio.issueTagNumber
                 }
             ),
           );
@@ -264,6 +265,7 @@ class JwLifeAudioPlayer {
 
   Future<void> setRandomMode(bool randomMode) async {
     this.randomMode = randomMode;
+    player.setShuffleModeEnabled(randomMode);
   }
 
   Future<void> play({Duration? initialPosition}) async {

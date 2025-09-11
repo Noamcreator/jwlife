@@ -5,22 +5,20 @@ import 'dart:typed_data';
 
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:just_audio/just_audio.dart';
-import 'package:jwlife/app/jwlife_page.dart';
 import 'package:jwlife/app/services/global_key_service.dart';
 import 'package:jwlife/core/utils/utils_audio.dart';
 import 'package:jwlife/core/utils/utils_playlist.dart';
 import 'package:jwlife/data/models/audio.dart';
 import 'package:jwlife/data/realm/catalog.dart' as realm;
-import 'package:palette_generator/palette_generator.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:realm/realm.dart';
-import 'package:share_plus/share_plus.dart';
 import '../../app/jwlife_app.dart';
 import '../../core/icons.dart';
 import '../../core/utils/common_ui.dart';
 import '../../core/utils/utils.dart';
 import '../../core/utils/utils_video.dart';
-import '../../data/models/video.dart';
 import '../../data/realm/realm_library.dart';
 import '../../widgets/image_cached_widget.dart';
 import 'audio_player_model.dart';
@@ -385,15 +383,7 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
                                     String? mepsLanguage = _currentExtras?['mepsLanguage'];
 
                                     realm.MediaItem? mediaItem;
-                                    if (naturalKey != null) {
-                                      mediaItem = RealmLibrary.realm
-                                          .all<realm.MediaItem>()
-                                          .query("naturalKey == '$naturalKey'")
-                                          .firstOrNull;
-                                    }
-                                    else {
-                                      mediaItem = getMediaItem(keySymbol, track, mepsDocumentId, issueTagNumber, mepsLanguage);
-                                    }
+                                    mediaItem = getMediaItem(keySymbol, track, mepsDocumentId, issueTagNumber, mepsLanguage);
 
                                     final List<PopupMenuEntry> items = [];
 
@@ -540,11 +530,9 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
                                             switch (value) {
                                               case 'off':
                                                 jwAudioPlayer.player.setShuffleModeEnabled(false);
-                                                _shuffleMode = false;
                                                 break;
                                               case 'on':
                                                 jwAudioPlayer.player.setShuffleModeEnabled(true);
-                                                _shuffleMode = true;
                                                 break;
                                             }
                                           },
@@ -801,24 +789,34 @@ class _FullAudioViewState extends State<FullAudioView> {
   }
 
   Future<void> _updateBackgroundColor() async {
-    ImageProvider imageProvider;
-    if (_currentImageWidget!.imageUrl!.startsWith('https')) {
-      imageProvider = NetworkImage(_currentImageWidget!.imageUrl!);
-    }
-    else if (_currentImageWidget!.imageUrl!.startsWith('file')) {
-      imageProvider =
-          FileImage(File.fromUri(Uri.parse(_currentImageWidget!.imageUrl!)));
-    }
-    else {
-      imageProvider =
-          FileImage(File.fromUri(Uri.parse(_currentImageWidget!.pathNoImage)));
-    }
+    try {
+      Color palette;
 
-    final palette = await PaletteGenerator.fromImageProvider(imageProvider);
+      if (_currentImageWidget!.imageUrl!.startsWith('https')) {
+        // Télécharger l’image temporairement
+        final response = await NetworkAssetBundle(Uri.parse(_currentImageWidget!.imageUrl!)).load("");
+        final Uint8List bytes = response.buffer.asUint8List();
+        final tempFile = File('${(await getTemporaryDirectory()).path}/temp_img.jpg');
+        await tempFile.writeAsBytes(bytes);
+        palette = await getDominantColorFromFile(tempFile);
+      }
+      else if (_currentImageWidget!.imageUrl!.startsWith('file')) {
+        final file = File.fromUri(Uri.parse(_currentImageWidget!.imageUrl!));
+        palette = await getDominantColorFromFile(file);
+      }
+      else {
+        final file = File.fromUri(Uri.parse(_currentImageWidget!.pathNoImage));
+        palette = await getDominantColorFromFile(file);
+      }
 
-    setState(() {
-      _dominantColor = palette.dominantColor?.color ?? Colors.black;
-    });
+      setState(() {
+        _dominantColor = palette;
+      });
+    } catch (e) {
+      setState(() {
+        _dominantColor = const Color(0xFFE0E0E0);
+      });
+    }
   }
 
   @override

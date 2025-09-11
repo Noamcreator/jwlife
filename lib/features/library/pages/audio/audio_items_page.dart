@@ -51,6 +51,9 @@ class _AudioItemsPageState extends State<AudioItemsPage> {
         if (JwLifeApp.audioPlayer.isSettingPlaylist && state.currentIndex == 0) return;
         setState(() {});
       }
+      else {
+        setState(() {});
+      }
     });
   }
 

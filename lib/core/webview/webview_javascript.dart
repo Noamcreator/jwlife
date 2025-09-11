@@ -2694,9 +2694,11 @@ function createOptionsMenu(noteGuid, popup, isDark) {
                           const article = document.createElement('div');
                           article.innerHTML = `<article id="verse-dialog" class="\${item.className}">\${item.content}</article>`;
                           article.style.cssText = `
+                            position: relative;
                             padding-top: 10px;
                             padding-bottom: 16px;
                           `;
+  
                        
                           wrapWordsWithSpan(article, true);
                           
@@ -2710,16 +2712,13 @@ function createOptionsMenu(noteGuid, popup, isDark) {
                           item.notes.forEach(note => {
                             if (note.BlockIdentifier >= item.firstVerseNumber && note.BlockIdentifier <= item.lastVerseNumber) {
                               const matchingHighlight = item.highlights.find(h => h.UserMarkGuid === note.UserMarkGuid);
-                              
-                              // If no matching highlight is found, skip this note (faire pour ajouter les notes sans highlights)
-                              if(!matchingHighlight) return;
-                              
+                          
                               const target = getTarget(article, true, note.BlockIdentifier);
-                              
+                          
                               addNoteWithGuid(
                                 article,
                                 target,
-                                matchingHighlight?.UserMarkGuid || null,
+                                matchingHighlight?.UserMarkGuid || null, // null si pas de highlight
                                 note.Guid,
                                 note.ColorIndex ?? 0,
                                 true
@@ -2731,10 +2730,10 @@ function createOptionsMenu(noteGuid, popup, isDark) {
                               onClickOnPage(article, event.target);
                           });
                           
-                          repositionAllNotes(article);
-                          
                           contentContainer.appendChild(infoBar);
                           contentContainer.appendChild(article);
+                          
+                          repositionAllNotes(article);
                       });
                   }
               });
@@ -3032,14 +3031,6 @@ function createOptionsMenu(noteGuid, popup, isDark) {
                   article: article,
                   contentRenderer: (contentContainer) => {
                       extractData.items.forEach((item, index) => {
-                          // Conteneur principal pour chaque extrait
-                          const extractItem = document.createElement('div');
-                          extractItem.style.cssText = `
-                              overflow: hidden;
-                              transition: all 0.2s ease;
-                              cursor: pointer;
-                          `;
-                          
                           // Header avec image et infos
                           const headerBar = document.createElement('div');
                           headerBar.style.cssText = `
@@ -3127,6 +3118,7 @@ function createOptionsMenu(noteGuid, popup, isDark) {
                           const article = document.createElement('div');
                           article.innerHTML = `<article id="publication-dialog" class="\${item.className}">\${item.content}</article>`;
                           article.style.cssText = `
+                            position: relative;
                             padding-block: 16px;
                             line-height: 1.7;
                             font-size: inherit;
@@ -3150,11 +3142,12 @@ function createOptionsMenu(noteGuid, popup, isDark) {
                           });
                           
                           item.notes.forEach(note => {
-                            const matchingHighlight = item.highlights.find(h => h.UserMarkGuid === note.UserMarkGuid);
-                        
+                            const matchingHighlight = item.highlights.find(h => h.UserMarkGuid === note.UserMarkGuid);                 
+                            const target = getTarget(article, false, note.BlockIdentifier);
+                            
                             addNoteWithGuid(
                               article,
-                              null,
+                              target,
                               matchingHighlight?.UserMarkGuid || null,
                               note.Guid,
                               note.ColorIndex ?? 0,
@@ -3173,9 +3166,10 @@ function createOptionsMenu(noteGuid, popup, isDark) {
                           });
 
                           // Assemblage
-                          extractItem.appendChild(headerBar);
-                          extractItem.appendChild(article);
-                          contentContainer.appendChild(extractItem);
+                          contentContainer.appendChild(headerBar);
+                          contentContainer.appendChild(article);
+                          
+                          repositionAllNotes(article);
                           
                           // Séparateur entre les éléments (sauf le dernier)
                           if (index < extractData.items.length - 1) {
@@ -3754,15 +3748,22 @@ function createOptionsMenu(noteGuid, popup, isDark) {
              if(!element.classList.contains('word') && !element.classList.contains('punctuation')) {
                element = element.querySelector('.word, .punctuation');
              }
-             const targetRect = element.getBoundingClientRect();
-             const pageRect = article.getBoundingClientRect();
-             const topRelativeToPage = targetRect.top - pageRect.top + article.scrollTop;
-              
-             const targetHeight = targetRect.height;
-             const noteHeight = 15; // hauteur du carré
-             const topOffset = topRelativeToPage + (targetHeight - noteHeight) / 2;
-              
-             noteIndicator.style.top = `\${topOffset}px`;
+             
+             // Chercher un élément word/punctuation si nécessaire
+              if (!element.classList.contains('word') && !element.classList.contains('punctuation')) {
+                  const found = element.querySelector('.word, .punctuation');
+                  if (found) element = found;
+              }
+          
+              if (!element) return;
+          
+              // Coordonnées relatives à l'article
+              const targetRect = element.getBoundingClientRect();
+              const articleRect = article.getBoundingClientRect();
+          
+              const topOffset = targetRect.top - articleRect.top + article.scrollTop + (targetRect.height - 15) / 2; // 15 = noteHeight
+          
+              noteIndicator.style.top = `\${topOffset}px`;
           }
           
           function repositionAllNotes(article) {
@@ -3804,7 +3805,7 @@ function createOptionsMenu(noteGuid, popup, isDark) {
             if (highlightGuid) {
                 firstHighlightedElement = target.querySelector(`[data-highlight-id="\${highlightGuid}"]`);
             }
-       
+            
             // Créer le carré de note
             const noteIndicator = document.createElement('div');
             noteIndicator.className = 'note-indicator';
@@ -3860,7 +3861,6 @@ function createOptionsMenu(noteGuid, popup, isDark) {
             // Clic pour afficher la note
             noteIndicator.addEventListener('click', (e) => {
                 e.stopPropagation();
-                //showNotePopup(highlightGuid, noteGuid, e.pageX, e.pageY);
                 openNoteDialog(highlightGuid, noteGuid);
             });
             

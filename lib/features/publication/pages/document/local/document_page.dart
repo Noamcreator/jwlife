@@ -14,7 +14,6 @@ import 'package:jwlife/core/utils/utils_document.dart';
 import 'package:jwlife/core/utils/utils_jwpub.dart';
 import 'package:jwlife/core/utils/utils_video.dart';
 import 'package:jwlife/data/models/audio.dart';
-import 'package:jwlife/data/models/media.dart';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/repositories/PublicationRepository.dart';
 import 'package:jwlife/data/databases/catalog.dart';
@@ -114,7 +113,9 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
   int _currentPageHistory = 0;
 
   int? lastDocumentId;
-  int lastParagraphId = 0;
+  int? lastBookId;
+  int? lastChapterId;
+  int lastBlockId = 0;
 
   bool insertBlockIdentifier = false;
 
@@ -166,9 +167,18 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
 
       final currentSource = state.currentSource;
       if (currentSource is! ProgressiveAudioSource) {
-        if (lastParagraphId != -1) {
-          _jumpToParagraph(-1, -1);
-          lastParagraphId = -1;
+        if(widget.publication.documentsManager!.getCurrentDocument().isBibleChapter()) {
+          if (lastBookId != -1 && lastChapterId != -1) {
+            _jumpToVerse(-1, -1);
+            lastBookId = -1;
+            lastChapterId = -1;
+          }
+        }
+        else {
+          if (lastBlockId != -1) {
+            _jumpToParagraph(-1, -1);
+            lastBlockId = -1;
+          }
         }
         return;
       }
@@ -176,24 +186,48 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
       ProgressiveAudioSource source = currentSource;
       var tag = source.tag as audio_service.MediaItem?;
 
-      lastDocumentId = tag?.extras?['documentId'];
+      if(widget.publication.documentsManager!.getCurrentDocument().isBibleChapter()) {
+        lastBookId = tag?.extras?['bookNumber'];
+        lastChapterId = tag?.extras?['track'];
 
-      if(widget.publication.documentsManager!.documents.any((document) => document.mepsDocumentId == lastDocumentId)) {
-        int? currentIndex = state.currentIndex;
+        if(widget.publication.documentsManager!.documents.any((document) => document.bookNumber == lastBookId && document.chapterNumberBible == lastChapterId)) {
+          int? currentIndex = state.currentIndex;
 
-        if(currentIndex == null || currentIndex == -1) {
-          _jumpToParagraph(-1, -1);
-        }
-        else {
-          Audio audio = widget.publication.audios[currentIndex];
-          if(audio.documentId != widget.publication.documentsManager!.getCurrentDocument().mepsDocumentId) {
-            _jumpToPage(widget.publication.documentsManager!.documents.indexWhere((document) => document.mepsDocumentId == audio.documentId));
+          if(currentIndex == null || currentIndex == -1) {
+            _jumpToVerse(-1, -1);
+          }
+          else {
+            Audio audio = widget.publication.audios[currentIndex];
+            if(audio.bookNumber != widget.publication.documentsManager!.getCurrentDocument().bookNumber || audio.track != widget.publication.documentsManager!.getCurrentDocument().chapterNumberBible) {
+              _jumpToPage(widget.publication.documentsManager!.documents.indexWhere((document) => document.bookNumber == audio.bookNumber && document.chapterNumberBible == audio.track));
+            }
           }
         }
+        else if (lastBlockId != -1) {
+          _jumpToVerse(-1, -1);
+          lastBlockId = -1;
+        }
       }
-      else if (lastParagraphId != -1) {
-        _jumpToParagraph(-1, -1);
-        lastParagraphId = -1;
+      else {
+        lastDocumentId = tag?.extras?['documentId'];
+
+        if(widget.publication.documentsManager!.documents.any((document) => document.mepsDocumentId == lastDocumentId)) {
+          int? currentIndex = state.currentIndex;
+
+          if(currentIndex == null || currentIndex == -1) {
+            _jumpToParagraph(-1, -1);
+          }
+          else {
+            Audio audio = widget.publication.audios[currentIndex];
+            if(audio.documentId != widget.publication.documentsManager!.getCurrentDocument().mepsDocumentId) {
+              _jumpToPage(widget.publication.documentsManager!.documents.indexWhere((document) => document.mepsDocumentId == audio.documentId));
+            }
+          }
+        }
+        else if (lastBlockId != -1) {
+          _jumpToParagraph(-1, -1);
+          lastBlockId = -1;
+        }
       }
     });
 
@@ -201,28 +235,39 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
       if (!mounted) return;
       if(!_isLoadingFonts) return;
 
-      if(lastDocumentId != null && lastDocumentId == widget.publication.documentsManager!.getCurrentDocument().mepsDocumentId) {
-        Audio? audio = widget.publication.audios.firstWhereOrNull((audio) => audio.documentId == widget.publication.documentsManager!.getCurrentDocument().mepsDocumentId);
-        if(audio != null) {
-          Marker? marker = audio.markers.firstWhereOrNull((m) {
-            final start = parseDuration(m.startTime).inSeconds;
-            final end = start + parseDuration(m.duration).inSeconds;
-            return position.inSeconds >= start && position.inSeconds <= end;
-          });
+      if(widget.publication.documentsManager!.getCurrentDocument().isBibleChapter()) {
+        if(lastBookId != null && lastChapterId != null && lastBookId == widget.publication.documentsManager!.getCurrentDocument().bookNumber && lastChapterId == widget.publication.documentsManager!.getCurrentDocument().chapterNumberBible) {
+          Audio? audio = widget.publication.audios.firstWhereOrNull((audio) => audio.bookNumber == widget.publication.documentsManager!.getCurrentDocument().bookNumber && audio.track == widget.publication.documentsManager!.getCurrentDocument().chapterNumberBible);
+          if(audio != null) {
+            Marker? marker = audio.markers.firstWhereOrNull((m) {
+              final start = parseDuration(m.startTime).inSeconds;
+              final end = start + parseDuration(m.duration).inSeconds;
+              return position.inSeconds >= start && position.inSeconds <= end;
+            });
 
-          if(widget.publication.documentsManager!.getCurrentDocument().isBibleChapter()) {
             if (marker != null && marker.verseNumber != null) {
-              if (marker.verseNumber != lastParagraphId) {
+              if (marker.verseNumber != lastBlockId) {
                 _jumpToVerse(marker.verseNumber!, marker.verseNumber!);
-                lastParagraphId = marker.verseNumber!;
+                lastBlockId = marker.verseNumber!;
               }
             }
           }
-          else {
+        }
+      }
+      else {
+        if(lastDocumentId != null && lastDocumentId == widget.publication.documentsManager!.getCurrentDocument().mepsDocumentId) {
+          Audio? audio = widget.publication.audios.firstWhereOrNull((audio) => audio.documentId == widget.publication.documentsManager!.getCurrentDocument().mepsDocumentId);
+          if(audio != null) {
+            Marker? marker = audio.markers.firstWhereOrNull((m) {
+              final start = parseDuration(m.startTime).inSeconds;
+              final end = start + parseDuration(m.duration).inSeconds;
+              return position.inSeconds >= start && position.inSeconds <= end;
+            });
+
             if (marker != null && marker.mepsParagraphId != null) {
-              if (marker.mepsParagraphId != lastParagraphId) {
+              if (marker.mepsParagraphId != lastBlockId) {
                 _jumpToParagraph(marker.mepsParagraphId!, marker.mepsParagraphId!);
-                lastParagraphId = marker.mepsParagraphId!;
+                lastBlockId = marker.mepsParagraphId!;
               }
             }
           }

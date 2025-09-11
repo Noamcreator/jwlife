@@ -17,7 +17,7 @@ class MediaRepository {
   /// Crée une clé unique à partir des attributs significatifs
   String _generateKey(Media media) {
     String type = media is Audio ? "AUDIO" : "VIDEO";
-    return '${media.keySymbol ?? ''}_${media.documentId ?? 0}_${media.issueTagNumber ?? 0}_${media.track ?? 0}_${media.mepsLanguage}_$type';
+    return '${media.keySymbol ?? ''}_${media.documentId ?? 0}_${media.bookNumber ?? 0}_${media.issueTagNumber ?? 0}_${media.track ?? 0}_${media.mepsLanguage}_$type';
   }
 
   void addMedia(Media media) {
@@ -68,9 +68,9 @@ class MediaRepository {
     return _medias.values.where((p) => p.mepsLanguage == currentLanguage && p.isDownloadedNotifier.value).toList();
   }
 
-  Media? getMediaWithMepsLanguageId(String keySymbol, int documentId, int issueTagNumber, int track, String mepsLanguage, bool isAudio) {
+  Media? getMediaWithMepsLanguageId(String keySymbol, int documentId, int bookNumber, int issueTagNumber, int track, String mepsLanguage, bool isAudio) {
     final type = isAudio ? "AUDIO" : "VIDEO";
-    final key = "${keySymbol}_${documentId}_${issueTagNumber}_${track}_${mepsLanguage}_$type";
+    final key = "${keySymbol}_${documentId}_${bookNumber}_${issueTagNumber}_${track}_${mepsLanguage}_$type";
     return _medias[key];
   }
 }

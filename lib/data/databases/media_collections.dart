@@ -215,6 +215,8 @@ class MediaCollections {
       imagePath = tile?.file.path ?? '';
     }
 
+    media.imagePath = imagePath;
+
     int mediaKeyId;
     if (existingMediaKey.isNotEmpty) {
       mediaKeyId = existingMediaKey.first['MediaKeyId'] as int;

@@ -52,6 +52,7 @@ class Audio extends Media {
   factory Audio.fromJson({Map<String, dynamic>? json, MediaItem? mediaItem, String? languageSymbol, bool? isFavorite}) {
     final keySymbol = json?['KeySymbol'] ?? mediaItem?.pubSymbol;
     final documentId = json?['DocumentId'] ?? mediaItem?.documentId;
+    final bookNumber = json?['BookNumber'];
     final issueTagNumber = json?['IssueTagNumber'] ?? mediaItem?.issueDate;
     final track = json?['Track'] ?? mediaItem?.track;
 
@@ -63,6 +64,7 @@ class Audio extends Media {
     final existing = MediaRepository().getMediaWithMepsLanguageId(
       keySymbol ?? '',
       documentId ?? 0,
+      bookNumber ?? 0,
       issueTagNumber ?? 0,
       track ?? 0,
       mepsLanguage,
@@ -133,11 +135,11 @@ class Audio extends Media {
 
   @override
   Future<void> download(BuildContext context) async {
-    if(await hasInternetConnection()) {
-      if(fileUrl != null) {
-        super.performDownload(context, null);
-      }
-      else {
+    if(naturalKey == null) {
+      super.performDownload(context, null);
+    }
+    else {
+      if(await hasInternetConnection()) {
         String link = 'https://b.jw-cdn.org/apis/mediator/v1/media-items/$mepsLanguage/$naturalKey';
         final response = await Api.httpGetWithHeaders(link);
         if (response.statusCode == 200) {
@@ -147,9 +149,9 @@ class Audio extends Media {
           super.performDownload(context, jsonData['media'][0]);
         }
       }
-    }
-    else {
-      showNoConnectionDialog(context);
+      else {
+        showNoConnectionDialog(context);
+      }
     }
   }
 

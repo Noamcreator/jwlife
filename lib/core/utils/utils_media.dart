@@ -11,7 +11,7 @@ import '../../data/models/audio.dart';
 import '../../data/models/video.dart';
 import '../api/api.dart';
 
-Future<Media?> downloadMedia(BuildContext context, Media media, dynamic mediaData, String? fileUrl, CancelToken cancelToken, bool update, {int? file = 0}) async {
+Future<Media?> downloadMedia(BuildContext context, Media media, String? fileUrl, dynamic mediaData, CancelToken cancelToken, bool update, {int? file = 0}) async {
   Api.dio.interceptors.clear();
 
   double lastProgress = 0.0;
@@ -43,7 +43,7 @@ Future<Media?> downloadMedia(BuildContext context, Media media, dynamic mediaDat
       throw Exception('Erreur lors du téléchargement du fichier média');
     }
 
-    return await mediaCopy(responseMedia.data!, mediaData, fileUrl, media, update: update, file: file);
+    return await mediaCopy(responseMedia.data!, fileUrl, mediaData, media, update: update, file: file);
   }
   catch (e) {
     printTime('Erreur lors du téléchargement du fichier média : $e');
@@ -52,7 +52,7 @@ Future<Media?> downloadMedia(BuildContext context, Media media, dynamic mediaDat
   }
 }
 
-Future<Media?> mediaCopy(Uint8List bytes, dynamic mediaData, String? fileUrl, Media media, {bool update = false, int? file = 0}) async {
+Future<Media?> mediaCopy(Uint8List bytes, String? fileUrl, dynamic mediaData, Media media, {bool update = false, int? file = 0}) async {
   if(update) {
     await removeMedia(media);
   }
@@ -75,7 +75,7 @@ Future<Media?> mediaCopy(Uint8List bytes, dynamic mediaData, String? fileUrl, Me
   await File(mediaFilePath).writeAsBytes(bytes);
 
   String subtitleFilePath = '';
-  if (media is Video) {
+  if (media is Video && mediaData != null) {
     if(mediaData['files'][file]['subtitles'] != null) {
       final subtitlesDirectory = Directory('${directory.path}/Subtitles');
       if (!await subtitlesDirectory.exists()) {
@@ -110,7 +110,7 @@ Future<Media?> mediaCopy(Uint8List bytes, dynamic mediaData, String? fileUrl, Me
     media.checkSum = fileMap['checksum'] ?? '';
     media.fileSize = fileMap['filesize'] ?? 0;
     media.lastModified = fileMap['modifiedDatetime'];
-    media.fileUrl = fileUrl ?? fileMap['progressiveDownloadURL'];
+    media.fileUrl = fileMap['progressiveDownloadURL'];
     media.source = 0;
     if(media is Video) {
       media.frameRate = fileMap['frameRate'] ?? 0;

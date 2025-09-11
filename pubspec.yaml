@@ -28,7 +28,6 @@ dependencies:
   just_audio_background: ^0.0.1-beta.17
   #audio_metadata_reader: ^1.4.1
   video_player: ^2.10.0
-  palette_generator: ^0.3.3+7
   html: ^0.15.6
   realm: ^20.1.1
   qr_flutter: ^4.1.0

@@ -113,7 +113,7 @@ abstract class Media {
     _cancelToken = cancelToken;
 
     _downloadOperation = CancelableOperation.fromFuture(
-      downloadMedia(context, this, mediaJson, fileUrl, cancelToken, false, file: file),
+      downloadMedia(context, this, fileUrl, mediaJson, cancelToken, false, file: file),
       onCancel: () {
         isDownloadingNotifier.value = false;
         isDownloadedNotifier.value = false;
@@ -127,7 +127,6 @@ abstract class Media {
 
     if (media != null) {
       isDownloadedNotifier.value = true;
-
       progressNotifier.value = 1.0;
 
       notifyDownload('Téléchargement terminé');
@@ -159,7 +158,7 @@ abstract class Media {
     _cancelToken = cancelToken;
 
     _updateOperation = CancelableOperation.fromFuture(
-      downloadMedia(context, this, mediaJson, fileUrl, cancelToken, true, file: 0), // TODO mettre le bon file pour la mise à jour
+      downloadMedia(context, this, fileUrl, mediaJson, cancelToken, true, file: 0), // TODO mettre le bon file pour la mise à jour
       onCancel: () {
         isDownloadingNotifier.value = false;
         isDownloadedNotifier.value = false;

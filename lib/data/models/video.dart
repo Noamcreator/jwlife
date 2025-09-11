@@ -64,6 +64,7 @@ class Video extends Media {
   factory Video.fromJson({Map<String, dynamic>? json, MediaItem? mediaItem, bool? isFavorite}) {
     final keySymbol = json?['KeySymbol'] ?? mediaItem?.pubSymbol;
     final documentId = json?['DocumentId'] ?? mediaItem?.documentId;
+    final bookNumber = json?['BookNumber'];
     final issueTagNumber = json?['IssueTagNumber'] ?? mediaItem?.issueDate;
     final track = json?['Track'] ?? mediaItem?.track;
 
@@ -75,6 +76,7 @@ class Video extends Media {
     final existing = MediaRepository().getMediaWithMepsLanguageId(
       keySymbol ?? '',
       documentId ?? 0,
+      bookNumber ?? 0,
       issueTagNumber ?? 0,
       track ?? 0,
       mepsLanguage,
