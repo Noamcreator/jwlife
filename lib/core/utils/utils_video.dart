@@ -61,8 +61,6 @@ MediaItem? getMediaItem(String? keySymbol, int? track, int? documentId, int? iss
 
   String query = queryParts.join(" AND ");
 
-  print("Query: $query");
-
   final results = RealmLibrary.realm.all<MediaItem>().query(query);
   return results.isNotEmpty ? results.first : null;
 }
@@ -103,7 +101,7 @@ PopupMenuItem getVideoLanguagesItem(BuildContext context, Video video) {
     ),
     onTap: () async {
       if(await hasInternetConnection()) {
-        String link = 'https://b.jw-cdn.org/apis/mediator/v1/media-item-availability/${video.naturalKey}?clientType=www';
+        String link = 'https://b.jw-cdn.org/apis/mediator/v1/media-item-availability/${video.naturalKey}';
         final response = await Api.httpGetWithHeaders(link);
         if (response.statusCode == 200) {
           final jsonFile = response.body;
@@ -113,7 +111,32 @@ PopupMenuItem getVideoLanguagesItem(BuildContext context, Video video) {
           showDialog(
             context: context,
             builder: (context) => languageDialog,
-          );
+          ).then((value) async {
+            if (value != null) {
+              String link = 'https://b.jw-cdn.org/apis/mediator/v1/media-items/${value['Symbol']}/${video.naturalKey}';
+              final response = await Api.httpGetWithHeaders(link);
+              if (response.statusCode == 200) {
+                final jsonFile = response.body;
+                final jsonData = json.decode(jsonFile);
+
+                final videoMap = {
+                  'KeySymbol': video.keySymbol,
+                  'DocumentId': video.documentId,
+                  'BookNumber': video.bookNumber,
+                  'IssueTagNumber': video.issueTagNumber,
+                  'Track': video.track,
+                  'MepsLanguage': value['Symbol'],
+                  'Title': jsonData['media'][0]['title'],
+                  'Duration': jsonData['media'][0]['duration'],
+                  'FirstPublished': jsonData['media'][0]['firstPublished'],
+                  'NaturalKey': jsonData['media'][0]['languageAgnosticNaturalKey'],
+                  'FileUrl': jsonData['media'][0]['files'][3]['progressiveDownloadURL'],
+                };
+                Video v = Video.fromJson(json: videoMap);
+                await v.showPlayer(context);
+              }
+            }
+          });
         }
       }
       else {

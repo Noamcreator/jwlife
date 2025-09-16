@@ -396,6 +396,11 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
     await _controller.evaluateJavascript(source: "changePrimaryColor('$lightPrimaryColor', '$darkPrimaryColor');");
   }
 
+  Future<void> toggleAudioPlayer(bool visible) async {
+    await _controller.evaluateJavascript(source: "toggleAudioPlayer($visible);");
+    updateBottomBar();
+  }
+
   Future<void> updateBottomBar() async {
     controlsKey.currentState?.refreshWidget();
   }
@@ -1374,31 +1379,14 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
   }
 
   Future<void> switchImageMode() async {
-      setState(() {
-          if (_isImageMode) {
-            _isImageMode = false;
-          }
-          else {
-            _isImageMode = true;
-          }
-        });
-          /*
-      String path = '${widget.publication.path}/${widget.publication.documentsManager!.getCurrentDocument().svgs[0]['FilePath']}';
-      File file = File(path);
-      String colorBackground = Theme.of(context).brightness == Brightness.dark ? '#202020' : '#ecebe7';
-      String svgBase64 = base64Encode(file.readAsBytesSync());
-      String base64Html = '''
-      <html>
-        <body style="margin:0;padding:0;background-color:$colorBackground;display:flex;align-items:center;justify-content:center;">
-          <div style="background-color:#ffffff;height:65%;box-shadow:0 4px 10px rgba(0,0,0,0.2);display:flex;align-items:center;justify-content:center;">
-            <img src="data:image/svg+xml;base64,$svgBase64" style="width:100%;height:100%;object-fit:contain;" />
-          </div>
-        </body>
-      </html>
-      ''';
-      _controller.loadData(data: base64Html, mimeType: 'text/html', encoding: 'utf8');
-
-       */
+   setState(() {
+      if (_isImageMode) {
+        _isImageMode = false;
+      }
+      else {
+        _isImageMode = true;
+      }
+    });
     _controller.evaluateJavascript(source: "switchImageMode($_isImageMode)");
   }
 
@@ -1421,7 +1409,6 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
           child: Visibility(
             visible: _controlsVisible,
               child: AppBar(
-
                 title: _isSearching
                     ? SearchFieldWidget(
                   query: '',

@@ -197,105 +197,8 @@ Future<void> showDailyText(BuildContext context, Publication publication, {DateT
   }
 }
 
-String createHtmlContent(String html, String articleClasses, Publication publication, bool hasAppBar) {
+String createHtmlContent(String html, String articleClasses, String javascript) {
   WebViewData webViewData = JwLifeSettings().webViewData;
-  // Dynamique pour paddingTop
-  String headerAdjustmentScript = '''
-    <script>
-  var hasAppBar = $hasAppBar;
-  var header = webview.querySelector('header');
-  var firstImage = webview.querySelector('div#f1.north_center'); // On récupère la première image du webview
-
-  if (firstImage != null) {
-    // Vérifier si l'image n'est pas dans le header ou si elle est avant le header
-    if (!header.contains(firstImage)) {
-      // Déplacer l'image dans le header si elle n'est pas déjà dedans ou si elle est avant le header
-      header.insertBefore(firstImage, header.firstChild);
-    }
-    paddingTop = hasAppBar ? '90px' : '10px'; // Ajuster le padding si l'image existe
-  } else {
-    // Sinon, garder le padding par défaut
-    paddingTop = hasAppBar ? '110px' : '20px';
-  }
-
-  // Appliquer paddingTop au body
-  webview.querySelector('#article').style.paddingTop = paddingTop;
-  webview.querySelector('#article').style.paddingBottom = '50px';
-  
-  webview.body.addEventListener('click', (event) => {
-    // Gérer les images
-    if (event.target && event.target.tagName === 'IMG') {
-      window.flutter_inappwebview.callHandler('onImageClick', event.target.src);
-    }
-
-    // Gérer les notes de bas de page
-    if (event.target && event.target.classList.contains('fn')) {
-      const fnid = event.target.getAttribute('data-fnid');
-      window.flutter_inappwebview.callHandler('fetchFootnote', fnid);
-    }
-    
-    // Gérer les notes de bas de page
-    if (event.target && event.target.classList.contains('m')) {
-      const mid = event.target.getAttribute('data-mid');
-      window.flutter_inappwebview.callHandler('fetchVersesReference', mid);
-    }
-  });
-  
-    // Gestion des vidéos sous forme d'éléments <video>
-    var videoElements = webview.querySelectorAll("video[data-video]");
-    videoElements.forEach(function(videoElement) {
-        var imageName = videoElement.getAttribute("data-image");
-
-        if (imageName) {
-            var imagePath = `${publication.path}/\${imageName}`;
-            
-            var imgElement = webview.createElement("img");
-            imgElement.src = imagePath;
-            imgElement.style.width = "100%";
-            imgElement.style.height = "auto";
-
-            var container = webview.createElement("div");
-            container.style.position = "relative"; 
-            container.style.width = "100%";
-            container.style.height = "auto"; 
-            container.appendChild(imgElement); 
-
-            var playButton = webview.createElement("div");
-            playButton.style.position = "absolute";
-            playButton.style.bottom = "10px";
-            playButton.style.left = "10px";
-            playButton.style.width = "40px";
-            playButton.style.height = "40px";
-            playButton.style.backgroundColor = "rgba(0, 0, 0, 0.7)";
-            playButton.style.display = "flex";
-            playButton.style.alignItems = "center";
-            playButton.style.justifyContent = "center";
-            playButton.style.fontSize = "24px";
-            playButton.style.color = "white";
-            playButton.innerHTML = "&#xE69D;";
-            playButton.style.fontFamily = "jw-icons-external"; 
-
-            container.appendChild(playButton);
-
-            container.addEventListener("click", function() {
-                window.flutter_inappwebview.callHandler('onVideoClick', videoElement.getAttribute("data-video"));
-            });
-
-            videoElement.parentNode.replaceChild(container, videoElement);
-        }
-    });
-
-    // Gestion des liens <a data-video>
-    var videoLinks = webview.querySelectorAll("a[data-video]");
-    videoLinks.forEach(function(link) {
-        link.addEventListener("click", function(event) {
-            event.preventDefault(); // Empêche la navigation
-            window.flutter_inappwebview.callHandler('onVideoClick', link.getAttribute("data-video"));
-        });
-    });
-</script>
-  ''';
-
   String htmlContent = '''
     <!DOCTYPE html>
     <html style="overflow-x: hidden; height: 100%;">
@@ -316,27 +219,14 @@ String createHtmlContent(String html, String articleClasses, Publication publica
           .word.highlighted {
             background-color: yellow;
           }
-         
-          /* Définir les classes de surlignage */
-          .highlight-yellow { background-color: #86761d; }
-          .highlight-green { background-color: #4a6831; }
-          .highlight-blue { background-color: #3a6381; }
-          .highlight-purple { background-color: #524169; }
-          .highlight-pink { background-color: #783750; }
-          .highlight-orange { background-color: #894c1f; }
-          .highlight-transparent { background-color: transparent; }
           
-          .highlightingcolor1 { background-color: #ffeb3b80; }
-          .highlightingcolor2 { background-color: #9ef95380; }
-          .highlightingcolor3 { background-color: #29b6f680; }
-          .highlightingcolor4 { background-color: #ffa1c880; }
-          .highlightingcolor5 { background-color: #ffb97680; }
-          .highlightingcolor6 { background-color: #af85ff80; }
         </style>
         <article id="article" class="$articleClasses ${webViewData.theme}">
           $html
         </article>
-        $headerAdjustmentScript
+        <script>
+          $javascript
+        </script>
       </body>
     </html>
   ''';

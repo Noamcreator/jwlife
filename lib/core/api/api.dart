@@ -132,8 +132,8 @@ class Api {
   }
 
   /// Vérifie si une mise à jour de la bibliothèque pour une langue donnée est disponible.
-  static Future<bool> isLibraryUpdateAvailable() async {
-    String languageSymbol = JwLifeSettings().currentLanguage.symbol;
+  static Future<bool> isLibraryUpdateAvailable({String? symbol}) async {
+    String languageSymbol = symbol ?? JwLifeSettings().currentLanguage.symbol;
 
     try {
       final url = langCatalogUrl.replaceFirst('{language_code}', languageSymbol);

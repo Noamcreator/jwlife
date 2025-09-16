@@ -3,13 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:realm/realm.dart';
 
 import 'package:jwlife/core/icons.dart';
-import 'package:jwlife/core/utils/utils.dart';
-import 'package:jwlife/core/utils/utils_video.dart';
 import 'package:jwlife/data/realm/catalog.dart';
 import 'package:jwlife/data/realm/realm_library.dart';
 import 'package:jwlife/widgets/dialog/language_dialog.dart';
-import 'package:jwlife/widgets/image_cached_widget.dart';
 
+import '../../../../core/api/api.dart';
 import '../../../../data/models/audio.dart';
 import '../../../../data/models/media.dart';
 import '../../../../data/models/video.dart';
@@ -26,62 +24,49 @@ class VideoItemsPage extends StatefulWidget {
 }
 
 class _VideoItemsPageState extends State<VideoItemsPage> {
-  String categoryName = '';
-  String language = '';
-  List<Category> subcategories = [];
-  List<Category> filteredVideos = [];
-  Map<String, List<String>> filteredMediaMap = {};
+  String _categoryName = '';
+  String _language = '';
+
+  String? _selectedLanguageSymbol;
+
+  List<Category> _subcategories = [];
+  List<Category> _filteredVideos = [];
+  final Map<String, List<String>> _filteredMediaMap = {};
   bool _isSearching = false;
 
   @override
   void initState() {
     super.initState();
-    loadItems(widget.category.language);
+    loadItems();
   }
 
-  void loadItems(String? languageCode) async {
-    RealmLibrary.realm.refresh();
-    Language lang = RealmLibrary.realm
-        .all<Language>()
-        .query("symbol == '$languageCode'")
-        .first;
+  void loadItems({String? symbol}) async {
+    symbol ??= widget.category.language;
 
-    if (language.isEmpty || language == lang.vernacular) {
-      setState(() {
-        categoryName = widget.category.localizedName!;
-        language = lang.vernacular!;
-        subcategories = widget.category.subcategories;
-        filteredVideos = subcategories;
-      });
-    } else {
-      String key = widget.category.key!;
-      List<Category> categories = RealmLibrary.realm
-          .all<Category>()
-          .query("key == '$key'")
-          .query("language == '$languageCode'")
-          .toList();
-      if (categories.isNotEmpty) {
-        Category category = categories.first;
-        setState(() {
-          categoryName = category.localizedName!;
-          language = lang.vernacular!;
-          subcategories = category.subcategories;
-          filteredVideos = subcategories;
-        });
-      }
-    }
+    RealmLibrary.realm.refresh();
+    Language? lang = RealmLibrary.realm.all<Language>().query("symbol == '$symbol'").firstOrNull;
+    if(lang == null) return;
+
+    Category? category = RealmLibrary.realm.all<Category>().query("key == '${widget.category.key}' AND language == '$symbol'").firstOrNull;
+
+    setState(() {
+      _categoryName = category?.localizedName ?? widget.category.localizedName!;
+      _language = lang.vernacular!;
+      _subcategories = category?.subcategories ?? [];
+      _filteredVideos = _subcategories;
+    });
   }
 
   void _filterVideos(String query) {
     setState(() {
-      filteredMediaMap.clear();
+      _filteredMediaMap.clear();
 
       if (query.isEmpty) {
-        filteredVideos = subcategories;
+        _filteredVideos = _subcategories;
       } else {
-        filteredVideos = [];
+        _filteredVideos = [];
 
-        for (var subCategory in subcategories) {
+        for (var subCategory in _subcategories) {
           final filteredMedia = subCategory.media.where((mediaKey) {
             try {
               final mediaItem = RealmLibrary.realm
@@ -97,8 +82,8 @@ class _VideoItemsPageState extends State<VideoItemsPage> {
           }).toList();
 
           if (filteredMedia.isNotEmpty) {
-            filteredMediaMap[subCategory.key!] = filteredMedia;
-            filteredVideos.add(subCategory);
+            _filteredMediaMap[subCategory.key!] = filteredMedia;
+            _filteredVideos.add(subCategory);
           }
         }
       }
@@ -115,15 +100,76 @@ class _VideoItemsPageState extends State<VideoItemsPage> {
           : const Color(0xFF626262),
     );
 
+    // This is the core logic for displaying the message.
+    Widget bodyContent;
+    if (_filteredVideos.isEmpty && !_isSearching) {
+      bodyContent = Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Text(
+            'Il n\'y a pas de vidéos disponibles pour le moment dans cette langue.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 18,
+              color: Theme.of(context).hintColor,
+            ),
+          ),
+        ),
+      );
+    } else {
+      bodyContent = ListView.builder(
+        key: ValueKey(_filteredVideos.length),
+        itemCount: _filteredVideos.length,
+        itemBuilder: (context, index) {
+          final subCategory = _filteredVideos[index];
+          final mediaList = _filteredMediaMap[subCategory.key!] ?? subCategory.media;
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Text(
+                  subCategory.localizedName!,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 22,
+                  ),
+                ),
+              ),
+              Container(
+                height: 140,
+                padding: const EdgeInsets.only(left: 8, right: 8),
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: mediaList.length,
+                  itemBuilder: (context, index) {
+                    final mediaKey = mediaList[index];
+                    final mediaItem = RealmLibrary.realm.all<MediaItem>().query("naturalKey == '$mediaKey'").first;
+
+                    Media media = mediaItem.type == 'AUDIO' ? Audio.fromJson(mediaItem: mediaItem) : Video.fromJson(mediaItem: mediaItem);
+
+                    return MediaItemItemWidget(
+                      media: media,
+                      timeAgoText: false,
+                    );
+                  },
+                ),
+              ),
+            ],
+          );
+        },
+      );
+    }
+
     return Scaffold(
       resizeToAvoidBottomInset: false,
-      appBar: _isSearching ? AppBar(
+      appBar: _isSearching
+          ? AppBar(
         title: SearchFieldWidget(
           query: '',
           onSearchTextChanged: (text) {
-            setState(() {
-              _filterVideos(text);
-            });
+            _filterVideos(text);
             return null;
           },
           onSuggestionTap: (item) {},
@@ -144,7 +190,7 @@ class _VideoItemsPageState extends State<VideoItemsPage> {
           onPressed: () {
             setState(() {
               _isSearching = false;
-              filteredVideos = subcategories;  // Réinitialiser filteredVideos lors de la recherche
+              _filterVideos(''); // Réinitialiser le filtre pour afficher tous les éléments
             });
           },
         ),
@@ -154,11 +200,11 @@ class _VideoItemsPageState extends State<VideoItemsPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              categoryName,
+              _categoryName,
               style: textStyleTitle,
             ),
             Text(
-              language,
+              _language,
               style: textStyleSubtitle,
             ),
           ],
@@ -169,70 +215,34 @@ class _VideoItemsPageState extends State<VideoItemsPage> {
             onPressed: () {
               setState(() {
                 _isSearching = true;
-                filteredVideos = subcategories;  // Réinitialiser filteredVideos lors de la recherche
+                _filterVideos(''); // Réinitialiser le filtre lors de l'ouverture de la recherche
               });
             },
           ),
           IconButton(
             icon: const Icon(JwIcons.language),
             onPressed: () async {
-              LanguageDialog languageDialog = const LanguageDialog();
+              LanguageDialog languageDialog = LanguageDialog(selectedLanguageSymbol: _selectedLanguageSymbol);
               showDialog(
                 context: context,
                 builder: (context) => languageDialog,
-              ).then((value) {
-                loadItems(value['Symbol']);
+              ).then((value) async {
+                if (value != null) {
+                  _selectedLanguageSymbol = value['Symbol'] as String;
+                  loadItems(symbol: _selectedLanguageSymbol);
+
+                  if(await Api.isLibraryUpdateAvailable(symbol: _selectedLanguageSymbol)) {
+                    Api.updateLibrary(_selectedLanguageSymbol!).then((_) {
+                      loadItems(symbol: _selectedLanguageSymbol);
+                    });
+                  }
+                }
               });
             },
           ),
         ],
       ),
-      body: ListView.builder(
-        key: ValueKey(filteredVideos.length),
-        itemCount: filteredVideos.length,  // Utiliser filteredVideos ici
-        itemBuilder: (context, index) {
-          final subCategory = filteredVideos[index];
-          final mediaList = filteredMediaMap[subCategory.key!] ?? subCategory.media;
-
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Text(
-                  subCategory.localizedName!,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 22,
-                  ),
-                ),
-              ),
-              Container(
-                height: 140, // Ajuster la hauteur comme nécessaire
-                padding: const EdgeInsets.only(left: 8, right: 8),
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: mediaList.length,
-                  itemBuilder: (context, index) {
-                    final mediaKey = mediaList[index];
-                    final mediaItem = RealmLibrary.realm
-                        .all<MediaItem>()
-                        .query("naturalKey == '$mediaKey'")
-                        .first;
-
-                    Media media = mediaItem.type == 'AUDIO' ? Audio.fromJson(mediaItem: mediaItem) : Video.fromJson(mediaItem: mediaItem);
-
-                    return MediaItemItemWidget(
-                      media: media,
-                        timeAgoText: false
-                    );
-                  },
-                ),
-              ),
-            ],
-          );
-        },
-      ),
+      body: bodyContent,
     );
   }
 }

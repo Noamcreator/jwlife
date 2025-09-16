@@ -8,7 +8,6 @@ import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/data/models/video.dart' hide Subtitles;
 import 'package:jwlife/data/databases/history.dart';
-import 'package:jwlife/data/realm/catalog.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:video_player/video_player.dart';
 
@@ -68,9 +67,13 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
 
   // Method to play the video
   Future<void> getVideoApi() async {
-    String lank = widget.video.naturalKey!;
-    String lang = widget.video.mepsLanguage!;
-    if (lank.isNotEmpty && lang.isNotEmpty) {
+    String? lank = widget.video.naturalKey;
+    String? lang = widget.video.mepsLanguage;
+    if(widget.video.fileUrl != null) {
+      final videoUrl = widget.video.fileUrl!;
+      await playOnlineVideo(videoUrl);
+    }
+    if (lank != null && lang != null) {
       final apiUrl = 'https://b.jw-cdn.org/apis/mediator/v1/media-items/$lang/$lank?clientType=www';
       printTime('apiUrl: $apiUrl');
       try {
@@ -87,29 +90,24 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
       catch (e) {
         printTime('An exception occurred: $e');
       }
-    } else {
+    }
+    else {
       printTime('Lank or lang parameters are missing in the URL.');
     }
   }
 
   Future<void> fetchMedia(dynamic media) async {
-    final videoUrl = media['files'][2]['progressiveDownloadURL']; // Adapt according to response structure
-    final title = media['title']; // Adapt according to response structure
-    final duration = Duration(seconds: (media['duration'] as num).toInt()); // Adapt according to response structure
-
-    await playOnlineVideo(title, duration, videoUrl);
+    final videoUrl = media['files'][2]['progressiveDownloadURL']; // Adapt according to response structuresponse structure
+    await playOnlineVideo(videoUrl);
   }
 
   Future<void> fetchPubMedia(dynamic media) async {
     final videoUrl = media['files']['F']['MP4'][2]['file']['url'];
-    final title = media['files']['F']['MP4'][2]['title'];
-    final duration = Duration(seconds: (media['files']['F']['MP4'][2]['duration'] as num).toInt()); // Adapt according to response structure
-
-    await playOnlineVideo(title, duration, videoUrl);
+    await playOnlineVideo(videoUrl);
   }
 
   // Method to play the video
-  Future<void> playOnlineVideo(String title, Duration duration, String videoUrl) async {
+  Future<void> playOnlineVideo(String videoUrl) async {
     Uri uriVideo = Uri.parse(videoUrl);
     _controller = VideoPlayerController.networkUrl(
         uriVideo,

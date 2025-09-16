@@ -167,6 +167,11 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
     await _controller.evaluateJavascript(source: "changePrimaryColor($lightPrimaryColor, $darkPrimaryColor);");
   }
 
+  Future<void> toggleAudioPlayer(bool visible) async {
+    await _controller.evaluateJavascript(source: "toggleAudioPlayer($visible);");
+    updateBottomBar();
+  }
+
   Future<void> updateBottomBar() async {
     controlsKey.currentState?.refreshWidget();
   }

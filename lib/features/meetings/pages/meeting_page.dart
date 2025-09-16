@@ -4,7 +4,6 @@ import 'package:intl/intl.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/jworg_uri.dart';
 import 'package:jwlife/core/utils/utils_document.dart';
-import 'package:jwlife/core/utils/widgets_utils.dart';
 import 'package:jwlife/data/models/meps_language.dart';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/repositories/PublicationRepository.dart';
@@ -18,13 +17,14 @@ import 'package:sqflite/sqflite.dart';
 import '../../../app/jwlife_app.dart';
 import '../../../app/services/global_key_service.dart';
 import '../../../app/services/settings_service.dart';
+import '../../../core/shared_preferences/shared_preferences_utils.dart';
 import '../../../core/utils/common_ui.dart';
 import '../../../core/utils/utils.dart';
 import '../../../data/databases/history.dart';
 import '../../../data/models/userdata/congregation.dart';
+import '../../../widgets/dialog/language_dialog.dart';
 import '../../../widgets/responsive_appbar_actions.dart';
 import '../../publication/pages/document/data/models/document.dart';
-import '../../publication/pages/document/local/document_page.dart';
 import '../../publication/pages/document/local/documents_manager.dart';
 import '../../publication/pages/menu/local/publication_menu_view.dart';
 
@@ -373,7 +373,18 @@ class MeetingsPageState extends State<MeetingsPage> {
                 icon: const Icon(JwIcons.language),
                 text: 'Autres langues',
                 onPressed: () {
-                  // Logique de changement de langue ici
+                  LanguageDialog languageDialog = LanguageDialog();
+                  showDialog(
+                    context: context,
+                    builder: (context) => languageDialog,
+                  ).then((value) async {
+                    if (value != null) {
+                      if (value['Symbol'] != JwLifeSettings().currentLanguage.symbol) {
+                        await setLibraryLanguage(value);
+                        GlobalKeyService.homeKey.currentState?.changeLanguageAndRefresh();
+                      }
+                    }
+                  });
                 },
               ),
               IconTextButton(

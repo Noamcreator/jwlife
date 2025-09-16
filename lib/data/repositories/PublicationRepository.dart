@@ -33,8 +33,7 @@ class PublicationRepository {
   }
 
   Publication? getByCompositeKeyForDownload(String symbol, int issueTagNumber, String mepsLanguage) {
-    return getAllDownloadedPublications().firstWhereOrNull(
-          (p) => p.symbol == symbol && p.issueTagNumber == issueTagNumber && p.mepsLanguage.symbol == mepsLanguage,
+    return getAllDownloadedPublications().firstWhereOrNull((p) => p.symbol == symbol && p.issueTagNumber == issueTagNumber && p.mepsLanguage.symbol == mepsLanguage,
     );
   }
 

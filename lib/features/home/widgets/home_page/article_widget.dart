@@ -39,7 +39,7 @@ class ArticleWidgetState extends State<ArticleWidget> {
 
   @override
   Widget build(BuildContext context) {
-    if (_orderedArticles.isEmpty || _currentArticle['Title'] == null) {
+    if (_orderedArticles.isEmpty || _currentArticle['Title'] == null || _currentArticle['Title'].isEmpty) {
       return const SizedBox.shrink();
     }
 

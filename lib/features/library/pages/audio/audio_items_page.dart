@@ -15,7 +15,9 @@ import 'package:jwlife/widgets/image_cached_widget.dart';
 import 'package:realm/realm.dart';
 
 import '../../../../app/services/global_key_service.dart';
+import '../../../../core/api/api.dart';
 import '../../../../core/shared_preferences/shared_preferences_utils.dart';
+import '../../../../core/utils/common_ui.dart';
 import '../../../../widgets/searchfield/searchfield_widget.dart';
 
 class AudioItemsPage extends StatefulWidget {
@@ -28,14 +30,16 @@ class AudioItemsPage extends StatefulWidget {
 }
 
 class _AudioItemsPageState extends State<AudioItemsPage> {
-  String categoryName = '';
-  String language = '';
+  String _categoryName = '';
+  String _language = '';
+
+  String? _selectedLanguageSymbol;
 
   // Liste complète des médias
-  List<Audio> allAudios = [];
+  List<Audio> _allAudios = [];
 
   // Liste filtrée (change selon recherche)
-  List<Audio> filteredAudios = [];
+  List<Audio> _filteredAudios = [];
 
   bool _isSearching = false;
 
@@ -44,7 +48,8 @@ class _AudioItemsPageState extends State<AudioItemsPage> {
   @override
   void initState() {
     super.initState();
-    loadItems(widget.category.language);
+    loadItems();
+
     _streamSequenceStateSubscription = JwLifeApp.audioPlayer.player.sequenceStateStream.listen((state) {
       if (!mounted) return;
       if (state.currentIndex != null) {
@@ -63,23 +68,24 @@ class _AudioItemsPageState extends State<AudioItemsPage> {
     super.dispose();
   }
 
-  void loadItems(String? languageCode) async {
-    if (language == languageCode) return;
+  void loadItems({String? symbol}) async {
+    symbol ??= widget.category.language;
 
     RealmLibrary.realm.refresh();
-    Language lang = RealmLibrary.realm.all<Language>().query("symbol == '$languageCode'").first;
-
-    // On charge la liste complète uniquement ici
-    allAudios = widget.category.media.map((key) {
-      return Audio.fromJson(mediaItem: RealmLibrary.realm.all<MediaItem>().query("naturalKey == '$key'").first);
-    }).toList();
-
-    // Au début, filteredAudios = allAudios (pas de filtre)
-    filteredAudios = List.from(allAudios);
+    Language? lang = RealmLibrary.realm.all<Language>().query("symbol == '$symbol'").firstOrNull;
+    if(lang == null) return;
+    Category? category = RealmLibrary.realm.all<Category>().query("key == '${widget.category.key}' AND language == '$symbol'").firstOrNull;
 
     setState(() {
-      language = lang.vernacular!;
-      categoryName = widget.category.localizedName!;
+      _categoryName = category?.localizedName ?? widget.category.localizedName!;
+      _language = lang.vernacular!;
+      // On charge la liste complète uniquement ici
+      _allAudios = category?.media.map((key) {
+        return Audio.fromJson(mediaItem: RealmLibrary.realm.all<MediaItem>().query("naturalKey == '$key'").first);
+      }).toList() ?? [];
+
+      // Au début, filteredAudios = allAudios (pas de filtre)
+      _filteredAudios = List.from(_allAudios);
     });
   }
 
@@ -87,11 +93,11 @@ class _AudioItemsPageState extends State<AudioItemsPage> {
     if (query.isEmpty) {
       setState(() {
         // Remet filteredAudios à la liste complète
-        filteredAudios = List.from(allAudios);
+        _filteredAudios = List.from(_allAudios);
       });
     } else {
       setState(() {
-        filteredAudios = allAudios.where((mediaItem) {
+        _filteredAudios = _allAudios.where((mediaItem) {
           return mediaItem.title.toLowerCase().contains(query.toLowerCase());
         }).toList();
       });
@@ -99,17 +105,17 @@ class _AudioItemsPageState extends State<AudioItemsPage> {
   }
 
   void _play(int index) async {
-    JwLifeApp.audioPlayer.playAudios(widget.category, allAudios, id: index);
+    JwLifeApp.audioPlayer.playAudios(widget.category, _allAudios, id: index);
   }
 
   void _playAll() async {
-    JwLifeApp.audioPlayer.playAudios(widget.category, allAudios);
+    JwLifeApp.audioPlayer.playAudios(widget.category, _allAudios);
   }
 
   void _playRandom() async {
-    if (allAudios.isEmpty) return;
-    final randomIndex = Random().nextInt(allAudios.length);
-    JwLifeApp.audioPlayer.playAudios(widget.category, allAudios, id: randomIndex, randomMode: true);
+    if (_allAudios.isEmpty) return;
+    final randomIndex = Random().nextInt(_allAudios.length);
+    JwLifeApp.audioPlayer.playAudios(widget.category, _allAudios, id: randomIndex, randomMode: true);
   }
 
   void _playRandomLanguage() async {
@@ -126,6 +132,48 @@ class _AudioItemsPageState extends State<AudioItemsPage> {
           : const Color(0xFF626262),
     );
 
+    Widget bodyContent;
+    if (_filteredAudios.isEmpty && !_isSearching) {
+      bodyContent = Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Text(
+            'Il n\'y a pas d\'audios disponibles pour le moment dans cette langue.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 18,
+              color: Theme.of(context).hintColor,
+            ),
+          ),
+        ),
+      );
+    } else {
+      bodyContent = Column(
+        children: [
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            child: Row(
+              children: [
+                _buildOutlinedButton(Icons.playlist_play, "TOUT LIRE", _playAll),
+                const SizedBox(width: 10),
+                _buildOutlinedButton(Icons.shuffle, "LECTURE ALÉATOIRE", _playRandom),
+                //const SizedBox(width: 10),
+                //_buildOutlinedButton(JwIcons.language, "LANGUE ALÉATOIRE", _playRandomLanguage),
+              ],
+            ),
+          ),
+          Expanded(
+            child: ListView.builder(
+              padding: const EdgeInsets.all(5.0),
+              itemCount: _filteredAudios.length,
+              itemBuilder: (context, index) => buildAudioItem(index),
+            ),
+          ),
+        ],
+      );
+    }
+
     return Scaffold(
       resizeToAvoidBottomInset: false,
       appBar: _isSearching
@@ -133,9 +181,7 @@ class _AudioItemsPageState extends State<AudioItemsPage> {
         title: SearchFieldWidget(
           query: '',
           onSearchTextChanged: (text) {
-            setState(() {
-              _filterAudios(text);
-            });
+            _filterAudios(text);
             return null;
           },
           onSuggestionTap: (item) {},
@@ -165,8 +211,8 @@ class _AudioItemsPageState extends State<AudioItemsPage> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(categoryName, style: textStyleTitle),
-            Text(language, style: textStyleSubtitle),
+            Text(_categoryName, style: textStyleTitle),
+            Text(_language, style: textStyleSubtitle),
           ],
         ),
         actions: [
@@ -182,43 +228,27 @@ class _AudioItemsPageState extends State<AudioItemsPage> {
           IconButton(
             icon: const Icon(JwIcons.language),
             onPressed: () async {
-              LanguageDialog languageDialog = LanguageDialog();
+              LanguageDialog languageDialog = LanguageDialog(selectedLanguageSymbol: _selectedLanguageSymbol);
               showDialog(
                 context: context,
                 builder: (context) => languageDialog,
               ).then((value) async {
-                await setLibraryLanguage(value);
-                loadItems(JwLifeSettings().currentLanguage.symbol);
-                GlobalKeyService.homeKey.currentState?.changeLanguageAndRefresh();
+                if (value != null) {
+                  _selectedLanguageSymbol = value['Symbol'] as String;
+                  loadItems(symbol: _selectedLanguageSymbol);
+
+                  if(await Api.isLibraryUpdateAvailable(symbol: _selectedLanguageSymbol)) {
+                    Api.updateLibrary(_selectedLanguageSymbol!).then((_) {
+                      loadItems(symbol: _selectedLanguageSymbol);
+                    });
+                  }
+                }
               });
             },
           ),
         ],
       ),
-      body: Column(
-        children: [
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            child: Row(
-              children: [
-                _buildOutlinedButton(Icons.playlist_play, "TOUT LIRE", _playAll),
-                const SizedBox(width: 10),
-                _buildOutlinedButton(Icons.shuffle, "LECTURE ALÉATOIRE", _playRandom),
-                const SizedBox(width: 10),
-                _buildOutlinedButton(JwIcons.language, "LANGUE ALÉATOIRE", _playRandomLanguage),
-              ],
-            ),
-          ),
-          Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.all(5.0),
-              itemCount: filteredAudios.length,
-              itemBuilder: (context, index) => buildAudioItem(index),
-            ),
-          ),
-        ],
-      ),
+      body: bodyContent,
     );
   }
 
@@ -235,8 +265,8 @@ class _AudioItemsPageState extends State<AudioItemsPage> {
   }
 
   Widget buildAudioItem(int index) {
-    Audio audio = filteredAudios[index];
-    int id = allAudios.indexOf(audio);
+    Audio audio = _filteredAudios[index];
+    int id = _allAudios.indexOf(audio);
 
     return Stack(
       children: [

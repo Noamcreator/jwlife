@@ -375,7 +375,6 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
                                   // animation de l'ouverture vers le haut
                                   popUpAnimationStyle: AnimationStyle.noAnimation,
                                   itemBuilder: (context) {
-                                    String? naturalKey = _currentExtras?['naturalKey'];
                                     String? keySymbol = _currentExtras?['keySymbol'];
                                     int? track = _currentExtras?['track'];
                                     int? mepsDocumentId = _currentExtras?['documentId'];

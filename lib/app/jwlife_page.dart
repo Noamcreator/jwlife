@@ -79,9 +79,16 @@ class JwLifePageState extends State<JwLifePage> {
       audioWidgetVisible = isVisible;
     });
 
-    for(var key in webViewPageKeys) {
-      for(var state in key) {
-        state.currentState!.setState(() {});
+    for (var keys in GlobalKeyService.jwLifePageKey.currentState!.webViewPageKeys) {
+      for (var key in keys) {
+        final state = key.currentState;
+
+        if (state is DocumentPageState) {
+          state.toggleAudioPlayer(isVisible);
+        }
+        else if (state is DailyTextPageState) {
+          state.toggleAudioPlayer(isVisible);
+        }
       }
     }
   }
@@ -109,113 +116,103 @@ class JwLifePageState extends State<JwLifePage> {
     }
   }
 
+  // Code optimisé
   Future<void> handleBack<T>(BuildContext context, {T? result}) async {
     final currentNavigator = navigatorKeys[currentNavigationBottomBarIndex].currentState!;
-
     final currentPages = pagesByNavigator[currentNavigationBottomBarIndex];
     final currentWebKeys = webViewPageKeys[currentNavigationBottomBarIndex];
 
+    // Cas 1: Le menu contextuel est ouvert
+    if (_popMenuOpen) {
+      togglePopMenuOpen(false);
+      if (currentNavigator.canPop()) {
+        result == null ? currentNavigator.pop() : currentNavigator.pop(result);
+      }
+      return;
+    }
+
+    // Cas 2: Gestion des pages web spécifiques
     if (currentPages != null && currentPages.isNotEmpty) {
       final lastPage = currentPages.last;
+      if (currentWebKeys.isNotEmpty && (lastPage is DocumentPage || lastPage is DailyTextPage)) {
+        final webViewPageState = currentWebKeys.last.currentState;
 
-      if(_popMenuOpen) {
-        togglePopMenuOpen(false);
-        if (currentNavigator.canPop()) {
-          result == null ? currentNavigator.pop() : currentNavigator.pop(result);
+        // Un seul bloc pour gérer les deux types de pages WebView
+        if (webViewPageState is DocumentPageState) {
+          if (!await webViewPageState.handleBackPress(fromPopScope: true)) {
+            return; // La WebView a géré le retour, on s'arrête là
+          }
+          currentWebKeys.removeLast();
         }
-        return;
-      }
-      else {
-        if (currentWebKeys.isNotEmpty && (lastPage is DocumentPage || lastPage is DailyTextPage)) {
-          final webViewPageState = currentWebKeys.last.currentState;
-          if (webViewPageState is DocumentPageState) {
-            if (!await webViewPageState.handleBackPress(fromPopScope: true)) {
-              return;
-            }
-            currentWebKeys.removeLast();
+        else if (webViewPageState is DailyTextPageState) {
+          if (!await webViewPageState.handleBackPress(fromPopScope: true)) {
+            return; // La WebView a géré le retour, on s'arrête là
           }
-          else if (webViewPageState is DailyTextPageState) {
-            if (!await webViewPageState.handleBackPress(fromPopScope: true)) {
-              return;
-            }
-            currentWebKeys.removeLast();
-          }
+          currentWebKeys.removeLast();
         }
       }
     }
 
-    Widget? pageBeforePop;
+    final canPop = currentNavigator.canPop();
 
-    if (currentPages != null && currentPages.length >= 2) {
-      pageBeforePop = currentPages[currentPages.length - 2];
-    }
+    // Cas 3: La navigation est possible dans l'onglet
+    if (canPop) {
+      final pageBeforePop = currentPages != null && currentPages.length >= 2 ? currentPages[currentPages.length - 2] : null;
 
-    if (currentNavigator.canPop()) {
+      // Fermeture de la page actuelle
       result == null ? currentNavigator.pop() : currentNavigator.pop(result);
 
-      final currentPages = pagesByNavigator[currentNavigationBottomBarIndex];
-      if (currentPages != null && currentPages.isNotEmpty) {
-        final lastPage = currentPages.last;
-
-        printTime('lastPage: ${lastPage.runtimeType}');
-
-        if (lastPage is NotePage) {
-          if (resizeToAvoidBottomInset[currentNavigationBottomBarIndex]) {
-            setState(() {
-              resizeToAvoidBottomInset[currentNavigationBottomBarIndex] = false;
-            });
-          }
-        }
-
-        if (pageBeforePop != null) {
-          printTime('previousPage: ${pageBeforePop.runtimeType}');
-
-          if (pageBeforePop is DocumentPage || pageBeforePop is DailyTextPage || pageBeforePop is FullScreenImagePage || pageBeforePop is ImagePage || pageBeforePop is VideoPlayerPage) {
-            if (!navBarIsDisable[currentNavigationBottomBarIndex]) {
-              setState(() {
-                navBarIsDisable[currentNavigationBottomBarIndex] = true;
-              });
-            }
-          }
-          else {
-            if (navBarIsDisable[currentNavigationBottomBarIndex]) {
-              setState(() {
-                navBarIsDisable[currentNavigationBottomBarIndex] = false;
-              });
-            }
-          }
-        }
-        else {
-          if (navBarIsDisable[currentNavigationBottomBarIndex]) {
-            setState(() {
-              navBarIsDisable[currentNavigationBottomBarIndex] = false;
-            });
-          }
-        }
-      }
+      // Mise à jour de l'UI basée sur la page précédente
+      _updateUiBasedOnPreviousPage(pageBeforePop);
       _updateSystemUiMode(true);
     }
+    // Cas 4: On est sur la page racine d'un onglet, on change d'onglet
     else if (currentNavigationBottomBarIndex != 0) {
-      // Aller sur la page d'accueil
       changeNavBarIndex(0);
     }
+    // Cas 5: On est sur la page racine de l'onglet principal, on propose de quitter
     else {
-      showJwDialog(
-        context: context,
-        titleText: 'Quitter',
-        contentText: 'Voulez-vous vraiment quitter l\'application JW life ?',
-        buttons: [
-          JwDialogButton(label: 'ANNULER', closeDialog: true),
-          JwDialogButton(
-            label: 'QUITTER',
-            closeDialog: false,
-            onPressed: (buildContext) async {
-              await SystemNavigator.pop();
-            },
-          ),
-        ],
-      );
+      _showExitConfirmationDialog(context);
     }
+  }
+
+  void _updateUiBasedOnPreviousPage(Widget? pageBeforePop) {
+    // Gestion de la barre de navigation
+    final shouldDisableNavBar = pageBeforePop is DocumentPage ||
+        pageBeforePop is DailyTextPage ||
+        pageBeforePop is FullScreenImagePage ||
+        pageBeforePop is ImagePage ||
+        pageBeforePop is VideoPlayerPage;
+
+    setState(() {
+      navBarIsDisable[currentNavigationBottomBarIndex] = shouldDisableNavBar;
+    });
+
+    // Gestion du clavier si on revient à une NotePage
+    final currentPages = pagesByNavigator[currentNavigationBottomBarIndex];
+    if (currentPages != null && currentPages.isNotEmpty && currentPages.last is NotePage) {
+      setState(() {
+        resizeToAvoidBottomInset[currentNavigationBottomBarIndex] = false;
+      });
+    }
+  }
+
+  void _showExitConfirmationDialog(BuildContext context) {
+    showJwDialog(
+      context: context,
+      titleText: 'Quitter',
+      contentText: 'Voulez-vous vraiment quitter l\'application JW life ?',
+      buttons: [
+        JwDialogButton(label: 'ANNULER', closeDialog: true),
+        JwDialogButton(
+          label: 'QUITTER',
+          closeDialog: true,
+          onPressed: (_) async {
+            await SystemNavigator.pop();
+          },
+        ),
+      ],
+    );
   }
 
   void changeNavBarIndex(int index) {

@@ -164,7 +164,7 @@ Future<String?> _showOnlineVideoDialog(BuildContext context, Video video, dynami
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text("Durée: " + data['media'][0]['durationFormattedMinSec']),
-                  Text("Date: " + DateFormat('dd/MM/yyyy').format(DateTime.parse(data['media'][0]['firstPublished']))),
+                  Text("Date: ${DateFormat('dd/MM/yyyy').format(DateTime.parse(data['media'][0]['firstPublished']))}"),
                 ],
               ),
               SizedBox(height: 20),

@@ -10,8 +10,9 @@ import '../../app/services/settings_service.dart';
 
 class LanguageDialog extends StatefulWidget {
   final Map<String, dynamic> languagesListJson;
+  final String? selectedLanguageSymbol;
 
-  const LanguageDialog({super.key, this.languagesListJson = const {}});
+  const LanguageDialog({super.key, this.languagesListJson = const {}, this.selectedLanguageSymbol});
 
   @override
   _LanguageDialogState createState() => _LanguageDialogState();
@@ -33,7 +34,7 @@ class _LanguageDialogState extends State<LanguageDialog> {
   }
 
   Future<void> initSettings() async {
-    selectedLanguage = JwLifeSettings().currentLanguage.symbol;
+    selectedLanguage = widget.selectedLanguageSymbol ?? JwLifeSettings().currentLanguage.symbol;
 
     File mepsUnitFile = await getMepsUnitDatabaseFile(); // mepsUnitFile est .db
 

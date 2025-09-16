@@ -103,21 +103,62 @@ PopupMenuItem getAudioLanguagesItem(BuildContext context, Audio audio) {
       ],
     ),
     onTap: () async {
-      String link = 'https://b.jw-cdn.org/apis/mediator/v1/media-item-availability/${audio.naturalKey}?clientType=www';
-      final response = await Api.httpGetWithHeaders(link);
-      if (response.statusCode == 200) {
-        final jsonFile = response.body;
-        final jsonData = json.decode(jsonFile);
+      if(await hasInternetConnection()) {
+        String link = 'https://b.jw-cdn.org/apis/mediator/v1/media-item-availability/${audio.naturalKey}';
+        final response = await Api.httpGetWithHeaders(link);
+        if (response.statusCode == 200) {
+          final jsonFile = response.body;
+          final jsonData = json.decode(jsonFile);
 
-        LanguageDialog languageDialog = LanguageDialog(languagesListJson: jsonData['languages']);
-        showDialog(
-          context: context,
-          builder: (context) => languageDialog,
-        ).then((value) {
-          if (value != null) {
-            //Navigator.pushNamed(context, '/audio', arguments: value);
-          }
-        });
+          LanguageDialog languageDialog = LanguageDialog(languagesListJson: jsonData['languages']);
+          showDialog(
+            context: context,
+            builder: (context) => languageDialog,
+          ).then((value) async {
+            if (value != null) {
+              String link = 'https://b.jw-cdn.org/apis/mediator/v1/media-items/${value['Symbol']}/${audio.naturalKey}';
+              print(link);
+              final response = await Api.httpGetWithHeaders(link);
+              if (response.statusCode == 200) {
+                final jsonFile = response.body;
+                final jsonData = json.decode(jsonFile);
+
+                final mediaList = jsonData['media'] as List<dynamic>?;
+                final media = mediaList != null && mediaList.isNotEmpty
+                    ? mediaList.first as Map<String, dynamic>
+                    : null;
+
+                final filesList = media?['files'] as List<dynamic>?;
+                final files = filesList != null && filesList.isNotEmpty
+                    ? filesList.first as Map<String, dynamic>
+                    : null;
+
+                final images = media?['images'] as Map<String, dynamic>?;
+
+                final audioMap = {
+                  'KeySymbol': audio.keySymbol,
+                  'DocumentId': audio.documentId,
+                  'BookNumber': audio.bookNumber,
+                  'IssueTagNumber': audio.issueTagNumber,
+                  'Track': audio.track,
+                  'MepsLanguage': value['Symbol'],
+                  'Title': media?['title'] ?? '',
+                  'Duration': media?['duration'] ?? 0,
+                  'FirstPublished': media?['firstPublished'] ?? '',
+                  'NaturalKey': media?['languageAgnosticNaturalKey'] ?? '',
+                  'FileUrl': files?['progressiveDownloadURL'] ?? '',
+                  'ImagePath': images?['cvr']?['md'] ?? images?['sqr']?['md'] ?? '',
+                };
+
+                Audio a = Audio.fromJson(json: audioMap);
+                await a.showPlayer(context);
+              }
+            }
+          });
+        }
+      }
+      else {
+        showNoConnectionDialog(context);
       }
     },
   );

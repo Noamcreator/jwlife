@@ -22,9 +22,56 @@ class RectanglePlaylistItemItem extends StatelessWidget {
 
   const RectanglePlaylistItemItem({super.key, required this.item});
 
-  Widget buildEndAction(BuildContext context) {
-    IconData? icon;
+  // La fonction buildEndAction est maintenant utilisée pour générer les items du menu.
+  List<PopupMenuItem<int>> buildEndAction(BuildContext context) {
+    return [
+      PopupMenuItem(
+        value: 0,
+        child: Row(
+          children: const [
+            Icon(JwIcons.play),
+            SizedBox(width: 8),
+            Text('Continuer'),
+          ],
+        ),
+      ),
+      PopupMenuItem(
+        value: 1,
+        child: Row(
+          children: const [
+            Icon(Icons.square_outlined),
+            SizedBox(width: 8),
+            Text('Arrêter'),
+          ],
+        ),
+      ),
+      PopupMenuItem(
+        value: 2,
+        child: Row(
+          children: const [
+            Icon(JwIcons.pause),
+            SizedBox(width: 8),
+            Text('Mettre en pause'),
+          ],
+        ),
+      ),
+      PopupMenuItem(
+        value: 3,
+        child: Row(
+          children: const [
+            Icon(JwIcons.arrows_loop),
+            SizedBox(width: 8),
+            Text('Répéter'),
+          ],
+        ),
+      ),
+    ];
+  }
+
+  // Cette fonction détermine le bouton actuel affiché dans l'UI.
+  Widget buildPopupMenuButton() {
     String label;
+    IconData? icon;
 
     switch (item.endAction) {
       case 0:
@@ -46,22 +93,23 @@ class RectanglePlaylistItemItem extends StatelessWidget {
       default:
         label = 'Continuer';
         icon = JwIcons.play;
+        break;
     }
 
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(label,
-          style: TextStyle(fontSize: 12, color: Theme.of(context).primaryColor),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis
-        ),
-        const SizedBox(width: 4),
-        Icon(icon, size: 18, color: Theme.of(context).primaryColor),
-      ],
+    return PopupMenuButton<int>(
+      itemBuilder: buildEndAction,
+      onSelected: (int newValue) {
+        item.endAction = newValue;
+      },
+      child: Row(
+        children: [
+          Icon(icon),
+          const SizedBox(width: 8),
+          Text(label),
+        ],
+      ),
     );
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -168,7 +216,7 @@ class RectanglePlaylistItemItem extends StatelessWidget {
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                           ),
-                          buildEndAction(context), // sera toujours en bas
+                          buildPopupMenuButton()
                         ],
                       ),
                     ),

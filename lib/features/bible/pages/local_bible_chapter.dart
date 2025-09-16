@@ -147,8 +147,7 @@ class _LocalChapterBiblePageState extends State<LocalChapterBiblePage> {
         overviewHtml = createHtmlContent(
             decodedHtml,
             '''jwac docClass-115 ms-ROMAN ml-F dir-ltr pub-${widget.bible.keySymbol} layout-reading layout-sidebar''',
-            widget.bible,
-            false
+            ''
         );
       }
 
@@ -169,8 +168,7 @@ class _LocalChapterBiblePageState extends State<LocalChapterBiblePage> {
         profileHtml = createHtmlContent(
             decodedHtml,
             '''jwac docClass-115 ms-ROMAN ml-F dir-ltr pub-${widget.bible.keySymbol} layout-reading layout-sidebar''',
-            widget.bible,
-            false
+            ''
         );
       }
 

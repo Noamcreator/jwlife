@@ -131,6 +131,8 @@ class HomePageState extends State<HomePage> {
       GlobalKeyService.meetingsKey.currentState?.refreshConventionsPubs();
     });
 
+    _articlesKey.currentState!.setArticles([]);
+
     _loadWolInfo();
     _initPage();
     _refresh(first: true);

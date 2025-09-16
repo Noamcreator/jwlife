@@ -22,11 +22,12 @@ class PublicationsItemsView extends StatefulWidget {
 }
 
 class _PublicationsItemsViewState extends State<PublicationsItemsView> {
+  String _language = '';
   // Liste complète des publications, telle que chargée depuis la base de données
-  Map<PublicationAttribute, List<Publication>> publications = {};
+  Map<PublicationAttribute, List<Publication>> _publications = {};
 
   // Liste plate (titres et publications)
-  List<dynamic> _flattenedItems = [];
+  final List<dynamic> _flattenedItems = [];
 
   // Variables pour la recherche
   final TextEditingController _searchController = TextEditingController();
@@ -45,35 +46,42 @@ class _PublicationsItemsViewState extends State<PublicationsItemsView> {
     super.dispose();
   }
 
-  void loadItems() async {
+  void loadItems({Map<String, dynamic>? mepsLanguage}) async {
     Map<PublicationAttribute, List<Publication>> publications;
+
+    int mepsLanguageId = mepsLanguage?['LanguageId'] ?? JwLifeSettings().currentLanguage.id;
 
     if (widget.year != null) {
       publications = await PubCatalog.getPublicationsFromCategory(
         widget.category.id,
         year: widget.year,
+        mepsLanguageId: mepsLanguageId
       );
     }
     else {
-      publications = await PubCatalog.getPublicationsFromCategory(widget.category.id);
+      publications = await PubCatalog.getPublicationsFromCategory(
+          widget.category.id,
+          mepsLanguageId: mepsLanguageId
+      );
     }
 
-    this.publications = publications;
+    _publications = publications;
 
     for (var pub in PublicationRepository().getAllDownloadedPublications()) {
-      if (pub.category.id == widget.category.id && pub.mepsLanguage.id == JwLifeSettings().currentLanguage.id && (widget.year == null || pub.year == widget.year) && !this.publications.values.expand((list) => list).any((p) => p.symbol == pub.symbol && p.issueTagNumber == pub.issueTagNumber)) {
-        this.publications.putIfAbsent(pub.attribute, () => []).add(pub);
+      if (pub.category.id == widget.category.id && pub.mepsLanguage.id == mepsLanguageId && (widget.year == null || pub.year == widget.year) && !_publications.values.expand((list) => list).any((p) => p.symbol == pub.symbol && p.issueTagNumber == pub.issueTagNumber)) {
+        _publications.putIfAbsent(pub.attribute, () => []).add(pub);
       }
     }
 
-    var sortedEntries = this.publications.keys.toList()..sort((a, b) => a.id.compareTo(b.id));
-    this.publications = Map.fromEntries(sortedEntries.map((key) => MapEntry(key, this.publications[key]!)));
+    var sortedEntries = _publications.keys.toList()..sort((a, b) => a.id.compareTo(b.id));
+    _publications = Map.fromEntries(sortedEntries.map((key) => MapEntry(key, _publications[key]!)));
 
     // Initialise la liste filtrée avec toutes les publications
-    _filteredPublications = Map.from(this.publications);
-
+    _filteredPublications = Map.from(_publications);
     _createFlattenedList();
-    setState(() {});
+    setState(() {
+      _language = mepsLanguage?['VernacularName'] ?? JwLifeSettings().currentLanguage.vernacular;
+    });
   }
 
   void _filterPublications(String query) {
@@ -81,10 +89,10 @@ class _PublicationsItemsViewState extends State<PublicationsItemsView> {
       _filteredPublications = {}; // Réinitialise la carte filtrée
       if (query.isEmpty) {
         // Si la recherche est vide, on affiche toutes les publications
-        _filteredPublications = Map.from(publications);
+        _filteredPublications = Map.from(_publications);
       } else {
         // Sinon, on filtre les publications
-        publications.forEach((attribute, publicationList) {
+        _publications.forEach((attribute, publicationList) {
           final filteredList = publicationList.where((pub) {
             return pub.title.toLowerCase().contains(query.toLowerCase()) || pub.symbol.toLowerCase().contains(query.toLowerCase());
           }).toList();
@@ -188,7 +196,7 @@ class _PublicationsItemsViewState extends State<PublicationsItemsView> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(widget.year != null ? '${widget.year}' : widget.category.getName(context), style: textStyleTitle),
-            Text(JwLifeSettings().currentLanguage.vernacular, style: textStyleSubtitle),
+            Text(_language, style: textStyleSubtitle),
           ],
         ),
         actions: [
@@ -206,10 +214,15 @@ class _PublicationsItemsViewState extends State<PublicationsItemsView> {
           IconButton(
             icon: const Icon(JwIcons.language),
             onPressed: () async {
+              LanguageDialog languageDialog = LanguageDialog();
               showDialog(
                 context: context,
-                builder: (context) => const LanguageDialog(),
-              ).then((_) => loadItems());
+                builder: (context) => languageDialog,
+              ).then((value) async {
+                if (value != null) {
+                  loadItems(mepsLanguage: value);
+                }
+              });
             },
           ),
         ],

@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:jwlife/app/services/global_key_service.dart';
 import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/data/models/publication.dart';
 
@@ -12,6 +13,7 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
   final colorIndex = webViewData.colorIndex;
   bool isDarkMode = webViewData.theme == 'cc-theme--dark';
   bool isFullscreenMode = webViewData.isFullScreenMode;
+  bool audioPlayerVisible = GlobalKeyService.jwLifePageKey.currentState?.audioWidgetVisible ?? false;
 
   final lightPrimaryColor = toHex(JwLifeSettings().lightPrimaryColor);
   final darkPrimaryColor = toHex(JwLifeSettings().darkPrimaryColor);
@@ -70,7 +72,7 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
 
           .scroll-bar {
             position: absolute;
-            top: 90px;
+            top: 56px;
             right: 0px;
             width: 30px;
             height: 55px;
@@ -260,6 +262,7 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
 
           let isFullscreenMode = $isFullscreenMode;
           let controlsVisible = true;
+          let audioPlayerVisible = $audioPlayerVisible;
           
           let imageMode = true;
 
@@ -284,6 +287,7 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
           // Valeurs fixes de hauteur des barres
           const APPBAR_FIXED_HEIGHT = 56;
           const BOTTOMNAVBAR_FIXED_HEIGHT = 55;
+          const AUDIO_PLAYER_HEIGHT = 70;
           
           let highlights;
           let notes;
@@ -310,6 +314,15 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
             
             const floatingButton = document.getElementById('dialogFloatingButton');
             floatingButton.style.backgroundColor = isDarkTheme() ? darkPrimaryColor : lightPrimaryColor;
+          }
+          
+          function toggleAudioPlayer(visible) {
+            const floatingButton = document.getElementById('dialogFloatingButton');
+            audioPlayerVisible = visible;
+            floatingButton.style.bottom = `\${BOTTOMNAVBAR_FIXED_HEIGHT + (audioPlayerVisible ? AUDIO_PLAYER_HEIGHT : 0) + 15}px`;
+
+            const curr = cachedPages[currentIndex];
+            adjustArticle('article-center', curr.link);
           }
 
           async function fetchPage(index) {
@@ -442,7 +455,7 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
             }
             else {
               article.style.paddingTop = paddingTop;
-              article.style.paddingBottom = '90px';
+              article.style.paddingBottom = `\${BOTTOMNAVBAR_FIXED_HEIGHT + (audioPlayerVisible ? AUDIO_PLAYER_HEIGHT : 0) + 30}px`;
             }
           }
     
@@ -1443,6 +1456,7 @@ function hideAllDialogs() {
 }
 
 function closeDialog() {
+    document.querySelectorAll('.options-menu, .color-menu').forEach(el => el.remove());
     const dialog = document.getElementById(dialogHistory[currentDialogIndex].dialogId);
     if (!dialog) return;
     
@@ -1622,21 +1636,24 @@ function applyDialogStyles(type, dialog, isFullscreen, savedPosition = null) {
     `;
 
     if (isFullscreen) {
+        const bottomOffset = BOTTOMNAVBAR_FIXED_HEIGHT + (audioPlayerVisible ? AUDIO_PLAYER_HEIGHT : 0);
+    
         dialog.classList.add('fullscreen');
-        dialog.style.cssText = baseStyles + `
+        dialog.style.cssText = `
+            \${baseStyles}
             top: \${APPBAR_FIXED_HEIGHT}px;
             left: 0;
             right: 0;
-            bottom: \${BOTTOMNAVBAR_FIXED_HEIGHT}px;
+            bottom: \${bottomOffset}px;
             width: 100vw;
-            height: calc(100vh - \${APPBAR_FIXED_HEIGHT + BOTTOMNAVBAR_FIXED_HEIGHT}px);
+            height: calc(100vh - \${APPBAR_FIXED_HEIGHT + bottomOffset}px);
             transform: none;
             margin: 0;
             border-radius: 0px;
         `;
-
+    
         window.flutter_inappwebview?.callHandler('showFullscreenDialog', true);
-    } 
+    }
     else {
         dialog.classList.remove('fullscreen');
 
@@ -1666,7 +1683,7 @@ function applyDialogStyles(type, dialog, isFullscreen, savedPosition = null) {
 
 // Fonction pour appliquer les styles du container de contenu
 function applyContentContainerStyles(type, contentContainer, isFullscreen) {
-    const maxHeight = isFullscreen ? `calc(100vh - \${APPBAR_FIXED_HEIGHT + BOTTOMNAVBAR_FIXED_HEIGHT + 60}px)` : '60vh';
+    const maxHeight = isFullscreen ? `calc(100vh - \${APPBAR_FIXED_HEIGHT + BOTTOMNAVBAR_FIXED_HEIGHT + (audioPlayerVisible ? AUDIO_PLAYER_HEIGHT : 0) + 60}px)` : '60vh';
     const backgroundColor = type === 'note' ? 'transparent' : (isDarkTheme() ? '#121212' : '#ffffff');
     
     contentContainer.style.cssText = `
@@ -1704,6 +1721,11 @@ function createHeader(options, isDark, dialog, isFullscreen, canGoBack) {
         border-bottom: 1px solid \${isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'};
         border-radius: \${borderRadius};
     `;
+    
+    header.addEventListener('touchstart', (e) => {
+        document.querySelectorAll('.options-menu, .color-menu').forEach(el => el.remove());
+    });
+    
 
     // Left area: back button + title
     const leftArea = document.createElement('div');
@@ -1711,8 +1733,7 @@ function createHeader(options, isDark, dialog, isFullscreen, canGoBack) {
 
     if (canGoBack) {
         const backButton = document.createElement('button');
-        backButton.innerHTML = '←';
-        backButton.className = 'dialog-button back-button';
+        backButton.classList.add('dialog-button', 'back-button', 'jwf-jw-icons-external', 'jwi-chevron-left');
         backButton.style.cssText = `
             font-size: 18px;
             padding: 8px;
@@ -1871,6 +1892,8 @@ function createHeader(options, isDark, dialog, isFullscreen, canGoBack) {
 // Configuration du fullscreen avec sauvegarde d'état améliorée
 function setupFullscreenToggle(type, fullscreenButton, dialog, contentContainer) {
     fullscreenButton.onclick = function(event) {
+        document.querySelectorAll('.options-menu, .color-menu').forEach(el => el.remove());
+     
         event.stopPropagation();
         
         // Sauvegarder le scroll avant de changer d'état
@@ -1961,7 +1984,7 @@ function setupDragSystem(header, dialog) {
         // Limite verticale pour que le header ne se cache pas derrière le bottom navbar
         let maxDialogTop = window.innerHeight - headerRect.height;
         if (controlsVisible) {
-            maxDialogTop -= BOTTOMNAVBAR_FIXED_HEIGHT;
+            maxDialogTop -= BOTTOMNAVBAR_FIXED_HEIGHT + (audioPlayerVisible ? AUDIO_PLAYER_HEIGHT : 0);
         }
 
         dialog.style.left = `\${Math.max(0, Math.min(newLeft, maxLeft))}px`;
@@ -2032,7 +2055,7 @@ function createFloatingButton() {
     
     floatingButton.style.cssText = `
         position: fixed;
-        bottom: \${BOTTOMNAVBAR_FIXED_HEIGHT + 15}px;
+        bottom: \${BOTTOMNAVBAR_FIXED_HEIGHT + (audioPlayerVisible ? AUDIO_PLAYER_HEIGHT : 0) + 15}px;
         right: 20px;
         width: 56px;
         height: 56px;
@@ -3601,6 +3624,9 @@ function createOptionsMenu(noteGuid, popup, isDark) {
                 textarea.rows = 1;
                 textarea.style.height = 'auto';
                 textarea.style.height = `\${textarea.scrollHeight + 4}px`;
+                
+                repositionAllNotes(pageCenter);
+                repositionAllBookmarks(pageCenter);
               };
           
               const eventType = input.tagName === 'TEXTAREA' ? 'input' : 'change';
@@ -4010,15 +4036,16 @@ function createOptionsMenu(noteGuid, popup, isDark) {
             pageCenter.scrollTop = 0;
             pageCenter.scrollLeft = 0;
             
-            // Afficher la page (avec fondu)
             pageCenter.classList.add('visible');
+            
+            // Afficher la page (avec fondu)
             window.flutter_inappwebview.callHandler('fontsLoaded');
             
             const curr = cachedPages[currentIndex];
             if (curr.preferredPresentation !== 'image' || !imageMode) {
               const article = document.getElementById("article-center");
               wrapWordsWithSpan(article, isBible());
-            }
+            } 
           
             // Ajouter la scrollBar
             scrollBar = document.createElement('img');
@@ -4072,8 +4099,8 @@ function createOptionsMenu(noteGuid, popup, isDark) {
           let directionChangeStartTime = 0;
           let directionChangeStartScroll = 0;
           let directionChangeTargetDirection = null;
-          let appBarHeight = 90;    // hauteur de l'AppBar
-          let bottomNavBarHeight = 85; // hauteur de la BottomBar
+          let appBarHeight = APPBAR_FIXED_HEIGHT;    // hauteur de l'AppBar
+          let bottomNavBarHeight = BOTTOMNAVBAR_FIXED_HEIGHT; // hauteur de la BottomBar
           
           const DIRECTION_CHANGE_THRESHOLD_MS = 250;
           const DIRECTION_CHANGE_THRESHOLD_PX = 40;
@@ -4138,7 +4165,7 @@ function createOptionsMenu(noteGuid, popup, isDark) {
             // Affichage automatique en haut de page
             if (scrollTop === 0) {
               appBarHeight = APPBAR_FIXED_HEIGHT;
-              bottomNavBarHeight = BOTTOMNAVBAR_FIXED_HEIGHT;
+              bottomNavBarHeight = BOTTOMNAVBAR_FIXED_HEIGHT + (audioPlayerVisible ? AUDIO_PLAYER_HEIGHT : 0);
             } else if (scrollDirection === 'down') {
               // Masquer les barres
               appBarHeight = 0;
@@ -4146,7 +4173,7 @@ function createOptionsMenu(noteGuid, popup, isDark) {
             } else if (scrollDirection === 'up') {
               // Afficher les barres
               appBarHeight = APPBAR_FIXED_HEIGHT;
-              bottomNavBarHeight = BOTTOMNAVBAR_FIXED_HEIGHT;
+              bottomNavBarHeight = BOTTOMNAVBAR_FIXED_HEIGHT + (audioPlayerVisible ? AUDIO_PLAYER_HEIGHT : 0);
             }
           
             // Scroll-bar
@@ -4313,6 +4340,8 @@ function createOptionsMenu(noteGuid, popup, isDark) {
               showToolbarHighlight(target, highlightId);
               return;
             }
+            
+            removeAllSelected();
             
             // Optimisation de la logique conditionnelle
             if (isBible()) {
@@ -4482,6 +4511,7 @@ function createOptionsMenu(noteGuid, popup, isDark) {
             }
           }, { passive: true });
           
+          // --- Fonction pour trouver l'élément le plus proche (inchangée) ---
           function getClosestElementHorizontally(x, y) {
             const allElements = pageCenter.querySelectorAll('.word, .punctuation');
             let closest = null;
@@ -4489,11 +4519,8 @@ function createOptionsMenu(noteGuid, popup, isDark) {
           
             for (const el of allElements) {
               const rect = el.getBoundingClientRect();
-          
-              // Vérifie que l'élément est visible et à la même hauteur approximative (par ex. sur la même ligne)
               if (rect.height === 0 || rect.width === 0) continue;
               if (y >= rect.top && y <= rect.bottom) {
-                // Calcule la distance horizontale par rapport à `x`
                 const elCenterX = rect.left + rect.width / 2;
                 const distance = Math.abs(x - elCenterX);
           
@@ -4503,7 +4530,6 @@ function createOptionsMenu(noteGuid, popup, isDark) {
                 }
               }
             }
-          
             return closest;
           }
   
@@ -4642,101 +4668,57 @@ function createOptionsMenu(noteGuid, popup, isDark) {
             });
           }
           
-          // Fonction optimisée pour mettre à jour l'affichage de la sélection
+          // --- Fonction optimisée pour la mise à jour de l'affichage de la sélection ---
           function updateSelected() {
             if (!firstLongPressTarget || !lastLongPressTarget) return;
-            
-            const firstParagraphInfo = getTheFirstTargetParagraph(firstLongPressTarget);
-            const lastParagraphInfo = getTheFirstTargetParagraph(lastLongPressTarget);
-            if (!firstParagraphInfo || !lastParagraphInfo) return;
-            
-            const firstParagraph = firstParagraphInfo.paragraphs[0];
-            const lastParagraph = lastParagraphInfo.paragraphs[0];
-            
-            const paragraphs = getAllParagraphs(pageCenter);
-            
-            // Trouve l'index du groupe qui contient le paragraphe
-            const firstIndex = paragraphs.findIndex(group => group.includes(firstParagraph));
-            const lastIndex = paragraphs.findIndex(group => group.includes(lastParagraph));
-            
-            if (firstIndex === -1 || lastIndex === -1) return;
-            
-            const fromIndex = Math.min(firstIndex, lastIndex);
-            const toIndex = Math.max(firstIndex, lastIndex);
           
-            const startTarget = firstIndex <= lastIndex ? firstLongPressTarget : lastLongPressTarget;
-            const endTarget = firstIndex <= lastIndex ? lastLongPressTarget : firstLongPressTarget;
+            // 1. Détermine les cibles de début et de fin de la sélection
+            const firstRect = firstLongPressTarget.getBoundingClientRect();
+            const lastRect = lastLongPressTarget.getBoundingClientRect();
+            
+            let startTarget = firstLongPressTarget;
+            let endTarget = lastLongPressTarget;
           
-            // ❌ Clear previous selections and handles
+            // 🔄 Inverse les cibles si la fin est avant le début
+            if (firstRect.top > lastRect.top || (firstRect.top === lastRect.top && firstRect.left > lastRect.left)) {
+              startTarget = lastLongPressTarget;
+              endTarget = firstLongPressTarget;
+            }
+            
+            // 2. Trouve tous les tokens entre les cibles de début et de fin
+            const tokens = Array.from(pageCenter.querySelectorAll('.word, .punctuation, .escape'));
+            const startIndex = tokens.indexOf(startTarget);
+            const endIndex = tokens.indexOf(endTarget);
+            
+            if (startIndex === -1 || endIndex === -1) return;
+          
+            // 3. Nettoie la sélection et les poignées précédentes
             pageCenter.querySelectorAll('.word.selected, .punctuation.selected, .escape.selected').forEach(token => {
               token.classList.remove('selected');
             });
-            pageCenter.querySelectorAll('.handle, .handle-left, .handle-right').forEach(handle => handle.remove());
-            
-            for (let i = fromIndex; i <= toIndex; i++) {
-              const group = paragraphs[i]; // tableau d'éléments
+            pageCenter.querySelectorAll('.handle').forEach(handle => handle.remove());
           
-              const allTokens = group.flatMap(paragraph =>
-                Array.from(paragraph.querySelectorAll('.word, .punctuation, .escape'))
-              );
-              const wordAndPunctTokens = allTokens.filter(token =>
-                token.classList.contains('word') || token.classList.contains('punctuation')
-              );
-              
-              if (wordAndPunctTokens.length === 0) return;
-          
-              // Trouver les indices de début et fin dans l'ensemble
-              let startIndex = 0;
-              let endIndex = wordAndPunctTokens.length - 1;
-            
-              const groupHasStart = group.some(p => p.contains(startTarget));
-              const groupHasEnd = group.some(p => p.contains(endTarget));
-            
-              if (groupHasStart && groupHasEnd) {
-                const a = wordAndPunctTokens.indexOf(startTarget);
-                const b = wordAndPunctTokens.indexOf(endTarget);
-                if (a === -1 || b === -1) return;
-                startIndex = Math.min(a, b);
-                endIndex = Math.max(a, b);
-              } 
-              else if (groupHasStart) {
-                const index = wordAndPunctTokens.indexOf(startTarget);
-                if (index !== -1) startIndex = index;
-              } 
-              else if (groupHasEnd) {
-                const index = wordAndPunctTokens.indexOf(endTarget);
-                if (index !== -1) endIndex = index;
-              }
-            
-              // ✅ Sélectionner les tokens
-              for (let j = startIndex; j <= endIndex; j++) {
-                const token = wordAndPunctTokens[j];
-                if (!token.isConnected) continue;
+            // 4. Applique la classe 'selected' aux tokens
+            for (let i = startIndex; i <= endIndex; i++) {
+              const token = tokens[i];
+              if (token) {
                 token.classList.add('selected');
-            
-                const tokenIndex = allTokens.indexOf(token);
-                const next = allTokens[tokenIndex + 1];
-                if (next?.classList.contains('escape') && j !== endIndex) {
-                  next.classList.add('selected');
-                }
               }
+            }
+          
+            // 5. Ajoute les poignées à la nouvelle position de début et de fin
+            const createHandle = (src, className) => {
+              const handle = document.createElement('img');
+              handle.src = src;
+              handle.classList.add('handle', className);
+              return handle;
+            };
             
-              // ✅ Ajouter les handles aux extrémités
-              if (firstLongPressTarget && lastLongPressTarget) {
-                const createHandle = (src, className) => {
-                  const handle = document.createElement('img');
-                  handle.src = src;
-                  handle.classList.add('handle', className);
-                  return handle;
-                };
-            
-                try {
-                  startTarget.appendChild(createHandle(handleLeft, 'handle-left'));
-                  endTarget.appendChild(createHandle(handleRight, 'handle-right'));
-                } catch (e) {
-                  console.warn('Failed to add handles:', e);
-                }
-              }
+            try {
+              startTarget.appendChild(createHandle(handleLeft, 'handle-left'));
+              endTarget.appendChild(createHandle(handleRight, 'handle-right'));
+            } catch (e) {
+              console.warn('Failed to add handles:', e);
             }
           }
            
@@ -4968,6 +4950,8 @@ function createOptionsMenu(noteGuid, popup, isDark) {
           container.addEventListener('touchstart', (e) => {
             if (isLongPressing) return;
             
+            document.querySelectorAll('.options-menu, .color-menu').forEach(el => el.remove());
+            
             startX = e.touches[0].clientX;
             startY = e.touches[0].clientY;
             isDragging = true;
@@ -5018,7 +5002,7 @@ function createOptionsMenu(noteGuid, popup, isDark) {
               container.style.transform = `translateX(\${currentTranslate}%)`;
               return;
             }
-          
+            
             const dx = e.changedTouches[0].clientX - startX;
             const percentage = dx / window.innerWidth;
             container.style.transition = "transform 0.3s ease-in-out";
@@ -5031,19 +5015,24 @@ function createOptionsMenu(noteGuid, popup, isDark) {
                   currentIndex++;
                   currentTranslate = -100;
                   await loadPages(currentIndex);
+                  closeToolbar();
                 }, 300);
-              } else if (percentage > 0.15 && currentIndex > 0) {
+              } 
+              else if (percentage > 0.15 && currentIndex > 0) {
                 currentTranslate = 0;
                 container.style.transform = "translateX(0%)";
                 setTimeout(async () => {
                   currentIndex--;
                   currentTranslate = -100;
                   await loadPages(currentIndex);
+                  closeToolbar();
                 }, 300);
-              } else {
+              } 
+              else {
                 container.style.transform = "translateX(-100%)";
               }
-            } catch (error) {
+            } 
+            catch (error) {
               console.error('Error in touch end handler:', error);
             }
           }, { passive: true });

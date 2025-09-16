@@ -28,10 +28,13 @@ class JwLifeAudioPlayer {
   bool isSettingPlaylist = false;
 
   Future<void> fetchAudioData(Audio audio) async {
-    String lank = audio.naturalKey!;
-    String lang = audio.mepsLanguage!;
+    String? lank = audio.naturalKey;
+    String? lang = audio.mepsLanguage;
 
-    if (lank.isNotEmpty && lang.isNotEmpty) {
+    if(audio.fileUrl != null) {
+      await setPlaylist([audio]);
+    }
+    if (lank != null && lang != null) {
       album = '';
       final apiUrl = 'https://b.jw-cdn.org/apis/mediator/v1/media-items/$lang/$lank';
       try {

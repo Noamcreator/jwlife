@@ -132,7 +132,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
             },
           ),
           IconButton(
-            icon: Icon(Icons.share),
+            icon: Icon(JwIcons.share),
             onPressed: () {
               // Action de partage
             },

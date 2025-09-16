@@ -4,14 +4,12 @@ import 'dart:io';
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:gal/gal.dart';
-import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/core/utils/files_helper.dart';
 import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/core/utils/utils_audio.dart';
 import 'package:jwlife/core/utils/utils_document.dart';
-import 'package:jwlife/core/utils/utils_media.dart';
 import 'package:jwlife/data/models/audio.dart';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/databases/history.dart';
@@ -818,9 +816,7 @@ class _PublicationMenuViewState extends State<PublicationMenuView> with SingleTi
     return !widget.showAppBar
         ? _buildCircuitMenu()
         : Scaffold(
-      backgroundColor: Theme
-          .of(context)
-          .brightness == Brightness.dark ? Colors.black : Color(0xFFf1f1f1),
+      backgroundColor: Theme.of(context).brightness == Brightness.dark ? Colors.black : Color(0xFFf1f1f1),
       resizeToAvoidBottomInset: false,
       appBar: _isSearching
           ? AppBar(

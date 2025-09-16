@@ -433,55 +433,77 @@ class PubCatalog {
   }
 
   /// Charge les publications d'une catégorie
-  static Future<Map<PublicationAttribute, List<Publication>>> getPublicationsFromCategory(int category, {int? year}) async {
+  static Future<Map<PublicationAttribute, List<Publication>>> getPublicationsFromCategory(int category, {int? year, int? mepsLanguageId}) async {
     final catalogFile = await getCatalogDatabaseFile();
+    final mepsFile = await getMepsUnitDatabaseFile();
 
-    if (allFilesExist([catalogFile])) {
-      final catalog = await openReadOnlyDatabase(catalogFile.path);
-
-      try {
-        // Construction des paramètres de la requête
-        List<dynamic> queryParams = [JwLifeSettings().currentLanguage.id, category];
-        String yearCondition = '';
-
-        if (year != null) {
-          yearCondition = 'AND p.Year = ?';
-          queryParams.add(year);
-        }
-
-        final result = await catalog.rawQuery('''
-          SELECT DISTINCT
-            p.*,
-            pa.LastModified, 
-            pa.CatalogedOn,
-            pa.Size,
-            pa.ExpandedSize,
-            pa.SchemaVersion,
-            pam.PublicationAttributeId,
-            (SELECT ia.NameFragment 
-             FROM PublicationAssetImageMap paim 
-             JOIN ImageAsset ia ON paim.ImageAssetId = ia.Id 
-             WHERE paim.PublicationAssetId = pa.Id AND ((ia.Width = 270 AND ia.Height = 270) OR (ia.Width = 100 AND ia.Height = 100))
-             LIMIT 1) AS ImageSqr
-          FROM Publication p
-          INNER JOIN PublicationAsset pa ON p.Id = pa.PublicationId
-          LEFT JOIN PublicationAttributeMap pam ON p.Id = pam.PublicationId
-          WHERE p.MepsLanguageId = ? AND p.PublicationTypeId = ? $yearCondition
-          ORDER BY p.Id;
-        ''', queryParams);
-
-        Map<PublicationAttribute, List<Publication>> groupedByCategory = {};
-        for (var publication in result) {
-          Publication pub = Publication.fromJson(publication);
-          groupedByCategory.putIfAbsent(pub.attribute, () => []).add(pub);
-        }
-        return groupedByCategory;
-      }
-      finally {
-        await catalog.close();
-      }
+    if (!allFilesExist([catalogFile, mepsFile])) {
+      return {};
     }
-    return {};
+
+    final catalog = await openReadOnlyDatabase(catalogFile.path);
+
+    try {
+      await catalog.execute("ATTACH DATABASE '${mepsFile.path}' AS meps");
+
+      // Paramètres dynamiques
+      final queryParams = <dynamic>[
+        mepsLanguageId ?? JwLifeSettings().currentLanguage.id,
+        category,
+      ];
+
+      // Condition sur l'année
+      String yearCondition = '';
+      if (year != null) {
+        yearCondition = 'AND p.Year = ?';
+        queryParams.add(year);
+      }
+
+      // Requête SQL
+      final result = await catalog.rawQuery('''
+      SELECT DISTINCT
+        p.*,
+        pa.LastModified, 
+        pa.CatalogedOn,
+        pa.Size,
+        pa.ExpandedSize,
+        pa.SchemaVersion,
+        pam.PublicationAttributeId,
+        meps.Language.Symbol AS LanguageSymbol, 
+        meps.Language.VernacularName AS LanguageVernacularName, 
+        meps.Language.PrimaryIetfCode AS LanguagePrimaryIetfCode,
+        meps.Language.IsSignLanguage AS IsSignLanguage,
+        (
+          SELECT ia.NameFragment 
+          FROM PublicationAssetImageMap paim 
+          JOIN ImageAsset ia ON paim.ImageAssetId = ia.Id 
+          WHERE paim.PublicationAssetId = pa.Id
+            AND ((ia.Width = 270 AND ia.Height = 270) OR (ia.Width = 100 AND ia.Height = 100))
+          LIMIT 1
+        ) AS ImageSqr
+      FROM Publication p
+      INNER JOIN PublicationAsset pa ON p.Id = pa.PublicationId
+      LEFT JOIN PublicationAttributeMap pam ON p.Id = pam.PublicationId
+      LEFT JOIN meps.Language ON p.MepsLanguageId = meps.Language.LanguageId
+      WHERE p.MepsLanguageId = ? 
+        AND p.PublicationTypeId = ?
+        $yearCondition
+      ORDER BY p.Id;
+    ''', queryParams);
+
+      // Groupement par attribut
+      final Map<PublicationAttribute, List<Publication>> groupedByCategory = {};
+      for (final publication in result) {
+        final pub = Publication.fromJson(publication);
+        groupedByCategory.putIfAbsent(pub.attribute, () => []).add(pub);
+      }
+
+      return groupedByCategory;
+    }
+    finally {
+      await catalog.execute("DETACH DATABASE meps");
+      await catalog.close();
+    }
   }
 
   static Future<void> fetchAssemblyPublications() async {

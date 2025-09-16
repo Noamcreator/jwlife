@@ -29,11 +29,11 @@ Future<void> showAddTagDialog(BuildContext context, bool isPlaylist) async {
       ),
       JwDialogButton(
         label: "OK",
-        closeDialog: false, // ← Ne ferme pas automatiquement
+        closeDialog: true, // ← Ne ferme pas automatiquement
         onPressed: (buildContext) async {
           String name = textController.text.trim();
           if (name.isNotEmpty) {
-            Tag? tag = await JwLifeApp.userdata.addTag(name, isPlaylist ? 2 :1);
+            Tag? tag = await JwLifeApp.userdata.addTag(name, isPlaylist ? 2 : 1);
             if (tag != null) {
               if (isPlaylist) {
                 await showPage(buildContext, PlaylistPage(playlist: tag));
@@ -42,7 +42,6 @@ Future<void> showAddTagDialog(BuildContext context, bool isPlaylist) async {
                 await showPage(buildContext, TagPage(tag: tag));
               }
             }
-            Navigator.of(buildContext).pop(); // ← C’est toi qui le gères ici
           }
         },
       ),

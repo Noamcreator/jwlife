@@ -117,7 +117,7 @@ class Video extends Media {
       fileSize: json?['FileSize'],
       filePath: json?['FilePath'],
       source: json?['Source'],
-      firstPublished: mediaItem?.firstPublished,
+      firstPublished: json?['FirstPublished'] ?? mediaItem?.firstPublished,
       lastModified: json?['ModifiedDateTime'],
       timeStamp: json?['ModifiedDateTime'],
       fileUrl: json?['FileUrl'],

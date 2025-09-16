@@ -10,8 +10,10 @@ import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:jwlife/app/services/global_key_service.dart';
 import 'package:jwlife/app/startup/copy_assets.dart';
 import 'package:jwlife/core/assets.dart';
+import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/core/utils/directory_helper.dart';
 import 'package:jwlife/core/utils/files_helper.dart';
 import 'package:jwlife/core/utils/utils.dart';
@@ -21,6 +23,7 @@ import 'package:jwlife/data/models/userdata/tag.dart';
 import 'package:jwlife/data/models/video.dart';
 import 'package:jwlife/data/repositories/PublicationRepository.dart';
 import 'package:jwlife/features/publication/pages/document/data/models/dated_text.dart';
+import 'package:jwlife/widgets/dialog/utils_dialog.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:sqflite/sqflite.dart';
@@ -553,6 +556,21 @@ class Userdata {
       if (existing.isNotEmpty) {
         // Le tag existe déjà, retourne null ou l'instance existante si tu préfères
         printTime('Tag déjà existant avec le nom "$name" et type ${type ?? 1}');
+
+        BuildContext context = GlobalKeyService.jwLifePageKey.currentState!.getCurrentState().context;
+
+        showJwDialog(
+          context: context,
+          titleText: 'Catégorie déjà existante',
+          contentText: 'La Catégorie "$name" existe déjà.',
+          buttonAxisAlignment: MainAxisAlignment.end,
+          buttons: [
+            JwDialogButton(
+              label: 'OK',
+            ),
+          ],
+        );
+
         return null;
       }
 
