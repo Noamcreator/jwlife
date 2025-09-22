@@ -3,6 +3,7 @@ import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/features/home/pages/search/search_page.dart';
 
+import '../../../../core/utils/html_styles.dart';
 import 'search_model.dart';
 
 class BibleSearchTab extends StatefulWidget {
@@ -63,18 +64,16 @@ class _BibleSearchTabState extends State<BibleSearchTab> {
                   showPage(context, SearchPage(query: query));
                 },
                 child: Card(
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? const Color(0xFF292929)
-                      : Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(0)),
+                  color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF292929) : Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                   margin: const EdgeInsets.symmetric(vertical: 5),
                   child: Padding(
                     padding: const EdgeInsets.all(13),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          item['title'],
+                        SearchHtmlWidget(
+                          text: item['title'],
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 18,
@@ -84,11 +83,9 @@ class _BibleSearchTabState extends State<BibleSearchTab> {
                           ),
                         ),
                         const SizedBox(height: 10),
-                        Text(
-                            item['snippet'],
-                            style: const TextStyle(
-                              fontSize: 18,
-                            ),
+                        SearchHtmlWidget(
+                            text: item['snippet'],
+                            style: const TextStyle(fontSize: 18),
                         ),
                       ],
                     ),

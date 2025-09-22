@@ -777,99 +777,92 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
             await loadPages(index);
           }
           
-        async function jumpToIdSelector(selector, idAttr, begin, end) {
-          closeToolbar();
-        
-          const paragraphs = pageCenter.querySelectorAll(selector);
-          let targetParagraph = null;
-        
-          let firstParagraphId;
-          let endParagraphId;
-        
-          if (begin === -1 && end === -1) {
-            // Rétablir tous les paragraphes à l'opacité normale
-            paragraphs.forEach(p => {
-              p.style.opacity = '1';
-            });
-            return;
-          }
-        
-          if (selector === '[data-pid]') {
-            paragraphs.forEach(p => {
-              const pid = parseInt(p.getAttribute(idAttr), 10);
-              if (!firstParagraphId) firstParagraphId = pid;
-              endParagraphId = pid;
-        
-              if (pid >= begin && pid <= end && !targetParagraph) {
-                targetParagraph = p;
-              }
-        
-              p.style.opacity = (pid >= begin && pid <= end) ? '1' : '0.5';
-            });
-          } else {
-            paragraphs.forEach(p => {
-              const attrValue = p.getAttribute(idAttr)?.trim();
-              if (!attrValue) return;
-        
-              const idParts = attrValue.split('-');
-              if (idParts.length < 4) return;
-        
-              const verse = parseInt(idParts[2], 10);
-              if (!firstParagraphId) firstParagraphId = verse;
-              endParagraphId = verse;
-        
-              if (verse >= begin && verse <= end && !targetParagraph) {
-                targetParagraph = p;
-              }
-        
-              p.style.opacity = (verse >= begin && verse <= end) ? '1' : '0.5';
-            });
-          }
-        
-          if (targetParagraph) {
-            isChangingParagraph = true;
-        
-            const visibleParagraphs = Array.from(pageCenter.querySelectorAll(selector)).filter(p => p.style.opacity === '1');
-        
-            if (visibleParagraphs.length === 0) {
-              isChangingParagraph = false;
-              return;
-            }
-        
-            const firstTop = visibleParagraphs[0].offsetTop;
-            const lastParagraph = visibleParagraphs[visibleParagraphs.length - 1];
-            const lastBottom = lastParagraph.offsetTop + lastParagraph.offsetHeight;
-            const totalHeight = lastBottom - firstTop;
-        
-            const screenHeight = pageCenter.clientHeight;
-            const visibleHeight = screenHeight - appBarHeight - bottomNavBarHeight - 40;
-        
-            let scrollToY;
-        
-            // Cas : on débute au tout début
-            if (begin === firstParagraphId) {
-              scrollToY = 0;
-            }
-            // Cas : on termine au dernier paragraphe
-            else if (end === endParagraphId) {
-              scrollToY = pageCenter.scrollHeight;
-            }
-            // Cas : tout tient dans l'écran, centrer
-            else if (totalHeight < visibleHeight) {
-              scrollToY = firstTop - appBarHeight - 20 - (visibleHeight / 2) + (totalHeight / 2);
-            }
-            // Cas par défaut : afficher à partir du haut du premier paragraphe visible
-            else {
-              scrollToY = firstTop - appBarHeight - 20;
-            }
-        
-            scrollToY = Math.max(scrollToY, 0);
-            pageCenter.scrollTop = scrollToY;
-        
-            await new Promise(requestAnimationFrame);
-            isChangingParagraph = false;
-          }
-        }
+async function jumpToIdSelector(selector, idAttr, begin, end) {
+  closeToolbar();
+
+  const paragraphs = pageCenter.querySelectorAll(selector);
+  if (paragraphs.length === 0) {
+    console.error(`No paragraphs found for selector: \${selector}`);
+    return;
+  }
+
+  if (begin === -1 && end === -1) {
+    paragraphs.forEach(p => {
+      p.style.opacity = '1';
+    });
+    return;
+  }
+
+  let targetParagraph = null;
+  let firstParagraphId = null;
+  let endParagraphId = null;
+
+  paragraphs.forEach(p => {
+    let id;
+    if (selector === '[data-pid]') {
+      id = parseInt(p.getAttribute(idAttr), 10);
+      if (isNaN(id)) return;
+    } else {
+      const attrValue = p.getAttribute(idAttr)?.trim();
+      if (!attrValue) return;
+      const idParts = attrValue.split('-');
+      if (idParts.length < 4) return;
+      id = parseInt(idParts[2], 10);
+      if (isNaN(id)) return;
+    }
+
+    if (firstParagraphId === null) {
+      firstParagraphId = id;
+    }
+    endParagraphId = id;
+
+    if (id >= begin && id <= end && !targetParagraph) {
+      targetParagraph = p;
+    }
+
+    p.style.opacity = (id >= begin && id <= end) ? '1' : '0.5';
+  });
+
+  if (targetParagraph) {
+    isChangingParagraph = true;
+
+    const visibleParagraphs = Array.from(pageCenter.querySelectorAll(selector)).filter(p => p.style.opacity === '1');
+
+    if (visibleParagraphs.length === 0) {
+      isChangingParagraph = false;
+      return;
+    }
+
+    const firstTop = visibleParagraphs[0].offsetTop;
+    const lastParagraph = visibleParagraphs[visibleParagraphs.length - 1];
+    const lastBottom = lastParagraph.offsetTop + lastParagraph.offsetHeight;
+    const totalHeight = lastBottom - firstTop;
+
+    const screenHeight = pageCenter.clientHeight;
+    const visibleHeight = screenHeight - appBarHeight - bottomNavBarHeight - 40;
+
+    let scrollToY;
+
+    // Cas 1 : On commence au tout début du document.
+    if (begin === firstParagraphId) {
+      scrollToY = 0;
+    }
+    // Cas 2 : La sélection tient entièrement dans l'écran, on la centre.
+    else if (totalHeight < visibleHeight) {
+      scrollToY = firstTop - appBarHeight - 20 - (visibleHeight / 2) + (totalHeight / 2);
+    }
+    // Cas par défaut : On affiche la sélection à partir du haut.
+    else {
+      scrollToY = firstTop - appBarHeight - 20;
+    }
+
+    scrollToY = Math.max(scrollToY, 0);
+    pageCenter.scrollTop = scrollToY;
+
+    await new Promise(requestAnimationFrame);
+    isChangingParagraph = false;
+  }
+}
         
         async function jumpToTextTag(textarea) {
           closeToolbar();
@@ -2744,7 +2737,8 @@ function createOptionsMenu(noteGuid, popup, isDark) {
                                 matchingHighlight?.UserMarkGuid || null, // null si pas de highlight
                                 note.Guid,
                                 note.ColorIndex ?? 0,
-                                true
+                                true,
+                                false
                               );
                             }
                           });
@@ -3174,6 +3168,7 @@ function createOptionsMenu(noteGuid, popup, isDark) {
                               matchingHighlight?.UserMarkGuid || null,
                               note.Guid,
                               note.ColorIndex ?? 0,
+                              false,
                               false
                             );
                           });      
@@ -3334,7 +3329,7 @@ function createOptionsMenu(noteGuid, popup, isDark) {
                   colorIndex: 0
               });
               
-              addNoteWithGuid(pageCenter, paragraph, null, noteGuid.uuid, 0, isBible);
+              addNoteWithGuid(pageCenter, paragraph, null, noteGuid.uuid, 0, isBible, true);
               closeToolbar();
               removeAllSelected();
           }
@@ -3428,7 +3423,7 @@ function createOptionsMenu(noteGuid, popup, isDark) {
                   colorIndex: colorIndex
               });
               
-              addNoteWithGuid(pageCenter, paragraphs[0], highlightGuid, noteGuid.uuid, colorIndex, isVerse);
+              addNoteWithGuid(pageCenter, paragraphs[0], highlightGuid, noteGuid.uuid, colorIndex, isVerse, true);
               closeToolbar();
               removeAllSelected();
           }
@@ -3598,7 +3593,8 @@ function createOptionsMenu(noteGuid, popup, isDark) {
                   matchingHighlight?.UserMarkGuid || null,
                   note.Guid,
                   note.ColorIndex ?? 0,
-                  isBible()
+                  isBible(),
+                  false
                 );
           
                 processedNoteGuids.add(note.Guid);
@@ -3812,7 +3808,7 @@ function createOptionsMenu(noteGuid, popup, isDark) {
             });
           }
 
-          function addNoteWithGuid(article, target, highlightGuid, noteGuid, colorIndex, isBible) {
+          function addNoteWithGuid(article, target, highlightGuid, noteGuid, colorIndex, isBible, open) {
             if (!target) {
               const highlightTarget = article.querySelector(`[data-highlight-id="\${highlightGuid}"]`);
               if (highlightTarget) {
@@ -3898,6 +3894,10 @@ function createOptionsMenu(noteGuid, popup, isDark) {
         
             // Ajouter le carré au container principal
             article.appendChild(noteIndicator);
+            
+            if(open) {
+              openNoteDialog(highlightGuid, noteGuid);
+            }
           }
 
           // Fonction utilitaire pour supprimer un surlignage spécifique par son UUID

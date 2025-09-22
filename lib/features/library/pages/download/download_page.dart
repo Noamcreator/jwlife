@@ -368,18 +368,34 @@ class _DownloadPageState extends State<DownloadPage> {
         for (PlatformFile f in result.files) {
           File file = File(f.path!);
           if (file.path.endsWith('.jwpub')) {
-            Publication jwpub = await jwpubUnzip(file.readAsBytesSync());
-            if (f == result.files.last) {
-              PubCatalog.updateCatalogCategories();
-              // Recharger les données après import
-              _isLoading = true;
-              setState(() {});
-              await _loadData();
+            String fileName = file.path.split('/').last;
+            BuildContext? dialogContext = await showJwImport(context, fileName);
 
+            Publication? jwpub = await jwpubUnzip(file.readAsBytesSync());
+
+            // Ferme le dialogue de chargement une fois l'importation terminée.
+            if (dialogContext != null) {
+              Navigator.of(dialogContext).pop();
+            }
+
+            // Gère le résultat de l'importation.
+            if (jwpub == null) {
+              showJwpubError(context);
+            }
+            else {
               if (jwpub.symbol == 'S-34') {
                 GlobalKeyService.meetingsKey.currentState?.refreshMeetingsPubs();
               }
-              showPage(context, PublicationMenuView(publication: jwpub));
+
+              if (f == result.files.last) {
+                PubCatalog.updateCatalogCategories();
+                // Recharger les données après import
+                _isLoading = true;
+                setState(() {});
+                await _loadData();
+
+                showPage(context, PublicationMenuView(publication: jwpub));
+              }
             }
           }
         }

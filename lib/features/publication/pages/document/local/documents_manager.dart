@@ -34,7 +34,7 @@ class DocumentsManager {
   Future<void> fetchDocuments() async {
     try {
       List<Map<String, dynamic>> result = [];
-      if (publication.category.id == 1) {
+      if (publication.isBible()) {
         result = await database.rawQuery("""
           SELECT 
             Document.*, 

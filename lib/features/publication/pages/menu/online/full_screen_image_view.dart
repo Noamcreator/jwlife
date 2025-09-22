@@ -80,7 +80,8 @@ class _FullScreenImageViewState extends State<FullScreenImageView> {
                           String lank = uri.queryParameters['lank']!;
                           String lang = uri.queryParameters['wtlocale']!;
 
-                          MediaItem mediaItem = getMediaItemFromLank(lank, lang);
+                          MediaItem? mediaItem = getMediaItemFromLank(lank, lang);
+
                           if(mediaItem != null) {
                             Video video = Video.fromJson(mediaItem: mediaItem);
                             video.showPlayer(context);
@@ -107,7 +108,7 @@ class _FullScreenImageViewState extends State<FullScreenImageView> {
             ),
           ),
           SizedBox(height: 8.0),
-          Container(
+          SizedBox(
             height: 80.0, // Ajuste la hauteur pour plus de visibilité
             child: ListView.builder(
               scrollDirection: Axis.horizontal,

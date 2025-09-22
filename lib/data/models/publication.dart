@@ -387,7 +387,7 @@ class Publication {
   }
 
   bool isBible() {
-    return category.id == 1 || schemaVersion == 9;
+    return category.id == 1;
   }
 
   bool hasUpdate() {

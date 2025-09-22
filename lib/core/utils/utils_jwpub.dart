@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:archive/archive.dart';
+import 'package:collection/collection.dart';
 import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
@@ -10,6 +11,7 @@ import 'package:jwlife/data/models/publication.dart';
 
 import 'dart:typed_data';
 import 'package:encrypt/encrypt.dart' as encrypt;
+import 'package:jwlife/widgets/dialog/utils_dialog.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../../app/services/notification_service.dart';
@@ -73,7 +75,7 @@ Future<Publication?> downloadJwpubFile(Publication publication, BuildContext con
   return await jwpubUnzip(responseJwpub.data!, publication: publication, update: update);
 }
 
-Future<Publication> jwpubUnzip(Uint8List bytes, {Publication? publication, bool update = false}) async {
+Future<Publication?> jwpubUnzip(Uint8List bytes, {Publication? publication, bool update = false}) async {
   if(update && publication != null) {
     await removePublication(publication);
   }
@@ -82,7 +84,9 @@ Future<Publication> jwpubUnzip(Uint8List bytes, {Publication? publication, bool 
   final archive = ZipDecoder().decodeBytes(bytes);
 
   // Récupérer et décoder le fichier manifest.json
-  final manifestFile = archive.files.firstWhere((file) => file.name == 'manifest.json');
+  final manifestFile = archive.files.firstWhereOrNull((file) => file.name == 'manifest.json');
+  if(manifestFile == null) return null;
+
   final manifestData = jsonDecode(utf8.decode(manifestFile.content));
   final name = manifestData['name'];
 
@@ -96,7 +100,8 @@ Future<Publication> jwpubUnzip(Uint8List bytes, {Publication? publication, bool 
   await File(manifestFilePath).writeAsString(jsonEncode(manifestData));
 
   // Extraire l'archive des contenus
-  final contentsFile = archive.files.firstWhere((file) => file.name == 'contents');
+  final contentsFile = archive.files.firstWhereOrNull((file) => file.name == 'contents');
+  if(contentsFile == null) return null;
   final contentsArchive = ZipDecoder().decodeBytes(contentsFile.content);
 
   // Extraire chaque fichier dans le dossier de destination
@@ -108,7 +113,15 @@ Future<Publication> jwpubUnzip(Uint8List bytes, {Publication? publication, bool 
 
   printTime('Fichiers extraits dans : ${destinationDir.path}');
 
-  return await JwLifeApp.pubCollections.insertPublicationFromManifest(manifestData, destinationDir.path, publication: publication);
+  Publication? pub = await JwLifeApp.pubCollections.insertPublicationFromManifest(manifestData, destinationDir.path, publication: publication);
+  if(pub != null) {
+    return pub;
+  }
+  else {
+    // Supprimer le dossier de destination
+    await destinationDir.delete(recursive: true);
+    return null;
+  }
 }
 
 Future<void> removePublication(Publication pub) async {

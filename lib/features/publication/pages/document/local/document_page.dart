@@ -1230,7 +1230,9 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
                       }
                     }
 
-                    MediaItem mediaItem = getMediaItemFromLank(jwOrgUri.lank!, jwOrgUri.wtlocale);
+                    MediaItem? mediaItem = getMediaItemFromLank(jwOrgUri.lank!, jwOrgUri.wtlocale);
+
+                    if (mediaItem == null) return NavigationActionPolicy.ALLOW;
 
                     if(mediaItem.type == 'AUDIO') {
                       Audio audio = Audio.fromJson(mediaItem: mediaItem);

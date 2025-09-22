@@ -20,7 +20,7 @@ class ArticleWidgetState extends State<ArticleWidget> {
   int _currentArticleIndex = 0;
 
   List<Map<String, dynamic>> get _orderedArticles {
-    return widget.lastArticleFirst ? _articles.reversed.toList() : _articles;
+    return widget.lastArticleFirst ? _articles : _articles.reversed.toList();
   }
 
   Map<String, dynamic> get _currentArticle => _orderedArticles[_currentArticleIndex];

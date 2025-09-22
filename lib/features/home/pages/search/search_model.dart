@@ -69,6 +69,7 @@ class SearchModel {
           return {
             'title': item['title'] ?? '',
             'type': item['type'] ?? '',
+            'subtype': item['subtype'] ?? '',
             'label': item['label'] ?? '',
             'snippet': item['snippet'] ?? '',
             'context': item['context'] ?? '',

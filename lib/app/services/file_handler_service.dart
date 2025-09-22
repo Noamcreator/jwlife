@@ -11,6 +11,7 @@ import '../../core/utils/common_ui.dart';
 import '../../core/utils/utils.dart';
 import '../../core/utils/utils_jwpub.dart';
 import '../../core/jworg_uri.dart';
+import '../../core/utils/utils_pub.dart';
 import '../../core/utils/widgets_utils.dart';
 import '../../data/databases/userdata.dart';
 import '../../features/publication/pages/menu/local/publication_menu_view.dart';
@@ -347,29 +348,28 @@ class FileHandlerService {
   }
 
   Future<void> _importJwPubFile(File file) async {
+    // Récupère le contexte de la page actuelle.
     BuildContext context = GlobalKeyService.jwLifePageKey.currentState!.navigatorKeys[GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex].currentState!.context;
-    BuildContext? dialogContext;
 
+    // Sépare le nom du fichier du chemin complet.
     String fileName = file.path.split('/').last;
-    showJwDialog(
-      context: context,
-      titleText: 'Importation du fichier $fileName en cours…',
-      content: Builder(
-        builder: (ctx) {
-          dialogContext = ctx;
-          return Padding(
-            padding: EdgeInsets.symmetric(horizontal: 25),
-            child: SizedBox(
-              height: 50,
-              child: getLoadingWidget(Theme.of(context).primaryColor),
-            ),
-          );
-        },
-      ),
-    );
 
-    Publication jwpub = await jwpubUnzip(file.readAsBytesSync());
-    if (dialogContext != null) Navigator.of(dialogContext!).pop();
-    showPage(context, PublicationMenuView(publication: jwpub));
+    // Affiche le dialogue d'importation et attend son BuildContext.
+    BuildContext? dialogContext = await showJwImport(context, fileName);
+
+    // Dézippe le fichier .jwpub en arrière-plan.
+    Publication? jwpub = await jwpubUnzip(file.readAsBytesSync());
+
+    // Ferme le dialogue de chargement une fois l'importation terminée.
+    if (dialogContext != null) {
+      Navigator.of(dialogContext).pop();
+    }
+
+    // Gère le résultat de l'importation.
+    if (jwpub == null) {
+      showJwpubError(context);
+    } else {
+      showPage(context, PublicationMenuView(publication: jwpub));
+    }
   }
 }

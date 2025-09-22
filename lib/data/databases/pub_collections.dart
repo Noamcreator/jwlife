@@ -73,244 +73,180 @@ class PubCollections {
     }
   }
 
-  Future<Publication> insertPublicationFromManifest(dynamic manifestData, String path, {Publication? publication}) async {
-    dynamic pub = manifestData['publication'];
-    String timeStamp = manifestData['timestamp'];
+  Future<Publication?> insertPublicationFromManifest(dynamic manifestData, String path, {Publication? publication}) async {
+    try {
+      dynamic pub = manifestData['publication'];
+      String timeStamp = manifestData['timestamp'];
+      int languageId = pub['language'];
+      String symbol = pub['symbol'];
+      int year = pub['year'] is String ? int.parse(pub['year']) : pub['year'];
+      int issueTagNum = pub['issueId'];
 
-    int languageId = pub['language'];
-    String symbol = pub['symbol'];
-    int year = pub['year'] is String ? int.parse(pub['year']) : pub['year'];
-    int issueTagNum = pub['issueId'];
+      // Vérifier si la publication existe déjà
+      Publication? existPub = PublicationRepository().getByCompositeKeyForDownloadWithMepsLanguageId(symbol, issueTagNum, languageId);
 
-    // Vérifier si la publication existe déjà
-    Publication? existPub = PublicationRepository().getByCompositeKeyForDownloadWithMepsLanguageId(symbol, issueTagNum, languageId);
-
-    // Si la publication existe
-    if (existPub != null) {
-      // Comparer les timestamps
-      if (existPub.timeStamp == timeStamp) {
-        // Le timestamp est identique, retourner la publication existante
+      // Comparer les timestamps si la publication existe déjà
+      if (existPub?.timeStamp == timeStamp) {
         return existPub;
       }
-      // Le timestamp est différent, on procède à la mise à jour
-    }
 
-    Future<String> descriptionFuture = extractPublicationDescription(publication, symbol: symbol, issueTagNumber: issueTagNum, mepsLanguage: 'F');
+      // Préparation de la base de données de publication
+      Database publicationDb = await openDatabase("$path/${pub['fileName']}", version: manifestData['schemaVersion']);
 
-    Database publicationDb = await openDatabase("$path/${pub['fileName']}", version: manifestData['schemaVersion']);
+      // Vérification de l'existence des tables Topics et VerseCommentary
+      bool hasTopicsTable = await tableExists(publicationDb, 'Topic') &&
+          (await publicationDb.rawQuery("SELECT COUNT(*) FROM Topic")).first['COUNT(*)'] as int > 0;
+      bool hasVerseCommentaryTable = await tableExists(publicationDb, 'VerseCommentary') &&
+          (await publicationDb.rawQuery("SELECT COUNT(*) FROM VerseCommentary")).first['COUNT(*)'] as int > 0;
 
-    bool hasTopicsTable = false;
-    bool hasVerseCommentaryTable = false;
+      String description = await extractPublicationDescription(publication, symbol: symbol, issueTagNumber: issueTagNum, mepsLanguage: 'F');
+      String hashPublication = getPublicationHash(languageId, symbol, year, issueTagNum);
 
-    if(await tableExists(publicationDb, 'sqlite_stat1')) {
-      // Vérifier si la table Topic existe et n'est pas vide
-      List<Map<String, dynamic>> topicExists = await publicationDb.rawQuery("""
-      SELECT stat
-      FROM sqlite_stat1
-      WHERE tbl = 'Topic'
-  """);
+      Map<String, dynamic> pubDb = {
+        'MepsLanguageId': languageId,
+        'PublicationType': pub['publicationType'],
+        'PublicationCategorySymbol': pub['categories'].first,
+        'Title': pub['title'],
+        'ShortTitle': pub['shortTitle'],
+        'DisplayTitle': pub['displayTitle'],
+        'UndatedReferenceTitle': pub['undatedReferenceTitle'],
+        'Description': description,
+        'Symbol': symbol,
+        'KeySymbol': pub['uniqueSymbol'] ?? symbol,
+        'UniqueEnglishSymbol': pub['uniqueEnglishSymbol'],
+        'SchemaVersion': pub['schemaVersion'],
+        'Year': year,
+        'IssueTagNumber': issueTagNum,
+        'RootSymbol': pub['rootSymbol'],
+        'RootYear': pub['rootYear'] is String ? int.parse(pub['rootYear']) : pub['rootYear'],
+        'Hash': hashPublication,
+        'Timestamp': timeStamp,
+        'Path': path,
+        'DatabasePath': "$path/${pub['fileName']}",
+        'ExpandedSize': manifestData['expandedSize'],
+        'MepsBuildNumber': manifestData['mepsBuildNumber'],
+        'TopicSearch': hasTopicsTable ? 1 : 0,
+        'VerseCommentary': hasVerseCommentaryTable ? 1 : 0,
+      };
 
-      // Vérifier si la table Topic existe et n'est pas vide
-      List<Map<String, dynamic>> verseCommentaryExists = await publicationDb.rawQuery("""
-      SELECT stat
-      FROM sqlite_stat1
-      WHERE tbl = 'VerseCommentary'
-  """);
+      int publicationId;
 
-      hasTopicsTable = topicExists.isNotEmpty;
-      hasVerseCommentaryTable = verseCommentaryExists.isNotEmpty;
-    }
+      if (existPub != null) {
+        // Mise à jour de la publication existante
+        publicationId = existPub.id;
+        pubDb['PublicationId'] = publicationId;
+        await _database.update('Publication', pubDb, where: 'PublicationId = ?', whereArgs: [publicationId]);
 
-    String hashPublication = getPublicationHash(languageId, symbol, year, issueTagNum);
-    String description = await descriptionFuture;
-
-    Map<String, dynamic> pubDb = {
-      'MepsLanguageId': languageId,
-      'PublicationType': pub['publicationType'],
-      'PublicationCategorySymbol': pub['categories'].first,
-      'Title': pub['title'],
-      'ShortTitle': pub['shortTitle'],
-      'DisplayTitle': pub['displayTitle'],
-      'UndatedReferenceTitle': pub['undatedReferenceTitle'],
-      'Description': description,
-      'Symbol': symbol,
-      'KeySymbol': pub['uniqueSymbol'] ?? symbol,
-      'UniqueEnglishSymbol': pub['uniqueEnglishSymbol'],
-      'SchemaVersion': pub['schemaVersion'],
-      'Year': year,
-      'IssueTagNumber': issueTagNum,
-      'RootSymbol': pub['rootSymbol'],
-      'RootYear': pub['rootYear'] is String ? int.parse(pub['rootYear']) : pub['rootYear'],
-      'Hash': hashPublication,
-      'Timestamp': timeStamp, // Utiliser le nouveau timestamp
-      'Path': path,
-      'DatabasePath': "$path/${pub['fileName']}",
-      'ExpandedSize': manifestData['expandedSize'],
-      'MepsBuildNumber': manifestData['mepsBuildNumber'],
-      'TopicSearch': hasTopicsTable ? 1 : 0,
-      'VerseCommentary': hasVerseCommentaryTable ? 1 : 0,
-    };
-
-    int publicationId;
-
-    if (existPub != null) {
-      // Mise à jour de la publication existante
-      publicationId = existPub.id; // Supposons que existPub a un id
-      pubDb['PublicationId'] = publicationId; // Ajouter l'ID pour l'update
-
-      await _database.update(
-          'Publication',
-          pubDb,
-          where: 'PublicationId = ?',
-          whereArgs: [publicationId]
-      );
-
-      // Supprimer les anciennes données liées
-      await _database.delete('Image', where: 'PublicationId = ?', whereArgs: [publicationId]);
-      await _database.delete('PublicationAttribute', where: 'PublicationId = ?', whereArgs: [publicationId]);
-      await _database.delete('PublicationIssueAttribute', where: 'PublicationId = ?', whereArgs: [publicationId]);
-      await _database.delete('PublicationIssueProperty', where: 'PublicationId = ?', whereArgs: [publicationId]);
-      await _database.delete('Document', where: 'PublicationId = ?', whereArgs: [publicationId]);
-
-    } else {
-      // Insertion d'une nouvelle publication
-      publicationId = await _database.insert('Publication', pubDb);
-    }
-
-    dynamic images = pub['images'];
-
-    List<Map<String, dynamic>> imagesDb = [];
-    if(images != null && images.isNotEmpty) {
-      for(var image in images) {
-        Map<String, dynamic> imageDb ={
-          'PublicationId': publicationId,
-          'Type': image['type'],
-          'Attribute': image['attribute'],
-          'Path': "$path/${image['fileName']}",
-          'Width': image['width'],
-          'Height': image['height'],
-          'Signature': image['signature'].split(':').first,
-        };
-        imagesDb.add(imageDb);
-        await _database.insert('Image', imageDb);
+        // Suppression des anciennes données liées
+        await _database.delete('Image', where: 'PublicationId = ?', whereArgs: [publicationId]);
+        await _database.delete('PublicationAttribute', where: 'PublicationId = ?', whereArgs: [publicationId]);
+        await _database.delete('PublicationIssueAttribute', where: 'PublicationId = ?', whereArgs: [publicationId]);
+        await _database.delete('PublicationIssueProperty', where: 'PublicationId = ?', whereArgs: [publicationId]);
+        await _database.delete('Document', where: 'PublicationId = ?', whereArgs: [publicationId]);
+      } else {
+        // Insertion d'une nouvelle publication
+        publicationId = await _database.insert('Publication', pubDb);
       }
-    }
 
-    dynamic attributes = pub['attributes'];
-    if(attributes != null && attributes.isNotEmpty) {
-      for(var attribute in attributes) {
-        Map<String, dynamic> attributeDb ={
-          'PublicationId': publicationId,
-          'Attribute': attribute,
-        };
-        await _database.insert('PublicationAttribute', attributeDb);
+      // Utilisation de batch pour des insertions groupées
+      final batch = _database.batch();
 
-        pubDb['Attribute'] = attribute;
+      // Insertion des images
+      dynamic images = pub['images'];
+      List<Map<String, dynamic>> imagesDb = [];
+      if (images != null && images.isNotEmpty) {
+        for (var image in images) {
+          Map<String, dynamic> imageDb = {
+            'PublicationId': publicationId,
+            'Type': image['type'],
+            'Attribute': image['attribute'],
+            'Path': "$path/${image['fileName']}",
+            'Width': image['width'],
+            'Height': image['height'],
+            'Signature': image['signature'].split(':').first,
+          };
+          imagesDb.add(imageDb);
+          batch.insert('Image', imageDb);
+        }
       }
-    }
 
-    dynamic issueAttributes = pub['issueAttributes'];
-    if(issueAttributes != null && issueAttributes.isNotEmpty) {
-      for(var issueAttribute in issueAttributes) {
-        Map<String, dynamic> issueAttributeDb ={
-          'PublicationId': publicationId,
-          'Attribute': issueAttribute,
-        };
-        await _database.insert('PublicationIssueAttribute', issueAttributeDb);
+      // Insertion des attributs
+      dynamic attributes = pub['attributes'];
+      if (attributes != null && attributes.isNotEmpty) {
+        for (var attribute in attributes) {
+          batch.insert('PublicationAttribute', {'PublicationId': publicationId, 'Attribute': attribute});
+        }
       }
-    }
 
-    dynamic issueProperties = pub['issueProperties'];
-    if (issueProperties != null && issueProperties.isNotEmpty) {
-      // Vérifie si tous les champs sont vides
-      if (issueProperties['title'] != '' ||
-          issueProperties['undatedTitle'] != '' ||
-          issueProperties['coverTitle'] != '' ||
-          issueProperties['symbol'] != '' ||
-          issueProperties['undatedSymbol'] != '') {
-        Map<String, dynamic> issuePropertiesDb = {
-          'PublicationId': publicationId,
-          'Title': issueProperties['title'],
-          'UndatedTitle': issueProperties['undatedTitle'],
-          'CoverTitle': issueProperties['coverTitle'],
-          'Symbol': issueProperties['symbol'],
-          'UndatedSymbol': issueProperties['undatedSymbol'],
-        };
-        await _database.insert('PublicationIssueProperty', issuePropertiesDb);
-
-        pubDb['IssueTitle'] = issueProperties['title'];
-        pubDb['CoverTitle'] = issueProperties['coverTitle'];
+      // Insertion des attributs de numéro de publication
+      dynamic issueAttributes = pub['issueAttributes'];
+      if (issueAttributes != null && issueAttributes.isNotEmpty) {
+        for (var issueAttribute in issueAttributes) {
+          batch.insert('PublicationIssueAttribute', {'PublicationId': publicationId, 'Attribute': issueAttribute});
+        }
       }
-    }
 
-    // Search Database content
-    List<Map<String, dynamic>> documentList = await publicationDb.query(
-        'Document',
-        columns: ['MepsDocumentId', 'MepsLanguageIndex']
-    );
-    if(documentList.isNotEmpty) {
-      for(var document in documentList) {
-        Map<String, dynamic> documentDb = {
+      // Insertion des propriétés de numéro de publication
+      dynamic issueProperties = pub['issueProperties'];
+      if (issueProperties != null && issueProperties.isNotEmpty) {
+        batch.insert('PublicationIssueProperty', {
+          'PublicationId': publicationId,
+          'Title': issueProperties['title'] ?? '',
+          'UndatedTitle': issueProperties['undatedTitle'] ?? '',
+          'CoverTitle': issueProperties['coverTitle'] ?? '',
+          'Symbol': issueProperties['symbol'] ?? '',
+          'UndatedSymbol': issueProperties['undatedSymbol'] ?? '',
+        });
+      }
+
+      // Insertion des documents
+      List<Map<String, dynamic>> documentList = await publicationDb.query('Document', columns: ['MepsDocumentId', 'MepsLanguageIndex']);
+      for (var document in documentList) {
+        batch.insert('Document', {
           'LanguageIndex': document['MepsLanguageIndex'],
           'MepsDocumentId': document['MepsDocumentId'],
           'PublicationId': publicationId
-        };
-        await _database.insert('Document', documentDb);
+        });
       }
-    }
 
-    await publicationDb.close();
+      // Exécution du batch
+      await batch.commit();
+      await publicationDb.close();
 
-    if(publication == null) {
-      File mepsFile = await getMepsUnitDatabaseFile();
-      if (await mepsFile.exists()) {
-        Database db = await openDatabase(mepsFile.path);
-        List<Map<String, dynamic>> result = await db.rawQuery("SELECT Symbol, VernacularName, PrimaryIetfCode FROM Language WHERE LanguageId = $languageId");
-        if (result.isNotEmpty) {
-          pubDb['LanguageSymbol'] = result[0]['Symbol'];
-          pubDb['LanguageVernacularName'] = result[0]['VernacularName'];
-          pubDb['LanguagePrimaryIetfCode'] = result[0]['PrimaryIetfCode'];
+      // Récupération des informations de langue si la publication n'est pas fournie
+      if (publication == null) {
+        File mepsFile = await getMepsUnitDatabaseFile();
+        if (await mepsFile.exists()) {
+          Database db = await openDatabase(mepsFile.path);
+          List<Map<String, dynamic>> result = await db.rawQuery("SELECT Symbol, VernacularName, PrimaryIetfCode FROM Language WHERE LanguageId = $languageId");
+          if (result.isNotEmpty) {
+            pubDb['LanguageSymbol'] = result[0]['Symbol'];
+            pubDb['LanguageVernacularName'] = result[0]['VernacularName'];
+            pubDb['LanguagePrimaryIetfCode'] = result[0]['PrimaryIetfCode'];
+          }
+          await db.close();
         }
-        await db.close();
+      } else {
+        // Utilisation des données de publication existantes
+        pubDb['LanguageSymbol'] = publication.mepsLanguage.symbol;
+        pubDb['LanguageVernacularName'] = publication.mepsLanguage.vernacular;
+        pubDb['LanguagePrimaryIetfCode'] = publication.mepsLanguage.primaryIetfCode;
       }
-    }
-    else {
-      pubDb['LanguageSymbol'] = publication.mepsLanguage.symbol;
-      pubDb['LanguageVernacularName'] = publication.mepsLanguage.vernacular;
-      pubDb['LanguagePrimaryIetfCode'] = publication.mepsLanguage.primaryIetfCode;
-    }
 
-    var imageSqr = imagesDb
-        .where((element) => element['Type'] == 't')
-        .toList()
-      ..sort((a, b) {
-        // Trier par largeur et hauteur en ordre décroissant
-        int widthComparison = b['Width'].compareTo(a['Width']);
-        if (widthComparison != 0) {
-          return widthComparison;
-        }
-        return b['Height'].compareTo(a['Height']);
-      });
+      // Gestion des images de couverture
+      var imageSqr = imagesDb.where((element) => element['Type'] == 't').toList()
+        ..sort((a, b) => b['Width'].compareTo(a['Width']) != 0 ? b['Width'].compareTo(a['Width']) : b['Height'].compareTo(a['Height']));
+      pubDb['ImageSqr'] = imageSqr.isNotEmpty ? imageSqr.first['Path'] : null;
 
-    if (imageSqr.isNotEmpty) {
-      pubDb['ImageSqr'] = imageSqr.first['Path'];  // Récupérer le chemin de l'image
-    }
-    else {
-      pubDb['ImageSqr'] = null;  // Aucune image trouvée
-    }
+      var imageLsr = imagesDb.where((element) => element['Type'] == 'lsr' && element['Width'] == 1200 && element['Height'] == 600).toList();
+      pubDb['ImageLsr'] = imageLsr.isNotEmpty ? imageLsr.first['Path'] : null;
 
-    // Récupérer l'image de type 'lsr' avec les dimensions spécifiques
-    var imageLsr = imagesDb.where((element) => element['Type'] == 'lsr' && element['Width'] == 1200 && element['Height'] == 600).toList();
-
-    // Si une image est trouvée, on récupère son chemin
-    if (imageLsr.isNotEmpty) {
-      pubDb['ImageLsr'] = imageLsr.first['Path'];  // Récupérer le chemin de l'image
+      return Publication.fromJson(pubDb);
     }
-    else {
-      pubDb['ImageLsr'] = null;  // Aucune image trouvée
+    catch (e) {
+      print("Erreur lors de l'insertion ou de la mise à jour de la publication : $e");
+      return null;
     }
-
-    return Publication.fromJson(pubDb);
   }
 
   Future<void> deletePublication(Publication publication) async {

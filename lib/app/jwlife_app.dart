@@ -293,7 +293,9 @@ class JwLifeAppState extends State<JwLifeApp> {
           }
         }
 
-        MediaItem mediaItem = getMediaItemFromLank(uri.lank!, uri.wtlocale);
+        MediaItem? mediaItem = getMediaItemFromLank(uri.lank!, uri.wtlocale);
+
+        if (mediaItem == null) return;
 
         GlobalKeyService.jwLifePageKey.currentState!.changeNavBarIndex(0);
         if(mediaItem.type == 'AUDIO') {

@@ -386,8 +386,8 @@ class HomePageState extends State<HomePage> {
     LEFT JOIN Image i_lsr ON a.ArticleId = i_lsr.ArticleId AND i_lsr.Type = 'lsr'
     LEFT JOIN Image i_pnr ON a.ArticleId = i_pnr.ArticleId AND i_pnr.Type = 'pnr'
     WHERE a.LanguageSymbol = ?
-    ORDER BY a.Timestamp
-    LIMIT 3
+    ORDER BY a.Timestamp DESC
+    LIMIT 4
   ''', [languageSymbol]);
 
     if (articles.isNotEmpty) {

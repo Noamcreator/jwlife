@@ -1,15 +1,19 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:html/parser.dart' as htmlParser;
 import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/app/jwlife_page.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/utils.dart';
+import 'package:jwlife/core/utils/widgets_utils.dart';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/features/home/pages/home_page.dart';
 import 'package:jwlife/widgets/dialog/language_dialog_pub.dart';
 
 import '../../app/services/global_key_service.dart';
 import '../../features/publication/pages/document/local/documents_manager.dart';
+import '../../widgets/dialog/utils_dialog.dart';
 import '../api/api.dart';
 
 PopupMenuItem getPubShareMenuItem(Publication publication) {
@@ -124,4 +128,45 @@ Future<String> extractPublicationDescription(Publication? publication, {String? 
     }
   }
   return '';
+}
+
+Future<BuildContext?> showJwImport(BuildContext context, String fileName) async {
+  Completer<BuildContext?> completer = Completer<BuildContext?>();
+
+  showJwDialog(
+    context: context,
+    titleText: 'Importation du fichier $fileName en cours…',
+    content: Builder(
+      builder: (ctx) {
+        // Le dialogue est construit ici, et le BuildContext est maintenant disponible
+        if (!completer.isCompleted) {
+          completer.complete(ctx);
+        }
+        return Padding(
+          padding: EdgeInsets.symmetric(horizontal: 25),
+          child: SizedBox(
+            height: 50,
+            child: getLoadingWidget(Theme.of(context).primaryColor),
+          ),
+        );
+      },
+    ),
+  );
+
+  return completer.future;
+}
+
+void showJwpubError(BuildContext context) {
+  showJwDialog(
+    context: context,
+    titleText: 'Erreur de fichier',
+    contentText: 'Le fichier .jwpub sélectionné est corrompu ou invalide. Veuillez vérifier le fichier et réessayer.',
+    buttonAxisAlignment: MainAxisAlignment.end,
+    buttons: [
+      JwDialogButton(
+        label: 'OK',
+        closeDialog: true,
+      ),
+    ],
+  );
 }
