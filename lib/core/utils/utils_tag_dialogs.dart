@@ -36,10 +36,10 @@ Future<void> showAddTagDialog(BuildContext context, bool isPlaylist) async {
             Tag? tag = await JwLifeApp.userdata.addTag(name, isPlaylist ? 2 : 1);
             if (tag != null) {
               if (isPlaylist) {
-                await showPage(buildContext, PlaylistPage(playlist: tag));
+                await showPage(PlaylistPage(playlist: tag));
               }
               else {
-                await showPage(buildContext, TagPage(tag: tag));
+                await showPage(TagPage(tag: tag));
               }
             }
           }
@@ -91,30 +91,34 @@ Future<Tag?> showEditTagDialog(BuildContext context, Tag tag) async {
   return result;
 }
 
-Future<Tag?> showDeleteTagDialog(BuildContext context, Tag tag) async {
+Future<bool?> showDeleteTagDialog(BuildContext context, Tag tag) async {
   bool isPlaylist = tag.type == 2;
-  // Affichage du dialogue avec la structure showJwDialog
-  Tag? result = await showJwDialog<Tag>(
+
+  // Affichage du dialogue
+  return await showJwDialog<bool?>(
     context: context,
-    titleText: isPlaylist ? "Supprimer la liste de lecture" : "Supprimer la catégorie",
-    contentText: isPlaylist ? "Cette action supprimera la liste de lecture « ${tag.name} »." : "Cette action supprimera la catégorie « ${tag.name} » mais les notes ne seront pas supprimées.",
+    titleText: isPlaylist
+        ? "Supprimer la liste de lecture"
+        : "Supprimer la catégorie",
+    contentText: isPlaylist
+        ? "Cette action supprimera la liste de lecture « ${tag.name} »."
+        : "Cette action supprimera la catégorie « ${tag.name} » mais les notes ne seront pas supprimées.",
     buttons: [
+      // Bouton ANNULER -> ferme juste le dialog
       JwDialogButton(
         label: "ANNULER",
-        onPressed: (buildContext) {
-          Navigator.pop(buildContext); // Ferme sans rien renvoyer
-        },
+        closeDialog: true,
       ),
+
+      // Bouton SUPPRIMER -> supprime puis renvoie 'true'
       JwDialogButton(
         label: "SUPPRIMER",
-        closeDialog: false, // Ne ferme pas immédiatement
-        onPressed: (buildContext) async {
+        closeDialog: false,
+        onPressed: (BuildContext dialogContext) async {
           await JwLifeApp.userdata.deleteTag(tag);
-          Navigator.pop(buildContext); // Ferme après la suppression
+          Navigator.pop(dialogContext, true);
         },
       ),
     ],
   );
-
-  return result;
 }

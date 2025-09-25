@@ -12,7 +12,7 @@ class PublicationMediaItemsView extends StatefulWidget {
 }
 
 class _PublicationMediaItemsViewState extends State<PublicationMediaItemsView> {
-  List<Map<String, dynamic>> media_items = [];
+  List<Map<String, dynamic>> _mediaItems = [];
 
   @override
   void initState() {
@@ -29,7 +29,7 @@ class _PublicationMediaItemsViewState extends State<PublicationMediaItemsView> {
       // Vérifie si l'élément est une image
       if (element.localName == 'img') {
         // Imprime le lien de l'image (valeur de l'attribut 'src')
-        media_items.add({
+        _mediaItems.add({
           'ImageUrl': 'https://wol.jw.org' + element.attributes['src']!,
         });
       }
@@ -37,7 +37,7 @@ class _PublicationMediaItemsViewState extends State<PublicationMediaItemsView> {
 
     setState(() {
       // Actualise l'état si nécessaire
-      media_items = media_items;
+      _mediaItems = _mediaItems;
     });
   }
 
@@ -53,10 +53,10 @@ class _PublicationMediaItemsViewState extends State<PublicationMediaItemsView> {
         title: Text('Voir les médias'),
       ),
       body: ListView.builder(
-        itemCount: media_items.length,
+        itemCount: _mediaItems.length,
         itemBuilder: (context, index) {
           return ListTile(
-            leading: ImageCachedWidget(imageUrl: media_items[index]['ImageUrl'], pathNoImage: ''),
+            leading: ImageCachedWidget(imageUrl: _mediaItems[index]['ImageUrl'], pathNoImage: ''),
           );
         },
       ),

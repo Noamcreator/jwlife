@@ -88,16 +88,12 @@ Future<void> showAddPlaylistDialog(BuildContext context, dynamic item) async {
                           else if (item is MediaItem) {
                             await JwLifeApp.userdata.insertMediaItemInPlaylist(playlist, item);
                           }
-                          showBottomMessageWithAction(context,
-                              "Ajouté à la liste de lecture  ${playlist.name}",
+                          showBottomMessageWithAction("Ajouté à la liste de lecture  ${playlist.name}",
                               SnackBarAction(
                                 label: 'Aller à la liste de lecture',
                                 onPressed: () async {
                                   GlobalKeyService.jwLifePageKey.currentState!.changeNavBarIndex(6);
-                                  await showPage(
-                                      GlobalKeyService.jwLifePageKey.currentState!.getCurrentState().context,
-                                      PlaylistPage(playlist: playlist)
-                                  );
+                                  await showPage(PlaylistPage(playlist: playlist));
                                 },
                               )
                           );

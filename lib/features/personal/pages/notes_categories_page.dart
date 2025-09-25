@@ -1,4 +1,3 @@
-import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/core/icons.dart';
@@ -7,15 +6,7 @@ import 'package:jwlife/core/utils/utils_tag_dialogs.dart';
 import 'package:jwlife/data/databases/history.dart';
 import 'package:jwlife/data/models/userdata/tag.dart';
 import 'package:jwlife/data/models/userdata/note.dart';
-import 'package:jwlife/data/repositories/PublicationRepository.dart';
 import 'package:jwlife/features/personal/pages/tag_page.dart';
-import 'package:jwlife/features/publication/pages/document/local/documents_manager.dart';
-import 'package:sqflite/sqflite.dart';
-import '../../../core/utils/utils_document.dart';
-import '../../../data/models/publication.dart';
-import '../../../data/models/publication_category.dart';
-import '../../../widgets/image_cached_widget.dart';
-import '../../publication/pages/document/data/models/document.dart';
 import '../widgets/note_item_widget.dart';
 import 'note_page.dart';
 
@@ -77,7 +68,7 @@ class _NotesTagsPageState extends State<NotesTagsPage> {
             onPressed: () async {
               Note? note = await JwLifeApp.userdata.addNote("", "", 0, [], null, null, null, null, null, null);
               if (note != null) {
-                await showPage(context, NotePage(note: note));
+                await showPage(NotePage(note: note));
                 setState(() {
                   filteredNotes.insert(0, note);
                 });
@@ -159,7 +150,7 @@ class _NotesTagsPageState extends State<NotesTagsPage> {
                                               return ListTile(
                                                 title: Text(tag.name),
                                                 onTap: () {
-                                                  showPage(context, TagPage(tag: tag));
+                                                  showPage(TagPage(tag: tag));
                                                 },
                                               );
                                             }).toList(),
@@ -192,7 +183,7 @@ class _NotesTagsPageState extends State<NotesTagsPage> {
                             }
                             return ElevatedButton(
                               onPressed: () async {
-                                await showPage(context, TagPage(tag: category));
+                                await showPage(TagPage(tag: category));
                                 setState(() {
                                   filteredTags = JwLifeApp.userdata.tags;
                                 });

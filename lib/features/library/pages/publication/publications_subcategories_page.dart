@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/core/utils/files_helper.dart';
@@ -146,7 +145,7 @@ class _PublicationSubcategoriesViewState extends State<PublicationSubcategoriesV
           return InkWell(
             onTap: () {
               if(widget.category.type == 'Convention') {
-                showPage(context, ConventionItemsView(
+                showPage(ConventionItemsView(
                   category: widget.category,
                   indexDay: items[index]['Day'],
                   publications: items[index]['Publications'],
@@ -154,7 +153,7 @@ class _PublicationSubcategoriesViewState extends State<PublicationSubcategoriesV
                 ));
               }
               else {
-                showPage(context, PublicationsItemsView(
+                showPage(PublicationsItemsView(
                   category: widget.category,
                   year: number,
                 ));

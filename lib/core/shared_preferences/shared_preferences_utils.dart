@@ -137,8 +137,8 @@ Future<void> setLibraryLanguage(dynamic selectedLanguage) async {
     JwLifeSettings().currentLanguage.isCharacterSpaced ? '1' : '0',
     JwLifeSettings().currentLanguage.isCharacterBreakable ? '1' : '0',
     JwLifeSettings().currentLanguage.hasSystemDigits ? '1' : '0',
-    JwLifeSettings().currentLanguage.rsConf ?? '',
-    JwLifeSettings().currentLanguage.lib ?? '',
+    JwLifeSettings().currentLanguage.rsConf,
+    JwLifeSettings().currentLanguage.lib,
   ]);
 }
 

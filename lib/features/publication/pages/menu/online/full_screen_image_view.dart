@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/utils_video.dart';
 import 'package:jwlife/data/realm/catalog.dart';
-import 'package:jwlife/data/realm/realm_library.dart';
-import 'package:realm/realm.dart';
 
 import '../../../../../data/models/video.dart';
 

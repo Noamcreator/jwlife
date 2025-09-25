@@ -1,9 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/data/models/media.dart';
 import 'package:realm/realm.dart';
-import 'dart:developer' as dev;
 
 import '../../app/services/settings_service.dart';
 import '../models/audio.dart';
@@ -104,7 +102,6 @@ class RealmLibrary {
     // Process categories
     for (var data in categoryJsons) {
       String categoryKey = data['key'];
-      String mapKey = '${categoryKey}_$languageCode';
       Category category = Category(
         key: categoryKey,
         localizedName: data['name'],

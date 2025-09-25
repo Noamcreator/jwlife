@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/files_helper.dart';
 import 'package:sqflite/sqflite.dart';
@@ -95,7 +94,7 @@ class _VisitsViewState extends State<VisitsView> {
   ''', [JwLifeSettings().currentLanguage.id]);
     await pubCollectionDb.close();
 
-    List<Map<String, dynamic>> _documents = [];
+    List<Map<String, dynamic>> documents = [];
 
     showDialog(
       context: context,
@@ -180,7 +179,7 @@ class _VisitsViewState extends State<VisitsView> {
 
                               setState(() {
                                 _selectedPublication = publication;
-                                _documents = docs;
+                                documents = docs;
                               });
                             }
                           },
@@ -192,11 +191,11 @@ class _VisitsViewState extends State<VisitsView> {
                           },
                         ),
                         // ComboBox pour choisir un document
-                        if (_documents.isNotEmpty)
+                        if (documents.isNotEmpty)
                           DropdownButtonFormField<Map<String, dynamic>>(
                             value: _selectedDocument,
                             decoration: InputDecoration(labelText: 'Document'),
-                            items: _documents.map((document) {
+                            items: documents.map((document) {
                               return DropdownMenuItem<Map<String, dynamic>>(
                                 value: document,
                                 child: Text(document['Title']),

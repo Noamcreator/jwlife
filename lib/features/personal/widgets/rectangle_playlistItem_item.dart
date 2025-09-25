@@ -8,12 +8,10 @@ import 'package:jwlife/data/models/userdata/independentMedia.dart';
 import 'package:jwlife/data/models/userdata/playlistItem.dart';
 
 import '../../../core/icons.dart';
-import '../../../core/utils/utils_audio.dart';
 import '../../../core/utils/utils_video.dart';
 import '../../../data/models/audio.dart';
 import '../../../data/models/userdata/location.dart';
 import '../../../data/models/video.dart';
-import '../../../data/realm/catalog.dart';
 import '../../../data/repositories/MediaRepository.dart';
 import '../../image/image_page.dart';
 
@@ -151,7 +149,7 @@ class RectanglePlaylistItemItem extends StatelessWidget {
           else if (independentMedia != null) {
             if(independentMedia.mimeType!.contains('image')) {
               File independentMedia = await playlistItem.independentMedia!.getImageFile();
-              showPage(context, ImagePage(filePath: independentMedia.path));
+              showPage(ImagePage(filePath: independentMedia.path));
             }
             else if(independentMedia.mimeType!.contains('video')) {
               if(media != null) {

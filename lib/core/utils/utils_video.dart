@@ -1,36 +1,27 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/jworg_uri.dart';
 import 'package:jwlife/core/utils/utils.dart';
-import 'package:jwlife/core/utils/utils_media.dart';
 import 'package:jwlife/data/models/video.dart' hide Subtitles;
 import 'package:jwlife/widgets/dialog/language_dialog.dart';
 import 'package:jwlife/widgets/dialog/utils_dialog.dart';
-import 'package:jwlife/widgets/dialog/publication_dialogs.dart';
 import 'package:realm/realm.dart';
 
 import 'package:share_plus/share_plus.dart';
-import 'package:http/http.dart' as http;
-import 'package:sqflite/sqflite.dart';
 
-import '../../app/jwlife_page.dart';
 import '../../app/services/global_key_service.dart';
 import '../../app/services/settings_service.dart';
 import '../../data/realm/catalog.dart';
 import '../../data/realm/realm_library.dart';
-import '../../features/home/pages/home_page.dart';
 import '../../features/video/subtitles.dart';
 import '../../features/video/subtitles_view.dart';
-import '../../features/video/video_player_page.dart';
 import '../api/api.dart';
 import 'common_ui.dart';
-import 'files_helper.dart';
 
 MediaItem? getMediaItemFromLank(String lank, String wtlocale) => RealmLibrary.realm.all<MediaItem>().query("languageAgnosticNaturalKey == '$lank'").query("languageSymbol == '$wtlocale'").firstOrNull;
 MediaItem? getVideoItemFromDocId(String docId, String wtlocale) => RealmLibrary.realm.all<MediaItem>().query("documentId == '$docId'").query("languageSymbol == '$wtlocale'").firstOrNull;
@@ -201,14 +192,14 @@ PopupMenuItem getShowSubtitlesItem(BuildContext context, Video video, {String qu
     ),
     onTap: () async {
       if (video.isDownloadedNotifier.value) {
-        showPage(context, SubtitlesPage(
+        showPage(SubtitlesPage(
             video: video,
             query: query
         ));
       }
       else {
         if(await hasInternetConnection()) {
-          showPage(context, SubtitlesPage(
+          showPage(SubtitlesPage(
               video: video,
               query: query
           ));
@@ -253,7 +244,7 @@ PopupMenuItem getCopySubtitlesItem(BuildContext context, Video video) {
         }
       }
       printTime(subtitles.toString());
-      Clipboard.setData(ClipboardData(text: subtitles.toString())).then((value) => showBottomMessage(context, "Sous-titres copiés dans le presse-papier"));
+      Clipboard.setData(ClipboardData(text: subtitles.toString())).then((value) => showBottomMessage("Sous-titres copiés dans le presse-papier"));
     },
   );
 }

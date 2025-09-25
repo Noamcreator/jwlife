@@ -6,7 +6,6 @@ import 'package:html/parser.dart';
 import '../../core/api/api.dart';
 import '../../core/icons.dart';
 import '../../core/utils/utils.dart';
-import '../video/subtitles.dart';
 
 class LyricsPage extends StatefulWidget {
   final String audioJwPage;
@@ -21,9 +20,8 @@ class LyricsPage extends StatefulWidget {
 class _LyricsPageState extends State<LyricsPage> {
   String _htmlContent = '';
   late InAppWebViewController _controller;
-  TextEditingController _searchController = TextEditingController();
-  String _searchQuery = '';
-  List<Subtitle> _searchResults = [];
+  final TextEditingController _searchController = TextEditingController();
+  final String _searchQuery = '';
 
   @override
   void initState() {
@@ -78,18 +76,6 @@ class _LyricsPageState extends State<LyricsPage> {
     } else {
       printTime('Erreur ${response.statusCode} lors de la récupération des données.');
     }
-  }
-
-  void _onSearchChanged() {
-    /*
-    setState(() {
-      _searchQuery = _searchController.text;
-      // Filter the results
-      _searchResults = _subtitles.getSubtitles()
-          .where((subtitle) => subtitle.text.toLowerCase().contains(_searchQuery.toLowerCase()))
-          .toList();
-    });
-    */
   }
 
   @override

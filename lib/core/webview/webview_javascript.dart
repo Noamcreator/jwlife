@@ -7,7 +7,7 @@ import 'package:jwlife/data/models/publication.dart';
 import '../../app/services/settings_service.dart';
 
 String createReaderHtmlShell(Publication publication, int firstIndex, int maxIndex, {int? startParagraphId, int? endParagraphId, int? startVerseId, String? textTag, int? endVerseId, List<String> wordsSelected = const []}) {
-  String publicationPath = publication.path!;
+  String publicationPath = publication.path ?? '';
   final webViewData = JwLifeSettings().webViewData;
   final fontSize = webViewData.fontSize;
   final colorIndex = webViewData.colorIndex;
@@ -63,6 +63,7 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
             position: relative;
             opacity: 0;
             pointer-events: none;
+            transition: opacity 0.35s ease-in-out; 
           }
           
           #page-center.visible {
@@ -125,11 +126,19 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
             height: 15px;
             z-index: 999;
           }
-         
+          
+          .note-title:focus,
+          .note-content:focus,
+          .note-tags:focus {
+            outline: none !important;
+            box-shadow: none !important;
+            border: none !important;
+          }
+          
           .word.selected,
           .punctuation.selected,
           .escape.selected {
-            background-color: rgba(66, 236, 241, 0.3);
+            background-color: rgba(66, 236, 241, 0.3) !important;
             position: relative; /* nécessaire pour handles positionnés en absolu */
           }
           
@@ -287,7 +296,7 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
           // Valeurs fixes de hauteur des barres
           const APPBAR_FIXED_HEIGHT = 56;
           const BOTTOMNAVBAR_FIXED_HEIGHT = 55;
-          const AUDIO_PLAYER_HEIGHT = 70;
+          const AUDIO_PLAYER_HEIGHT = 80;
           
           let highlights;
           let notes;
@@ -777,92 +786,92 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
             await loadPages(index);
           }
           
-async function jumpToIdSelector(selector, idAttr, begin, end) {
-  closeToolbar();
-
-  const paragraphs = pageCenter.querySelectorAll(selector);
-  if (paragraphs.length === 0) {
-    console.error(`No paragraphs found for selector: \${selector}`);
-    return;
-  }
-
-  if (begin === -1 && end === -1) {
-    paragraphs.forEach(p => {
-      p.style.opacity = '1';
-    });
-    return;
-  }
-
-  let targetParagraph = null;
-  let firstParagraphId = null;
-  let endParagraphId = null;
-
-  paragraphs.forEach(p => {
-    let id;
-    if (selector === '[data-pid]') {
-      id = parseInt(p.getAttribute(idAttr), 10);
-      if (isNaN(id)) return;
-    } else {
-      const attrValue = p.getAttribute(idAttr)?.trim();
-      if (!attrValue) return;
-      const idParts = attrValue.split('-');
-      if (idParts.length < 4) return;
-      id = parseInt(idParts[2], 10);
-      if (isNaN(id)) return;
-    }
-
-    if (firstParagraphId === null) {
-      firstParagraphId = id;
-    }
-    endParagraphId = id;
-
-    if (id >= begin && id <= end && !targetParagraph) {
-      targetParagraph = p;
-    }
-
-    p.style.opacity = (id >= begin && id <= end) ? '1' : '0.5';
-  });
-
-  if (targetParagraph) {
-    isChangingParagraph = true;
-
-    const visibleParagraphs = Array.from(pageCenter.querySelectorAll(selector)).filter(p => p.style.opacity === '1');
-
-    if (visibleParagraphs.length === 0) {
-      isChangingParagraph = false;
-      return;
-    }
-
-    const firstTop = visibleParagraphs[0].offsetTop;
-    const lastParagraph = visibleParagraphs[visibleParagraphs.length - 1];
-    const lastBottom = lastParagraph.offsetTop + lastParagraph.offsetHeight;
-    const totalHeight = lastBottom - firstTop;
-
-    const screenHeight = pageCenter.clientHeight;
-    const visibleHeight = screenHeight - appBarHeight - bottomNavBarHeight - 40;
-
-    let scrollToY;
-
-    // Cas 1 : On commence au tout début du document.
-    if (begin === firstParagraphId) {
-      scrollToY = 0;
-    }
-    // Cas 2 : La sélection tient entièrement dans l'écran, on la centre.
-    else if (totalHeight < visibleHeight) {
-      scrollToY = firstTop - appBarHeight - 20 - (visibleHeight / 2) + (totalHeight / 2);
-    }
-    // Cas par défaut : On affiche la sélection à partir du haut.
-    else {
-      scrollToY = firstTop - appBarHeight - 20;
-    }
-
-    scrollToY = Math.max(scrollToY, 0);
-    pageCenter.scrollTop = scrollToY;
-
-    await new Promise(requestAnimationFrame);
-    isChangingParagraph = false;
-  }
-}
+        async function jumpToIdSelector(selector, idAttr, begin, end) {
+          closeToolbar();
+        
+          const paragraphs = pageCenter.querySelectorAll(selector);
+          if (paragraphs.length === 0) {
+            console.error(`No paragraphs found for selector: \${selector}`);
+            return;
+          }
+        
+          if (begin === -1 && end === -1) {
+            paragraphs.forEach(p => {
+              p.style.opacity = '1';
+            });
+            return;
+          }
+        
+          let targetParagraph = null;
+          let firstParagraphId = null;
+          let endParagraphId = null;
+        
+          paragraphs.forEach(p => {
+            let id;
+            if (selector === '[data-pid]') {
+              id = parseInt(p.getAttribute(idAttr), 10);
+              if (isNaN(id)) return;
+            } else {
+              const attrValue = p.getAttribute(idAttr)?.trim();
+              if (!attrValue) return;
+              const idParts = attrValue.split('-');
+              if (idParts.length < 4) return;
+              id = parseInt(idParts[2], 10);
+              if (isNaN(id)) return;
+            }
+        
+            if (firstParagraphId === null) {
+              firstParagraphId = id;
+            }
+            endParagraphId = id;
+        
+            if (id >= begin && id <= end && !targetParagraph) {
+              targetParagraph = p;
+            }
+        
+            p.style.opacity = (id >= begin && id <= end) ? '1' : '0.5';
+          });
+        
+          if (targetParagraph) {
+            isChangingParagraph = true;
+        
+            const visibleParagraphs = Array.from(pageCenter.querySelectorAll(selector)).filter(p => p.style.opacity === '1');
+        
+            if (visibleParagraphs.length === 0) {
+              isChangingParagraph = false;
+              return;
+            }
+        
+            const firstTop = visibleParagraphs[0].offsetTop;
+            const lastParagraph = visibleParagraphs[visibleParagraphs.length - 1];
+            const lastBottom = lastParagraph.offsetTop + lastParagraph.offsetHeight;
+            const totalHeight = lastBottom - firstTop;
+        
+            const screenHeight = pageCenter.clientHeight;
+            const visibleHeight = screenHeight - appBarHeight - bottomNavBarHeight - 40;
+        
+            let scrollToY;
+        
+            // Cas 1 : On commence au tout début du document.
+            if (begin === firstParagraphId) {
+              scrollToY = 0;
+            }
+            // Cas 2 : La sélection tient entièrement dans l'écran, on la centre.
+            else if (totalHeight < visibleHeight) {
+              scrollToY = firstTop - appBarHeight - 20 - (visibleHeight / 2) + (totalHeight / 2);
+            }
+            // Cas par défaut : On affiche la sélection à partir du haut.
+            else {
+              scrollToY = firstTop - appBarHeight - 20;
+            }
+        
+            scrollToY = Math.max(scrollToY, 0);
+            pageCenter.scrollTop = scrollToY;
+        
+            await new Promise(requestAnimationFrame);
+            isChangingParagraph = false;
+          }
+        }
         
         async function jumpToTextTag(textarea) {
           closeToolbar();
@@ -1047,7 +1056,7 @@ async function jumpToIdSelector(selector, idAttr, begin, end) {
                 const colorButton = document.createElement('button');
                 const colorImg = document.createElement('img');
                 
-                if (index+1 == colorIndex) {
+                if (index+1 == colorIndex && !isSelected) {
                   colorImg.src = highlightSelectedAssets[index];
                 }
                 else {
@@ -2158,7 +2167,7 @@ function createNoteContent(contentContainer, options) {
         dialogElement.classList.add('note-dialog');
     }
 
-    // ✅ Conteneur principal
+    // ✅ Conteneur principal (on évite le scroll global, seule la zone contenu scrolle)
     const mainContainer = document.createElement('div');
     mainContainer.style.cssText = `
         display: flex;
@@ -2166,31 +2175,40 @@ function createNoteContent(contentContainer, options) {
         height: 100%;
         padding: 16px;
         box-sizing: border-box;
-        overflow-y: auto;
+        overflow: hidden; /* ← important : pas de scroll ici */
         gap: 12px;
     `;
 
-    // ✅ Champ titre
-    const titleElement = document.createElement('input');
-    titleElement.type = 'text';
+    // ✅ Titre multi-ligne (textarea)
+    const titleElement = document.createElement('textarea');
     titleElement.className = 'note-title';
-    titleElement.value = title;
+    titleElement.value = title || '';
     titleElement.placeholder = 'Titre de la note';
+    titleElement.rows = 1;
     titleElement.style.cssText = `
         border: none;
         outline: none;
+        resize: none;
         font-size: 20px;
         font-weight: bold;
+        line-height: 1.3;
         background: transparent;
         color: inherit;
         padding: 4px 0;
         flex-shrink: 0;
+        overflow: hidden;
     `;
+    const autoResizeTitle = () => {
+        titleElement.style.height = 'auto';
+        const max = 6 * parseFloat(getComputedStyle(titleElement).lineHeight); // jusqu’à ~6 lignes
+        titleElement.style.height = Math.min(titleElement.scrollHeight, max) + 'px';
+    };
+    titleElement.addEventListener('input', autoResizeTitle);
 
-    // ✅ Zone de contenu (avec redimensionnement dynamique)
+    // ✅ Zone de contenu (auto-ajustée jusqu'à 80vh)
     const contentElement = document.createElement('textarea');
     contentElement.className = 'note-content';
-    contentElement.value = content;
+    contentElement.value = content || '';
     contentElement.placeholder = 'Écrivez votre note ici...';
     contentElement.style.cssText = `
         border: none;
@@ -2200,32 +2218,26 @@ function createNoteContent(contentContainer, options) {
         line-height: 1.5;
         background: transparent;
         color: inherit;
-        min-height: 200px;
-        flex: 1;
-        padding: 8px 0;
         overflow-y: auto;
+        padding: 8px 0;
+        flex: 0 0 auto;
+        min-height: 100px;   /* ← hauteur de base quand peu de texte */
     `;
     
     // Fonction de redimensionnement dynamique
     const autoResize = () => {
-        const lineHeight = parseInt(window.getComputedStyle(contentElement).lineHeight);
-        const maxHeight = lineHeight * 10;
-        contentElement.style.height = 'auto';
-        const newHeight = contentElement.scrollHeight;
-        if (newHeight <= maxHeight) {
-            contentElement.style.height = `\${newHeight}px`;
-        } else {
-            contentElement.style.height = `\${maxHeight}px`;
-        }
+        const maxHeight = Math.round(window.innerHeight * 0.8); // 80% du viewport
+        contentElement.style.height = 'auto'; // reset
+        const newHeight = Math.min(contentElement.scrollHeight, maxHeight);
+        contentElement.style.height = `\${newHeight}px`;
     };
     
-    // Écouteurs pour le redimensionnement
-    contentElement.addEventListener('input', autoResize);
-    contentElement.addEventListener('cut', autoResize);
-    contentElement.addEventListener('paste', autoResize);
-
-    // ✅ Lancement initial du redimensionnement
-    setTimeout(autoResize, 0);
+    // Écouteurs
+    ['input','cut','paste'].forEach(evt =>
+        contentElement.addEventListener(evt, autoResize)
+    );
+    
+    autoResize();
 
     // 🚀 Intégration des fonctionnalités de tags et suggestions
     const currentTagIds = !tagsId || tagsId === '' ? [] : tagsId.split(',').map(id => parseInt(id));
@@ -2288,6 +2300,7 @@ function createNoteContent(contentContainer, options) {
         }
     };
 
+    // ✅ Footer catégories : toujours visible en bas
     const tagsContainer = document.createElement('div');
     tagsContainer.style.cssText = `
         display: flex;
@@ -2296,9 +2309,12 @@ function createNoteContent(contentContainer, options) {
         max-height: 160px;
         overflow-y: auto;
         border-top: 1px solid \${isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.08)'};
-        padding-top: 12px;
+        padding: 12px 0 4px 0;
         flex-shrink: 0;
-        position: relative;
+        position: sticky;   /* ← colle au bas du conteneur visible */
+        bottom: 0;          /* ← position collante en bas */
+        background: transparent;
+        backdrop-filter: blur(6px);
     `;
 
     currentTagIds.forEach(tagId => {
@@ -2316,14 +2332,18 @@ function createNoteContent(contentContainer, options) {
     `;
 
     const tagInput = document.createElement('input');
+    tagInput.className = 'note-tags';
     tagInput.type = 'text';
     tagInput.placeholder = 'Ajouter une catégorie...';
     tagInput.style.cssText = `
+        border: none;
+        outline: none;
+        resize: none;
+        font-size: inherit;
         flex: 1;
         min-width: 100px;
         border: none;
         padding: 4px;
-        outline: none;
         font-size: 14px;
         background: transparent;
         color: inherit;
@@ -2349,6 +2369,11 @@ function createNoteContent(contentContainer, options) {
         const regex = new RegExp(query.split('').join('.*?'), 'i');
         return regex.test(text);
     };
+    
+    async function addTagToDatabase(value) {
+      const result = await window.flutter_inappwebview.callHandler('addTag', { tagName: value });    
+      if (result && result.tag) addTagToUI(result.tag);
+    }
 
     const showSuggestions = (filteredTags) => {
         suggestionsList.innerHTML = '';
@@ -2367,13 +2392,12 @@ function createNoteContent(contentContainer, options) {
                 white-space: nowrap;
             `;
             addNew.addEventListener('click', async () => {
-                const tagName = tagInput.value;
-                tagInput.value = '';
-                suggestionsList.style.display = 'none';
-                const result = await window.flutter_inappwebview.callHandler('addTag', { tagName: tagName });
-                if (result && result.tag) addTagToUI(result.tag);
-                tagInput.focus();
+              tagInput.value = '';
+              suggestionsList.style.display = 'none';
+              addTagToDatabase(value);
+              tagInput.focus(); // seulement après l’await
             });
+
             suggestionsList.appendChild(addNew);
         }
 
@@ -2464,9 +2488,17 @@ function createNoteContent(contentContainer, options) {
     mainContainer.appendChild(tagsContainer);
     contentContainer.appendChild(mainContainer);
 
-    // 💡 Ajout de suggestionsList au body pour qu'elle soit en dehors du dialogue
+    // 💡 Suggestions en dehors du dialogue
     document.body.appendChild(suggestionsList);
 
+    // Lancements initiaux
+    setTimeout(() => {
+        autoResizeTitle();
+        autoResize();
+    }, 0);
+    window.addEventListener('resize', autoResize);
+
+    // Sauvegarde live
     const saveChanges = () => {
         const titleVal = titleElement.value;
         const contentVal = contentElement.value;
@@ -2495,19 +2527,16 @@ function createNoteContent(contentContainer, options) {
             addTag();
         }
     });
-    
+
     const cleanup = () => {
         if (suggestionsList && suggestionsList.parentNode) {
             suggestionsList.remove();
         }
+        window.removeEventListener('resize', autoResize);
     };
 
     if (dialogElement) {
         dialogElement.addEventListener('close', cleanup);
-    }
-
-    // ✅ Assurer que la suggestionList est retirée du DOM
-    if(dialogElement) {
         dialogElement.addEventListener('dialogClosed', cleanup);
     }
 }
@@ -3996,36 +4025,90 @@ function createOptionsMenu(noteGuid, popup, isDark) {
           }
           
           let isTouchDragging = false;
-          let dragTouchOffsetY = 0;
-
-          document.addEventListener("touchmove", (e) => {
-            if (!isTouchDragging) return;
           
-            const touchY = e.touches[0].clientY;
-            const newTop = touchY - dragTouchOffsetY;
+          // Variable globale pour stocker l'ID du timer
+          let scrollBarTimeout;
           
-            const visibleHeight = window.innerHeight - 110; // 90 top + 90 bottom
-            const minTop = 90;
-            const maxTop = 90 + (visibleHeight - scrollBar.offsetHeight); // position max réelle
+          function hideScrollBar() {
+            scrollBar.style.opacity = '0';
+            scrollBar.addEventListener('transitionend', function handler() {
+              scrollBar.style.display = 'none';
+              scrollBar.removeEventListener('transitionend', handler);
+            });
+          }
           
-            const clampedTop = Math.max(minTop, Math.min(newTop, maxTop));
-            scrollBar.style.top = `\${clampedTop}px`;
+          function showScrollBar() {
+            clearTimeout(scrollBarTimeout);
+            
+            // 1. Rendre l'élément visible de façon instantanée, sans opacité
+            scrollBar.style.transition = 'none';
+            scrollBar.style.display = 'block';
+            
+            // 2. Forcer un "reflow" du navigateur pour qu'il reconnaisse le changement de 'display'.
+            // C'est l'étape clé pour que l'opacité ne soit pas animée.
+            // En accédant à une propriété comme offsetHeight, on force le navigateur à recalculer la mise en page.
+            scrollBar.offsetHeight; 
+            
+            // 3. Réactiver la transition et changer l'opacité
+            scrollBar.style.transition = 'opacity 0.5s ease-in-out';
+            scrollBar.style.opacity = '1';
           
-            const scrollRatio = (clampedTop - 90) / (visibleHeight - scrollBar.offsetHeight);
-            const scrollableHeight = pageCenter.scrollHeight - pageCenter.clientHeight;
+            // 4. Relance le minuteur pour cacher la barre après un court délai
+            scrollBarTimeout = setTimeout(hideScrollBar, 500); 
+          }
           
-            pageCenter.scrollTop = scrollRatio * scrollableHeight;
+          function setupScrollBar() {
+            // Ajouter la scrollBar
+            scrollBar = document.createElement('img');
+            scrollBar.className = 'scroll-bar';
+            scrollBar.src = speedBarScroll;
+            scrollBar.style.transition = 'opacity 0.5s ease-in-out'; // Pour une disparition en douceur
           
-            e.preventDefault();
-          }, { passive: false });
-          
-          document.addEventListener("touchend", () => {
-            isTouchDragging = false;
-          });
-          
-          document.addEventListener("touchcancel", () => {
-            isTouchDragging = false;
-          });
+            scrollBar.addEventListener("touchstart", (e) => {
+              if (e.touches.length !== 1) return;
+              isTouchDragging = true;
+              e.preventDefault(); // bloque le scroll natif
+            }, { passive: false });
+            
+            scrollBar.addEventListener("touchmove", (e) => {
+              if (!isTouchDragging) return;
+            
+              const touchY = controlsVisible ? e.touches[0].clientY - scrollBar.offsetHeight : e.touches[0].clientY;
+            
+              // Calcul des hauteurs de barres en fonction de l'état des contrôles
+              const currentAppBarHeight = APPBAR_FIXED_HEIGHT;
+              const currentBottomNavBarHeight = controlsVisible ? (BOTTOMNAVBAR_FIXED_HEIGHT + (audioPlayerVisible ? AUDIO_PLAYER_HEIGHT : 0)) : 0;
+              
+              // La hauteur visible dépend maintenant de l'état des contrôles
+              const visibleHeight = window.innerHeight - currentAppBarHeight - currentBottomNavBarHeight;
+              
+              // Les positions min et max de la scrollbar dépendent aussi de l'état des contrôles
+              const minTop = currentAppBarHeight;
+              const maxTop = currentAppBarHeight + (visibleHeight - scrollBar.offsetHeight); 
+            
+              const clampedTop = Math.max(minTop, Math.min(touchY, maxTop));
+            
+              // Le ratio de défilement doit être calculé par rapport à la zone visible
+              const scrollRatio = (clampedTop - minTop) / (maxTop - minTop);
+              
+              const scrollableHeight = pageCenter.scrollHeight - pageCenter.clientHeight;
+              pageCenter.scrollTop = scrollRatio * scrollableHeight;
+              e.preventDefault();
+            }, { passive: false });
+            
+            scrollBar.addEventListener("touchend", () => {
+              isTouchDragging = false;
+            });
+            
+            scrollBar.addEventListener("touchcancel", () => {
+              isTouchDragging = false;
+            });
+            
+            document.body.appendChild(scrollBar);
+            
+            // Appelle la fonction une première fois pour cacher la barre au chargement
+            scrollBarTimeout = setTimeout(hideScrollBar, 3000);
+          }
           
           async function init() {
             // Masquer le contenu avant le chargement
@@ -4035,11 +4118,11 @@ function createOptionsMenu(noteGuid, popup, isDark) {
             await loadIndexPage(currentIndex, true);
             pageCenter.scrollTop = 0;
             pageCenter.scrollLeft = 0;
-            
-            pageCenter.classList.add('visible');
-            
+              
             // Afficher la page (avec fondu)
             window.flutter_inappwebview.callHandler('fontsLoaded');
+            
+            pageCenter.classList.add('visible');
             
             const curr = cachedPages[currentIndex];
             if (curr.preferredPresentation !== 'image' || !imageMode) {
@@ -4047,26 +4130,13 @@ function createOptionsMenu(noteGuid, popup, isDark) {
               wrapWordsWithSpan(article, isBible());
             } 
           
-            // Ajouter la scrollBar
-            scrollBar = document.createElement('img');
-            scrollBar.className = 'scroll-bar';
-            scrollBar.src = speedBarScroll;
-            scrollBar.addEventListener("touchstart", (e) => {
-              if (e.touches.length !== 1) return;
-              isTouchDragging = true;
-          
-              const touchY = e.touches[0].clientY;
-              dragTouchOffsetY = touchY - scrollBar.getBoundingClientRect().top;
-          
-              e.preventDefault(); // bloque le scroll natif
-            }, { passive: false });
-            document.body.appendChild(scrollBar);
+            setupScrollBar();
           
             // Informer Flutter que la page principale est chargée
             await window.flutter_inappwebview.callHandler('changePageAt', currentIndex);
           
             // Attendre que les polices soient prêtes
-            await document.fonts.ready;
+            //await document.fonts.ready;
           
             // Charger les données utilisateur (notes/bookmarks, etc.)
             await loadUserdata();
@@ -4106,6 +4176,10 @@ function createOptionsMenu(noteGuid, popup, isDark) {
           const DIRECTION_CHANGE_THRESHOLD_PX = 40;
    
           pageCenter.addEventListener("scroll", () => {
+            // Appelle la fonction pour afficher la barre et relancer le minuteur
+            showScrollBar();
+          
+            // Votre code existant pour le défilement commence ici
             closeToolbar();
             if (isLongPressing || isChangingParagraph) return;
           
@@ -4114,10 +4188,15 @@ function createOptionsMenu(noteGuid, popup, isDark) {
             const clientHeight = pageCenter.clientHeight;
           
             const scrollDelta = scrollTop - lastScrollTop;
-            const scrollDirection = scrollDelta > 0 ? "down" : scrollDelta < 0 ? "up" : "none";
+            let scrollDirection = scrollDelta > 0 ? "down" : scrollDelta < 0 ? "up" : "none";
             const now = Date.now();
           
-            // Détection de changement de direction
+            // If we reach the top of the page, force the direction to 'up' to show the controls.
+            if (scrollTop === 0) {
+              scrollDirection = "up";
+            }
+          
+            // Détection de changement de direction pour la gestion des contrôles
             if (
               scrollDirection !== "none" &&
               scrollDirection !== lastDirection &&
@@ -4129,12 +4208,15 @@ function createOptionsMenu(noteGuid, popup, isDark) {
               directionChangeTargetDirection = scrollDirection;
             }
           
-            // Validation d’un geste franc
+            // Validation d’un geste franc pour afficher/masquer les contrôles et appeler l'handler Flutter
             if (directionChangePending && scrollDirection === directionChangeTargetDirection) {
               const timeDiff = now - directionChangeStartTime;
               const scrollDiff = Math.abs(scrollTop - directionChangeStartScroll);
           
-              if (timeDiff < DIRECTION_CHANGE_THRESHOLD_MS && scrollDiff > DIRECTION_CHANGE_THRESHOLD_PX) {
+              // Si on est à scrollTop = 0, on force l'affichage
+              const isAtTop = scrollTop === 0;
+          
+              if (isAtTop || (timeDiff < DIRECTION_CHANGE_THRESHOLD_MS && scrollDiff > DIRECTION_CHANGE_THRESHOLD_PX)) {
                 if(isFullscreenMode) {
                   window.flutter_inappwebview.callHandler('onScroll', scrollTop, scrollDirection);
                   lastDirection = scrollDirection;
@@ -4144,44 +4226,39 @@ function createOptionsMenu(noteGuid, popup, isDark) {
                   
                   if(scrollDirection === 'down') {
                      controlsVisible = false;
-                     if (!floatingButton) return;
-                     floatingButton.style.opacity = '0';
+                     if (floatingButton) floatingButton.style.opacity = '0';
                   }
-                  else if(scrollDirection === 'up') {
+                  else if (scrollDirection === 'up') {
                     controlsVisible = true;
-                    if (!floatingButton) return;
-                    floatingButton.style.opacity = '1';
+                    if (floatingButton) floatingButton.style.opacity = '1';
                   }
                 }
               } 
               else if (timeDiff >= DIRECTION_CHANGE_THRESHOLD_MS) {
                 directionChangePending = false;
               }
-            }
+            } 
           
+            // Mise à jour de la position de défilement à chaque scroll
             lastScrollTop = scrollTop;
             scrollTopPages[currentIndex] = scrollTop;
           
-            // Affichage automatique en haut de page
-            if (scrollTop === 0) {
-              appBarHeight = APPBAR_FIXED_HEIGHT;
-              bottomNavBarHeight = BOTTOMNAVBAR_FIXED_HEIGHT + (audioPlayerVisible ? AUDIO_PLAYER_HEIGHT : 0);
-            } else if (scrollDirection === 'down') {
-              // Masquer les barres
-              appBarHeight = 0;
-              bottomNavBarHeight = 0;
-            } else if (scrollDirection === 'up') {
-              // Afficher les barres
-              appBarHeight = APPBAR_FIXED_HEIGHT;
-              bottomNavBarHeight = BOTTOMNAVBAR_FIXED_HEIGHT + (audioPlayerVisible ? AUDIO_PLAYER_HEIGHT : 0);
-            }
+            // Calcul des hauteurs de barres en fonction de l'état des contrôles
+            const currentAppBarHeight = APPBAR_FIXED_HEIGHT;
+            const currentBottomNavBarHeight = controlsVisible ? (BOTTOMNAVBAR_FIXED_HEIGHT + (audioPlayerVisible ? AUDIO_PLAYER_HEIGHT : 0)) : 0;
           
-            // Scroll-bar
+            // Mise à jour de la scrollbar en utilisant les hauteurs de barres dynamiques
+            const visibleHeight = window.innerHeight - currentAppBarHeight - currentBottomNavBarHeight;
             const scrollableHeight = scrollHeight - clientHeight;
-            const visibleHeight = window.innerHeight - bottomNavBarHeight - APPBAR_FIXED_HEIGHT;
-            const scrollRatio = scrollTop / scrollableHeight;
-            const scrollBarTop = APPBAR_FIXED_HEIGHT + (visibleHeight - scrollBar.offsetHeight) * scrollRatio;
+            
+            let scrollBarTop = currentAppBarHeight;
+            if (scrollableHeight > 0) {
+              const scrollRatio = scrollTop / scrollableHeight;
+              scrollBarTop = currentAppBarHeight + (visibleHeight - scrollBar.offsetHeight) * scrollRatio;
+            }
+            
             scrollBar.style.top = `\${scrollBarTop}px`;
+            // Votre code existant pour le défilement se termine ici
           });
           
           // Variables globales pour éviter les redéclarations
@@ -4198,17 +4275,7 @@ function createOptionsMenu(noteGuid, popup, isDark) {
           let startX = 0;
           let startY = 0;
           let currentTranslate = -100;
-          
-          // Cache pour les sélecteurs fréquents
-          const selectorCache = new Map();
-          const getFromCache = (selector, parent = document) => {
-            const key = `\${selector}-\${parent === document ? 'doc' : 'elem'}`;
-            if (!selectorCache.has(key)) {
-              selectorCache.set(key, parent.querySelector(selector));
-            }
-            return selectorCache.get(key);
-          };
-          
+         
           // Throttle pour les événements de mouvement
           const throttle = (func, limit) => {
             let inThrottle;

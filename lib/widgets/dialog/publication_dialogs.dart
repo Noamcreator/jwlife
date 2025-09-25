@@ -2,59 +2,15 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:http/http.dart' as http;
-import 'package:jwlife/core/utils/files_helper.dart';
 import 'package:jwlife/core/utils/utils.dart';
-import 'package:jwlife/core/utils/utils_media.dart';
-import 'package:jwlife/data/realm/catalog.dart';
-import 'package:jwlife/widgets/dialog/utils_dialog.dart';
 import 'package:jwlife/widgets/image_cached_widget.dart';
 import 'package:open_file/open_file.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:sqflite/sqflite.dart';
 
 import '../../core/api/api.dart';
-import '../../core/utils/utils_video.dart';
-import '../../data/models/media.dart';
 import '../../data/models/video.dart';
-
-// Fonction pour afficher le dialogue de téléchargement
-Future<String?> showVideoDialog(BuildContext context, Video video) async {
-  File mediaCollectionFile = await getMediaCollectionsDatabaseFile();
-  Database db = await openDatabase(mediaCollectionFile.path, readOnly: true, version: 1);
-
-  final List<ConnectivityResult> connectivityResult = await (Connectivity().checkConnectivity());
-
-  if (video.isDownloadedNotifier.value) {
-    return _showLocalVideoDialog(context, video, connectivityResult);
-  }
-  else {
-    if(connectivityResult.contains(ConnectivityResult.wifi) || connectivityResult.contains(ConnectivityResult.mobile) || connectivityResult.contains(ConnectivityResult.ethernet)) {
-      final apiUrl = 'https://b.jw-cdn.org/apis/mediator/v1/media-items/${video.mepsLanguage}/${video.naturalKey}';
-      try {
-        final response = await http.get(Uri.parse(apiUrl));
-
-        if (response.statusCode == 200) {
-          final data = json.decode(response.body);
-          return _showOnlineVideoDialog(context, video, data);
-        }
-        else {
-          printTime('Loading error: ${response.statusCode}');
-        }
-      }
-      catch (e) {
-        printTime('An exception occurred: $e');
-      }
-    }
-    else {
-      showNoConnectionDialog(context);
-    }
-  }
-  return null; // Retourne null en cas d'échec
-}
 
 Future<String?> _showLocalVideoDialog(BuildContext context, Video video, List<ConnectivityResult> connectivityResult) {
   return showDialog<String>(
@@ -156,14 +112,14 @@ Future<String?> _showOnlineVideoDialog(BuildContext context, Video video, dynami
             mainAxisSize: MainAxisSize.min, // Pour ne pas remplir tout l'espace
             children: [
               Text(
-                "VIDÉO: " + data['media'][0]['title'],
+                "VIDÉO: ${data['media'][0]['title']}",
                 style: TextStyle(fontSize: 23, fontWeight: FontWeight.bold),
               ),
               SizedBox(height: 10),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text("Durée: " + data['media'][0]['durationFormattedMinSec']),
+                  Text("Durée: ${data['media'][0]['durationFormattedMinSec']}"),
                   Text("Date: ${DateFormat('dd/MM/yyyy').format(DateTime.parse(data['media'][0]['firstPublished']))}"),
                 ],
               ),

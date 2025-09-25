@@ -13,14 +13,13 @@ import 'package:jwlife/core/utils/utils_playlist.dart';
 import 'package:jwlife/data/models/audio.dart';
 import 'package:jwlife/data/realm/catalog.dart' as realm;
 import 'package:path_provider/path_provider.dart';
-import 'package:realm/realm.dart';
 import '../../app/jwlife_app.dart';
 import '../../core/icons.dart';
 import '../../core/utils/common_ui.dart';
 import '../../core/utils/utils.dart';
 import '../../core/utils/utils_video.dart';
-import '../../data/realm/realm_library.dart';
 import '../../widgets/image_cached_widget.dart';
+import '../../widgets/popupmenu_children_item.dart';
 import 'audio_player_model.dart';
 
 class AudioPlayerWidget extends StatefulWidget {
@@ -181,8 +180,7 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () {
-        BuildContext ctx = GlobalKeyService.jwLifePageKey.currentState!.navigatorKeys[GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex].currentState!.context;
-        showPage(ctx, FullAudioView());
+        showPage(FullAudioView());
       },
       child: Container(
         height: 80,
@@ -223,8 +221,8 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
                       ImageCachedWidget(
                           imageUrl: "",
                           pathNoImage: "pub_type_audio",
-                          height: 65,
-                          width: 65
+                          height: 50,
+                          width: 50
                       )
               ),
             ),
@@ -361,19 +359,18 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
                               children: [
                                 // Menu des paramètres
                                 PopupMenuButton(
-                                  icon: Icon(
-                                    JwIcons.gear,
-                                    size: 22,
-                                  ),
+                                  icon: Icon(JwIcons.gear, size: 22),
                                   onOpened: () => GlobalKeyService.jwLifePageKey.currentState!.togglePopMenuOpen(true),
                                   onSelected: (value) => GlobalKeyService.jwLifePageKey.currentState!.togglePopMenuOpen(false),
                                   onCanceled: () => GlobalKeyService.jwLifePageKey.currentState!.togglePopMenuOpen(false),
-                                  // augmenter la taille en largeur
                                   constraints: const BoxConstraints(minWidth: 2.0),
-                                  // monter le menu vers le haut
-                                  offset: const Offset(30, -385),
-                                  // animation de l'ouverture vers le haut
-                                  popUpAnimationStyle: AnimationStyle.noAnimation,
+                                  offset: const Offset(30, -350),
+                                  popUpAnimationStyle: AnimationStyle(
+                                    curve: Curves.fastLinearToSlowEaseIn,
+                                    duration: const Duration(milliseconds: 200),
+                                    reverseCurve: Curves.fastLinearToSlowEaseIn,
+                                    reverseDuration: const Duration(milliseconds: 200),
+                                  ),
                                   itemBuilder: (context) {
                                     String? keySymbol = _currentExtras?['keySymbol'];
                                     int? track = _currentExtras?['track'];
@@ -381,8 +378,7 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
                                     int? issueTagNumber = _currentExtras?['issueTagNumber'];
                                     String? mepsLanguage = _currentExtras?['mepsLanguage'];
 
-                                    realm.MediaItem? mediaItem;
-                                    mediaItem = getMediaItem(keySymbol, track, mepsDocumentId, issueTagNumber, mepsLanguage);
+                                    realm.MediaItem? mediaItem = getMediaItem(keySymbol, track, mepsDocumentId, issueTagNumber, mepsLanguage);
 
                                     final List<PopupMenuEntry> items = [];
 
@@ -405,174 +401,127 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
                                       );
                                     }
 
+                                    // ---- SOUS MENU VITESSE ----
                                     items.add(
                                       PopupMenuItem(
-                                        child: PopupMenuButton<String>(
-                                          color: Theme.of(context).brightness == Brightness.dark
-                                              ? const Color(0xFF3c3c3c)
-                                              : Colors.white,
-                                          child: Row(
-                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                            children: [
-                                              Row(
-                                                children: [
-                                                  Icon(_loopMode == LoopMode.off ? JwIcons.arrows_loop_crossed : _loopMode == LoopMode.all ? JwIcons.arrows_loop : JwIcons.arrows_loop_1),
-                                                  const SizedBox(width: 8),
-                                                  Text('Répéter · ${_loopMode == LoopMode.off
-                                                      ? 'Inactif'
-                                                      : _loopMode == LoopMode.all
-                                                      ? 'Toutes les pistes'
-                                                      : 'La piste'}'),
-                                                ],
-                                              ),
-                                              const Icon(JwIcons.chevron_right),
+                                        onTap: () async {
+                                          final value = await showMenu<double>(
+                                            context: context,
+                                            popUpAnimationStyle: AnimationStyle(
+                                              curve: Curves.fastLinearToSlowEaseIn,
+                                              duration: const Duration(milliseconds: 200),
+                                              reverseCurve: Curves.fastLinearToSlowEaseIn,
+                                              reverseDuration: const Duration(milliseconds: 200),
+                                            ),
+                                            position: RelativeRect.fromLTRB(30, 150, 0, 0),
+                                            items: <PopupMenuEntry<double>>[
+                                              _speedItem(2.0, 'Rapide'),
+                                              _speedItem(1.8),
+                                              _speedItem(1.6),
+                                              _speedItem(1.4),
+                                              _speedItem(1.2),
+                                              _speedItem(1.1),
+                                              _speedItem(1.0, 'Normale'),
+                                              _speedItem(0.9),
+                                              _speedItem(0.8),
+                                              _speedItem(0.7),
+                                              _speedItem(0.6),
+                                              _speedItem(0.5, 'Lente'),
                                             ],
-                                          ),
-                                          onSelected: (String value) {
-                                            GlobalKeyService.jwLifePageKey.currentState!.togglePopMenuOpen(false);
-                                            switch (value) {
-                                              case 'off':
-                                                jwAudioPlayer.player.setLoopMode(LoopMode.off);
-                                                _loopMode = LoopMode.off;
-                                                break;
-                                              case 'all':
-                                                jwAudioPlayer.player.setLoopMode(LoopMode.all);
-                                                _loopMode = LoopMode.all;
-                                                break;
-                                              case 'one':
-                                                jwAudioPlayer.player.setLoopMode(LoopMode.one);
-                                                _loopMode = LoopMode.one;
-                                                break;
-                                            }
-                                          },
-                                          itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-                                            const PopupMenuItem<String>(
-                                              value: 'off',
-                                              child: Text('Inactif'),
-                                            ),
-                                            const PopupMenuItem<String>(
-                                              value: 'all',
-                                              child: Text('Toutes les pistes'),
-                                            ),
-                                            const PopupMenuItem<String>(
-                                              value: 'one',
-                                              child: Text('La piste'),
-                                            ),
-                                          ],
-                                          onOpened: () => GlobalKeyService.jwLifePageKey.currentState!.togglePopMenuOpen(true),
-                                          onCanceled: () => GlobalKeyService.jwLifePageKey.currentState!.togglePopMenuOpen(false),
-                                        ),
-                                      ),
-                                    );
-
-                                    // Ajout de l’élément dans items
-                                    items.add(
-                                      PopupMenuItem(
-                                        child: PopupMenuButton<double>(
-                                          color: Theme.of(context).brightness == Brightness.dark
-                                              ? const Color(0xFF3c3c3c)
-                                              : Colors.white,
-                                          child: Row(
-                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                            children: [
-                                              Row(
-                                                children: [
-                                                  const Icon(JwIcons.speedometer),
-                                                  const SizedBox(width: 8),
-                                                  Text(buildSpeedLabel()),
-                                                ],
-                                              ),
-                                              const Icon(JwIcons.chevron_right),
-                                            ],
-                                          ),
-                                          onSelected: (double value) {
+                                          );
+                                          if (value != null) {
                                             setSpeed(value);
-                                          },
-                                          itemBuilder: (BuildContext context) => <PopupMenuEntry<double>>[
-                                            _speedItem(2.0, 'Rapide'),
-                                            _speedItem(1.8),
-                                            _speedItem(1.6),
-                                            _speedItem(1.4),
-                                            _speedItem(1.2),
-                                            _speedItem(1.1),
-                                            _speedItem(1.0, 'Normale'),
-                                            _speedItem(0.9),
-                                            _speedItem(0.8),
-                                            _speedItem(0.7),
-                                            _speedItem(0.6),
-                                            _speedItem(0.5, 'Lente'),
+                                          }
+                                        },
+                                        child: Row(
+                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            Row(
+                                              children: [
+                                                const Icon(JwIcons.speedometer),
+                                                const SizedBox(width: 8),
+                                                Text(buildSpeedLabel()),
+                                              ],
+                                            ),
+                                            const Icon(JwIcons.chevron_right),
                                           ],
                                         ),
                                       ),
                                     );
 
+                                    // ---- SOUS MENU SHUFFLE ----
                                     items.add(
                                       PopupMenuItem(
-                                        child: PopupMenuButton<String>(
-                                          color: Theme.of(context).brightness == Brightness.dark
-                                              ? const Color(0xFF3c3c3c)
-                                              : Colors.white,
-                                          child: Row(
-                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                            children: [
-                                              Row(
-                                                children: [
-                                                  Icon(JwIcons.arrows_twisted_right),
-                                                  const SizedBox(width: 8),
-                                                  Text('Lecture aléatoire · ${_shuffleMode ? 'Activé' : 'Inactif'}'),
-                                                ],
+                                        onTap: () async {
+                                          final value = await showMenu<String>(
+                                            context: context,
+                                            position: RelativeRect.fromLTRB(30, 625, 0, 0),
+                                            popUpAnimationStyle: AnimationStyle(
+                                              curve: Curves.fastLinearToSlowEaseIn,
+                                              duration: const Duration(milliseconds: 200),
+                                              reverseCurve: Curves.fastLinearToSlowEaseIn,
+                                              reverseDuration: const Duration(milliseconds: 200),
+                                            ),
+                                            items: const [
+                                              PopupMenuItem<String>(
+                                                value: 'off',
+                                                child: Text('Inactif'),
                                               ),
-                                              const Icon(JwIcons.chevron_right),
+                                              PopupMenuItem<String>(
+                                                value: 'on',
+                                                child: Text('Activé'),
+                                              ),
                                             ],
-                                          ),
-                                          onSelected: (String value) {
-                                            switch (value) {
-                                              case 'off':
-                                                jwAudioPlayer.player.setShuffleModeEnabled(false);
-                                                break;
-                                              case 'on':
-                                                jwAudioPlayer.player.setShuffleModeEnabled(true);
-                                                break;
-                                            }
-                                          },
-                                          itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-                                            const PopupMenuItem<String>(
-                                              value: 'off',
-                                              child: Text('Inactif'),
+                                          );
+                                          if (value != null) {
+                                            jwAudioPlayer.player.setShuffleModeEnabled(value == 'on');
+                                          }
+                                        },
+                                        child: Row(
+                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            Row(
+                                              children: [
+                                                Icon(JwIcons.arrows_twisted_right),
+                                                const SizedBox(width: 8),
+                                                Text('Lecture aléatoire · ${_shuffleMode ? 'Activé' : 'Inactif'}'),
+                                              ],
                                             ),
-                                            const PopupMenuItem<String>(
-                                              value: 'on',
-                                              child: Text('Activé'),
-                                            ),
+                                            const Icon(JwIcons.chevron_right),
                                           ],
                                         ),
                                       ),
                                     );
 
+                                    // ---- SOUS MENU LOOP ----
                                     items.add(
                                       PopupMenuItem(
-                                        child: PopupMenuButton<String>(
-                                          color: Theme.of(context).brightness == Brightness.dark
-                                              ? const Color(0xFF3c3c3c)
-                                              : Colors.white,
-                                          child: Row(
-                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                            children: [
-                                              Row(
-                                                children: [
-                                                  Icon(_loopMode == LoopMode.off ? JwIcons.arrows_loop_crossed : _loopMode == LoopMode.all ? JwIcons.arrows_loop : JwIcons.arrows_loop_1),
-                                                  const SizedBox(width: 8),
-                                                  Text('Répéter · ${_loopMode == LoopMode.off
-                                                      ? 'Inactif'
-                                                      : _loopMode == LoopMode.all
-                                                      ? 'Toutes les pistes'
-                                                      : 'La piste'}'),
-                                                ],
+                                        onTap: () async {
+                                          final value = await showMenu<String>(
+                                            context: context,
+                                            popUpAnimationStyle: AnimationStyle(
+                                              curve: Curves.fastLinearToSlowEaseIn,
+                                              duration: const Duration(milliseconds: 200),
+                                              reverseCurve: Curves.fastLinearToSlowEaseIn,
+                                              reverseDuration: const Duration(milliseconds: 200),
+                                            ),
+                                            position: RelativeRect.fromLTRB(30, 580, 0, 0),
+                                            items: const [
+                                              PopupMenuItem<String>(
+                                                value: 'off',
+                                                child: Text('Inactif'),
                                               ),
-                                              const Icon(JwIcons.chevron_right),
+                                              PopupMenuItem<String>(
+                                                value: 'all',
+                                                child: Text('Toutes les pistes'),
+                                              ),
+                                              PopupMenuItem<String>(
+                                                value: 'one',
+                                                child: Text('La piste'),
+                                              ),
                                             ],
-                                          ),
-                                          onSelected: (String value) {
+                                          );
+                                          if (value != null) {
                                             switch (value) {
                                               case 'off':
                                                 jwAudioPlayer.player.setLoopMode(LoopMode.off);
@@ -587,45 +536,50 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
                                                 _loopMode = LoopMode.one;
                                                 break;
                                             }
-                                          },
-                                          itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-                                            const PopupMenuItem<String>(
-                                              value: 'off',
-                                              child: Text('Inactif'),
+                                          }
+                                        },
+                                        child: Row(
+                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            Row(
+                                              children: [
+                                                Icon(_loopMode == LoopMode.off
+                                                    ? JwIcons.arrows_loop_crossed
+                                                    : _loopMode == LoopMode.all
+                                                    ? JwIcons.arrows_loop
+                                                    : JwIcons.arrows_loop_1),
+                                                const SizedBox(width: 8),
+                                                Text('Répéter · ${_loopMode == LoopMode.off ? 'Inactif' : _loopMode == LoopMode.all ? 'Toutes les pistes' : 'La piste'}'),
+                                              ],
                                             ),
-                                            const PopupMenuItem<String>(
-                                              value: 'all',
-                                              child: Text('Toutes les pistes'),
-                                            ),
-                                            const PopupMenuItem<String>(
-                                              value: 'one',
-                                              child: Text('La piste'),
-                                            ),
+                                            const Icon(JwIcons.chevron_right),
                                           ],
                                         ),
                                       ),
                                     );
 
+                                    // ---- SOUS MENU PITCH ----
                                     items.add(
                                       PopupMenuItem(
-                                        child: PopupMenuButton<String>(
-                                          color: Theme.of(context).brightness == Brightness.dark
-                                              ? const Color(0xFF3c3c3c)
-                                              : Colors.white,
-                                          child: Row(
-                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                            children: [
-                                              Row(
-                                                children: [
-                                                  const Icon(JwIcons.arrows_up_down),
-                                                  const SizedBox(width: 8),
-                                                  Text(buildPitchLabel()),
-                                                ],
-                                              ),
-                                              const Icon(JwIcons.chevron_right),
+                                        onTap: () async {
+                                          final value = await showMenu<String>(
+                                            context: context,
+                                            popUpAnimationStyle: AnimationStyle(
+                                              curve: Curves.fastLinearToSlowEaseIn,
+                                              duration: const Duration(milliseconds: 200),
+                                              reverseCurve: Curves.fastLinearToSlowEaseIn,
+                                              reverseDuration: const Duration(milliseconds: 200),
+                                            ),
+                                            position: RelativeRect.fromLTRB(30, 480, 0, 0),
+                                            items: const [
+                                              PopupMenuItem<String>(value: 'pitch2', child: Text('+2 demi-tons au-dessus')),
+                                              PopupMenuItem<String>(value: 'pitch1', child: Text('+1 demi-ton au-dessus')),
+                                              PopupMenuItem<String>(value: 'pitch0', child: Text('Pitch normal')),
+                                              PopupMenuItem<String>(value: 'pitch-1', child: Text('-1 demi-ton en dessous')),
+                                              PopupMenuItem<String>(value: 'pitch-2', child: Text('-2 demi-tons en dessous')),
                                             ],
-                                          ),
-                                          onSelected: (String value) {
+                                          );
+                                          if (value != null) {
                                             switch (value) {
                                               case 'pitch2':
                                                 setPitchBySemitone(2);
@@ -643,28 +597,19 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
                                                 setPitchBySemitone(-2);
                                                 break;
                                             }
-                                          },
-                                          itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-                                            const PopupMenuItem<String>(
-                                              value: 'pitch2',
-                                              child: Text('+2 demi-tons au-dessus'),
+                                          }
+                                        },
+                                        child: Row(
+                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            Row(
+                                              children: [
+                                                const Icon(JwIcons.arrows_up_down),
+                                                const SizedBox(width: 8),
+                                                Text(buildPitchLabel()),
+                                              ],
                                             ),
-                                            const PopupMenuItem<String>(
-                                              value: 'pitch1',
-                                              child: Text('+1 demi-ton au-dessus'),
-                                            ),
-                                            const PopupMenuItem<String>(
-                                              value: 'pitch0',
-                                              child: Text('Pitch normal'),
-                                            ),
-                                            const PopupMenuItem<String>(
-                                              value: 'pitch-1',
-                                              child: Text('-1 demi-ton en dessous'),
-                                            ),
-                                            const PopupMenuItem<String>(
-                                              value: 'pitch-2',
-                                              child: Text('-2 demi-tons en dessous'),
-                                            ),
+                                            const Icon(JwIcons.chevron_right),
                                           ],
                                         ),
                                       ),

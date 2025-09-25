@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:html/parser.dart' as html_parser;
 
 import '../../../core/api/api.dart';
@@ -94,7 +93,7 @@ class _ChapterBiblePageState extends State<ChapterBiblePage> {
   Widget _buildChapterContainer(Chapter chapter) {
     return InkWell(
       onTap: () {
-        //showPage(context, BibleView(book: widget.book, chapter: chapter));
+        //showPage(BibleView(book: widget.book, chapter: chapter));
       },
       child: Container(
         decoration: const BoxDecoration(

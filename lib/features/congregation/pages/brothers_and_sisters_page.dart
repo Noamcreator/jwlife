@@ -268,7 +268,7 @@ class _BrothersAndSistersPageState extends State<BrothersAndSistersPage> {
                 children: _brothersAndSisters.map((brother) {
                   return GestureDetector(
                     onTap: () {
-                      showPage(context, ContactEditorPage(congregationId: _selectedCongregationId!, id: brother['id']));
+                      showPage(ContactEditorPage(congregationId: _selectedCongregationId!, id: brother['id']));
                     },
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),

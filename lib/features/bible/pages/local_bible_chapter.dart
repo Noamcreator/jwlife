@@ -10,10 +10,8 @@ import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/core/utils/files_helper.dart';
 import 'package:jwlife/core/utils/utils_document.dart';
 import 'package:jwlife/core/utils/utils_jwpub.dart';
-import 'package:jwlife/data/models/audio.dart';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/databases/history.dart';
-import 'package:jwlife/features/publication/pages/document/local/document_page.dart';
 import 'package:jwlife/widgets/dialog/language_dialog_pub.dart';
 import 'package:jwlife/widgets/responsive_appbar_actions.dart';
 import 'package:share_plus/share_plus.dart';
@@ -253,10 +251,10 @@ class _LocalChapterBiblePageState extends State<LocalChapterBiblePage> {
                   Bookmark? bookmark = await showBookmarkDialog(context, widget.bible);
                   if (bookmark != null) {
                     if(bookmark.location.bookNumber!= null && bookmark.location.chapterNumber != null) {
-                      showPageBibleChapter(context, widget.bible, bookmark.location.bookNumber!, bookmark.location.chapterNumber!, firstVerse: bookmark.blockIdentifier, lastVerse: bookmark.blockIdentifier);
+                      showPageBibleChapter(widget.bible, bookmark.location.bookNumber!, bookmark.location.chapterNumber!, firstVerse: bookmark.blockIdentifier, lastVerse: bookmark.blockIdentifier);
                     }
                     else if(bookmark.location.mepsDocumentId != null) {
-                      showPageDocument(context, widget.bible, bookmark.location.mepsDocumentId!, startParagraphId: bookmark.blockIdentifier, endParagraphId: bookmark.blockIdentifier);
+                      showPageDocument(widget.bible, bookmark.location.mepsDocumentId!, startParagraphId: bookmark.blockIdentifier, endParagraphId: bookmark.blockIdentifier);
                     }
                   }
                 },
@@ -271,7 +269,7 @@ class _LocalChapterBiblePageState extends State<LocalChapterBiblePage> {
                     builder: (context) => languageDialog,
                   ).then((value) {
                     if (value != null) {
-                      //showPage(context, PublicationMenu(publication: widget.bible, publicationLanguage: value));
+                      //showPage(PublicationMenu(publication: widget.bible, publicationLanguage: value));
                     }
                   });
                 },
@@ -428,7 +426,7 @@ class _LocalChapterBiblePageState extends State<LocalChapterBiblePage> {
                     ),
                   ),
                   onPressed: () {
-                    showPageDocument(context, widget.bible, bookData.bookInfo['MepsDocumentId']);
+                    showPageDocument(widget.bible, bookData.bookInfo['MepsDocumentId']);
                   },
                   child: Padding(
                       padding: const EdgeInsets.symmetric(vertical: 16.0),
@@ -512,7 +510,7 @@ class _LocalChapterBiblePageState extends State<LocalChapterBiblePage> {
                     ),
                   ),
                   onPressed: () {
-                    //showPage(context, PageLocalDocumentView(publication: widget.bible, mepsDocumentId: bookData.bookInfo['MepsDocumentId']));
+                    //showPage(PageLocalDocumentView(publication: widget.bible, mepsDocumentId: bookData.bookInfo['MepsDocumentId']));
                   },
                   child: Padding(
                       padding: const EdgeInsets.symmetric(vertical: 16.0),
@@ -536,7 +534,7 @@ class _LocalChapterBiblePageState extends State<LocalChapterBiblePage> {
   Widget _buildChapterContainer(BookData bookData, dynamic chapter) {
     return InkWell(
       onTap: () {
-        showPageBibleChapter(context, widget.bible, bookData.bookInfo['BibleBookId'], chapter['ChapterNumber']);
+        showPageBibleChapter(widget.bible, bookData.bookInfo['BibleBookId'], chapter['ChapterNumber']);
       },
       child: Container(
         decoration: const BoxDecoration(

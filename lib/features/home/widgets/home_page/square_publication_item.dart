@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../../../app/jwlife_app.dart';
 import '../../../../core/icons.dart';
 import '../../../../core/utils/utils_pub.dart';
 import '../../../../data/models/publication.dart';

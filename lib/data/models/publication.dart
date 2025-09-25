@@ -141,6 +141,8 @@ class Publication {
       existing.lastModified = json['LastModified'] ?? existing.lastModified;
       existing.conventionReleaseDayNumber = json['ConventionReleaseDayNumber'] ?? existing.conventionReleaseDayNumber;
       existing.isFavoriteNotifier.value = isFavorite ?? existing.isFavoriteNotifier.value;
+      existing.networkImageSqr = json['ImageSqr'] != null ? json['ImageSqr'].toString().startsWith("/data") ? null : "https://app.jw-cdn.org/catalogs/publications/${json['ImageSqr']}" : existing.networkImageSqr;
+      existing.networkImageLsr = json['ImageLsr'] != null ? json['ImageLsr'].toString().startsWith("/data") ? null : "https://app.jw-cdn.org/catalogs/publications/${json['ImageLsr']}" : existing.networkImageLsr;
       return existing;
     }
 
@@ -222,7 +224,7 @@ class Publication {
     }
     else {
       BuildContext context = GlobalKeyService.jwLifePageKey.currentState!.getCurrentState().context;
-      showBottomMessageWithAction(context, getTitle(), SnackBarAction(label: 'Ouvrir', onPressed: () {
+      showBottomMessageWithAction(getTitle(), SnackBarAction(label: 'Ouvrir', onPressed: () {
         showMenu(context);
       }));
     }
@@ -281,7 +283,7 @@ class Publication {
       _downloadOperation!.cancel();
       _cancelToken = null;
       _downloadOperation = null;
-      showBottomMessage(context, 'Téléchargement annulé');
+      showBottomMessage('Téléchargement annulé');
     }
   }
 
@@ -339,7 +341,7 @@ class Publication {
       _updateOperation!.cancel();
       _cancelToken = null;
       _updateOperation = null;
-      showBottomMessage(context, 'Mis à jour annulée');
+      showBottomMessage('Mis à jour annulée');
     }
   }
 
@@ -360,7 +362,7 @@ class Publication {
     isDownloadedNotifier.value = false;
     progressNotifier.value = 0;
 
-    showBottomMessage(context, 'Publication supprimée');
+    showBottomMessage('Publication supprimée');
 
     if (category.id == 1) {
       GlobalKeyService.bibleKey.currentState?.refreshBiblePage();
@@ -373,11 +375,11 @@ class Publication {
 
   Future<void> showMenu(BuildContext context) async {
     if(isDownloadedNotifier.value && !isDownloadingNotifier.value) {
-      await showPage(context, PublicationMenuView(publication: this));
+      await showPage(PublicationMenuView(publication: this));
     }
     else {
       if(await hasInternetConnection()) {
-        await showPage(context, PublicationMenu(publication: this));
+        await showPage(PublicationMenu(publication: this));
         //await download(context);
       }
       else {

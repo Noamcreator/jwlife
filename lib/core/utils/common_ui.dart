@@ -10,11 +10,11 @@ import '../../data/models/publication.dart';
 import '../../features/audio/audio_player_widget.dart';
 import '../../features/image/image_page.dart';
 
-Future<void> showPageDocument(BuildContext context, Publication publication, int mepsDocumentId, {int? startParagraphId, int? endParagraphId, String? textTag, List<String>? wordsSelected}) async {
+Future<void> showPageDocument(Publication publication, int mepsDocumentId, {int? startParagraphId, int? endParagraphId, String? textTag, List<String>? wordsSelected}) async {
   final GlobalKey<DocumentPageState> documentPageKey = GlobalKey<DocumentPageState>();
   GlobalKeyService.jwLifePageKey.currentState!.webViewPageKeys[GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex].add(documentPageKey);
 
-  return showPage(context, DocumentPage(
+  await showPage(DocumentPage(
       key: documentPageKey,
       publication: publication,
       mepsDocumentId: mepsDocumentId,
@@ -26,11 +26,11 @@ Future<void> showPageDocument(BuildContext context, Publication publication, int
   );
 }
 
-Future<void> showPageBibleChapter(BuildContext context, Publication bible, int book, int chapter, {int? firstVerse, int? lastVerse, List<String>? wordsSelected}) async {
+Future<void> showPageBibleChapter(Publication bible, int book, int chapter, {int? firstVerse, int? lastVerse, List<String>? wordsSelected}) async {
   final GlobalKey<DocumentPageState> documentPageKey = GlobalKey<DocumentPageState>();
   GlobalKeyService.jwLifePageKey.currentState!.webViewPageKeys[GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex].add(documentPageKey);
 
-  return showPage(context, DocumentPage.bible(
+  await showPage(DocumentPage.bible(
       key: documentPageKey,
       bible: bible,
       book: book,
@@ -38,18 +38,18 @@ Future<void> showPageBibleChapter(BuildContext context, Publication bible, int b
       firstVerse: firstVerse,
       lastVerse: lastVerse,
       wordsSelected: wordsSelected ?? []
-  )
+    )
   );
 }
 
-Future<void> showPageDailyText(BuildContext context, Publication publication, {DateTime? date}) async {
+Future<void> showPageDailyText(Publication publication, {DateTime? date}) async {
   final GlobalKey<DailyTextPageState> dailyTextKey = GlobalKey<DailyTextPageState>();
   GlobalKeyService.jwLifePageKey.currentState!.webViewPageKeys[GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex].add(dailyTextKey);
 
-  return showPage(context, DailyTextPage(key: dailyTextKey, publication: publication, date: date));
+  await showPage(DailyTextPage(key: dailyTextKey, publication: publication, date: date));
 }
 
-Future<void> showPage(BuildContext context, Widget page) async {
+Future<void> showPage(Widget page) async {
   GlobalKeyService.jwLifePageKey.currentState!.addPageToTab(page);
 
   final isFullscreenPage = page is VideoPlayerPage ||
@@ -65,7 +65,7 @@ Future<void> showPage(BuildContext context, Widget page) async {
 
   GlobalKeyService.jwLifePageKey.currentState!.toggleResizeToAvoidBottomInset(isResizeToAvoidBottomInset);
 
-  await Navigator.of(context).push(
+  await GlobalKeyService.jwLifePageKey.currentState!.getCurrentState().push(
     PageRouteBuilder(
       pageBuilder: (context, animation, secondaryAnimation) => page,
       transitionsBuilder: (context, animation, secondaryAnimation, child) => child,
@@ -115,62 +115,46 @@ Future<void> showPage(BuildContext context, Widget page) {
 
  */
 
-void showBottomMessageWithActionState(ScaffoldMessengerState messenger, bool isDark, String message, SnackBarAction? action) {
+void showBottomMessageWithAction(String message, SnackBarAction? action) {
+  final pageState = GlobalKeyService.jwLifePageKey.currentState;
+  final context = pageState!.getCurrentState().context;
+
+  final isDark = Theme.of(context).brightness == Brightness.dark;
+  final isAudioPlayerVisible = pageState.audioWidgetVisible;
+  final isNavBarDisabled = pageState.navBarIsDisable[pageState.currentNavigationBottomBarIndex];
+  final bottomPadding = isNavBarDisabled ? (isAudioPlayerVisible ? 130.0 : 55.0) : (isAudioPlayerVisible ? 80.0 : 0.0);
+
+  final messenger = ScaffoldMessenger.of(context);
+
+  // 1) Nettoyer toute la file (actuel + en file d'attente)
   messenger.clearSnackBars();
-  final isAudioPlayerWidget = GlobalKeyService.jwLifePageKey.currentState!.audioWidgetVisible;
-  final bottomPadding = GlobalKeyService.jwLifePageKey.currentState!.navBarIsDisable[GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex] ? (isAudioPlayerWidget ? 140.0 : 70.0) : 0.0;
+  // (Alternative agressive si tu veux éviter l’animation : messenger.removeCurrentSnackBar();)
 
-  final controller = messenger.showSnackBar(
+  messenger.showSnackBar(
     SnackBar(
       action: action,
-      duration: const Duration(seconds: 1),
-      content: Text(message, style: TextStyle(color: isDark ? Colors.black : Colors.white, fontSize: 15)),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10.0),
-      ),
-      margin: EdgeInsets.only(bottom: bottomPadding),
+      duration: const Duration(seconds: 2),
       behavior: SnackBarBehavior.floating,
-      backgroundColor: isDark ? Color(0xFFf1f1f1) : Color(0xFF3c3c3c),
-    ),
-  );
-
-  Future.delayed(Duration(seconds: 2), () {
-    controller.close(); // force la fermeture
-  });
-}
-
-void showBottomMessageWithAction(BuildContext context, String message, SnackBarAction? action) {
-  bool isDark = Theme.of(context).brightness == Brightness.dark;
-  final isAudioPlayerWidget = GlobalKeyService.jwLifePageKey.currentState!.audioWidgetVisible;
-  final bottomPadding = GlobalKeyService.jwLifePageKey.currentState!.navBarIsDisable[GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex] ? (isAudioPlayerWidget ? 140.0 : 80.0) : 0.0;
-  final horizontalMargin = 10.0; // marge à gauche/droite
-  final bottomMargin = bottomPadding + 10.0; // décalage du bas
-
-  ScaffoldMessenger.of(context).clearSnackBars();
-  ScaffoldFeatureController controller = ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(
-      action: action,
-      duration: const Duration(seconds: 1),
+      margin: EdgeInsets.fromLTRB(10, 0, 10, bottomPadding + 10),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      backgroundColor: isDark ? const Color(0xFFf1f1f1) : const Color(0xFF3c3c3c),
       content: Text(
         message,
-        style: TextStyle(color: isDark ? Colors.black : Colors.white, fontSize: 15),
+        style: TextStyle(
+          color: isDark ? Colors.black : Colors.white,
+          fontSize: 15,
+        ),
       ),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12.0), // coins arrondis pour flotter
-      ),
-      margin: EdgeInsets.fromLTRB(horizontalMargin, 0, horizontalMargin, bottomMargin),
-      behavior: SnackBarBehavior.floating,
-      backgroundColor: isDark ? Color(0xFFf1f1f1) : Color(0xFF3c3c3c),
     ),
   );
 
-  Future.delayed(Duration(seconds: 2), () {
-    controller.close(); // force la fermeture
+  Future.delayed(const Duration(seconds: 1, milliseconds: 500), () {
+    messenger.removeCurrentSnackBar();
   });
 }
 
-void showBottomMessage(BuildContext context, String message) {
-  showBottomMessageWithAction(context, message, null);
+void showBottomMessage(String message) {
+  showBottomMessageWithAction(message, null);
 }
 
 Future<void> showErrorDialog(BuildContext context, String message) {

@@ -4,10 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
-import 'package:jwlife/data/models/userdata/tag.dart';
 import 'package:jwlife/features/personal/pages/playlist_page.dart';
 import '../../../data/models/userdata/playlist.dart';
-import '../../../widgets/image_cached_widget.dart';
 import '../widgets/empty_message.dart';
 
 class PlaylistsPage extends StatefulWidget {
@@ -67,7 +65,7 @@ class _PlaylistsPageState extends State<PlaylistsPage> {
               /*
               Note? note = await JwLifeApp.userdata.addNote("", "", 0, [], null, null, null, null, null, null);
               if (note != null) {
-                await showPage(context, NotePage(note: note));
+                await showPage(NotePage(note: note));
                 setState(() {
                   filteredNotes.insert(0, note);
                 });
@@ -118,7 +116,7 @@ class _PlaylistsPageState extends State<PlaylistsPage> {
                             color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF292929) : Colors.white,
                             child: InkWell(
                               onTap: () async {
-                                await showPage(context, PlaylistPage(playlist: playlist));
+                                await showPage(PlaylistPage(playlist: playlist));
                                 init();
                               },
                               child: SizedBox(

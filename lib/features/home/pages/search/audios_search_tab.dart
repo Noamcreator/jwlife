@@ -1,15 +1,9 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'package:jwlife/app/jwlife_app.dart';
-import 'package:jwlife/core/api/api.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/core/utils/utils_audio.dart';
 import 'package:jwlife/core/utils/utils_video.dart';
 import 'package:jwlife/data/realm/catalog.dart';
-import 'package:jwlife/widgets/dialog/language_dialog.dart';
-import 'package:share_plus/share_plus.dart';
 
 import '../../../../app/services/settings_service.dart';
 import '../../../../data/models/audio.dart';

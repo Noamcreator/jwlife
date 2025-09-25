@@ -215,13 +215,17 @@ class JwLifePageState extends State<JwLifePage> {
     );
   }
 
+  void returnToFirstPage(int index) {
+    navigatorKeys[index].currentState?.popUntil((route) => route.isFirst);
+    webViewPageKeys[index].clear();
+    setState(() {
+      navBarIsDisable[index] = false;
+    });
+  }
+
   void changeNavBarIndex(int index) {
     if (index == currentNavigationBottomBarIndex) {
-      navigatorKeys[index].currentState!.popUntil((route) => route.isFirst);
-      webViewPageKeys[index].clear();
-      setState(() {
-        navBarIsDisable[index] = false;
-      });
+      returnToFirstPage(index);
     }
     else {
       GlobalKeyService.setCurrentPage(navigatorKeys[index]);
@@ -271,9 +275,7 @@ class JwLifePageState extends State<JwLifePage> {
       backgroundColor: isBlack ? Colors.transparent : Theme.of(context).bottomNavigationBarTheme.backgroundColor,
       selectedIconTheme: IconThemeData(color: Theme.of(context).bottomNavigationBarTheme.selectedItemColor),
       selectedItemColor: Theme.of(context).bottomNavigationBarTheme.selectedItemColor,
-      unselectedItemColor: isBlack
-          ? Colors.white
-          : Theme.of(context).bottomNavigationBarTheme.unselectedItemColor,
+      unselectedItemColor: isBlack ? Colors.white : Theme.of(context).bottomNavigationBarTheme.unselectedItemColor,
       items: [
         CustomBottomNavigationItem(label: localization(context).navigation_home, icon: const Icon(JwIcons.home)),
         CustomBottomNavigationItem(label: localization(context).navigation_bible, icon: const Icon(JwIcons.bible)),

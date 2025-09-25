@@ -44,6 +44,7 @@ class SearchFieldListItem<T> {
     );
   }
 
+  @override
   bool operator ==(Object other) {
     return identical(this, other) ||
         other is SearchFieldListItem &&

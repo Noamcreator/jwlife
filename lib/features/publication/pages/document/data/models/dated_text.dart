@@ -1,7 +1,5 @@
-import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:intl/intl.dart';
 import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/core/jworg_uri.dart';
@@ -12,8 +10,6 @@ import 'package:share_plus/share_plus.dart';
 import 'package:sqflite/sqflite.dart';
 
 import '../../../../../../app/services/settings_service.dart';
-import '../../../../../../core/utils/utils.dart';
-import 'multimedia.dart';
 
 class DatedText {
   Database database;

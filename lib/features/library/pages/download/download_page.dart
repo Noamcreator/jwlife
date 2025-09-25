@@ -4,16 +4,13 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
-import 'package:jwlife/core/utils/files_helper.dart';
 import 'package:jwlife/core/utils/utils_jwpub.dart';
 import 'package:jwlife/core/utils/utils_pub.dart';
 import 'package:jwlife/core/utils/utils_video.dart';
 import 'package:jwlife/data/models/publication.dart';
-import 'package:jwlife/data/realm/catalog.dart';
 import 'package:jwlife/data/repositories/MediaRepository.dart';
 import 'package:jwlife/i18n/localization.dart';
 import 'package:jwlife/widgets/image_cached_widget.dart';
-import 'package:sqflite/sqflite.dart';
 
 import '../../../../app/services/global_key_service.dart';
 import '../../../../core/utils/utils.dart';
@@ -177,7 +174,7 @@ class _DownloadPageState extends State<DownloadPage> {
                 ),
                 onTap: () {
                   if (item is Publication) {
-                    showPage(context, PublicationMenuView(publication: item));
+                    showPage(PublicationMenuView(publication: item));
                   }
                   else if (item is Media) {
                     item.showPlayer(context);
@@ -192,173 +189,191 @@ class _DownloadPageState extends State<DownloadPage> {
   }
 
   Widget _buildCategoryButton(BuildContext context, Publication publication) {
-    return SizedBox(
-      width: _itemWidth,
-      height: 85,
-      child: Stack(
-        children: [
-          Row(
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(0),
-                child: ImageCachedWidget(
-                  imageUrl: publication.imageSqr,
-                  pathNoImage: publication.category.image,
-                  height: 85,
-                  width: 85,
-                ),
-              ),
-              Expanded(
-                flex: 1,
-                child: Padding(
-                  padding: const EdgeInsets.only(left: 10.0, right: 20.0, top: 4.0, bottom: 4.0),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
+    return ValueListenableBuilder<bool>(
+        valueListenable: publication.isDownloadedNotifier,
+        builder: (context, isDownloaded, _) {
+          if (isDownloaded) {
+            return SizedBox(
+              width: _itemWidth,
+              height: 85,
+              child: Stack(
+                children: [
+                  Row(
                     children: [
-                      if (publication.issueTitle.isNotEmpty)
-                        Text(
-                          publication.issueTitle,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Theme.of(context).brightness == Brightness.dark
-                                ? const Color(0xFFc3c3c3)
-                                : const Color(0xFF626262),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(0),
+                        child: ImageCachedWidget(
+                          imageUrl: publication.imageSqr,
+                          pathNoImage: publication.category.image,
+                          height: 85,
+                          width: 85,
+                        ),
+                      ),
+                      Expanded(
+                        flex: 1,
+                        child: Padding(
+                          padding: const EdgeInsets.only(left: 10.0, right: 20.0, top: 4.0, bottom: 4.0),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (publication.issueTitle.isNotEmpty)
+                                Text(
+                                  publication.issueTitle,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Theme.of(context).brightness == Brightness.dark
+                                        ? const Color(0xFFc3c3c3)
+                                        : const Color(0xFF626262),
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              if (publication.coverTitle.isNotEmpty)
+                                Text(
+                                  publication.coverTitle,
+                                  style: const TextStyle(fontSize: 14),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              if (publication.issueTitle.isEmpty && publication.coverTitle.isEmpty)
+                                Text(
+                                  publication.title,
+                                  style: const TextStyle(fontSize: 14),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              const Spacer(),
+                              Text(
+                                '${publication.year} · ${publication.symbol}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Theme.of(context).brightness == Brightness.dark
+                                      ? const Color(0xFFc3c3c3)
+                                      : const Color(0xFF626262),
+                                ),
+                              ),
+                            ],
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      if (publication.coverTitle.isNotEmpty)
-                        Text(
-                          publication.coverTitle,
-                          style: const TextStyle(fontSize: 14),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      if (publication.issueTitle.isEmpty && publication.coverTitle.isEmpty)
-                        Text(
-                          publication.title,
-                          style: const TextStyle(fontSize: 14),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      const Spacer(),
-                      Text(
-                        '${publication.year} · ${publication.symbol}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Theme.of(context).brightness == Brightness.dark
-                              ? const Color(0xFFc3c3c3)
-                              : const Color(0xFF626262),
                         ),
                       ),
                     ],
                   ),
-                ),
+
+                  /// Bouton menu
+                  Positioned(
+                    top: -5,
+                    right: -10,
+                    child: PopupMenuButton(
+                      icon: Icon(
+                        Icons.more_vert,
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? const Color(0xFFc3c3c3)
+                            : const Color(0xFF626262),
+                      ),
+                      itemBuilder: (BuildContext context) {
+                        return [
+                          getPubShareMenuItem(publication),
+                          getPubLanguagesItem(context, "Autres langues", publication),
+                          getPubFavoriteItem(publication),
+                          getPubDownloadItem(context, publication),
+                        ];
+                      },
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
-          Positioned(
-            top: -5,
-            right: -10,
-            child: PopupMenuButton(
-              icon: Icon(
-                Icons.more_vert,
-                color: Theme.of(context).brightness == Brightness.dark
-                    ? const Color(0xFFc3c3c3)
-                    : const Color(0xFF626262),
-              ),
-              itemBuilder: (BuildContext context) {
-                return [
-                  getPubShareMenuItem(publication),
-                  getPubLanguagesItem(context, "Autres langues", publication),
-                  getPubFavoriteItem(publication),
-                  getPubDownloadItem(context, publication),
-                ];
-              },
-            ),
-          ),
-        ],
-      ),
-    );
+            );
+          }
+          return const SizedBox.shrink();
+        },
+      );
   }
 
   Widget _buildMediaButton(BuildContext context, Media media) {
-    return SizedBox(
-      width: _itemWidth,
-      height: 80,
-      child: Stack(
-        children: [
-          Row(
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(0),
-                child: ImageCachedWidget(
-                  imageUrl: media.networkImageSqr,
-                  pathNoImage: media is Audio ? "pub_type_audio" : "pub_type_video",
-                  height: 80,
-                  width: 80,
-                ),
-              ),
-              Expanded(
-                flex: 1,
-                child: Padding(
-                  padding: const EdgeInsets.only(left: 10.0, right: 20.0, top: 4.0, bottom: 4.0),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        media.title,
-                        style: const TextStyle(fontSize: 14),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
+    return ValueListenableBuilder<bool>(
+      valueListenable: media.isDownloadedNotifier,
+      builder: (context, isDownloaded, _) {
+        if (isDownloaded) {
+          return SizedBox(
+            width: _itemWidth,
+            height: 80,
+            child: Stack(
+              children: [
+                Row(
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(0),
+                      child: ImageCachedWidget(
+                        imageUrl: media.networkImageSqr,
+                        pathNoImage: media is Audio ? "pub_type_audio" : "pub_type_video",
+                        height: 80,
+                        width: 80,
                       ),
-                      const Spacer(),
-                      Text(
-                        '${formatDateTime(media.lastModified!).year} - ${media.keySymbol}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Theme.of(context).brightness == Brightness.dark
-                              ? const Color(0xFFc3c3c3)
-                              : const Color(0xFF626262),
+                    ),
+                    Expanded(
+                      flex: 1,
+                      child: Padding(
+                        padding: const EdgeInsets.only(left: 10.0, right: 20.0, top: 4.0, bottom: 4.0),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              media.title,
+                              style: const TextStyle(fontSize: 14),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const Spacer(),
+                            Text(
+                              '${formatDateTime(media.lastModified!).year} - ${media.keySymbol}',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Theme.of(context).brightness == Brightness.dark
+                                    ? const Color(0xFFc3c3c3)
+                                    : const Color(0xFF626262),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ],
+                    ),
+                  ],
+                ),
+                Positioned(
+                  top: -5,
+                  right: -10,
+                  child: PopupMenuButton(
+                    icon: Icon(
+                      Icons.more_vert,
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? const Color(0xFFc3c3c3)
+                          : const Color(0xFF626262),
+                    ),
+                    itemBuilder: (context) => media is Audio ?  [
+                      getAudioShareItem(media),
+                      getAudioLanguagesItem(context, media),
+                      getAudioFavoriteItem(media),
+                      getAudioDownloadItem(context, media),
+                      getAudioLyricsItem(context, media),
+                      getCopyLyricsItem(media)
+                    ] : media is Video ? [
+                      getVideoShareItem(media),
+                      getVideoLanguagesItem(context, media),
+                      getVideoFavoriteItem(media),
+                      getVideoDownloadItem(context, media),
+                      getShowSubtitlesItem(context, media),
+                      getCopySubtitlesItem(context, media),
+                    ] : [],
                   ),
                 ),
-              ),
-            ],
-          ),
-          Positioned(
-            top: -5,
-            right: -10,
-            child: PopupMenuButton(
-              icon: Icon(
-                Icons.more_vert,
-                color: Theme.of(context).brightness == Brightness.dark
-                    ? const Color(0xFFc3c3c3)
-                    : const Color(0xFF626262),
-              ),
-              itemBuilder: (context) => media is Audio ?  [
-                getAudioShareItem(media),
-                getAudioLanguagesItem(context, media),
-                getAudioFavoriteItem(media),
-                getAudioDownloadItem(context, media),
-                getAudioLyricsItem(context, media),
-                getCopyLyricsItem(media)
-              ] : media is Video ? [
-                getVideoShareItem(media),
-                getVideoLanguagesItem(context, media),
-                getVideoFavoriteItem(media),
-                getVideoDownloadItem(context, media),
-                getShowSubtitlesItem(context, media),
-                getCopySubtitlesItem(context, media),
-              ] : [],
+              ],
             ),
-          ),
-        ],
-      ),
+          );
+        }
+        return const SizedBox.shrink();
+      },
     );
   }
 
@@ -394,7 +409,7 @@ class _DownloadPageState extends State<DownloadPage> {
                 setState(() {});
                 await _loadData();
 
-                showPage(context, PublicationMenuView(publication: jwpub));
+                showPage(PublicationMenuView(publication: jwpub));
               }
             }
           }

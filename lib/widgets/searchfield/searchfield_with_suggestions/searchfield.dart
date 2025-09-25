@@ -306,7 +306,7 @@ class SearchField<T> extends StatefulWidget {
   final bool keepSearchOnSelection;
 
   SearchField({
-    Key? key,
+    super.key,
     required this.suggestions,
     this.animationDuration = const Duration(milliseconds: 300),
     this.autoCorrect = true,
@@ -359,8 +359,7 @@ class SearchField<T> extends StatefulWidget {
             (selectedValue != null &&
                     suggestions.containsObject(selectedValue)) ||
                 selectedValue == null,
-            'selectedValue value should either be null or should be present in suggestions list.'),
-        super(key: key);
+            'selectedValue value should either be null or should be present in suggestions list.');
 
   @override
   _SearchFieldState<T> createState() => _SearchFieldState();

@@ -14,10 +14,6 @@ class DocumentsManager {
   int selectedDocumentIndex = -1;
   List<Document> documents = [];
 
-  int selectedDatedTextIndex = -1;
-  List<DatedText> datedTexts = [];
-  String html = '';
-
   DocumentsManager({required this.publication, required this.mepsDocumentId, this.bookNumber, this.chapterNumber});
 
   // Méthode privée pour initialiser la base de données

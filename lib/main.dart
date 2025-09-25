@@ -2,11 +2,11 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
-import 'package:just_audio_background/just_audio_background.dart';
 import 'package:jwlife/app/services/settings_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app/jwlife_app.dart';
+import 'app/services/audio_service/just_audio_background.dart';
 import 'app/services/file_handler_service.dart';
 import 'app/services/global_key_service.dart';
 import 'app/services/notification_service.dart';
@@ -70,7 +70,10 @@ Future<void> main() async {
     androidNotificationChannelId: 'org.noam.jwlife.channel.audio',
     androidNotificationChannelName: 'JW Audio',
     androidNotificationOngoing: true,
-    preloadArtwork: true
+    preloadArtwork: true,
+    showStopControl: false,
+    leftMediaControl: LeftMediaControl.skipToPrevious,
+    rightMediaControl: RightMediaControl.skipToNext,
   );
 
   // Initialise les configurations de l'application

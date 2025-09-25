@@ -881,7 +881,7 @@ class MeetingsPageState extends State<MeetingsPage> {
             },
             onTap: () async {
               if(selectedPublicTalk != null) {
-                showPageDocument(context, _publicTalkPub!, selectedPublicTalk!.mepsDocumentId);
+                showPageDocument(_publicTalkPub!, selectedPublicTalk!.mepsDocumentId);
                 /*
                 showPage(
                   context,

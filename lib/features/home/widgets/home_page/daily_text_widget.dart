@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
-import '../../../../app/services/global_key_service.dart';
 import '../../../../app/services/settings_service.dart';
 import '../../../../core/icons.dart';
 import '../../../../core/utils/common_ui.dart';
@@ -11,8 +10,6 @@ import '../../../../core/utils/utils.dart';
 import '../../../../core/utils/widgets_utils.dart';
 import '../../../../data/databases/catalog.dart';
 import '../../../../data/models/publication.dart';
-import '../../../../data/repositories/PublicationRepository.dart';
-import '../../pages/daily_text_page.dart';
 
 class DailyTextWidget extends StatefulWidget {
   const DailyTextWidget({super.key});
@@ -102,7 +99,7 @@ class DailyTextWidgetState extends State<DailyTextWidget> {
           onTap: () {
             if (_verseOfTheDayPub == null) return;
             if (_verseOfTheDayPub!.isDownloadedNotifier.value) {
-              showPageDailyText(context, _verseOfTheDayPub!);
+              showPageDailyText(_verseOfTheDayPub!);
             }
             else {
               _verseOfTheDayPub!.download(context);

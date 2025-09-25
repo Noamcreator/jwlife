@@ -14,7 +14,6 @@ import 'package:jwlife/core/jworg_uri.dart';
 import 'package:jwlife/core/theme.dart';
 import 'package:jwlife/core/utils/assets_downloader.dart';
 import 'package:jwlife/core/utils/utils.dart';
-import 'package:jwlife/core/utils/utils_audio.dart';
 import 'package:jwlife/core/utils/utils_document.dart';
 import 'package:jwlife/core/utils/utils_video.dart';
 import 'package:jwlife/data/databases/media_collections.dart';
@@ -26,18 +25,13 @@ import 'package:jwlife/data/models/publication_category.dart';
 import 'package:jwlife/data/databases/catalog.dart';
 import 'package:jwlife/data/databases/userdata.dart';
 import 'package:jwlife/data/realm/catalog.dart';
-import 'package:jwlife/data/realm/realm_library.dart';
 import 'package:jwlife/i18n/app_localizations.dart';
-import 'package:realm/realm.dart';
 
 import '../core/shared_preferences/shared_preferences_utils.dart';
 import '../core/utils/common_ui.dart';
 import '../data/databases/tiles_cache.dart';
 import '../data/models/audio.dart';
-import '../data/models/media.dart';
 import '../data/models/video.dart';
-import '../data/repositories/MediaRepository.dart';
-import '../data/repositories/PublicationRepository.dart';
 import '../features/audio/audio_player_model.dart';
 import '../features/bible/pages/local_bible_chapter.dart';
 import '../features/home/pages/daily_text_page.dart';
@@ -224,13 +218,12 @@ class JwLifeAppState extends State<JwLifeApp> {
         );
       }
       else if (uri.isBibleBook) {
-        BuildContext bibleContext = GlobalKeyService.bibleKey.currentState!.context;
         Publication? biblePub = GlobalKeyService.bibleKey.currentState!.currentBible;
         if (biblePub == null) return;
 
         GlobalKeyService.jwLifePageKey.currentState!.changeNavBarIndex(1);
 
-        showPage(bibleContext,
+        showPage(
             LocalChapterBiblePage(
             bible: biblePub,
             book: uri.book!
@@ -264,14 +257,12 @@ class JwLifeAppState extends State<JwLifeApp> {
           lastVerse = firstVerse;
         }
 
-        BuildContext bibleContext = GlobalKeyService.bibleKey.currentState!.context;
         Publication? biblePub = GlobalKeyService.bibleKey.currentState!.currentBible;
         if (biblePub == null) return;
 
         GlobalKeyService.jwLifePageKey.currentState!.changeNavBarIndex(1);
 
         showPageBibleChapter(
-          bibleContext,
           biblePub,
           bibleBook,
           bibleChapter,
@@ -281,7 +272,6 @@ class JwLifeAppState extends State<JwLifeApp> {
       }
       else if (uri.isMediaItem) {
         Duration startTime = Duration.zero;
-        Duration? endTime;
 
         if (uri.ts != null && uri.ts!.isNotEmpty) {
           final parts = uri.ts!.split('-');
@@ -289,7 +279,6 @@ class JwLifeAppState extends State<JwLifeApp> {
             startTime = JwOrgUri.parseDuration(parts[0]) ?? Duration.zero;
           }
           if (parts.length > 1) {
-            endTime = JwOrgUri.parseDuration(parts[1]);
           }
         }
 
@@ -308,7 +297,6 @@ class JwLifeAppState extends State<JwLifeApp> {
         }
       }
       else if (uri.isDailyText) {
-        BuildContext homeContext = GlobalKeyService.homeKey.currentState!.context;
         final date = (uri.date == null || uri.date == 'today') ? DateTime.now() : DateTime.parse(uri.date!);
 
         List<Publication> dayPubs = await PubCatalog.getPublicationsForTheDay(date: date);
@@ -319,7 +307,7 @@ class JwLifeAppState extends State<JwLifeApp> {
         if (dailyTextPub == null) return;
 
         GlobalKeyService.jwLifePageKey.currentState!.changeNavBarIndex(0);
-        showPageDailyText(homeContext, dailyTextPub, date: date);
+        showPageDailyText(dailyTextPub, date: date);
       }
       else if (uri.isMeetings) {
         final date = (uri.date == null) ? DateTime.now() : DateTime.parse(uri.date!);

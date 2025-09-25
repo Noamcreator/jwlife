@@ -11,10 +11,7 @@ import 'package:jwlife/data/models/publication.dart';
 
 import 'dart:typed_data';
 import 'package:encrypt/encrypt.dart' as encrypt;
-import 'package:jwlife/widgets/dialog/utils_dialog.dart';
-import 'package:path_provider/path_provider.dart';
 
-import '../../app/services/notification_service.dart';
 import '../api/api.dart';
 import 'directory_helper.dart';
 

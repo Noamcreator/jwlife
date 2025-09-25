@@ -107,7 +107,7 @@ class _NoteItemWidgetState extends State<NoteItemWidget> {
 
         return GestureDetector(
           onTap: () async {
-            await showPage(context, NotePage(note: note));
+            await showPage(NotePage(note: note));
             widget.onUpdated?.call();
           },
           child: Container(
@@ -148,7 +148,7 @@ class _NoteItemWidgetState extends State<NoteItemWidget> {
                     return ElevatedButton(
                       onPressed: () async {
                         if(widget.tag != null && tag.id == widget.tag!.id) return;
-                        await showPage(context, TagPage(tag: tag));
+                        await showPage(TagPage(tag: tag));
                         widget.onUpdated?.call();
                       },
                       style: ElevatedButton.styleFrom(

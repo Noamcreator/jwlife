@@ -259,24 +259,27 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
                           final String message = params['message'] ?? 'Êtes-vous sûr ?';
 
                           // Affiche un dialog Flutter et retourne la réponse
-                          final bool? confirmed = await showDialog<bool>(
-                            context: context,
-                            builder: (BuildContext context) {
-                              return AlertDialog(
-                                title: Text(title),
-                                content: Text(message),
-                                actions: [
-                                  TextButton(
-                                    onPressed: () => Navigator.of(context).pop(false),
-                                    child: const Text('ANNULER'),
-                                  ),
-                                  ElevatedButton(
-                                    onPressed: () => Navigator.of(context).pop(true),
-                                    child: const Text('CONFIRMER'),
-                                  ),
-                                ],
-                              );
-                            },
+                          final bool? confirmed = await showJwDialog(
+                              context: context,
+                              titleText: title,
+                              contentText: message,
+                              buttonAxisAlignment: MainAxisAlignment.end,
+                              buttons: [
+                                JwDialogButton(
+                                    label: 'NON',
+                                    closeDialog: false,
+                                    onPressed: (buildContext) async {
+                                      Navigator.of(buildContext).pop(false);
+                                    }
+                                ),
+                                JwDialogButton(
+                                    label: 'OUI',
+                                    closeDialog: false,
+                                    onPressed: (buildContext) async {
+                                      Navigator.of(buildContext).pop(true);
+                                    }
+                                ),
+                              ]
                           );
 
                           return confirmed ?? false; // Retourne false si null
@@ -405,24 +408,27 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
                                 final String message = 'Voulez-vous supprimer la note "${note['Title']}" associé à votre surlignage ?';
 
                                 // Affiche un dialog Flutter et retourne la réponse
-                                final bool? confirmed = await showDialog<bool>(
-                                  context: context,
-                                  builder: (BuildContext context) {
-                                    return AlertDialog(
-                                      title: Text(title),
-                                      content: Text(message),
-                                      actions: [
-                                        TextButton(
-                                          onPressed: () => Navigator.of(context).pop(false),
-                                          child: const Text('NON'),
-                                        ),
-                                        ElevatedButton(
-                                          onPressed: () => Navigator.of(context).pop(true),
-                                          child: const Text('OUI'),
-                                        ),
-                                      ],
-                                    );
-                                  },
+                                final bool? confirmed = await showJwDialog(
+                                    context: context,
+                                    titleText: title,
+                                    contentText: message,
+                                    buttonAxisAlignment: MainAxisAlignment.end,
+                                    buttons: [
+                                      JwDialogButton(
+                                          label: 'NON',
+                                          closeDialog: false,
+                                          onPressed: (buildContext) async {
+                                            Navigator.of(buildContext).pop(false);
+                                          }
+                                      ),
+                                      JwDialogButton(
+                                          label: 'OUI',
+                                          closeDialog: false,
+                                          onPressed: (buildContext) async {
+                                            Navigator.of(buildContext).pop(true);
+                                          }
+                                      ),
+                                    ]
                                 );
 
                                 if(confirmed == true) {
@@ -515,7 +521,7 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
                         handlerName: 'openTagPage',
                         callback: (args) {
                           int tagId = args[0]['tagId'];
-                          showPage(context, TagPage(tag: JwLifeApp.userdata.tags.firstWhere((tag) => tag.id == tagId)));
+                          showPage(TagPage(tag: JwLifeApp.userdata.tags.firstWhere((tag) => tag.id == tagId)));
                         },
                       );
 
@@ -664,7 +670,7 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
                         handlerName: 'copyText',
                         callback: (args) async {
                           Clipboard.setData(ClipboardData(text: args[0]['text']));
-                          showBottomMessage(context, 'Texte copié dans le presse-papier');
+                          showBottomMessage('Texte copié dans le presse-papier');
                         },
                       );
 
@@ -673,7 +679,7 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
                         handlerName: 'search',
                         callback: (args) async {
                           String query = args[0]['query'];
-                          showPage(context, SearchPage(query: query));
+                          showPage(SearchPage(query: query));
                         },
                       );
 
@@ -704,7 +710,6 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
                       );
                     },
                     shouldInterceptRequest: (controller, request) async {
-                      String requestedUrl = '${request.url}';
 
                       /*
                 if (requestedUrl.startsWith('jwpub-media://')) {
@@ -1028,24 +1033,30 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
 
         if(GlobalKeyService.jwLifePageKey.currentState!.audioWidgetVisible)
           Positioned(
-              bottom: 70,
+              bottom: 0,
               left: 0,
               right: 0,
               child: Visibility(
                   visible: _controlsVisible,
-                  child: GlobalKeyService.jwLifePageKey.currentState!.getAudioWidget()
+                  child: Column(
+                      children: [
+                        GlobalKeyService.jwLifePageKey.currentState!.getAudioWidget(),
+                        GlobalKeyService.jwLifePageKey.currentState!.getBottomNavigationBar()
+                      ]
+                  )
               )
           ),
 
-        Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: Visibility(
-                visible: _controlsVisible,
-                child: GlobalKeyService.jwLifePageKey.currentState!.getBottomNavigationBar()
-            )
-        ),
+        if(!GlobalKeyService.jwLifePageKey.currentState!.audioWidgetVisible)
+          Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: Visibility(
+                  visible: _controlsVisible,
+                  child: GlobalKeyService.jwLifePageKey.currentState!.getBottomNavigationBar()
+              )
+          ),
       ],
     );
   }

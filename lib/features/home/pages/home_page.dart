@@ -8,7 +8,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:jwlife/app/jwlife_app.dart';
-import 'package:jwlife/core/bible_clues_info.dart';
 import 'package:jwlife/core/api/api.dart';
 import 'package:jwlife/core/jworg_uri.dart';
 import 'package:jwlife/core/shared_preferences/shared_preferences_utils.dart';
@@ -196,7 +195,7 @@ class HomePageState extends State<HomePage> {
   Future<void> _refresh({bool first = false}) async {
     printTime("Refresh start");
     if (!await hasInternetConnection()) {
-      showBottomMessage(context, 'Aucune connexion Internet');
+      showBottomMessage('Aucune connexion Internet');
       return;
     }
 
@@ -211,12 +210,12 @@ class HomePageState extends State<HomePage> {
 
     if (!catalogUpdate && !libraryUpdate) {
       if (!first) {
-        showBottomMessage(context, 'Aucune mise à jour disponible');
+        showBottomMessage('Aucune mise à jour disponible');
       }
       return;
     }
 
-    showBottomMessage(context, 'Mise à jour disponible');
+    showBottomMessage('Mise à jour disponible');
 
     _linearProgressKey.currentState?.startRefreshing();
 
@@ -258,7 +257,7 @@ class HomePageState extends State<HomePage> {
     // Exécuter toutes les tâches en parallèle
     await Future.wait(updateTasks);
 
-    showBottomMessage(context, 'Mise à jour terminée');
+    showBottomMessage('Mise à jour terminée');
 
     _linearProgressKey.currentState?.stopRefreshing();
   }
@@ -555,7 +554,7 @@ class HomePageState extends State<HomePage> {
         resizeToAvoidBottomInset: false,
         appBar: HomeAppBar(
           onOpenSettings: () {
-            showPage(context, SettingsPage());
+            showPage(SettingsPage());
           },
         ),
         body: RefreshIndicator(
@@ -587,7 +586,6 @@ class HomePageState extends State<HomePage> {
                   key: _articlesKey,
                   onReadMore: (article) {
                     showPage(
-                      context,
                       ArticlePage(
                         title: article['Title'] ?? '',
                         link: article['Link'] ?? '',

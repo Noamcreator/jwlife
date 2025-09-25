@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import 'package:collection/collection.dart';
-import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/core/utils/files_helper.dart';
 import 'package:jwlife/data/databases/tiles_cache.dart';
 import 'package:jwlife/data/models/audio.dart';
@@ -9,7 +8,6 @@ import 'package:jwlife/data/models/media.dart';
 import 'package:jwlife/data/models/video.dart';
 import 'package:jwlife/data/realm/catalog.dart';
 import 'package:sqflite/sqflite.dart';
-import 'package:path/path.dart';
 
 import '../../app/services/settings_service.dart';
 import '../../core/utils/utils.dart';
@@ -364,7 +362,7 @@ class MediaCollections {
 
   Future<void> downloadPubAudioFile(dynamic audio, int mediaKeyId, String audioFilePath, Database db) async {
     // Insérer une ligne dans la table Video
-    int audioId = await db.insert(
+    await db.insert(
       "Audio",
       {
         "MediaKeyId": mediaKeyId,

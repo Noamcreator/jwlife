@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/data/models/media.dart';
 import 'package:jwlife/data/repositories/MediaRepository.dart';
 

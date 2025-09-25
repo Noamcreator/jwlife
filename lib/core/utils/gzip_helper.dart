@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
-import 'dart:isolate';
 
 import 'package:archive/archive.dart';
 import 'package:flutter/foundation.dart';
@@ -107,46 +106,6 @@ class GZipOptimizer {
     printTime('Test 3 - Isolate + écriture: ${stopwatch3.elapsedMilliseconds}ms');
 
     printTime('=== FIN BENCHMARK ===');
-  }
-
-  // === FONCTIONS PRIVÉES CATALOG.DB ===
-
-  // Version optimisée main thread (plus rapide que isolate pour ce cas)
-  static Future<void> _fastMainThreadDecompression(List<int> gzipBytes, File file) async {
-    // Décompression directe (plus rapide que isolate : 927ms vs 1294ms)
-    final decoder = GZipDecoder();
-    final decompressed = decoder.decodeBytes(gzipBytes);
-
-    // Écriture ultra-optimisée avec pré-allocation
-    final writeStopwatch = Stopwatch()..start();
-    await _ultraFastWrite(file, decompressed);
-  }
-
-  // Écriture ultra-optimisée avec buffer pré-alloué
-  static Future<void> _ultraFastWrite(File file, List<int> data) async {
-    final sink = file.openWrite();
-
-    try {
-      // Écriture par gros chunks pour minimiser les appels système
-      const chunkSize = 2 * 1024 * 1024; // 2MB chunks (optimal pour 204MB)
-
-      for (int i = 0; i < data.length; i += chunkSize) {
-        final end = (i + chunkSize < data.length) ? i + chunkSize : data.length;
-
-        // Utilisation de sublist view (pas de copie)
-        final chunk = Uint8List.sublistView(data as Uint8List, i, end);
-        sink.add(chunk);
-
-        // Pause micro uniquement tous les 10MB pour ne pas ralentir
-        if (i % (chunkSize * 5) == 0 && i > 0) {
-          await Future.delayed(Duration.zero);
-        }
-      }
-
-      await sink.flush(); // Force l'écriture
-    } finally {
-      await sink.close();
-    }
   }
 
   static List<int> _isolateDecompress(List<int> gzipBytes) {

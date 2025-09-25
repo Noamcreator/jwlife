@@ -435,7 +435,7 @@ class _PublicationMenuViewState extends State<PublicationMenuView> with SingleTi
       padding: const EdgeInsets.symmetric(vertical: 4.0),
       child: InkWell(
         onTap: () {
-          showPageDocument(context, widget.publication, item.mepsDocumentId);
+          showPageDocument(widget.publication, item.mepsDocumentId);
         },
         child: Stack(
           children: [
@@ -655,7 +655,7 @@ class _PublicationMenuViewState extends State<PublicationMenuView> with SingleTi
           itemBuilder: (context, index) {
             return GestureDetector(
               onTap: () {
-                showPageDocument(context, widget.publication, items[index].mepsDocumentId);
+                showPageDocument(widget.publication, items[index].mepsDocumentId);
               },
               child: Container(
                 alignment: Alignment.center,
@@ -710,7 +710,7 @@ class _PublicationMenuViewState extends State<PublicationMenuView> with SingleTi
           itemBuilder: (context, index) {
             return GestureDetector(
               onTap: () {
-                showPage(context, LocalChapterBiblePage(
+                showPage(LocalChapterBiblePage(
                   bible: widget.publication,
                   book: items[index].bibleBookId!
                 ));
@@ -832,13 +832,13 @@ class _PublicationMenuViewState extends State<PublicationMenuView> with SingleTi
             query: '',
             onSearchTextChanged: (text) {
               fetchSuggestions(text);
+              return null;
             },
             onSuggestionTap: (item) async {
               // Accéder à l'élément encapsulé
               String query = item.item!['word']; // Utilise 'item.item' au lieu de 'item['query']'
 
               showPage(
-                context,
                 PublicationSearchView(
                   query: query,
                   publication: widget.publication,
@@ -855,7 +855,6 @@ class _PublicationMenuViewState extends State<PublicationMenuView> with SingleTi
                 _isSearching = false;
               });
               showPage(
-                context,
                 PublicationSearchView(
                   query: text,
                   publication: widget.publication,
@@ -911,10 +910,10 @@ class _PublicationMenuViewState extends State<PublicationMenuView> with SingleTi
                       context, widget.publication);
                   if (bookmark != null) {
                     if (bookmark.location.bookNumber != null && bookmark.location.chapterNumber != null) {
-                      showPageBibleChapter(context, widget.publication, bookmark.location.bookNumber!, bookmark.location.chapterNumber!, firstVerse: bookmark.blockIdentifier, lastVerse: bookmark.blockIdentifier);
+                      showPageBibleChapter(widget.publication, bookmark.location.bookNumber!, bookmark.location.chapterNumber!, firstVerse: bookmark.blockIdentifier, lastVerse: bookmark.blockIdentifier);
                     }
                     else if (bookmark.location.mepsDocumentId != null) {
-                      showPageDocument(context, widget.publication, bookmark.location.mepsDocumentId!, startParagraphId: bookmark.blockIdentifier, endParagraphId: bookmark.blockIdentifier);
+                      showPageDocument(widget.publication, bookmark.location.mepsDocumentId!, startParagraphId: bookmark.blockIdentifier, endParagraphId: bookmark.blockIdentifier);
                     }
                   }
                 },
@@ -947,7 +946,7 @@ class _PublicationMenuViewState extends State<PublicationMenuView> with SingleTi
                 text: "Télécharger les médias",
                 icon: const Icon(JwIcons.cloud_arrow_down),
                 onPressed: () {
-                  //showPage(context, Container());
+                  //showPage(Container());
                 },
               ),
               IconTextButton(
@@ -998,7 +997,6 @@ class _PublicationMenuViewState extends State<PublicationMenuView> with SingleTi
             GestureDetector(
               onTap: () {
                 showPage(
-                  context,
                   ImagePage(
                     filePath:
                     '${widget.publication.path}/${widget.publication.imageLsr!.split('/').last}',
@@ -1026,7 +1024,6 @@ class _PublicationMenuViewState extends State<PublicationMenuView> with SingleTi
                               try {
                                 await Gal.putImage(file.path);
                                 showBottomMessageWithAction(
-                                  context,
                                   'Image enregistrée',
                                   SnackBarAction(
                                     label: 'Ouvrir',

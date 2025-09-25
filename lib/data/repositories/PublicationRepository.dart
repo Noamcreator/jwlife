@@ -1,7 +1,6 @@
 import 'package:collection/collection.dart';
 import 'package:jwlife/data/models/meps_language.dart';
 
-import '../../app/jwlife_app.dart';
 import '../../app/services/settings_service.dart';
 import '../models/publication.dart';
 

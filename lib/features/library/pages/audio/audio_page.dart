@@ -46,7 +46,7 @@ class _AudioPageState extends State<AudioPage> {
 
     return InkWell(
       onTap: () {
-        showPage(context, AudioItemsPage(category: category));
+        showPage(AudioItemsPage(category: category));
       },
       child: Container(
         width: itemWidth,

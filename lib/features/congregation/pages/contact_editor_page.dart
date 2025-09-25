@@ -122,13 +122,13 @@ class _ContactEditorPageState extends State<ContactEditorPage> {
 
        */
 
-      showBottomMessage(context, 'Contact mis à jour avec succès !');
+      showBottomMessage('Contact mis à jour avec succès !');
 
       Navigator.pop(context);
     }
     catch (e) {
       debugPrint('Erreur lors de la mise à jour du contact : $e');
-      showBottomMessage(context, 'Erreur : $e');
+      showBottomMessage('Erreur : $e');
     }
   }
 

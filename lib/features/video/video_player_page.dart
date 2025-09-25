@@ -3,7 +3,6 @@ import 'dart:async'; // Importer pour utiliser Timer
 import 'dart:io';
 import 'package:floating/floating.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/data/models/video.dart' hide Subtitles;

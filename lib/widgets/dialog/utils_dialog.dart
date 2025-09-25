@@ -1,11 +1,7 @@
-import 'dart:io';
 
 import 'package:app_settings/app_settings.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:jwlife/app/jwlife_app.dart';
-import 'package:jwlife/core/utils/files_helper.dart';
-import 'package:sqflite/sqflite.dart';
 
 import '../../app/services/settings_service.dart';
 import '../../core/icons.dart';
@@ -188,7 +184,6 @@ Future<T?> showJwChoiceDialog<T>({
                       itemCount: choices.length,
                       itemBuilder: (context, index) {
                         final item = choices[index];
-                        final isSelected = item == selected;
                         return RadioListTile<T>(
                           title: Text(display?.call(item) ?? item.toString()),
                           value: item,

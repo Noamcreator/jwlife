@@ -427,7 +427,7 @@ class _PublicationMenuState extends State<PublicationMenu> with SingleTickerProv
                 ScrollController _scrollController = ScrollController();
 
                 /*
-                showPage(context, PagesDocumentView(
+                showPage(PagesDocumentView(
                   publication: _publicationData,
                   currentIndex: gridCard['id'],
                   navCards: _allNavigationCards,

@@ -1,5 +1,3 @@
-import 'package:flutter/material.dart';
-
 /// Centralise les clés et valeurs par défaut de SharedPreferences
 class SharedPreferencesKeys {
   const SharedPreferencesKeys._(); // empêche l'instanciation

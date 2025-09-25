@@ -251,10 +251,22 @@ class _PublicationsItemsViewState extends State<PublicationsItemsView> {
                   ),
                 ),
               );
-            } else {
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 3.0),
-                child: RectanglePublicationItem(pub: item['publication']),
+            }
+            else {
+              Publication publication = item['publication'];
+              return ValueListenableBuilder<bool>(
+                valueListenable: publication.isDownloadedNotifier,
+                builder: (context, isDownloaded, _) {
+                  if (isDownloaded || publication.catalogedOn.isNotEmpty) {
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 3.0),
+                      child: RectanglePublicationItem(publication: publication),
+                    );
+                  }
+                  else {
+                    return const SizedBox.shrink();
+                  }
+                }
               );
             }
           },

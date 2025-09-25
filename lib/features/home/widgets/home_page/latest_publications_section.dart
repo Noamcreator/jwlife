@@ -1,15 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/features/home/widgets/home_page/rectangle_publication_item.dart';
-import 'package:jwlife/features/home/widgets/home_page/square_mediaitem_item.dart';
-import 'package:jwlife/features/home/widgets/home_page/square_publication_item.dart';
 
-import '../../../../app/services/global_key_service.dart';
-import '../../../../core/icons.dart';
 import '../../../../data/databases/catalog.dart';
 import '../../../../data/models/publication.dart';
-import '../../../../data/realm/catalog.dart';
 import '../../../../i18n/localization.dart';
 
 class LatestPublicationSection extends StatefulWidget {

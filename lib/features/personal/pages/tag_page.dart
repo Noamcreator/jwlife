@@ -68,7 +68,7 @@ class _TagPageState extends State<TagPage> {
             onPressed: () async {
               Note? note = await JwLifeApp.userdata.addNote("", "", 0, [_tag.id], null, null, null, null, null, null);
               if (note != null) {
-                await showPage(context, NotePage(note: note));
+                await showPage(NotePage(note: note));
                 setState(() {
                   _filteredNotes.add(note);
                 });
@@ -92,8 +92,16 @@ class _TagPageState extends State<TagPage> {
           IconButton(
             icon: Icon(JwIcons.tag_crossed),
             onPressed: () async {
-               await showDeleteTagDialog(context, _tag).then((value) => setState(() {}));
-               Navigator.pop(context);
+              // Affiche le dialogue de confirmation
+              bool? tagDeleted = await showDeleteTagDialog(context, _tag);
+
+              // Rafraîchit l’état après fermeture du dialogue
+              setState(() {});
+
+              // Si la suppression est confirmée, on revient à la page précédente
+              if (tagDeleted == true) {
+                GlobalKeyService.jwLifePageKey.currentState?.handleBack(context, result: _tag);
+              }
             },
           ),
         ],

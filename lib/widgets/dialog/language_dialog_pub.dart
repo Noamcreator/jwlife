@@ -2,7 +2,6 @@ import 'dart:io';
 
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
-import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/core/utils/files_helper.dart';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/repositories/PublicationRepository.dart';
@@ -199,8 +198,6 @@ class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
 
     // Accès au thème pour éviter les erreurs de constantes
     final Color dividerColor = isDarkMode ? Colors.black : const Color(0xFFf0f0f0);
-    final Color hintColor = isDarkMode ? const Color(0xFFc5c5c5) : const Color(0xFF666666);
-    final Color subtitleColor = isDarkMode ? const Color(0xFFbdbdbd) : const Color(0xFF626262);
 
     // Combine favoriteLanguages en haut et filteredLanguagesList en bas
     final combinedLanguages = [

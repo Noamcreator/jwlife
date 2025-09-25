@@ -1,23 +1,16 @@
-import 'dart:convert';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 
-import '../app/jwlife_app.dart';
-import '../core/api/api.dart';
 import '../core/icons.dart';
 import '../core/utils/utils.dart';
 import '../core/utils/utils_audio.dart';
-import '../core/utils/utils_media.dart';
 import '../core/utils/utils_video.dart';
 import '../data/databases/tiles_cache.dart';
 import '../data/models/audio.dart';
 import '../data/models/media.dart';
 import '../data/models/tile.dart';
 import '../data/models/video.dart';
-import '../data/realm/catalog.dart';
 import '../data/repositories/MediaRepository.dart';
-import 'dialog/publication_dialogs.dart';
 import 'image_cached_widget.dart';
 
 class MediaItemItemWidget extends StatefulWidget {

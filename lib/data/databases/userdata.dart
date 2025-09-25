@@ -9,11 +9,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
-import 'package:just_audio/just_audio.dart';
 import 'package:jwlife/app/services/global_key_service.dart';
 import 'package:jwlife/app/startup/copy_assets.dart';
 import 'package:jwlife/core/assets.dart';
-import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/core/utils/directory_helper.dart';
 import 'package:jwlife/core/utils/files_helper.dart';
 import 'package:jwlife/core/utils/utils.dart';
@@ -85,6 +83,31 @@ class Userdata {
         );
       ''');
     }
+
+    // Vider les notes, highlights et bookmarks des documents et datedTexts
+    for(Publication publication in PublicationRepository().getAllPublications()) {
+      if(publication.documentsManager != null) {
+        for(Document document in publication.documentsManager!.documents) {
+          document.notes.clear();
+          document.highlights.clear();
+          document.bookmarks.clear();
+          document.hasAlreadyBeenRead = false;
+        }
+      }
+      else if(publication.datedTextManager != null) {
+        for(DatedText datedText in publication.datedTextManager!.datedTexts) {
+          datedText.notes.clear();
+          datedText.highlights.clear();
+          datedText.bookmarks.clear();
+          datedText.hasAlreadyBeenRead = false;
+        }
+      }
+    }
+
+    // Retourner à la racine dans tous les onglets
+    for (int i = 0; i < 6; i++) {
+      GlobalKeyService.jwLifePageKey.currentState!.returnToFirstPage(i);
+    }
   }
 
   Future<void> getFavorites() async {
@@ -131,7 +154,7 @@ class Userdata {
         final type = row['Type'] as int?;
 
         if (type == 0) {
-          final match = allPublications.firstWhereOrNull((p) => p.symbol == row['KeySymbol'] && p.issueTagNumber == row['IssueTagNumber'] && p.mepsLanguage.id == row['MepsLanguage']);
+          //final match = allPublications.firstWhereOrNull((p) => p.symbol == row['KeySymbol'] && p.issueTagNumber == row['IssueTagNumber'] && p.mepsLanguage.id == row['MepsLanguage']);
 
           // TODO: Implémenter le chargement des documents en favoris
         }
@@ -471,7 +494,7 @@ class Userdata {
         WHERE Tag.Type = 0
         ''', [i, item.issueTagNumber, item.symbol, item.mepsLanguage.id, 1]);
       }
-      if (item is Document) {
+      else if (item is Document) {
         bool isBibleChapter = item.isBibleChapter();
         batch.rawInsert('''
           INSERT INTO TagMap (TagId, LocationId, Position)
@@ -619,6 +642,7 @@ class Userdata {
       printTime('Erreur lors de la mise à jour du tag : $e');
       return null;
     }
+    return null;
   }
 
   Future<bool> deleteTag(Tag tag) async {
@@ -649,9 +673,9 @@ class Userdata {
     }
   }
 
-  Future<int?> insertLocationWithDocument(Publication publication, Document? document, {DatedText? datedText}) async {
+  Future<int?> insertLocationWithDocument(Publication publication, Document? document, {DatedText? datedText, bool language = true}) async {
     int mepsDocumentId = document?.mepsDocumentId ?? datedText!.mepsDocumentId;
-    int? locationId = await insertLocation(document?.bookNumber, document?.chapterNumber, mepsDocumentId, null, publication.issueTagNumber, publication.keySymbol, publication.mepsLanguage.id);
+    int? locationId = await insertLocation(document?.bookNumber, document?.chapterNumber, mepsDocumentId, null, publication.issueTagNumber, publication.keySymbol, language ? publication.mepsLanguage.id : null);
     return locationId;
   }
 
@@ -754,7 +778,7 @@ class Userdata {
   Future<void> updateOrInsertInputField(Document document, String tag, String value) async {
     try {
       // Étape 1 : Obtenir ou insérer le LocationId via insertLocation
-      final int? locationId = await insertLocationWithDocument(document.publication, document);
+      final int? locationId = await insertLocationWithDocument(document.publication, document, language: false);
 
       // Étape 2 : Insérer ou mettre à jour l'entrée InputField
       await _database.rawInsert('''
@@ -2447,8 +2471,8 @@ class Userdata {
       await tempBackupDir.delete(recursive: true);
 
       return outputFile;
-      printTime('Fichier de sauvegarde prêt et partagé : $filePath');
-    } catch (e, stackTrace) {
+    }
+    catch (e, stackTrace) {
       printTime('Erreur lors de l\'exportation de la sauvegarde : $e');
       printTime('Stack trace : $stackTrace');
     }
@@ -2464,7 +2488,7 @@ class Userdata {
       }
       else if (Platform.isIOS) {
         IosDeviceInfo iosInfo = await deviceInfo.iosInfo;
-        return iosInfo.name ?? 'iOS Device'; // Nom de l'appareil iOS
+        return iosInfo.name; // Nom de l'appareil iOS
       }
       else {
         return '';
@@ -2488,9 +2512,7 @@ class Userdata {
     await CopyAssets.copyFileFromAssetsToDirectory(Assets.userDataUserData, userdataDbPath);
     await CopyAssets.copyFileFromAssetsToDirectory(Assets.userDataDefaultThumbnail, '${userDataDir.path}/default_thumbnail.png');
 
-    favorites = [];
-    tags = [];
-    _database = await openDatabase(userdataDbPath, version: schemaVersion);
+    await reload_db();
   }
 }
 

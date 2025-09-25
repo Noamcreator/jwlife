@@ -58,6 +58,7 @@ class SearchHtmlWidget extends StatelessWidget {
         spanStyle = style.copyWith(
           fontWeight: FontWeight.bold,
           backgroundColor: Colors.yellow,
+          color: Colors.black,
         );
       } else if (tag.contains('<em>')) {
         spanStyle = style.copyWith(

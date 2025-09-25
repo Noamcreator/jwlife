@@ -12,8 +12,6 @@ import 'package:jwlife/features/personal/pages/playlists_page.dart';
 
 import '../../../core/utils/utils_tag_dialogs.dart';
 import '../../../data/models/userdata/playlist.dart';
-import '../../../data/models/userdata/tag.dart';
-import '../../../widgets/image_cached_widget.dart';
 import '../widgets/empty_message.dart';
 import 'note_page.dart';
 import 'notes_categories_page.dart';
@@ -104,7 +102,7 @@ class _StudyTabViewState extends State<StudyTabView> {
         children: [
           InkWell(
             onTap: () async {
-              await showPage(context, NotesTagsPage());
+              await showPage(NotesTagsPage());
               initNotes();
             },
             child: Row(
@@ -151,7 +149,7 @@ class _StudyTabViewState extends State<StudyTabView> {
                     "", "", 0, [], null, null, null, null, null, null,
                   );
                   if (note != null) {
-                    await showPage(context, NotePage(note: note));
+                    await showPage(NotePage(note: note));
                     setState(() {
                       initNotes();
                     });
@@ -174,7 +172,7 @@ class _StudyTabViewState extends State<StudyTabView> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           InkWell(
-            onTap: () => showPage(context, PlaylistsPage()),
+            onTap: () => showPage(PlaylistsPage()),
             child: Row(
               children: [
                 Text(
@@ -225,12 +223,12 @@ class _StudyTabViewState extends State<StudyTabView> {
                         await JwLifeApp.userdata.importPlaylistFromFile(File(path));
                         await initPlaylist();
                         if (context.mounted) {
-                          showBottomMessage(context, 'Import réussi.');
+                          showBottomMessage('Import réussi.');
                         }
                       }
                       catch (e) {
                         if (context.mounted) {
-                          showBottomMessage(context, 'Échec de l’import : $e');
+                          showBottomMessage('Échec de l’import : $e');
                         }
                       }
                     }
@@ -349,7 +347,7 @@ class _StudyTabViewState extends State<StudyTabView> {
                   tagWidgets.add(
                     ElevatedButton(
                       onPressed: () async {
-                        await showPage(context, TagPage(tag: tag));
+                        await showPage(TagPage(tag: tag));
                         initNotes();
                       },
                       style: ButtonStyle(
@@ -422,7 +420,7 @@ class _StudyTabViewState extends State<StudyTabView> {
                   ),
                   child: TextButton(
                     onPressed: () async {
-                      await showPage(context, NotePage(note: note));
+                      await showPage(NotePage(note: note));
                       initNotes();
                     },
                     style: TextButton.styleFrom(
@@ -481,7 +479,7 @@ class _StudyTabViewState extends State<StudyTabView> {
                       color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF292929) : Colors.white,
                       child: InkWell(
                         onTap: () async {
-                          await showPage(context, PlaylistPage(playlist: playlist));
+                          await showPage(PlaylistPage(playlist: playlist));
                           initPlaylist();
                         },
                         child: SizedBox(

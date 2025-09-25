@@ -7,10 +7,8 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:http/http.dart' as http;
-import 'package:http_parser/http_parser.dart' as http_parser;
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
-import 'package:jwlife/core/api/api.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/core/utils/utils_backup_app.dart';
@@ -615,7 +613,6 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
       );
 
       GlobalKeyService.homeKey.currentState?.refreshFavorites();
-      if (mounted) Navigator.pop(context);
     } catch (e) {
       if (dialogContext != null) Navigator.of(dialogContext!).pop();
       await _showErrorDialog('Erreur', 'Erreur lors de l\'importation de la sauvegarde.');
@@ -775,9 +772,9 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
     );
 
     if (issueResponse.statusCode == 201) {
-      showBottomMessage(context, "${type == 'suggestion' ? 'Suggestion' : 'Bug'} envoyé avec succès ✅");
+      showBottomMessage("${type == 'suggestion' ? 'Suggestion' : 'Bug'} envoyé avec succès ✅");
     } else {
-      showBottomMessage(context, "Échec de l'envoi de ${type == 'suggestion' ? 'la suggestion' : 'du bug'} ❌");
+      showBottomMessage("Échec de l'envoi de ${type == 'suggestion' ? 'la suggestion' : 'du bug'} ❌");
       print("Erreur d'envoi de l'issue (statut: ${issueResponse.statusCode}) : ${issueResponse.body}");
     }
   }
@@ -859,19 +856,19 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
                     String? imageUrl;
 
                     if (name.isEmpty || title.isEmpty || text.isEmpty) {
-                      showBottomMessage(context, "Veuillez remplir tous les champs.");
+                      showBottomMessage("Veuillez remplir tous les champs.");
                       return;
                     }
 
                     // Si une image est sélectionnée, on l'upload via Imgbb
                     if (imageFile != null) {
                       try {
-                        showBottomMessage(context, "Téléchargement de l'image en cours...");
+                        showBottomMessage("Téléchargement de l'image en cours...");
                         imageUrl = await uploadImageToImgbb(imageFile!);
-                        showBottomMessage(context, "Image téléchargée ✅");
+                        showBottomMessage("Image téléchargée ✅");
                       } catch (e) {
                         print("Erreur générale lors de l'upload de l'image : $e");
-                        showBottomMessage(context, "Échec de l'envoi de l'image ❌");
+                        showBottomMessage("Échec de l'envoi de l'image ❌");
                         // Continue sans l'image en cas d'échec
                       }
                     }
@@ -1045,11 +1042,13 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
 
           try {
             await JwLifeApp.userdata.deleteBackup();
+
             if (dialogContext != null) Navigator.of(dialogContext!).pop();
             GlobalKeyService.homeKey.currentState?.refreshFavorites();
-            if (mounted) Navigator.pop(context);
-          } catch (e) {
+          }
+          catch (e) {
             if (dialogContext != null) Navigator.of(dialogContext!).pop();
+            print(e);
             await _showErrorDialog('Erreur', 'Erreur lors de la suppression.');
           }
         },
@@ -1086,9 +1085,7 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
             final backupFile = await exportAppBackup();
             if (dialogContext != null) Navigator.of(dialogContext!).pop();
 
-            if (backupFile != null) {
-              SharePlus.instance.share(ShareParams(files: [XFile(backupFile.path)]));
-            }
+            SharePlus.instance.share(ShareParams(files: [XFile(backupFile.path)]));
 
             if (mounted) Navigator.pop(context);
           } catch (e) {

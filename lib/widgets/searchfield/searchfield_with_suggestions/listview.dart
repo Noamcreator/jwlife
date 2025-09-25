@@ -104,7 +104,7 @@ class _SFListviewState<T> extends State<SFListview<T>> {
 
   @override
   Widget build(BuildContext context) {
-    BoxDecoration _getDecoration(int index) {
+    BoxDecoration getDecoration(int index) {
       final isSelected = widget.selected == index;
       final selectionColor = widget.suggestionsDecoration?.selectionColor ??
           Theme.of(context).highlightColor;
@@ -195,7 +195,7 @@ class _SFListviewState<T> extends State<SFListview<T>> {
                                     : widget.itemHeight,
                                 key: widget.list[index].key,
                                 width: double.infinity,
-                                decoration: _getDecoration(index),
+                                decoration: getDecoration(index),
                                 child: Align(
                                     alignment: Alignment.centerLeft,
                                     child: Padding(
@@ -221,7 +221,7 @@ class _SFListviewState<T> extends State<SFListview<T>> {
 class KeepAliveListItem extends StatefulWidget {
   final Widget child;
 
-  KeepAliveListItem({required this.child});
+  const KeepAliveListItem({super.key, required this.child});
 
   @override
   _KeepAliveListItemState createState() => _KeepAliveListItemState();

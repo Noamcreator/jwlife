@@ -369,7 +369,7 @@ class FileHandlerService {
     if (jwpub == null) {
       showJwpubError(context);
     } else {
-      showPage(context, PublicationMenuView(publication: jwpub));
+      showPage(PublicationMenuView(publication: jwpub));
     }
   }
 }

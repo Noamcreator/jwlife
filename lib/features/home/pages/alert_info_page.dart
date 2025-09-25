@@ -6,7 +6,6 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:jwlife/core/utils/utils_video.dart';
 import 'package:jwlife/core/utils/webview_data.dart';
 import 'package:jwlife/data/realm/catalog.dart';
-import 'package:jwlife/widgets/dialog/publication_dialogs.dart';
 
 import '../../../app/services/settings_service.dart';
 import '../../../core/utils/directory_helper.dart';

@@ -39,13 +39,13 @@ class PublicationsPage extends StatelessWidget {
           return InkWell(
             onTap: () {
               if (category.hasYears) {
-                showPage(context, PublicationSubcategoriesView(category: category));
+                showPage(PublicationSubcategoriesView(category: category));
               }
               else if(category.type == 'Convention') {
-                showPage(context, PublicationSubcategoriesView(category: category));
+                showPage(PublicationSubcategoriesView(category: category));
               }
               else {
-                showPage(context, PublicationsItemsView(category: category));
+                showPage(PublicationsItemsView(category: category));
               }
             },
             child: Container(

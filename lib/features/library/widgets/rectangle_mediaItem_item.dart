@@ -7,7 +7,6 @@ import '../../../core/utils/utils_audio.dart';
 import '../../../core/utils/utils_video.dart';
 import '../../../data/models/audio.dart';
 import '../../../data/models/video.dart';
-import '../../../data/realm/catalog.dart';
 import '../../../data/repositories/MediaRepository.dart';
 import '../../../widgets/image_cached_widget.dart';
 
@@ -38,7 +37,7 @@ class RectangleMediaItemItem extends StatelessWidget {
                     borderRadius: BorderRadius.circular(2.0),
                     child: ImageCachedWidget(
                       imageUrl: m.networkImageSqr,
-                      pathNoImage: "pub_type_video",
+                      pathNoImage: m is Audio ? "pub_type_audio" : "pub_type_video",
                       height: 80,
                       width: 80,
                     ),

@@ -1,11 +1,6 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:jwlife/core/icons.dart';
-import 'package:jwlife/core/utils/files_helper.dart';
-import 'package:jwlife/core/utils/utils_document.dart';
-import 'package:sqflite/sqflite.dart';
 
 import '../../../core/utils/utils.dart';
 
@@ -20,7 +15,6 @@ class ArticlePage extends StatefulWidget {
 }
 
 class _ArticlePageState extends State<ArticlePage> {
-  String _htmlContent = '';
   bool _showNotes = false;
   bool _isLoading = false;
   late InAppWebViewController? _webViewController;
@@ -60,21 +54,6 @@ class _ArticlePageState extends State<ArticlePage> {
     setState(() {
       _showNotes = !_showNotes;
     });
-  }
-
-  Future<String?> _getImagePathFromDatabase(String url) async {
-    // Mettre l'URL en minuscule
-    File articlesFile = await getArticlesDatabaseFile();
-    Database db = await openDatabase(articlesFile.path);
-    List<Map<String, dynamic>> imageName = await db.rawQuery(
-        'SELECT Path FROM Image WHERE LOWER(Name) = ?', [url]
-    );
-
-    // Si une correspondance est trouvée, retourne le chemin
-    if (imageName.isNotEmpty) {
-      return imageName.first['Path'];
-    }
-    return '';
   }
 
   @override

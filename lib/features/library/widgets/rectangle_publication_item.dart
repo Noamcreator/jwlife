@@ -8,18 +8,14 @@ import '../../../data/repositories/PublicationRepository.dart';
 import '../../../widgets/image_cached_widget.dart';
 
 class RectanglePublicationItem extends StatelessWidget {
-  final Publication pub;
+  final Publication publication;
 
-  const RectanglePublicationItem({super.key, required this.pub});
+  const RectanglePublicationItem({super.key, required this.publication});
 
   @override
   Widget build(BuildContext context) {
-    final publication = PublicationRepository().getPublication(pub);
-
     return Material(
-        color: Theme.of(context).brightness == Brightness.dark
-            ? const Color(0xFF292929)
-            : Colors.white,
+        color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF292929) : Colors.white,
         child: InkWell(
             onTap: () => publication.showMenu(context),
             child: SizedBox(
@@ -141,7 +137,7 @@ class RectanglePublicationItem extends StatelessWidget {
                         return ValueListenableBuilder<bool>(
                           valueListenable: publication.isDownloadedNotifier,
                           builder: (context, isDownloaded, _) {
-                            if (!isDownloaded) {
+                            if (!isDownloaded || publication.hasUpdate()) {
                               return Stack(
                                 children: [
                                   // Icône de téléchargement

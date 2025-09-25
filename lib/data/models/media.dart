@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import 'package:async/async.dart';
-import 'package:flutter/foundation.dart';
 import 'package:jwlife/app/services/settings_service.dart';
 
 import '../../app/services/global_key_service.dart';
@@ -99,7 +98,7 @@ abstract class Media {
     }
     else {
       BuildContext context = GlobalKeyService.jwLifePageKey.currentState!.getCurrentState().context;
-      showBottomMessageWithAction(context, this.title, SnackBarAction(label: 'Lire', onPressed: () {
+      showBottomMessageWithAction(this.title, SnackBarAction(label: 'Lire', onPressed: () {
         showPlayer(context);
       }));
     }
@@ -145,7 +144,7 @@ abstract class Media {
       _downloadOperation!.cancel();
       _cancelToken = null;
       _downloadOperation = null;
-      showBottomMessage(context, 'Téléchargement annulé');
+      showBottomMessage('Téléchargement annulé');
     }
   }
 
@@ -192,7 +191,7 @@ abstract class Media {
       _updateOperation!.cancel();
       _cancelToken = null;
       _updateOperation = null;
-      showBottomMessage(context, 'Mis à jour annulée');
+      showBottomMessage('Mis à jour annulée');
     }
   }
 
@@ -206,7 +205,7 @@ abstract class Media {
     isDownloadedNotifier.value = false;
     progressNotifier.value = 0;
 
-    showBottomMessage(context, 'Media supprimé');
+    showBottomMessage('Media supprimé');
   }
 
   Future<void> showPlayer(BuildContext context, {Duration initialPosition = Duration.zero});

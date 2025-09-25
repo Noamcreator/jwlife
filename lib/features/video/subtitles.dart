@@ -92,7 +92,7 @@ class Subtitles {
           if (currentText == null) {
             currentText = line;
           } else {
-            currentText += '\n' + line;
+            currentText += '\n$line';
           }
         }
       }

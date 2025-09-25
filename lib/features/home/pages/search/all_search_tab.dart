@@ -40,7 +40,25 @@ class _AllSearchTabState extends State<AllSearchTab> {
           final item = result['results'][verseIndex];
           return GestureDetector(
             onTap: () async {
-              printTime('Item tapped: $item');
+              String itemString = item['lank'];
+              String itemString2 = itemString.split("-")[1].split("_")[0];
+
+              printTime('Item tapped: $itemString2');
+
+              // Le verset est toujours les 3 derniers chiffres
+              int verseNumber = int.parse(itemString2.substring(itemString2.length - 3));
+
+              // La partie qui reste contient le livre et le chapitre
+              String remainingString = itemString2.substring(0, itemString2.length - 3);
+
+              // Le chapitre est les 3 derniers chiffres de la partie restante
+              int chapterNumber = int.parse(remainingString.substring(remainingString.length - 3));
+
+              // Le livre est le reste de la chaîne
+              int bookNumber = int.parse(remainingString.substring(0, remainingString.length - 3));
+
+              List<String> wordsSelected = widget.model.query.split(' ');
+              showChapterView(context, 'nwtsty', JwLifeSettings().currentLanguage.id, bookNumber, chapterNumber, firstVerseNumber: verseNumber, lastVerseNumber: verseNumber, wordsSelected: wordsSelected);
             },
             child: Container(
               width: 250,
@@ -500,8 +518,10 @@ class _AllSearchTabState extends State<AllSearchTab> {
               if (article['links'] != null && article['links']['wol'] != null) {
                 String lank = article['lank'];
                 int docId = int.parse(lank.replaceAll("pa-", ""));
-                showDocumentView(context, docId, JwLifeSettings().currentLanguage.id);
-              } else {
+                List<String> wordsSelected = widget.model.query.split(' ');
+                showDocumentView(context, docId, JwLifeSettings().currentLanguage.id, wordsSelected: wordsSelected);
+              }
+              else {
                 launchUrl(Uri.parse(article['links']['jw.org']!), mode: LaunchMode.externalApplication);
               }
             },
@@ -542,8 +562,8 @@ class _AllSearchTabState extends State<AllSearchTab> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           if (article['context'] != null && article['context'].isNotEmpty)
-                            Text(
-                              article['context'],
+                            SearchHtmlWidget(
+                              text: article['context'],
                               style: TextStyle(
                                 fontSize: 16,
                                 color: Theme.of(context).hintColor,

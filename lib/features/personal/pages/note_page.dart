@@ -1,14 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:jwlife/app/services/global_key_service.dart';
 import 'package:jwlife/core/utils/utils_document.dart';
-import 'package:jwlife/data/models/publication_category.dart';
 import 'package:jwlife/data/models/userdata/note.dart';
 import 'package:jwlife/features/personal/widgets/note_item_widget.dart';
 import 'package:jwlife/widgets/image_cached_widget.dart';
 
 import '../../../app/jwlife_app.dart';
 import '../../../core/icons.dart';
-import '../../../core/utils/utils.dart';
 import '../../../data/models/publication.dart';
 import '../../../data/models/userdata/tag.dart';
 

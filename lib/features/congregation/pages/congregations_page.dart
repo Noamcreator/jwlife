@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/app/services/global_key_service.dart';
@@ -46,8 +45,8 @@ class _CongregationsPageState extends State<CongregationsPage> {
 
       // Tri par nom (champ 'Name' dans ta table)
       fetchedCongregations.sort((a, b) {
-        final nameA = (a.name ?? '').toString().toLowerCase();
-        final nameB = (b.name ?? '').toString().toLowerCase();
+        final nameA = (a.name).toString().toLowerCase();
+        final nameB = (b.name).toString().toLowerCase();
         return nameA.compareTo(nameB);
       });
 
@@ -250,7 +249,7 @@ class _CongregationsPageState extends State<CongregationsPage> {
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Theme.of(context).primaryColor),
               overflow: TextOverflow.ellipsis,
             ),
-            if (item.address!.isNotEmpty ?? false)
+            if (item.address!.isNotEmpty)
               Text(
                 item.address!,
                 style: const TextStyle(fontSize: 14, color: Colors.grey),
@@ -304,7 +303,7 @@ class _CongregationsPageState extends State<CongregationsPage> {
                           child: Icon(JwIcons.magnifying_glass, color: Colors.white)
                       ),
                       onTap: () {
-                        //showPage(context, SearchView(query: _searchController.text));
+                        //showPage(SearchView(query: _searchController.text));
                       },
                     )
                 ),

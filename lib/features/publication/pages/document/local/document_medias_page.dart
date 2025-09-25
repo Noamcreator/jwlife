@@ -1,15 +1,11 @@
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
-import 'package:jwlife/app/jwlife_page.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
-import 'package:jwlife/core/utils/utils.dart';
-import 'package:jwlife/core/utils/utils_audio.dart';
 import 'package:jwlife/core/utils/utils_video.dart';
 import 'package:jwlife/data/databases/history.dart';
 import 'package:jwlife/data/models/media.dart';
 import 'package:jwlife/data/realm/catalog.dart';
-import 'package:jwlife/features/library/widgets/rectangle_mediaItem_item.dart';
 import 'package:jwlife/widgets/image_cached_widget.dart';
 
 import '../../../../../app/services/global_key_service.dart';
@@ -218,7 +214,7 @@ class _DocumentMediasViewState extends State<DocumentMediasView> {
       onTap: () {
         Multimedia? multimedia = widget.document.multimedias.firstWhereOrNull((img) => img.filePath.toLowerCase() == media.filePath.toLowerCase());
         if (multimedia != null) {
-          showPage(context, FullScreenImagePage(publication: widget.document.publication, multimedias: widget.document.multimedias, multimedia: multimedia));
+          showPage(FullScreenImagePage(publication: widget.document.publication, multimedias: widget.document.multimedias, multimedia: multimedia));
         }
       },
       child: Stack(

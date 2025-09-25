@@ -1,9 +1,7 @@
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart' hide Category;
 import 'package:flutter/material.dart';
 import 'package:jwlife/app/services/global_key_service.dart';
-import 'package:jwlife/data/models/media.dart';
 import 'package:jwlife/widgets/searchfield/searchfield_with_suggestions/decoration.dart';
 import 'package:jwlife/widgets/searchfield/searchfield_with_suggestions/input_decoration.dart';
 import 'package:jwlife/widgets/searchfield/searchfield_with_suggestions/searchfield.dart';
@@ -17,9 +15,7 @@ import '../../core/api/api.dart';
 import '../../core/icons.dart';
 import '../../core/utils/common_ui.dart';
 import '../../core/utils/utils.dart';
-import '../../core/utils/utils_audio.dart';
 import '../../core/utils/utils_document.dart';
-import '../../core/utils/utils_video.dart';
 import '../../data/databases/catalog.dart';
 import '../../data/models/audio.dart';
 import '../../data/models/video.dart';
@@ -31,7 +27,6 @@ import '../../features/home/pages/search/search_page.dart';
 import '../../features/home/pages/search/suggestion.dart';
 import '../../i18n/localization.dart';
 import '../image_cached_widget.dart';
-// Ajoute les imports nécessaires pour JwIcons, PubCatalog, RealmLibrary, etc.
 
 class SearchFieldAll extends StatefulWidget {
   final void Function()? onClose;
@@ -83,7 +78,7 @@ class _SearchFieldAllState extends State<SearchFieldAll> {
           ),
           onTap: () {
             widget.onClose?.call();
-            showPage(context, SearchPage(query: _controller.text));
+            showPage(SearchPage(query: _controller.text));
           },
         ),
       ),
@@ -100,7 +95,7 @@ class _SearchFieldAllState extends State<SearchFieldAll> {
       onSuggestionTap: _handleTap,
       onSubmit: (text) {
         widget.onClose?.call();
-        showPage(context, SearchPage(query: text));
+        showPage(SearchPage(query: text));
       },
       onTapOutside: (_) => widget.onClose?.call(),
     );
@@ -293,7 +288,7 @@ class _SearchFieldAllState extends State<SearchFieldAll> {
         await showDocumentView(context, selected.query, JwLifeSettings().currentLanguage.id);
         break;
       case 6:
-        showPage(context, SearchBiblePage(query: selected.query));
+        showPage(SearchBiblePage(query: selected.query));
         break;
       case 7:
         final publication = await PubCatalog.searchPub(selected.query, 0, JwLifeSettings().currentLanguage.id);
@@ -307,7 +302,7 @@ class _SearchFieldAllState extends State<SearchFieldAll> {
         selected.query.showPlayer(context);
         break;
       default:
-        showPage(context, SearchPage(query: selected.query));
+        showPage(SearchPage(query: selected.query));
     }
   }
 }

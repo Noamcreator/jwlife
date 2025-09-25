@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
 import 'package:jwlife/core/api/api.dart';
@@ -354,7 +353,7 @@ class _SubtitlesPageState extends State<SubtitlesPage> {
   void _copySubtitles() async {
     await _controller?.evaluateJavascript(source: "copySubtitles();");
     if (mounted) {
-      showBottomMessage(context, 'Sous-titres copiés');
+      showBottomMessage('Sous-titres copiés');
     }
   }
 
@@ -409,8 +408,7 @@ class _SubtitlesPageState extends State<SubtitlesPage> {
             : Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (widget.video != null)
-              Text(widget.video.title, style: const TextStyle(fontSize: 18.0)),
+            Text(widget.video.title, style: const TextStyle(fontSize: 18.0)),
             const Text('Sous-titres', style: TextStyle(fontSize: 12.0)),
           ],
         ),

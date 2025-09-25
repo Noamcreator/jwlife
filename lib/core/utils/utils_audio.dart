@@ -13,7 +13,6 @@ import 'package:jwlife/widgets/dialog/utils_dialog.dart';
 import 'package:realm/realm.dart';
 
 import 'package:share_plus/share_plus.dart';
-import 'package:http/http.dart' as http;
 import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/widgets/dialog/language_dialog.dart';
 
@@ -24,7 +23,6 @@ import '../../features/video/subtitles.dart';
 import '../api/api.dart';
 import '../jworg_uri.dart';
 import 'common_ui.dart';
-import 'utils_media.dart';
 
 import 'package:audio_service/audio_service.dart' as audio_service;
 
@@ -222,7 +220,7 @@ PopupMenuItem getAudioLyricsItem(BuildContext context, Audio audio, {String quer
     onTap: () async {
       String link = 'https://www.jw.org/finder?wtlocale=${audio.mepsLanguage}&lank=${audio.naturalKey}';
 
-      showPage(context, LyricsPage(
+      showPage(LyricsPage(
           audioJwPage: link,
           query: query
       ));

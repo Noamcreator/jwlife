@@ -2,13 +2,10 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:html/parser.dart';
-import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/core/utils/utils_document.dart';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/repositories/PublicationRepository.dart';
-import 'package:jwlife/data/databases/catalog.dart';
 import 'package:jwlife/widgets/image_cached_widget.dart';
-import 'package:sqflite/sqflite.dart';
 
 import '../../../../core/utils/utils.dart';
 import '../../../../core/utils/utils_jwpub.dart';

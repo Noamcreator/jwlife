@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:jwlife/app/jwlife_app.dart';
-import 'package:jwlife/core/utils/common_ui.dart';
-import 'package:jwlife/features/home/pages/search/search_page.dart';
+import 'package:jwlife/core/utils/utils_document.dart';
 
+import '../../../../app/services/settings_service.dart';
 import '../../../../core/utils/html_styles.dart';
 import 'search_model.dart';
 
@@ -52,16 +51,8 @@ class _BibleSearchTabState extends State<BibleSearchTab> {
                   int chapterNumber = int.parse(itemString2.substring(2, 5));  // 4
                   int verseNumber = int.parse(itemString2.substring(5, 8));  // 16
 
-                  String query = JwLifeApp.bibleCluesInfo.getVerses(
-                    bookNumber,
-                    chapterNumber,
-                    verseNumber,
-                    bookNumber,
-                    chapterNumber,
-                    verseNumber,
-                  );
-
-                  showPage(context, SearchPage(query: query));
+                  List<String> wordsSelected = widget.model.query.split(' ');
+                  showChapterView(context, 'nwtsty', JwLifeSettings().currentLanguage.id, bookNumber, chapterNumber, firstVerseNumber: verseNumber, lastVerseNumber: verseNumber, wordsSelected: wordsSelected);
                 },
                 child: Card(
                   color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF292929) : Colors.white,

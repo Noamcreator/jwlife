@@ -7,7 +7,6 @@ import 'package:jwlife/features/home/widgets/home_page/square_publication_item.d
 import '../../../../core/icons.dart';
 import '../../../../data/models/media.dart';
 import '../../../../data/models/publication.dart';
-import '../../../../data/realm/catalog.dart';
 import '../../../../i18n/localization.dart';
 
 class FavoritesSection extends StatefulWidget {

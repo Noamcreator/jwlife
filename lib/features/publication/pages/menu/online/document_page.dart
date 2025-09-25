@@ -4,12 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:html/dom.dart' as html_dom;
 import 'package:http/http.dart' as http;
 import 'package:html/parser.dart' as html_parser;
-import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:share_plus/share_plus.dart';
 
-import '../../../../../app/services/settings_service.dart';
 import '../../../../../core/api/api.dart';
 import '../../../../../core/utils/utils.dart';
 import 'publication_media_items_view.dart';
@@ -21,15 +19,13 @@ class PagesDocumentView extends StatefulWidget {
   final List<Map<String, dynamic>> navCards; // Ajoutez ce paramètre
   final ScrollController scrollController;
 
-  const PagesDocumentView({Key? key, required this.publication, required this.currentIndex, required this.navCards, required this.scrollController}) : super(key: key);
+  const PagesDocumentView({super.key, required this.publication, required this.currentIndex, required this.navCards, required this.scrollController});
 
   @override
   _PagesDocumentViewState createState() => _PagesDocumentViewState();
 }
 
 class _PagesDocumentViewState extends State<PagesDocumentView> {
-  List<Map<String, dynamic>> _textInputs = []; // Store the input fields here
-  List<Map<String, dynamic>> _blockRange = []; // Store the input fields here
   bool _isLoading = true;
   String _title = '';
   String _data = '';
@@ -49,24 +45,6 @@ class _PagesDocumentViewState extends State<PagesDocumentView> {
   void initState() {
     super.initState();
     _onPageChanged(widget.currentIndex);
-  }
-
-  Future<void> _loadInputFields(int currentIndex) async {
-    int lang = JwLifeSettings().currentLanguage.id;
-    var inputFields = await JwLifeApp.userdata.getInputFieldsFromDocId(widget.navCards[currentIndex]['docId']!, lang);
-    printTime('inputFields: $inputFields');
-    setState(() {
-      _textInputs = inputFields; // Store the result in the variable
-    });
-  }
-
-  Future<void> _loadBlockRange(int currentIndex) async {
-    int lang = JwLifeSettings().currentLanguage.id;
-    var blockRange = await JwLifeApp.userdata.getHighlightsFromDocId(widget.navCards[currentIndex]['docId']!, lang);
-    printTime('blockRange: $blockRange');
-    setState(() {
-      _blockRange = blockRange; // Store the result in the variable
-    });
   }
 
   Future<void> fetchData(String docLink) async {
@@ -103,8 +81,6 @@ class _PagesDocumentViewState extends State<PagesDocumentView> {
       _currentIndex = index;
       fetchData(widget.navCards[_currentIndex]['link']!); // Charger les données de la publication en cours
       _images.clear();
-      _loadInputFields(_currentIndex); // Charger les champs d'entrée pour la nouvelle publication
-      _loadBlockRange(_currentIndex);
     });
   }
 
@@ -134,9 +110,9 @@ class _PagesDocumentViewState extends State<PagesDocumentView> {
       final uri = Uri.parse(docLink);
       final pathSegments = uri.pathSegments;
       final newPath = pathSegments.skip(1).join('/');
-      printTime('https://wol.jw.org/wol/' + newPath);
+      printTime('https://wol.jw.org/wol/$newPath');
 
-      final response = await http.get(Uri.parse('https://wol.jw.org/wol/' + newPath));
+      final response = await http.get(Uri.parse('https://wol.jw.org/wol/$newPath'));
 
       if (response.statusCode == 200) {
         final jsonResponse = json.decode(response.body); // Changez cela si nécessaire
@@ -174,7 +150,7 @@ class _PagesDocumentViewState extends State<PagesDocumentView> {
     String link = widget.navCards[_currentIndex]['link']!;
 
     try {
-      final response = await http.get(Uri.parse('https://wol.jw.org' + link));
+      final response = await http.get(Uri.parse('https://wol.jw.org$link'));
       if (response.statusCode == 200) {
         document = html_parser.parse(response.body);
 
@@ -186,7 +162,7 @@ class _PagesDocumentViewState extends State<PagesDocumentView> {
 
           if (_imageMode) {
             for (var s in svgs) {
-              svgUrls.add('https://wol.jw.org/' + s.attributes['src']!);
+              svgUrls.add('https://wol.jw.org/${s.attributes['src']!}');
             }
           }
         }
@@ -317,13 +293,13 @@ class _PagesDocumentViewState extends State<PagesDocumentView> {
                     int docId = widget.navCards[_currentIndex]['docId']!;
                     //var note = await JwLifeApp.userdata.addNote(_title, '', 0, [], docId, widget.publication['IssueTagNumber'], widget.publication['KeySymbol'], widget.publication['MepsLanguageId']);
 
-                    //showPage(context, NoteView(note: note)).then((_) => _toggleNotesView());
+                    //showPage(NoteView(note: note)).then((_) => _toggleNotesView());
                   },
                 ),
                 PopupMenuItem<String>(
                   child: Text('Voir les médias'),
                   onTap: () {
-                    showPage(context, PublicationMediaItemsView(document: _data));
+                    showPage(PublicationMediaItemsView(document: _data));
                   },
                 ),
                 PopupMenuItem<String>(

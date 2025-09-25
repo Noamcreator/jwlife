@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:audio_service/audio_service.dart' as audio_service;
 import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -22,10 +23,10 @@ import 'package:jwlife/data/realm/catalog.dart';
 import 'package:jwlife/features/home/pages/search/search_page.dart';
 import 'package:jwlife/widgets/dialog/language_dialog_pub.dart';
 import 'package:jwlife/widgets/dialog/publication_dialogs.dart';
+import 'package:jwlife/widgets/dialog/utils_dialog.dart';
 import 'package:jwlife/widgets/responsive_appbar_actions.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:uuid/uuid.dart';
-import 'package:audio_service/audio_service.dart' as audio_service;
 
 import '../../../../../../../core/utils/widgets_utils.dart';
 import '../../../../../../../data/models/userdata/bookmark.dart';
@@ -372,7 +373,7 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
 
     if(multimedia == null) return;
     if (!multimedia.hasSuppressZoom) {
-      showPage(context, FullScreenImagePage(
+      showPage(FullScreenImagePage(
           publication: widget.publication,
           multimedias: widget.publication.documentsManager!.getCurrentDocument().multimedias,
           multimedia: multimedia
@@ -428,6 +429,7 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
                 hardwareAcceleration: true,
                 forceDark: ForceDark.OFF,
                 databaseEnabled: false,
+                transparentBackground: true
               ),
               initialData: InAppWebViewInitialData(
                   data: createReaderHtmlShell(
@@ -494,24 +496,27 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
                     final String message = params['message'] ?? 'Êtes-vous sûr ?';
 
                     // Affiche un dialog Flutter et retourne la réponse
-                    final bool? confirmed = await showDialog<bool>(
-                      context: context,
-                      builder: (BuildContext context) {
-                        return AlertDialog(
-                          title: Text(title),
-                          content: Text(message),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.of(context).pop(false),
-                              child: const Text('ANNULER'),
-                            ),
-                            ElevatedButton(
-                              onPressed: () => Navigator.of(context).pop(true),
-                              child: const Text('CONFIRMER'),
-                            ),
-                          ],
-                        );
-                      },
+                    final bool? confirmed = await showJwDialog(
+                        context: context,
+                        titleText: title,
+                        contentText: message,
+                        buttonAxisAlignment: MainAxisAlignment.end,
+                        buttons: [
+                          JwDialogButton(
+                              label: 'NON',
+                              closeDialog: false,
+                              onPressed: (buildContext) async {
+                                Navigator.of(buildContext).pop(false);
+                              }
+                          ),
+                          JwDialogButton(
+                              label: 'OUI',
+                              closeDialog: false,
+                              onPressed: (buildContext) async {
+                                Navigator.of(buildContext).pop(true);
+                              }
+                          ),
+                        ]
                     );
 
                     return confirmed ?? false; // Retourne false si null
@@ -667,24 +672,27 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
                           final String message = 'Voulez-vous supprimer la note "${note['Title']}" associé à votre surlignage ?';
 
                           // Affiche un dialog Flutter et retourne la réponse
-                          final bool? confirmed = await showDialog<bool>(
+                          final bool? confirmed = await showJwDialog(
                             context: context,
-                            builder: (BuildContext context) {
-                              return AlertDialog(
-                                title: Text(title),
-                                content: Text(message),
-                                actions: [
-                                  TextButton(
-                                    onPressed: () => Navigator.of(context).pop(false),
-                                    child: const Text('NON'),
-                                  ),
-                                  ElevatedButton(
-                                    onPressed: () => Navigator.of(context).pop(true),
-                                    child: const Text('OUI'),
-                                  ),
-                                ],
-                              );
-                            },
+                            titleText: title,
+                            contentText: message,
+                            buttonAxisAlignment: MainAxisAlignment.end,
+                            buttons: [
+                              JwDialogButton(
+                                label: 'NON',
+                                closeDialog: false,
+                                onPressed: (buildContext) async {
+                                  Navigator.of(buildContext).pop(false);
+                                }
+                              ),
+                              JwDialogButton(
+                                  label: 'OUI',
+                                  closeDialog: false,
+                                  onPressed: (buildContext) async {
+                                    Navigator.of(buildContext).pop(true);
+                                  }
+                              ),
+                            ]
                           );
 
                           if(confirmed == true) {
@@ -784,7 +792,7 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
                   handlerName: 'openTagPage',
                   callback: (args) {
                     int tagId = args[0]['tagId'];
-                    showPage(context, TagPage(tag: JwLifeApp.userdata.tags.firstWhere((tag) => tag.id == tagId)));
+                    showPage(TagPage(tag: JwLifeApp.userdata.tags.firstWhere((tag) => tag.id == tagId)));
                   },
                 );
 
@@ -1026,7 +1034,7 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
                   handlerName: 'copyText',
                   callback: (args) async {
                     Clipboard.setData(ClipboardData(text: args[0]['text']));
-                    showBottomMessage(context, 'Texte copié dans le presse-papier');
+                    showBottomMessage('Texte copié dans le presse-papier');
                   },
                 );
 
@@ -1135,7 +1143,7 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
                   handlerName: 'search',
                   callback: (args) async {
                     String query = args[0]['query'];
-                    showPage(context, SearchPage(query: query));
+                    showPage(SearchPage(query: query));
                   },
                 );
 
@@ -1148,7 +1156,7 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
                     String verseNumber = args[0]['query'].toString();
 
                     String query = JwLifeApp.bibleCluesInfo.getVerse(int.parse(book), int.parse(chapter), int.parse(verseNumber));
-                    showPage(context, SearchPage(query: query));
+                    showPage(SearchPage(query: query));
                   },
                 );
 
@@ -1537,7 +1545,7 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
                               builder: (context) => languageDialog,
                             ).then((languagePub) {
                               if (languagePub != null) {
-                                showPageDocument(context, languagePub, widget.publication.documentsManager!.getCurrentDocument().mepsDocumentId);
+                                showPageDocument(languagePub, widget.publication.documentsManager!.getCurrentDocument().mepsDocumentId);
                               }
                             }
                             );
@@ -1564,7 +1572,7 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
                             text: "Voir les médias",
                             icon: const Icon(JwIcons.video_music),
                             onPressed: () {
-                              showPage(context, DocumentMediasView(document: widget.publication.documentsManager!.getCurrentDocument()));
+                              showPage(DocumentMediasView(document: widget.publication.documentsManager!.getCurrentDocument()));
                             },
                           ),
                         IconTextButton(
@@ -1645,24 +1653,30 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
 
         if(GlobalKeyService.jwLifePageKey.currentState!.audioWidgetVisible)
           Positioned(
-            bottom: 70,
+            bottom: 0,
             left: 0,
             right: 0,
             child: Visibility(
                 visible: _controlsVisible,
-                child: GlobalKeyService.jwLifePageKey.currentState!.getAudioWidget()
+                child: Column(
+                  children: [
+                    GlobalKeyService.jwLifePageKey.currentState!.getAudioWidget(),
+                    GlobalKeyService.jwLifePageKey.currentState!.getBottomNavigationBar()
+                  ]
+                )
             )
           ),
 
-        Positioned(
-          bottom: 0,
-          left: 0,
-          right: 0,
-          child: Visibility(
-              visible: _controlsVisible,
-              child: GlobalKeyService.jwLifePageKey.currentState!.getBottomNavigationBar()
-          )
-        ),
+        if(!GlobalKeyService.jwLifePageKey.currentState!.audioWidgetVisible)
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: Visibility(
+                visible: _controlsVisible,
+                child: GlobalKeyService.jwLifePageKey.currentState!.getBottomNavigationBar()
+            )
+          ),
       ],
     );
   }

@@ -173,14 +173,14 @@ class Video extends Media {
   @override
   Future<void> showPlayer(BuildContext context, {Duration initialPosition = Duration.zero}) async {
     if(isDownloadedNotifier.value) {
-      showPage(context, VideoPlayerPage(
+      showPage(VideoPlayerPage(
           video: this,
           initialPosition: initialPosition
       ));
     }
     else {
       if(await hasInternetConnection()) {
-        showPage(context, VideoPlayerPage(
+        showPage(VideoPlayerPage(
             video: this,
             initialPosition: initialPosition
         ));

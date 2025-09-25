@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:audio_service/audio_service.dart';
-
 import 'package:just_audio/just_audio.dart';
+
 import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/data/databases/tiles_cache.dart';
 import 'package:jwlife/data/models/publication.dart';
@@ -41,7 +41,7 @@ class JwLifeAudioPlayer {
         final response = await Api.httpGetWithHeaders(apiUrl);
 
         if (response.statusCode == 200) {
-          final data = json.decode(response.body);
+          //final data = json.decode(response.body);
           album = RealmLibrary.realm.all<realm_catalog.Category>().query("key == '${audio.categoryKey}'").first.localizedName!;
 
           //Audio audio = Audio.fromJson(json:data['media'][0]);

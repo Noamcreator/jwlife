@@ -47,7 +47,7 @@ class _VideoPageState extends State<VideoPage> {
 
     return InkWell(
       onTap: () {
-        showPage(context, VideoItemsPage(category: category));
+        showPage(VideoItemsPage(category: category));
       },
       child: Container(
         width: itemWidth,

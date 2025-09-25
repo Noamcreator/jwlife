@@ -1,14 +1,9 @@
-import 'dart:convert';
 
-import 'package:intl/intl.dart';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/features/publication/pages/document/data/models/dated_text.dart';
 import 'package:sqflite/sqflite.dart';
 
-import '../../../../../app/services/settings_service.dart';
 import '../../../../../core/utils/utils.dart';
-import '../data/models/document.dart';
-import 'document_page.dart';
 
 class DatedTextManager {
   Publication publication;

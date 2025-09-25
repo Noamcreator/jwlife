@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
-import 'package:jwlife/data/models/audio.dart';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/databases/history.dart';
 import 'package:jwlife/widgets/searchfield/searchfield_widget.dart';
@@ -178,7 +177,6 @@ class _PublicationSearchViewState extends State<PublicationSearchView> {
                                           GestureDetector(
                                             onTap: () {
                                               showPageDocument(
-                                                context,
                                                 widget.publication,
                                                 docId,
                                                 startParagraphId: paragraphs[i]['paragraphId'],
@@ -383,7 +381,7 @@ class _PublicationSearchViewState extends State<PublicationSearchView> {
                 final verse = _model.verses[index];
                 return GestureDetector(
                   onTap: () {
-                    showPageBibleChapter(context, widget.publication, verse['bookNumber'], verse['chapterNumber'], firstVerse: verse['verseNumber'], lastVerse: verse['verseNumber'], wordsSelected: _model.wordsSelectedVerse);
+                    showPageBibleChapter(widget.publication, verse['bookNumber'], verse['chapterNumber'], firstVerse: verse['verseNumber'], lastVerse: verse['verseNumber'], wordsSelected: _model.wordsSelectedVerse);
                   },
                   child: Card(
                     color: Theme.of(context).brightness == Brightness.dark
@@ -538,7 +536,6 @@ class _PublicationSearchViewState extends State<PublicationSearchView> {
             onSuggestionTap: (item) async {
               String query = item.item!['word'];
               showPage(
-                context,
                 PublicationSearchView(
                   query: query,
                   publication: widget.publication,
@@ -554,7 +551,6 @@ class _PublicationSearchViewState extends State<PublicationSearchView> {
                 _isSearching = false;
               });
               showPage(
-                context,
                 PublicationSearchView(
                   query: text,
                   publication: widget.publication,

@@ -132,7 +132,6 @@ class SearchInputDecoration extends InputDecoration {
     super.suffixIconConstraints,
   });
 
-  @override
   SearchInputDecoration collapsed({
     Key? key,
     Color? cursorColor,

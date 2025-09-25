@@ -62,7 +62,7 @@ class AlertBannerState extends State<AlertBanner> {
 
     return GestureDetector(
       onTap: () {
-        showPage(context, AlertInfoPage(alerts: _alerts));
+        showPage(AlertInfoPage(alerts: _alerts));
       },
       child: Container(
         color: Theme.of(context).primaryColor,

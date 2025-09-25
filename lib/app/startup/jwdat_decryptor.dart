@@ -37,7 +37,7 @@ Future<File> decryptJwdatFile() async {
     ),
   );
 
-  final encryptedContent = contentsFile.content as Uint8List;
+  final encryptedContent = contentsFile.content;
   final decrypted = encrypter.decryptBytes(
     encrypt.Encrypted(encryptedContent),
     iv: encrypt.IV(iv),

@@ -211,7 +211,7 @@ class _PendingUpdatesPageState extends State<PendingUpdatesPage> {
                 ),
                 onTap: () {
                   if (item is Publication) {
-                    showPage(context, PublicationMenuView(publication: item));
+                    showPage(PublicationMenuView(publication: item));
                   }
                   else if (item is Media) {
                     item.showPlayer(context);
