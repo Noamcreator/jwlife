@@ -1,0 +1,115 @@
+Mise à jour du 02/09/2025
+- Le bouton de recherche fonctionne désormais dans la Bible.
+
+- Les fenêtres peuvent être déplacées librement, seules les barres de titre empêchent qu’elles sortent du document.
+
+- Il est à nouveau possible de créer des notes sans surlignage, et elles s’enregistrent correctement dans la sauvegarde.
+
+- Les mots de la classe gen-field ne sont plus « wrapper » dans Vivez pour toujours.
+
+- La page de recherche Wikipédia est désormais placée en dernière position.
+
+- Lorsque l’on utilise le bouton retour depuis une page autre que l’accueil, on est redirigé vers la page d’accueil.
+
+- Correction de certains versets dans les Psaumes lorsqu’une souscription est active.
+
+- Les notes d’étude s’affichent désormais dans un dialogue lorsqu’elles sont seules.
+
+- Amélioration du mode Image pour les cantiques.
+
+
+Mise à jour du 05/09/2025
+- Amélioration et optimisation de la gestion des audios et vidéos.
+
+- Ajout d’une barre de progression lors du téléchargement d’une vidéo ou d’un audio.
+
+- Ajout d’un léger espacement entre l’AppBar et le texte du jour sur la page d’accueil.
+
+- Correction de l’enregistrement du timestamp lors de la sauvegarde d’un article dans la base de données.
+
+- Correction du problème d’écran noir après le téléchargement d’une Bible depuis la boîte de dialogue de la page Bible.
+
+
+Mise à jour du 08/09/2025
+- Correction du bug lié à la flèche de retour dans le widget Audio en Fullscreen, permettant de fermer la page sans erreur.
+
+- Passage de l'onglet comparaison des bibles tout en dernier.
+
+- Possibilité d'avoir juste le contenu qu'on veut pour le guide de recherche sans avoir à télécharger la publication.
+
+
+Mise à jour du 10/08/2025
+- 📑 Les articles sont désormais affichés dans l’ordre chronologique correct (le plus récent en premier).
+
+- 🎵 Ajout d’une barre de progression de téléchargement pour les audios d’un document dans le PublicationMenu.
+
+- 📖 Les versets des Psaumes s’affichent correctement même en présence d’une suscription.
+
+- ✨ Les suscriptions sont maintenant affichées au-dessus du premier verset lors de la lecture de la Bible.
+
+- ⏰ Possibilité de choisir l’heure des rappels pour le texte du jour et la lecture de la Bible, avec option d’activation/désactivation dans les paramètres.
+
+- 🔕 Option pour désactiver les notifications lors du téléchargement d’une publication ou d’un média.
+
+- 🔍 Nouvelle recherche : possibilité de trouver un verset dans toutes les publications via l’onglet « VERSETS ».
+
+- 🏛️ Ajout du menu « Assemblées Locales » : il est désormais possible d’ajouter une assemblée locale en réimportant une sauvegarde.
+
+- 📅 Dans la section « Réunions et Assemblées », l’application affiche maintenant la prochaine réunion prévue si une assemblée locale est ajoutée.
+
+- Mise en commun des onglets Lecture de la Bible et Étude individuelle dans le menu "Personel"
+
+
+📢 Mise à jour – 11/09/2025
+- Possibilité de rechercher une publication directement depuis une catégorie de publication.
+
+- Résolution de bugs lors du téléchargement d’audios.
+
+- Actualisation automatique de la page AudioItems lorsque le lecteur audio est fermé.
+
+- Lorsqu’un audio est lancé dans la Bible, le verset lu par le frère est désormais mis en évidence.
+
+
+📢 Mise à jour – 16/09/2025
+- La fenêtre de menu pour "Supprimer la note" et "Changer la couleur" s'enlève comme il faut quand on clique ailleurs.
+
+- Le bouton de retour quand on va de dialogue en dialogue a été remplacé par le logo de retour JW.
+
+- Dans les catégories Audio et Vidéo, on peut maintenant changer la langue spécifiquement pour la page de la catégorie.
+
+- Les sélections de texte dans les WebViews se désactivent lorsque l'on clique ailleurs, sauf si on clique sur un lien.
+
+- L'emplacement de la barre de défilement (scrollbar) dans les WebViews a été corrigé pour qu'elle démarre juste en dessous de l'Appbar.
+
+- Un problème qui empêchait de revenir en arrière depuis la page des Catégories a été résolu.
+
+-  Le bouton de langue dans la section "réunion" fonctionne maintenant comme celui de la page d'accueil, permettant de changer la langue de l'ensemble de l'application.
+
+- Il est désormais possible de sélectionner le texte des sous-titres et d'utiliser des flèches pour naviguer mot par mot avec la fonction recherche.
+
+- Un message s'affiche quand on essaie de créer une catégorie qui existe déjà.
+
+- La fonction "Autres langues" pour les médias est maintenant opérationnelle.
+
+- Quand le lecteur audio est présent dans un WebView, celui-ci s'adapte pour que le bouton rond flottant soit visible et que les fenêtres en plein écran soient dimensionnées correctement.
+
+- La base de données des médias (Audio et Vidéo) vérifie si un média existe avant de l'ajouter et le remplace s'il est déjà présent.
+
+📢 Mise à jour – 20/09/2025
+
+✅ Correctifs
+- Ajustement de la position du premier paragraphe lors de l’ouverture via un lien (ex. Genèse 3:15-21).
+
+- Limitation de la récupération des articles aux 3 plus récents (triés par timeStamp décroissant).
+
+🎨 Améliorations
+
+- Conversion des balises HTML (<strong>, <em>, <sup>, etc.) en styles natifs Flutter dans la recherche.
+
+- Amélioration de l’interface de recherche pour les articles, vidéos, audios et versets.
+
+📂 Nouveautés
+
+- Ajout d’une fenêtre d’affichage lors de l’importation de fichiers .jwpub.
+
+- Gestion des erreurs d’import avec affichage d’une boîte de dialogue explicative.
