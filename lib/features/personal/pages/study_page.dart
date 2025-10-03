@@ -21,16 +21,21 @@ class StudyTabView extends StatefulWidget {
   const StudyTabView({super.key,});
 
   @override
-  _StudyTabViewState createState() => _StudyTabViewState();
+  StudyTabViewState createState() => StudyTabViewState();
 }
 
-class _StudyTabViewState extends State<StudyTabView> {
+class StudyTabViewState extends State<StudyTabView> {
   List<Note> notes = [];
   List<Playlist> playlists = [];
 
   @override
   void initState() {
     super.initState();
+    initNotes();
+    initPlaylist();
+  }
+
+  Future<void> reloadData() async {
     initNotes();
     initPlaylist();
   }
@@ -67,7 +72,7 @@ class _StudyTabViewState extends State<StudyTabView> {
                 ),
                 SizedBox(width: 4),
                 Icon(
-                  JwIcons.chevron_right,
+                  Directionality.of(context) == TextDirection.rtl ? JwIcons.chevron_left : JwIcons.chevron_right,
                   color: Theme.of(context).primaryColor,
                   size: 24,
                 ),
@@ -94,7 +99,7 @@ class _StudyTabViewState extends State<StudyTabView> {
     );
   }
 
-  Widget buildSectionHeaderNotesTags() {
+  Widget buildSectionHeaderNotesTags(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(left: 8, right: 8, top: 0, bottom: 0),
       child: Row(
@@ -117,7 +122,7 @@ class _StudyTabViewState extends State<StudyTabView> {
                 ),
                 SizedBox(width: 4),
                 Icon(
-                  JwIcons.chevron_right,
+                  Directionality.of(context) == TextDirection.rtl ? JwIcons.chevron_left : JwIcons.chevron_right,
                   color: Theme.of(context).primaryColor,
                   size: 24,
                 ),
@@ -150,9 +155,7 @@ class _StudyTabViewState extends State<StudyTabView> {
                   );
                   if (note != null) {
                     await showPage(NotePage(note: note));
-                    setState(() {
-                      initNotes();
-                    });
+                    initNotes();
                   }
                 },
               ),
@@ -165,7 +168,7 @@ class _StudyTabViewState extends State<StudyTabView> {
 
   //allowedExtensions: ['png', 'jpg', 'jpeg', 'mp4', 'm4v', '3gp', 'mov', 'mp3', 'aac', 'heic', 'webp'], // adapte si besoin
 
-  Widget buildSectionHeaderPlaylist() {
+  Widget buildSectionHeaderPlaylist(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(left: 8, right: 8, top: 0, bottom: 10),
       child: Row(
@@ -185,7 +188,7 @@ class _StudyTabViewState extends State<StudyTabView> {
                 ),
                 SizedBox(width: 4),
                 Icon(
-                  JwIcons.chevron_right,
+                  Directionality.of(context) == TextDirection.rtl ? JwIcons.chevron_left : JwIcons.chevron_right,
                   color: Theme.of(context).primaryColor,
                   size: 24,
                 ),
@@ -202,11 +205,8 @@ class _StudyTabViewState extends State<StudyTabView> {
               PopupMenuItem<void>(
                 child: const Text('Créer une liste de lecture'),
                 onTap: () async {
-                  // S’exécute après la fermeture du menu
-                  await Future.delayed(Duration.zero); // évite setState pendant la fermeture
                   await showAddTagDialog(context, true);
-                  playlists = await JwLifeApp.userdata.getPlaylists(limit: 4);
-                  if (context.mounted) setState(() {});
+                  initPlaylist();
                 },
               ),
               PopupMenuItem<void>(
@@ -221,7 +221,7 @@ class _StudyTabViewState extends State<StudyTabView> {
                     if (path != null) {
                       try {
                         await JwLifeApp.userdata.importPlaylistFromFile(File(path));
-                        await initPlaylist();
+                        initPlaylist();
                         if (context.mounted) {
                           showBottomMessage('Import réussi.');
                         }
@@ -295,7 +295,7 @@ class _StudyTabViewState extends State<StudyTabView> {
           ),
 
           // Header Notes et Catégories
-          buildSectionHeaderNotesTags(),
+          buildSectionHeaderNotesTags(context),
 
           // Section Tags
           JwLifeApp.userdata.tags.isEmpty
@@ -388,11 +388,10 @@ class _StudyTabViewState extends State<StudyTabView> {
             ),
           ),
 
-          SizedBox(height: 10),
+          const SizedBox(height: 10),
 
           // Section Notes
-          notes.isEmpty
-              ? buildEmptyMessage(
+          notes.isEmpty ? buildEmptyMessage(
             JwIcons.note_plus,
             'Vos notes apparaîtront ici.',
           )
@@ -457,15 +456,13 @@ class _StudyTabViewState extends State<StudyTabView> {
           SizedBox(height: 10),
 
           // Header Listes de lectures
-          buildSectionHeaderPlaylist(),
+          buildSectionHeaderPlaylist(context),
 
           // Section Notes
-          playlists.isEmpty
-              ? buildEmptyMessage(
+          playlists.isEmpty ? buildEmptyMessage(
             JwIcons.plus,
             'Aucune liste de lecture disponible.',
-          )
-              : Padding(
+          ) : Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: ListView.builder(
               shrinkWrap: true,

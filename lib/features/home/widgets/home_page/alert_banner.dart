@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
+import 'package:jwlife/core/utils/html_styles.dart';
 import 'package:jwlife/features/home/pages/alert_info_page.dart';
 import 'package:html/dom.dart' as html_dom;
 
@@ -65,10 +66,10 @@ class AlertBannerState extends State<AlertBanner> {
         showPage(AlertInfoPage(alerts: _alerts));
       },
       child: Container(
-        color: Theme.of(context).primaryColor,
+        color: Color(0xFF143368),
         padding: const EdgeInsets.all(8),
         alignment: Alignment.centerLeft,
-        height: 55, // Ajustez la hauteur selon vos besoins
+        height: 53, // Ajustez la hauteur selon vos besoins
         child: PageView.builder(
           controller: _pageController,
           itemCount: _alerts.length,
@@ -78,12 +79,13 @@ class AlertBannerState extends State<AlertBanner> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Expanded(
-                  child: Text(
-                    html_dom.Document.html(alert['title']).body!.text,
-                    style: TextStyle(color: Colors.white),
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 2,
-                  ),
+                    child: TextHtmlWidget(
+                      text: alert['title'],
+                      style: TextStyle(color: Colors.white),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 2,
+                      isSearch: false,
+                    ),
                 ),
                 const SizedBox(width: 8),
                 if (_alerts.length > 1)
@@ -92,7 +94,7 @@ class AlertBannerState extends State<AlertBanner> {
                     style: TextStyle(color: Colors.white),
                   ),
                 const SizedBox(width: 8),
-                Icon(JwIcons.chevron_right, color: Colors.white),
+                Icon(Directionality.of(context) == TextDirection.rtl ? JwIcons.chevron_left : JwIcons.chevron_right, color: Colors.white),
               ],
             );
           },

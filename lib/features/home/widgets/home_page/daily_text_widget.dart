@@ -1,7 +1,7 @@
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:intl/intl.dart' show DateFormat;
 
 import '../../../../app/services/settings_service.dart';
 import '../../../../core/icons.dart';
@@ -136,7 +136,7 @@ class DailyTextWidgetState extends State<DailyTextWidget> {
                                   ),
                                 ),
                                 const SizedBox(width: 8),
-                                const Icon(JwIcons.chevron_right, size: 24),
+                                Icon(Directionality.of(context) == TextDirection.rtl ? JwIcons.chevron_left : JwIcons.chevron_right, size: 24),
                               ] : [
                                 Text(
                                   'Bienvenue sur JW Life',

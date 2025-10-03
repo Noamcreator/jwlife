@@ -77,8 +77,13 @@ class Audio extends Media {
         existing.filePath = json['FilePath'] ?? existing.filePath;
         existing.imagePath = json['ImagePath'] ?? existing.imagePath;
       }
+      existing.naturalKey = mediaItem?.languageAgnosticNaturalKey ?? existing.naturalKey;
+      existing.firstPublished = json?['FirstPublished'] ?? mediaItem?.firstPublished ?? existing.firstPublished;
       existing.lastModified = json?['ModifiedDateTime'] ?? existing.lastModified;
       existing.isFavoriteNotifier.value = isFavorite ?? existing.isFavoriteNotifier.value;
+      existing.networkImageSqr = mediaItem?.realmImages!.squareFullSizeImageUrl ?? mediaItem?.realmImages!.squareImageUrl;
+      existing.networkImageLsr = mediaItem?.realmImages!.wideFullSizeImageUrl ?? mediaItem?.realmImages!.wideImageUrl ?? mediaItem?.realmImages!.squareFullSizeImageUrl ?? mediaItem?.realmImages!.squareImageUrl;
+
       return existing;
     }
 

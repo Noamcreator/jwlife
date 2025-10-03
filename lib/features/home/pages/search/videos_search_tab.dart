@@ -252,6 +252,7 @@ class _VideosSearchTabState extends State<VideosSearchTab> {
                     icon: const Icon(Icons.more_vert, color: Colors.white, size: 30),
                     itemBuilder: (context) => [
                       getVideoShareItem(video),
+                      getVideoAddPlaylistItem(context, video),
                       getVideoLanguagesItem(context, video),
                       getVideoFavoriteItem(video),
                       getVideoDownloadItem(context, video),

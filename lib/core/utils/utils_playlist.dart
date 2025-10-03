@@ -4,10 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/app/services/global_key_service.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
+import 'package:jwlife/data/models/audio.dart';
 import 'package:jwlife/data/models/userdata/playlist.dart';
-import 'package:jwlife/data/realm/catalog.dart';
 import 'package:jwlife/widgets/dialog/utils_dialog.dart';
 
+import '../../data/models/video.dart';
 import '../../features/personal/pages/playlist_page.dart';
 
 Future<void> showAddPlaylistDialog(BuildContext context, dynamic item) async {
@@ -85,7 +86,10 @@ Future<void> showAddPlaylistDialog(BuildContext context, dynamic item) async {
                           if(item is String) {
                             await JwLifeApp.userdata.insertImageInPlaylist(playlist, item);
                           }
-                          else if (item is MediaItem) {
+                          else if (item is Audio) {
+                            await JwLifeApp.userdata.insertMediaItemInPlaylist(playlist, item);
+                          }
+                          else if (item is Video) {
                             await JwLifeApp.userdata.insertMediaItemInPlaylist(playlist, item);
                           }
                           showBottomMessageWithAction("Ajouté à la liste de lecture  ${playlist.name}",

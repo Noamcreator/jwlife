@@ -3,6 +3,7 @@ package org.noam.jwlife
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.view.WindowManager
 import com.ryanheise.audioservice.AudioServiceActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -43,6 +44,33 @@ class MainActivity: AudioServiceActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // ========== OPTIMISATIONS CLAVIER MIUI/HyperOS ==========
+
+        // 1. Forcer le mode adjustPan pour éviter les reconstructions
+        window.setSoftInputMode(
+            WindowManager.LayoutParams.SOFT_INPUT_ADJUST_PAN or
+                    WindowManager.LayoutParams.SOFT_INPUT_STATE_HIDDEN
+        )
+
+        // 2. Forcer l'accélération matérielle
+        window.setFlags(
+            WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED,
+            WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED
+        )
+
+        // 3. Désactiver les animations de transition du clavier (spécifique MIUI)
+        try {
+            window.attributes = window.attributes.apply {
+                // Réduire la durée des animations de la fenêtre
+                windowAnimations = android.R.style.Animation
+            }
+        } catch (e: Exception) {
+            println("Impossible de modifier les animations: ${e.message}")
+        }
+
+        // ========== FIN OPTIMISATIONS ==========
+
         println("=== MainActivity onCreate ===")
         handleIncomingFile(intent)
     }

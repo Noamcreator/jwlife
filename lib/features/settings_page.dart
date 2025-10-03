@@ -613,6 +613,7 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
       );
 
       GlobalKeyService.homeKey.currentState?.refreshFavorites();
+      GlobalKeyService.personalKey.currentState?.refreshUserdata();
     } catch (e) {
       if (dialogContext != null) Navigator.of(dialogContext!).pop();
       await _showErrorDialog('Erreur', 'Erreur lors de l\'importation de la sauvegarde.');
@@ -1045,6 +1046,7 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
 
             if (dialogContext != null) Navigator.of(dialogContext!).pop();
             GlobalKeyService.homeKey.currentState?.refreshFavorites();
+            GlobalKeyService.personalKey.currentState?.refreshUserdata();
           }
           catch (e) {
             if (dialogContext != null) Navigator.of(dialogContext!).pop();
@@ -1053,6 +1055,7 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
           }
         },
       ),
+      /*
       SettingsTile(
         title: "Importer les données d'application",
         trailing: const Icon(JwIcons.cloud_arrow_down),
@@ -1094,6 +1097,8 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
           }
         },
       ),
+
+       */
       const Divider(),
 
       SettingsSectionHeader('Document'),

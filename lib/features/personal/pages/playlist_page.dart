@@ -1,9 +1,12 @@
 import 'package:dotted_border/dotted_border.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/core/icons.dart';
+import 'package:jwlife/core/utils/utils_tag_dialogs.dart';
 
 import 'package:jwlife/data/models/userdata/playlistItem.dart';
+import '../../../data/models/userdata/playlist.dart';
 import '../../../data/models/userdata/tag.dart';
 import '../widgets/rectangle_playlistItem_item.dart';
 
@@ -110,25 +113,21 @@ class _PlaylistPageState extends State<PlaylistPage> {
             icon: Icon(JwIcons.pencil),
             onPressed: () async {
               // Utiliser await à l'extérieur du setState
-              /*
-              Playlist? updatedCategory = await showEditPlaylistDialog(context, _tag);
+              Tag? updatedCategory = await showEditTagDialog(context, _playlist);
 
               // Si la catégorie a été mise à jour, on applique le setState
               if (updatedCategory != null) {
                 setState(() {
-                  _tag = updatedCategory;
+                  _playlist = updatedCategory;
                 });
               }
-              */
             },
           ),
           IconButton(
             icon: Icon(JwIcons.trash),
             onPressed: () async {
-              /*
-               await showDeletePlaylistDialog(context, _tag).then((value) => setState(() {}));
+               await showDeleteTagDialog(context, _playlist, items: _filteredPlaylistItem).then((value) => setState(() {}));
                Navigator.pop(context);
-               */
             },
           ),
           IconButton(
@@ -160,6 +159,11 @@ class _PlaylistPageState extends State<PlaylistPage> {
               itemCount: _filteredPlaylistItem.length,
               itemBuilder: (context, index) => RectanglePlaylistItemItem(
                 item: _filteredPlaylistItem[index],
+                onDelete: (item) {
+                  setState(() {
+                    _filteredPlaylistItem.remove(item);
+                  });
+                }
               ),
               separatorBuilder: (context, index) => const SizedBox(height: 3), // espace entre éléments
             ),
@@ -174,8 +178,26 @@ class _PlaylistPageState extends State<PlaylistPage> {
               child: Padding(
                 padding: const EdgeInsets.all(8.0),
                 child: InkWell(
-                  onTap: () {
-                    // Action d'importation
+                  onTap: () async {
+                    FilePickerResult? result = await FilePicker.platform.pickFiles(
+                      type: FileType.any, // Spécifie que vous voulez un type de fichier personnalisé
+                      allowMultiple: true, // Permet de sélectionner un seul fichier
+                    );
+
+                    // 2. Vérifier si l'utilisateur a sélectionné un fichier
+                    if (result != null) {
+                      // Le fichier a été sélectionné
+                      PlatformFile file = result.files.first;
+
+                      print('Nom du fichier : ${file.name}');
+                      print('Chemin du fichier : ${file.path}');
+                      print('Taille du fichier : ${file.size}');
+
+                      // Ici, vous pouvez ajouter la logique pour UPLOADER ou TRAITER le fichier
+                      // Par exemple :
+                      // MonServiceUpload.upload(file);
+
+                    }
                   },
                   borderRadius: BorderRadius.circular(6),
                   child: DottedBorder(

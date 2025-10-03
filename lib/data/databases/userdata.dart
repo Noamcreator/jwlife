@@ -84,12 +84,13 @@ class Userdata {
       ''');
     }
 
-    // Vider les notes, highlights et bookmarks des documents et datedTexts
+    // Vider les notes, les blockRanges, les bookmarks des documents et datedTexts
     for(Publication publication in PublicationRepository().getAllPublications()) {
       if(publication.documentsManager != null) {
         for(Document document in publication.documentsManager!.documents) {
           document.notes.clear();
-          document.highlights.clear();
+          document.extractedNotes.clear();
+          document.blockRanges.clear();
           document.bookmarks.clear();
           document.hasAlreadyBeenRead = false;
         }
@@ -97,7 +98,8 @@ class Userdata {
       else if(publication.datedTextManager != null) {
         for(DatedText datedText in publication.datedTextManager!.datedTexts) {
           datedText.notes.clear();
-          datedText.highlights.clear();
+          datedText.extractedNotes.clear();
+          datedText.blockRanges.clear();
           datedText.bookmarks.clear();
           datedText.hasAlreadyBeenRead = false;
         }
@@ -105,7 +107,7 @@ class Userdata {
     }
 
     // Retourner à la racine dans tous les onglets
-    for (int i = 0; i < 6; i++) {
+    for (int i = 0; i < 7; i++) {
       GlobalKeyService.jwLifePageKey.currentState!.returnToFirstPage(i);
     }
   }
@@ -394,7 +396,7 @@ class Userdata {
           type: 1,
         );
       }
-      if (object is Document) {
+      else if (object is Document) {
         bool isBibleChapter = object.isBibleChapter();
         locationId = await _getLocationId(
           bookNumber: isBibleChapter ? object.bookNumber : null,
@@ -582,7 +584,7 @@ class Userdata {
 
         BuildContext context = GlobalKeyService.jwLifePageKey.currentState!.getCurrentState().context;
 
-        showJwDialog(
+        await showJwDialog(
           context: context,
           titleText: 'Catégorie déjà existante',
           contentText: 'La Catégorie "$name" existe déjà.',
@@ -626,7 +628,7 @@ class Userdata {
       );
 
       // Mise à jour dans la liste locale `tags`
-      if (tag.type != 2) {
+      if (tag.type == 1) {
         final index = tags.indexWhere((t) => t.id == tag.id && t.type == tag.type);
         if (index != -1) {
           tags[index] = Tag(id: tag.id, name: name, type: tag.type);
@@ -637,15 +639,21 @@ class Userdata {
           return null;
         }
       }
+      else if(tag.type == 2) {
+        tag.name = name;
+        return tag;
+      }
+      else {
+        return tag;
+      }
     }
     catch (e) {
       printTime('Erreur lors de la mise à jour du tag : $e');
       return null;
     }
-    return null;
   }
 
-  Future<bool> deleteTag(Tag tag) async {
+  Future<bool> deleteTag(Tag tag, {List<PlaylistItem>? items}) async {
     try {
       int count = await _database.delete(
         'Tag',
@@ -661,8 +669,13 @@ class Userdata {
       );
 
       // Mise à jour de la liste locale `tags`
-      if (tag.type != 2) {
+      if (tag.type == 1) {
         tags.removeWhere((t) => t.id == tag.id);
+      }
+      else if(tag.type == 2) {
+        items?.forEach((item) {
+          deletePlaylistItem(item);
+        });
       }
 
       return count > 0;
@@ -793,81 +806,83 @@ class Userdata {
     }
   }
 
-  Future<List<Map<String, dynamic>>> getHighlightsFromChapterNumber(int bookId, int chapterId, int mepsLang) async {
+  Future<List<Map<String, dynamic>>> getBlockRangesFromChapterNumber(int bookId, int chapterId, int mepsLanguage) async {
     try {
       // Joining Location, UserMark, and BlockRange tables to get all required data in one query
-      List<Map<String, dynamic>> highlights = await _database.rawQuery('''
-            SELECT BlockRange.BlockType, BlockRange.Identifier, BlockRange.StartToken, BlockRange.EndToken, UserMark.ColorIndex, UserMark.UserMarkGuid
+      List<Map<String, dynamic>> blockRanges = await _database.rawQuery('''
+            SELECT BlockRange.BlockType, BlockRange.Identifier, BlockRange.StartToken, BlockRange.EndToken, UserMark.ColorIndex, UserMark.StyleIndex, UserMark.StyleIndex, UserMark.UserMarkGuid
             FROM Location
             LEFT JOIN UserMark ON Location.LocationId = UserMark.LocationId
             LEFT JOIN BlockRange ON UserMark.UserMarkId = BlockRange.UserMarkId
             WHERE Location.BookNumber = ? AND Location.ChapterNumber = ? AND Location.MepsLanguage = ?
-            ''', [bookId, chapterId, mepsLang]
+            ''', [bookId, chapterId, mepsLanguage]
       );
 
-      return highlights;
+      return blockRanges;
 
     } catch (e) {
       printTime('Error: $e');
-      throw Exception('Failed to load highlights for the given DocumentId and MepsLanguage.');
+      throw Exception('Failed to load block ranges for the given DocumentId and MepsLanguage.');
     }
   }
 
-  Future<List<Map<String, dynamic>>> getHighlightsFromDocId(int docId, int mepsLang) async {
+  Future<List<Map<String, dynamic>>> getBlockRangesFromDocumentId(int documentId, int mepsLanguage) async {
     try {
       // Joining Location, UserMark, and BlockRange tables to get all required data in one query
-      List<Map<String, dynamic>> highlights = await _database.rawQuery('''
-            SELECT BlockRange.BlockType, BlockRange.Identifier, BlockRange.StartToken, BlockRange.EndToken, UserMark.ColorIndex, UserMark.UserMarkGuid
+      List<Map<String, dynamic>> blockRanges = await _database.rawQuery('''
+            SELECT BlockRange.BlockType, BlockRange.Identifier, BlockRange.StartToken, BlockRange.EndToken, UserMark.ColorIndex, UserMark.StyleIndex, UserMark.StyleIndex, UserMark.UserMarkGuid
             FROM Location
             LEFT JOIN UserMark ON Location.LocationId = UserMark.LocationId
             LEFT JOIN BlockRange ON UserMark.UserMarkId = BlockRange.UserMarkId
             WHERE Location.DocumentId = ? AND Location.MepsLanguage = ?
-            ''', [docId, mepsLang]
+            ''', [documentId, mepsLanguage]
       );
 
-      return highlights;
+      return blockRanges;
 
     } catch (e) {
       printTime('Error: $e');
-      throw Exception('Failed to load highlights for the given DocumentId and MepsLanguage.');
+      throw Exception('Failed to load block ranges for the given DocumentId and MepsLanguage.');
     }
   }
 
-  void removeHighlightWithGuid(String userMarkGuid) async {
+  Future<void> removeBlockRangeWithGuid(String userMarkGuid) async {
     try {
       // Supprimer d'abord les BlockRange associés
       await _database.rawDelete('''
-      DELETE FROM BlockRange WHERE UserMarkId IN (
-        SELECT UserMarkId FROM UserMark WHERE UserMarkGuid = ?
-      )
-    ''', [userMarkGuid]);
+        DELETE FROM BlockRange WHERE UserMarkId IN (
+          SELECT UserMarkId FROM UserMark WHERE UserMarkGuid = ?
+        )
+      ''', [userMarkGuid]);
 
       // Ensuite supprimer l'UserMark
       await _database.rawDelete('''
-      DELETE FROM UserMark WHERE UserMarkGuid = ?
-    ''', [userMarkGuid]);
+        DELETE FROM UserMark WHERE UserMarkGuid = ?
+      ''', [userMarkGuid]);
 
-    } catch (e) {
+    }
+    catch (e) {
       printTime('Error: $e');
       throw Exception('Failed to remove highlight with UserMarkGuid.');
     }
   }
 
-  Future<void> changeColorHighlightWithGuid(String userMarkGuid, int color) async {
+  Future<void> changeBlockRangeStyleWithGuid(String userMarkGuid, int style, int color) async {
     try {
       await _database.rawUpdate('''
-      UPDATE UserMark 
-      SET ColorIndex = ? 
-      WHERE UserMarkGuid = ?
-    ''', [color, userMarkGuid]);
+        UPDATE UserMark 
+        SET ColorIndex = ?, StyleIndex = ?
+        WHERE UserMarkGuid = ?
+      ''', [color, style, userMarkGuid]);
 
-    } catch (e) {
+    }
+    catch (e) {
       printTime('Error: $e');
-      throw Exception('Failed to change color for highlight with UserMarkGuid.');
+      throw Exception('Failed to change style for block range with UserMarkGuid.');
     }
   }
 
-  Future<void> addHighlightToDoc(Publication publication, Document? document, List<dynamic> highlightsParagraphs, int colorIndex, String uuid, {DatedText? datedText}) async {
+  Future<void> addBlockRangesToDocument(Publication publication, Document? document, List<dynamic> blockRangesParagraphs, int styleIndex, int colorIndex, String uuid, {DatedText? datedText}) async {
     try {
       // Étape 1 : Obtenir ou insérer le LocationId via insertLocation
       final locationId = await insertLocationWithDocument(publication, document, datedText: datedText);
@@ -878,24 +893,24 @@ class Userdata {
       final userMarkId = await _database.insert('UserMark', {
         'ColorIndex': colorIndex,
         'LocationId': locationId,
-        'StyleIndex': 0, // Valeur par défaut
+        'StyleIndex': styleIndex,
         'UserMarkGuid': uuid,
         'Version': 1,
       });
 
       // Étape 3 : Insérer dans la table BlockRange
-      for(Map<String, dynamic> highlight in highlightsParagraphs) {
+      for(Map<String, dynamic> blockRange in blockRangesParagraphs) {
         await _database.insert('BlockRange', {
           'UserMarkId': userMarkId,
-          'BlockType': highlight['blockType'],
-          'Identifier': int.parse(highlight['identifier'].toString()),
-          'StartToken': highlight['startToken'],
-          'EndToken': highlight['endToken']
+          'BlockType': blockRange['blockType'],
+          'Identifier': int.parse(blockRange['identifier'].toString()),
+          'StartToken': blockRange['startToken'],
+          'EndToken': blockRange['endToken']
         });
       }
 
     } catch (e) {
-      printTime('Erreur dans addHighlightToDoc: $e');
+      printTime('Erreur dans addBlockRangeToDocument: $e');
       throw Exception('Échec de l\'ajout du surlignage pour ce webview.');
     }
   }
@@ -1096,7 +1111,7 @@ class Userdata {
     }
   }
 
-  void removeNoteWithGuid(String noteGuid) async {
+  Future<void> removeNoteWithGuid(String noteGuid) async {
     try {
       await _database.rawDelete('''
         DELETE FROM TagMap WHERE NoteId IN (SELECT NoteId FROM Note WHERE Guid = ?)
@@ -1202,7 +1217,7 @@ class Userdata {
     }
     catch (e) {
       printTime('Error: $e');
-      throw Exception('Failed to change color for highlight with UserMarkGuid.');
+      throw Exception('Failed to update note with Guid.');
     }
   }
 
@@ -1212,8 +1227,8 @@ class Userdata {
     try {
       // Récupérer l'ID du UserMark
       List<Map<String, dynamic>> userMarkResult = await _database.rawQuery('''
-      SELECT UserMarkId FROM UserMark WHERE UserMarkGuid = ?
-    ''', [userMarkGuid]);
+        SELECT UserMarkId FROM UserMark WHERE UserMarkGuid = ?
+      ''', [userMarkGuid]);
 
       if (userMarkResult.isEmpty) {
         throw Exception('UserMarkGuid not found');
@@ -1223,11 +1238,12 @@ class Userdata {
 
       // Mise à jour de la note avec le UserMark et LastModified
       await _database.rawUpdate('''
-      UPDATE Note
-      SET UserMarkId = ?, LastModified = ?
-      WHERE Guid = ?
-    ''', [userMarkId, datetime, noteGuid]);
-    } catch (e) {
+        UPDATE Note
+        SET UserMarkId = ?, LastModified = ?
+        WHERE Guid = ?
+      ''', [userMarkId, datetime, noteGuid]);
+    }
+    catch (e) {
       printTime('Error: $e');
       throw Exception('Failed to change UserMark for note.');
     }
@@ -1252,7 +1268,7 @@ class Userdata {
     ''', [datetime, guid]);
     } catch (e) {
       printTime('Error: $e');
-      throw Exception('Failed to change color for highlight with UserMarkGuid.');
+      throw Exception('Failed to change color for note with Guid.');
     }
   }
 
@@ -1882,12 +1898,63 @@ class Userdata {
   }
 
   Future<void> deletePlaylistItem(PlaylistItem playlistItem) async {
+    final id = playlistItem.playlistItemId;
+
+    // Récupérer les IndependentMediaId associés
+    final independentMediaMaps = await _database.query(
+      'PlaylistItemIndependentMediaMap',
+      columns: ['IndependentMediaId'],
+      where: 'PlaylistItemId = ?',
+      whereArgs: [id],
+    );
+
+    // Supprimer les liaisons dans PlaylistItemIndependentMediaMap
+    await _database.delete(
+      'PlaylistItemIndependentMediaMap',
+      where: 'PlaylistItemId = ?',
+      whereArgs: [id],
+    );
+
+    // Supprimer les IndependentMediaMap liés
+    for (var row in independentMediaMaps) {
+      final independentMediaId = row['IndependentMediaId'];
+      if (independentMediaId != null) {
+        await _database.delete(
+          'IndependentMedia',
+          where: 'IndependentMediaId = ?',
+          whereArgs: [independentMediaId],
+        );
+      }
+    }
+
+    // Supprimer les TagMap liés au PlaylistItem
+    await _database.delete(
+      'TagMap',
+      where: 'PlaylistItemId = ?',
+      whereArgs: [id],
+    );
+
+    // Enfin, supprimer le PlaylistItem
     await _database.delete(
       'PlaylistItem',
       where: 'PlaylistItemId = ?',
-      whereArgs: [playlistItem.playlistItemId],
+      whereArgs: [id],
     );
   }
+
+  Future<void> renamePlaylistItem(PlaylistItem item, String name) async {
+    // Met à jour la base
+    await _database.update(
+      'PlaylistItem',
+      {'Label': name},
+      where: 'PlaylistItemId = ?',
+      whereArgs: [item.playlistItemId],
+    );
+
+    // Met à jour l'objet en mémoire
+    item.label = name;
+  }
+
 
   Future<String> insertThumbnailInPlaylist(String path) async {
     Directory userdataDir = await getAppUserDataDirectory();
@@ -1985,21 +2052,21 @@ class Userdata {
     return insertPlaylistItem(playlistItem, playlist: playlist);
   }
 
-  Future<int> insertMediaItemInPlaylist(Playlist playlist, MediaItem mediaItem) async {
-    String thumbnailName = await insertThumbnailInPlaylist(mediaItem.realmImages!.squareImageUrl ?? mediaItem.realmImages!.squareFullSizeImageUrl ?? mediaItem.realmImages!.wideImageUrl ?? '');
+  Future<int> insertMediaItemInPlaylist(Playlist playlist, Media media) async {
+    String thumbnailName = await insertThumbnailInPlaylist(media.networkImageSqr ?? media.networkImageLsr ?? '');
 
     PlaylistItem playlistItem = PlaylistItem(
         playlistItemId: -1,
-        label: mediaItem.title ?? '',
+        label: media.title,
         thumbnailFilePath: thumbnailName,
-        baseDurationTicks: durationSecondsToTicks(mediaItem.duration ?? 0),
+        baseDurationTicks: durationSecondsToTicks(media.duration),
         location: Location(
-          keySymbol: mediaItem.pubSymbol,
-          track: mediaItem.track,
-          mepsDocumentId: mediaItem.documentId,
-          issueTagNumber: mediaItem.issueDate,
+          keySymbol: media.keySymbol,
+          track: media.track,
+          mepsDocumentId: media.documentId,
+          issueTagNumber: media.issueTagNumber,
           mepsLanguageId: 3,
-          type: mediaItem.type == 'AUDIO' ? 2 : 3,
+          type: media is Audio ? 2 : 3,
         ),
         independentMedia: null,
     );
@@ -2113,6 +2180,19 @@ class Userdata {
 
       return playlistItemId;
     });
+  }
+
+  Future<PlaylistItem> updateEndActionPlaylistItem(PlaylistItem playlistItem, int endAction) async {
+    await _database.update(
+      'PlaylistItem',
+      {'EndAction': endAction},
+      where: 'PlaylistItemId = ?',
+      whereArgs: [playlistItem.playlistItemId],
+    );
+
+    playlistItem.endAction = endAction;
+
+    return playlistItem;
   }
 
   Future<void> updatePositionPlaylistItem(Playlist playlist, PlaylistItem playlistItem, int position) async {

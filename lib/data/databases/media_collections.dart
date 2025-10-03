@@ -48,8 +48,6 @@ class MediaCollections {
     if (videosResult.isNotEmpty) {
       videos = videosResult.map((a) => Video.fromJson(json: a)).toList();
     }
-
-    //_database.execute("DETACH DATABASE meps");
   }
 
   Audio getAudio(Audio a) {
@@ -196,9 +194,10 @@ class MediaCollections {
   Future<Media?> insertMedia(Media media, {int? file = 0}) async {
     final existingMediaKey = await _database.query(
       "MediaKey",
-      where: "KeySymbol = ? AND DocumentId = ? AND MepsLanguage = ? AND IssueTagNumber = ? AND Track = ?",
+      where: "KeySymbol = ? AND MediaType = ? AND DocumentId = ? AND MepsLanguage = ? AND IssueTagNumber = ? AND Track = ?",
       whereArgs: [
         media.keySymbol ?? '',
+        media is Audio ? 2 : 1,
         media.documentId ?? 0,
         media.mepsLanguage ?? JwLifeSettings().currentLanguage.symbol,
         media.issueTagNumber ?? 0,
@@ -307,7 +306,7 @@ class MediaCollections {
       );
     }
 
-    printTime('Video inserted successfully: ${video.filePath} and ${video.subtitles!.filePath}');
+    printTime('Video inserted successfully: ${video.filePath} and ${video.subtitles?.filePath ?? "no subtitle"}');
 
     return video;
   }
@@ -317,9 +316,10 @@ class MediaCollections {
     final keyResult = await _database.query(
       "MediaKey",
       columns: ["MediaKeyId"],
-      where: "KeySymbol = ? AND DocumentId = ? AND MepsLanguage = ? AND IssueTagNumber = ? AND Track = ?",
+      where: "KeySymbol = ? AND MediaType = ? AND DocumentId = ? AND MepsLanguage = ? AND IssueTagNumber = ? AND Track = ?",
       whereArgs: [
         media.keySymbol ?? '',
+        media is Audio ? 2 : 1,
         media.documentId ?? 0,
         media.mepsLanguage ?? JwLifeSettings().currentLanguage.symbol,
         media.issueTagNumber ?? 0,

@@ -7,6 +7,7 @@ import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/jworg_uri.dart';
 import 'package:jwlife/core/utils/utils.dart';
+import 'package:jwlife/core/utils/utils_playlist.dart';
 import 'package:jwlife/data/models/video.dart' hide Subtitles;
 import 'package:jwlife/widgets/dialog/language_dialog.dart';
 import 'package:jwlife/widgets/dialog/utils_dialog.dart';
@@ -77,6 +78,21 @@ PopupMenuItem getVideoShareItem(Video video) {
           uri: Uri.parse(uri),
         ),
       );
+    },
+  );
+}
+
+PopupMenuItem getVideoAddPlaylistItem(BuildContext context, Video video) {
+  return PopupMenuItem(
+    child: Row(
+      children: [
+        Icon(JwIcons.list_plus),
+        SizedBox(width: 8),
+        Text('Ajouter à la liste de lecture'),
+      ],
+    ),
+    onTap: () {
+      showAddPlaylistDialog(context, video);
     },
   );
 }

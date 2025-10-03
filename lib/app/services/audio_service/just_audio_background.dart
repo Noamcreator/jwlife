@@ -669,7 +669,7 @@ class _PlayerAudioHandler extends BaseAudioHandler
   Future<void> skipToPrevious() async {
     final position = _justAudioEvent.updatePosition;
 
-    if (position < Duration(milliseconds: 500) && hasPrevious) {
+    if (position < Duration(seconds: 1) && hasPrevious) {
       await skipToQueueItem(previousIndex!);
     }
     else {

@@ -39,7 +39,7 @@ class _AllSearchTabState extends State<AllSearchTab> {
         itemBuilder: (context, verseIndex) {
           final item = result['results'][verseIndex];
           return GestureDetector(
-            onTap: () async {
+            onTap: () {
               String itemString = item['lank'];
               String itemString2 = itemString.split("-")[1].split("_")[0];
 
@@ -80,7 +80,7 @@ class _AllSearchTabState extends State<AllSearchTab> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    SearchHtmlWidget(
+                    TextHtmlWidget(
                       text: item['title'].replaceAll("&nbsp;", " "),
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
@@ -91,7 +91,7 @@ class _AllSearchTabState extends State<AllSearchTab> {
                       ),
                     ),
                     const SizedBox(height: 10),
-                    SearchHtmlWidget(
+                    TextHtmlWidget(
                       text: item['snippet'],
                       style: const TextStyle(fontSize: 16),
                     ),
@@ -247,6 +247,7 @@ class _AllSearchTabState extends State<AllSearchTab> {
                           icon: const Icon(Icons.more_vert, color: Colors.white, size: 30),
                           itemBuilder: (context) => [
                             getVideoShareItem(video),
+                            getVideoAddPlaylistItem(context, video),
                             getVideoLanguagesItem(context, video),
                             getVideoFavoriteItem(video),
                             getVideoDownloadItem(context, video),
@@ -362,6 +363,7 @@ class _AllSearchTabState extends State<AllSearchTab> {
                           icon: const Icon(Icons.more_vert, color: Colors.white, size: 30),
                           itemBuilder: (context) => [
                             getAudioShareItem(audio),
+                            getAudioAddPlaylistItem(context, audio),
                             getAudioLanguagesItem(context, audio),
                             getAudioFavoriteItem(audio),
                             getAudioDownloadItem(context, audio),
@@ -476,7 +478,7 @@ class _AllSearchTabState extends State<AllSearchTab> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          SearchHtmlWidget(
+                          TextHtmlWidget(
                             text: item['title'],
                             style: const TextStyle(
                               fontWeight: FontWeight.bold,
@@ -486,7 +488,7 @@ class _AllSearchTabState extends State<AllSearchTab> {
                             overflow: TextOverflow.ellipsis,
                           ),
                           const SizedBox(height: 8),
-                          SearchHtmlWidget(
+                          TextHtmlWidget(
                             text: item['context'],
                             style: TextStyle(
                               color: Theme.of(context).hintColor,
@@ -562,7 +564,7 @@ class _AllSearchTabState extends State<AllSearchTab> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           if (article['context'] != null && article['context'].isNotEmpty)
-                            SearchHtmlWidget(
+                            TextHtmlWidget(
                               text: article['context'],
                               style: TextStyle(
                                 fontSize: 16,
@@ -572,7 +574,7 @@ class _AllSearchTabState extends State<AllSearchTab> {
                               overflow: TextOverflow.ellipsis,
                             ),
                           const SizedBox(height: 4),
-                          SearchHtmlWidget(
+                          TextHtmlWidget(
                             text: article['title'] ?? '',
                             style: const TextStyle(
                               fontSize: 18,
@@ -582,7 +584,7 @@ class _AllSearchTabState extends State<AllSearchTab> {
                             overflow: TextOverflow.ellipsis,
                           ),
                           const SizedBox(height: 4),
-                          SearchHtmlWidget(
+                          TextHtmlWidget(
                             text: article['snippet'] ?? '',
                             style: const TextStyle(fontSize: 18),
                           ),
@@ -610,7 +612,8 @@ class _AllSearchTabState extends State<AllSearchTab> {
           return Center(child: Text('Erreur: ${snapshot.error}'));
         } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
           return const Center(child: Text('Aucun résultat trouvé.'));
-        } else {
+        }
+        else {
           final results = snapshot.data!;
           return ListView.builder(
             itemCount: results.length,

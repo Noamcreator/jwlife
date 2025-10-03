@@ -66,54 +66,39 @@ Future<void> showPage(Widget page) async {
   GlobalKeyService.jwLifePageKey.currentState!.toggleResizeToAvoidBottomInset(isResizeToAvoidBottomInset);
 
   await GlobalKeyService.jwLifePageKey.currentState!.getCurrentState().push(
-    PageRouteBuilder(
-      pageBuilder: (context, animation, secondaryAnimation) => page,
-      transitionsBuilder: (context, animation, secondaryAnimation, child) => child,
-      transitionDuration: const Duration(milliseconds: 0),
-      reverseTransitionDuration: const Duration(milliseconds: 0),
-    ),
+      isFullscreenPage ? PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) => page,
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return child;
+        },
+        transitionDuration: const Duration(milliseconds: 0),
+        reverseTransitionDuration: const Duration(milliseconds: 0),
+      ) :
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) => page,
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          // On wrap le WebView dans un RepaintBoundary pour isoler la redessination
+          return SlideTransition(
+            position: animation.drive(
+              Tween<Offset>(
+                begin: const Offset(1.0, 0.0),
+                end: Offset.zero,
+              ).chain(CurveTween(curve: Curves.easeInOutCubic)),
+            ),
+            child: RepaintBoundary(
+              child: child, // ici 'child' est ton WebView
+            ),
+          );
+        },
+        transitionDuration: const Duration(milliseconds: 300),
+        reverseTransitionDuration: const Duration(milliseconds: 300),
+      )
   );
 
   print('showPage: ${page.runtimeType}');
 
   GlobalKeyService.jwLifePageKey.currentState!.removePageFromTab();
 }
-
-/*
-Future<void> showPage(BuildContext context, Widget page) {
-  return Navigator.of(context).push(
-    PageRouteBuilder(
-      pageBuilder: (context, animation, secondaryAnimation) => page,
-      transitionsBuilder: (context, animation, secondaryAnimation, child) {
-        // Animation d'entrée : fade + slide up
-        final enterOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(
-          CurvedAnimation(parent: animation, curve: Curves.easeInOut),
-        );
-        final enterOffset = Tween<Offset>(begin: const Offset(0, 0.1), end: Offset.zero).animate(
-          CurvedAnimation(parent: animation, curve: Curves.easeOut),
-        );
-
-        return AnimatedBuilder(
-          animation: animation,
-          builder: (context, child) {
-            return FadeTransition(
-              opacity: enterOpacity,
-              child: SlideTransition(
-                position: enterOffset,
-                child: child,
-              ),
-            );
-          },
-          child: child,
-        );
-      },
-      transitionDuration: const Duration(milliseconds: 350),
-      reverseTransitionDuration: const Duration(milliseconds: 300),
-    ),
-  );
-}
-
- */
 
 void showBottomMessageWithAction(String message, SnackBarAction? action) {
   final pageState = GlobalKeyService.jwLifePageKey.currentState;

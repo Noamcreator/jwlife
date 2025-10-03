@@ -121,17 +121,21 @@ class _SubtitlesPageState extends State<SubtitlesPage> {
                 parent.removeChild(node);
             } 
             else if (node.nodeType === Node.ELEMENT_NODE) {
-                // Skip elements with specified classes or if it's a sup element
-                if ((node.closest && node.closest("sup")) || (node.classList && [...skipClasses].some(c => node.classList.contains(c)))) {
-                    return;
-                }
-                // Skip elements that already have our span classes to avoid double processing
-                if (node.classList && (node.classList.contains('word') || node.classList.contains('escape') || node.classList.contains('punctuation'))) {
+              // VÉRIFIER D'ABORD avant de descendre dans les enfants !
+              if (node.classList && [...skipClasses].some(c => node.classList.contains(c))) {
+                  return; // Stop ici, ne traite PAS les enfants
+              }
+              
+              if ((node.closest && node.closest("sup")) || 
+                  (node.classList && (node.classList.contains('word') || 
+                                     node.classList.contains('escape') || 
+                                     node.classList.contains('punctuation')))) {
                   return;
-                }
-                const children = Array.from(node.childNodes);
-                children.forEach(child => walkNodes(child));
-            }
+              }
+              
+              const children = Array.from(node.childNodes);
+              children.forEach(child => walkNodes(child));
+          }
         }
         walkNodes(element);
     }

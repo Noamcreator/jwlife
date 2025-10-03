@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/utils.dart';
+import 'package:jwlife/core/utils/utils_playlist.dart';
 import 'package:jwlife/data/models/audio.dart';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/realm/catalog.dart';
@@ -87,6 +88,21 @@ PopupMenuItem getAudioShareItem(Audio audio) {
           uri: Uri.parse(uri),
         ),
       );
+    },
+  );
+}
+
+PopupMenuItem getAudioAddPlaylistItem(BuildContext context, Audio audio) {
+  return PopupMenuItem(
+    child: Row(
+      children: [
+        Icon(JwIcons.list_plus),
+        SizedBox(width: 8),
+        Text('Ajouter à la liste de lecture'),
+      ],
+    ),
+    onTap: () {
+      showAddPlaylistDialog(context, audio);
     },
   );
 }

@@ -155,6 +155,7 @@ class _AudioSearchTabState extends State<AudioSearchTab> {
                     icon: const Icon(Icons.more_vert, color: Colors.white, size: 30),
                     itemBuilder: (context) => [
                       getAudioShareItem(audio),
+                      getAudioAddPlaylistItem(context, audio),
                       getAudioLanguagesItem(context, audio),
                       getAudioFavoriteItem(audio),
                       getAudioDownloadItem(context, audio),

@@ -244,10 +244,33 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Flexible(
-                              child: Text(
+                            Expanded(
+                              child: _currentExtras?["stream"] ?? true == true
+                                  ? Row(
+                                children: [
+                                  Icon(JwIcons.stream, size: 15),
+                                  const SizedBox(width: 5),
+                                  Expanded( // <-- important pour gérer l’ellipsis
+                                    child: Text(
+                                      _currentTitle,
+                                      style: const TextStyle(
+                                        fontSize: 15.0,
+                                        fontWeight: FontWeight.w500,
+                                        height: 1,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              )
+                                  : Text(
                                 _currentTitle,
-                                style: const TextStyle(fontSize: 15.0, fontWeight: FontWeight.w500, height: 1),
+                                style: const TextStyle(
+                                  fontSize: 15.0,
+                                  fontWeight: FontWeight.w500,
+                                  height: 1,
+                                ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -255,7 +278,11 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
                             const SizedBox(width: 10),
                             Text(
                               '${formatDuration(_position.inSeconds.toDouble())} / ${formatDuration(_duration.inSeconds.toDouble())}',
-                              style: const TextStyle(fontSize: 15.0, fontWeight: FontWeight.w500, height: 1),
+                              style: const TextStyle(
+                                fontSize: 15.0,
+                                fontWeight: FontWeight.w500,
+                                height: 1,
+                              ),
                             ),
                           ],
                         ),
@@ -384,20 +411,7 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
                                     if (mediaItem != null) {
                                       Audio audio = Audio.fromJson(mediaItem: mediaItem);
                                       items.add(getAudioShareItem(audio));
-                                      items.add(
-                                        PopupMenuItem(
-                                          child: Row(
-                                            children: const [
-                                              Icon(JwIcons.list_plus),
-                                              SizedBox(width: 8),
-                                              Text('Ajouter à la liste de lecture'),
-                                            ],
-                                          ),
-                                          onTap: () {
-                                            showAddPlaylistDialog(context, mediaItem);
-                                          },
-                                        ),
-                                      );
+                                      items.add(getAudioAddPlaylistItem(context, audio));
                                     }
 
                                     // ---- SOUS MENU VITESSE ----

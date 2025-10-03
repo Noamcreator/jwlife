@@ -37,10 +37,8 @@ class BiblePageState extends State<BiblePage> {
 
   @override
   Widget build(BuildContext context) {
-    print('Build BiblePage');
-
     if (currentBible != null) {
-      return PublicationMenuView(publication: currentBible!);
+      return PublicationMenuView(publication: currentBible!, biblePage: true);
     }
     else {
       return Scaffold(

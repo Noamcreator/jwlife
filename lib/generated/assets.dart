@@ -14,7 +14,6 @@ class Assets {
   static const String darkBookmark09 = 'assets/icons/bookmarks/dark/bookmark09.png';
   static const String darkBookmark10 = 'assets/icons/bookmarks/dark/bookmark10.png';
   static const String dbMepsunit = 'assets/db/mepsunit.zip';
-  static const String fontsJwIcons = 'assets/fonts/jw-icons.ttf';
   static const String fontsNotoSansBold = 'assets/fonts/NotoSans-Bold.ttf';
   static const String fontsRobotoBold = 'assets/fonts/Roboto-Bold.ttf';
   static const String fontsRobotoBoldItalic = 'assets/fonts/Roboto-BoldItalic.ttf';

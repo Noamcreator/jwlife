@@ -26,6 +26,7 @@ class AudioItemsPage extends StatefulWidget {
 }
 
 class _AudioItemsPageState extends State<AudioItemsPage> {
+  Category? _category;
   String _categoryName = '';
   String _language = '';
 
@@ -44,6 +45,9 @@ class _AudioItemsPageState extends State<AudioItemsPage> {
   @override
   void initState() {
     super.initState();
+
+    _category = widget.category;
+
     loadItems();
 
     _streamSequenceStateSubscription = JwLifeApp.audioPlayer.player.sequenceStateStream.listen((state) {
@@ -70,15 +74,15 @@ class _AudioItemsPageState extends State<AudioItemsPage> {
     RealmLibrary.realm.refresh();
     Language? lang = RealmLibrary.realm.all<Language>().query("symbol == '$symbol'").firstOrNull;
     if(lang == null) return;
-    Category? category = RealmLibrary.realm.all<Category>().query("key == '${widget.category.key}' AND language == '$symbol'").firstOrNull;
+    _category = RealmLibrary.realm.all<Category>().query("key == '${widget.category.key}' AND language == '$symbol'").firstOrNull ?? _category;
 
     setState(() {
-      _categoryName = category?.localizedName ?? widget.category.localizedName!;
+      _categoryName = _category?.localizedName ?? widget.category.localizedName!;
       _language = lang.vernacular!;
       // On charge la liste complète uniquement ici
-      _allAudios = category?.media.map((key) {
+      _allAudios = _category!.media.map((key) {
         return Audio.fromJson(mediaItem: RealmLibrary.realm.all<MediaItem>().query("naturalKey == '$key'").first);
-      }).toList() ?? [];
+      }).toList();
 
       // Au début, filteredAudios = allAudios (pas de filtre)
       _filteredAudios = List.from(_allAudios);
@@ -101,17 +105,17 @@ class _AudioItemsPageState extends State<AudioItemsPage> {
   }
 
   void _play(int index) async {
-    JwLifeApp.audioPlayer.playAudios(widget.category, _allAudios, id: index);
+    JwLifeApp.audioPlayer.playAudios(_category ?? widget.category, _allAudios, id: index);
   }
 
   void _playAll() async {
-    JwLifeApp.audioPlayer.playAudios(widget.category, _allAudios);
+    JwLifeApp.audioPlayer.playAudios(_category ?? widget.category, _allAudios);
   }
 
   void _playRandom() async {
     if (_allAudios.isEmpty) return;
     final randomIndex = Random().nextInt(_allAudios.length);
-    JwLifeApp.audioPlayer.playAudios(widget.category, _allAudios, id: randomIndex, randomMode: true);
+    JwLifeApp.audioPlayer.playAudios(_category ?? widget.category, _allAudios, id: randomIndex, randomMode: true);
   }
 
   void _playRandomLanguage() async {
@@ -296,9 +300,7 @@ class _AudioItemsPageState extends State<AudioItemsPage> {
                             fontWeight: FontWeight.bold,
                             overflow: TextOverflow.ellipsis,
                             color: JwLifeApp.audioPlayer.currentId == id &&
-                                JwLifeApp.audioPlayer.album == widget.category.localizedName
-                                ? Theme.of(context).primaryColor
-                                : Theme.of(context).secondaryHeaderColor,
+                                JwLifeApp.audioPlayer.album?.localizedName == (_category?.localizedName ?? widget.category.localizedName) ? Theme.of(context).primaryColor : Theme.of(context).secondaryHeaderColor,
                           ),
                         ),
                         const SizedBox(height: 2),
@@ -336,6 +338,7 @@ class _AudioItemsPageState extends State<AudioItemsPage> {
             ),
             itemBuilder: (context) => [
               getAudioShareItem(audio),
+              getAudioAddPlaylistItem(context, audio),
               getAudioLanguagesItem(context, audio),
               getAudioFavoriteItem(audio),
               getAudioDownloadItem(context, audio),

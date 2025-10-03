@@ -69,6 +69,9 @@ class MeetingsPageState extends State<MeetingsPage> {
 
   Future<void> fetchFirstCongregation() async {
     final congregation = await JwLifeApp.userdata.getCongregations();
+    if (congregation.isEmpty) {
+      return;
+    }
     setState(() {
       _congregation = congregation.first;
     });
@@ -1076,7 +1079,7 @@ class MeetingsPageState extends State<MeetingsPage> {
   Widget _isCircuitBrContentIsDownload(BuildContext context) {
     if (_circuitBrPub == null) {
       return const Center(
-        child: Text("Pas de programme pour l'Assemblée de circonscription avec un représentant de la filiale"),
+        child: Text("Pas de programme pour l'Assemblée de circonscription avec un représentant de la filiale", textAlign: TextAlign.center),
       );
     }
 
@@ -1170,9 +1173,9 @@ class MeetingsPageState extends State<MeetingsPage> {
   }
 
   Widget _isCircuitCoContentIsDownload(BuildContext context) {
-    if (_circuitBrPub == null) {
+    if (_circuitCoPub == null) {
       return const Center(
-        child: Text("Pas de programme pour l'Assemblée de circonscription avec le responsable de circonscription"),
+        child: Text("Pas de programme pour l'Assemblée de circonscription avec le responsable de circonscription", textAlign: TextAlign.center),
       );
     }
 

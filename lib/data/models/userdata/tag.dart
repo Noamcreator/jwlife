@@ -1,7 +1,7 @@
 class Tag {
   final int id;
   final int type;
-  final String name;
+  String name;
 
   Tag({
     required this.id,

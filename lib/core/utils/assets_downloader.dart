@@ -9,6 +9,7 @@ import '../api/api.dart';
 import '../shared_preferences/shared_preferences_utils.dart';
 
 class AssetsDownload {
+  // Définir la base de l'API GitHub pour les assets.
   static final String gitubApi = 'https://github.com/Noamcreator/jwlife/raw/refs/heads/main/api/';
 
   // Télécharge et enregistre les polices localement
@@ -19,9 +20,16 @@ class AssetsDownload {
     String webappVersionServer = '0.0.0';
     String webappfileNameServer = 'webapp_assets.zip';
 
+    // --- MODIFICATION ICI : AJOUT DU PARAMÈTRE DE REQUÊTE ANTI-CACHE ---
+    // Nous utilisons le timestamp actuel (nombre de millisecondes depuis l'époque)
+    // pour garantir que l'URL est unique à chaque appel.
+    final String antiCacheQuery = 'v=${DateTime.now().millisecondsSinceEpoch}';
+
     // récupérer la version du webapp
     try {
-      String webappInfoApi = '${gitubApi}webapp_version.json';
+      // 🎯 Construction de l'URL avec le paramètre de requête pour bypasser le cache
+      String webappInfoApi = '${gitubApi}webapp_version.json?$antiCacheQuery';
+      printTime('Fetching webapp version: $webappInfoApi');
       final response = await Api.httpGetWithHeaders(webappInfoApi);
       final jsonBody = json.decode(response.body);
       webappVersionServer = jsonBody['version'];
@@ -30,6 +38,7 @@ class AssetsDownload {
     catch (e) {
       printTime('Error fetching webapp version: $e');
     }
+    // ----------------------------------------------------------------------
 
     if (webappVersionServer != webappVersion) {
       String webappFileUrl = '$gitubApi$webappfileNameServer';

@@ -97,7 +97,7 @@ PopupMenuItem getPubDownloadItem(BuildContext context, Publication publication, 
 }
 
 Future<String> extractPublicationDescription(Publication? publication, {String? symbol, int? issueTagNumber, String? mepsLanguage}) async {
-  String s = publication?.symbol ?? symbol ?? '';
+  String s = publication?.keySymbol ?? symbol ?? '';
   int iTn = publication?.issueTagNumber ?? issueTagNumber ?? 0;
   String mL = publication?.mepsLanguage.symbol ?? mepsLanguage ?? '';
 

@@ -7,6 +7,6 @@ class Constants {
   static const String appRepo = 'jwlife';
   static const String jwlifeShare = 'jwlshare';
 
-  static const Color defaultLightPrimaryColor = Color(0xFF646496);
-  static Color defaultDarkPrimaryColor = Color.lerp(defaultLightPrimaryColor, Colors.white, 0.3)!;
+  static const Color defaultLightPrimaryColor = Color(0xFF143368);
+  static Color defaultDarkPrimaryColor = Color(0xFF9EB6D3);
 }

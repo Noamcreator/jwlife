@@ -29,6 +29,41 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
       <head>
         <meta charset="utf-8">
         <style>
+          :root {
+            /* =======================================
+               DÉFINITION DES COULEURS (Mode Clair)
+               ======================================= */
+            
+            /* Palette de couleurs de base (RGB sans opacité) */
+            --color-yellow-rgb: 255, 243, 122; 
+            --color-green-rgb: 183, 228, 146;
+            --color-blue-rgb: 152, 216, 255;
+            --color-pink-rgb: 246, 152, 188;
+            --color-orange-rgb: 255, 186, 138;
+            --color-purple-rgb: 193, 167, 226;
+            --color-red-rgb: 255, 150, 150; 
+            --color-brown-rgb: 200, 175, 145; /* Marron clair/beige pour Light mode */
+            
+            /* Couleur de Bordure Grise */
+            --color-gray-rgb: 220, 220, 220;
+          }
+          
+          /* =======================================
+             DÉFINITION DES COULEURS (Mode Sombre)
+             ======================================= */
+          .cc-theme--dark {
+            --color-yellow-rgb: 250, 217, 41;
+            --color-green-rgb: 129, 189, 79;
+            --color-blue-rgb: 95, 180, 239;
+            --color-pink-rgb: 219, 93, 141;
+            --color-orange-rgb: 255, 134, 46;
+            --color-purple-rgb: 146, 111, 189;
+            --color-red-rgb: 255, 80, 80; 
+            --color-brown-rgb: 145, 100, 50; /* Marron foncé et riche pour Dark mode */
+            
+            --color-gray-rgb: 80, 80, 80;
+          }
+          
           body {
             user-select: none;
             font-size: ${fontSize}px;
@@ -49,13 +84,13 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
             transform: translateX(-100%);
             height: 100vh;
             backface-visibility: hidden;
+            will-change: transform; /* ➜ améliore la fluidité */
           }
           
           .page {
             flex: 0 0 100%;
             height: 100vh;
             overflow-y: auto;
-            overflow-x: auto;
             box-sizing: border-box;
           }
           
@@ -80,14 +115,31 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
             z-index: 999;
           }
           
+          /* Styles pour la loupe */
           #magnifier {
-            position: fixed;
-            width: 130px;
-            height: 50px;
-            border-radius: 8px;
-            overflow: hidden;
-            pointer-events: none;
-            z-index: 9999;
+              position: fixed;
+              width: 130px;
+              height: 50px;
+              border: 3px solid #333;
+              border-radius: 8px;
+              overflow: hidden;
+              box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+              z-index: 9999;
+              pointer-events: none;
+          }
+          
+           /* Classe pour masquer l'élément */
+          .hide {
+              opacity: 0;
+              pointer-events: none;
+          }
+  
+          .magnifier-content {
+              position: absolute;
+              transform-origin: 0 0;
+              pointer-events: none;
+              width: 100vw;
+              height: 100vh;
           }
           
           body.cc-theme--dark #magnifier {
@@ -99,20 +151,7 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
             background-color: #ffffff;
             border: 2px solid #5f5a57;
           }
-          
-          #magnifier .zoomed {
-            position: absolute;
-            transform-origin: 0 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-          }
-  
-          .magnifier-content {
-            transform-origin: 0 0;
-            position: absolute;
-          }
-
+         
           .bookmark-icon {
             position: absolute;
             width: 23px;
@@ -178,9 +217,10 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
             white-space: nowrap;
             display: flex;
             opacity: 1;
+            left: 50%; 
             transform: translateX(-50%);
             width: max-content;
-            max-width: 90vw;
+            max-width: 100vw;
           }
           
           /* Thème clair */
@@ -193,21 +233,47 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
             background-color: #424242;
           }
             
-          /* Light mode (cc-theme--light) */
-          .cc-theme--light .highlight-yellow      { background-color: rgba(255, 243, 122, 0.5); }
-          .cc-theme--light .highlight-green       { background-color: rgba(183, 228, 146, 0.5); }
-          .cc-theme--light .highlight-blue        { background-color: rgba(152, 216, 255, 0.5); }
-          .cc-theme--light .highlight-pink        { background-color: rgba(246, 152, 188, 0.5); }
-          .cc-theme--light .highlight-purple      { background-color: rgba(193, 167, 226, 0.5); }
-          .cc-theme--light .highlight-orange      { background-color: rgba(255, 186, 138, 0.5); }
-            
-          /* Dark mode (cc-theme--dark) */
-          .cc-theme--dark .highlight-yellow       { background-color: rgba(250, 217, 41, 0.5); }
-          .cc-theme--dark .highlight-green        { background-color: rgba(129, 189, 79, 0.5); }
-          .cc-theme--dark .highlight-blue         { background-color: rgba(95, 180, 239, 0.5); }
-          .cc-theme--dark .highlight-pink         { background-color: rgba(219, 93, 141, 0.5); }
-          .cc-theme--dark .highlight-purple       { background-color: rgba(146, 111, 189, 0.5); }
-          .cc-theme--dark .highlight-orange       { background-color: rgba(255, 134, 46, 0.5); }
+          .highlight-yellow      { background-color: rgba(var(--color-yellow-rgb), 0.5); }
+          .highlight-green       { background-color: rgba(var(--color-green-rgb), 0.5); }
+          .highlight-blue        { background-color: rgba(var(--color-blue-rgb), 0.5); }
+          .highlight-pink        { background-color: rgba(var(--color-pink-rgb), 0.5); }
+          .highlight-orange      { background-color: rgba(var(--color-orange-rgb), 0.5); }
+          .highlight-purple      { background-color: rgba(var(--color-purple-rgb), 0.5); }
+          .highlight-red         { background-color: rgba(var(--color-red-rgb), 0.5); }
+          .highlight-brown       { background-color: rgba(var(--color-brown-rgb), 0.5); }
+          
+          /* Définition de base commune aux deux thèmes pour le style amélioré */
+          [class*="underline-"] {
+            text-decoration: underline;
+            text-underline-offset: 0.2em;
+            text-decoration-thickness: 0.15em;
+            text-decoration-skip-ink: none; 
+          }
+          
+          /* L'opacité (0.85) est appliquée ici, une seule fois pour tous les thèmes/couleurs */
+          .underline-yellow { text-decoration-color: rgba(var(--color-yellow-rgb), 0.5); }
+          .underline-green { text-decoration-color: rgba(var(--color-green-rgb), 0.5); }
+          .underline-blue { text-decoration-color: rgba(var(--color-blue-rgb), 0.5); }
+          .underline-pink { text-decoration-color: rgba(var(--color-pink-rgb), 0.5); }
+          .underline-orange { text-decoration-color: rgba(var(--color-orange-rgb), 0.5); }
+          .underline-purple { text-decoration-color: rgba(var(--color-purple-rgb), 0.5); }
+          .underline-red { text-decoration-color: rgba(var(--color-red-rgb), 0.5); }
+          .underline-brown { text-decoration-color: rgba(var(--color-brown-rgb), 0.5); }
+          
+          /* Application du style à toutes les classes utilisant la variable --c */
+          [class*="text-"] { 
+            color: rgba(var(--c), 0.75);
+          }
+          
+          .text-gray { --c: var(--color-gray-rgb); } 
+          .text-yellow { --c: var(--color-yellow-rgb); }
+          .text-green { --c: var(--color-green-rgb); }
+          .text-blue { --c: var(--color-blue-rgb); }
+          .text-pink { --c: var(--color-pink-rgb); }
+          .text-orange { --c: var(--color-orange-rgb); }
+          .text-purple { --c: var(--color-purple-rgb); }
+          .text-red { --c: var(--color-red-rgb); }
+          .text-brown { --c: var(--color-brown-rgb); }
 
           .cc-theme--light .note-indicator-gray      { background-color: #bfbfbf; }
           .cc-theme--light .note-indicator-yellow    { background-color: #fff379; }
@@ -216,7 +282,9 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
           .cc-theme--light .note-indicator-pink      { background-color: #f698bc; }
           .cc-theme--light .note-indicator-orange    { background-color: #feba89; }
           .cc-theme--light .note-indicator-purple    { background-color: #c0a7e1; }
-        
+          .cc-theme--light .note-indicator-red       { background-color: #ff9696; }
+          .cc-theme--light .note-indicator-brown     { background-color: #c8af91; }
+          
           .cc-theme--dark .note-indicator-gray      { background-color: #808080; }
           .cc-theme--dark .note-indicator-yellow    { background-color: #eac600; }
           .cc-theme--dark .note-indicator-green     { background-color: #67a332; }
@@ -224,6 +292,8 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
           .cc-theme--dark .note-indicator-pink      { background-color: #c64677; }
           .cc-theme--dark .note-indicator-orange    { background-color: #ea6d01; }
           .cc-theme--dark .note-indicator-purple    { background-color: #7a57a7; }
+          .cc-theme--dark .note-indicator-red       { background-color: #ff5050; }
+          .cc-theme--dark .note-indicator-brown     { background-color: #916432; }
           
           .cc-theme--light .note-gray      { background-color: #f1f1f1; }
           .cc-theme--light .note-yellow    { background-color: #fffce6; }
@@ -232,6 +302,8 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
           .cc-theme--light .note-pink      { background-color: #ffe6f0; }
           .cc-theme--light .note-orange    { background-color: #fff0e6; }
           .cc-theme--light .note-purple    { background-color: #f1eafa; }
+          .cc-theme--light .note-red       { background-color: #ffd6d6; }
+          .cc-theme--light .note-brown     { background-color: #F2E0CE; }
           
           .cc-theme--dark .note-gray      { background-color: #292929; }
           .cc-theme--dark .note-yellow    { background-color: #49400e; }
@@ -240,6 +312,8 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
           .cc-theme--dark .note-pink      { background-color: #401f2c; }
           .cc-theme--dark .note-orange    { background-color: #49290e; }
           .cc-theme--dark .note-purple    { background-color: #2d2438; }
+          .cc-theme--dark .note-red       { background-color: #441a1a; }
+          .cc-theme--dark .note-brown     { background-color: #382c18; }
         </style>
       </head>
       <body class="${webViewData.theme}">
@@ -249,14 +323,14 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
           <div id="page-right" class="page"></div>
         </div>
         
-        <div id="magnifier">
-          <div class="zoomed">
-              <div class="magnifier-content" id="magnifier-content"></div>
-          </div>
+        <div id="magnifier" class="hide">
+            <div class="magnifier-content" id="magnifier-content"></div>
         </div>
     
         <script>
           let currentIndex = $firstIndex;
+          const maxIndex = $maxIndex;
+          
           const container = document.getElementById("container");
           const pageCenter = document.getElementById("page-center");
           const pageLeft = document.getElementById("page-left");
@@ -277,7 +351,6 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
 
           let cachedPages = {};
           let scrollTopPages = {};
-          let highlightColorIndex = $colorIndex;
           
           let isChangingParagraph = false;
           
@@ -290,15 +363,61 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
           
           const speedBarScroll = `images/speedbar_thumb_regular.png`;
           let scrollBar = null;
-    
-          const maxIndex = $maxIndex;
           
           // Valeurs fixes de hauteur des barres
           const APPBAR_FIXED_HEIGHT = 56;
           const BOTTOMNAVBAR_FIXED_HEIGHT = 55;
           const AUDIO_PLAYER_HEIGHT = 80;
           
-          let highlights;
+          let paragraphsData = new Map();
+
+          /**************
+           * CONFIG STYLES
+           **************/
+           
+          const colorsList = ['gray', 'yellow', 'green', 'blue', 'pink', 'orange', 'purple', 'red', 'brown'];
+          
+          const STYLE = {
+            highlight: {
+              styleName: 'highlight',
+              icon: '&#xE6DA',
+              classes: [
+                'highlight-gray','highlight-yellow','highlight-green',
+                'highlight-blue','highlight-pink','highlight-orange','highlight-purple', 'highlight-red', 'highlight-brown'
+              ],
+              options: colorsList,
+              colorIndex: $colorIndex
+            },
+            underline: {
+              styleName: 'underline',
+              icon: '&#xE6DB',
+              classes: [
+                'underline-gray','underline-yellow','underline-green',
+                'underline-blue','underline-pink','underline-orange','underline-purple', 'underline-red', 'underline-brown'
+              ],
+              options: colorsList,
+              colorIndex: $colorIndex
+            },
+            text: {
+              styleName: 'text',
+              icon: '&#xE6DC',
+              classes: [
+                'text-gray','text-yellow','text-green', // Changé de 'border-couleur' à 'text-couleur'
+                'text-blue','text-pink','text-orange','text-purple', 'text-red', 'text-brown'
+              ],
+              options: colorsList,
+              colorIndex: $colorIndex
+            }
+          };
+          
+          const blockRangeAttr = 'block-range-id';
+          const noteBlockRangeAttr = 'note-block-range-id';
+          
+          const noteAttr = 'note-id';
+          
+          let currentStyleIndex = 0;
+          
+          let blockRanges;
           let notes;
           let inputFields;
           let bookmarks;
@@ -333,7 +452,7 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
             const curr = cachedPages[currentIndex];
             adjustArticle('article-center', curr.link);
           }
-
+          
           async function fetchPage(index) {
             if (index < 0 || index > maxIndex) return { html: "", className: "" };
             if (cachedPages[index]) return cachedPages[index];
@@ -355,8 +474,6 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
             const svgContainer = document.createElement('div');
             svgContainer.id = 'svg-container';
             svgContainer.style.position = 'absolute';
-            svgContainer.style.top = '0';
-            svgContainer.style.left = '0';
             svgContainer.style.width = '100%';
             svgContainer.style.height = '100%';
             svgContainer.style.zIndex = '10';
@@ -408,7 +525,27 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
               } 
               else {
                 container.innerHTML = `<article id="article-\${position}" class="\${item.className}">
-                                          \${item.html}
+                                           \${item.html}
+                                           <div class="articleFooterLinks">
+                                             <div class="articleNavLinks">
+                                                <div class='navLinkPrev'>
+                                                  <div class="primaryButton articleNavButton disabled">
+                                                      <span class="buttonIcon" aria-hidden="true">
+                                                          <svg class="svg-inline--fa jwi-chevron-left fa-w-16" aria-hidden="true" focusable="false" data-prefix="jwf-jw-icons-external" data-icon="chevron-left" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" data-fa-i2svg=""><path fill="currentColor" d="M15.5 19a.493.493 0 01-.315-.112l-8-6.5a.5.5 0 010-.776l8-6.5a.5.5 0 11.63.776L8.293 12l7.522 6.112A.5.5 0 0115.5 19z"></path></svg><!-- <i class="jwf-jw-icons-external jwi-chevron-left"></i> -->
+                                                      </span>
+                                                      <span class="buttonText">Précédent</span>
+                                                  </div>  
+                                                </div>             
+                                                <div class='navLinkNext'>
+                                                  <div class="primaryButton articleNavButton disabled">
+                                                        <span class="buttonIcon" aria-hidden="true">
+                                                            <svg class="svg-inline--fa jwi-chevron-right fa-w-16" aria-hidden="true" focusable="false" data-prefix="jwf-jw-icons-external" data-icon="chevron-right" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" data-fa-i2svg=""><path fill="currentColor" d="M8.5 19a.5.5 0 01-.39-.18.52.52 0 01.07-.71L15.71 12 8.18 5.89a.5.5 0 01.64-.78l8 6.5a.51.51 0 010 .78l-8 6.5a.56.56 0 01-.32.11z"></path></svg><!-- <i class="jwf-jw-icons-external jwi-chevron-right"></i> -->
+                                                        </span>
+                                                        <span class="buttonText">Suivant</span>
+                                                  </div>  
+                                                </div>             
+                                             </div>
+                                           </div>  
                                        </article>`;
                 adjustArticle(`article-\${position}`, item.link);
                 addVideoCover(`article-\${position}`);
@@ -423,6 +560,7 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
                 viewport.content = 'width=device-width, initial-scale=1.0, user-scalable=no';
                 
                 wrapWordsWithSpan(container, false);
+                paragraphsData = fetchAllParagraphsOfTheArticle(article);
                 loadUserdata();
               }
             }
@@ -538,26 +676,38 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
              
               function walkNodes(node) {
                   if (node.nodeType === Node.TEXT_NODE) {
+                      // VÉRIFIER SI UN PARENT A UNE CLASSE INTERDITE
+                      let parent = node.parentElement;
+                      while (parent) {
+                          if (parent.classList && [...skipClasses].some(c => parent.classList.contains(c))) {
+                              return; // Skip ce text node
+                          }
+                          parent = parent.parentElement;
+                      }
+                      
                       const text = node.textContent;
                       const newHTML = processText(text);
                       const temp = document.createElement('div');
                       temp.innerHTML = newHTML.html;
                                   
-                      const parent = node.parentNode;
+                      const nodeParent = node.parentNode;
                       while (temp.firstChild) {
-                          parent.insertBefore(temp.firstChild, node);
+                          nodeParent.insertBefore(temp.firstChild, node);
                       }
-                      parent.removeChild(node);
+                      nodeParent.removeChild(node);
                   } 
                   else if (node.nodeType === Node.ELEMENT_NODE) {
-                      // Skip elements with specified classes or if it's a sup element
-                      if ((node.closest && node.closest("sup")) || (node.classList && [...skipClasses].some(c => node.classList.contains(c)))) {
+                      if (node.classList && [...skipClasses].some(c => node.classList.contains(c))) {
                           return;
                       }
-                      // Skip elements that already have our span classes to avoid double processing
-                      if (node.classList && (node.classList.contains('word') || node.classList.contains('escape') || node.classList.contains('punctuation'))) {
-                        return;
+                      
+                      if ((node.closest && node.closest("sup")) || 
+                          (node.classList && (node.classList.contains('word') || 
+                                             node.classList.contains('escape') || 
+                                             node.classList.contains('punctuation')))) {
+                          return;
                       }
+                      
                       const children = Array.from(node.childNodes);
                       children.forEach(child => walkNodes(child));
                   }
@@ -682,7 +832,38 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
               loadImageSvg(pageCenter, curr.svgs);
             }
             else {
-              pageCenter.innerHTML = `<article id="article-center" class="\${curr.className}">\${curr.html}</article>`;
+              pageCenter.innerHTML = `<article id="article-center" class="\${curr.className}">
+                                        \${curr.html}
+                                        <div class="articleFooterLinks">
+                                             <div class="articleNavLinks">
+                                                <div class='navLinkPrev'>
+                                                  <div class="primaryButton articleNavButton PublicationArticle" aria-hidden="true">
+                                                      <span class="buttonIcon" aria-hidden="true">
+                                                          <svg class="svg-inline--fa jwi-chevron-left fa-w-16" aria-hidden="true" focusable="false" data-prefix="jwf-jw-icons-external" data-icon="chevron-left" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" data-fa-i2svg=""><path fill="currentColor" d="M15.5 19a.493.493 0 01-.315-.112l-8-6.5a.5.5 0 010-.776l8-6.5a.5.5 0 11.63.776L8.293 12l7.522 6.112A.5.5 0 0115.5 19z"></path></svg>
+                                                      </span>
+                                                      <span class="buttonText">Précédent</span>
+                                                  </div>  
+                                                </div>             
+                                                <div class='navLinkNext'>
+                                                  <div class="primaryButton articleNavButton PublicationArticle" aria-hidden="true">
+                                                        <span class="buttonIcon" aria-hidden="true">
+                                                            <svg class="svg-inline--fa jwi-chevron-right fa-w-16" aria-hidden="true" focusable="false" data-prefix="jwf-jw-icons-external" data-icon="chevron-right" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" data-fa-i2svg=""><path fill="currentColor" d="M8.5 19a.5.5 0 01-.39-.18.52.52 0 01.07-.71L15.71 12 8.18 5.89a.5.5 0 01.64-.78l8 6.5a.51.51 0 010 .78l-8 6.5a.56.56 0 01-.32.11z"></path></svg>
+                                                        </span>
+                                                        <span class="buttonText">Suivant</span>
+                                                  </div>  
+                                                </div>             
+                                             </div>
+                                           </div>  
+                                      </article>`;
+                                      
+              document.querySelector('.navLinkPrev').addEventListener('click', function() {
+                changePage('left');
+              });
+              
+              document.querySelector('.navLinkNext').addEventListener('click', function() {
+                changePage('right');
+              });
+
               adjustArticle('article-center', curr.link);
               addVideoCover('article-center');
               
@@ -704,6 +885,7 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
             if (!isFirst && !isImageMode) {
               const article = document.getElementById("article-center");
               wrapWordsWithSpan(article, isBible());
+              paragraphsData = fetchAllParagraphsOfTheArticle(article);
             }
           }
           
@@ -732,6 +914,8 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
     
           // Fonction de chargement optimisée avec gestion des états
            async function loadPages(currentIndex) {
+            await window.flutter_inappwebview.callHandler('changePageAt', currentIndex);
+           
             await loadIndexPage(currentIndex, false);
           
             function restoreScrollPosition(page, index) {
@@ -764,13 +948,13 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
             isLongTouchFix = false;
             isSelecting = false;
             sideHandle = null;
+            isAnimating = false;
             isDragging = false;
             isVerticalScroll = false;
             startX = 0;
             startY = 0;
             currentTranslate = -100;
           
-            await window.flutter_inappwebview.callHandler('changePageAt', currentIndex);
             loadUserdata();
             await loadPrevAndNextPages(currentIndex);
           
@@ -986,37 +1170,47 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
             return button;
           }
           
-          function createToolbarButtonColor(target, highlightToolbar, isSelected) {
+          // Variable globale supposée pour l'index de style actuel, pour une utilisation cohérente
+          
+          function createToolbarButtonColor(styleIndex, target, styleToolbar, isSelected) {
+            const style = getStyleConfig(styleIndex);
             const button = document.createElement('button');
           
-            // Créer l'élément image
-            const img = document.createElement('img');
-            img.src = `highlights/$theme/highlight.png`;
-            img.style.cssText = `
-              width: 40px;
-              height: 24px;
-              display: block;
-            `;
-          
-            // Ajouter l'image au bouton
-            button.appendChild(img);
+            button.innerHTML = style.icon;
+
+            // Couleurs selon le thème
+            const baseColor = isDarkTheme() ? 'white' : '#4f4f4f';
+            const hoverColor = isDarkTheme() ? '#606060' : '#e6e6e6';
           
             button.style.cssText = `
+              font-family: jw-icons-external;
+              font-size: 26px;
               padding: 3px;
               border-radius: 5px;
               margin: 0 7px;
+              color: \${baseColor};
               background: none;
               -webkit-tap-highlight-color: transparent;
             `;
           
-            // Créer la toolbar de couleurs
-            function createColorToolbar(target) {
+            // --- Fonction interne : Création de la barre de couleurs ---
+            function createColorToolbar() {
               const colorToolbar = document.createElement('div');
               colorToolbar.classList.add('toolbar', 'toolbar-colors');
-              colorToolbar.style.top = highlightToolbar.style.top;
-              colorToolbar.style.left = highlightToolbar.style.left;
               
-              // ajouter un bouton retour
+              colorToolbar.style.top = styleToolbar.style.top;
+              
+              // Fonction utilitaire pour obtenir la valeur RGB d'une variable CSS
+              const getRgbValue = (colorName) => {
+                // Lis la valeur de la variable CSS --color-[name]-rgb à partir du document
+                // (Cette valeur change automatiquement entre :root et .cc-theme--dark)
+                return getComputedStyle(document.documentElement).getPropertyValue(`--color-\${colorName}-rgb`).trim();
+              };
+              
+              // Détermination de l'icône de retour
+              const isDark = isDarkTheme(); // Supposée fonction pour vérifier le thème
+              
+              // Bouton retour (Symbole: E639)
               const backButton = document.createElement('button');
               backButton.innerHTML = '&#xE639;';
               backButton.style.cssText = `
@@ -1025,51 +1219,60 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
                 padding: 3px;
                 border-radius: 5px;
                 margin: 0 3px;
-                color: isDarkTheme() ? 'white' : '#4f4f4f';
+                color: \${isDark ? 'white' : '#4f4f4f'};
                 background: none;
                 -webkit-tap-highlight-color: transparent;
               `;
-              backButton.addEventListener('click', () => {
+              backButton.addEventListener('click', (e) => {
+                e.stopPropagation();
                 colorToolbar.remove();
-                highlightToolbar.style.opacity = 1;
+                styleToolbar.style.opacity = 1; // Rendre l'ancienne toolbar visible instantanément
               });
               colorToolbar.appendChild(backButton);
               
-              let colorIndex = highlightColorIndex;
-              const highlightMap = {
-                'highlight-yellow': 1,
-                'highlight-green': 2,
-                'highlight-blue': 3,
-                'highlight-pink': 4,
-                'highlight-orange': 5,
-                'highlight-purple': 6
-              };
-              
-              target.classList.forEach(className => {
-                if (highlightMap.hasOwnProperty(className)) {
-                  colorIndex = highlightMap[className];
-                }
-              });
+              // Détermination de l'index de couleur actif
+              const { 
+                  styleIndex: targetStyleIndex, 
+                  colorIndex: targetColorIndex 
+              } = getActiveStyleAndColorIndex(target, currentStyleIndex, getColorIndex);
                         
               // Créer un bouton pour chaque couleur
-              highlightAssets.forEach((assetPath, index) => {
+              colorsList.forEach((colorName, index) => {
+                if(index == 0) return;
                 const colorButton = document.createElement('button');
-                const colorImg = document.createElement('img');
+                const colorIndex = index; // Les index de couleur commencent à 1
+                const rgbValue = getRgbValue(colorName);
                 
-                if (index+1 == colorIndex && !isSelected) {
-                  colorImg.src = highlightSelectedAssets[index];
-                }
-                else {
-                  colorImg.src = assetPath;
-                }
-                
-                colorImg.style.cssText = `
+                // 🎨 CRÉATION DU CERCLE DE COULEUR 🎨
+                const colorCircle = document.createElement('div');
+                colorCircle.style.cssText = `
                   width: 25px;
                   height: 25px;
-                  display: block;
+                  border-radius: 50%;
+                  /* Utilise l'opacité 1.0 car c'est un bouton/aperçu */
+                  background-color: rgba(\${rgbValue}, 1.0);
+                  display: flex;
+                  justify-content: center;
+                  align-items: center;
+                  box-shadow: 0 0 0 1px \${isDark ? 'rgba(255, 255, 255, 0.3)' : 'rgba(0, 0, 0, 0.15)'}; /* Bordure légère */
                 `;
                 
-                colorButton.appendChild(colorImg);
+                // --- Logique d'icône sélectionnée (Symbole: E634) ---
+                // Si la couleur actuelle est la couleur de l'élément sélectionné ET nous sommes en mode "highlight existant"
+                if (colorIndex === targetColorIndex && styleIndex === targetStyleIndex && !isSelected) {
+                  const selectedIcon = document.createElement('span');
+                  // UTILISATION DE E634 POUR LA FLÈCHE DE SÉLECTION
+                  selectedIcon.innerHTML = '&#xE634;'; 
+                  selectedIcon.style.cssText = `
+                    font-family: jw-icons-external; /* Même famille que le bouton retour */
+                    font-size: 19px;
+                    color: rgba(100, 100, 100, 0.5); /* Couleur semi-transparente souhaitée */
+                  `;
+                  colorCircle.appendChild(selectedIcon);
+                } 
+                
+                colorButton.appendChild(colorCircle);
+                
                 colorButton.style.cssText = `
                   padding: 3px;
                   border-radius: 5px;
@@ -1077,41 +1280,44 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
                   background: none;
                   -webkit-tap-highlight-color: transparent;
                 `;
-          
+            
                 // Ajouter l'événement de clic pour chaque couleur
                 colorButton.addEventListener('click', (e) => {
                   e.stopPropagation();
-
-                  highlightColorIndex = index+1;
-                  if(isSelected) {
-                    let currentParagraph = [];
-                    let currentParagraphId = -1;
-                    let currentIsVerse = false;
+            
+                  // 1. Mettre à jour l'index de couleur global pour le style actuel
+                  setColorIndex(styleIndex, colorIndex); 
+                  
+                  if (isSelected) {
+                    // --- LOGIQUE D'APPLICATION DE SURLIGNAGE POUR NOUVELLE SÉLECTION ---
+                    const blockRangesToSend = [];
+                    const selectedElements = pageCenter.querySelectorAll('.selected');
+                    const newClass = getStyleClass(styleIndex, colorIndex);
+                    
+                    let currentParagraphId = null;
                     let firstTarget = null;
                     let lastTarget = null;
+                    let currentParagraphInfo = null;
                     
-                    const highlightsToSend = [];
-                    const selectedElements = pageCenter.querySelectorAll('.selected');
-                    for (let i = 0; i < selectedElements.length; i++) {
-                      const element = selectedElements[i];
-                      
-                      const newHighlightClass = `highlight-\${["transparent", "yellow", "green", "blue", "pink", "orange", "purple"][highlightColorIndex]}`;
+                    selectedElements.forEach(element => {
+                      const info = getTheFirstTargetParagraph(element);
+                      if (!info) return;
+            
+                      // Appliquer le style au token immédiatement
                       element.classList.remove('selected');
-                      element.classList.add(newHighlightClass);
-                      element.setAttribute('data-highlight-id', currentGuid);
+                      element.classList.add(newClass);
+                      element.setAttribute(blockRangeAttr, currentGuid);
                       
-                      const { id, paragraphs, isVerse } = getTheFirstTargetParagraph(element);
-                    
-                      if (id !== currentParagraphId) {
+                      // Logique de regroupement
+                      if (info.id !== currentParagraphId) {
                         // S'il y avait un paragraphe précédent, on sauvegarde le highlight
                         if (firstTarget && lastTarget) {
-                          addHighlightForParagraph(firstTarget, lastTarget, currentParagraph, currentParagraphId, currentIsVerse);
+                          addBlockRangeForParagraph(firstTarget, lastTarget, currentParagraphInfo, blockRangesToSend);
                         }
                     
                         // On commence un nouveau paragraphe
-                        currentParagraph = paragraphs;
-                        currentParagraphId = id;
-                        currentIsVerse = isVerse;
+                        currentParagraphId = info.id;
+                        currentParagraphInfo = info;
                         firstTarget = element;
                         lastTarget = element;
                       } 
@@ -1119,76 +1325,93 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
                         // Même paragraphe, on met à jour la fin
                         lastTarget = element;
                       }
-                    }
+                    });
                     
                     // Enregistrer le dernier paragraphe
                     if (firstTarget && lastTarget) {
-                      addHighlightForParagraph(firstTarget, lastTarget, currentParagraph, currentParagraphId, currentIsVerse);
+                      addBlockRangeForParagraph(firstTarget, lastTarget, currentParagraphInfo, blockRangesToSend);
                     }
                     
-                    // Fonction de préparation des highlights
-                    function addHighlightForParagraph(firstElement, lastElement, paragraphs, paragraphId, isVerse) {
-                      const wordAndPunctTokens = paragraphs.flatMap(p => Array.from(p.querySelectorAll('.word, .punctuation')));
-                      const normalizedStartToken = wordAndPunctTokens.indexOf(firstElement);
-                      const normalizedEndToken = wordAndPunctTokens.indexOf(lastElement);
-      
-                      highlightsToSend.push({
+                    function addBlockRangeForParagraph(firstEl, lastEl, pid, isVerse) {
+                      const paragraphData = paragraphsData.get(pid);
+                      if (!paragraphData) return;
+                      
+                      const { wordAndPunctTokens } = paragraphData;
+                    
+                      const idxFirst = wordAndPunctTokens.indexOf(firstEl);
+                      const idxLast  = wordAndPunctTokens.indexOf(lastEl);
+                    
+                      // 🔒 Si un token n'est pas trouvé → sécurité
+                      if (idxFirst === -1 || idxLast === -1) {
+                        console.error(`❌ Token(s) not found in paragraph \${pid}`, { firstEl, lastEl });
+                        return;
+                      }
+                    
+                      // ✅ Toujours ordonner
+                      const startIdx = Math.min(idxFirst, idxLast);
+                      const endIdx   = Math.max(idxFirst, idxLast);
+                    
+                      blockRangesToSend.push({
                         blockType: isVerse ? 2 : 1,
-                        identifier: paragraphId,
-                        startToken: normalizedStartToken,
-                        endToken: normalizedEndToken,
+                        identifier: pid,
+                        startToken: startIdx,
+                        endToken: endIdx,
                       });
                     }
                     
-                    // Appel unique à Flutter pour tous les highlights
-                    window.flutter_inappwebview.callHandler('addHighlights', highlightsToSend, highlightColorIndex, currentGuid);
-                  }
+                    // Appel unique à Flutter pour tous les blockRanges
+                    const finalColorIndex = getColorIndex(styleIndex);
+                    window.flutter_inappwebview.callHandler('addBlockRange', blockRangesToSend, styleIndex, finalColorIndex, currentGuid);
+                    
+                  } 
                   else {
-                    changeHighlightColor(target.getAttribute('data-highlight-id'), index+1);
+                    // --- LOGIQUE DE CHANGEMENT DE COULEUR POUR HIGHLIGHT EXISTANT ---
+                    changeBlockRangeStyle(target.getAttribute(blockRangeAttr), styleIndex, colorIndex);
                   }
+                  
+                  currentStyleIndex = styleIndex;
+                  
+                  // Fermeture instantanée
                   colorToolbar.remove();
-                  closeToolbar();
+                  closeToolbar(); // Supposée fonction pour fermer la toolbar principale
                 });
-          
+            
                 colorToolbar.appendChild(colorButton);
               });
-          
-              return colorToolbar;
+              
+              return colorToolbar; 
             }
           
-            // Événement de clic sur le bouton principal
+            // --- Événement de clic sur le bouton principal (immédiat) ---
             button.addEventListener('click', (e) => {
               e.stopPropagation();
               
-              highlightToolbar.style.opacity = '0';
+              // Supprimer l'ancienne toolbar de couleur si elle existe (pour éviter le clignotement)
+              document.querySelector('.toolbar-colors')?.remove();
               
-              // Vérifier s'il y a déjà une toolbar-colors ouverte
-              const existingColorToolbar = document.querySelector('.toolbar-colors');
-              if (existingColorToolbar) {
-                existingColorToolbar.remove();
-                return;
-              }
-          
-              // Créer et afficher la toolbar de couleurs
-              const colorToolbar = createColorToolbar(target);
+              // Créer et afficher la toolbar de couleurs (instantanné)
+              const colorToolbar = createColorToolbar();
               document.body.appendChild(colorToolbar);
-
-              // Fermer la toolbar si on clique ailleurs
+              
+              // Rendre la toolbar principale invisible (immédiat)
+              styleToolbar.style.opacity = '0';
+          
+              // Fermer la toolbar si on clique ailleurs (logique simplifiée et sans setTimeout)
               const closeColorToolbar = (event) => {
+                // Vérifie si le clic est en dehors de la toolbar de couleur ET en dehors du bouton de couleur
                 if (!colorToolbar.contains(event.target) && !button.contains(event.target)) {
-                  colorToolbar.style.opacity = '0';
-                  setTimeout(() => {
-                    if (colorToolbar.parentNode) {
-                      colorToolbar.remove();
-                    }
-                  }, 100);
+                  // Fermeture instantanée
+                  colorToolbar.remove();
+                  styleToolbar.style.opacity = '1';
                   document.removeEventListener('click', closeColorToolbar);
                 }
               };
           
-              setTimeout(() => {
-                document.addEventListener('click', closeColorToolbar);
-              }, 10);
+              // On attache l'écouteur après un micro-délai pour ne pas capter l'événement du clic actuel
+              // (Utiliser requestAnimationFrame est souvent mieux que setTimeout(10))
+              requestAnimationFrame(() => {
+                  document.addEventListener('click', closeColorToolbar);
+              });
             });
             
             return button;
@@ -1212,7 +1435,7 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
             });
           }
           
-          function createToolbarBase({ targets, highlightId, isSelected, target }) {
+          function createToolbarBase({targets, highlightId, isSelected, target }) {
             const toolbars = document.querySelectorAll('.toolbar, .toolbar-highlight');
           
             // Masquer les toolbars existantes
@@ -1224,7 +1447,7 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
           
             // Ne rien faire si la bonne toolbar existe déjà
             const existing = Array.from(toolbars).find(toolbar =>
-              toolbar.getAttribute('data-highlight-id') === highlightId
+              toolbar.getAttribute(blockRangeAttr) === highlightId
               || toolbar.classList.contains('selected')
             );
             if (existing) return;
@@ -1269,7 +1492,7 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
               toolbar.classList.add('selected');
             }
             else {
-              toolbar.setAttribute('data-highlight-id', highlightId);
+              toolbar.setAttribute(blockRangeAttr, highlightId);
             }
             toolbar.style.top = `\${top}px`;
             toolbar.style.left = `\${left}px`;
@@ -1297,21 +1520,22 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
               .filter(text => text.length > 0)
               .join('');
           
-            toolbar.appendChild(createToolbarButtonColor(target, toolbar, isSelected));
+            toolbar.appendChild(createToolbarButtonColor(0, target, toolbar, isSelected));
+            toolbar.appendChild(createToolbarButtonColor(1, target, toolbar, isSelected));
+            toolbar.appendChild(createToolbarButtonColor(2, target, toolbar, isSelected));
           
             const buttons = [
-              ['&#xE681;', () => isSelected ? addNote(paragraphs[0], id, isVerse, text) : addNoteWithHighlight(target, highlightId)],
-              ...(!isSelected && highlightId ? [['&#xE6C5;', () => removeHighlight(highlightId)]] : []),
+              ['&#xE681;', () => isSelected ? addNote(paragraphs[0], id, isVerse, text) : addNoteWithBlockRange(text, target, highlightId)],
+              ...(!isSelected && highlightId ? [['&#xE6C5;', () => removeBlockRange(highlightId)]] : []),
               ['&#xE651;', () => callHandler('copyText', { text })],
               ['&#xE676;', () => callHandler('search', { query: text })]
-              //['&#xE696;', () => callHandler('copyText', { text })]
             ];
           
             buttons.forEach(([icon, handler]) => toolbar.appendChild(createToolbarButton(icon, handler)));
           }
     
           function showToolbarHighlight(target, highlightId) {
-            const targets = pageCenter.querySelectorAll(`[data-highlight-id="\${highlightId}"]`);
+            const targets = pageCenter.querySelectorAll(`[\${blockRangeAttr}="\${highlightId}"]`);
             if (targets.length === 0) return;
             
             createToolbarBase({ targets, highlightId, isSelected: false, target });
@@ -1329,7 +1553,7 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
             const toolbars = document.querySelectorAll('.toolbar, .toolbar-highlight, .toolbar-colors');
             
             // Chercher la toolbar correspondante au pid
-            const matchingToolbar = Array.from(toolbars).find(toolbar => toolbar.getAttribute('data-pid') === pid);
+            const matchingToolbar = Array.from(toolbars).find(toolbar => toolbar.getAttribute('data-pid') === pid.toString());
             
             // Supprimer les toolbars qui ne correspondent pas
             toolbars.forEach(toolbar => {
@@ -1432,1244 +1656,1295 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
             closeToolbar();
           }
           
-// Système d'historique des dialogs avec sauvegarde complète d'état
-let dialogHistory = [];
-let currentDialogIndex = -1;
-let lastClosedDialog = null; // Pour mémoriser le dernier dialogue fermé
-let globalFullscreenPreference = false; // Préférence globale pour le fullscreen
-let dialogIdCounter = 0; // Compteur pour les ID uniques des dialogues
-
-// Icônes pour les différents types de dialog
-const DIALOG_ICONS = {
-    'verse': '&#xE61D;', // Icône Bible
-    'verse-references': '&#xE61F;', // Icône Bible
-    'verse-info': '&#xE620;', // Icône Bible
-    'publication': '&#xE629;', // Icône Publication
-    'footnote': '&#xE69B;', // Icône Footer
-    'note': '&#xE6BF;', // Icône Note
-    'default': '&#xE658;' // Icône par défaut
-};
-
-function hideAllDialogs() {
-    const dialogs = document.querySelectorAll('.customDialog');
-    dialogs.forEach(dialog => {
-        dialog.style.display = 'none';
-    });
-}
-
-function closeDialog() {
-    document.querySelectorAll('.options-menu, .color-menu').forEach(el => el.remove());
-    const dialog = document.getElementById(dialogHistory[currentDialogIndex].dialogId);
-    if (!dialog) return;
-    
-    // Cacher le dialog
-    dialog.style.display = 'none';
-    
-    if (currentDialogIndex >= 0) {
-        lastClosedDialog = {
-            ...dialogHistory[currentDialogIndex],
-            historyIndex: currentDialogIndex,
-            fullHistory: [...dialogHistory],
-            type: dialogHistory[currentDialogIndex].type,
-        };
-    }
-    
-    dialogHistory = [];
-    currentDialogIndex = -1;
-
-    // Afficher le bouton flottant si on a un dialogue à restaurer
-    if (lastClosedDialog) {
-        showFloatingButton();
-    }
-
-    window.flutter_inappwebview?.callHandler('showFullscreenDialog', false);
-    window.flutter_inappwebview?.callHandler('showDialog', false);
-}
-
-function removeDialog() {
-    if (currentDialogIndex < 0 || dialogHistory.length === 0) return;
-
-    // Récupérer le dernier dialogue
-    const dialogData = dialogHistory[currentDialogIndex];
-    const dialog = document.getElementById(dialogData.dialogId);
-
-    if (dialog) {
-        // Supprimer le dialog du DOM
-        dialog.remove();
-    }
-    
-    // Supprimer l'entrée du tableau
-    dialogHistory.splice(currentDialogIndex, 1);
-
-    // Mettre à jour l'index
-    currentDialogIndex = dialogHistory.length - 1;
-
-    window.flutter_inappwebview?.callHandler('showFullscreenDialog', false);
-    window.flutter_inappwebview?.callHandler('showDialog', false);
-}
-
-// Fonction pour naviguer vers le dialog précédent
-function goBackDialog() {
-    if (currentDialogIndex > 0 && dialogHistory.length > 1) {
-        // Supprimer le dernier dialogue (celui qu'on quitte)
-        dialogHistory.pop();
-
-        // Décrémenter l'index pour pointer sur le précédent
-        currentDialogIndex--;
-
-        // Récupérer le précédent dialogue
-        const previousDialog = dialogHistory[currentDialogIndex];
-
-        // Afficher le dialogue précédent
-        showDialogFromHistory(previousDialog);
-
-        return true;
-    }
-    return false;
-}
-
-// Fonction pour créer ou restaurer un dialog depuis l'historique
-function showDialogFromHistory(historyItem) {
-    hideAllDialogs();
-
-    const existingDialog = document.getElementById(historyItem.dialogId);
-    let dialog;
-
-    if (existingDialog) {
-        dialog = existingDialog;
-        dialog.style.display = 'block';
-    } 
-    else {
-        dialog = createDialogElement(historyItem.options, historyItem.canGoBack, globalFullscreenPreference, historyItem.dialogId);
-        document.body.appendChild(dialog);
-    }
-
-    applyDialogStyles(historyItem.type, dialog, globalFullscreenPreference);
-    
-    if (historyItem.type === 'note') {
-        dialog.className = dialog.className.replace(/note-(yellow|green|blue|red|purple)/g, '').trim();
-        dialog.classList.add(`note-\${historyItem.options.noteData.noteColor.toLowerCase()}`);
-    }
-
-    return dialog;
-}
-
-// Fonction principale pour créer et afficher un dialog
-function showDialog(options) {
-    removeFloatingButton();
-    
-    window.flutter_inappwebview?.callHandler('showDialog', true);
-      
-    dialogIdCounter++; // Incrémenter pour un nouvel ID
-    const newDialogId = `customDialog-\${dialogIdCounter}`;
-    
-    // Créer et ajouter le nouveau dialogue à l'historique avec son ID
-    const newHistoryItem = {
-        options: options,
-        canGoBack: dialogHistory.length > 0,
-        type: options.type || 'default',
-        dialogId: newDialogId,
-    };
-    dialogHistory.push(newHistoryItem);
-    currentDialogIndex = dialogHistory.length - 1;
-    
-    // Créer et afficher le nouveau dialogue
-    return showDialogFromHistory(newHistoryItem);
-}
-
-// Fonction pour créer l'élément dialog avec fullscreen et scroll
-function createDialogElement(options, canGoBack, isFullscreenInit = false, scrollTopInit = 0, newDialogId = null) {
-    let isFullscreen = isFullscreenInit;
-    
-    const dialog = document.createElement('div');
-    dialog.id = newDialogId || `customDialog-\${dialogIdCounter}`;
-    dialog.classList.add('customDialog');
-    
-    // Appliquer les styles selon le mode
-    applyDialogStyles(options.type, dialog, isFullscreen);
-    dialog.style.display = 'block';
-
-    // Header
-    const header = createHeader(options, isDarkTheme(), dialog, isFullscreen, canGoBack);
-    setupDragSystem(header.element, dialog);
-
-    // Content container
-    const contentContainer = document.createElement('div');
-    contentContainer.id = 'contentContainer';
-    applyContentContainerStyles(options.type, contentContainer, isFullscreen);
-    
-    // **Modification ici : Appliquer la classe de couleur de la note à la création**
-    if (options.type === 'note' && options.noteData && options.noteData.noteColor) {
-        dialog.classList.add(`note-\${options.noteData.noteColor}`);
-    }
-
-    if (options.contentRenderer) {
-        options.contentRenderer(contentContainer, options);
-    }
-    
-    setTimeout(() => {
-        contentContainer.scrollTop = scrollTopInit;
-        console.log('Scroll restauré:', scrollTopInit);
-    }, 10);
-
-    // Setup du bouton fullscreen avec callback pour sauvegarder l'état
-    setupFullscreenToggle(
-        options.type,
-        header.fullscreenButton,
-        dialog,
-        contentContainer
-    );
-
-    dialog.appendChild(header.element);
-    dialog.appendChild(contentContainer);
-    return dialog;
-}
-
-// Fonction pour appliquer les styles du dialog
-function applyDialogStyles(type, dialog, isFullscreen, savedPosition = null) {
-    const isDark = isDarkTheme();
-    const backgroundColor = type == 'note' ? null : (isDarkTheme() ? '#121212' : '#ffffff');
-    
-    const baseStyles = `
-        position: fixed;
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
-        z-index: 1000;
-        background-color: \${backgroundColor};
-    `;
-
-    if (isFullscreen) {
-        const bottomOffset = BOTTOMNAVBAR_FIXED_HEIGHT + (audioPlayerVisible ? AUDIO_PLAYER_HEIGHT : 0);
-    
-        dialog.classList.add('fullscreen');
-        dialog.style.cssText = `
-            \${baseStyles}
-            top: \${APPBAR_FIXED_HEIGHT}px;
-            left: 0;
-            right: 0;
-            bottom: \${bottomOffset}px;
-            width: 100vw;
-            height: calc(100vh - \${APPBAR_FIXED_HEIGHT + bottomOffset}px);
-            transform: none;
-            margin: 0;
-            border-radius: 0px;
-        `;
-    
-        window.flutter_inappwebview?.callHandler('showFullscreenDialog', true);
-    }
-    else {
-        dialog.classList.remove('fullscreen');
-
-        const windowDialogStyles = `
-            width: 85%;
-            max-width: 600px;
-            border-radius: 16px;
-        `;
-
-        if (savedPosition && savedPosition.left && savedPosition.top) {
-            dialog.style.cssText = baseStyles + windowDialogStyles + `
-                left: \${savedPosition.left};
-                top: \${savedPosition.top};
-                transform: \${savedPosition.transform || 'none'};
-            `;
-        } else {
-            dialog.style.cssText = baseStyles + windowDialogStyles + `
-                top: 50%;
-                left: 50%;
-                transform: translate(-50%, -50%);
-            `;
-        }
-
-        window.flutter_inappwebview?.callHandler('showFullscreenDialog', false);
-    }
-}
-
-// Fonction pour appliquer les styles du container de contenu
-function applyContentContainerStyles(type, contentContainer, isFullscreen) {
-    const maxHeight = isFullscreen ? `calc(100vh - \${APPBAR_FIXED_HEIGHT + BOTTOMNAVBAR_FIXED_HEIGHT + (audioPlayerVisible ? AUDIO_PLAYER_HEIGHT : 0) + 60}px)` : '60vh';
-    const backgroundColor = type === 'note' ? 'transparent' : (isDarkTheme() ? '#121212' : '#ffffff');
-    
-    contentContainer.style.cssText = `
-        max-height: \${maxHeight};
-        overflow-y: auto;
-        background-color: \${backgroundColor};
-        user-select: text;
-        border-radius: \${isFullscreen ? '0px' : '0 0 16px 16px'};
-    `;
-}
-
-function createHeader(options, isDark, dialog, isFullscreen, canGoBack) {
-    const header = document.createElement('div');
-    const headerGradient = isDark 
-        ? 'linear-gradient(135deg, #2a2a2a 0%, #1e1e1e 100%)' 
-        : 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)';
-        
-    const type = options.type;
-    const title = options.title;
-        
-    const backgroundColor = type === 'note' ? 'transparent' : headerGradient;
-    
-    const borderRadius = isFullscreen ? '0px' : '16px 16px 0 0';
-    
-    header.style.cssText = `
-        background: \${backgroundColor};
-        color: \${isDark ? '#ffffff' : '#333333'};
-        padding: 12px 16px;
-        font-size: 18px;
-        font-weight: 600;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        height: 50px;
-        border-bottom: 1px solid \${isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'};
-        border-radius: \${borderRadius};
-    `;
-    
-    header.addEventListener('touchstart', (e) => {
-        document.querySelectorAll('.options-menu, .color-menu').forEach(el => el.remove());
-    });
-    
-
-    // Left area: back button + title
-    const leftArea = document.createElement('div');
-    leftArea.style.cssText = 'display: flex; align-items: center; gap: 8px;';
-
-    if (canGoBack) {
-        const backButton = document.createElement('button');
-        backButton.classList.add('dialog-button', 'back-button', 'jwf-jw-icons-external', 'jwi-chevron-left');
-        backButton.style.cssText = `
-            font-size: 18px;
-            padding: 8px;
-            background: \${isDark ? '#121212' : '#ffffff'};
-            border: none;
-            border-radius: 8px;
-            color: inherit;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 36px;
-            height: 36px;
-            opacity: 0.8;
-        `;
-
-        backButton.onclick = (event) => {
-            event.stopPropagation();
-            event.preventDefault();
-            goBackDialog();
-        };
-
-        leftArea.appendChild(backButton);
-    }
-
-    const titleArea = document.createElement('div');
-    titleArea.style.cssText = `
-        user-select: none;
-        cursor: move;
-        font-weight: 600;
-        letter-spacing: 0.5px;
-    `;
-    titleArea.innerHTML = title;
-    leftArea.appendChild(titleArea);
-
-    // Right area: fullscreen + close
-    const rightArea = document.createElement('div');
-    rightArea.style.cssText = 'display: flex; align-items: center; gap: 8px;';
-    
-    if(type === 'note' && options.noteData) {
-      const moreButton = document.createElement('button');
-      moreButton.innerHTML = '☰';
-      moreButton.className = 'dialog-button';
-      moreButton.style.cssText = `
-          font-size: 18px;
-          padding: 8px;
-          background: \${isDark ? '#121212' : '#ffffff'};
-          border: none;
-          border-radius: 8px;
-          color: inherit;
-          cursor: pointer;
-          transition: all 0.2s ease;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          width: 36px;
-          height: 36px;
-      `;
-      
-      moreButton.onclick = (event) => {
-          // Supprime tout menu existant avant d'en créer un nouveau
-          document.querySelectorAll('.options-menu, .color-menu').forEach(el => el.remove());
-      
-          const popup = header.closest('.customDialog');
-          const { element: optionsMenu, colorMenu } = createOptionsMenu(options.noteData.noteGuid, popup, isDark);
-      
-          document.body.appendChild(optionsMenu);
-          document.body.appendChild(colorMenu);
-      
-          // Positionne le menu en dessous du bouton
-          const rect = event.target.getBoundingClientRect();
-          optionsMenu.style.top = `\${rect.bottom + 8}px`;
-          optionsMenu.style.left = `\${rect.right - optionsMenu.offsetWidth - moreButton.offsetWidth - 20}px`;
-          optionsMenu.style.display = 'flex';
-      
-          // Fermer si clic ailleurs
-          const closeOnClickOutside = (e) => {
-              if (!optionsMenu.contains(e.target) && !colorMenu.contains(e.target) && e.target !== moreButton) {
-                  optionsMenu.remove();
-                  colorMenu.remove();
-                  document.removeEventListener('click', closeOnClickOutside);
-                  moreButton.removeEventListener('click', closeOnClickOutside);
-                  popup.removeEventListener('click', closeOnClickOutside);
-              }
+          // Système d'historique des dialogs avec sauvegarde complète d'état
+          let dialogHistory = [];
+          let currentDialogIndex = -1;
+          let lastClosedDialog = null; // Pour mémoriser le dernier dialogue fermé
+          let globalFullscreenPreference = false; // Préférence globale pour le fullscreen
+          let dialogIdCounter = 0; // Compteur pour les ID uniques des dialogues
+          
+          // Icônes pour les différents types de dialog
+          const DIALOG_ICONS = {
+              'verse': '&#xE61D;', // Icône Bible
+              'verse-references': '&#xE61F;', // Icône Bible
+              'verse-info': '&#xE620;', // Icône Bible
+              'publication': '&#xE629;', // Icône Publication
+              'footnote': '&#xE69B;', // Icône Footer
+              'note': '&#xE6BF;', // Icône Note
+              'default': '&#xE658;' // Icône par défaut
           };
-          document.addEventListener('click', closeOnClickOutside);
-          moreButton.addEventListener('click', closeOnClickOutside);
-          popup.addEventListener('click', closeOnClickOutside);
-      };
-      
-      rightArea.appendChild(moreButton);
-    }
-
-    const fullscreenButton = document.createElement('button');
-    fullscreenButton.innerHTML = isFullscreen ? '⿻' : '⛶';
-    fullscreenButton.className = 'dialog-button';
-    fullscreenButton.style.cssText = `
-        font-size: 18px;
-        padding: 8px;
-        background: \${isDark ? '#121212' : '#ffffff'};
-        border: none;
-        border-radius: 8px;
-        color: inherit;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 36px;
-        height: 36px;
-    `;
-
-    const closeButton = document.createElement('button');
-    closeButton.innerHTML = '✕';
-    closeButton.className = 'dialog-button';
-    closeButton.style.cssText = `
-        font-family: jw-icons-external;
-        font-size: 18px;
-        padding: 8px;
-        background: rgba(220, 53, 69, 0.1);
-        border: none;
-        border-radius: 8px;
-        color: #dc3545;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 36px;
-        height: 36px;
-    `;
-
-    closeButton.onclick = (event) => {
-        event.stopPropagation();
-        event.preventDefault();
-        
-        closeDialog();
-    };
-
-    rightArea.appendChild(fullscreenButton);
-    rightArea.appendChild(closeButton);
-
-    // Ajouter les deux zones au header
-    header.appendChild(leftArea);
-    header.appendChild(rightArea);
-
-    return {
-        element: header,
-        dragArea: titleArea,
-        fullscreenButton,
-        closeButton
-    };
-}
-
-// Configuration du fullscreen avec sauvegarde d'état améliorée
-function setupFullscreenToggle(type, fullscreenButton, dialog, contentContainer) {
-    fullscreenButton.onclick = function(event) {
-        document.querySelectorAll('.options-menu, .color-menu').forEach(el => el.remove());
-     
-        event.stopPropagation();
-        
-        // Sauvegarder le scroll avant de changer d'état
-        const currentScroll = contentContainer.scrollTop;
-        
-        if (globalFullscreenPreference) {
-            // Sortir du fullscreen
-            applyDialogStyles(type, dialog, false);
-            applyContentContainerStyles(type, contentContainer, false);
-            fullscreenButton.innerHTML = '⛶';
-            
-            // Mettre à jour le border-radius du header
-            const header = dialog.querySelector('div');
-            if (header) {
-                header.style.borderRadius = '16px 16px 0 0';
-            }
-            
-            globalFullscreenPreference = false;
-        } 
-        else {
-            // Entrer en fullscreen
-            applyDialogStyles(type, dialog, true);
-            applyContentContainerStyles(type, contentContainer, true);
-            fullscreenButton.innerHTML = '⿻';
-            
-            // Mettre à jour le border-radius du header
-            const header = dialog.querySelector('div');
-            if (header) {
-                header.style.borderRadius = '0px';
-            }
-            
-            globalFullscreenPreference = true;
-        }
-        
-        // Restaurer le scroll après le changement d'état
-        setTimeout(() => {
-            contentContainer.scrollTop = currentScroll;
-        }, 10);
-    };
-}
-
-function setupDragSystem(header, dialog) {
-    let isDragging = false;
-    let startX, startY, startLeft, startTop;
-
-    const startDrag = (e) => {
-        if (globalFullscreenPreference) return;
-        if (e.target.closest('.dialog-button')) return;
-
-        isDragging = true;
-        startX = e.clientX || (e.touches && e.touches[0].clientX);
-        startY = e.clientY || (e.touches && e.touches[0].clientY);
-
-        const rect = dialog.getBoundingClientRect();
-        startLeft = rect.left;
-        startTop = rect.top;
-
-        dialog.style.transform = 'none';
-        dialog.style.left = `\${startLeft}px`;
-        dialog.style.top = `\${startTop}px`;
-
-        document.addEventListener('mousemove', drag);
-        document.addEventListener('mouseup', stopDrag);
-        document.addEventListener('touchmove', drag);
-        document.addEventListener('touchend', stopDrag);
-
-        dialog.style.cursor = 'grabbing';
-        dialog.style.transition = 'none';
-        e.preventDefault();
-    };
-
-    const drag = (e) => {
-        if (!isDragging) return;
-    
-        const currentX = e.clientX || (e.touches && e.touches[0].clientX);
-        const currentY = e.clientY || (e.touches && e.touches[0].clientY);
-        
-        const newLeft = startLeft + (currentX - startX);
-        const newTop = startTop + (currentY - startY);
-    
-        const dialogRect = dialog.getBoundingClientRect();
-        const headerRect = header.getBoundingClientRect();
-        
-        // Limites de la fenêtre
-        const minTop = controlsVisible ? APPBAR_FIXED_HEIGHT : 0;
-        const maxLeft = window.innerWidth - dialogRect.width;
-
-        // Limite verticale pour que le header ne se cache pas derrière le bottom navbar
-        let maxDialogTop = window.innerHeight - headerRect.height;
-        if (controlsVisible) {
-            maxDialogTop -= BOTTOMNAVBAR_FIXED_HEIGHT + (audioPlayerVisible ? AUDIO_PLAYER_HEIGHT : 0);
-        }
-
-        dialog.style.left = `\${Math.max(0, Math.min(newLeft, maxLeft))}px`;
-        dialog.style.top = `\${Math.max(minTop, Math.min(newTop, maxDialogTop))}px`;
-    };
-
-    const stopDrag = () => {
-        isDragging = false;
-        dialog.style.cursor = '';
-        
-        document.removeEventListener('mousemove', drag);
-        document.removeEventListener('mouseup', stopDrag);
-        document.removeEventListener('touchmove', drag);
-        document.removeEventListener('touchend', stopDrag);
-    };
-
-    header.addEventListener('mousedown', startDrag);
-    header.addEventListener('touchstart', startDrag);
-}
-
-// Fonctions utilitaires pour gérer l'historique
-function clearDialogHistory() {
-    // Supprimer physiquement tous les dialogues du DOM
-    const dialogs = document.querySelectorAll('.customDialog');
-    dialogs.forEach(dialog => dialog.remove());
-    
-    dialogHistory = [];
-    currentDialogIndex = -1;
-    lastClosedDialog = null; // Nettoyer aussi le dernier dialogue fermé
-    globalFullscreenPreference = false; // Reset de la préférence globale
-    removeFloatingButton();
-    dialogIdCounter = 0; // Réinitialiser le compteur d'ID
-}
-
-function getDialogHistoryLength() {
-    return dialogHistory.length;
-}
-
-function canGoBack() {
-    return currentDialogIndex > 0;
-}
-
-function restoreLastDialog() {
-    if (!lastClosedDialog) return;
-
-    // Mettre à jour l'index et l'historique
-    currentDialogIndex = lastClosedDialog.historyIndex;
-    dialogHistory = lastClosedDialog.fullHistory;
-
-    removeFloatingButton();
-
-    showDialogFromHistory(lastClosedDialog);
-
-    lastClosedDialog = null;
-
-    window.flutter_inappwebview?.callHandler('showDialog', true);
-}
-
-// ========== SYSTÈME DE BOUTON FLOTTANT ==========
-
-function createFloatingButton() {
-    const isDark = isDarkTheme();
-    const floatingButton = document.createElement('div');
-    floatingButton.id = 'dialogFloatingButton';
-    const dialogType = lastClosedDialog.type || 'default';
-    floatingButton.innerHTML = DIALOG_ICONS[dialogType]; // Utilise l'icône en fonction du type de dialogue
-    const backgroundColor = isDark ? darkPrimaryColor : lightPrimaryColor;
-    
-    floatingButton.style.cssText = `
-        position: fixed;
-        bottom: \${BOTTOMNAVBAR_FIXED_HEIGHT + (audioPlayerVisible ? AUDIO_PLAYER_HEIGHT : 0) + 15}px;
-        right: 20px;
-        width: 56px;
-        height: 56px;
-        background: \${backgroundColor};;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-family: jw-icons-external;
-        font-size: 25px;
-        color: \${isDark ? '#333333' : '#ffffff'};
-        cursor: pointer;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-        z-index: 999;
-        transition: all 0.3s ease;
-        opacity: 0;
-        transform: scale(0.8);
-        user-select: none;
-    `;
-    
-    if(controlsVisible) {
-      // Animation d'apparition
-      setTimeout(() => {
-          floatingButton.style.opacity = '1';
-          floatingButton.style.transform = 'scale(1)';
-      }, 100);
-    }
-    else {
-      floatingButton.style.opacity = '0';
-      floatingButton.style.transform = 'scale(1)';
-    }
-
-    // Action de clic
-    floatingButton.onclick = () => {
-        restoreLastDialog();
-    };
-    
-    return floatingButton;
-}
-
-function showFloatingButton() {
-    // Supprimer le bouton existant s'il y en a un
-    const existingButton = document.getElementById('dialogFloatingButton');
-    if (existingButton) existingButton.remove();
-    
-    if (lastClosedDialog) {
-        const floatingButton = createFloatingButton();
-        document.body.appendChild(floatingButton);
-    }
-}
-
-function removeFloatingButton() {
-    const existingButton = document.getElementById('dialogFloatingButton');
-    if (existingButton) {
-        // Animation de disparition
-        existingButton.style.opacity = '0';
-        existingButton.style.transform = 'scale(0.8)';
-        setTimeout(() => {
-            if (existingButton.parentNode) {
-                existingButton.remove();
-            }
-        }, 300);
-    }
-}
-
-// Fonction pour ouvrir un dialogue de note
-async function openNoteDialog(highlightGuid, noteGuid) {
-    const note = await window.flutter_inappwebview.callHandler('getNoteByGuid', noteGuid);
-    
-    if (!note) {
-        console.error('Note non trouvée pour le GUID:', noteGuid);
-        return;
-    }
-
-    const options = {
-        title: 'Note',
-        type: 'note',
-        noteData: {
-            noteGuid: noteGuid,
-            title: note.title,
-            content: note.content,
-            tags: note.tags,
-            tagsId: note.tagsId,
-            noteColor: note.colorName
-        },
-        contentRenderer: (contentContainer, noteOptions) => {
-            createNoteContent(contentContainer, noteOptions);
-        }
-    };
-    
-    showDialog(options);
-}
-
-function createNoteContent(contentContainer, options) {
-    if (!options || !options.noteData) {
-        console.error("Les données de la note sont manquantes. Impossible de charger le contenu.");
-        contentContainer.innerHTML = "<p>Erreur: Contenu non disponible.</p>";
-        return;
-    }
-
-    const { noteGuid, title, content, tags, tagsId, noteColor } = options.noteData;
-    const isDark = isDarkTheme();
-    const isEditMode = true;
-
-    const dialogElement = contentContainer.closest('.customDialog');
-    if (dialogElement) {
-        dialogElement.classList.add('note-dialog');
-    }
-
-    // ✅ Conteneur principal (on évite le scroll global, seule la zone contenu scrolle)
-    const mainContainer = document.createElement('div');
-    mainContainer.style.cssText = `
-        display: flex;
-        flex-direction: column;
-        height: 100%;
-        padding: 16px;
-        box-sizing: border-box;
-        overflow: hidden; /* ← important : pas de scroll ici */
-        gap: 12px;
-    `;
-
-    // ✅ Titre multi-ligne (textarea)
-    const titleElement = document.createElement('textarea');
-    titleElement.className = 'note-title';
-    titleElement.value = title || '';
-    titleElement.placeholder = 'Titre de la note';
-    titleElement.rows = 1;
-    titleElement.style.cssText = `
-        border: none;
-        outline: none;
-        resize: none;
-        font-size: 20px;
-        font-weight: bold;
-        line-height: 1.3;
-        background: transparent;
-        color: inherit;
-        padding: 4px 0;
-        flex-shrink: 0;
-        overflow: hidden;
-    `;
-    const autoResizeTitle = () => {
-        titleElement.style.height = 'auto';
-        const max = 6 * parseFloat(getComputedStyle(titleElement).lineHeight); // jusqu’à ~6 lignes
-        titleElement.style.height = Math.min(titleElement.scrollHeight, max) + 'px';
-    };
-    titleElement.addEventListener('input', autoResizeTitle);
-
-    // ✅ Zone de contenu (auto-ajustée jusqu'à 80vh)
-    const contentElement = document.createElement('textarea');
-    contentElement.className = 'note-content';
-    contentElement.value = content || '';
-    contentElement.placeholder = 'Écrivez votre note ici...';
-    contentElement.style.cssText = `
-        border: none;
-        outline: none;
-        resize: none;
-        font-size: inherit;
-        line-height: 1.5;
-        background: transparent;
-        color: inherit;
-        overflow-y: auto;
-        padding: 8px 0;
-        flex: 0 0 auto;
-        min-height: 100px;   /* ← hauteur de base quand peu de texte */
-    `;
-    
-    // Fonction de redimensionnement dynamique
-    const autoResize = () => {
-        const maxHeight = Math.round(window.innerHeight * 0.8); // 80% du viewport
-        contentElement.style.height = 'auto'; // reset
-        const newHeight = Math.min(contentElement.scrollHeight, maxHeight);
-        contentElement.style.height = `\${newHeight}px`;
-    };
-    
-    // Écouteurs
-    ['input','cut','paste'].forEach(evt =>
-        contentElement.addEventListener(evt, autoResize)
-    );
-    
-    autoResize();
-
-    // 🚀 Intégration des fonctionnalités de tags et suggestions
-    const currentTagIds = !tagsId || tagsId === '' ? [] : tagsId.split(',').map(id => parseInt(id));
-
-    const createTagElement = (tag) => {
-        const tagElement = document.createElement('span');
-        tagElement.style.cssText = `
-            display: flex;
-            align-items: center;
-            background: \${isDark ? '#4a4a4a' : 'rgba(255,255,255,0.9)'};
-            color: \${isDark ? '#fff' : '#2c3e50'};
-            padding: 6px 10px;
-            border-radius: 20px;
-            font-size: 14px;
-            font-weight: 500;
-            white-space: nowrap;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-            border: 1px solid \${isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)'};
-            cursor: pointer;
-        `;
-        const text = document.createElement('span');
-        text.textContent = tag.Name;
-        tagElement.appendChild(text);
-
-        const closeBtn = document.createElement('span');
-        closeBtn.textContent = '×';
-        closeBtn.style.cssText = `
-            margin-left: 6px;
-            cursor: pointer;
-            font-weight: bold;
-            color: \${isDark ? '#e0e0e0' : 'inherit'};
-        `;
-        closeBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            tagsContainer.removeChild(tagElement);
-            const index = currentTagIds.indexOf(tag.TagId);
-            if (index > -1) currentTagIds.splice(index, 1);
-            window.flutter_inappwebview.callHandler('removeTagToNote', {
-                noteGuid: noteGuid,
-                tagId: tag.TagId
-            });
-        });
-        tagElement.appendChild(closeBtn);
-
-        tagElement.addEventListener('click', () => {
-            window.flutter_inappwebview.callHandler('openTagPage', { tagId: tag.TagId });
-        });
-        return tagElement;
-    };
-
-    const addTagToUI = (tag) => {
-        if (!currentTagIds.includes(tag.TagId)) {
-            const tagElement = createTagElement(tag);
-            tagsContainer.insertBefore(tagElement, tagInputWrapper);
-            currentTagIds.push(tag.TagId);
-            window.flutter_inappwebview.callHandler('addTagToNote', {
-                noteGuid: noteGuid,
-                tagId: tag.TagId
-            });
-        }
-    };
-
-    // ✅ Footer catégories : toujours visible en bas
-    const tagsContainer = document.createElement('div');
-    tagsContainer.style.cssText = `
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-        max-height: 160px;
-        overflow-y: auto;
-        border-top: 1px solid \${isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.08)'};
-        padding: 12px 0 4px 0;
-        flex-shrink: 0;
-        position: sticky;   /* ← colle au bas du conteneur visible */
-        bottom: 0;          /* ← position collante en bas */
-        background: transparent;
-        backdrop-filter: blur(6px);
-    `;
-
-    currentTagIds.forEach(tagId => {
-        const tag = tags.find(t => t.TagId === tagId);
-        if (tag) tagsContainer.appendChild(createTagElement(tag));
-    });
-
-    const tagInputWrapper = document.createElement('div');
-    tagInputWrapper.style.cssText = `
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        min-width: 150px;
-        position: relative;
-    `;
-
-    const tagInput = document.createElement('input');
-    tagInput.className = 'note-tags';
-    tagInput.type = 'text';
-    tagInput.placeholder = 'Ajouter une catégorie...';
-    tagInput.style.cssText = `
-        border: none;
-        outline: none;
-        resize: none;
-        font-size: inherit;
-        flex: 1;
-        min-width: 100px;
-        border: none;
-        padding: 4px;
-        font-size: 14px;
-        background: transparent;
-        color: inherit;
-    `;
-
-    const suggestionsList = document.createElement('div');
-    suggestionsList.className = 'suggestions-list';
-    suggestionsList.style.cssText = `
-        position: fixed;
-        background: \${isDark ? '#333' : 'rgba(255, 255, 255, 0.95)'};
-        border: 1px solid \${isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'};
-        border-radius: 8px;
-        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
-        max-height: 150px;
-        overflow-y: auto;
-        z-index: 9000;
-        backdrop-filter: blur(10px);
-        display: none;
-    `;
-
-    const fuzzySearch = (query, text) => {
-        if (!query) return true;
-        const regex = new RegExp(query.split('').join('.*?'), 'i');
-        return regex.test(text);
-    };
-    
-    async function addTagToDatabase(value) {
-      const result = await window.flutter_inappwebview.callHandler('addTag', { tagName: value });    
-      if (result && result.tag) addTagToUI(result.tag);
-    }
-
-    const showSuggestions = (filteredTags) => {
-        suggestionsList.innerHTML = '';
-        const value = tagInput.value.trim();
-        const exactMatch = filteredTags.some(tag => tag.Name.toLowerCase() === value.toLowerCase());
-
-        if (value !== '' && !exactMatch) {
-            const addNew = document.createElement('div');
-            addNew.textContent = `Ajouter la catégorie: "\${value}"`;
-            addNew.style.cssText = `
-                padding: 8px 12px;
-                cursor: pointer;
-                font-size: 14px;
-                color: \${isDark ? '#fff' : '#2c3e50'};
-                border-bottom: \${filteredTags.length > 0 ? '1px solid ' + (isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)') : 'none'};
-                white-space: nowrap;
-            `;
-            addNew.addEventListener('click', async () => {
-              tagInput.value = '';
-              suggestionsList.style.display = 'none';
-              addTagToDatabase(value);
-              tagInput.focus(); // seulement après l’await
-            });
-
-            suggestionsList.appendChild(addNew);
-        }
-
-        filteredTags.forEach(tag => {
-            const item = document.createElement('div');
-            item.textContent = tag.Name;
-            item.style.cssText = `
-                padding: 8px 12px;
-                cursor: pointer;
-                font-size: 14px;
-                color: \${isDark ? '#fff' : '#2c3e50'};
-                transition: background-color 0.2s ease;
-                white-space: nowrap;
-            `;
-            item.addEventListener('mouseenter', () => item.style.backgroundColor = isDark ? '#4a4a4a' : 'rgba(52, 152, 219, 0.1)');
-            item.addEventListener('mouseleave', () => item.style.backgroundColor = 'transparent');
-            item.addEventListener('click', () => {
-                addTagToUI(tag);
-                tagInput.value = '';
-                tagInput.focus();
-                suggestionsList.style.display = 'none';
-            });
-            suggestionsList.appendChild(item);
-        });
-
-        suggestionsList.style.display = (suggestionsList.children.length > 0) ? 'block' : 'none';
-    };
-
-    const updateSuggestionsPosition = () => {
-        const rect = tagInput.getBoundingClientRect();
-        suggestionsList.style.left = `\${rect.left}px`;
-        suggestionsList.style.top = `\${rect.bottom + 5}px`;
-        suggestionsList.style.width = `\${Math.max(200, tagInput.offsetWidth)}px`;
-    };
-
-    tagInput.addEventListener('input', () => {
-        const value = tagInput.value.trim();
-        const availableTags = tags.filter(tag => !currentTagIds.includes(tag.TagId));
-        let filteredTags = (value === '') ? availableTags : availableTags.filter(tag => fuzzySearch(value, tag.Name));
-        showSuggestions(filteredTags);
-        updateSuggestionsPosition();
-    });
-
-    tagInput.addEventListener('focus', () => {
-        const value = tagInput.value.trim();
-        const availableTags = tags.filter(tag => !currentTagIds.includes(tag.TagId));
-        let filteredTags = (value === '') ? availableTags : availableTags.filter(tag => fuzzySearch(value, tag.Name));
-        showSuggestions(filteredTags);
-        updateSuggestionsPosition();
-    });
-
-    tagInput.addEventListener('blur', (e) => {
-        setTimeout(() => {
-            if (!suggestionsList.contains(document.activeElement)) {
-                suggestionsList.style.display = 'none';
-            }
-        }, 100);
-    });
-
-    tagInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-            const value = tagInput.value.trim();
-            if (value !== '') {
-                const exactMatch = tags.find(tag => tag.Name.toLowerCase() === value.toLowerCase());
-                if (exactMatch) {
-                    addTagToUI(exactMatch);
-                } else {
-                    window.flutter_inappwebview.callHandler('addTag', { tagName: value }).then(result => {
-                        if (result && result.tag) addTagToUI(result.tag);
-                    });
-                }
-                tagInput.value = '';
-                suggestionsList.style.display = 'none';
-                tagInput.focus();
-            }
-            e.preventDefault();
-        }
-    });
-
-    // Assemblage
-    if (isEditMode) {
-        tagInputWrapper.appendChild(tagInput);
-        tagsContainer.appendChild(tagInputWrapper);
-    }
-
-    mainContainer.appendChild(titleElement);
-    mainContainer.appendChild(contentElement);
-    mainContainer.appendChild(tagsContainer);
-    contentContainer.appendChild(mainContainer);
-
-    // 💡 Suggestions en dehors du dialogue
-    document.body.appendChild(suggestionsList);
-
-    // Lancements initiaux
-    setTimeout(() => {
-        autoResizeTitle();
-        autoResize();
-    }, 0);
-    window.addEventListener('resize', autoResize);
-
-    // Sauvegarde live
-    const saveChanges = () => {
-        const titleVal = titleElement.value;
-        const contentVal = contentElement.value;
-        window.flutter_inappwebview.callHandler('updateNote', {
-            noteGuid: noteGuid,
-            title: titleVal,
-            content: contentVal
-        });
-    };
-    contentElement.addEventListener('input', saveChanges);
-    titleElement.addEventListener('input', saveChanges);
-
-    const addTag = () => {
-        const tagName = tagInput.value.trim();
-        if (tagName && tagName.length > 0) {
-            window.flutter_inappwebview.callHandler('addTagToNote', {
-                noteGuid: noteGuid,
-                tagName: tagName
-            });
-            tagInput.value = '';
-        }
-    };
-
-    tagInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-            addTag();
-        }
-    });
-
-    const cleanup = () => {
-        if (suggestionsList && suggestionsList.parentNode) {
-            suggestionsList.remove();
-        }
-        window.removeEventListener('resize', autoResize);
-    };
-
-    if (dialogElement) {
-        dialogElement.addEventListener('close', cleanup);
-        dialogElement.addEventListener('dialogClosed', cleanup);
-    }
-}
-
-// ✅ Fonction corrigée
-function createOptionsMenu(noteGuid, popup, isDark) {
-    const optionsMenu = document.createElement('div');
-    optionsMenu.className = 'options-menu';
-    optionsMenu.style.cssText = `
-        position: absolute;
-        width: 200px;
-        background: \${isDark ? 'rgba(30, 30, 30, 0.95)' : 'rgba(255, 255, 255, 0.95)'};
-        border-radius: 8px;
-        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
-        display: none;
-        flex-direction: column;
-        z-index: 2000;
-        backdrop-filter: blur(10px);
-        border: 1px solid \${isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'};
-        padding: 5px 0;
-    `;
-
-    // Bouton Supprimer
-    const deleteBtn = document.createElement('div');
-    deleteBtn.className = 'menu-item';
-    deleteBtn.innerHTML = '🗑 Supprimer la note';
-    deleteBtn.style.cssText = `
-        padding: 10px 15px;
-        cursor: pointer;
-        transition: background-color 0.2s ease;
-        color: \${isDark ? '#fff' : '#333'};
-    `;
-    
-    deleteBtn.onmouseenter = () => {
-        deleteBtn.style.backgroundColor = isDark ? 'rgba(0, 123, 255, 0.2)' : 'rgba(0, 123, 255, 0.1)';
-    };
-    deleteBtn.onmouseleave = () => {
-        deleteBtn.style.backgroundColor = 'transparent';
-    };
-    
-    deleteBtn.onclick = async () => {
-        // ✅ Ferme le menu immédiatement
-        optionsMenu.style.display = 'none';
-        colorMenu.style.display = 'none';
-    
-        // Confirmation
-        const confirmed = await window.flutter_inappwebview.callHandler('showConfirmationDialog', {
-            title: 'Supprimer la note',
-            message: 'Êtes-vous sûr de vouloir supprimer cette note ?'
-        });
-    
-        if (confirmed) {
-            // Supprime la note visuellement
-            const note = pageCenter.querySelector(`[data-note-id="\${noteGuid}"]`);
-            if (note) {
-                note.remove();
-            }
-    
-            // Supprime côté Flutter
-            window.flutter_inappwebview.callHandler('removeNote', {
-                guid: noteGuid
-            });
-    
-            removeDialog();
-        }
-    };
-
-    // Bouton changer couleur
-    const changeColorItem = document.createElement('div');
-    changeColorItem.className = 'menu-item has-submenu';
-    changeColorItem.innerHTML = '🎨 Changer la couleur';
-    changeColorItem.style.cssText = `
-        padding: 10px 15px;
-        cursor: pointer;
-        transition: background-color 0.2s ease;
-        color: \${isDark ? '#fff' : '#333'};
-    `;
-    changeColorItem.onmouseenter = () => changeColorItem.style.backgroundColor = isDark ? 'rgba(0, 123, 255, 0.2)' : 'rgba(0, 123, 255, 0.1)';
-    changeColorItem.onmouseleave = () => changeColorItem.style.backgroundColor = 'transparent';
-
-    // Sous-menu couleurs
-    const colorMenu = document.createElement('div');
-    colorMenu.className = 'color-menu';
-    colorMenu.style.cssText = `
-        position: absolute;
-        width: 120px;
-        background: \${isDark ? 'rgba(30, 30, 30, 0.95)' : 'rgba(255, 255, 255, 0.95)'};
-        border-radius: 8px;
-        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
-        display: none;
-        flex-direction: column;
-        z-index: 2001;
-        backdrop-filter: blur(10px);
-        border: 1px solid \${isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'};
-    `;
-
-    const colors = ['gray', 'yellow', 'green', 'blue', 'pink', 'orange', 'purple'];
-    colors.forEach(color => {
-        const colorOption = document.createElement('div');
-        colorOption.className = `color-option note-\${color.toLowerCase()}`;
-        colorOption.innerHTML = `<span style="background: var(--note-\${color.toLowerCase()}); width: 16px; height: 16px; border-radius: 50%; border: 1px solid rgba(0,0,0,0.2);"></span>`;
-        colorOption.style.cssText = `
-            padding: 8px;
-            cursor: pointer;
-            display: flex;
-            justify-content: center;
-        `;
-        colorOption.onclick = () => {
-            changeNoteColor(noteGuid, colors.indexOf(color));
-                        
-            if (popup) {
-                popup.className = popup.className.replace(/note-(gray|yellow|green|blue|pink|orange|purple)/g, '').trim();
-                popup.classList.add(`note-\${color.toLowerCase()}`);
-            }
-            optionsMenu.style.display = 'none';
-            colorMenu.style.display = 'none';
-        };
-        colorMenu.appendChild(colorOption);
-    });
-
-    // Afficher le sous-menu
-    changeColorItem.onclick = (e) => {
-        const rect = e.target.getBoundingClientRect();
-        colorMenu.style.top = `\${rect.top}px`;
-        colorMenu.style.left = `\${rect.left - 130}px`;
-        colorMenu.style.display = 'flex';
-    };
-
-    optionsMenu.appendChild(deleteBtn);
-    optionsMenu.appendChild(changeColorItem);
-
-    return { element: optionsMenu, colorMenu: colorMenu };
-}
+          
+          function hideAllDialogs() {
+              const dialogs = document.querySelectorAll('.customDialog');
+              dialogs.forEach(dialog => {
+                  dialog.style.display = 'none';
+              });
+          }
+          
+          function closeDialog() {
+              document.querySelectorAll('.options-menu, .color-menu').forEach(el => el.remove());
+              const dialog = document.getElementById(dialogHistory[currentDialogIndex].dialogId);
+              if (!dialog) return;
+              
+              // Cacher le dialog
+              dialog.style.display = 'none';
+              
+              if (currentDialogIndex >= 0) {
+                  lastClosedDialog = {
+                      ...dialogHistory[currentDialogIndex],
+                      historyIndex: currentDialogIndex,
+                      fullHistory: [...dialogHistory],
+                      type: dialogHistory[currentDialogIndex].type,
+                  };
+              }
+              
+              dialogHistory = [];
+              currentDialogIndex = -1;
+          
+              // Afficher le bouton flottant si on a un dialogue à restaurer
+              if (lastClosedDialog) {
+                  showFloatingButton();
+              }
+          
+              window.flutter_inappwebview?.callHandler('showFullscreenDialog', false);
+              window.flutter_inappwebview?.callHandler('showDialog', false);
+          }
+          
+          function removeDialog() {
+              if (currentDialogIndex < 0 || dialogHistory.length === 0) return;
+          
+              // Récupérer le dernier dialogue
+              const dialogData = dialogHistory[currentDialogIndex];
+              const dialog = document.getElementById(dialogData.dialogId);
+          
+              if (dialog) {
+                  // Supprimer le dialog du DOM
+                  dialog.remove();
+              }
+              
+              // Supprimer l'entrée du tableau
+              dialogHistory.splice(currentDialogIndex, 1);
+          
+              // Mettre à jour l'index
+              currentDialogIndex = dialogHistory.length - 1;
+          
+              window.flutter_inappwebview?.callHandler('showFullscreenDialog', false);
+              window.flutter_inappwebview?.callHandler('showDialog', false);
+          }
+          
+          // Fonction pour supprimer un dialog spécifique par noteGuid
+          function removeDialogByNoteGuid(noteGuid) {
+              if (!noteGuid) return false;
+              
+              // Trouver l'index du dialog avec ce noteGuid
+              const dialogIndex = dialogHistory.findIndex(item => 
+                  item.type === 'note' && 
+                  item.options?.noteData?.noteGuid === noteGuid
+              );
+              
+              if (dialogIndex === -1) return false; // Dialog non trouvé
+              
+              const dialogData = dialogHistory[dialogIndex];
+              const dialog = document.getElementById(dialogData.dialogId);
+              
+              // Supprimer le dialog du DOM s'il existe
+              if (dialog) {
+                  dialog.remove();
+              }
+              
+              // Supprimer l'entrée du tableau
+              dialogHistory.splice(dialogIndex, 1);
+              
+              // Ajuster l'index courant si nécessaire
+              if (dialogIndex <= currentDialogIndex) {
+                  currentDialogIndex = Math.max(-1, currentDialogIndex - 1);
+              }
+              
+              // Si c'était le dialog actuellement affiché
+              if (dialogIndex === currentDialogIndex + 1 && dialogHistory.length > 0) {
+                  // Afficher le dialog précédent ou fermer si plus de dialogs
+                  if (currentDialogIndex >= 0) {
+                      showDialogFromHistory(dialogHistory[currentDialogIndex]);
+                  } else {
+                      window.flutter_inappwebview?.callHandler('showFullscreenDialog', false);
+                      window.flutter_inappwebview?.callHandler('showDialog', false);
+                  }
+              } else if (dialogHistory.length === 0) {
+                  // Plus de dialogs du tout
+                  currentDialogIndex = -1;
+                  window.flutter_inappwebview?.callHandler('showFullscreenDialog', false);
+                  window.flutter_inappwebview?.callHandler('showDialog', false);
+              }
+              
+              return true;
+          }
+          
+          // Fonction pour naviguer vers le dialog précédent
+          function goBackDialog() {
+              if (currentDialogIndex > 0 && dialogHistory.length > 1) {
+                  // Supprimer le dernier dialogue (celui qu'on quitte)
+                  dialogHistory.pop();
+          
+                  // Décrémenter l'index pour pointer sur le précédent
+                  currentDialogIndex--;
+          
+                  // Récupérer le précédent dialogue
+                  const previousDialog = dialogHistory[currentDialogIndex];
+          
+                  // Afficher le dialogue précédent
+                  showDialogFromHistory(previousDialog);
+          
+                  return true;
+              }
+              return false;
+          }
+          
+          // Fonction pour créer ou restaurer un dialog depuis l'historique
+          function showDialogFromHistory(historyItem) {
+              hideAllDialogs();
+          
+              const existingDialog = document.getElementById(historyItem.dialogId);
+              let dialog;
+          
+              if (existingDialog) {
+                  dialog = existingDialog;
+                  dialog.style.display = 'block';
+              } 
+              else {
+                  dialog = createDialogElement(historyItem.options, historyItem.canGoBack, globalFullscreenPreference, historyItem.dialogId);
+                  document.body.appendChild(dialog);
+              }
+          
+              applyDialogStyles(historyItem.type, dialog, globalFullscreenPreference);
+              
+              if (historyItem.type === 'note') {
+                  const noteClass = getNoteClass(historyItem.options.noteData.colorIndex, false);
+                  removeNoteClasses(dialog);
+                  dialog.classList.add(noteClass);
+              }
+          
+              return dialog;
+          }
+          
+          // Fonction principale pour créer et afficher un dialog
+          function showDialog(options) {
+              removeFloatingButton();
+              
+              window.flutter_inappwebview?.callHandler('showDialog', true);
+                
+              dialogIdCounter++; // Incrémenter pour un nouvel ID
+              const newDialogId = `customDialog-\${dialogIdCounter}`;
+              
+              // Créer et ajouter le nouveau dialogue à l'historique avec son ID
+              const newHistoryItem = {
+                  options: options,
+                  canGoBack: dialogHistory.length > 0,
+                  type: options.type || 'default',
+                  dialogId: newDialogId,
+              };
+              dialogHistory.push(newHistoryItem);
+              currentDialogIndex = dialogHistory.length - 1;
+              
+              // Créer et afficher le nouveau dialogue
+              return showDialogFromHistory(newHistoryItem);
+          }
+          
+          // Fonction pour créer l'élément dialog avec fullscreen et scroll
+          function createDialogElement(options, canGoBack, isFullscreenInit = false, scrollTopInit = 0, newDialogId = null) {
+              let isFullscreen = isFullscreenInit;
+              
+              const dialog = document.createElement('div');
+              dialog.id = newDialogId || `customDialog-\${dialogIdCounter}`;
+              dialog.classList.add('customDialog');
+              
+              // Appliquer les styles selon le mode
+              applyDialogStyles(options.type, dialog, isFullscreen);
+              dialog.style.display = 'block';
+          
+              // Header
+              const header = createHeader(options, isDarkTheme(), dialog, isFullscreen, canGoBack);
+              setupDragSystem(header.element, dialog);
+          
+              // Content container
+              const contentContainer = document.createElement('div');
+              contentContainer.id = 'contentContainer';
+              applyContentContainerStyles(options.type, contentContainer, isFullscreen);
+              
+              // **Modification ici : Appliquer la classe de couleur de la note à la création**
+              if (options.type === 'note' && options.noteData && options.noteData.colorIndex) {
+                  const noteClass = getNoteClass(options.noteData.colorIndex, false);
+                  dialog.classList.add(noteClass);
+              }
+          
+              if (options.contentRenderer) {
+                  options.contentRenderer(contentContainer, options);
+              }
+              
+              setTimeout(() => {
+                  contentContainer.scrollTop = scrollTopInit;
+                  console.log('Scroll restauré:', scrollTopInit);
+              }, 10);
+          
+              // Setup du bouton fullscreen avec callback pour sauvegarder l'état
+              setupFullscreenToggle(
+                  options.type,
+                  header.fullscreenButton,
+                  dialog,
+                  contentContainer
+              );
+          
+              dialog.appendChild(header.element);
+              dialog.appendChild(contentContainer);
+              return dialog;
+          }
+          
+          // Fonction pour appliquer les styles du dialog
+          function applyDialogStyles(type, dialog, isFullscreen, savedPosition = null) {
+              const isDark = isDarkTheme();
+              const backgroundColor = type == 'note' ? null : (isDarkTheme() ? '#121212' : '#ffffff');
+              
+              const baseStyles = `
+                  position: fixed;
+                  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+                  z-index: 1000;
+                  background-color: \${backgroundColor};
+              `;
+          
+              if (isFullscreen) {
+                  const bottomOffset = BOTTOMNAVBAR_FIXED_HEIGHT + (audioPlayerVisible ? AUDIO_PLAYER_HEIGHT : 0);
+              
+                  dialog.classList.add('fullscreen');
+                  dialog.style.cssText = `
+                      \${baseStyles}
+                      top: \${APPBAR_FIXED_HEIGHT}px;
+                      left: 0;
+                      right: 0;
+                      bottom: \${bottomOffset}px;
+                      width: 100vw;
+                      height: calc(100vh - \${APPBAR_FIXED_HEIGHT + bottomOffset}px);
+                      transform: none;
+                      margin: 0;
+                      border-radius: 0px;
+                  `;
+              
+                  window.flutter_inappwebview?.callHandler('showFullscreenDialog', true);
+              }
+              else {
+                  dialog.classList.remove('fullscreen');
+          
+                  const windowDialogStyles = `
+                      width: 85%;
+                      max-width: 600px;
+                      border-radius: 16px;
+                  `;
+          
+                  if (savedPosition && savedPosition.left && savedPosition.top) {
+                      dialog.style.cssText = baseStyles + windowDialogStyles + `
+                          left: \${savedPosition.left};
+                          top: \${savedPosition.top};
+                          transform: \${savedPosition.transform || 'none'};
+                      `;
+                  } else {
+                      dialog.style.cssText = baseStyles + windowDialogStyles + `
+                          top: 50%;
+                          left: 50%;
+                          transform: translate(-50%, -50%);
+                      `;
+                  }
+          
+                  window.flutter_inappwebview?.callHandler('showFullscreenDialog', false);
+              }
+          }
+          
+          // Fonction pour appliquer les styles du container de contenu
+          function applyContentContainerStyles(type, contentContainer, isFullscreen) {
+              const maxHeight = isFullscreen ? `calc(100vh - \${APPBAR_FIXED_HEIGHT + BOTTOMNAVBAR_FIXED_HEIGHT + (audioPlayerVisible ? AUDIO_PLAYER_HEIGHT : 0) + 60}px)` : '60vh';
+              const backgroundColor = type === 'note' ? 'transparent' : (isDarkTheme() ? '#121212' : '#ffffff');
+              
+              contentContainer.style.cssText = `
+                  max-height: \${maxHeight};
+                  overflow-y: auto;
+                  background-color: \${backgroundColor};
+                  user-select: text;
+                  border-radius: \${isFullscreen ? '0px' : '0 0 16px 16px'};
+              `;
+          }
+          
+          function createHeader(options, isDark, dialog, isFullscreen, canGoBack) {
+              const header = document.createElement('div');
+              const headerGradient = isDark 
+                  ? 'linear-gradient(135deg, #2a2a2a 0%, #1e1e1e 100%)' 
+                  : 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)';
+                  
+              const type = options.type;
+              const title = options.title;
+                  
+              const backgroundColor = type === 'note' ? 'transparent' : headerGradient;
+              
+              const borderRadius = isFullscreen ? '0px' : '16px 16px 0 0';
+              
+              header.style.cssText = `
+                  background: \${backgroundColor};
+                  color: \${isDark ? '#ffffff' : '#333333'};
+                  padding: 12px 16px;
+                  font-size: 18px;
+                  font-weight: 600;
+                  display: flex;
+                  align-items: center;
+                  justify-content: space-between;
+                  height: 50px;
+                  border-bottom: 1px solid \${isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'};
+                  border-radius: \${borderRadius};
+              `;
+              
+              header.addEventListener('touchstart', (e) => {
+                  document.querySelectorAll('.options-menu, .color-menu').forEach(el => el.remove());
+              });
+              
+          
+              // Left area: back button + title
+              const leftArea = document.createElement('div');
+              leftArea.style.cssText = 'display: flex; align-items: center; gap: 8px;';
+          
+              if (canGoBack) {
+                  const backButton = document.createElement('button');
+                  backButton.classList.add('dialog-button', 'back-button', 'jwf-jw-icons-external', 'jwi-chevron-left');
+                  backButton.style.cssText = `
+                      font-size: 18px;
+                      padding: 8px;
+                      background: \${isDark ? '#121212' : '#ffffff'};
+                      border: none;
+                      border-radius: 8px;
+                      color: inherit;
+                      cursor: pointer;
+                      transition: all 0.2s ease;
+                      display: flex;
+                      align-items: center;
+                      justify-content: center;
+                      width: 36px;
+                      height: 36px;
+                      opacity: 0.8;
+                  `;
+          
+                  backButton.onclick = (event) => {
+                      event.stopPropagation();
+                      event.preventDefault();
+                      goBackDialog();
+                  };
+          
+                  leftArea.appendChild(backButton);
+              }
+          
+              const titleArea = document.createElement('div');
+              titleArea.style.cssText = `
+                  user-select: none;
+                  cursor: move;
+                  font-weight: 600;
+                  letter-spacing: 0.5px;
+              `;
+              titleArea.innerHTML = title;
+              leftArea.appendChild(titleArea);
+          
+              // Right area: fullscreen + close
+              const rightArea = document.createElement('div');
+              rightArea.style.cssText = 'display: flex; align-items: center; gap: 8px;';
+              
+              if(type === 'note' && options.noteData) {
+                const moreButton = document.createElement('button');
+                moreButton.innerHTML = '☰';
+                moreButton.className = 'dialog-button';
+                moreButton.style.cssText = `
+                    font-size: 18px;
+                    padding: 8px;
+                    background: \${isDark ? '#121212' : '#ffffff'};
+                    border: none;
+                    border-radius: 8px;
+                    color: inherit;
+                    cursor: pointer;
+                    transition: all 0.2s ease;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    width: 36px;
+                    height: 36px;
+                `;
+                
+                moreButton.onclick = (event) => {
+                    // Supprime tout menu existant avant d'en créer un nouveau
+                    document.querySelectorAll('.options-menu, .color-menu').forEach(el => el.remove());
+                
+                    const popup = header.closest('.customDialog');
+                    const { element: optionsMenu, colorMenu } = createOptionsMenu(options.noteData.noteGuid, popup, isDark);
+                
+                    document.body.appendChild(optionsMenu);
+                    document.body.appendChild(colorMenu);
+                
+                    // Positionne le menu en dessous du bouton
+                    const rect = event.target.getBoundingClientRect();
+                    optionsMenu.style.top = `\${rect.bottom + 8}px`;
+                    optionsMenu.style.left = `\${rect.right - optionsMenu.offsetWidth - moreButton.offsetWidth - 20}px`;
+                    optionsMenu.style.display = 'flex';
+                
+                    // Fermer si clic ailleurs
+                    const closeOnClickOutside = (e) => {
+                        if (!optionsMenu.contains(e.target) && !colorMenu.contains(e.target) && e.target !== moreButton) {
+                            optionsMenu.remove();
+                            colorMenu.remove();
+                            document.removeEventListener('click', closeOnClickOutside);
+                            moreButton.removeEventListener('click', closeOnClickOutside);
+                            popup.removeEventListener('click', closeOnClickOutside);
+                        }
+                    };
+                    document.addEventListener('click', closeOnClickOutside);
+                    moreButton.addEventListener('click', closeOnClickOutside);
+                    popup.addEventListener('click', closeOnClickOutside);
+                };
+                
+                rightArea.appendChild(moreButton);
+              }
+          
+              const fullscreenButton = document.createElement('button');
+              fullscreenButton.innerHTML = isFullscreen ? '⿻' : '⛶';
+              fullscreenButton.className = 'dialog-button';
+              fullscreenButton.style.cssText = `
+                  font-size: 18px;
+                  padding: 8px;
+                  background: \${isDark ? '#121212' : '#ffffff'};
+                  border: none;
+                  border-radius: 8px;
+                  color: inherit;
+                  cursor: pointer;
+                  transition: all 0.2s ease;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  width: 36px;
+                  height: 36px;
+              `;
+          
+              const closeButton = document.createElement('button');
+              closeButton.innerHTML = '✕';
+              closeButton.className = 'dialog-button';
+              closeButton.style.cssText = `
+                  font-family: jw-icons-external;
+                  font-size: 18px;
+                  padding: 8px;
+                  background: rgba(220, 53, 69, 0.1);
+                  border: none;
+                  border-radius: 8px;
+                  color: #dc3545;
+                  cursor: pointer;
+                  transition: all 0.2s ease;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  width: 36px;
+                  height: 36px;
+              `;
+          
+              closeButton.onclick = (event) => {
+                  event.stopPropagation();
+                  event.preventDefault();
+                  
+                  closeDialog();
+              };
+          
+              rightArea.appendChild(fullscreenButton);
+              rightArea.appendChild(closeButton);
+          
+              // Ajouter les deux zones au header
+              header.appendChild(leftArea);
+              header.appendChild(rightArea);
+          
+              return {
+                  element: header,
+                  dragArea: titleArea,
+                  fullscreenButton,
+                  closeButton
+              };
+          }
+          
+          // Configuration du fullscreen avec sauvegarde d'état améliorée
+          function setupFullscreenToggle(type, fullscreenButton, dialog, contentContainer) {
+              fullscreenButton.onclick = function(event) {
+                  document.querySelectorAll('.options-menu, .color-menu').forEach(el => el.remove());
+               
+                  event.stopPropagation();
+                  
+                  // Sauvegarder le scroll avant de changer d'état
+                  const currentScroll = contentContainer.scrollTop;
+                  
+                  if (globalFullscreenPreference) {
+                      // Sortir du fullscreen
+                      applyDialogStyles(type, dialog, false);
+                      applyContentContainerStyles(type, contentContainer, false);
+                      fullscreenButton.innerHTML = '⛶';
+                      
+                      // Mettre à jour le border-radius du header
+                      const header = dialog.querySelector('div');
+                      if (header) {
+                          header.style.borderRadius = '16px 16px 0 0';
+                      }
+                      
+                      globalFullscreenPreference = false;
+                  } 
+                  else {
+                      // Entrer en fullscreen
+                      applyDialogStyles(type, dialog, true);
+                      applyContentContainerStyles(type, contentContainer, true);
+                      fullscreenButton.innerHTML = '⿻';
+                      
+                      // Mettre à jour le border-radius du header
+                      const header = dialog.querySelector('div');
+                      if (header) {
+                          header.style.borderRadius = '0px';
+                      }
+                      
+                      globalFullscreenPreference = true;
+                  }
+                  
+                  // Restaurer le scroll après le changement d'état
+                  setTimeout(() => {
+                      contentContainer.scrollTop = currentScroll;
+                  }, 10);
+              };
+          }
+          
+          function setupDragSystem(header, dialog) {
+              let isDragging = false;
+              let startX, startY, startLeft, startTop;
+          
+              const startDrag = (e) => {
+                  if (globalFullscreenPreference) return;
+                  if (e.target.closest('.dialog-button')) return;
+          
+                  isDragging = true;
+                  startX = e.clientX || (e.touches && e.touches[0].clientX);
+                  startY = e.clientY || (e.touches && e.touches[0].clientY);
+          
+                  const rect = dialog.getBoundingClientRect();
+                  startLeft = rect.left;
+                  startTop = rect.top;
+          
+                  dialog.style.transform = 'none';
+                  dialog.style.left = `\${startLeft}px`;
+                  dialog.style.top = `\${startTop}px`;
+          
+                  document.addEventListener('mousemove', drag);
+                  document.addEventListener('mouseup', stopDrag);
+                  document.addEventListener('touchmove', drag);
+                  document.addEventListener('touchend', stopDrag);
+          
+                  dialog.style.cursor = 'grabbing';
+                  dialog.style.transition = 'none';
+                  e.preventDefault();
+              };
+          
+              const drag = (e) => {
+                  if (!isDragging) return;
+              
+                  const currentX = e.clientX || (e.touches && e.touches[0].clientX);
+                  const currentY = e.clientY || (e.touches && e.touches[0].clientY);
+                  
+                  const newLeft = startLeft + (currentX - startX);
+                  const newTop = startTop + (currentY - startY);
+              
+                  const dialogRect = dialog.getBoundingClientRect();
+                  const headerRect = header.getBoundingClientRect();
+                  
+                  // Limites de la fenêtre
+                  const minTop = controlsVisible ? APPBAR_FIXED_HEIGHT : 0;
+                  const maxLeft = window.innerWidth - dialogRect.width;
+          
+                  // Limite verticale pour que le header ne se cache pas derrière le bottom navbar
+                  let maxDialogTop = window.innerHeight - headerRect.height;
+                  if (controlsVisible) {
+                      maxDialogTop -= BOTTOMNAVBAR_FIXED_HEIGHT + (audioPlayerVisible ? AUDIO_PLAYER_HEIGHT : 0);
+                  }
+          
+                  dialog.style.left = `\${Math.max(0, Math.min(newLeft, maxLeft))}px`;
+                  dialog.style.top = `\${Math.max(minTop, Math.min(newTop, maxDialogTop))}px`;
+              };
+          
+              const stopDrag = () => {
+                  isDragging = false;
+                  dialog.style.cursor = '';
+                  
+                  document.removeEventListener('mousemove', drag);
+                  document.removeEventListener('mouseup', stopDrag);
+                  document.removeEventListener('touchmove', drag);
+                  document.removeEventListener('touchend', stopDrag);
+              };
+          
+              header.addEventListener('mousedown', startDrag);
+              header.addEventListener('touchstart', startDrag);
+          }
+          
+          // Fonctions utilitaires pour gérer l'historique
+          function clearDialogHistory() {
+              // Supprimer physiquement tous les dialogues du DOM
+              const dialogs = document.querySelectorAll('.customDialog');
+              dialogs.forEach(dialog => dialog.remove());
+              
+              dialogHistory = [];
+              currentDialogIndex = -1;
+              lastClosedDialog = null; // Nettoyer aussi le dernier dialogue fermé
+              globalFullscreenPreference = false; // Reset de la préférence globale
+              removeFloatingButton();
+              dialogIdCounter = 0; // Réinitialiser le compteur d'ID
+          }
+          
+          function getDialogHistoryLength() {
+              return dialogHistory.length;
+          }
+          
+          function canGoBack() {
+              return currentDialogIndex > 0;
+          }
+          
+          function restoreLastDialog() {
+              if (!lastClosedDialog) return;
+          
+              // Mettre à jour l'index et l'historique
+              currentDialogIndex = lastClosedDialog.historyIndex;
+              dialogHistory = lastClosedDialog.fullHistory;
+          
+              removeFloatingButton();
+          
+              showDialogFromHistory(lastClosedDialog);
+          
+              lastClosedDialog = null;
+          
+              window.flutter_inappwebview?.callHandler('showDialog', true);
+          }
+          
+          // ========== SYSTÈME DE BOUTON FLOTTANT ==========
+          
+          function createFloatingButton() {
+              const isDark = isDarkTheme();
+              const floatingButton = document.createElement('div');
+              floatingButton.id = 'dialogFloatingButton';
+              const dialogType = lastClosedDialog.type || 'default';
+              floatingButton.innerHTML = DIALOG_ICONS[dialogType]; // Utilise l'icône en fonction du type de dialogue
+              const backgroundColor = isDark ? darkPrimaryColor : lightPrimaryColor;
+              
+              floatingButton.style.cssText = `
+                  position: fixed;
+                  bottom: \${BOTTOMNAVBAR_FIXED_HEIGHT + (audioPlayerVisible ? AUDIO_PLAYER_HEIGHT : 0) + 15}px;
+                  right: 20px;
+                  width: 56px;
+                  height: 56px;
+                  background: \${backgroundColor};;
+                  border-radius: 50%;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  font-family: jw-icons-external;
+                  font-size: 25px;
+                  color: \${isDark ? '#333333' : '#ffffff'};
+                  cursor: pointer;
+                  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+                  z-index: 999;
+                  transition: all 0.3s ease;
+                  opacity: 0;
+                  transform: scale(0.8);
+                  user-select: none;
+              `;
+              
+              if(controlsVisible) {
+                // Animation d'apparition
+                setTimeout(() => {
+                    floatingButton.style.opacity = '1';
+                    floatingButton.style.transform = 'scale(1)';
+                }, 100);
+              }
+              else {
+                floatingButton.style.opacity = '0';
+                floatingButton.style.transform = 'scale(1)';
+              }
+          
+              // Action de clic
+              floatingButton.onclick = () => {
+                  restoreLastDialog();
+              };
+              
+              return floatingButton;
+          }
+          
+          function showFloatingButton() {
+              // Supprimer le bouton existant s'il y en a un
+              const existingButton = document.getElementById('dialogFloatingButton');
+              if (existingButton) existingButton.remove();
+              
+              if (lastClosedDialog) {
+                  const floatingButton = createFloatingButton();
+                  document.body.appendChild(floatingButton);
+              }
+          }
+          
+          function removeFloatingButton() {
+              const existingButton = document.getElementById('dialogFloatingButton');
+              if (existingButton) {
+                  // Animation de disparition
+                  existingButton.style.opacity = '0';
+                  existingButton.style.transform = 'scale(0.8)';
+                  setTimeout(() => {
+                      if (existingButton.parentNode) {
+                          existingButton.remove();
+                      }
+                  }, 300);
+              }
+          }
+          
+          // Fonction pour ouvrir un dialogue de note
+          async function openNoteDialog(userMarkGuid, noteGuid) {
+              const note = await window.flutter_inappwebview.callHandler('getNoteByGuid', noteGuid);
+             
+              if (!note) {
+                  console.error('Note non trouvée pour le GUID:', noteGuid);
+                  return;
+              }
+          
+              const options = {
+                  title: 'Note',
+                  type: 'note',
+                  noteData: {
+                      noteGuid: noteGuid,
+                      title: note.title,
+                      content: note.content,
+                      tags: note.tags,
+                      tagsId: note.tagsId,
+                      colorIndex: note.colorIndex,
+                  },
+                  contentRenderer: (contentContainer, noteOptions) => {
+                      createNoteContent(contentContainer, noteOptions);
+                  }
+              };
+              
+              showDialog(options);
+          }
+          
+          function createNoteContent(contentContainer, options) {
+              if (!options || !options.noteData) {
+                  console.error("Les données de la note sont manquantes. Impossible de charger le contenu.");
+                  contentContainer.innerHTML = "<p>Erreur: Contenu non disponible.</p>";
+                  return;
+              }
+          
+              const { noteGuid, title, content, tags, tagsId, colorIndex } = options.noteData;
+              const isDark = isDarkTheme();
+              const isEditMode = true;
+          
+              const dialogElement = contentContainer.closest('.customDialog');
+              if (dialogElement) {
+                  dialogElement.classList.add('note-dialog');
+              }
+          
+              // ✅ Conteneur principal (on évite le scroll global, seule la zone contenu scrolle)
+              const mainContainer = document.createElement('div');
+              mainContainer.style.cssText = `
+                  display: flex;
+                  flex-direction: column;
+                  height: 100%;
+                  padding: 16px;
+                  box-sizing: border-box;
+                  overflow: hidden; /* ← important : pas de scroll ici */
+                  gap: 12px;
+              `;
+          
+              // ✅ Titre multi-ligne (textarea)
+              const titleElement = document.createElement('textarea');
+              titleElement.className = 'note-title';
+              titleElement.value = title || '';
+              titleElement.placeholder = 'Titre de la note';
+              titleElement.rows = 1;
+              titleElement.style.cssText = `
+                  border: none;
+                  outline: none;
+                  resize: none;
+                  font-size: 20px;
+                  font-weight: bold;
+                  line-height: 1.3;
+                  background: transparent;
+                  color: inherit;
+                  padding: 4px 0;
+                  flex-shrink: 0;
+                  overflow: hidden;
+              `;
+              const autoResizeTitle = () => {
+                  titleElement.style.height = 'auto';
+                  const max = 6 * parseFloat(getComputedStyle(titleElement).lineHeight); // jusqu’à ~6 lignes
+                  titleElement.style.height = Math.min(titleElement.scrollHeight, max) + 'px';
+              };
+              titleElement.addEventListener('input', autoResizeTitle);
+          
+              // ✅ Zone de contenu (auto-ajustée jusqu'à 80vh)
+              const contentElement = document.createElement('textarea');
+              contentElement.className = 'note-content';
+              contentElement.value = content || '';
+              contentElement.placeholder = 'Écrivez votre note ici...';
+              contentElement.style.cssText = `
+                  border: none;
+                  outline: none;
+                  resize: none;
+                  font-size: inherit;
+                  line-height: 1.5;
+                  background: transparent;
+                  color: inherit;
+                  overflow-y: auto;
+                  padding: 8px 0;
+                  flex: 0 0 auto;
+                  min-height: 100px;   /* ← hauteur de base quand peu de texte */
+              `;
+              
+              // Fonction de redimensionnement dynamique
+              const autoResize = () => {
+                  const maxHeight = Math.round(window.innerHeight * 0.8); // 80% du viewport
+                  contentElement.style.height = 'auto'; // reset
+                  const newHeight = Math.min(contentElement.scrollHeight, maxHeight);
+                  contentElement.style.height = `\${newHeight}px`;
+              };
+              
+              // Écouteurs
+              ['input','cut','paste'].forEach(evt =>
+                  contentElement.addEventListener(evt, autoResize)
+              );
+              
+              autoResize();
+          
+              // 🚀 Intégration des fonctionnalités de tags et suggestions
+              const currentTagIds = !tagsId || tagsId === '' ? [] : tagsId.split(',').map(id => parseInt(id));
+          
+              const createTagElement = (tag) => {
+                  const tagElement = document.createElement('span');
+                  tagElement.style.cssText = `
+                      display: flex;
+                      align-items: center;
+                      background: \${isDark ? '#4a4a4a' : 'rgba(255,255,255,0.9)'};
+                      color: \${isDark ? '#fff' : '#2c3e50'};
+                      padding: 6px 10px;
+                      border-radius: 20px;
+                      font-size: 14px;
+                      font-weight: 500;
+                      white-space: nowrap;
+                      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+                      border: 1px solid \${isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)'};
+                      cursor: pointer;
+                  `;
+                  const text = document.createElement('span');
+                  text.textContent = tag.Name;
+                  tagElement.appendChild(text);
+          
+                  const closeBtn = document.createElement('span');
+                  closeBtn.textContent = '×';
+                  closeBtn.style.cssText = `
+                      margin-left: 6px;
+                      cursor: pointer;
+                      font-weight: bold;
+                      color: \${isDark ? '#e0e0e0' : 'inherit'};
+                  `;
+                  closeBtn.addEventListener('click', (e) => {
+                      e.stopPropagation();
+                      tagsContainer.removeChild(tagElement);
+                      const index = currentTagIds.indexOf(tag.TagId);
+                      if (index > -1) currentTagIds.splice(index, 1);
+                      window.flutter_inappwebview.callHandler('removeTagToNote', {
+                          noteGuid: noteGuid,
+                          tagId: tag.TagId
+                      });
+                  });
+                  tagElement.appendChild(closeBtn);
+          
+                  tagElement.addEventListener('click', () => {
+                      window.flutter_inappwebview.callHandler('openTagPage', { tagId: tag.TagId });
+                  });
+                  return tagElement;
+              };
+          
+              const addTagToUI = (tag) => {
+                  if (!currentTagIds.includes(tag.TagId)) {
+                      const tagElement = createTagElement(tag);
+                      tagsContainer.insertBefore(tagElement, tagInputWrapper);
+                      currentTagIds.push(tag.TagId);
+                      window.flutter_inappwebview.callHandler('addTagToNote', {
+                          noteGuid: noteGuid,
+                          tagId: tag.TagId
+                      });
+                  }
+              };
+          
+              // ✅ Footer catégories : toujours visible en bas
+              const tagsContainer = document.createElement('div');
+              tagsContainer.style.cssText = `
+                  display: flex;
+                  flex-wrap: wrap;
+                  gap: 8px;
+                  max-height: 160px;
+                  overflow-y: auto;
+                  border-top: 1px solid \${isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.08)'};
+                  padding: 12px 0 4px 0;
+                  flex-shrink: 0;
+                  position: sticky;   /* ← colle au bas du conteneur visible */
+                  bottom: 0;          /* ← position collante en bas */
+                  background: transparent;
+                  backdrop-filter: blur(6px);
+              `;
+          
+              currentTagIds.forEach(tagId => {
+                  const tag = tags.find(t => t.TagId === tagId);
+                  if (tag) tagsContainer.appendChild(createTagElement(tag));
+              });
+          
+              const tagInputWrapper = document.createElement('div');
+              tagInputWrapper.style.cssText = `
+                  display: flex;
+                  align-items: center;
+                  gap: 10px;
+                  min-width: 150px;
+                  position: relative;
+              `;
+          
+              const tagInput = document.createElement('input');
+              tagInput.className = 'note-tags';
+              tagInput.type = 'text';
+              tagInput.placeholder = 'Ajouter une catégorie...';
+              tagInput.style.cssText = `
+                  border: none;
+                  outline: none;
+                  resize: none;
+                  font-size: inherit;
+                  flex: 1;
+                  min-width: 100px;
+                  border: none;
+                  padding: 4px;
+                  font-size: 14px;
+                  background: transparent;
+                  color: inherit;
+              `;
+          
+              const suggestionsList = document.createElement('div');
+              suggestionsList.className = 'suggestions-list';
+              suggestionsList.style.cssText = `
+                  position: fixed;
+                  background: \${isDark ? '#333' : 'rgba(255, 255, 255, 0.95)'};
+                  border: 1px solid \${isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'};
+                  border-radius: 8px;
+                  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+                  max-height: 150px;
+                  overflow-y: auto;
+                  z-index: 9000;
+                  backdrop-filter: blur(10px);
+                  display: none;
+              `;
+          
+              const fuzzySearch = (query, text) => {
+                  if (!query) return true;
+                  const regex = new RegExp(query.split('').join('.*?'), 'i');
+                  return regex.test(text);
+              };
+              
+              async function addTagToDatabase(value) {
+                const result = await window.flutter_inappwebview.callHandler('addTag', { tagName: value });    
+                if (result && result.tag) addTagToUI(result.tag);
+              }
+          
+              const showSuggestions = (filteredTags) => {
+                  suggestionsList.innerHTML = '';
+                  const value = tagInput.value.trim();
+                  const exactMatch = filteredTags.some(tag => tag.Name.toLowerCase() === value.toLowerCase());
+          
+                  if (value !== '' && !exactMatch) {
+                      const addNew = document.createElement('div');
+                      addNew.textContent = `Ajouter la catégorie: "\${value}"`;
+                      addNew.style.cssText = `
+                          padding: 8px 12px;
+                          cursor: pointer;
+                          font-size: 14px;
+                          color: \${isDark ? '#fff' : '#2c3e50'};
+                          border-bottom: \${filteredTags.length > 0 ? '1px solid ' + (isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)') : 'none'};
+                          white-space: nowrap;
+                      `;
+                      addNew.addEventListener('click', async () => {
+                        tagInput.value = '';
+                        suggestionsList.style.display = 'none';
+                        addTagToDatabase(value);
+                        tagInput.focus(); // seulement après l’await
+                      });
+          
+                      suggestionsList.appendChild(addNew);
+                  }
+          
+                  filteredTags.forEach(tag => {
+                      const item = document.createElement('div');
+                      item.textContent = tag.Name;
+                      item.style.cssText = `
+                          padding: 8px 12px;
+                          cursor: pointer;
+                          font-size: 14px;
+                          color: \${isDark ? '#fff' : '#2c3e50'};
+                          transition: background-color 0.2s ease;
+                          white-space: nowrap;
+                      `;
+                      item.addEventListener('mouseenter', () => item.style.backgroundColor = isDark ? '#4a4a4a' : 'rgba(52, 152, 219, 0.1)');
+                      item.addEventListener('mouseleave', () => item.style.backgroundColor = 'transparent');
+                      item.addEventListener('click', () => {
+                          addTagToUI(tag);
+                          tagInput.value = '';
+                          tagInput.focus();
+                          suggestionsList.style.display = 'none';
+                      });
+                      suggestionsList.appendChild(item);
+                  });
+          
+                  suggestionsList.style.display = (suggestionsList.children.length > 0) ? 'block' : 'none';
+              };
+          
+              const updateSuggestionsPosition = () => {
+                  const rect = tagInput.getBoundingClientRect();
+                  suggestionsList.style.left = `\${rect.left}px`;
+                  suggestionsList.style.top = `\${rect.bottom + 5}px`;
+                  suggestionsList.style.width = `\${Math.max(200, tagInput.offsetWidth)}px`;
+              };
+          
+              tagInput.addEventListener('input', () => {
+                  const value = tagInput.value.trim();
+                  const availableTags = tags.filter(tag => !currentTagIds.includes(tag.TagId));
+                  let filteredTags = (value === '') ? availableTags : availableTags.filter(tag => fuzzySearch(value, tag.Name));
+                  showSuggestions(filteredTags);
+                  updateSuggestionsPosition();
+              });
+          
+              tagInput.addEventListener('focus', () => {
+                  const value = tagInput.value.trim();
+                  const availableTags = tags.filter(tag => !currentTagIds.includes(tag.TagId));
+                  let filteredTags = (value === '') ? availableTags : availableTags.filter(tag => fuzzySearch(value, tag.Name));
+                  showSuggestions(filteredTags);
+                  updateSuggestionsPosition();
+              });
+          
+              tagInput.addEventListener('blur', (e) => {
+                  setTimeout(() => {
+                      if (!suggestionsList.contains(document.activeElement)) {
+                          suggestionsList.style.display = 'none';
+                      }
+                  }, 100);
+              });
+          
+              tagInput.addEventListener('keypress', (e) => {
+                  if (e.key === 'Enter') {
+                      const value = tagInput.value.trim();
+                      if (value !== '') {
+                          const exactMatch = tags.find(tag => tag.Name.toLowerCase() === value.toLowerCase());
+                          if (exactMatch) {
+                              addTagToUI(exactMatch);
+                          } else {
+                              window.flutter_inappwebview.callHandler('addTag', { tagName: value }).then(result => {
+                                  if (result && result.tag) addTagToUI(result.tag);
+                              });
+                          }
+                          tagInput.value = '';
+                          suggestionsList.style.display = 'none';
+                          tagInput.focus();
+                      }
+                      e.preventDefault();
+                  }
+              });
+          
+              // Assemblage
+              if (isEditMode) {
+                  tagInputWrapper.appendChild(tagInput);
+                  tagsContainer.appendChild(tagInputWrapper);
+              }
+          
+              mainContainer.appendChild(titleElement);
+              mainContainer.appendChild(contentElement);
+              mainContainer.appendChild(tagsContainer);
+              contentContainer.appendChild(mainContainer);
+          
+              // 💡 Suggestions en dehors du dialogue
+              document.body.appendChild(suggestionsList);
+          
+              // Lancements initiaux
+              setTimeout(() => {
+                  autoResizeTitle();
+                  autoResize();
+              }, 0);
+              window.addEventListener('resize', autoResize);
+          
+              // Sauvegarde live
+              const saveChanges = () => {
+                  const titleVal = titleElement.value;
+                  const contentVal = contentElement.value;
+                  window.flutter_inappwebview.callHandler('updateNote', {
+                      noteGuid: noteGuid,
+                      title: titleVal,
+                      content: contentVal
+                  });
+              };
+              contentElement.addEventListener('input', saveChanges);
+              titleElement.addEventListener('input', saveChanges);
+          
+              const addTag = () => {
+                  const tagName = tagInput.value.trim();
+                  if (tagName && tagName.length > 0) {
+                      window.flutter_inappwebview.callHandler('addTagToNote', {
+                          noteGuid: noteGuid,
+                          tagName: tagName
+                      });
+                      tagInput.value = '';
+                  }
+              };
+          
+              tagInput.addEventListener('keypress', (e) => {
+                  if (e.key === 'Enter') {
+                      addTag();
+                  }
+              });
+          
+              const cleanup = () => {
+                  if (suggestionsList && suggestionsList.parentNode) {
+                      suggestionsList.remove();
+                  }
+                  window.removeEventListener('resize', autoResize);
+              };
+          
+              if (dialogElement) {
+                  dialogElement.addEventListener('close', cleanup);
+                  dialogElement.addEventListener('dialogClosed', cleanup);
+              }
+          }
+          
+          // ✅ Fonction corrigée
+          function createOptionsMenu(noteGuid, popup, isDark) {
+              const optionsMenu = document.createElement('div');
+              optionsMenu.className = 'options-menu';
+              optionsMenu.style.cssText = `
+                  position: absolute;
+                  width: 200px;
+                  background: \${isDark ? 'rgba(30, 30, 30, 0.95)' : 'rgba(255, 255, 255, 0.95)'};
+                  border-radius: 8px;
+                  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+                  display: none;
+                  flex-direction: column;
+                  z-index: 2000;
+                  backdrop-filter: blur(10px);
+                  border: 1px solid \${isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'};
+                  padding: 5px 0;
+              `;
+          
+              // Bouton Supprimer
+              const deleteBtn = document.createElement('div');
+              deleteBtn.className = 'menu-item';
+              deleteBtn.innerHTML = '🗑 Supprimer la note';
+              deleteBtn.style.cssText = `
+                  padding: 10px 15px;
+                  cursor: pointer;
+                  transition: background-color 0.2s ease;
+                  color: \${isDark ? '#fff' : '#333'};
+              `;
+              
+              deleteBtn.onmouseenter = () => {
+                  deleteBtn.style.backgroundColor = isDark ? 'rgba(0, 123, 255, 0.2)' : 'rgba(0, 123, 255, 0.1)';
+              };
+              deleteBtn.onmouseleave = () => {
+                  deleteBtn.style.backgroundColor = 'transparent';
+              };
+              
+              deleteBtn.onclick = async () => {
+                  // ✅ Ferme le menu immédiatement
+                  optionsMenu.style.display = 'none';
+                  colorMenu.style.display = 'none';
+              
+                  // Confirmation
+                  const confirmed = await window.flutter_inappwebview.callHandler('showConfirmationDialog', {
+                      title: 'Supprimer la note',
+                      message: 'Êtes-vous sûr de vouloir supprimer cette note ?'
+                  });
+              
+                  if (confirmed) {
+                      // Supprime la note visuellement
+                      const note = pageCenter.querySelector(`[\${noteAttr}="\${noteGuid}"]`);
+                      if (note) {
+                          note.remove();
+                      }
+              
+                      // Supprime côté Flutter
+                      window.flutter_inappwebview.callHandler('removeNote', {
+                          guid: noteGuid
+                      });
+              
+                      removeDialogByNoteGuid(noteGuid);
+                  }
+              };
+          
+              // Bouton changer couleur
+              const changeColorItem = document.createElement('div');
+              changeColorItem.className = 'menu-item has-submenu';
+              changeColorItem.innerHTML = '🎨 Changer la couleur';
+              changeColorItem.style.cssText = `
+                  padding: 10px 15px;
+                  cursor: pointer;
+                  transition: background-color 0.2s ease;
+                  color: \${isDark ? '#fff' : '#333'};
+              `;
+              changeColorItem.onmouseenter = () => changeColorItem.style.backgroundColor = isDark ? 'rgba(0, 123, 255, 0.2)' : 'rgba(0, 123, 255, 0.1)';
+              changeColorItem.onmouseleave = () => changeColorItem.style.backgroundColor = 'transparent';
+          
+              // Sous-menu couleurs
+              const colorMenu = document.createElement('div');
+              colorMenu.className = 'color-menu';
+              colorMenu.style.cssText = `
+                  position: absolute;
+                  width: 120px;
+                  background: \${isDark ? 'rgba(30, 30, 30, 0.95)' : 'rgba(255, 255, 255, 0.95)'};
+                  border-radius: 8px;
+                  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+                  display: none;
+                  flex-direction: column;
+                  z-index: 2001;
+                  backdrop-filter: blur(10px);
+                  border: 1px solid \${isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'};
+              `;
+          
+              colorsList.forEach((colorName, index) => {
+                  if(index == 0) return;
+                  const colorOption = document.createElement('div');
+                  const colorIndex = index; // Les index de couleur commencent à 1
+                  const colorClass = getNoteClass(colorIndex, false);
+                  colorOption.className = `color-option \${colorClass}`;
+                  colorOption.innerHTML = `<span style="background: var(--\${colorClass}); width: 16px; height: 16px; border-radius: 50%; border: 1px solid rgba(0,0,0,0.2);"></span>`;
+                  colorOption.style.cssText = `
+                      padding: 8px;
+                      cursor: pointer;
+                      display: flex;
+                      justify-content: center;
+                  `;
+                  colorOption.onclick = () => {
+                      changeNoteColor(noteGuid, colorIndex);
+                                  
+                      if (popup) {
+                          removeNoteClasses(popup);
+                          popup.classList.add(colorClass);
+                      }
+                      optionsMenu.style.display = 'none';
+                      colorMenu.style.display = 'none';
+                  };
+                  colorMenu.appendChild(colorOption);
+              });
+          
+              // Afficher le sous-menu
+              changeColorItem.onclick = (e) => {
+                  const rect = e.target.getBoundingClientRect();
+                  colorMenu.style.top = `\${rect.top}px`;
+                  colorMenu.style.left = `\${rect.left - 130}px`;
+                  colorMenu.style.display = 'flex';
+              };
+          
+              optionsMenu.appendChild(deleteBtn);
+              optionsMenu.appendChild(changeColorItem);
+          
+              return { element: optionsMenu, colorMenu: colorMenu };
+          }
        
           // Fonctions spécialisées 
           function showVerseDialog(article, verses) {
@@ -2744,13 +3019,14 @@ function createOptionsMenu(noteGuid, popup, isDark) {
                             padding-bottom: 16px;
                           `;
   
-                       
                           wrapWordsWithSpan(article, true);
+                          
+                          const paragraphsDataDialog = fetchAllParagraphsOfTheArticle(article);
                           
                           item.highlights.forEach(h => {
                             if (h.Identifier >= item.firstVerseNumber && h.Identifier <= item.lastVerseNumber) {
-                               const target = getTarget(article, true, h.Identifier);
-                               addHighlight([target], h.BlockType, h.Identifier, h.StartToken, h.EndToken, h.UserMarkGuid, h.ColorIndex);
+                               const paragraphInfo = paragraphsDataDialog.get(h.Identifier);
+                               addBlockRange(paragraphInfo, h.BlockType, h.Identifier, h.StartToken, h.EndToken, h.UserMarkGuid, h.StyleIndex, h.ColorIndex);
                             }
                           });
                           
@@ -2786,134 +3062,97 @@ function createOptionsMenu(noteGuid, popup, isDark) {
           }
           
           function showVerseReferencesDialog(article, verseReferences) {
-              showDialog({
-                  title: verseReferences.title || 'Références bibliques',
-                  type: 'verse-references',
-                  article: article,
-                  contentRenderer: (contentContainer) => {
-                      verseReferences.items.forEach((item, index) => {
-                          // Conteneur principal pour chaque référence
-                          const referenceItem = document.createElement('div');
-                          referenceItem.style.cssText = `
-                              background: transparent;
-                              transition: all 0.2s ease;
-                              cursor: pointer;
-                          `;
+            showDialog({
+                title: verseReferences.title || 'Références bibliques',
+                type: 'verse-references',
+                article: article,
+                contentRenderer: (contentContainer) => {
+                    verseReferences.items.forEach((item, index) => {
+                        const infoBar = document.createElement('div');
+                        // CORRECTION : Utilisation des backticks (`) pour le template literal
+                        // afin d'interpoler \${isDarkTheme() ? '...' : '...'}
+                        infoBar.style.cssText = `
+                            display: flex;
+                            align-items: center;
+                            padding-inline: 10px;
+                            padding-block: 6px;
+                            background: \${isDarkTheme() ? '#000000' : '#f1f1f1'};
+                            border-bottom: 1px solid \${isDarkTheme() ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)'};
+                        `;
+                       
+                        const img = document.createElement('img');
+                        img.src = 'file://' + item.imageUrl;
+                        img.style.cssText = `
+                            height: 50px;
+                            width: 50px;
+                            border-radius: 8px;
+                            object-fit: cover;
+                            margin-right: 8px;
+                            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+                        `;
                         
-                          // Header avec référence biblique
-                          const headerBar = document.createElement('div');
-                          headerBar.style.cssText = `
-                              display: flex;
-                              align-items: center;
-                              padding: 16px;
-                              background: transparent;
-                          `;
-                          
-                          // Icône Bible (optionnel)
-                          const bibleIcon = document.createElement('div');
-                          bibleIcon.innerHTML = '📖'; // Vous pouvez remplacer par votre icône JW
-                          bibleIcon.style.cssText = `
-                              font-size: 24px;
-                              margin-right: 16px;
-                              width: 40px;
-                              height: 40px;
-                              display: flex;
-                              align-items: center;
-                              justify-content: center;
-                              background: \${isDarkTheme() ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)'};
-                              border-radius: 50%;
-                          `;
-                          headerBar.appendChild(bibleIcon);
-                          
-                          // Conteneur des textes
-                          const textContainer = document.createElement('div');
-                          textContainer.style.cssText = 'flex-grow: 1;';
-                          
-                          // Référence biblique (ex: "Jean 3:16")
-                          const verseReference = document.createElement('div');
-                          verseReference.textContent = item.reference || item.title;
-                          verseReference.style.cssText = `
-                              font-size: inherit;
-                              margin-bottom: 4px;
-                              color: \${isDarkTheme() ? '#ffffff' : '#333333'};
-                              line-height: 1.3;
-                          `;
-                          
-                          textContainer.appendChild(verseReference);
-                          
-                          // Version/traduction (optionnel)
-                          if (item.version) {
-                              const version = document.createElement('div');
-                              version.textContent = item.version;
-                              version.style.cssText = `
-                                  font-size: inherit;
-                                  line-height: 1.4;
-                              `;
-                              textContainer.appendChild(version);
-                          }
-                          
-                          headerBar.appendChild(textContainer);
+                        const textContainer = document.createElement('div');
+                        textContainer.style.cssText = 'flex-grow: 1; margin-left: 8px; padding: 8px 0;';
                         
-                          // Contenu du verset
-                          const content = document.createElement('div');
-                          content.innerHTML = item.content || item.text;
-                          content.style.cssText = `
-                              padding: 0 16px 16px 16px;
-                              line-height: 1.7;
-                              font-size: inherit;
-                              background: transparent;
-                              position: relative;
-                          `;
-                          
-                          content.className = item.className || '';
-                          
-                          // Contexte supplémentaire (livre, chapitre, etc.)
-                          if (item.context) {
-                              const contextInfo = document.createElement('div');
-                              contextInfo.textContent = item.context;
-                              contextInfo.style.cssText = `
-                                  padding: 8px 16px;
-                                  font-size: 12px;
-                                  opacity: 0.6;
-                                  text-align: right;
-                                  font-style: normal;
-                              `;
-                              content.appendChild(contextInfo);
-                          }
-                          
-                          // Gestionnaire de clic pour tout l'élément
-                          referenceItem.addEventListener('click', function() {
-                              if (window.flutter_inappwebview) {
-                                  window.flutter_inappwebview.callHandler('openBibleVerse', {
-                                      reference: item.reference,
-                                      book: item.book,
-                                      chapter: item.chapter,
-                                      verse: item.verse,
-                                      endVerse: item.endVerse
-                                  });
-                              }
-                          });
-                          
-                          // Assemblage
-                          referenceItem.appendChild(headerBar);
-                          referenceItem.appendChild(content);
-                          contentContainer.appendChild(referenceItem);
-                          
-                          // Barre de séparation entre les références (sauf le dernier)
-                          if (index < verseReferences.items.length - 1) {
-                              const separator = document.createElement('div');
-                              separator.style.cssText = `
-                                  height: 2px;
-                                  background: \${isDarkTheme() ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.15)'};
-                                  margin: 20px 16px;
-                                  border-radius: 1px;
-                              `;
-                              contentContainer.appendChild(separator);
-                          }
-                      });
-                  }
-              });
-          }
+                        const pubText = document.createElement('div');
+                        pubText.textContent = item.publicationTitle;
+                        pubText.style.cssText = `
+                            font-size: 16px;
+                            font-weight: 700;
+                            margin-bottom: 4px;
+                            line-height: 1.3;
+                            white-space: nowrap;
+                            overflow: hidden;
+                            text-overflow: ellipsis;
+                        `;
+                        
+                        const subtitleText = document.createElement('div');
+                        subtitleText.textContent = item.subtitle;
+                        subtitleText.style.cssText = `
+                            font-size: 12px;
+                            opacity: 0.8;
+                            line-height: 1.4;
+                            white-space: nowrap;
+                            overflow: hidden;
+                            text-overflow: ellipsis;
+                        `;
+                        
+                        textContainer.appendChild(pubText);
+                        textContainer.appendChild(subtitleText);
+                        
+                        infoBar.addEventListener('click', function() {
+                              window.flutter_inappwebview?.callHandler('openMepsDocument', item);
+                        });
+                        
+                        infoBar.appendChild(img);
+                        infoBar.appendChild(textContainer);
+                        
+                        const article = document.createElement('div');
+                        // CORRECTION : Utilisation des backticks (`) pour le template literal
+                        // afin d'interpoler \${item.className} et \${item.content}
+                        article.innerHTML = `<article id="verse-dialog" class="\${item.className}">\${item.content}</article>`;
+                        article.style.cssText = `
+                          position: relative;
+                          padding-top: 10px;
+                          padding-bottom: 16px;
+                        `;
+        
+                        wrapWordsWithSpan(article, true);
+                        
+                        const paragraphsDataDialog = fetchAllParagraphsOfTheArticle(article);
+                        
+                        article.addEventListener('click', async (event) => {
+                            onClickOnPage(article, event.target);
+                        });
+                        
+                        contentContainer.appendChild(infoBar);
+                        contentContainer.appendChild(article);
+                        
+                        repositionAllNotes(article);
+                    });
+                }
+            });
+        }
           
           function showVerseInfoDialog(article, verseInfo) {
             showDialog({
@@ -3068,7 +3307,7 @@ function createOptionsMenu(noteGuid, popup, isDark) {
                     updateTabContent();
                 }
             });
-        }
+          }
           
           function showExtractPublicationDialog(article, extractData) {
               showDialog({
@@ -3172,16 +3411,19 @@ function createOptionsMenu(noteGuid, popup, isDark) {
                        
                           wrapWordsWithSpan(article, false);
                           
+                          const paragraphsDataDialog = fetchAllParagraphsOfTheArticle(article);
+                          
                           item.highlights.forEach(h => {
                             if ((item.startParagraphId == null || h.Identifier >= item.startParagraphId) && (item.endParagraphId == null || h.Identifier <= item.endParagraphId)) {
-                              const target = getTarget(article, false, h.Identifier);
-                              addHighlight(
-                                [target],
+                              const paragraphInfo = paragraphsDataDialog.get(h.Identifier);
+                              addBlockRange(
+                                paragraphInfo,
                                 h.BlockType,
                                 h.Identifier,
                                 h.StartToken,
                                 h.EndToken,
                                 h.UserMarkGuid,
+                                h.StyleIndex,
                                 h.ColorIndex
                               );
                             }
@@ -3339,12 +3581,12 @@ function createOptionsMenu(noteGuid, popup, isDark) {
               });
           }
          
-          function getAllHighlights(uuid) {
-            return pageCenter.querySelectorAll(`[data-highlight-id="\${uuid}"]`);
+          function getAllBlockRanges(guid) {
+            return pageCenter.querySelectorAll(`[\${blockRangeAttr}="\${guid}"]`);
           }
           
-          function removeHighlight(uuid) {
-            removeHighlightByGuid(uuid);
+          function removeBlockRange(guid) {
+            removeBlockRangeByGuid(guid);
             closeToolbar();
             removeAllSelected();
           }
@@ -3377,7 +3619,7 @@ function createOptionsMenu(noteGuid, popup, isDark) {
               if (!confirmed) return; // Annulation
             }
           
-            const note = pageCenter.querySelector(`[data-note-id="\${noteGuid}"]`);
+            const note = pageCenter.querySelector(`[\${noteAttr}="\${noteGuid}"]`);
             if (note) {
               note.remove();
             }
@@ -3385,82 +3627,54 @@ function createOptionsMenu(noteGuid, popup, isDark) {
             await window.flutter_inappwebview.callHandler('removeNote', {
               guid: noteGuid
             });
+            
+            removeDialogByNoteGuid(noteGuid);
           }
           
-          async function addNoteWithHighlight(highlightTarget, highlightGuid) {
-              const colorClasses = [
-                  'highlight-transparent',
-                  'highlight-yellow',
-                  'highlight-green',
-                  'highlight-blue',
-                  'highlight-pink',
-                  'highlight-orange',
-                  'highlight-purple'
-              ];
-              
-              const paragraphInfo = getTheFirstTargetParagraph(highlightTarget);
-              const id = paragraphInfo.id;
-              const paragraphs = paragraphInfo.paragraphs;
-              const isVerse = paragraphInfo.isVerse;
+          async function addNoteWithBlockRange(title, blockRangeTarget, userMarkGuid) {
+            // Détermination de l'index de couleur actif
+              const { 
+                  styleIndex: targetStyleIndex, 
+                  colorIndex: targetColorIndex 
+              } = getActiveStyleAndColorIndex(blockRangeTarget, currentStyleIndex, getColorIndex);
+            
+            // Utilisation de la config STYLE au lieu d’un tableau en dur
+            const cfg = getStyleConfig(targetStyleIndex);
+            
+            const paragraphInfo = getTheFirstTargetParagraph(blockRangeTarget);
+            const id = paragraphInfo.id;
+            const paragraphs = paragraphInfo.paragraphs;
+            const isVerse = paragraphInfo.isVerse;
+                      
+            // Trouver l’index de la couleur appliquée en cherchant dans cfg.classes
+            let colorIndex = cfg.classes.findIndex(cls => blockRangeTarget.classList.contains(cls));
           
-              const allHighlights = getAllHighlights(highlightGuid);
-              
-              // Récupère le texte entre le premier et le dernier élément avec le même highlightGuid
-              let title = '';
-
-              if (allHighlights.length > 0) {
-                const range = document.createRange();
-                range.setStartBefore(allHighlights[0]);
-                range.setEndAfter(allHighlights[allHighlights.length - 1]);
+            const noteGuid = await window.flutter_inappwebview.callHandler('addNote', {
+              title: title,
+              blockType: isVerse ? 2 : 1,
+              identifier: id,
+              userMarkGuid: userMarkGuid,
+              colorIndex: colorIndex
+            });
             
-                const content = range.cloneContents();
-                const relevantElements = Array.from(content.querySelectorAll('.word, .punctuation, .escape'));
-            
-                let titleParts = [];
-                for (let i = 0; i < relevantElements.length; i++) {
-                    const elem = relevantElements[i];
-                    const text = elem.textContent
-            
-                    if (!text) continue;
-            
-                    // Ajoute un espace si le précédent et le courant sont des mots
-                    if (i > 0) {
-                        const prev = relevantElements[i - 1];
-                        if (prev.classList.contains('word') && elem.classList.contains('word')) {
-                            titleParts.push(' ');
-                        }
-                        else if (prev.classList.contains('punctuation') && elem.classList.contains('word')) {
-                            titleParts.push(' ');
-                        }
-                    }
-            
-                    titleParts.push(text);
-                }
-            
-                title = titleParts.join('').trim();
-            }
-                          
-              console.log(title);
+            addNoteWithGuid(
+              pageCenter,
+              paragraphs[0],
+              userMarkGuid,
+              noteGuid.uuid,
+              colorIndex,
+              isVerse,
+              true
+            );
           
-              let colorIndex = colorClasses.findIndex(cls => highlightTarget.classList.contains(cls));
-          
-              const noteGuid = await window.flutter_inappwebview.callHandler('addNote', {
-                  title: title,
-                  blockType: isVerse ? 2 : 1,
-                  identifier: id,
-                  userMarkGuid: highlightGuid,
-                  colorIndex: colorIndex
-              });
-              
-              addNoteWithGuid(pageCenter, paragraphs[0], highlightGuid, noteGuid.uuid, colorIndex, isVerse, true);
-              closeToolbar();
-              removeAllSelected();
+            closeToolbar();
+            removeAllSelected();
           }
           
           function repositionNote(noteGuid) {
             if (!noteGuid) return; // Sécurité
           
-            const note = pageCenter.querySelector(`[data-note-id="\${noteGuid}"]`);
+            const note = pageCenter.querySelector(`[\${noteAttr}="\${noteGuid}"]`);
             if (note) {
               let target = null;
               const blockId = note.getAttribute('data-note-block-id');
@@ -3485,24 +3699,42 @@ function createOptionsMenu(noteGuid, popup, isDark) {
               return;
             }
           
+            const matchedElement = target.closest(`[\${idAttr}]`);
+            
+            if (!matchedElement) {
+              closeToolbar();
+              return;
+            }
+          
             if (classFilter === 'paragraph') {
-              const matchedElement = target.closest(`[\${idAttr}]`);
-              const pid = matchedElement?.getAttribute(idAttr);
+              const pid = matchedElement.getAttribute(idAttr);
               
               if (!pid) {
                 closeToolbar();
                 return;
               }
-
-              // Optimisation avec optional chaining et court-circuit
-              const hasAudio = cachedPages[currentIndex]?.audiosMarkers?.some(m => String(m.mepsParagraphId) === pid) ?? false;
+          
+              // Convertir pid en nombre pour correspondre à la clé dans paragraphsData
+              const pidNumber = parseInt(pid, 10);
               
-              showToolbar([matchedElement], pid, selector, hasAudio, classFilter);
+              // Récupérer les données du paragraphe depuis paragraphsData
+              const paragraphData = paragraphsData.get(pidNumber);
+              
+              if (!paragraphData) {
+                closeToolbar();
+                return;
+              }
+          
+              // Optimisation avec optional chaining et court-circuit
+              const hasAudio = cachedPages[currentIndex]?.audiosMarkers?.some(m => 
+                String(m.mepsParagraphId) === pid
+              ) ?? false;
+              
+              showToolbar(paragraphData.paragraphs, pidNumber, selector, hasAudio, classFilter);
             }
             else {
               // Traitement des versets
-              const matchedElement = target.closest(`[\${idAttr}]`);
-              let vid = matchedElement?.getAttribute(idAttr);
+              let vid = matchedElement.getAttribute(idAttr);
             
               if (!vid) {
                 closeToolbar();
@@ -3512,113 +3744,110 @@ function createOptionsMenu(noteGuid, popup, isDark) {
               // Extraire le numéro de verset (3ème partie) de vid
               // vid format: v1-3-5-1 -> on veut récupérer "5"
               const vidParts = vid.split('-');
-              const verseNumber = vidParts[2]; // Index 2 pour la 3ème partie
+              const verseNumber = parseInt(vidParts[2], 10); // Convertir en nombre
               
-              // Trouver tous les éléments qui correspondent au même verset
-              // (même livre, même chapitre, même verset, peu importe la partie)
-              const versePattern = `\${vidParts[0]}-\${vidParts[1]}-\${verseNumber}-`; // v1-3-5-
-              const verseElements = pageCenter.querySelectorAll(`[\${idAttr}^="\${versePattern}"]`);
-            
+              // Récupérer les données du verset depuis paragraphsData
+              const verseData = paragraphsData.get(verseNumber);
+              
+              if (!verseData) {
+                closeToolbar();
+                return;
+              }
+          
               // Utiliser le numéro de verset pour la vérification audio
               const hasAudio = cachedPages[currentIndex]?.audiosMarkers?.some(m => 
-                  String(m.verseNumber) === verseNumber
-                ) ?? false;
-
-              if(verseElements.length > 0 && verseElements !== null) {
-                showToolbar(verseElements, verseNumber, selector, hasAudio, classFilter)
-              }
-              else {
-                closeToolbar();
-              }
+                String(m.verseNumber) === String(verseNumber)
+              ) ?? false;
+          
+              showToolbar(verseData.paragraphs, verseNumber, selector, hasAudio, classFilter);
             }
           }
     
           async function loadUserdata() {
-            const userdata = await window.flutter_inappwebview.callHandler('getUserdata', '');
+            const userdata = await window.flutter_inappwebview.callHandler('getUserdata');
             
-            const bibleMode = isBible();
-            const selector = bibleMode ? '.v' : '[data-pid]';
-            const idAttr = bibleMode ? 'id' : 'data-pid';
-            const blockType = bibleMode ? 2 : 1;
+            // NOTE: Ces variables ne sont plus utilisées si l'on utilise paragraphsData pour l'itération, 
+            // mais elles restent nécessaires pour isBible().
+            // const bibleMode = isBible(); 
+            // const selector = bibleMode ? '.v' : '[data-pid]'; 
+            // const idAttr = bibleMode ? 'id' : 'data-pid';
+            const blockTypeInt = isBible() ? 2 : 1; // 2 pour Verset, 1 pour Paragraphe (basé sur le code Flutter supposé)
           
-            highlights = userdata.highlights;
+            blockRanges = userdata.blockRanges;
             notes = userdata.notes;
             inputFields = userdata.inputFields;
             bookmarks = userdata.bookmarks;
           
             // Pré-indexation des données pour un accès plus rapide
-            const highlightsMap = new Map();
+            const blockRangeMap = new Map();
             const notesMap = new Map();
             const bookmarksMap = new Map();
           
-            highlights.forEach(h => {
-              const key = `\${blockType}-\${h.Identifier}`;
-              if (!highlightsMap.has(key)) highlightsMap.set(key, []);
-              highlightsMap.get(key).push(h);
+            // Indexation des surlignages (BlockRanges)
+            blockRanges.forEach(h => {
+              // La clé utilise le format string "BlockType-Identifier" (ex: "2-15" ou "1-12")
+              const key = `\${h.BlockType}-\${h.Identifier}`;
+              if (!blockRangeMap.has(key)) blockRangeMap.set(key, []);
+              blockRangeMap.get(key).push(h);
             });
           
+            // Indexation des notes - CLÉ MODIFIÉE POUR UTILISER DES ENTIERS
             notes.forEach(n => {
-              const key = `\${n.BlockIdentifier}`;
+              // Le BlockIdentifier est désormais un nombre (int)
+              const key = n.BlockIdentifier; 
               if (!notesMap.has(key)) notesMap.set(key, []);
               notesMap.get(key).push(n);
             });
           
+            // Indexation des signets (Bookmarks)
             bookmarks.forEach(b => {
+              // La clé utilise le format string "BlockType-Identifier"
               const key = `\${b.BlockType}-\${b.BlockIdentifier}`;
               bookmarksMap.set(key, b);
             });
           
             const processedNoteGuids = new Set(); // Pour éviter les doublons
             
-            const groupedParagraphs = new Map();
-
-            pageCenter.querySelectorAll(selector).forEach(p => {
-              let id = p.getAttribute(idAttr);
+            // -----------------------------------------------------------------
+            // Remplacement de l'itération DOM par l'itération sur paragraphsData
+            // -----------------------------------------------------------------
             
-              if (bibleMode && id?.startsWith('v')) {
-                const segments = id.split('-');
-                if (segments.length >= 3) {
-                  // clé = "v1-3-4", sans la partie
-                  id = segments.slice(0, 3).join('-');
-                }
-              }
-            
-              if (!groupedParagraphs.has(id)) {
-                groupedParagraphs.set(id, []);
-              }
-              groupedParagraphs.get(id).push(p);
-            });
-            
-            // Pour chaque groupe, concaténer le contenu et appliquer les marques
-            groupedParagraphs.forEach((paragraphs, id) => {
-              // Modifier le premier paragraphe
-              let blockIdentifier = id;
-              if (bibleMode && id?.startsWith('v')) {
-                blockIdentifier = id.split('-')[2];
-              }
+            // Itérer sur paragraphsData (Map<int ID, { paragraphs: HTMLElement[], id: int, isVerse: boolean, ... }>)
+            paragraphsData.forEach((paragraphInfo, numericId) => {
               
-              const p = paragraphs[0];
-
-              const idKey = `\${blockType}-\${blockIdentifier}`;
+              // 1. Récupération des données du paragraphe
+              const { paragraphs, isVerse } = paragraphInfo;
+              
+              const blockIdentifier = numericId; 
+              // blockType sera 2 pour 'v' (verset) ou 1 pour 'p' (paragraphe)
+              const blockType = isVerse ? 2 : 1; 
+          
+              // Clé utilisée pour les Maps indexées par chaîne (BlockType-Identifier)
+              const idKey = `\${blockType}-\${blockIdentifier}`; 
+              
+              // 2. Gérer les signets (Bookmarks)
               const bookmark = bookmarksMap.get(idKey);
               if (bookmark) {
-                addBookmark(pageCenter, p, bookmark.BlockType, bookmark.BlockIdentifier, bookmark.Slot);
+                addBookmark(pageCenter, paragraphInfo, bookmark.BlockType, bookmark.BlockIdentifier, bookmark.Slot);
               }
           
-              const matchingHighlights = highlightsMap.get(idKey) || [];
+              // 3. Gérer les surlignages (Highlights/BlockRanges)
+              const matchingHighlights = blockRangeMap.get(idKey) || [];
               matchingHighlights.forEach(h => {
-                addHighlight(paragraphs, h.BlockType, h.Identifier, h.StartToken, h.EndToken, h.UserMarkGuid, h.ColorIndex);
+                addBlockRange(paragraphInfo, h.BlockType, h.Identifier, h.StartToken, h.EndToken, h.UserMarkGuid, h.StyleIndex, h.ColorIndex);
               });
           
-              const matchingNotes = notesMap.get(blockIdentifier) || [];
+              // 4. Gérer les notes (Notes)
+              // notesMap est indexée par l'ID numérique (blockIdentifier)
+              const matchingNotes = notesMap.get(blockIdentifier) || []; 
               matchingNotes.forEach(note => {
-                if (processedNoteGuids.has(note.Guid)) return; // Ne pas ajouter deux fois
+                if (processedNoteGuids.has(note.Guid)) return;
           
                 const matchingHighlight = matchingHighlights.find(h => h.UserMarkGuid === note.UserMarkGuid);
           
                 addNoteWithGuid(
                   pageCenter,
-                  p,
+                  paragraphInfo.paragraphs[0],
                   matchingHighlight?.UserMarkGuid || null,
                   note.Guid,
                   note.ColorIndex ?? 0,
@@ -3630,7 +3859,9 @@ function createOptionsMenu(noteGuid, popup, isDark) {
               });      
             });  
           
-            // Traitement des champs input/textarea
+            // -----------------------------------------------------------------
+            // Traitement des champs input/textarea (inchangé)
+            // -----------------------------------------------------------------
             pageCenter.querySelectorAll('input, textarea').forEach(input => {
               const id = input.getAttribute('id');
               const inputField = inputFields.find(field => field?.TextTag === id);
@@ -3721,16 +3952,18 @@ function createOptionsMenu(noteGuid, popup, isDark) {
             });
           }
           
-          function addBookmark(article, target, blockType, blockIdentifier, slot) {
+          function addBookmark(article, paragraphInfo, blockType, blockIdentifier, slot) {
             if(!article) {
               article = pageCenter;
             }
-            if (!target) {
-              target = getTarget(article, isBible(), blockIdentifier);
+            if (!paragraphInfo) {
+              paragraphInfo = paragraphsData.get(blockIdentifier);
+              if (!paragraphInfo) return; 
             }
           
             const imgSrc = bookmarkAssets[slot];
-            if (imgSrc && target) {
+            const p = paragraphInfo.paragraphs[0];
+            if (imgSrc && p) {
               requestAnimationFrame(() => {
                 const bookmark = document.createElement('img');
                 bookmark.setAttribute('bookmark-id', blockIdentifier);
@@ -3738,8 +3971,8 @@ function createOptionsMenu(noteGuid, popup, isDark) {
                 bookmark.src = imgSrc;
                 bookmark.classList.add('bookmark-icon');
           
-                getBookmarkPosition(article, target, bookmark);
-                article.appendChild(bookmark);
+                getBookmarkPosition(pageCenter, p, bookmark);
+                pageCenter.appendChild(bookmark);
               });
             }
           }
@@ -3754,43 +3987,42 @@ function createOptionsMenu(noteGuid, popup, isDark) {
             }
           }
           
-          function addHighlight(targets, blockType, blockIdentifier, startToken, endToken, guid, colorIndex) {
-            if (!targets || targets.length === 0) {
-              const fallback = pageCenter.querySelector(`[data-pid="\${blockIdentifier}"]`);
-              if (fallback) targets = [fallback];
-              else return;
+          function addBlockRange(paragraphInfo, blockType, blockIdentifier, startToken, endToken, guid, styleIndex, colorIndex) {
+            if (!paragraphInfo) {
+              paragraphInfo = paragraphsData.get(blockIdentifier);
+              if (!paragraphInfo) return; 
             }
           
-            const highlightClass = `highlight-\${["transparent", "yellow", "green", "blue", "pink", "orange", "purple"][colorIndex]}`;
+            // Extraire les tableaux de tokens de l'objet de données complet
+            const allTokens = paragraphInfo.allTokens;
+            const wordAndPunctTokens = paragraphInfo.wordAndPunctTokens;
+            const indexInAll = paragraphInfo.indexInAll; // Utilisez la map d'indexation
           
-            // Rassembler tous les tokens de tous les targets
-            const allTokens = targets
-            .filter(target => target) // remove null/undefined
-            .flatMap(target =>
-              Array.from(target.querySelectorAll('.word, .punctuation, .escape')).map(token => ({
-                element: token,
-                parent: target,
-              }))
-            );
+            // Déterminer la classe CSS
+            const styleClass = getStyleClass(styleIndex, colorIndex);
           
-            // Filtrer pour ne garder que les mots et ponctuations
-            const wordAndPunctTokens = allTokens.filter(({ element }) =>
-              element.classList.contains('word') || element.classList.contains('punctuation')
-            );
-          
-            // Prendre les bons tokens par tranche
+            // Prendre les bons tokens par tranche (word/punct seulement)
+            // endToken est l'index exclusif ou inclusif ? On suppose inclusif (+1)
             const selectedTokens = wordAndPunctTokens.slice(startToken, endToken + 1);
           
-            selectedTokens.forEach(({ element }, index) => {
-              element.classList.add(highlightClass);
-              element.setAttribute('data-highlight-id', guid);
+            selectedTokens.forEach((element, index) => { // ⚠️ CORRECTION : 'element' est le token DOM
+              element.classList.add(styleClass);
+              element.setAttribute(blockRangeAttr, guid);
           
-              const tokenIndexInAll = allTokens.findIndex(t => t.element === element);
+              // ⚠️ CORRECTION : Utiliser indexInAll Map pour trouver l'index
+              const tokenIndexInAll = indexInAll.get(element);
+              
+              // Le jeton suivant dans la liste ALLTOKENS
               const next = allTokens[tokenIndexInAll + 1];
           
-              if (next && next.element.classList.contains('escape') && index !== selectedTokens.length - 1) {
-                next.element.classList.add(highlightClass);
-                next.element.setAttribute('data-highlight-id', guid);
+              // Inclure le jeton d'échappement juste après, s'il existe et si ce n'est pas le DERNIER token sélectionné
+              if (
+                next && 
+                next.classList.contains("escape") && 
+                index !== selectedTokens.length - 1 // Pas le dernier jeton de la plage sélectionnée
+              ) {
+                next.classList.add(styleClass);
+                next.setAttribute(blockRangeAttr, guid);
               }
             });
           }
@@ -3818,12 +4050,12 @@ function createOptionsMenu(noteGuid, popup, isDark) {
           }
           
           function repositionAllNotes(article) {
-            const notes = document.querySelectorAll('[data-note-id]');
+            const notes = document.querySelectorAll(`[\${noteAttr}]`);
             notes.forEach(note => {
               let target = null;
-              if(note.hasAttribute('data-note-highlight-id')) {
-                 const highlightGuid = note.getAttribute('data-note-highlight-id');
-                 target = article.querySelector(`[data-highlight-id="\${highlightGuid}"]`);
+              if(note.hasAttribute(noteBlockRangeAttr)) {
+                 const userMarkGuid = note.getAttribute(noteBlockRangeAttr);
+                 target = article.querySelector(`[\${blockRangeAttr}="\${userMarkGuid}"]`);
               }
               else {
                 const blockId = note.getAttribute('data-note-block-id');
@@ -3837,9 +4069,9 @@ function createOptionsMenu(noteGuid, popup, isDark) {
             });
           }
 
-          function addNoteWithGuid(article, target, highlightGuid, noteGuid, colorIndex, isBible, open) {
+          function addNoteWithGuid(article, target, userMarkGuid, noteGuid, colorIndex, isBible, open) {
             if (!target) {
-              const highlightTarget = article.querySelector(`[data-highlight-id="\${highlightGuid}"]`);
+              const highlightTarget = article.querySelector(`[\${blockRangeAttr}="\${userMarkGuid}"]`);
               if (highlightTarget) {
                 target = isBible ? highlightTarget.closest('.v') : highlightTarget.closest('p');
               }
@@ -3851,36 +4083,35 @@ function createOptionsMenu(noteGuid, popup, isDark) {
             
             const idAttr = isBible ? 'id' : 'data-pid';
         
-            // Chercher le premier élément surligné si highlightGuid est donné
-            let firstHighlightedElement = null;
-            if (highlightGuid) {
-                firstHighlightedElement = target.querySelector(`[data-highlight-id="\${highlightGuid}"]`);
+            // Chercher le premier élément surligné si userMarkGuid est donné
+            let firstBlockRangeElement = null;
+            if (userMarkGuid) {
+                firstBlockRangeElement = target.querySelector(`[\${blockRangeAttr}="\${userMarkGuid}"]`);
             }
             
             // Créer le carré de note
             const noteIndicator = document.createElement('div');
             noteIndicator.className = 'note-indicator';
-            noteIndicator.setAttribute('data-note-id', noteGuid);
-            if(highlightGuid) {
-              noteIndicator.setAttribute('data-note-highlight-id', highlightGuid);
+            noteIndicator.setAttribute(noteAttr, noteGuid);
+            if(userMarkGuid) {
+              noteIndicator.setAttribute(noteBlockRangeAttr, userMarkGuid);
             }
             noteIndicator.setAttribute('data-note-block-id', target.getAttribute(idAttr));
         
             // Couleurs
-            const colors = ["gray", "yellow", "green", "blue", "pink", "orange", "purple"];
-            const colorName = colors[colorIndex] || "gray";
+            const colorName = colorsList[colorIndex] || "gray";
             noteIndicator.classList.add(`note-indicator-\${colorName}`);
         
             // Détecter si le target (paragraphe) est dans une liste ul/ol
             const targetUl = target.closest('ul');
             const isInList = target.tagName === 'P' && target.hasAttribute(idAttr) && targetUl && targetUl.classList.contains('source');
         
-            // Calcul de position différent si pas de firstHighlightedElement
-            if (firstHighlightedElement) {
-                getNotePosition(article, firstHighlightedElement, noteIndicator);
+            // Calcul de position différent si pas de firstBlockRangeElement
+            if (firstBlockRangeElement) {
+                getNotePosition(article, firstBlockRangeElement, noteIndicator);
         
                 // Positionner à droite si élément est à droite
-                const elementRect = firstHighlightedElement.getBoundingClientRect();
+                const elementRect = firstBlockRangeElement.getBoundingClientRect();
                 const windowWidth = window.innerWidth || document.documentElement.clientWidth;
         
                 if (elementRect.left > windowWidth / 2) {
@@ -3912,7 +4143,7 @@ function createOptionsMenu(noteGuid, popup, isDark) {
             // Clic pour afficher la note
             noteIndicator.addEventListener('click', (e) => {
                 e.stopPropagation();
-                openNoteDialog(highlightGuid, noteGuid);
+                openNoteDialog(userMarkGuid, noteGuid);
             });
             
             // Clic pour supprimer la note
@@ -3925,85 +4156,81 @@ function createOptionsMenu(noteGuid, popup, isDark) {
             article.appendChild(noteIndicator);
             
             if(open) {
-              openNoteDialog(highlightGuid, noteGuid);
+              openNoteDialog(userMarkGuid, noteGuid);
             }
           }
 
           // Fonction utilitaire pour supprimer un surlignage spécifique par son UUID
-          function removeHighlightByGuid(guid) {
-            const highlightedElements = document.querySelectorAll(`[data-highlight-id="\${guid}"]`);
-            highlightedElements.forEach(element => {
-              // Supprimer toutes les classes de surlignage
-              element.classList.remove('highlight-transparent', 'highlight-yellow', 'highlight-green', 'highlight-blue', 'highlight-pink', 'highlight-orange', 'highlight-purple');
+          function removeBlockRangeByGuid(blockRangeGuid) {
+            const blockRangeElements = document.querySelectorAll(`[\${blockRangeAttr}="\${blockRangeGuid}"]`);
+            blockRangeElements.forEach(element => {
+              // Supprimer toutes les classes de style
+              removeAllStylesClasses(element);
               // Supprimer l'attribut UUID
-              element.removeAttribute('data-highlight-id');
+              element.removeAttribute(blockRangeAttr);
             });
-            window.flutter_inappwebview.callHandler('removeHighlight', {
-              guid: guid,
+            
+            window.flutter_inappwebview.callHandler('removeBlockRange', {
+              guid: blockRangeGuid,
               showAlertDialog: true
             });
           }
     
           // Fonction utilitaire pour changer la couleur d'un surlignage spécifique
-          function changeHighlightColor(guid, newColorIndex) {
-            const colors = ["transparent", "yellow", "green", "blue", "pink", "orange", "purple"];
-            const noteColors = ["gray", "yellow", "green", "blue", "pink", "orange", "purple"];
+          function changeBlockRangeStyle(blockRangeGuid, styleIndex, colorIndex) {
+            const blockRangeElements = pageCenter.querySelectorAll(`[\${blockRangeAttr}="\${blockRangeGuid}"]`);
+            const newClass = getStyleClass(styleIndex, colorIndex);
+            const newNoteClass = getNoteClass(colorIndex, true);
             
-            const highlightedElements = pageCenter.querySelectorAll(`[data-highlight-id="\${guid}"]`);
-            const newHighlightClass = `highlight-\${colors[newColorIndex] || "transparent"}`;
-            
-            highlightedElements.forEach(element => {
-              // Supprimer toutes les classes de surlignage existantes
-              element.classList.remove(
-                'highlight-transparent', 'highlight-yellow', 'highlight-green',
-                'highlight-blue', 'highlight-pink', 'highlight-orange', 'highlight-purple'
-              );
-              // Ajouter la nouvelle classe de couleur
-              element.classList.add(newHighlightClass);
+            blockRangeElements.forEach(element => {
+              removeAllStylesClasses(element);
+              element.classList.add(newClass);
             });
             
-            const noteElements = pageCenter.querySelectorAll(`[data-note-highlight-id="\${guid}"]`);
+            const noteElements = pageCenter.querySelectorAll(`[\${noteBlockRangeAttr}="\${blockRangeGuid}"]`);
             
             if (noteElements.length !== 0) {
-              const colorName = noteColors[newColorIndex] || "gray";
-              
               noteElements.forEach(element => {
-                // Supprimer les anciennes classes note-indicator-*
-                element.className = element.className.replace(/note-indicator-(gray|yellow|green|blue|pink|orange|purple)/g, '').trim();
-                // Ajouter la nouvelle classe
-                element.classList.add(`note-indicator-\${colorName}`);
+                removeNoteClasses(element);
+                element.classList.add(newNoteClass);
               });
             }
             
             // Appel Flutter
-            window.flutter_inappwebview.callHandler('changeHighlightColor', {
-              guid: guid,
-              newColorIndex: newColorIndex
+            window.flutter_inappwebview.callHandler('changeBlockRangeStyle', {
+              guid: blockRangeGuid,
+              newStyleIndex: styleIndex,
+              newColorIndex: colorIndex
             });
           }
           
-          // Fonction utilitaire pour changer la couleur d'une note
+          // Fonction utilitaire &pour changer la couleur d'une note
           function changeNoteColor(noteGuid, newColorIndex) {
-            const note = pageCenter.querySelector(`[data-note-id="\${noteGuid}"]`);
-            const colors = ["gray", "yellow", "green", "blue", "pink", "orange", "purple"];
-            const colorName = colors[newColorIndex] || "gray";
+            const note = pageCenter.querySelector(`[\${noteAttr}="\${noteGuid}"]`);
+            const newNoteClass = getNoteClass(newColorIndex, true);
 
-            note.className = note.className.replace(/note-indicator-(yellow|green|blue|pink|orange|purple)/g, '').trim();
-            note.classList.add(`note-indicator-\${colorName}`);
+            removeNoteClasses(note);
+            note.classList.add(newNoteClass);
             
-            if(note.hasAttribute('data-note-highlight-id')) {
-              const highlightGuid = note.getAttribute('data-note-highlight-id');
-              highlightedElements = pageCenter.querySelectorAll(`[data-highlight-id="\${highlightGuid}"]`);
-              const newHighlightClass = `highlight-\${["transparent", "yellow", "green", "blue", "pink", "orange", "purple"][newColorIndex]}`;
+            const { 
+                  styleIndex: targetStyleIndex, 
+                  colorIndex: targetColorIndex 
+              } = getActiveStyleAndColorIndex(note, currentStyleIndex, newColorIndex);
+            
+            if(note.hasAttribute(noteBlockRangeAttr)) {
+              const userMarkGuid = note.getAttribute(noteBlockRangeAttr);
+              blockRangeElements = pageCenter.querySelectorAll(`[\${blockRangeAttr}="\${userMarkGuid}"]`);
+              const styleClass = getStyleClass(targetStyleIndex, newColorIndex);
               
-              highlightedElements.forEach(element => {
-                element.classList.remove('highlight-transparent', 'highlight-yellow', 'highlight-green', 'highlight-blue', 'highlight-pink', 'highlight-orange', 'highlight-purple');
-                element.classList.add(newHighlightClass);
+              blockRangeElements.forEach(element => {
+                removeAllStylesClasses(element);
+                element.classList.add(styleClass);
               });
             }
             
             window.flutter_inappwebview.callHandler('changeNoteColor', {
               guid: noteGuid,
+              newStyleIndex: targetStyleIndex,
               newColorIndex: newColorIndex
             });
           }
@@ -4128,10 +4355,14 @@ function createOptionsMenu(noteGuid, popup, isDark) {
             if (curr.preferredPresentation !== 'image' || !imageMode) {
               const article = document.getElementById("article-center");
               wrapWordsWithSpan(article, isBible());
+              paragraphsData = fetchAllParagraphsOfTheArticle(article);
             } 
           
             setupScrollBar();
-          
+            
+            //const bodyClone = pageCenter.cloneNode(true);
+            //magnifierContent.appendChild(bodyClone);
+            
             // Informer Flutter que la page principale est chargée
             await window.flutter_inappwebview.callHandler('changePageAt', currentIndex);
           
@@ -4270,31 +4501,39 @@ function createOptionsMenu(noteGuid, popup, isDark) {
           let isLongTouchFix = false;
           let isSelecting = false;
           let sideHandle = null;
+          let isAnimating = false;
           let isDragging = false;
           let isVerticalScroll = false;
           let startX = 0;
           let startY = 0;
           let currentTranslate = -100;
          
-          // Throttle pour les événements de mouvement
-          const throttle = (func, limit) => {
-            let inThrottle;
-            return function() {
-              const args = arguments;
-              const context = this;
-              if (!inThrottle) {
-                func.apply(context, args);
-                inThrottle = true;
-                setTimeout(() => inThrottle = false, limit);
-              }
-            }
-          };
+          /**************
+           * THROTTLE (si tu n’en as pas déjà un)
+           **************/
+          const throttle = (func) => {
+            let scheduled = false;
+            let lastArgs, lastContext;
           
-          // Optimisation des classes CSS avec un Set pour éviter les répétitions
-          const highlightClasses = new Set([
-            'highlight-transparent', 'highlight-yellow', 'highlight-green', 
-            'highlight-blue', 'highlight-pink', 'highlight-orange', 'highlight-purple'
-          ]);
+            return function(...args) {
+              lastArgs = args;
+              lastContext = this;
+          
+              if (!scheduled) {
+                // ✅ Exécuter tout de suite
+                func.apply(lastContext, lastArgs);
+                scheduled = true;
+          
+                requestAnimationFrame(() => {
+                  scheduled = false;
+                  if (lastArgs) {
+                    func.apply(lastContext, lastArgs);
+                    lastArgs = lastContext = null;
+                  }
+                });
+              }
+            };
+          };
           
           async function onClickOnPage(article, target) {
             const tagName = target.tagName;
@@ -4397,7 +4636,7 @@ function createOptionsMenu(noteGuid, popup, isDark) {
               return;
             }
             
-            const highlightId = target.getAttribute('data-highlight-id');
+            const highlightId = target.getAttribute(blockRangeAttr);
             if (classList.contains('selected')) {
               const selectedElement = getFromCache('.selected', pageCenter);
               showToolbarHighlight(selectedElement, highlightId);
@@ -4426,21 +4665,23 @@ function createOptionsMenu(noteGuid, popup, isDark) {
             onClickOnPage(pageCenter, event.target);
           });
           
-          // Gestionnaire touchstart optimisé
+          /**************
+           * TOUCH HANDLERS
+           **************/
           pageCenter.addEventListener('touchstart', (event) => {
-            // Vérification simple pour les handles
+            // Handles de sélection
             if (event.target.classList.contains('handle-left') || event.target.classList.contains('handle-right')) {
               event.preventDefault();
               closeToolbar();
               isSelecting = true;
               sideHandle = event.target.classList.contains('handle-left') ? 'left' : 'right';
               setLongPressing(true);
-            }
+            } 
             else {
               if (pressTimer) clearTimeout(pressTimer);
-              
+          
               firstLongPressTarget = event.target;
-              
+          
               pressTimer = setTimeout(async () => {
                 closeToolbar();
                 removeAllSelected();
@@ -4448,127 +4689,137 @@ function createOptionsMenu(noteGuid, popup, isDark) {
                 const firstTargetClassList = firstLongPressTarget?.classList;
                 if (firstLongPressTarget && firstTargetClassList && (firstTargetClassList.contains('word') || firstTargetClassList.contains('punctuation'))) {
                   try {
-                    const uuid = await window.flutter_inappwebview.callHandler('getHighlightGuid');
+                    // GUID pour le style courant
+                    const cfg = getStyleConfig(currentStyleIndex);
+                    const uuid = await window.flutter_inappwebview.callHandler('getGuid');
                     currentGuid = uuid.guid;
-                  
+          
                     setLongPressing(true);
                     isLongTouchFix = true;
-                  
-                    const highlightId = firstLongPressTarget.getAttribute('data-highlight-id');
-                    if (highlightId) {
-                      const newHighlightClass = `highlight-\${["transparent", "yellow", "green", "blue", "pink", "orange", "purple"][highlightColorIndex]}`;
-                  
-                      // Récupérer tous les éléments avec l'ancien highlightId
-                      const highlightElements = Array.from(pageCenter.querySelectorAll(`[data-highlight-id="\${highlightId}"]`));
-                      
-                      if (highlightElements.length > 0) {
-                        // Mettre à jour tous les éléments avec le nouveau GUID et nouvelle classe
-                        highlightElements.forEach(element => {
-                          element.setAttribute('data-highlight-id', currentGuid);
-                  
-                          element.classList.remove(
-                            'highlight-transparent', 'highlight-yellow', 'highlight-green', 'highlight-blue',
-                            'highlight-pink', 'highlight-orange', 'highlight-purple'
-                          );
-                          element.classList.add(newHighlightClass);
+  
+                    // Si on démarre sur un token déjà stylé : on « transfère » le groupe vers le nouveau guid + classe
+                    const oldId = firstLongPressTarget.getAttribute(blockRangeAttr);
+                    if (oldId) {
+                      const newClass = getStyleClass(currentStyleIndex, getColorIndex());
+                      const elements = Array.from(pageCenter.querySelectorAll(`[\${blockRangeAttr}="\${oldId}"]`));
+          
+                      if (elements.length > 0) {
+                        elements.forEach(el => {
+                          // remplace classes du type
+                          removeAllStylesClasses(el);
+                          el.classList.add(newClass);
+                          // remplace l'id
+                          el.setAttribute(blockRangeAttr, currentGuid);
                         });
-                  
-                        // Mettre à jour les targets : le premier et le dernier élément du groupe
-                        firstLongPressTarget = highlightElements[0];
-                        lastLongPressTarget = highlightElements[highlightElements.length - 1];
-                  
-                        // Appeler la méthode pour supprimer l'ancien highlight dans Flutter
-                        window.flutter_inappwebview.callHandler('removeHighlight', { 
-                          guid: highlightId,
-                          newGuid: currentGuid,
-                          showAlertDialog: false
+          
+                        // mettre à jour les targets
+                        firstLongPressTarget = elements[0];
+                        lastLongPressTarget  = elements[elements.length - 1];
+          
+                        // notifier Flutter pour supprimer l’ancien style (compat highlight)
+                        window.flutter_inappwebview.callHandler('removeBlockRange', {
+                           guid: oldId,
+                           newGuid: currentGuid,
+                           showAlertDialog: false
                         });
+          
+                        // mettre à jour le cache des tokens sélectionnés pour ce nouveau guid
+                        tempTokensByGuid.set(currentGuid, new Set(elements));
                       }
                     }
-                  
                   } catch (error) {
-                    console.error('Error getting highlight GUID:', error);
+                    console.error('Error getting style GUID:', error);
                   }
                 }
               }, 200);
             }
           }, { passive: false });
           
-          // Gestionnaire touchmove optimisé avec throttle
+          // --- Touchmove optimisé ---
           const handleTouchMove = throttle((event) => {
             isLongTouchFix = false;
           
-            if(isSelecting) {
-              event.preventDefault(); // Empêche le scroll
-              
-              const touch = event.changedTouches[0];
-              const x = touch.clientX;
-              const y = touch.clientY;
-              
-              //updateMagnifier(x, y);
-                
+            if (isSelecting) {
+              if (event.cancelable) event.preventDefault();
+          
+              const touch = event.touches[0];
+              let x = touch.clientX;
+              let y = touch.clientY;
+          
+              // ⚡ Si on touche un handle → recentrer sur le token parent
+              if (event.target.classList.contains('handle')) {
+                const parentToken = event.target.closest('.word, .punctuation');
+                if (parentToken) {
+                  const rect = parentToken.getBoundingClientRect();
+                  x = rect.left + rect.width / 2;
+                  y = rect.top + rect.height / 2;
+                }
+              }
+          
+              // Recalcule l’élément le plus proche après correction
               const closestElement = getClosestElementHorizontally(x, y);
-              const elementClassList = closestElement?.classList;
-                
-              if (closestElement && elementClassList && (elementClassList.contains('word') || elementClassList.contains('punctuation'))) {
-                if(sideHandle === 'left') {
-                  if(closestElement !== firstLongPressTarget) {
+              if (!closestElement) return;
+          
+              const cl = closestElement.classList;
+              if (cl.contains('word') || cl.contains('punctuation')) {
+                if (sideHandle === 'left') {
+                  if (closestElement !== firstLongPressTarget) {
                     firstLongPressTarget = closestElement;
                     updateSelected();
                   }
-                }
-                else if(sideHandle === 'right') {
-                  if(closestElement !== lastLongPressTarget) {
+                } else if (sideHandle === 'right') {
+                  if (closestElement !== lastLongPressTarget) {
                     lastLongPressTarget = closestElement;
                     updateSelected();
                   }
                 }
               }
             }
+          
             else if (isLongPressing && currentGuid) {
-              const touch = event.changedTouches[0];
+              if (event.cancelable) event.preventDefault();
+          
+              const touch = event.touches[0];
               const x = touch.clientX;
               const y = touch.clientY;
-              
+          
               updateMagnifier(x, y);
-                
+          
               const closestElement = getClosestElementHorizontally(x, y);
-              const elementClassList = closestElement?.classList;
-                
-              if (closestElement && elementClassList && (elementClassList.contains('word') || elementClassList.contains('punctuation'))) {
-                if(closestElement !== lastLongPressTarget) {
+              const cl = closestElement?.classList;
+              if (closestElement && cl && (cl.contains('word') || cl.contains('punctuation'))) {
+                if (closestElement !== lastLongPressTarget) {
                   lastLongPressTarget = closestElement;
-                  updateTempHighlight();
+                  updateTempStyle();
                 }
               }
-            } 
+            }
+          
             else if (pressTimer) {
               clearTimeout(pressTimer);
               pressTimer = null;
             }
-          }, 16); // ~60fps
+          });
           
           pageCenter.addEventListener('touchmove', handleTouchMove, { passive: false });
           
-          // Gestionnaire touchend optimisé
           pageCenter.addEventListener('touchend', (event) => {
-            console.log('touchend');
+            // console.log('touchend');
             if (isLongTouchFix) {
               lastLongPressTarget = firstLongPressTarget;
-              onLongPressEnd();
+              onLongPressEnd(); // ta logique de finalisation
               isLongTouchFix = false;
             }
             else if (isSelecting) {
               isSelecting = false;
               sideHandle = null;
-              //hideMagnifier();
               showSelectedToolbar(firstLongPressTarget);
               firstLongPressTarget = null;
               lastLongPressTarget = null;
             }
             else if (isLongPressing) {
               hideMagnifier();
-              onLongPressEnd();
+              onLongPressEnd(); // finalise le style temporaire en style "final" si c'est ta logique actuelle
               firstLongPressTarget = null;
               lastLongPressTarget = null;
             }
@@ -4578,7 +4829,9 @@ function createOptionsMenu(noteGuid, popup, isDark) {
             }
           }, { passive: true });
           
-          // --- Fonction pour trouver l'élément le plus proche (inchangée) ---
+          /**************
+           * GET CLOSEST ELEMENT (inchangé)
+           **************/
           function getClosestElementHorizontally(x, y) {
             const allElements = pageCenter.querySelectorAll('.word, .punctuation');
             let closest = null;
@@ -4590,7 +4843,6 @@ function createOptionsMenu(noteGuid, popup, isDark) {
               if (y >= rect.top && y <= rect.bottom) {
                 const elCenterX = rect.left + rect.width / 2;
                 const distance = Math.abs(x - elCenterX);
-          
                 if (distance < minDistance) {
                   minDistance = distance;
                   closest = el;
@@ -4600,190 +4852,352 @@ function createOptionsMenu(noteGuid, popup, isDark) {
             return closest;
           }
   
-          let oldHighlightsMap = new Map();
+          let oldStylesMap = new Map();    // Map<Element, Map<styleIndex, { styleIndex, styleClass }>>
+          let tempTokensByGuid = new Map(); // Map<guid, Set<Element>>
           
-          function updateTempHighlight() {
-            if (!firstLongPressTarget && !lastLongPressTarget) return;
+          /**************
+           * UTILS STYLE
+           **************/
+           
+          function getColorIndex(styleIndex = currentStyleIndex) {
+            const style = getStyleConfig(styleIndex);
+            return style ? style.colorIndex : 1;
+          }
           
-            const firstParagraphInfo = getTheFirstTargetParagraph(firstLongPressTarget);
-            const lastParagraphInfo = getTheFirstTargetParagraph(lastLongPressTarget);
-            if (!firstParagraphInfo || !lastParagraphInfo) return;
-            
-            const firstParagraph = firstParagraphInfo.paragraphs[0];
-            const lastParagraph = lastParagraphInfo.paragraphs[0];
-            
-            const paragraphs = getAllParagraphs(pageCenter);
-            
-            // Trouve l'index du groupe qui contient le paragraphe
-            const firstIndex = paragraphs.findIndex(group => group.includes(firstParagraph));
-            const lastIndex = paragraphs.findIndex(group => group.includes(lastParagraph));
-            
-            if (firstIndex === -1 || lastIndex === -1) return;
+          function setColorIndex(styleIndex = currentStyleIndex, colorIndex) {
+            const style = getStyleConfig(styleIndex);
+            style.colorIndex = colorIndex;
+          }
           
-            const fromIndex = Math.min(firstIndex, lastIndex);
-            const toIndex = Math.max(firstIndex, lastIndex);
-          
-            // 🔄 Inverser les cibles si nécessaire
-            const startTarget = firstIndex <= lastIndex ? firstLongPressTarget : lastLongPressTarget;
-            const endTarget = firstIndex <= lastIndex ? lastLongPressTarget  : firstLongPressTarget;
-          
-            const currentHighlightElements = Array.from(pageCenter.querySelectorAll(`[data-highlight-id="\${currentGuid}"]`));
-
-            // Supprimer seulement les éléments temporaires qu'on a tracés
-            currentHighlightElements.forEach(element => {
-              element.classList.remove('highlight-transparent', 'highlight-yellow', 'highlight-green', 'highlight-blue', 'highlight-pink', 'highlight-orange', 'highlight-purple');
-              element.removeAttribute('data-highlight-id');
-            });
-            
-            oldHighlightsMap.forEach((value, token) => {
-              if (value.highlightId) {
-                token.setAttribute('data-highlight-id', value.highlightId);
-              }
-              if (value.highlightClass) {
-                token.classList.add(value.highlightClass);
-              }
-            });
-          
-            const highlightClass = `highlight-\${["transparent", "yellow", "green", "blue", "pink", "orange", "purple"][highlightColorIndex]}`;
-          
-            requestAnimationFrame(() => {
-              for (let i = fromIndex; i <= toIndex; i++) {
-                const group = paragraphs[i]; // tableau d'éléments
-            
-                const allTokens = group.flatMap(paragraph =>
-                  Array.from(paragraph.querySelectorAll('.word, .punctuation, .escape'))
-                );
-                const wordAndPunctTokens = allTokens.filter(token =>
-                  token.classList.contains('word') || token.classList.contains('punctuation')
-                );
-            
-                let startTokenIndex = 0;
-                let endTokenIndex = wordAndPunctTokens.length - 1;
-            
-                const groupHasStart = group.some(p => p.contains(startTarget));
-                const groupHasEnd = group.some(p => p.contains(endTarget));
-            
-                if (groupHasStart && groupHasEnd) {
-                  const a = wordAndPunctTokens.indexOf(startTarget);
-                  const b = wordAndPunctTokens.indexOf(endTarget);
-                  if (a === -1 || b === -1) continue;
-                  startTokenIndex = Math.min(a, b);
-                  endTokenIndex = Math.max(a, b);
-                } 
-                else if (groupHasStart) {
-                  const index = wordAndPunctTokens.indexOf(startTarget);
-                  if (index === -1) continue;
-                  startTokenIndex = index;
-                } 
-                else if (groupHasEnd) {
-                  const index = wordAndPunctTokens.indexOf(endTarget);
-                  if (index === -1) continue;
-                  endTokenIndex = index;
-                }
-            
-                for (let j = startTokenIndex; j <= endTokenIndex; j++) {
-                  const token = wordAndPunctTokens[j];
-                  if (!token.hasAttribute('data-highlight-id')) {
-                    token.classList.add(highlightClass);
-                    token.setAttribute('data-highlight-id', currentGuid);
-                  } else {
-                    oldHighlightsMap.set(token, {
-                      highlightId: token.getAttribute('data-highlight-id'),
-                      highlightClass: Array.from(token.classList).find(c => c.startsWith('highlight-'))
-                    });
-                    token.classList.remove(
-                      'highlight-transparent',
-                      'highlight-yellow',
-                      'highlight-green',
-                      'highlight-blue',
-                      'highlight-pink',
-                      'highlight-orange',
-                      'highlight-purple'
-                    );
-                    token.removeAttribute('data-highlight-id');
-                    token.classList.add(highlightClass);
-                    token.setAttribute('data-highlight-id', currentGuid);
-                  }
-            
-                  const tokenIndexInAll = allTokens.indexOf(token);
-                  const next = allTokens[tokenIndexInAll + 1];
-                  if (next?.classList.contains('escape') && j !== endTokenIndex) {
-                    if (!next.hasAttribute('data-highlight-id')) {
-                      next.classList.add(highlightClass);
-                      next.setAttribute('data-highlight-id', currentGuid);
-                    } else {
-                      oldHighlightsMap.set(next, {
-                        highlightId: next.getAttribute('data-highlight-id'),
-                        highlightClass: Array.from(next.classList).find(c => c.startsWith('highlight-'))
-                      });
-                      next.classList.remove(
-                        'highlight-transparent',
-                        'highlight-yellow',
-                        'highlight-green',
-                        'highlight-blue',
-                        'highlight-pink',
-                        'highlight-orange',
-                        'highlight-purple'
-                      );
-                      next.removeAttribute('data-highlight-id');
-                      next.classList.add(highlightClass);
-                      next.setAttribute('data-highlight-id', currentGuid);
+          function getActiveStyleAndColorIndex(target) {
+            // Résultat par défaut
+            let result = {
+                styleIndex: currentStyleIndex,
+                colorIndex: getColorIndex()    
+            };
+        
+            // 1. Récupérer les clés de STYLE sous forme de tableau
+            const styleKeys = Object.keys(STYLE);
+        
+            // 2. Parcourir les clés, en ayant accès à leur index de position (styleIndex)
+            for (let i = 0; i < styleKeys.length; i++) {
+                const styleKey = styleKeys[i]; // ex: 'highlight', 'underline'
+                const style = STYLE[styleKey];
+                const classes = style.classes; 
+        
+                // 3. Itérer sur les classes de l'élément cible
+                for (const className of target.classList) {
+                    const colorIndex = classes.indexOf(className);
+                    
+                    // Si la classe de couleur est trouvée
+                    if (colorIndex !== -1) {
+                        result.styleIndex = i; 
+                        result.colorIndex = colorIndex;
+                        
+                        // Retourner immédiatement les deux index
+                        return result; 
                     }
-                  }
                 }
-              }
+            }
+          
+            // Si aucun style n'est trouvé, on retourne le résultat par défaut (null pour styleIndex)
+            return result;
+          }
+           
+          function getStyleConfig(styleIndex = currentStyleIndex) {
+            const styleTypes = Object.keys(STYLE);
+            const styleType = styleTypes[styleIndex] || "highlight";
+            return STYLE[styleType];
+          }
+          
+          function getStyleClass(styleIndex = currentStyleIndex, colorIndex = 1) {
+            const cfg = getStyleConfig(styleIndex);
+            const opts = cfg.options;
+            const idx = ((colorIndex % opts.length) + opts.length) % opts.length; // safe modulo
+            return cfg.styleName + '-' + opts[idx];
+          }
+          
+          function setCurrentStyle(styleIndex = 0, colorIndex = 0) {
+            currentStyleIndex = styleIndex;
+            setColorIndex(currentStyleIndex);
+          }
+    
+          function removeStyleClasses(token, styleIndex) {
+            const cfg = getStyleConfig(styleIndex);
+            cfg.classes.forEach(c => token.classList.remove(c));
+          }
+          
+          function removeAllStylesClasses(token) {
+            Object.keys(STYLE).forEach((styleKey, index) => { // styleKey est 'highlight', 'underline', etc. ; index est 0, 1, etc.
+              removeStyleClasses(token, index);
             });
           }
           
-          // --- Fonction optimisée pour la mise à jour de l'affichage de la sélection ---
+          function removeNoteClasses(token) {
+            // Assuming colorsList is accessible in this scope
+            colorsList.forEach(color => {
+              // Correct usage of template literals (backticks) for interpolation
+              token.classList.remove(`note-\${color}`); 
+              token.classList.remove(`note-indicator-\${color}`);
+            });
+          }
+          
+          function getNoteClass(colorIndex, isIndicator) {
+            const colorName = colorsList[colorIndex]; 
+          
+            if (colorName) {
+              // Utilisation des template literals (accents graves) pour construire la classe
+              return isIndicator ? `note-indicator-\${colorName}` : `note-\${colorName}`
+            }
+          
+            // Si l'index est 0 ou en dehors des limites du tableau
+            return isIndicator ? `note-indicator-gray` : `note-gray`;
+          }
+          
+          function applyTempStyle(token, styleIndex, styleClass) {
+  const cfg = getStyleConfig(styleIndex);
+  const existingId = token.getAttribute(blockRangeAttr);
+
+  // Sauvegarde l’ancien style une seule fois (par token et par styleIndex)
+  if (existingId && existingId !== currentGuid) {
+    let perToken = oldStylesMap.get(token);
+    if (!perToken) {
+      perToken = new Map();
+      oldStylesMap.set(token, perToken);
+    }
+    if (!perToken.has(styleIndex)) {
+      const oldClass = Array.from(token.classList).find(c => cfg.classes.includes(c));
+      perToken.set(styleIndex, { styleId: existingId, styleClass: oldClass || null });
+    }
+  }
+
+  // 🎯 CORRECTION : N'enlève QUE les classes associées à styleIndex (pour l'imbrication)
+  removeStyleClasses(token, styleIndex); 
+  
+  // Applique le style temporaire
+  token.classList.add(styleClass);
+  token.setAttribute(blockRangeAttr, currentGuid);
+}
+
+// --------------------------------------------------------------------------------
+
+function restoreTokenIfNeeded(token, styleIndex) {
+  const cfg = getStyleConfig(styleIndex);
+
+  const perToken = oldStylesMap.get(token);
+  if (perToken && perToken.has(styleIndex)) {
+    const { styleId, styleClass } = perToken.get(styleIndex);
+    perToken.delete(styleIndex);
+    if (perToken.size === 0) oldStylesMap.delete(token);
+
+    // Déjà correct : On retire SEULEMENT les classes liées à styleIndex
+    removeStyleClasses(token, styleIndex); 
+    
+    token.removeAttribute(blockRangeAttr);
+
+    if (styleId) token.setAttribute(blockRangeAttr, styleId);
+    if (styleClass) token.classList.add(styleClass); 
+  } else {
+    // aucun ancien style → on nettoie
+    removeStyleClasses(token, styleIndex);
+    
+    token.removeAttribute(blockRangeAttr);
+  }
+}
+          
+          /**************
+ * UPDATE TEMP (générique)
+ **************/
+function updateTempStyle() {
+  if (!firstLongPressTarget && !lastLongPressTarget) return;
+
+  const firstParagraphInfo = getTheFirstTargetParagraph(firstLongPressTarget);
+  const lastParagraphInfo = getTheFirstTargetParagraph(lastLongPressTarget);
+  if (!firstParagraphInfo || !lastParagraphInfo) return;
+
+  // =========================================================================
+  // LOGIQUE STYLE : Déterminer le style à manipuler (pour gérer l'effacement/modification)
+  // =========================================================================
+  const { 
+      styleIndex: targetStyleIndex, 
+      colorIndex: targetColorIndex 
+  } = getActiveStyleAndColorIndex(firstLongPressTarget, currentStyleIndex, getColorIndex());
+
+  const tempStyleIndex = targetStyleIndex;
+  const tempColorIndex = targetColorIndex;
+  // =========================================================================
+
+  const firstId = firstParagraphInfo.id;
+  const lastId  = lastParagraphInfo.id;
+
+  // LOGIQUE DOM (Ordre d'itération et de sélection)
+  const orderedIds = Array.from(paragraphsData.keys()); 
+  
+  let startDOMIndex = orderedIds.indexOf(firstId); 
+  let endDOMIndex   = orderedIds.indexOf(lastId);  
+
+  if (startDOMIndex === -1 || endDOMIndex === -1) return;
+
+  let fromIndex = Math.min(startDOMIndex, endDOMIndex); 
+  let toIndex   = Math.max(startDOMIndex, endDOMIndex);
+  
+  const isForwardSelection = (startDOMIndex <= endDOMIndex); 
+
+  // Utiliser les infos de paragraphe complètes, ordonnées par leur apparition dans le DOM
+  const startParagraphInfoDOM = isForwardSelection ? firstParagraphInfo : lastParagraphInfo;
+  const endParagraphInfoDOM   = isForwardSelection ? lastParagraphInfo  : firstParagraphInfo;
+  
+  // Utiliser les index temporaires pour obtenir la classe et la configuration
+  const styleClass = getStyleClass(tempStyleIndex, tempColorIndex); 
+  const cfg = getStyleConfig(tempStyleIndex);
+
+  requestAnimationFrame(() => {
+    const newTokens = new Set();
+
+    // ITÉRATION : Sur les paragraphes dans l'ordre du DOM
+    for (let i = fromIndex; i <= toIndex; i++) {
+      const currentId = orderedIds[i]; 
+      const paragraphData = paragraphsData.get(currentId);
+      
+      if (!paragraphData) continue; 
+      
+      const { allTokens, wordAndPunctTokens, indexInAll } = paragraphData;
+      
+      let startTokenIndex = 0;
+      let endTokenIndex   = wordAndPunctTokens.length - 1;
+
+      const isStartParagraph = (paragraphData === startParagraphInfoDOM);
+      const isEndParagraph   = (paragraphData === endParagraphInfoDOM);
+      
+      // LOGIQUE DES TOKENS CORRIGÉE (Gère l'inversion de glisser)
+      const indexOfFirst = wordAndPunctTokens.indexOf(firstLongPressTarget);
+      const indexOfLast  = wordAndPunctTokens.indexOf(lastLongPressTarget);
+
+      if (isStartParagraph && isEndParagraph) {
+        // Début et Fin dans le MÊME paragraphe
+        if (indexOfFirst === -1 || indexOfLast === -1) continue;
+        
+        startTokenIndex = Math.min(indexOfFirst, indexOfLast);
+        endTokenIndex   = Math.max(indexOfFirst, indexOfLast);
+        
+      } else if (isStartParagraph) {
+        // C'est le paragraphe de début DOM
+        const index = (indexOfFirst !== -1) ? indexOfFirst : indexOfLast;
+        if (index === -1) continue; 
+        startTokenIndex = index;
+        
+      } else if (isEndParagraph) {
+        // C'est le paragraphe de fin DOM
+        const index = (indexOfFirst !== -1) ? indexOfFirst : indexOfLast;
+        if (index === -1) continue;
+        endTokenIndex = index;
+        
+      }
+
+      for (let j = startTokenIndex; j <= endTokenIndex; j++) {
+        const token = wordAndPunctTokens[j];
+        newTokens.add(token);
+
+        // Inclure l'élément .escape juste après
+        const idxInAll = indexInAll.get(token);
+        if (idxInAll != null) {
+          const next = allTokens[idxInAll + 1];
+          if (next?.classList.contains('escape') && j < endTokenIndex) {
+            newTokens.add(next);
+          }
+        }
+      }
+    }
+
+    // Récupérer l'ancien set de tokens pour ce guid
+    let oldTokens = tempTokensByGuid.get(currentGuid);
+    if (!oldTokens) {
+      // 🎯 CORRECTION DE LA SYNTAXE
+      oldTokens = new Set(pageCenter.querySelectorAll(`[\${blockRangeAttr}="\${currentGuid}"]`)); 
+      tempTokensByGuid.set(currentGuid, oldTokens);
+    }
+
+    // ➕ Ajouter les nouveaux
+    newTokens.forEach(token => {
+      if (!oldTokens.has(token)) {
+        applyTempStyle(token, tempStyleIndex, styleClass);
+        oldTokens.add(token);
+      }
+    });
+
+    // ➖ Retirer ceux qui ne font plus partie
+    Array.from(oldTokens).forEach(token => {
+      if (!newTokens.has(token)) {
+        restoreTokenIfNeeded(token, tempStyleIndex);
+        oldTokens.delete(token);
+      }
+    });
+  });
+}
+          
+          // --- Sélection visuelle (fix handles inversés) ---
           function updateSelected() {
             if (!firstLongPressTarget || !lastLongPressTarget) return;
           
-            // 1. Détermine les cibles de début et de fin de la sélection
-            const firstRect = firstLongPressTarget.getBoundingClientRect();
-            const lastRect = lastLongPressTarget.getBoundingClientRect();
-            
-            let startTarget = firstLongPressTarget;
-            let endTarget = lastLongPressTarget;
-          
-            // 🔄 Inverse les cibles si la fin est avant le début
-            if (firstRect.top > lastRect.top || (firstRect.top === lastRect.top && firstRect.left > lastRect.left)) {
-              startTarget = lastLongPressTarget;
-              endTarget = firstLongPressTarget;
-            }
-            
-            // 2. Trouve tous les tokens entre les cibles de début et de fin
+            // 1. Trouver l’ordre visuel
             const tokens = Array.from(pageCenter.querySelectorAll('.word, .punctuation, .escape'));
-            const startIndex = tokens.indexOf(startTarget);
-            const endIndex = tokens.indexOf(endTarget);
-            
-            if (startIndex === -1 || endIndex === -1) return;
+            const firstIndex = tokens.indexOf(firstLongPressTarget);
+            const lastIndex = tokens.indexOf(lastLongPressTarget);
+            if (firstIndex === -1 || lastIndex === -1) return;
           
-            // 3. Nettoie la sélection et les poignées précédentes
-            pageCenter.querySelectorAll('.word.selected, .punctuation.selected, .escape.selected').forEach(token => {
-              token.classList.remove('selected');
-            });
-            pageCenter.querySelectorAll('.handle').forEach(handle => handle.remove());
+            const startIndex = Math.min(firstIndex, lastIndex);
+            const endIndex   = Math.max(firstIndex, lastIndex);
           
-            // 4. Applique la classe 'selected' aux tokens
+            // 2. Nettoyer ancienne sélection
+            pageCenter.querySelectorAll('.selected').forEach(t => t.classList.remove('selected'));
+            pageCenter.querySelectorAll('.handle').forEach(h => h.remove());
+          
+            // 3. Appliquer la sélection
             for (let i = startIndex; i <= endIndex; i++) {
-              const token = tokens[i];
-              if (token) {
-                token.classList.add('selected');
+              tokens[i].classList.add('selected');
+            }
+          
+            // 4. Déterminer les extrémités visuelles
+            const startToken = tokens[startIndex];
+            const endToken   = tokens[endIndex];
+          
+            const startRect = startToken.getBoundingClientRect();
+            const endRect   = endToken.getBoundingClientRect();
+          
+            let leftHandleTarget = startToken;
+            let rightHandleTarget = endToken;
+          
+            if (Math.abs(startRect.top - endRect.top) < 5) {
+              // Même ligne → comparer x
+              if (startRect.left < endRect.left) {
+                leftHandleTarget = startToken;
+                rightHandleTarget = endToken;
+              } else {
+                leftHandleTarget = endToken;
+                rightHandleTarget = startToken;
+              }
+            } else {
+              // Lignes différentes → comparer y
+              if (startRect.top < endRect.top) {
+                leftHandleTarget = startToken;
+                rightHandleTarget = endToken;
+              } else {
+                leftHandleTarget = endToken;
+                rightHandleTarget = startToken;
               }
             }
           
-            // 5. Ajoute les poignées à la nouvelle position de début et de fin
+            // 5. Ajouter les handles dans les tokens
             const createHandle = (src, className) => {
               const handle = document.createElement('img');
               handle.src = src;
               handle.classList.add('handle', className);
               return handle;
             };
-            
+          
             try {
-              startTarget.appendChild(createHandle(handleLeft, 'handle-left'));
-              endTarget.appendChild(createHandle(handleRight, 'handle-right'));
+              leftHandleTarget.appendChild(createHandle(handleLeft, 'handle-left'));
+              rightHandleTarget.appendChild(createHandle(handleRight, 'handle-right'));
             } catch (e) {
               console.warn('Failed to add handles:', e);
             }
@@ -4791,226 +5205,349 @@ function createOptionsMenu(noteGuid, popup, isDark) {
            
           // Fonction onLongPressEnd optimisée avec gestion d'erreurs et cache tokens
           async function onLongPressEnd() {
-            if (isLongTouchFix) {!
-              updateSelected();
-              showSelectedToolbar(firstLongPressTarget);
-            }
-            else {
-              let currentParagraph = [];
+            try {
+              if (isLongTouchFix) {
+                updateSelected();
+                showSelectedToolbar(firstLongPressTarget);
+                isLongTouchFix = false;
+                return;
+              }
+          
+              // Déterminer le style réellement utilisé
+              const { 
+                styleIndex: tempStyleIndex,
+                colorIndex: targetColorIndex 
+              } = getActiveStyleAndColorIndex(firstLongPressTarget, currentStyleIndex, getColorIndex());
+          
+              const finalStyleIndex = tempStyleIndex;
+              const finalColorIndex = targetColorIndex;
+          
+              // Récupération des tokens temporaires depuis le cache (ou fallback DOM)
+              let tempBlockRangesElements = tempTokensByGuid.get(currentGuid);
+              if (!tempBlockRangesElements) {
+                tempBlockRangesElements = new Set(
+                  pageCenter.querySelectorAll(`[\${blockRangeAttr}="\${currentGuid}"]`)
+                );
+                tempTokensByGuid.set(currentGuid, tempBlockRangesElements);
+              }
+          
+              // ✅ Convertir en tableau trié selon l’ordre DOM
+              const tempArray = Array.from(tempBlockRangesElements).sort((a, b) =>
+                a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1
+              );
+          
+              // Fusion / nettoyage des anciens styles sauvegardés
+              oldStylesMap.forEach((perToken, token) => {
+                if (!tempBlockRangesElements.has(token)) return;
+          
+                perToken.forEach((value) => {
+                  if (value.styleId) {
+                    const newClass = getStyleClass(finalStyleIndex, finalColorIndex); 
+                    const elems = Array.from(
+                      pageCenter.querySelectorAll(`[\${blockRangeAttr}="\${value.styleId}"]`)
+                    );
+                    elems.forEach(el => {
+                      removeAllStylesClasses(el);
+                      el.classList.add(newClass);
+                      el.setAttribute(blockRangeAttr, currentGuid);
+                      tempBlockRangesElements.add(el);
+                    });
+          
+                    // Demander à Flutter de supprimer l’ancien block range
+                    window.flutter_inappwebview.callHandler('removeBlockRange', {
+                      guid: value.styleId,
+                      newGuid: currentGuid,
+                      showAlertDialog: false
+                    });
+                  }
+                });
+              });
+          
+              // Nettoyer la map
+              oldStylesMap.clear();
+          
+              // Afficher la toolbar si sélection valide
+              if (tempArray.length > 0) {
+                showToolbarHighlight(tempArray[0], currentGuid);
+              }
+          
+              // Construction des données à envoyer
+              const blockRangesToSend = [];
               let currentParagraphId = -1;
               let currentIsVerse = false;
-              let firstTarget = null;
-              let lastTarget = null;
-              
-              const highlightsToSend = [];
-              let tempHighlightElements = Array.from(pageCenter.querySelectorAll(`[data-highlight-id="\${currentGuid}"]`));
-              
-              oldHighlightsMap.forEach((value, token) => {
-                if(token === tempHighlightElements[tempHighlightElements.length - 1] || token === tempHighlightElements[0]) {
-                  const highlightId = value.highlightId;
-                  if (highlightId) {
-                    const newHighlightClass = `highlight-\${["transparent", "yellow", "green", "blue", "pink", "orange", "purple"][highlightColorIndex]}`;
-                  
-                    // Récupérer tous les éléments avec l'ancien highlightId
-                    const highlightElements = Array.from(pageCenter.querySelectorAll(`[data-highlight-id="\${highlightId}"]`));
-                      
-                    if (highlightElements.length > 0) {
-                      // Mettre à jour tous les éléments avec le nouveau GUID et nouvelle classe
-                      highlightElements.forEach(element => {
-                        element.setAttribute('data-highlight-id', currentGuid);
-                  
-                        element.classList.remove('highlight-transparent', 'highlight-yellow', 'highlight-green', 'highlight-blue', 'highlight-pink', 'highlight-orange', 'highlight-purple');
-                        element.classList.add(newHighlightClass);
-                      });
-                      
-                      tempHighlightElements.push(...highlightElements);
-                     
-                      // Appeler la méthode pour supprimer l'ancien highlight dans Flutter
-                      window.flutter_inappwebview.callHandler('removeHighlight', { 
-                        guid: highlightId,
-                        newGuid: currentGuid,
-                        showAlertDialog: false
-                      });
-                    }
-                  }
-                }
-                if(tempHighlightElements.indexOf(token) !== -1) {
-                  window.flutter_inappwebview.callHandler('removeHighlight', {
-                    guid: value.highlightId,
-                    newGuid: currentGuid,
-                    showAlertDialog: false
-                  });
-                }
-              });
-              
-              oldHighlightsMap.clear();
-              
-              showToolbarHighlight(tempHighlightElements[0], currentGuid);
-
-              for (let i = 0; i < tempHighlightElements.length; i++) {
-                const element = tempHighlightElements[i];
-                const { id, paragraphs, isVerse } = getTheFirstTargetParagraph(element);
-              
+              let tokensBuffer = [];
+          
+              function flushParagraphBuffer() {
+                if (tokensBuffer.length === 0) return;
+                addBlockRangeForParagraph(tokensBuffer, currentParagraphId, currentIsVerse);
+                tokensBuffer = [];
+              }
+          
+              for (let i = 0; i < tempArray.length; i++) {
+                const element = tempArray[i];
+                const { id, isVerse } = getTheFirstTargetParagraph(element);
+                if (id == null) continue;
+          
                 if (id !== currentParagraphId) {
-                  // S'il y avait un paragraphe précédent, on sauvegarde le highlight
-                  if (firstTarget && lastTarget) {
-                    addHighlightForParagraph(firstTarget, lastTarget, currentParagraph, currentParagraphId, currentIsVerse);
-                  }
-              
-                  // On commence un nouveau paragraphe
-                  currentParagraph = paragraphs;
+                  // Nouveau paragraphe → flush précédent
+                  flushParagraphBuffer();
+          
                   currentParagraphId = id;
                   currentIsVerse = isVerse;
-                  firstTarget = element;
-                  lastTarget = element;
-                } 
-                else {
-                  // Même paragraphe, on met à jour la fin
-                  lastTarget = element;
+                  tokensBuffer = [element];
+                } else {
+                  tokensBuffer.push(element);
                 }
               }
-              
-              // Enregistrer le dernier paragraphe
-              if (firstTarget && lastTarget) {
-                addHighlightForParagraph(firstTarget, lastTarget, currentParagraph, currentParagraphId, currentIsVerse);
-              }
-              
-              // Fonction de préparation des highlights
-              function addHighlightForParagraph(firstElement, lastElement, paragraphs, paragraphId, isVerse) {
-                const wordAndPunctTokens = paragraphs.flatMap(p => Array.from(p.querySelectorAll('.word, .punctuation')));
-                const normalizedStartToken = wordAndPunctTokens.indexOf(firstElement);
-                const normalizedEndToken = wordAndPunctTokens.indexOf(lastElement);
-
-                highlightsToSend.push({
+          
+              // Sauvegarder le dernier paragraphe
+              flushParagraphBuffer();
+          
+              // ✅ Ajoute un block range par paragraphe à partir des tokens réellement sélectionnés
+              function addBlockRangeForParagraph(tokenArray, pid, isVerse) {
+                const paragraphData = paragraphsData.get(pid);
+                if (!paragraphData) return;
+          
+                const { wordAndPunctTokens } = paragraphData;
+                const tokensInParagraph = tokenArray.filter(t => wordAndPunctTokens.includes(t));
+                if (tokensInParagraph.length === 0) return;
+          
+                const firstEl = tokensInParagraph[0];
+                const lastEl  = tokensInParagraph[tokensInParagraph.length - 1];
+          
+                const startIdx = wordAndPunctTokens.indexOf(firstEl);
+                const endIdx   = wordAndPunctTokens.indexOf(lastEl);
+          
+                if (startIdx === -1 || endIdx === -1) {
+                  console.error(`❌ Impossible de retrouver les bornes dans le paragraphe \${pid}`);
+                  return;
+                }
+          
+                blockRangesToSend.push({
                   blockType: isVerse ? 2 : 1,
-                  identifier: paragraphId,
-                  startToken: normalizedStartToken,
-                  endToken: normalizedEndToken,
+                  identifier: pid,
+                  startToken: Math.min(startIdx, endIdx),
+                  endToken: Math.max(startIdx, endIdx),
                 });
               }
-              
-              // Appel unique à Flutter pour tous les highlights
-              await window.flutter_inappwebview.callHandler('addHighlights', highlightsToSend, highlightColorIndex, currentGuid);
+          
+              // Envoi unique à Flutter
+              await window.flutter_inappwebview.callHandler(
+                'addBlockRange',
+                blockRangesToSend,
+                finalStyleIndex,
+                finalColorIndex,
+                currentGuid
+              );
+          
+              // Nettoyage final du cache
+              tempTokensByGuid.delete(currentGuid);
+          
+            } catch (err) {
+              console.error('Error in onLongPressEnd:', err);
+            } finally {
+              // Reset état global
+              firstLongPressTarget = null;
+              lastLongPressTarget = null;
             }
           }
           
           function updateMagnifier(x, y) {
-            // Position de la loupe (120x50px)
-            const magnifierWidth = 120;
-            const magnifierHeight = 50;
-            const offsetX = x - magnifierWidth / 2;
-            const offsetY = y - magnifierHeight - 30; // Au-dessus du doigt
-
+            const magnifierSize = 130;
+            const zoomFactor = 1;
+            
+            // Position de la loupe (décalée vers le haut pour ne pas être sous la souris)
+            const offsetX = x - magnifierSize / 2;
+            const offsetY = y - magnifierSize + 40;
+            
             magnifier.style.left = `\${offsetX}px`;
             magnifier.style.top = `\${offsetY}px`;
-            magnifier.style.display = 'block';
-            
-            // Calculer la position relative dans la page
-            //const pageRect = pageCenter.getBoundingClientRect();
-            //const relativeX = x - pageRect.left;
-            //const relativeY = y - pageRect.top;
+            magnifier.classList.remove('hide'); // Assurez-vous qu'elle est visible
 
-            // Positionner le contenu pour montrer exactement ce qui est sous le doigt
-            //const centerX = magnifierWidth / 2;
-            //const centerY = magnifierHeight / 2;
+            // Calcul de la position pour centrer la zone zoomée
+            const centerX = magnifierSize / 2;
+            const centerY = magnifierSize / 2;
+            const scrollY = pageCenter.scrollTop;
             
-            //magnifierContent.style.left = `\${centerX - relativeX}px`;
-            //magnifierContent.style.top = `\${centerY - relativeY}px`;
-        }
-          
-          function hideMagnifier() {
-            magnifier.style.display = 'none';
+            // Position du contenu zoomé
+            //magnifierContent.style.transform = `scale(\${zoomFactor})`;
+            //magnifierContent.style.left = `\${centerX - x * zoomFactor}px`;
+            //magnifierContent.style.top = `\${centerY - y - 40 - scrollY * zoomFactor}px`;
           }
-          
-          const paragraphCache = new WeakMap();
-
+  
+          function hideMagnifier() {
+              magnifier.classList.add('hide'); 
+          }
+            
+          // Votre fonction actuelle est la bonne méthode.
           function getTheFirstTargetParagraph(target) {
-            if (paragraphCache.has(target)) {
-              return paragraphCache.get(target);
-            }
-          
-            let result = null;
-          
-            // Si c'est un verset
+            let targetIdValue = null; 
+            
+            // 1. Navigation DOM optimisée
             const verse = target.closest('.v[id]');
             if (verse) {
-              // Découpe l'ID
-              const parts = verse.id.split('-'); // ex: ["v20","28","1","2"]
-              const chapterVerse = `\${parts[1]}-\${parts[2]}`; // ex: "28-1"
-            
-              // Sélectionne toutes les parties du verset
-              let verses = Array.from(pageCenter.querySelectorAll(`.v[id*="-\${chapterVerse}-"]`));
-            
-              // Trie en fonction du dernier index de l'ID
-              verses.sort((a, b) => {
-                const aPart = parseInt(a.id.split('-')[3], 10);
-                const bPart = parseInt(b.id.split('-')[3], 10);
-                return aPart - bPart;
-              });
-            
-              result = {
-                paragraphs: verses, // toutes les parties du verset, dans l'ordre
-                id: parts[2],    // chapitre-verset unique
-                isVerse: true
-              };
-            }
-            else {
-              // Si c'est un paragraphe normal
+              targetIdValue = verse.id.split('-')[2]; 
+            } else {
               const paragraph = target.closest('[data-pid]');
               if (paragraph) {
-                result = {
-                  paragraphs: [paragraph], // tableau avec uniquement ce paragraphe
-                  id: paragraph.getAttribute('data-pid'),
-                  isVerse: false
-                };
+                targetIdValue = paragraph.getAttribute('data-pid');
               }
             }
           
-            if (result) {
-              paragraphCache.set(target, result);
+            // 2. Accès instantané O(1)
+            if (targetIdValue) {
+              const targetIdInt = parseInt(targetIdValue, 10);
+              if (paragraphsData.has(targetIdInt)) {
+                return paragraphsData.get(targetIdInt);
+              }
             }
-          
-            return result;
+            
+            return null;
           }
           
-          function getAllParagraphs(article) {
-            const finalList = [];
+          function fetchAllParagraphsOfTheArticle(article) {
+            let paragraphsData = new Map();
+                        
+            // 1. Récupérer les paragraphes/versets groupés avec leurs métadonnées
+            const fetchedParagraphs = fetchAllParagraphs(article);
+            
+            // 2. Indexer les tokens pour chaque groupe
+            const indexedTokens = indexTokens(fetchedParagraphs);
+            
+            // 3. Fusionner les deux et stocker le résultat final dans paragraphsData
+            fetchedParagraphs.forEach(group => {
+              
+              // CHANGEMENT ICI : La clé pour récupérer les tokens est le tableau 'group.paragraphs'
+              const tokens = indexedTokens.get(group.paragraphs) || { 
+                  allTokens: [], 
+                  wordAndPunctTokens: [], 
+                  indexInAll: new Map() 
+              }; 
+              
+              // Fusion des objets
+              paragraphsData.set(group.id, {
+                paragraphs: group.paragraphs, // Les éléments DOM du paragraphe/verset
+                id: group.id,                // L'ID unique (ex: "15" ou data-pid)
+                isVerse: group.isVerse,      // Booléen indiquant si c'est un verset
+                allTokens: tokens.allTokens, // Tous les tokens (mots, ponctuation, échappements)
+                wordAndPunctTokens: tokens.wordAndPunctTokens, // Mots et ponctuation uniquement
+                indexInAll: tokens.indexInAll // Map pour trouver l'index global d'un token
+              });
+            });
+            
+            return paragraphsData;
+          }
           
-            // Cherche d'abord les versets
+          function fetchAllParagraphs(article) {
+            const finalList = [];
+            // Sélectionne tous les éléments qui ressemblent à une partie de verset
             const verses = Array.from(article.querySelectorAll('.v[id]'));
           
             if (verses.length > 0) {
+              // Cas 1: L'article contient des versets (plusieurs parties peuvent former un verset)
               const grouped = {};
-          
               verses.forEach(verse => {
                 const parts = verse.id.split('-'); // ex: ["v1","3","15","1"]
-                const key = parts[2]; // ici "15" (le verset)
-          
-                if (!grouped[key]) {
-                  grouped[key] = [];
-                }
-                grouped[key].push(verse);
+                const verseUniqueKey = parts[2];   // L'ID unique du verset (ex: "15")
+                if (!grouped[verseUniqueKey]) grouped[verseUniqueKey] = [];
+                grouped[verseUniqueKey].push(verse);
               });
           
-              // Trie les parties à l'intérieur de chaque groupe
-              Object.values(grouped).forEach(group => {
-                group.sort((a, b) => {
-                  const aPart = parseInt(a.id.split('-')[3], 10);
-                  const bPart = parseInt(b.id.split('-')[3], 10);
-                  return aPart - bPart;
+              Object.entries(grouped).forEach(([id, group]) => {
+                // Tri des parties du verset par leur index final (la partie du verset)
+                group.sort((a, b) => parseInt(a.id.split('-')[3], 10) - parseInt(b.id.split('-')[3], 10));
+                
+                // Création de la structure d'objet demandée
+                finalList.push({
+                  paragraphs: group, // toutes les parties du verset, dans l'ordre
+                  // CONVERSION EN ENTIER ICI
+                  id: parseInt(id, 10), // ID unique du verset converti en nombre
+                  isVerse: true
                 });
-                finalList.push(group);
               });
           
-            } else {
-              // Si pas de versets → ajoute directement les paragraphes
-              const paragraphs = Array.from(article.querySelectorAll('[data-pid]'));
-              paragraphs.forEach(paragraph => {
-                finalList.push([paragraph]); // Chaque paragraphe seul dans un tableau
+            } 
+            else {
+              // Cas 2: L'article contient des paragraphes normaux (non-versets)
+              const paras = Array.from(article.querySelectorAll('[data-pid]'));
+              paras.forEach(p => {
+                // Création de la structure d'objet demandée
+                // La valeur de data-pid doit également être convertie en nombre si elle est numérique
+                const pid = p.getAttribute('data-pid');
+                
+                finalList.push({
+                  paragraphs: [p], // tableau avec uniquement ce paragraphe
+                  // CONVERSION EN ENTIER ICI
+                  id: parseInt(pid, 10), // ID unique du paragraphe converti en nombre
+                  isVerse: false
+                });
               });
             }
-          
+            
             return finalList;
+          }
+          
+          // La fonction indexTokens doit être modifiée pour utiliser 'paragraphs' directement comme clé dans la Map
+          function indexTokens(groups) {
+            const map = new Map();
+            groups.forEach(group => {
+              // La clé de la Map est le tableau 'paragraphs'
+              const p = group.paragraphs; 
+              
+              // ... votre code actuel de calcul des tokens ...
+              const allTokens = p.flatMap(el =>
+                Array.from(el.querySelectorAll('.word, .punctuation, .escape'))
+              );
+              const wordAndPunctTokens = allTokens.filter(
+                t => t.classList.contains('word') || t.classList.contains('punctuation')
+              );
+              const indexInAll = new Map();
+              for (let i = 0; i < allTokens.length; i++) indexInAll.set(allTokens[i], i);
+          
+              // Stockage en utilisant le tableau de paragraphes comme clé
+              map.set(p, { allTokens, wordAndPunctTokens, indexInAll });
+            });
+            return map;
+          }
+          
+          async function changePage(direction) {
+            try { // Début du bloc try
+              
+              if (direction === 'right') {
+                currentTranslate = -200;
+                container.style.transform = "translateX(-200%)";
+                
+                // On utilise une fonction fléchée asynchrone dans setTimeout
+                setTimeout(async () => {
+                  currentIndex++;
+                  currentTranslate = -100;
+                  closeToolbar();
+                  await loadPages(currentIndex); // Utiliser await ici si loadPages est asynchrone
+                }, 200);
+                
+              } 
+              else if (direction === 'left') {
+                currentTranslate = 0;
+                container.style.transform = "translateX(0%)";
+                
+                // On utilise une fonction fléchée asynchrone dans setTimeout
+                setTimeout(async () => {
+                  currentIndex--;
+                  currentTranslate = -100;
+                  closeToolbar();
+                  await loadPages(currentIndex); // Utiliser await ici si loadPages est asynchrone
+                }, 200);
+                
+              } 
+              else {
+                // Cas par défaut (souvent après un glissement annulé)
+                container.style.transform = "translateX(-100%)";
+              }
+              
+            } // 💥 FIN DU BLOC TRY (Accolade ajoutée ici) 💥
+            catch (error) {
+              console.error('Error in changePage function:', error);
+            }  
           }
           
           // Gestionnaires d'événements pour le conteneur optimisés
@@ -5058,6 +5595,7 @@ function createOptionsMenu(noteGuid, popup, isDark) {
             
             if (isLongPressing) {
               setLongPressing(false);
+              isDragging = false;
               return;
             }
           
@@ -5065,42 +5603,23 @@ function createOptionsMenu(noteGuid, popup, isDark) {
             isDragging = false;
           
             if (isVerticalScroll) {
-              container.style.transition = "transform 0.3s ease-in-out";
+              container.style.transition = "transform 0.2s ease-in-out";
               container.style.transform = `translateX(\${currentTranslate}%)`;
               return;
             }
             
             const dx = e.changedTouches[0].clientX - startX;
             const percentage = dx / window.innerWidth;
-            container.style.transition = "transform 0.3s ease-in-out";
+            container.style.transition = "transform 0.2s ease-in-out";
           
-            try {
-              if (percentage < -0.15 && currentIndex < maxIndex) {
-                currentTranslate = -200;
-                container.style.transform = "translateX(-200%)";
-                setTimeout(async () => {
-                  currentIndex++;
-                  currentTranslate = -100;
-                  await loadPages(currentIndex);
-                  closeToolbar();
-                }, 300);
-              } 
-              else if (percentage > 0.15 && currentIndex > 0) {
-                currentTranslate = 0;
-                container.style.transform = "translateX(0%)";
-                setTimeout(async () => {
-                  currentIndex--;
-                  currentTranslate = -100;
-                  await loadPages(currentIndex);
-                  closeToolbar();
-                }, 300);
-              } 
-              else {
-                container.style.transform = "translateX(-100%)";
-              }
+            if (percentage < -0.15 && currentIndex < maxIndex) {
+                changePage('right');
             } 
-            catch (error) {
-              console.error('Error in touch end handler:', error);
+            else if (percentage > 0.15 && currentIndex > 0) {
+              changePage('left');
+            } 
+            else {
+              container.style.transform = "translateX(-100%)";
             }
           }, { passive: true });
         </script>

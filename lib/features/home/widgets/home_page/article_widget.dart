@@ -1,6 +1,8 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 
+import '../../../../core/icons.dart';
+
 class ArticleWidget extends StatefulWidget {
   final bool lastArticleFirst;
   final void Function(Map<String, dynamic> article) onReadMore;
@@ -33,9 +35,17 @@ class ArticleWidgetState extends State<ArticleWidget> {
 
   void addArticle(Map<String, dynamic> article) {
     setState(() {
-      _articles.add(article);
+      _articles.insert(0, article);
     });
   }
+
+  void moveArticleToTop(Map<String, dynamic> article) {
+    setState(() {
+      _articles.removeWhere((a) => a['Title'] == article['Title'] && a['ContextTitle'] == article['ContextTitle'] && a['Description'] == article['Description'] && a['ButtonText'] == article['ButtonText'] && a['Theme'] == article['Theme']);
+      _articles.insert(0, article);
+    });
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -52,7 +62,7 @@ class ArticleWidgetState extends State<ArticleWidget> {
     return Stack(
       children: [
         _buildImageContainer(imagePath),
-        ..._buildNavigationArrows(),
+        ..._buildNavigationArrows(context),
         _buildContentContainer(_currentArticle, screenSize),
       ],
     );
@@ -74,7 +84,7 @@ class ArticleWidgetState extends State<ArticleWidget> {
     );
   }
 
-  List<Widget> _buildNavigationArrows() {
+  List<Widget> _buildNavigationArrows(BuildContext context) {
     final arrows = <Widget>[];
 
     if (_currentArticleIndex > 0) {
@@ -84,7 +94,7 @@ class ArticleWidgetState extends State<ArticleWidget> {
           top: 60,
           child: GestureDetector(
             onTap: () => _navigateArticle(-1),
-            child: _buildArrowButton(Icons.chevron_right),
+            child: _buildArrowButton(JwIcons.chevron_right),
           ),
         ),
       );
@@ -97,7 +107,7 @@ class ArticleWidgetState extends State<ArticleWidget> {
           top: 60,
           child: GestureDetector(
             onTap: () => _navigateArticle(1),
-            child: _buildArrowButton(Icons.chevron_left),
+            child: _buildArrowButton(JwIcons.chevron_left),
           ),
         ),
       );
@@ -108,12 +118,12 @@ class ArticleWidgetState extends State<ArticleWidget> {
 
   void _navigateArticle(int direction) {
     setState(() {
-      _currentArticleIndex = (_currentArticleIndex + direction)
-          .clamp(0, _orderedArticles.length - 1);
+      _currentArticleIndex = (_currentArticleIndex + direction).clamp(0, _orderedArticles.length - 1);
     });
   }
 
   Widget _buildContentContainer(Map<String, dynamic> article, Size screenSize) {
+    bool isDark = (article['Theme'] as String).contains('dark');
     return Center(
       child: Container(
         width: screenSize.width * 0.9,
@@ -124,7 +134,7 @@ class ArticleWidgetState extends State<ArticleWidget> {
         margin: const EdgeInsets.only(top: 140),
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: Colors.grey[900]!.withOpacity(0.7),
+          color: isDark ? Colors.grey[900]!.withOpacity(0.7) : Color(0xFFF1F1F1).withOpacity(0.9),
           borderRadius: BorderRadius.circular(8),
           boxShadow: [
             BoxShadow(
@@ -139,12 +149,12 @@ class ArticleWidgetState extends State<ArticleWidget> {
           mainAxisSize: MainAxisSize.min,
           children: [
             if (article['ContextTitle']?.isNotEmpty == true)
-              _buildText(article['ContextTitle'], 15, FontWeight.bold),
-            _buildText(article['Title'], 26, FontWeight.bold),
+              _buildText(article['ContextTitle'], 15, FontWeight.normal, isDark),
+              _buildText(article['Title'], 26, FontWeight.bold, isDark),
             if (article['Description']?.isNotEmpty == true)
-              _buildDescription(article['Description']),
+              _buildDescription(article['Description'], isDark),
             const SizedBox(height: 10),
-            _buildReadMoreButton(article),
+            _buildReadMoreButton(article, isDark),
           ],
         ),
       ),
@@ -165,7 +175,7 @@ class ArticleWidgetState extends State<ArticleWidget> {
     );
   }
 
-  Widget _buildText(String? text, double fontSize, FontWeight fontWeight) {
+  Widget _buildText(String? text, double fontSize, FontWeight fontWeight, bool isDark) {
     if (text?.isEmpty != false) return const SizedBox.shrink();
 
     return Text(
@@ -173,21 +183,21 @@ class ArticleWidgetState extends State<ArticleWidget> {
       style: TextStyle(
         fontSize: fontSize,
         fontWeight: fontWeight,
-        color: Colors.white,
+        color: isDark ? Colors.white : Colors.black,
       ),
       maxLines: fontSize > 20 ? 2 : 1,
       overflow: TextOverflow.ellipsis,
     );
   }
 
-  Widget _buildDescription(String text) {
+  Widget _buildDescription(String text, bool isDark) {
     return Padding(
       padding: const EdgeInsets.only(top: 4),
       child: Text(
         text,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 15,
-          color: Colors.white,
+          color: isDark ? Colors.white : Colors.black,
         ),
         maxLines: 3,
         overflow: TextOverflow.ellipsis,
@@ -195,7 +205,7 @@ class ArticleWidgetState extends State<ArticleWidget> {
     );
   }
 
-  Widget _buildReadMoreButton(Map<String, dynamic> article) {
+  Widget _buildReadMoreButton(Map<String, dynamic> article, bool isDark) {
     final buttonText = article['ButtonText'];
     if (buttonText?.isEmpty != false) return const SizedBox.shrink();
 

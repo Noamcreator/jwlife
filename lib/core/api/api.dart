@@ -138,12 +138,13 @@ class Api {
     try {
       final url = langCatalogUrl.replaceFirst('{language_code}', languageSymbol);
       final response = await httpGetWithHeaders(url);
+      final serverETag = response.headers['etag'] ?? '';
       final serverDate = response.headers['last-modified'] ?? '';
 
       final results = RealmLibrary.realm.all<Language>().query("symbol == '$languageSymbol'");
       final language = results.isNotEmpty ? results.first : null;
 
-      if (language == null || language.lastModified != serverDate) {
+      if (language == null || language.eTag != serverETag || language.lastModified != serverDate) {
         printTime('Une mise à jour de la bibliothèque pour la langue $languageSymbol est disponible.');
         return true;
       }
@@ -163,15 +164,11 @@ class Api {
 
       if (response.statusCode == 200) {
         debugPrint('Chargement du catalogue pour la langue $languageSymbol...');
-        await RealmLibrary.convertMediaJsonToRealm(response.bodyBytes);
-
         // Mettre à jour la date de modification
+        final serverEtag = response.headers['etag'] ?? '';
         final serverDate = response.headers['last-modified'] ?? '';
-        final results = RealmLibrary.realm.all<Language>().query("symbol == '$languageSymbol'");
 
-        RealmLibrary.realm.write(() {
-          results.first.lastModified = serverDate;
-        });
+        await RealmLibrary.convertMediaJsonToRealm(response.bodyBytes, serverEtag, serverDate);
 
         debugPrint('Catalogue de la langue $languageSymbol mis à jour.');
         return true;

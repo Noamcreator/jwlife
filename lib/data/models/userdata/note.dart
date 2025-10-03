@@ -34,7 +34,7 @@ class Note {
 
   /// Retourne une couleur selon l'index et le thème (clair/sombre)
   Color getColor(BuildContext context, {int? colorId}) {
-    switch (colorId ?? colorIndex % 7) {
+    switch (colorId ?? colorIndex % 9) {
       case 0:
         return Theme.of(context).brightness == Brightness.dark ? Color(0xFF292929) : Color(0xFFf1f1f1);
       case 1:
@@ -49,6 +49,10 @@ class Note {
         return Theme.of(context).brightness == Brightness.dark ? Color(0xFF49290e) : Color(0xFFfff0e6);
       case 6:
         return Theme.of(context).brightness == Brightness.dark ? Color(0xFF2d2438) : Color(0xFFf1eafa);
+      case 7:
+        return Theme.of(context).brightness == Brightness.dark ? Color(0xFF441A1B) : Color(0xFFFED6D6);
+      case 8:
+        return Theme.of(context).brightness == Brightness.dark ? Color(0xFF382B18) : Color(0xFFF1E0CE);
       default:
         return Theme.of(context).brightness == Brightness.dark ? Color(0xFF292929) : Color(0xFFf1f1f1);
     }

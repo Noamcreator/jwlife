@@ -332,7 +332,7 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
                         handlerName: 'getUserdata',
                         callback: (args) {
                           return {
-                            'highlights': widget.publication.datedTextManager!.getCurrentDatedText().highlights,
+                            'blockRanges': widget.publication.datedTextManager!.getCurrentDatedText().blockRanges,
                             'notes': widget.publication.datedTextManager!.getCurrentDatedText().notes,
                             'inputFields': [],
                             'bookmarks': widget.publication.datedTextManager!.getCurrentDatedText().bookmarks,
@@ -344,16 +344,14 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
                         handlerName: 'getNoteByGuid',
                         callback: (args) {
                           String guid = args[0] as String;
-                          Map<String, dynamic>? note = widget.publication.datedTextManager!.getCurrentDatedText().notes.firstWhereOrNull((n) => n['Guid'] == guid);
-                          const colors = ["gray", "yellow", "green", "blue", "pink", "orange", "purple"];
-                          final colorName = colors[note?['ColorIndex'] ?? 0];
+                          Map<String, dynamic>? note = widget.publication.datedTextManager!.getCurrentDatedText().notes.firstWhereOrNull((n) => n['Guid'] == guid) ?? widget.publication.datedTextManager!.getCurrentDatedText().extractedNotes.firstWhereOrNull((n) => n['Guid'] == guid);
 
                           return {
                             'title': note == null ? '' : note['Title'],
                             'content': note == null ? '' : note['Content'],
                             'tagsId': note == null ? [] : note['TagsId'],
                             'tags': JwLifeApp.userdata.tags.map((t) => t.toMap()).toList(),
-                            'colorName': colorName,
+                            'colorIndex': note == null ? 0 : note['ColorIndex'],
                           };
                         },
                       );
@@ -372,7 +370,7 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
 
                       // Récupérer un guid pour un highlight
                       controller.addJavaScriptHandler(
-                        handlerName: 'getHighlightGuid',
+                        handlerName: 'getGuid',
                         callback: (args) {
                           var uuid = Uuid();
                           return {
@@ -382,24 +380,20 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
                       );
 
                       controller.addJavaScriptHandler(
-                        handlerName: 'addHighlights',
+                        handlerName: 'addBlockRange',
                         callback: (args) {
-                          printTime('addHighlights ${args[0]} ${args[1]} ${args[2]}');
-                          widget.publication.datedTextManager!.getCurrentDatedText().addHighlights(
-                              args[0],
-                              args[1],
-                              args[2]
-                          );
+                          printTime('addBlockRange ${args[0]} ${args[1]} ${args[2]} ${args[3]}');
+                          widget.publication.datedTextManager!.getCurrentDatedText().addBlockRange(args[0], args[1], args[2], args[3]);
                         },
                       );
 
                       // Quand on clique supprime le highlight
                       controller.addJavaScriptHandler(
-                          handlerName: 'removeHighlight',
+                          handlerName: 'removeBlockRange',
                           callback: (args) async {
                             bool showAlertDialog = args[0]['showAlertDialog'];
-                            final highlight = widget.publication.datedTextManager!.getCurrentDatedText().highlights.firstWhereOrNull((h) => h['UserMarkGuid'] == args[0]['guid']);
-                            widget.publication.datedTextManager!.getCurrentDatedText().removeHighlight(args[0]['guid']);
+                            final blockRange = widget.publication.datedTextManager!.getCurrentDatedText().blockRanges.firstWhereOrNull((h) => h['UserMarkGuid'] == args[0]['guid']);
+                            widget.publication.datedTextManager!.getCurrentDatedText().removeBlockRange(args[0]['guid']);
                             final note = widget.publication.datedTextManager!.getCurrentDatedText().notes.firstWhereOrNull((n) => n['UserMarkGuid'] == args[0]['guid']);
 
                             if(note != null) {
@@ -439,7 +433,7 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
                                 }
                               }
                               else {
-                                widget.publication.datedTextManager!.getCurrentDatedText().changeNoteUserMark(note['Guid'], args[0]['newGuid'], highlight?['ColorIndex'] ?? 0);
+                                widget.publication.datedTextManager!.getCurrentDatedText().changeNoteUserMark(note['Guid'], args[0]['newGuid'], blockRange?['StyleIndex'] ?? 0, blockRange?['ColorIndex'] ?? 0);
                               }
                             }
                           }
@@ -447,12 +441,11 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
 
                       // Quand on change le color index d'un highlight
                       controller.addJavaScriptHandler(
-                          handlerName: 'changeHighlightColor',
+                          handlerName: 'changeBlockRangeStyle',
                           callback: (args) {
-                            widget.publication.datedTextManager!.getCurrentDatedText().changeHighlightColor(args[0]['guid'], args[0]['newColorIndex']);
+                            widget.publication.datedTextManager!.getCurrentDatedText().changeBlockRangeStyle(args[0]['guid'], args[0]['newStyleIndex'], args[0]['newColorIndex']);
                           }
                       );
-
 
                       controller.addJavaScriptHandler(
                         handlerName: 'addNote',
@@ -462,10 +455,11 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
 
                           widget.publication.datedTextManager!.getCurrentDatedText().addNoteWithUserMarkGuid(
                             args[0]['blockType'],
-                            int.parse(args[0]['identifier']),
+                            args[0]['identifier'],
                             args[0]['title'],
                             uuidV4,
                             args[0]['userMarkGuid'],
+                            0,
                             args[0]['colorIndex'],
                           );
                           return {
@@ -495,7 +489,7 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
                       controller.addJavaScriptHandler(
                           handlerName: 'changeNoteColor',
                           callback: (args) {
-                            widget.publication.datedTextManager!.getCurrentDatedText().changeNoteColor(args[0]['guid'], args[0]['newColorIndex']);
+                            widget.publication.datedTextManager!.getCurrentDatedText().changeNoteColor(args[0]['guid'], args[0]['newStyleIndex'], args[0]['newColorIndex']);
                           }
                       );
 
@@ -540,7 +534,7 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
                       controller.addJavaScriptHandler(
                         handlerName: 'fetchVerses',
                         callback: (args) async {
-                          Map<String, dynamic>? verses = await fetchVerses(context, args[0]);
+                          Map<String, dynamic>? verses = await fetchVerses(widget.publication, args[0]);
                           return verses;
                         },
                       );
@@ -548,7 +542,7 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
                       controller.addJavaScriptHandler(
                         handlerName: 'fetchGuideVerse',
                         callback: (args) async {
-                          Map<String, dynamic>? extractPublication = await fetchGuideVerse(context, args[0]);
+                          Map<String, dynamic>? extractPublication = await fetchGuideVerse(context, widget.publication, args[0]);
                           if (extractPublication != null) {
                             return extractPublication;
                           }
@@ -611,14 +605,14 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
                           final arg = args[0];
 
                           final bool isBible = arg['isBible'];
-                          final String id = arg['id'];
+                          final int? id = arg['id'];
                           final String snippet = arg['snippet'];
 
                           final docManager = widget.publication.datedTextManager!;
                           final currentDoc = docManager.getCurrentDatedText();
 
                           // Cas d’un paragraphe classique
-                          int? blockIdentifier = int.tryParse(id);
+                          int? blockIdentifier = id;
                           int blockType = blockIdentifier != null ? 1 : 0;
 
                           printTime('blockIdentifier: $blockIdentifier');
@@ -658,8 +652,7 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
                         handlerName: 'share',
                         callback: (args) async {
                           final arg = args[0];
-
-                          final String id = arg['id'];
+                          final int id = arg['id'];
 
                           widget.publication.datedTextManager!.getCurrentDatedText().share(id: id);
                         },
@@ -702,9 +695,6 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
                           if(mediaItem != null) {
                             Video video = Video.fromJson(mediaItem: mediaItem);
                             video.showPlayer(context);
-                          }
-                          else {
-
                           }
                         },
                       );

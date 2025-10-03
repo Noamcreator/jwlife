@@ -39,8 +39,9 @@ class MediaRepository {
     String mepsLanguage = mediaItem?.languageSymbol ?? JwLifeSettings().currentLanguage.symbol;
     int issueTagNumber = mediaItem?.issueDate ?? 0;
     int? track = mediaItem?.track ?? 0;
+    bool isAudio = mediaItem?.type == 'AUDIO' ? true : false;
 
-    return _medias.values.firstWhereOrNull((m) => m.keySymbol == keySymbol && m.documentId == documentId && m.mepsLanguage == mepsLanguage && m.issueTagNumber == issueTagNumber && m.track == track);
+    return _medias.values.firstWhereOrNull((m) => m.keySymbol == keySymbol && m.documentId == documentId && m.mepsLanguage == mepsLanguage && m.issueTagNumber == issueTagNumber && m.track == track && m is Audio == isAudio);
   }
 
   Media? getByCompositeKeyForDownload(MediaItem mediaItem) {

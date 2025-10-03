@@ -7,6 +7,7 @@ import 'package:gal/gal.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/core/utils/files_helper.dart';
+import 'package:jwlife/core/utils/html_styles.dart';
 import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/core/utils/utils_audio.dart';
 import 'package:jwlife/core/utils/utils_document.dart';
@@ -69,8 +70,9 @@ class TabWithItems {
 class PublicationMenuView extends StatefulWidget {
   final Publication publication;
   final bool showAppBar;
+  final bool biblePage;
 
-  const PublicationMenuView({super.key, required this.publication, this.showAppBar = true});
+  const PublicationMenuView({super.key, required this.publication, this.showAppBar = true, this.biblePage = false});
 
   @override
   _PublicationMenuViewState createState() => _PublicationMenuViewState();
@@ -720,8 +722,7 @@ class _PublicationMenuViewState extends State<PublicationMenuView> with SingleTi
                     .center,
                 padding: const EdgeInsets.all(8.0),
                 decoration: BoxDecoration(
-                  color: TypeColors.generateTypeColor(
-                      context, items[index].groupId!),
+                  color: TypeColors.generateTypeColor(context, items[index].groupId!),
                 ),
                 child: Text(
                   isLandscape
@@ -730,6 +731,7 @@ class _PublicationMenuViewState extends State<PublicationMenuView> with SingleTi
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 20,
+                    fontWeight: FontWeight.bold,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -884,7 +886,7 @@ class _PublicationMenuViewState extends State<PublicationMenuView> with SingleTi
                 style: textStyleSubtitle),
           ],
         ),
-        leading: IconButton(
+        leading: widget.biblePage ? null : IconButton(
           icon: Icon(Icons.arrow_back),
           onPressed: () {
             GlobalKeyService.jwLifePageKey.currentState?.handleBack(context);
@@ -978,8 +980,7 @@ class _PublicationMenuViewState extends State<PublicationMenuView> with SingleTi
 
     // Cas 1 : Aucune tab
     if (_tabsWithItems.isEmpty) {
-      return Center(child: Text(
-          "Aucun contenu disponible ou la publication a un problème."));
+      return Center(child: Text("Aucun contenu disponible ou la publication a un problème."));
     }
 
     // Cas 2 : Une seule tab → on affiche directement son contenu dans une ListView
@@ -1079,12 +1080,13 @@ class _PublicationMenuViewState extends State<PublicationMenuView> with SingleTi
 
         if (widget.publication.description.isEmpty) {
           items.add(const SizedBox(height: 10));
-        } else {
+        }
+        else {
           items.add(
             Padding(
               padding: const EdgeInsets.all(8.0),
-              child: Text(
-                widget.publication.description,
+              child: TextHtmlWidget(
+                text: widget.publication.description,
                 style: TextStyle(
                   color: Theme.of(context).brightness == Brightness.dark
                       ? Colors.white
@@ -1093,6 +1095,7 @@ class _PublicationMenuViewState extends State<PublicationMenuView> with SingleTi
                   height: 1.2,
                 ),
                 textAlign: TextAlign.center,
+                isSearch: false,
               ),
             ),
           );
@@ -1157,6 +1160,8 @@ class _PublicationMenuViewState extends State<PublicationMenuView> with SingleTi
       );
     }
 
+    bool isBible = widget.publication.category.id == 1;
+
     // Cas 3 : Plusieurs tabs → affichage complet avec TabBar + TabBarView
     return DefaultTabController(
       length: _tabsWithItems.length,
@@ -1167,47 +1172,55 @@ class _PublicationMenuViewState extends State<PublicationMenuView> with SingleTi
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                if (widget.publication.category.id != 1) ...[
+                if (!isBible) ...[
                   if (widget.publication.imageLsr != null)
                     Image.file(
                       File('${widget.publication.path}/${widget.publication.imageLsr!.split('/').last}'),
                       fit: BoxFit.fill,
                       width: double.infinity,
                     ),
-                  Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: Text(
-                      widget.publication.coverTitle.isNotEmpty
-                          ? widget.publication.coverTitle
-                          : widget.publication.title,
-                      style: TextStyle(
-                        color: Theme
-                            .of(context)
-                            .brightness == Brightness.dark
-                            ? Colors.white
-                            : Colors.black,
-                        fontSize: 25,
-                        fontWeight: FontWeight.bold,
-                        height: 1.2,
-                      ),
-                      textAlign: TextAlign.center,
+                  const SizedBox(height: 10),
+                  Text(
+                    widget.publication.coverTitle.isNotEmpty
+                        ? widget.publication.coverTitle
+                        : widget.publication.title,
+                    style: TextStyle(
+                      color: Theme
+                          .of(context)
+                          .brightness == Brightness.dark
+                          ? Colors.white
+                          : Colors.black,
+                      fontSize: 25,
+                      fontWeight: FontWeight.bold,
+                      height: 1.2,
                     ),
+                    textAlign: TextAlign.center,
                   ),
+                  if (widget.publication.description.isNotEmpty)
+                    const SizedBox(height: 10),
+                  if (widget.publication.description.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: TextHtmlWidget(
+                        text: widget.publication.description,
+                        style: TextStyle(
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? Colors.white
+                              : Colors.black,
+                          fontSize: 14,
+                          height: 1.2,
+                        ),
+                        textAlign: TextAlign.center,
+                        isSearch: false,
+                      ),
+                    ),
                 ],
                 // TabBar (si plus d'un onglet)
-                widget.publication.category.id != 1 ? TabBar(
+                !isBible ? TabBar(
                   controller: _tabController,
                   isScrollable: true,
-                  labelColor: Theme
-                      .of(context)
-                      .brightness == Brightness.dark
-                      ? Colors.white
-                      : Colors.black,
-                  unselectedLabelColor: Theme
-                      .of(context)
-                      .brightness == Brightness.dark
-                      ? Colors.grey[600]
-                      : Colors.black,
+                  labelColor: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black,
+                  unselectedLabelColor: Theme.of(context).brightness == Brightness.dark ? Colors.grey[600] : Colors.black,
                   dividerHeight: 0,
                   labelStyle: TextStyle(fontSize: 15,
                       fontWeight: FontWeight.bold,
@@ -1221,15 +1234,12 @@ class _PublicationMenuViewState extends State<PublicationMenuView> with SingleTi
                     return Tab(text: tabWithItems.tab['Title'] ?? 'Tab');
                   }).toList(),
                 ) : Container(
-                  color: Theme
-                      .of(context)
-                      .brightness == Brightness.dark
-                      ? Colors.black
-                      : Colors.white,
+                  color: Theme.of(context).brightness == Brightness.dark ? Color(0xFF111111) : Colors.white,
                   child: TabBar(
                     controller: _tabController,
                     isScrollable: true,
-                    dividerHeight: 0,
+                    dividerHeight: 1,
+                    dividerColor: Color(0xFF686868),
                     tabs: _tabsWithItems.map((tabWithItems) {
                       return Tab(text: tabWithItems.tab['Title'] ?? 'Tab');
                     }).toList(),
@@ -1363,21 +1373,21 @@ class _PublicationMenuViewState extends State<PublicationMenuView> with SingleTi
     // Vous pouvez ajuster les couleurs selon le groupId
     switch (groupId) {
       case 0:
-        return primaryColor;
+        return primaryColor.withOpacity(0.5);
       case 1:
-        return primaryColor.withOpacity(0.7); // Variante plus claire
+        return primaryColor.withOpacity(1.0); // Variante plus claire
       case 2:
-        return primaryColor.withOpacity(0.8); // Variante intermédiaire
+        return primaryColor.withOpacity(0.7); // Variante intermédiaire
       case 3:
-        return primaryColor;
+        return primaryColor.withOpacity(0.4);
       case 4:
-        return primaryColor;
+        return primaryColor.withOpacity(0.5);
       case 5:
-        return primaryColor.withOpacity(0.7); // Variante plus claire
+        return primaryColor.withOpacity(1.0); // Variante plus claire
       case 6:
-        return primaryColor.withOpacity(0.8); // Variante intermédiaire
+        return primaryColor.withOpacity(0.7); // Variante intermédiaire
       case 7:
-        return primaryColor;
+        return primaryColor.withOpacity(0.5);
       default:
         return primaryColor; // Valeur par défaut si le groupId ne correspond à aucun cas
     }

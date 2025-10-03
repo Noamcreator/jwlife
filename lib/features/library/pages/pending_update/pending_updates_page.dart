@@ -451,6 +451,7 @@ class _PendingUpdatesPageState extends State<PendingUpdatesPage> {
               ),
               itemBuilder: (context) => media is Audio ?  [
                 getAudioShareItem(media),
+                getAudioAddPlaylistItem(context, media),
                 getAudioLanguagesItem(context, media),
                 getAudioFavoriteItem(media),
                 getAudioDownloadItem(context, media),
@@ -458,6 +459,7 @@ class _PendingUpdatesPageState extends State<PendingUpdatesPage> {
                 getCopyLyricsItem(media)
               ] : media is Video ? [
                 getVideoShareItem(media),
+                getVideoAddPlaylistItem(context, media),
                 getVideoLanguagesItem(context, media),
                 getVideoFavoriteItem(media),
                 getVideoDownloadItem(context, media),

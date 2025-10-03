@@ -113,8 +113,7 @@ class LibraryPageState extends State<LibraryPage> {
           title: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(localization(context).navigation_library,
-                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              Text(localization(context).navigation_library, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
               Text(
                 language,
                 style: TextStyle(
@@ -151,7 +150,15 @@ class LibraryPageState extends State<LibraryPage> {
         ),
         body: Column(
           children: [
-            TabBar(isScrollable: true, tabs: tabs),
+            Container(
+              color: Theme.of(context).brightness == Brightness.dark ? Color(0xFF111111) : Colors.white,
+              child: TabBar(
+                isScrollable: true,
+                tabs: tabs,
+                dividerHeight: 1,
+                dividerColor: Color(0xFF686868),
+              )
+            ),
             Expanded(child: TabBarView(children: views)),
           ],
         ),

@@ -3,6 +3,7 @@ import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/features/personal/pages/playlist_page.dart';
 import 'package:jwlife/widgets/dialog/utils_dialog.dart';
 
+import '../../data/models/userdata/playlistItem.dart';
 import '../../data/models/userdata/tag.dart';
 import '../../features/personal/pages/tag_page.dart';
 import 'common_ui.dart';
@@ -26,14 +27,16 @@ Future<void> showAddTagDialog(BuildContext context, bool isPlaylist) async {
     buttons: [
       JwDialogButton(
         label: "ANNULER",
+        closeDialog: true,
       ),
       JwDialogButton(
         label: "OK",
-        closeDialog: true, // ← Ne ferme pas automatiquement
+        closeDialog: false, // ← Ne ferme pas automatiquement
         onPressed: (buildContext) async {
           String name = textController.text.trim();
           if (name.isNotEmpty) {
             Tag? tag = await JwLifeApp.userdata.addTag(name, isPlaylist ? 2 : 1);
+            Navigator.pop(buildContext);
             if (tag != null) {
               if (isPlaylist) {
                 await showPage(PlaylistPage(playlist: tag));
@@ -91,7 +94,7 @@ Future<Tag?> showEditTagDialog(BuildContext context, Tag tag) async {
   return result;
 }
 
-Future<bool?> showDeleteTagDialog(BuildContext context, Tag tag) async {
+Future<bool?> showDeleteTagDialog(BuildContext context, Tag tag, {List<PlaylistItem>? items}) async {
   bool isPlaylist = tag.type == 2;
 
   // Affichage du dialogue
@@ -115,7 +118,7 @@ Future<bool?> showDeleteTagDialog(BuildContext context, Tag tag) async {
         label: "SUPPRIMER",
         closeDialog: false,
         onPressed: (BuildContext dialogContext) async {
-          await JwLifeApp.userdata.deleteTag(tag);
+          await JwLifeApp.userdata.deleteTag(tag, items: items);
           Navigator.pop(dialogContext, true);
         },
       ),

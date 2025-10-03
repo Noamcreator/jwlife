@@ -48,6 +48,7 @@ class HomeSquareMediaItemItem extends StatelessWidget {
                       elevation: 8,
                       itemBuilder: (context) => m is Audio ? [
                         getAudioShareItem(m),
+                        getAudioAddPlaylistItem(context, m),
                         getAudioLanguagesItem(context, m),
                         getAudioFavoriteItem(m),
                         getAudioDownloadItem(context, m),
@@ -56,6 +57,7 @@ class HomeSquareMediaItemItem extends StatelessWidget {
                       ]
                           : m is Video ? [
                         getVideoShareItem(m),
+                        getVideoAddPlaylistItem(context, m),
                         getVideoLanguagesItem(context, m),
                         getVideoFavoriteItem(m),
                         getVideoDownloadItem(context, m),

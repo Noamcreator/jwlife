@@ -112,4 +112,108 @@ Mise à jour du 10/08/2025
 
 - Ajout d’une fenêtre d’affichage lors de l’importation de fichiers .jwpub.
 
-- Gestion des erreurs d’import avec affichage d’une boîte de dialogue explicative.
+- Gestion des erreurs d’import de .jwpub avec affichage d’une boîte de dialogue explicative.
+
+📢 Mise à jour – 25/09/2025
+
+✅ Correctifs
+- Le bouton d'arrêt du lecteur audio a été supprimé des notifications.
+
+- La navigation avec la flèche "retour" dans le lecteur audio a été modifiée : un premier appui remet au début du morceau, un second appui passe au morceau précédent.
+
+- Un bug de retour sur le dialogue "Supprimer Catégories" a été corrigé.
+
+- Quand une publication qui n'est pas dans le catalogue est supprimée, elle est maintenant bien retirée et elle disparait.
+
+- Les messages flottants en bas de l'écran ont été mieux placés à la bonne hauteur.
+
+- Quand une nouvelle catégorie est ajoutée aux notes via le webview, le clavier ne se ferme plus automatiquement.
+
+🎨 Améliorations
+- Les menus du lecteur audio ont été améliorés et optimisés.
+
+- La barre de défilement sur les pages web (webview) disparaît après 3 secondes d'inactivité et réapparaît lors du défilement.
+
+- L'affichage des notes a été optimisé : le titre et le contenu s'ajustent à la taille du texte et on ne voit plus les bords quand on sélectionne un des ces zones.
+
+- Les dialogues pour la suppression de notes sur le webview ont été améliorés.
+
+- L'emplacement du lecteur audio sur le webview est maintenant correct et à la bonne hauteur.
+
+- Les champs de texte sont maintenant compatibles avec JW Library quand on crée une sauvegarde.
+
+📂 Nouveautés
+- Un effet de fondu (fade) a été ajouté à l'ouverture d'un document ou du texte du jour.
+
+- Dans la section de recherche, les versets sont maintenant cliquables et redirigent vers l'emplacement exact dans la Bible.
+
+- Il n'est plus nécessaire de quitter l'application pour que les notes et les surlignages se mettent à jour après l'importation d'une sauvegarde.
+
+La bibliothèque Realm a été mise à jour de la version 20.1.1 à 20.2.0.
+
+
+📢 Mise à jour – 03/10/2025
+
+🎨 Améliorations
+Harmonisation avec jw.org : La bannière d'informations (Point d'actualité, etc.) adopte désormais les couleurs officielles du site jw.org.
+Meilleure gestion du HTML : Le texte de la bannière remplace automatiquement les balises HTML par des styles appropriés.
+Support RTL amélioré : Les icônes avec chevrons gauche/droite s'affichent correctement pour les langues RTL (Arabe, Hébreu, etc.).
+Alertes redessinées : Les alertes d'information sont maintenant dans un conteneur bleu conforme au style jw.org.
+Indicateur de lecture : Petit logo "Stream" ajouté sur le lecteur audio pour distinguer la lecture en ligne de la lecture locale.
+
+Navigation améliorée :
+Retrait de la flèche retour sur la page Bible uniquement quand affichée dans le BottomMenu Bible.
+Animation de transition entre les pages (sauf pour webview, vidéo ou image).
+
+Identité visuelle mise à jour :
+Changement des couleurs principales vers le bleu style jw.org.
+Logo principal en bleu foncé.
+Logo de chargement avec fond blanc sur les lettres "JW Life" même en mode sombre.
+
+Interface enrichie :
+Ligne sous les onglets de la Bible et de la bibliothèque comme sur JW Library.
+Les livres de la Bible affichent leur texte en gras avec des couleurs adaptées.
+
+Navigation dans les articles : Ajout des boutons "Précédent" et "Suivant" en bas des articles comme sur jw.org.
+Optimisation du surlignage : Amélioration des performances.
+Couleurs redessinées : Les ronds de couleurs sont maintenant dessinés dynamiquement au lieu d'utiliser des images.
+
+
+📂 Nouveautés
+Gestion des playlists : Menu "Ajouter à la playlist de lecture" disponible pour tous les audios et vidéos.
+Vérification ETag : Ajout de la vérification ETag pour les bibliothèques Realm des vidéos et audios.
+Récupération enrichie : Les articles récupérés du site jw.org incluent maintenant la couleur de fond des boîtes (clair ou foncé).
+Nouvelles icônes : Ajout de 3 icônes dans la police jw-icons (Surligneur, Souligner, Texte coloré).
+
+Annotation avancée :
+Possibilité de souligner et de mettre du texte en couleur.
+Deux nouvelles couleurs disponibles : Rouge et Marron (⚠️ Attention : ces couleurs ne sont pas compatibles avec la synchronisation JW Library et fais planter votre sauvegarde).
+
+Gestion des notes : Lecture et modification des notes dans les dialogues (par exemple, notes de versets).
+Page Personnel unifiée : Une seule page pour la section Personnel, sans onglets.
+Références de versets : Affichage conforme à celui d'un verset classique.
+Fermeture automatique : Fermeture de la fenêtre sur le webview lors de la suppression d'une note ouverte.
+
+
+✅ Correctifs
+Gestion des médias : Bug corrigé lors de la suppression d'un média téléchargé les images couverture sont toujours là.
+Changement de langue : La modification de langue d'une catégorie audio ou vidéo met à jour et affiche correctement tout le contenu.
+Gestion API : Meilleure récupération du dernier fichier webapp_assets.zip en ligne.
+Doublons médias : Plus de bugs lors de l'ajout d'un audio et d'une vidéo identiques (exemple : cantique 1, 2, 3 etc.).
+Téléchargement vidéo : Possibilité de télécharger une vidéo sans sous-titres sans erreur.
+Affichage conditionnel : La page Réunions et Assemblées n'affiche plus le bloc "Prochaine réunion" s'il n'y a pas de congrégations.
+Synchronisation webview : Les notes ajoutées depuis un webview se mettent à jour instantanément sur la page Personnel.
+
+Gestion des playlists :
+Correction de tous les bugs liés aux playlists.
+Ajout, suppression et renommage fonctionnels.
+Suppression et renommage d'éléments de playlist.
+Modification du bouton d'action de fin.
+
+Descriptions de publications : Toutes les descriptions des publications avec onglets s'affichent correctement.
+Base de données : Remapping de la base Realm pour éviter qu'elle ne se remplisse indéfiniment.
+Import de sauvegarde : Fermeture de tous les éléments ouverts et retour à la page initiale lors de l'import.
+Favoris : Correction du bug lors de la suppression d'un favori.
+Lecture depuis playlist : Les audios et vidéos de la bibliothèque dans les playlists peuvent être lus correctement.
+Rendu HTML : Correction du wrap des mots pour certaines classes HTML.
+Vue cantiques : Affichage correct des cantiques en vue image (gauche à gauche, droite à droite).

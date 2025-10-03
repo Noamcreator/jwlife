@@ -59,6 +59,19 @@ class _AlertInfoPageState extends State<AlertInfoPage> {
   String convertAlertsToHtml(List<dynamic> alerts) {
     WebViewData webViewData = JwLifeSettings().webViewData;
 
+    String htmlAlerts = '';
+    for (var alert in alerts) {
+      String title = alert['title'] ?? 'Sans titre';
+      String body = alert['body'] ?? '';
+
+      htmlAlerts += '''
+      <div class="alertItem">
+        <h3>$title</h3>
+        <p>$body</p>
+      </div> 
+    ''';
+    }
+
     String htmlContent = '''
     <!DOCTYPE html>
     <html style="overflow-x: hidden; height: 100%;">
@@ -73,23 +86,17 @@ class _AlertInfoPageState extends State<AlertInfoPage> {
           }
         </style>
       </head>
-      <body class="jwac layout-reading layout-sidebar ${webViewData.theme}">
-        <div class="content-wrapper">
-  ''';
-
-    for (var alert in alerts) {
-      String title = alert['title'] ?? 'Sans titre';
-      String body = alert['body'] ?? '';
-
-      htmlContent += '''
-      <h2>$title</h2>
-        $body
-    ''';
-    }
-
-    htmlContent += '''
-        </div>
-      </body>
+      <body class='${webViewData.theme}'>
+        <main role="main" id="content" class="topWhiteSpace">
+          <article id="article" class="jwac layout-reading layout-sidebar">
+            <div id="newsAlerts" class="jsAlertModule alertContainer cms-clearfix jsAlertsLoaded">
+              <div class="jsAlertList">
+                $htmlAlerts
+              </div> 
+            </div> 
+          </article>
+        </main>
+      </body>   
     </html>
   ''';
 
@@ -105,6 +112,7 @@ class _AlertInfoPageState extends State<AlertInfoPage> {
 
   @override
   Widget build(BuildContext context) {
+
     return Scaffold(
       appBar: AppBar(
         title: Column(
@@ -116,7 +124,9 @@ class _AlertInfoPageState extends State<AlertInfoPage> {
             ),
             Text(
               language,
-              style: const TextStyle(fontSize: 14, color: Colors.grey),
+              style: TextStyle(fontSize: 14, color: Theme.of(context).brightness == Brightness.dark
+                  ? const Color(0xFFc3c3c3)
+                  : const Color(0xFF626262))
             ),
           ],
         ),

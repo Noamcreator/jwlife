@@ -1,7 +1,6 @@
-
 import 'package:app_settings/app_settings.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
+import 'package:intl/intl.dart' show DateFormat;
 
 import '../../app/services/settings_service.dart';
 import '../../core/icons.dart';
@@ -287,7 +286,7 @@ Future<DateTime?> showMonthCalendarDialog(BuildContext context, DateTime initial
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       IconButton(
-                        icon: Icon(JwIcons.chevron_left),
+                        icon: Icon(Directionality.of(context) == TextDirection.rtl ? JwIcons.chevron_right : JwIcons.chevron_left),
                         onPressed: () {
                           setState(() {
                             displayedMonth = DateTime(displayedMonth.year, displayedMonth.month - 1);
@@ -299,7 +298,7 @@ Future<DateTime?> showMonthCalendarDialog(BuildContext context, DateTime initial
                         style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                       ),
                       IconButton(
-                        icon: Icon(JwIcons.chevron_right),
+                        icon: Icon(Directionality.of(context) == TextDirection.rtl ? JwIcons.chevron_left : JwIcons.chevron_right),
                         onPressed: () {
                           setState(() {
                             displayedMonth = DateTime(displayedMonth.year, displayedMonth.month + 1);

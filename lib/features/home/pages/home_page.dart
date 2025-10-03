@@ -6,6 +6,7 @@ import 'package:collection/collection.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:html/dom.dart' as html;
 import 'package:intl/intl.dart';
 import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/core/api/api.dart';
@@ -21,7 +22,7 @@ import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/databases/catalog.dart';
 import 'package:jwlife/features/home/widgets/home_page/favorite_section.dart';
 import 'package:jwlife/features/home/widgets/home_page/latest_medias_section.dart';
-import 'package:jwlife/features/home/pages/alert_banner.dart';
+import 'package:jwlife/features/home/widgets/home_page/alert_banner.dart';
 import 'package:jwlife/widgets/dialog/utils_dialog.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:http/http.dart' as http;
@@ -98,7 +99,7 @@ class HomePageState extends State<HomePage> {
   Future<void> _initPage() async {
     fetchVerseOfTheDay();
     fetchAlertInfo();
-    fetchArticleInHomePage();
+    fetchArticles();
 
     _favoritesKey.currentState?.refreshFavorites();
     _frequentlyUsedKey.currentState?.refreshFrequentlyUsed();
@@ -339,7 +340,7 @@ class HomePageState extends State<HomePage> {
     printTime("fetchVerseOfTheDay end");
   }
 
-  Future<void> fetchArticleInHomePage() async {
+  Future<void> fetchArticles() async {
     printTime("fetchArticleInHomePage");
 
     final languageSymbol = JwLifeSettings().currentLanguage.symbol;
@@ -347,7 +348,14 @@ class HomePageState extends State<HomePage> {
 
     final db = await openDatabase(
       articlesDbFile.path,
-      version: 1,
+      version: 2,
+      onUpgrade: (db, oldVersion, newVersion) async {
+        if (oldVersion == 1 && newVersion == 2) {
+          await db.execute('''
+          ALTER TABLE Article ADD COLUMN Theme TEXT DEFAULT 'dark';
+          ''');
+        }
+      },
       onCreate: (db, version) async {
         await db.execute('''
         CREATE TABLE Article (
@@ -359,6 +367,7 @@ class HomePageState extends State<HomePage> {
           Link TEXT,
           Content TEXT,
           ButtonText TEXT,
+          Theme TEXT,
           LanguageSymbol TEXT
         )
       ''');
@@ -405,48 +414,88 @@ class HomePageState extends State<HomePage> {
 
     final document = html_parser.parse(response.body);
 
-    // Récupère le premier .billboard
-    final firstBillboard = document.querySelector('.billboard');
+    final html.Element? firstBillboard = document.querySelector('.billboard');
 
     // Fonction pour récupérer l'URL à partir d'une classe interne
     String getImageUrlFromFirst(String className) {
       if (firstBillboard == null) return '';
-      final style = firstBillboard.querySelector('$className .billboard-media-image')?.attributes['style'] ?? '';
-      final match = RegExp(r'url\(([^)]+)\)').firstMatch(style);
+
+      // Utilisation de .attributes['style'] pour récupérer la chaîne de style
+      final String style = firstBillboard.querySelector('$className .billboard-media-image')?.attributes['style'] ?? '';
+
+      // L'expression régulière est correcte pour extraire l'URL entre les parenthèses de url(...)
+      final RegExp regExp = RegExp(r'url\(([^)]+)\)');
+      final Match? match = regExp.firstMatch(style);
+
+      // Utilise le group(1) (ce qui est entre les parenthèses)
       return match?.group(1) ?? '';
     }
 
+    // Fonction pour déterminer le thème de couleur
+    String getThemeFromBillboard(html.Element? element) {
+      if (element == null) return '';
+      final String classes = element.attributes['class'] ?? '';
+      final classList = classes.split(' ');
+
+      // Cherche une classe qui correspond au thème
+      for (final c in classList) {
+        if (c != 'billboard')  {
+          return c;
+        }
+      }
+
+      return '';
+    }
+
     // Extraction des infos uniquement dans le premier billboard
-    final contextTitle = firstBillboard
+
+    // 1. Titre du contexte
+    final String contextTitle = firstBillboard
         ?.querySelector('.contextTitle')
         ?.text
         .trim() ?? '';
 
-    final title = firstBillboard
+    // 2. Titre de l'article
+    final String title = firstBillboard
         ?.querySelector('.billboardTitle a')
         ?.text
         .trim() ?? '';
 
-    final description = firstBillboard
-        ?.querySelector('.billboardDescription .bodyTxt .p2')
+    // 3. Description (CORRIGÉ : le sélecteur a été ajusté à '.billboardDescription p')
+    final String description = firstBillboard
+        ?.querySelector('.billboardDescription p') // Anciennement : .bodyTxt .p2
         ?.text
         .trim() ?? '';
 
-    final link = firstBillboard
+    // 4. Lien
+    final String link = firstBillboard
         ?.querySelector('.billboardTitle a')
         ?.attributes['href'] ?? '';
 
-    final buttonText = firstBillboard
+    // 5. Texte du bouton
+    final String buttonText = firstBillboard
         ?.querySelector('.billboardButton .buttonText')
         ?.text
         .trim() ?? '';
 
-    // Images du premier billboard
-    final imageUrlLsr = getImageUrlFromFirst('.billboard-media.lsr');
-    final imageUrlPnr = getImageUrlFromFirst('.billboard-media.pnr');
+    // 6. Thème
+    final String theme = getThemeFromBillboard(firstBillboard);
 
-    // Si aucun article ou titre différent, on ajoute le nouvel article
-    if (articles.isEmpty || !articles.any((article) => article['Title'] == title) ) {
+    // 7. URLs des images
+    //final String imageUrlLss = getImageUrlFromFirst('.lss');
+    final String imageUrlLsr = getImageUrlFromFirst('.lsr');
+    final String imageUrlPnr = getImageUrlFromFirst('.pnr');
+
+    final lastArticle = articles.firstWhereOrNull(
+          (article) =>
+      article['Title'] == title &&
+          article['ContextTitle'] == contextTitle &&
+          article['Description'] == description &&
+          article['ButtonText'] == buttonText &&
+          article['Theme'] == theme,
+    );
+
+    if (articles.isEmpty || lastArticle == null) {
       final appTileDirectory = await getAppTileDirectory();
 
       // Télécharger les images en parallèle
@@ -466,8 +515,9 @@ class HomePageState extends State<HomePage> {
         'Description': description,
         'Timestamp': DateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'").format(DateTime.now().toUtc()),
         'Link': fullLink,
-        'Content': '', // Ajouter contenu si besoin
+        'Content': '',
         'ButtonText': buttonText,
+        'Theme': theme,
         'LanguageSymbol': languageSymbol,
         'ImagePathLsr': imagePathLsr,
         'ImagePathPnr': imagePathPnr,
@@ -478,6 +528,9 @@ class HomePageState extends State<HomePage> {
       // Enregistrement en base
       final articleId = await saveArticleToDatabase(db, newArticle);
       await saveImagesToDatabase(db, articleId, newArticle);
+    }
+    else if (articles.first['Title'] != lastArticle['Title'] && articles.first['ContextTitle'] != lastArticle['ContextTitle'] && articles.first['Description'] != lastArticle['Description'] && articles.first['ButtonText'] != lastArticle['ButtonText'] && articles.first['Theme'] != lastArticle['Theme']) {
+      _articlesKey.currentState!.moveArticleToTop(lastArticle);
     }
 
     await db.close();
@@ -494,6 +547,7 @@ class HomePageState extends State<HomePage> {
       'Link': article['Link'],
       'Content': article['Content'],
       'ButtonText': article['ButtonText'],
+      'Theme': article['Theme'],
       'LanguageSymbol': article['LanguageSymbol'],
     });
   }

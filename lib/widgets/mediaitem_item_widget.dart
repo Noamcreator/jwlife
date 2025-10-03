@@ -268,14 +268,15 @@ class _MediaItemItemWidgetState extends State<MediaItemItemWidget> {
           return widget.media is Audio
               ? [
             getAudioShareItem(widget.media as Audio),
+            getAudioAddPlaylistItem(context, widget.media as Audio),
             getAudioLanguagesItem(context, widget.media as Audio),
             getAudioFavoriteItem(widget.media as Audio),
             getAudioDownloadItem(context, widget.media as Audio),
             getAudioLyricsItem(context, widget.media as Audio),
             getCopyLyricsItem(widget.media as Audio),
-          ]
-              : [
+          ] : [
             getVideoShareItem(widget.media as Video),
+            getVideoAddPlaylistItem(context, widget.media as Video),
             getVideoLanguagesItem(context, widget.media as Video),
             getVideoFavoriteItem(widget.media as Video),
             getVideoDownloadItem(context, widget.media as Video),

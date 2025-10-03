@@ -21,7 +21,6 @@ class _Images {
   String? wideFullSizeImageUrl;
   String? extraWideImageUrl;
   String? extraWideFullSizeImageUrl;
-  String? pathCache;
 }
 
 @RealmModel()

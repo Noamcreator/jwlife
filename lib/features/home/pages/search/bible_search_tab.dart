@@ -63,7 +63,7 @@ class _BibleSearchTabState extends State<BibleSearchTab> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        SearchHtmlWidget(
+                        TextHtmlWidget(
                           text: item['title'],
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
@@ -74,7 +74,7 @@ class _BibleSearchTabState extends State<BibleSearchTab> {
                           ),
                         ),
                         const SizedBox(height: 10),
-                        SearchHtmlWidget(
+                        TextHtmlWidget(
                             text: item['snippet'],
                             style: const TextStyle(fontSize: 18),
                         ),

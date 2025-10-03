@@ -340,6 +340,7 @@ class FileHandlerService {
 
       if (dialogContext != null) Navigator.of(dialogContext!).pop();
       GlobalKeyService.homeKey.currentState?.refreshFavorites();
+      GlobalKeyService.personalKey.currentState?.refreshUserdata();
     }
   }
 

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/svg.dart';
 
 import '../../../../app/services/global_key_service.dart';
 import '../../../../app/services/settings_service.dart';
+import '../../../../core/assets.dart';
 import '../../../../core/icons.dart';
 import '../../../../core/shared_preferences/shared_preferences_utils.dart';
 import '../../../../data/databases/history.dart';

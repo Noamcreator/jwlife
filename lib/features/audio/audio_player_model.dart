@@ -7,7 +7,6 @@ import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/data/databases/tiles_cache.dart';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/databases/history.dart';
-import 'package:jwlife/data/realm/catalog.dart' as realm_catalog;
 import 'package:jwlife/data/realm/realm_library.dart';
 import 'package:realm/realm.dart';
 
@@ -16,11 +15,13 @@ import '../../app/services/global_key_service.dart';
 import '../../app/services/settings_service.dart';
 import '../../core/api/api.dart';
 import '../../data/models/audio.dart';
+import '../../data/realm/catalog.dart' hide MediaItem;
+import '../../data/realm/catalog.dart' as realm_catalog;
 
 class JwLifeAudioPlayer {
   int? currentId;
   final player = AudioPlayer();
-  String album = '';
+  realm_catalog.Category? album;
   Publication? publication;
   String query = '';
   bool randomMode = false;
@@ -29,23 +30,27 @@ class JwLifeAudioPlayer {
 
   Future<void> fetchAudioData(Audio audio) async {
     String? lank = audio.naturalKey;
-    String? lang = audio.mepsLanguage;
+    String? lang = audio.mepsLanguage ?? JwLifeSettings().currentLanguage.symbol;
 
     if(audio.fileUrl != null) {
       await setPlaylist([audio]);
     }
-    if (lank != null && lang != null) {
-      album = '';
+    if (lank != null) {
+      album = null;
       final apiUrl = 'https://b.jw-cdn.org/apis/mediator/v1/media-items/$lang/$lank';
       try {
         final response = await Api.httpGetWithHeaders(apiUrl);
 
         if (response.statusCode == 200) {
-          //final data = json.decode(response.body);
-          album = RealmLibrary.realm.all<realm_catalog.Category>().query("key == '${audio.categoryKey}'").first.localizedName!;
+          album = RealmLibrary.realm.all<realm_catalog.Category>().query("key == '${audio.categoryKey}' AND language == '$lang'").firstOrNull;
 
-          //Audio audio = Audio.fromJson(json:data['media'][0]);
+          final apiMedia = json.decode(response.body)['media'][0];
           audio.imagePath = audio.networkImageSqr;
+          audio.fileUrl = apiMedia['files'][0]['progressiveDownloadURL'];
+          audio.lastModified = apiMedia['files'][0]['modifiedDatetime'];
+          audio.bitRate = apiMedia['files'][0]['bitRate'];
+          audio.duration = apiMedia['files'][0]['duration'];
+          audio.mimeType = apiMedia['files'][0]['mimetype'];
           await setPlaylist([audio]);
         }
         else {
@@ -64,9 +69,9 @@ class JwLifeAudioPlayer {
   Future<void> fetchAudiosCategoryData(realm_catalog.Category category, List<Audio> filteredAudios, {int? id}) async {
     List<Audio> audios = [];
 
-    if(album != category.localizedName) {
-      album = category.localizedName!;
-      String languageSymbol = JwLifeSettings().currentLanguage.symbol;
+    if(album != category) {
+      album = category;
+      String languageSymbol = category.language ?? JwLifeSettings().currentLanguage.symbol;
 
       if(await hasInternetConnection()) {
         // URL de l'API
@@ -116,9 +121,9 @@ class JwLifeAudioPlayer {
     }
   }
 
-  Future<void> setPlaylist(List<Audio> audios, {Publication? pub, int? id = 0, Duration? position = Duration.zero, bool randomm = false}) async {
+  Future<void> setPlaylist(List<Audio> audios, {Publication? pub, int? id = 0, Duration? position = Duration.zero, bool random = false}) async {
     isSettingPlaylist = true;
-    randomMode = randomm;
+    randomMode = random;
     currentId = id;
 
     if (pub != null && pub == publication) {
@@ -153,43 +158,45 @@ class JwLifeAudioPlayer {
 
         AudioSource audioSource;
 
+        // 1. Déterminer la valeur de l'album une seule fois.
+        // Cette logique complexe est maintenant factorisée.
+        final String albumTitle = pub?.title ??
+            (album?.localizedName?.isNotEmpty == true
+                ? album!.localizedName!
+                : RealmLibrary.realm
+                .all<realm_catalog.Category>()
+                .query(
+              "key == '${audio.categoryKey}' AND language == '${audio.mepsLanguage ?? JwLifeSettings().currentLanguage.symbol}'",
+            )
+                .firstOrNull
+                ?.localizedName ?? '');
+
+        final MediaItem mediaItem = MediaItem(
+          id: '$i',
+          album: albumTitle, // Utilise la variable factorisée
+          title: audio.title,
+          artUri: imageUri,
+          extras: {
+            'keySymbol': audio.keySymbol,
+            'documentId': audio.documentId,
+            'bookNumber': audio.bookNumber,
+            'track': audio.track,
+            'mepsLanguage': audio.mepsLanguage,
+            'issueTagNumber': audio.issueTagNumber,
+            'stream': !audio.isDownloadedNotifier.value,
+          },
+        );
+
         if (audio.isDownloadedNotifier.value) {
           audioSource = AudioSource.file(
             audio.filePath!,
-            tag: MediaItem(
-              id: '$i',
-              album: audio.categoryKey,
-              title: audio.title,
-              artUri: imageUri,
-                extras: {
-                  'keySymbol': audio.keySymbol,
-                  'documentId': audio.documentId,
-                  'bookNumber': audio.bookNumber,
-                  'track': audio.track,
-                  'mepsLanguage': audio.mepsLanguage,
-                  'issueTagNumber': audio.issueTagNumber
-                }
-            ),
+            tag: mediaItem,
           );
-        }
-        else {
+        } else {
           audioSource = AudioSource.uri(
             Uri.parse(audio.fileUrl!),
             headers: Api.getHeaders(),
-            tag: MediaItem(
-                id: '$i',
-                album: pub?.title ?? album,
-                title: audio.title,
-                artUri: imageUri,
-                extras: {
-                  'keySymbol': audio.keySymbol,
-                  'documentId': audio.documentId,
-                  'bookNumber': audio.bookNumber,
-                  'track': audio.track,
-                  'mepsLanguage': audio.mepsLanguage,
-                  'issueTagNumber': audio.issueTagNumber
-                }
-            ),
+            tag: mediaItem,
           );
         }
 
@@ -295,7 +302,7 @@ class JwLifeAudioPlayer {
 
   Future<void> close() async {
     currentId = null;
-    album = '';
+    album = null;
     publication = null;
     randomMode = false;
     await player.clearAudioSources();
