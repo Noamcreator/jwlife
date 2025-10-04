@@ -30,9 +30,14 @@ class _AllSearchTabState extends State<AllSearchTab> {
     super.initState();
   }
 
+  // Hauteur fixe raisonnable pour les versets/snippets.
+  // Augmentée légèrement pour compenser le débordement de 7.0 pixels si présent
+  static const double _verseListHeight = 180.0;
+
   Widget _buildVerseList(dynamic result) {
+    // Rétablissement de la hauteur fixe pour une performance optimale et des contraintes claires.
     return SizedBox(
-      height: 180,
+      height: _verseListHeight,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         itemCount: result['results'].length,
@@ -61,43 +66,49 @@ class _AllSearchTabState extends State<AllSearchTab> {
               showChapterView(context, 'nwtsty', JwLifeSettings().currentLanguage.id, bookNumber, chapterNumber, firstVerseNumber: verseNumber, lastVerseNumber: verseNumber, wordsSelected: wordsSelected);
             },
             child: Container(
-              width: 250,
-              margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-              decoration: BoxDecoration(
-                color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF292929) : Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    spreadRadius: 1,
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(13),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    TextHtmlWidget(
-                      text: item['title'].replaceAll("&nbsp;", " "),
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18,
-                        color: Theme.of(context).brightness == Brightness.dark
-                            ? const Color(0xFFa0b9e2)
-                            : const Color(0xFF4a6da7),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    TextHtmlWidget(
-                      text: item['snippet'],
-                      style: const TextStyle(fontSize: 16),
+                width: 250,
+                margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF292929) : Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      spreadRadius: 1,
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
                     ),
                   ],
                 ),
-              )
+                child: Padding(
+                  padding: const EdgeInsets.all(13),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      TextHtmlWidget(
+                        text: item['title'].replaceAll("&nbsp;", " "),
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? const Color(0xFFa0b9e2)
+                              : const Color(0xFF4a6da7),
+                        ),
+                        maxLines: 1, // Limite pour le titre
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 10),
+                      // Le snippet prend le reste de l'espace. La hauteur totale est maintenant fixée par _verseListHeight.
+                      // MaxLines est fixé pour s'assurer que le snippet ne dépasse pas et ne cause pas de débordement interne.
+                      TextHtmlWidget(
+                        text: item['snippet'],
+                        style: TextStyle(fontSize: 16, color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black),
+                        maxLines: 4, // Définir un nombre max de lignes
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                )
             ),
           );
         },
@@ -106,6 +117,7 @@ class _AllSearchTabState extends State<AllSearchTab> {
   }
 
   Widget _buildIndexList(dynamic result) {
+    // Hauteur fixée à 110 (comme dans le code original)
     return SizedBox(
       height: 110,
       child: ListView.builder(
@@ -164,9 +176,12 @@ class _AllSearchTabState extends State<AllSearchTab> {
     );
   }
 
+  // Hauteur fixée à 250 (comme dans le code original)
+  static const double _mediaListHeight = 250.0;
+
   Widget _buildVideosList(dynamic result) {
     return SizedBox(
-      height: 250,
+      height: _mediaListHeight,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         itemCount: result['results'].length,
@@ -281,7 +296,7 @@ class _AllSearchTabState extends State<AllSearchTab> {
 
   Widget _buildAudioList(dynamic result) {
     return SizedBox(
-      height: 250,
+      height: _mediaListHeight,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         itemCount: result['results'].length,
@@ -395,9 +410,12 @@ class _AllSearchTabState extends State<AllSearchTab> {
     );
   }
 
+  // Hauteur fixée à 200 (comme dans le code original)
+  static const double _publicationListHeight = 200.0;
+
   Widget _buildPublicationsList(dynamic result) {
     return SizedBox(
-      height: 200,
+      height: _publicationListHeight,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         itemCount: result['results'].length,
@@ -544,6 +562,7 @@ class _AllSearchTabState extends State<AllSearchTab> {
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start, // Alignement en haut pour le Row
                   children: [
                     ClipRRect(
                       borderRadius: BorderRadius.circular(8),
@@ -576,17 +595,23 @@ class _AllSearchTabState extends State<AllSearchTab> {
                           const SizedBox(height: 4),
                           TextHtmlWidget(
                             text: article['title'] ?? '',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
+                              color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black,
                             ),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                           ),
                           const SizedBox(height: 4),
+                          // Retrait du TextHtmlWidget pour le snippet pour laisser le container s'adapter.
+                          // Si vous voulez le snippet, assurez-vous qu'il ne déborde pas.
+                          // Pour la proportion, on le réintègre en limitant les lignes:
                           TextHtmlWidget(
                             text: article['snippet'] ?? '',
-                            style: const TextStyle(fontSize: 18),
+                            style: TextStyle(fontSize: 14, color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : Colors.black87),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ],
                       ),

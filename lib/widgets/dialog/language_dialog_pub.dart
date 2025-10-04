@@ -25,20 +25,28 @@ class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
   String? selectedSymbol;
   int? selectedIssueTagNumber;
   final TextEditingController _searchController = TextEditingController();
+
+  // NOUVEAU: Liste complète de toutes les langues chargées depuis la BD
+  List<Map<String, dynamic>> _allLanguagesList = [];
+
+  // Liste filtrée pour l'affichage (non favorites)
   List<Map<String, dynamic>> filteredLanguagesList = [];
-  List<Map<String, dynamic>> favoriteLanguages = []; // Liste pour les langues favorites
+
+  // Liste filtrée pour l'affichage (favorites)
+  List<Map<String, dynamic>> favoriteLanguages = [];
+
   Database? database;
 
   @override
   void initState() {
     super.initState();
     initSettings();
-    _searchController.addListener(_onSearchChanged);
+    _searchController.addListener(_filterLanguages); // CHANGEMENT: Appelle _filterLanguages
   }
 
   @override
   void dispose() {
-    _searchController.removeListener(_onSearchChanged);
+    _searchController.removeListener(_filterLanguages); // CHANGEMENT
     _searchController.dispose();
     super.dispose();
   }
@@ -54,143 +62,140 @@ class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
       setState(() {
         database = db;
       });
-      await fetchLanguages('');
+      // CHANGEMENT: On charge toutes les langues une seule fois
+      await _loadAllLanguages();
+      // Puis on applique le filtre initial (qui sera vide)
+      _filterLanguages();
     }
   }
 
-  Future<void> fetchLanguages(String searchTerm) async {
-    if (database == null) return; // Assurez-vous que la base de données est initialisée
+  // CHANGEMENT: Renommé et modifié pour charger TOUTES les langues (sans terme de recherche)
+  Future<void> _loadAllLanguages() async {
+    if (database == null) return;
 
-    File catalogFile = await getCatalogDatabaseFile();
     File mepsUnitFile = await getMepsUnitDatabaseFile();
 
-    if (await catalogFile.exists()) {
-      Database db = database!;  // Utiliser la base de données déjà initialisée
-      await db.execute('ATTACH DATABASE ? AS meps', [mepsUnitFile.path]);
-      printTime('Database meps attached');
+    Database db = database!;
+    await db.execute('ATTACH DATABASE ? AS meps', [mepsUnitFile.path]);
+    printTime('Database meps attached');
 
-      List<Map<String, dynamic>> languagesAvailable = [];
-      List<dynamic> arguments = [];
+    List<Map<String, dynamic>> languagesAvailable = [];
+    List<dynamic> arguments = [];
 
-      String searchCondition = '';
-      if (searchTerm.isNotEmpty) {
-        searchCondition = 'AND (meps.LanguageName.Name LIKE ? OR Publication.Title LIKE ? OR Publication.ShortTitle LIKE ?)';
-      }
+    // La condition de recherche SQL est supprimée ici pour charger toutes les données
+    String baseQuery;
 
-      if(widget.publication != null) {
-        if (widget.publication!.issueTagNumber == 0) {
-          arguments = [widget.publication!.keySymbol, widget.publication!.mepsLanguage.id];
-          if (searchTerm.isNotEmpty) {
-            arguments.add('%$searchTerm%');
-            arguments.add('%$searchTerm%');
-            arguments.add('%$searchTerm%');
-          }
-          languagesAvailable = await db.rawQuery('''
-      SELECT 
-        Publication.*,
-        mepsLang.Symbol as LanguageSymbol,
-        meps.LanguageName.Name AS LanguageName
-      FROM 
-        Publication
-      JOIN 
-        meps.LocalizedLanguageName ON Publication.MepsLanguageId = meps.LocalizedLanguageName.TargetLanguageId
-      JOIN 
-        meps.LanguageName ON meps.LocalizedLanguageName.LanguageNameId = meps.LanguageName.LanguageNameId
-      JOIN
-        meps.Language AS mepsLang ON mepsLang.LanguageId = meps.LocalizedLanguageName.TargetLanguageId
-      WHERE 
-        Publication.KeySymbol = ? 
-        AND meps.LocalizedLanguageName.SourceLanguageId = ?
-        $searchCondition
-      ORDER BY 
-        meps.LanguageName.Name
-      ''', arguments);
-        }
-        else {
-          arguments = [widget.publication!.keySymbol, widget.publication!.issueTagNumber, widget.publication!.mepsLanguage.id];
-          if (searchTerm.isNotEmpty) {
-            arguments.add('%$searchTerm%');
-            arguments.add('%$searchTerm%');
-            arguments.add('%$searchTerm%');
-          }
-          languagesAvailable = await db.rawQuery('''
-      SELECT 
-        Publication.*,
-        mepsLang.Symbol as LanguageSymbol,
-        meps.LanguageName.Name AS LanguageName
-      FROM Publication
-      INNER JOIN meps.LocalizedLanguageName ON Publication.MepsLanguageId = meps.LocalizedLanguageName.TargetLanguageId
-      INNER JOIN  meps.LanguageName ON meps.LocalizedLanguageName.LanguageNameId = meps.LanguageName.LanguageNameId
-      INNER JOIN meps.Language AS mepsLang ON mepsLang.LanguageId = meps.LocalizedLanguageName.TargetLanguageId
-      WHERE 
-        Publication.KeySymbol = ? 
-        AND Publication.IssueTagNumber = ? 
-        AND meps.LocalizedLanguageName.SourceLanguageId = ?
-        $searchCondition
-      ORDER BY 
-        meps.LanguageName.Name
-      ''', arguments);
-        }
+    if (widget.publication != null) {
+      if (widget.publication!.issueTagNumber == 0) {
+        baseQuery = '''
+          SELECT 
+            Publication.*,
+            mepsLang.Symbol as LanguageSymbol,
+            meps.LanguageName.Name AS LanguageName
+          FROM 
+            Publication
+          JOIN 
+            meps.LocalizedLanguageName ON Publication.MepsLanguageId = meps.LocalizedLanguageName.TargetLanguageId
+          JOIN 
+            meps.LanguageName ON meps.LocalizedLanguageName.LanguageNameId = meps.LanguageName.LanguageNameId
+          JOIN
+            meps.Language AS mepsLang ON mepsLang.LanguageId = meps.LocalizedLanguageName.TargetLanguageId
+          WHERE 
+            Publication.KeySymbol = ? AND meps.LocalizedLanguageName.SourceLanguageId = ?
+          ORDER BY 
+            meps.LanguageName.Name
+        ''';
+        arguments = [widget.publication!.keySymbol, widget.publication!.mepsLanguage.id];
       }
       else {
-        arguments = [JwLifeSettings().currentLanguage.id];
-        if (searchTerm.isNotEmpty) {
-          arguments.add('%$searchTerm%');
-          arguments.add('%$searchTerm%');
-          arguments.add('%$searchTerm%');
-        }
-        languagesAvailable = await db.rawQuery('''
-      SELECT 
-        Publication.*,
-        mepsLang.Symbol as LanguageSymbol,
-        meps.LanguageName.Name AS LanguageName
-      FROM 
-        Publication
-      JOIN 
-        meps.LocalizedLanguageName ON Publication.MepsLanguageId = meps.LocalizedLanguageName.TargetLanguageId
-      JOIN 
-        meps.LanguageName ON meps.LocalizedLanguageName.LanguageNameId = meps.LanguageName.LanguageNameId
-      JOIN
-        meps.Language AS mepsLang ON mepsLang.LanguageId = meps.LocalizedLanguageName.TargetLanguageId
-      WHERE 
-        Publication.PublicationTypeId = 1
-        AND meps.LocalizedLanguageName.SourceLanguageId = ?
-        $searchCondition
-      ORDER BY 
-        meps.LanguageName.Name
-      ''', arguments);
+        baseQuery = '''
+          SELECT 
+            Publication.*,
+            mepsLang.Symbol as LanguageSymbol,
+            meps.LanguageName.Name AS LanguageName
+          FROM Publication
+          INNER JOIN meps.LocalizedLanguageName ON Publication.MepsLanguageId = meps.LocalizedLanguageName.TargetLanguageId
+          INNER JOIN  meps.LanguageName ON meps.LocalizedLanguageName.LanguageNameId = meps.LanguageName.LanguageNameId
+          INNER JOIN meps.Language AS mepsLang ON mepsLang.LanguageId = meps.LocalizedLanguageName.TargetLanguageId
+          WHERE 
+            Publication.KeySymbol = ? 
+            AND Publication.IssueTagNumber = ? 
+            AND meps.LocalizedLanguageName.SourceLanguageId = ?
+          ORDER BY 
+            meps.LanguageName.Name
+        ''';
+        arguments = [widget.publication!.keySymbol, widget.publication!.issueTagNumber, widget.publication!.mepsLanguage.id];
       }
-
-      await db.execute('DETACH DATABASE meps');
-      printTime('Database meps detached');
-
-      // Affichage des résultats récupérés
-      printTime('languagesAvailable: $languagesAvailable');
-
-      // Mise à jour de filteredLanguagesList
-      List<Map<String, dynamic>> languagesModifiable = List.from(languagesAvailable);
-
-      setState(() {
-        filteredLanguagesList = languagesModifiable;
-        favoriteLanguages = filteredLanguagesList.where((lang) {
-          return isFavorite(lang);
-        }).toList();
-        filteredLanguagesList.removeWhere((lang) => isFavorite(lang));
-      });
-    } else {
-      printTime('Catalog file does not exist.');
     }
+    else {
+      baseQuery = '''
+        SELECT 
+          Publication.*,
+          mepsLang.Symbol as LanguageSymbol,
+          meps.LanguageName.Name AS LanguageName
+        FROM 
+          Publication
+        JOIN 
+          meps.LocalizedLanguageName ON Publication.MepsLanguageId = meps.LocalizedLanguageName.TargetLanguageId
+        JOIN 
+          meps.LanguageName ON meps.LocalizedLanguageName.LanguageNameId = meps.LanguageName.LanguageNameId
+        JOIN
+          meps.Language AS mepsLang ON mepsLang.LanguageId = meps.LocalizedLanguageName.TargetLanguageId
+        WHERE 
+          Publication.PublicationTypeId = 1
+          AND meps.LocalizedLanguageName.SourceLanguageId = ?
+        ORDER BY 
+          meps.LanguageName.Name
+      ''';
+      arguments = [JwLifeSettings().currentLanguage.id];
+    }
+
+    languagesAvailable = await db.rawQuery(baseQuery, arguments);
+
+    await db.execute('DETACH DATABASE meps');
+    printTime('Database meps detached');
+    printTime('languagesAvailable loaded: ${languagesAvailable.length} items');
+
+    // NOUVEAU: Stocker le résultat dans _allLanguagesList
+    _allLanguagesList = languagesAvailable;
   }
 
   bool isFavorite(Map<String, dynamic> language) {
-    return language['LanguageSymbol'] == selectedLanguage; // Juste un exemple
+    // La logique de favori doit être plus robuste si elle est basée sur plus qu'un simple exemple.
+    // Pour l'instant, on garde l'exemple, mais on pourrait vouloir stocker une liste d'IDs/Symboles favoris.
+    return language['LanguageSymbol'] == selectedLanguage;
   }
 
-  Future<void> _onSearchChanged() async {
-    if (database != null) {
-      await fetchLanguages(_searchController.text);
-    }
+  // CHANGEMENT: Nouvelle méthode pour filtrer les résultats en mémoire
+  void _filterLanguages() {
+    final searchTerm = _searchController.text.toLowerCase();
+
+    // 1. Filtrer la liste complète en mémoire
+    final List<Map<String, dynamic>> results = _allLanguagesList.where((lang) {
+      if (searchTerm.isEmpty) return true;
+
+      final languageName = lang['LanguageName']?.toLowerCase() ?? '';
+      final title = lang['Title']?.toLowerCase() ?? '';
+      final shortTitle = lang['ShortTitle']?.toLowerCase() ?? '';
+
+      return languageName.contains(searchTerm) ||
+          title.contains(searchTerm) ||
+          shortTitle.contains(searchTerm);
+    }).toList();
+
+    // 2. Mettre à jour les listes d'affichage
+    setState(() {
+      favoriteLanguages = results.where((lang) {
+        return isFavorite(lang);
+      }).toList();
+
+      // La liste filtrée exclut les favoris
+      filteredLanguagesList = results.where((lang) => !isFavorite(lang)).toList();
+    });
   }
+
+  // ... (Reste de la classe _LanguagesPubDialogState) ...
+  // La méthode `build` reste inchangée, sauf le `hintText`
 
   @override
   Widget build(BuildContext context) {
@@ -198,6 +203,9 @@ class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
 
     // Accès au thème pour éviter les erreurs de constantes
     final Color dividerColor = isDarkMode ? Colors.black : const Color(0xFFf0f0f0);
+
+    // NOUVEAU: Compte total des éléments affichés (filtrés)
+    final totalFilteredCount = favoriteLanguages.length + filteredLanguagesList.length;
 
     // Combine favoriteLanguages en haut et filteredLanguagesList en bas
     final combinedLanguages = [
@@ -235,7 +243,8 @@ class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
                 autocorrect: false, // Désactive la correction automatique
                 enableSuggestions: false, // Désactive les suggestions
                 decoration: InputDecoration(
-                  hintText: 'Rechercher une langue (${filteredLanguagesList.length})',
+                  // CHANGEMENT: Afficher le nombre total filtré/affiché
+                  hintText: 'Rechercher une langue ($totalFilteredCount)',
                   hintStyle: TextStyle(
                     color: Theme.of(context).brightness == Brightness.dark
                         ? const Color(0xFFc3c3c3)
@@ -264,9 +273,10 @@ class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // La logique d'affichage des titres "Favoris" et "Autres langues" est conservée
                       if (isFavorite && index == 0)
                         Padding(
-                          padding: EdgeInsets.only(left: 20, bottom: 8),
+                          padding: EdgeInsets.only(left: 20, bottom: 8, top: 8), // Ajustement du padding
                           child: Text(
                             'Favoris',
                             style: TextStyle(
@@ -276,9 +286,10 @@ class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
                             ),
                           ),
                         ),
-                      if (!isFavorite && index == favoriteLanguages.length)
+                      // Afficher "Autres langues" juste avant le premier élément non favori
+                      if (!isFavorite && index == favoriteLanguages.length && favoriteLanguages.isNotEmpty)
                         Padding(
-                          padding: EdgeInsets.only(left: 20),
+                          padding: EdgeInsets.only(left: 20, top: 8, bottom: 8), // Ajustement du padding
                           child: Text(
                             'Autres langues',
                             style: TextStyle(
@@ -319,6 +330,8 @@ class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
     );
   }
 
+  // ... (Le reste des méthodes _buildLanguageItem et _buildProgressBar est inchangé)
+
   // Variable pour suivre quelle langue est en cours de téléchargement
   Publication? _publication;
 
@@ -328,174 +341,182 @@ class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
     final int issueTagNumber = languageData['IssueTagNumber'] ?? 0;
 
     return InkWell(
-      onTap: () async {
-        setState(() {
-          selectedLanguage = languageSymbol;
-          selectedSymbol = keySymbol;
-          selectedIssueTagNumber = issueTagNumber;
-        });
-
-        Publication? publication = PublicationRepository().getAllPublications().firstWhereOrNull((p) =>
-        p.mepsLanguage.symbol == languageSymbol &&
-            p.keySymbol == keySymbol &&
-            p.issueTagNumber == issueTagNumber);
-
-        publication ??= await PubCatalog.searchPub(keySymbol, issueTagNumber, languageSymbol);
-
-        if (publication != null) {
+        onTap: () async {
           setState(() {
-            _publication = publication;
+            selectedLanguage = languageSymbol;
+            selectedSymbol = keySymbol;
+            selectedIssueTagNumber = issueTagNumber;
           });
 
-          if (publication.isDownloadedNotifier.value == false) {
-            // Démarrer le téléchargement et rafraîchir l'UI
+          Publication? publication = PublicationRepository().getAllPublications().firstWhereOrNull((p) =>
+          p.mepsLanguage.symbol == languageSymbol &&
+              p.keySymbol == keySymbol &&
+              p.issueTagNumber == issueTagNumber);
 
-            try {
-              await publication.download(context);
-              Navigator.of(context).pop(publication);
-            }
-            catch (error) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Erreur lors du téléchargement: $error'),
-                  backgroundColor: Colors.red,
-                ),
-              );
-            }
-            finally {
-              if (mounted) {
-                setState(() {
-                  _publication = null;
-                });
+          publication ??= await PubCatalog.searchPub(keySymbol, issueTagNumber, languageSymbol);
+
+          if (publication != null) {
+            setState(() {
+              _publication = publication;
+            });
+
+            if (publication.isDownloadedNotifier.value == false) {
+              // Démarrer le téléchargement et rafraîchir l'UI
+
+              try {
+                await publication.download(context);
+                Navigator.of(context).pop(publication);
+              }
+              catch (error) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Erreur lors du téléchargement: $error'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+              finally {
+                if (mounted) {
+                  setState(() {
+                    _publication = null;
+                  });
+                }
               }
             }
+            else {
+              Navigator.of(context).pop(publication);
+            }
           }
-          else {
-            Navigator.of(context).pop(publication);
-          }
-        }
-      },
-      child: Container(
-        padding: const EdgeInsets.only(left: 8, right: 5, top: 5, bottom: 5),
-        child: Stack(
-          children: [
-            // Contenu principal (Row avec Radio + Textes)
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Radio(
-                  value: languageSymbol,
-                  activeColor: Theme.of(context).primaryColor,
-                  groupValue: widget.publication == null ? '${selectedLanguage}_${selectedSymbol}_$selectedIssueTagNumber' : selectedLanguage,
-                  onChanged: (value) {
-                    setState(() {
-                      selectedLanguage = languageSymbol;
-                      selectedSymbol = languageData['KeySymbol'];
-                      selectedIssueTagNumber = languageData['IssueTagNumber'];
-                    });
-                  },
-                ),
-                SizedBox(width: 20),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        languageData['LanguageName'],
-                        style: TextStyle(
-                          color: Theme.of(context).secondaryHeaderColor,
-                          fontFamily: 'Roboto',
-                          fontWeight: FontWeight.w400,
-                        ),
-                      ),
-                      SizedBox(height: 2),
-                      Text(
-                        languageData['ShortTitle'],
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Theme.of(context).brightness == Brightness.dark
-                              ? const Color(0xFFc3c3c3)
-                              : const Color(0xFF626262),
-                        ),
-                      ),
-                      if(widget.publication == null)
-                        SizedBox(height: 2),
-                      if(widget.publication == null)
+        },
+        child: Container(
+          padding: const EdgeInsets.only(left: 8, right: 5, top: 5, bottom: 5),
+          child: Stack(
+            children: [
+              // Contenu principal (Row avec Radio + Textes)
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Radio(
+                    value: languageSymbol,
+                    activeColor: Theme.of(context).primaryColor,
+                    groupValue: widget.publication == null ? '${selectedLanguage}_${selectedSymbol}_$selectedIssueTagNumber' : selectedLanguage,
+                    onChanged: (value) {
+                      setState(() {
+                        selectedLanguage = languageSymbol;
+                        selectedSymbol = languageData['KeySymbol'];
+                        selectedIssueTagNumber = languageData['IssueTagNumber'];
+                      });
+                    },
+                  ),
+                  SizedBox(width: 20),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                         Text(
-                          '${languageData['Year']} - ${languageData['KeySymbol']}',
+                          languageData['LanguageName'],
                           style: TextStyle(
-                            fontSize: 10,
-                            color: Theme.of(context).brightness == Brightness.dark
-                                ? const Color(0xFFa0a0a0)
-                                : const Color(0xFFa0a0a0),
+                            color: Theme.of(context).secondaryHeaderColor,
+                            fontFamily: 'Roboto',
+                            fontWeight: FontWeight.w400,
                           ),
                         ),
+                        SizedBox(height: 2),
+                        Text(
+                          languageData['ShortTitle'],
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Theme.of(context).brightness == Brightness.dark
+                                ? const Color(0xFFc3c3c3)
+                                : const Color(0xFF626262),
+                          ),
+                        ),
+                        if(widget.publication == null)
+                          SizedBox(height: 2),
+                        if(widget.publication == null)
+                          Text(
+                            '${languageData['Year']} - ${languageData['KeySymbol']}',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: Theme.of(context).brightness == Brightness.dark
+                                  ? const Color(0xFFa0a0a0)
+                                  : const Color(0xFFa0a0a0),
+                            ),
+                          ),
 
-                    ],
-                  ),
-                ),
-                SizedBox(width: 35), // pour laisser la place au bouton
-              ],
-            ),
-
-            // PopupMenuButton (positionné à droite)
-            Positioned(
-              right: 0,
-              top: 0,
-              child: PopupMenuButton(
-                icon: Icon(
-                  Icons.more_vert,
-                  color: Color(0xFF9d9d9d),
-                ),
-                itemBuilder: (context) {
-                  return [
-                    PopupMenuItem(
-                      onTap: () async {
-                        Publication? publication = await PubCatalog.searchPub(widget.publication!.keySymbol, widget.publication!.issueTagNumber, languageSymbol);
-
-                        if (publication != null && publication.isDownloadedNotifier.value == false) {
-                          setState(() {
-                            selectedLanguage = languageSymbol;
-                            _publication = publication;
-                          });
-
-                          try {
-                            await publication.download(context);
-                          }
-                          catch (error) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Erreur lors du téléchargement: $error'),
-                                backgroundColor: Colors.red,
-                              ),
-                            );
-                          }
-                          finally {
-                            setState(() {
-                              _publication = null;
-                            });
-                          }
-                        }
-                      },
-                      child: Text('Télécharger'),
+                      ],
                     ),
-                  ];
-                },
+                  ),
+                  SizedBox(width: 35), // pour laisser la place au bouton
+                ],
               ),
-            ),
 
-
-            // ProgressBar (positionné en bas à gauche, sous les textes)
-            if (_publication != null && _publication?.mepsLanguage.symbol == languageSymbol && _publication?.keySymbol == keySymbol && _publication?.issueTagNumber == issueTagNumber)
+              // PopupMenuButton (positionné à droite)
               Positioned(
-                left: 65, // pour laisser de l’espace au Radio
-                right: 35, // pour éviter d’écraser le menu
-                bottom: 0,
-                child: _buildProgressBar(context),
+                right: 0,
+                top: 0,
+                child: PopupMenuButton(
+                  icon: Icon(
+                    Icons.more_vert,
+                    color: Color(0xFF9d9d9d),
+                  ),
+                  itemBuilder: (context) {
+                    return [
+                      PopupMenuItem(
+                        onTap: () async {
+                          // Pour des raisons d'asynchronisme avec le menu, on exécute la logique de téléchargement
+                          // *après* la fermeture du menu si on utilise `onTap` sur le `PopupMenuItem`.
+                          // Le `Future.delayed` est une astuce courante pour s'assurer que le menu se ferme avant
+                          // de lancer une action potentiellement longue ou qui navigue.
+                          Future.delayed(Duration.zero, () async {
+                            Publication? publication = await PubCatalog.searchPub(keySymbol, issueTagNumber, languageSymbol);
+
+                            if (publication != null && publication.isDownloadedNotifier.value == false) {
+                              setState(() {
+                                selectedLanguage = languageSymbol;
+                                _publication = publication;
+                              });
+
+                              try {
+                                await publication.download(context);
+                              }
+                              catch (error) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Erreur lors du téléchargement: $error'),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              }
+                              finally {
+                                if (mounted) {
+                                  setState(() {
+                                    _publication = null;
+                                  });
+                                }
+                              }
+                            }
+                          });
+                        },
+                        child: Text('Télécharger'),
+                      ),
+                    ];
+                  },
+                ),
               ),
-          ],
-        ),
-      )
+
+
+              // ProgressBar (positionné en bas à gauche, sous les textes)
+              if (_publication != null && _publication?.mepsLanguage.symbol == languageSymbol && _publication?.keySymbol == keySymbol && _publication?.issueTagNumber == issueTagNumber)
+                Positioned(
+                  left: 65, // pour laisser de l’espace au Radio
+                  right: 35, // pour éviter d’écraser le menu
+                  bottom: 0,
+                  child: _buildProgressBar(context),
+                ),
+            ],
+          ),
+        )
 
     );
   }

@@ -1,6 +1,10 @@
+import 'dart:convert';
 import 'dart:io';
 
+import 'package:dio/dio.dart' as http hide Response;
 import 'package:flutter/material.dart';
+import 'package:http/http.dart';
+import 'package:http/http.dart' as http;
 import 'package:jwlife/core/icons.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:jwlife/core/utils/utils_video.dart';
@@ -8,10 +12,14 @@ import 'package:jwlife/core/utils/webview_data.dart';
 import 'package:jwlife/data/realm/catalog.dart';
 
 import '../../../app/services/settings_service.dart';
+import '../../../core/api/api.dart';
 import '../../../core/utils/directory_helper.dart';
 import '../../../core/utils/utils.dart';
+import '../../../data/databases/catalog.dart';
+import '../../../data/models/publication.dart';
 import '../../../data/models/video.dart';
 import '../../../widgets/dialog/language_dialog.dart';
+import '../../../widgets/dialog/publication_dialogs.dart';
 
 class AlertInfoPage extends StatefulWidget {
   final List<dynamic> alerts; // URL de l'alerte à afficher
@@ -23,7 +31,8 @@ class AlertInfoPage extends StatefulWidget {
 }
 
 class _AlertInfoPageState extends State<AlertInfoPage> {
-  String language = '';
+  String _language = '';
+  String _languageSymbol = '';
 
   String _htmlContent = '';
   bool _isLoadingHtml = true;
@@ -106,7 +115,8 @@ class _AlertInfoPageState extends State<AlertInfoPage> {
 
   void setLanguage() async {
     setState(() {
-      language = JwLifeSettings().currentLanguage.vernacular;
+      _language = JwLifeSettings().currentLanguage.vernacular;
+      _languageSymbol = JwLifeSettings().currentLanguage.symbol;
     });
   }
 
@@ -123,7 +133,7 @@ class _AlertInfoPageState extends State<AlertInfoPage> {
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             Text(
-              language,
+              _language,
               style: TextStyle(fontSize: 14, color: Theme.of(context).brightness == Brightness.dark
                   ? const Color(0xFFc3c3c3)
                   : const Color(0xFF626262))
@@ -138,8 +148,46 @@ class _AlertInfoPageState extends State<AlertInfoPage> {
               showDialog(
                 context: context,
                 builder: (context) => languageDialog,
-              ).then((value) {
-                printTime('Language selected: $value');
+              ).then((value) async {
+                final queryParams = {
+                  'type': 'news',
+                  'lang': value['Symbol'],
+                  'context': 'homePage',
+                };
+
+                // Construire l'URI avec les paramètres
+                final url = Uri.https('b.jw-cdn.org', '/apis/alerts/list', queryParams);
+
+                try {
+                  // Préparer les headers pour la requête avec l'autorisation
+                  Map<String, String> headers = {
+                    'Authorization': 'Bearer ${Api.currentJwToken}',
+                  };
+
+                  // Faire la requête HTTP pour récupérer les alertes
+                  http.Response alertResponse = await http.get(url, headers: headers);
+
+                  if (alertResponse.statusCode == 200) {
+                    // La requête a réussi, traiter la réponse JSON
+                    final data = jsonDecode(alertResponse.body);
+
+                    setState(() {
+                      _language = value['VernacularName'];
+                      _languageSymbol = value['Symbol'];
+                    });
+
+                    _htmlContent = convertAlertsToHtml(data['alerts']);
+                    webViewController.loadData(data: _htmlContent, mimeType: 'text/html', baseUrl: WebUri('file://$webappPath/'), );
+                  }
+                  else {
+                    // Gérer une erreur de statut HTTP
+                    printTime('Erreur de requête HTTP: ${alertResponse.statusCode}');
+                  }
+                }
+                catch (e) {
+                  // Gérer les erreurs lors des requêtes
+                  printTime('Erreur lors de la récupération des données de l\'API: $e');
+                }
               });
             },
           )
@@ -166,32 +214,55 @@ class _AlertInfoPageState extends State<AlertInfoPage> {
           WebUri uri = navigationAction.request.url!;
           String url = uri.uriValue.toString();
 
-          if (url.startsWith('webpubdl://'))  {
-            final docId = uri.queryParameters['docid'];
-            final track = uri.queryParameters['track'];
-            final langwritten = uri.queryParameters.containsKey('langwritten') ? uri.queryParameters['langwritten'] : '';
-            final fileformat = uri.queryParameters['fileformat'];
-
-            //showDocumentDialog(context, docId!, track!, langwritten!, fileformat!);
-
+          if(url.startsWith('jwpub://')) {
             return NavigationActionPolicy.CANCEL;
           }
-          else if (uri.host == 'www.jw.org' && uri.path == '/finder') {
-            if (uri.queryParameters.containsKey('lank')) {
-              if(uri.queryParameters.containsKey('lank')) {
-                MediaItem? mediaItem;
-                final lank = uri.queryParameters['lank'];
-                mediaItem = getMediaItemFromLank(lank!, JwLifeSettings().currentLanguage.symbol);
+          else if (url.startsWith('webpubdl://')) {
+            final uri = Uri.parse(url);
 
-                Video video = Video.fromJson(mediaItem: mediaItem);
-                video.showPlayer(context);
+            final pub = uri.queryParameters['pub']?.toLowerCase();
+            final docId = uri.queryParameters['docid'];
+            final track = uri.queryParameters['track'];
+            final fileformat = uri.queryParameters['fileformat'];
+            final langwritten = _languageSymbol;
+
+            if ((pub != null || docId != null) && fileformat != null) {
+              showDocumentDialog(context, pub, docId, track, langwritten, fileformat);
+              return NavigationActionPolicy.CANCEL;
+            }
+          }
+          else if (uri.host == 'www.jw.org' && uri.path == '/finder') {
+            printTime('Requested URL: $url');
+            final wtlocale = _languageSymbol;
+            if (uri.queryParameters.containsKey('lank')) {
+              MediaItem? mediaItem;
+              if(uri.queryParameters.containsKey('lank')) {
+                final lank = uri.queryParameters['lank'];
+                mediaItem = getMediaItemFromLank(lank!, wtlocale!);
               }
+
+              Video video = Video.fromJson(mediaItem: mediaItem!);
+              video.showPlayer(context);
+            }
+            else if (uri.queryParameters.containsKey('pub')) {
+              // Récupère les paramètres
+              final pub = uri.queryParameters['pub']?.toLowerCase();
+              final issueTagNumber = uri.queryParameters.containsKey('issueTagNumber') ? int.parse(uri.queryParameters['issueTagNumber']!) : 0;
+
+              Publication? publication = await PubCatalog.searchPub(pub!, issueTagNumber, wtlocale);
+              if (publication != null) {
+                await publication.showMenu(context);
+              }
+            }
+            else if (uri.queryParameters.containsKey('docid')) {
+              final docid = uri.queryParameters['docid'];
+
+              return NavigationActionPolicy.ALLOW;
             }
 
             // Annule la navigation pour gérer le lien manuellement
             return NavigationActionPolicy.CANCEL;
           }
-
           // Permet la navigation pour tous les autres liens
           return NavigationActionPolicy.ALLOW;
         },

@@ -4545,6 +4545,22 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
             }
 
             if (tagName === 'IMG') {
+              // 1. Tente de trouver l'élément parent <a> qui contient l'attribut 'data-video'
+              //    (target.closest('a') recherche l'ancêtre <a> le plus proche)
+              const videoLink = target.closest('a[data-video]');
+            
+              // 2. Vérifie si un tel élément parent a été trouvé
+              const isVideoThumbnail = videoLink !== null;
+            
+              if (isVideoThumbnail) {
+                // Si c'est une miniature de vidéo, on récupère la valeur de l'attribut
+                const videoData = videoLink.getAttribute('data-video');
+                
+                closeToolbar();
+                return; // Sortie : on ne traite PAS comme une simple image
+              }
+              
+              // Si ce n'est pas un lien vidéo, on le traite comme une image normale
               window.flutter_inappwebview.callHandler('onImageClick', target.src);
               closeToolbar();
               return;

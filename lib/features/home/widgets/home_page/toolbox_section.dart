@@ -18,12 +18,15 @@ class ToolboxSection extends StatefulWidget {
 
 class ToolboxSectionState extends State<ToolboxSection> {
   final List<dynamic> _toolbox = [];
+  final List<dynamic> _toolboxTracts = [];
 
   void refreshToolbox() {
     setState(() {
       _toolbox.clear();
+      _toolboxTracts.clear();
       _toolbox.addAll(RealmLibrary.loadTeachingToolboxVideos());
       _toolbox.addAll(PubCatalog.teachingToolboxPublications);
+      _toolboxTracts.addAll(PubCatalog.teachingToolboxTractsPublications);
     });
   }
 
@@ -51,13 +54,27 @@ class ToolboxSectionState extends State<ToolboxSection> {
             },
           ),
         ),
+        SizedBox(
+          height: 120,
+          child: ListView.builder(
+            padding: const EdgeInsets.all(0.0),
+            scrollDirection: Axis.horizontal,
+            itemCount: _toolboxTracts.length,
+            itemBuilder: (context, index) {
+              return Padding(
+                padding: const EdgeInsets.only(right: 2.0),
+                child: HomeSquarePublicationItem(pub: _toolboxTracts[index], toolbox: true),
+              );
+            },
+          ),
+        ),
       ],
     );
   }
 
   Widget _buildToolboxItem(dynamic item, BuildContext context) {
     if (item is Publication) {
-      return HomeSquarePublicationItem(pub: item);
+      return HomeSquarePublicationItem(pub: item, toolbox: true);
     }
     if (item is Media) {
       return HomeSquareMediaItemItem(media: item);

@@ -193,18 +193,40 @@ class Document {
     try {
       // Récupérer les données de la base
       List<Map<String, dynamic>> response = await database.rawQuery('''
-            SELECT DISTINCT m.*, dm.BeginParagraphOrdinal, dm.EndParagraphOrdinal
-            FROM Multimedia m
-            JOIN DocumentMultimedia dm ON dm.MultimediaId = m.MultimediaId
-            WHERE m.MimeType IN ('image/jpeg', 'video/mp4')
-              AND m.CategoryType != 25
-              AND dm.DocumentId = ?
-              AND (dm.BeginParagraphOrdinal IS NOT NULL
-                   OR dm.EndParagraphOrdinal IS NOT NULL);
-      ''', [documentId]);
+          SELECT DISTINCT m.*, dm.BeginParagraphOrdinal, dm.EndParagraphOrdinal
+          FROM Multimedia m
+          JOIN DocumentMultimedia dm ON dm.MultimediaId = m.MultimediaId
+          WHERE m.MimeType IN ('image/jpeg', 'video/mp4')
+            AND m.CategoryType != 25
+            AND dm.DocumentId = ?;
+    ''', [documentId]);
 
       List<Multimedia> medias = response.map((e) => Multimedia.fromMap(e)).toList();
-      medias.sort((a, b) => a.beginParagraphOrdinal.compareTo(b.beginParagraphOrdinal));
+
+      // Modification de la fonction de tri ici
+      medias.sort((a, b) {
+        final aBegin = a.beginParagraphOrdinal;
+        final bBegin = b.beginParagraphOrdinal;
+
+        // 1. Gérer les nulls en premier
+        if (aBegin == null && bBegin != null) {
+          return -1; // 'a' vient avant 'b'
+        }
+        if (aBegin != null && bBegin == null) {
+          return 1; // 'a' vient après 'b'
+        }
+
+        // 2. Si les deux sont null, trier par MultimediaId
+        if (aBegin == null && bBegin == null) {
+          // Supposant que MultimediaId est une propriété de type int ou comparable
+          return a.id.compareTo(b.id);
+        }
+
+        // 3. Sinon (si les deux sont non-null), trier par BeginParagraphOrdinal
+        // L'ordre par défaut est ascendant
+        return aBegin!.compareTo(bBegin!);
+      });
+
       multimedias = medias;
     }
     catch (e) {

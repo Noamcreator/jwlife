@@ -19,8 +19,10 @@ class PubCatalog {
   /// Liste des dernières publications chargées.
   static List<Publication> datedPublications = [];
   static List<Publication?> teachingToolboxPublications = [];
+  static List<Publication?> teachingToolboxTractsPublications = [];
   static List<Publication> recentPublications = [];
   static List<Publication> latestPublications = [];
+  static List<Publication> otherMeetingsPublications = [];
   static List<Publication> assembliesPublications = [];
 
   /*
@@ -218,7 +220,9 @@ class PubCatalog {
 
           if (result4.isNotEmpty) {
             teachingToolboxPublications = [];
-            List<int> availableTeachingToolBoxInt = [-1, 5, 8, 9, 10, -1, 11, -1, 17, 18, 19];
+            teachingToolboxTractsPublications = [];
+            List<int> availableTeachingToolBoxInt = [-1, 5, 8, -1, 9, -1, 15, 16, 17];
+            List<int> availableTeachingToolBoxTractsInt = [18, 19, 20, 21, 22, 23, 24, 25, 26];
             for (int i = 0; i < availableTeachingToolBoxInt.length; i++) {
               if (availableTeachingToolBoxInt[i] == -1) {
                 teachingToolboxPublications.add(null);
@@ -227,6 +231,17 @@ class PubCatalog {
                 final pub = result4.firstWhereOrNull((e) => e['SortOrder'] == availableTeachingToolBoxInt[i]);
                 if (pub != null) {
                   teachingToolboxPublications.add(Publication.fromJson(pub));
+                }
+              }
+            }
+            for (int i = 0; i < availableTeachingToolBoxTractsInt.length; i++) {
+              if (availableTeachingToolBoxTractsInt[i] == -1) {
+                teachingToolboxTractsPublications.add(null);
+              }
+              else if (result4.any((e) => e['SortOrder'] == availableTeachingToolBoxTractsInt[i])) {
+                final pub = result4.firstWhereOrNull((e) => e['SortOrder'] == availableTeachingToolBoxTractsInt[i]);
+                if (pub != null) {
+                  teachingToolboxTractsPublications.add(Publication.fromJson(pub));
                 }
               }
             }
@@ -506,6 +521,42 @@ class PubCatalog {
     }
   }
 
+  static Future<void> fetchOtherMeetingsPubs() async {
+    final catalogFile = await getCatalogDatabaseFile();
+    final mepsFile = await getMepsUnitDatabaseFile();
+
+    if (allFilesExist([catalogFile, mepsFile])) {
+      final catalog = await openReadOnlyDatabase(catalogFile.path);
+
+      await attachDatabases(catalog, {'meps': mepsFile.path});
+
+      final languageId = JwLifeSettings().currentLanguage.id;
+
+      otherMeetingsPublications.clear();
+
+      try {
+        final results = await catalog.rawQuery('''
+              SELECT DISTINCT
+                ca.SortOrder,
+                $publicationSelectQuery
+              FROM CuratedAsset ca
+              INNER JOIN PublicationAsset pa ON ca.PublicationAssetId = pa.Id
+              INNER JOIN Publication p ON pa.PublicationId = p.Id
+              INNER JOIN meps.Language ON p.MepsLanguageId = meps.Language.LanguageId
+              LEFT JOIN PublicationAttributeMap pam ON p.Id = pam.PublicationId
+              WHERE pa.MepsLanguageId = ? AND ca.ListType = ?
+              ORDER BY ca.SortOrder;
+            ''', [languageId, 0]);
+
+        otherMeetingsPublications = results.map((pub) => Publication.fromJson(pub)).toList();
+      }
+      finally {
+        await detachDatabases(catalog, ['meps']);
+        await catalog.close();
+      }
+    }
+  }
+
   static Future<void> fetchAssemblyPublications() async {
     final catalogFile = await getCatalogDatabaseFile();
     final mepsFile = await getMepsUnitDatabaseFile();
@@ -581,20 +632,8 @@ class PubCatalog {
       try {
         final publications = await catalog.rawQuery('''
           SELECT
-             p.*,
-             pa.LastModified, 
-             pa.CatalogedOn,
-             pa.Size,
-             pa.ExpandedSize,
-             pa.SchemaVersion,
-             pa.ConventionReleaseDayNumber,
-             pam.PublicationAttributeId,
-             (SELECT ia.NameFragment 
-              FROM PublicationAssetImageMap paim 
-              JOIN ImageAsset ia ON paim.ImageAssetId = ia.Id 
-              WHERE paim.PublicationAssetId = pa.Id  AND (ia.Width = 270 AND ia.Height = 270)
-              LIMIT 1) AS ImageSqr
-          FROM PublicationAsset pa
+             $publicationSelectQuery
+          FROM PublicationAsset p
           INNER JOIN Publication p ON pa.PublicationId = p.Id
           LEFT JOIN PublicationAttributeMap pam ON p.Id = pam.PublicationId
           WHERE pa.MepsLanguageId = ? AND pa.ConventionReleaseDayNumber IS NOT NULL;

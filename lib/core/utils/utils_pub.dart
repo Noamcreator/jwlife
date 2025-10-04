@@ -101,6 +101,7 @@ Future<String> extractPublicationDescription(Publication? publication, {String? 
   int iTn = publication?.issueTagNumber ?? issueTagNumber ?? 0;
   String mL = publication?.mepsLanguage.symbol ?? mepsLanguage ?? '';
 
+  // La condition d'appel (iTn == 0 && s.isNotEmpty && mL.isNotEmpty) reste la même
   if (iTn == 0 && s.isNotEmpty && mL.isNotEmpty) {
     String wolLinkJwOrg = 'https://www.jw.org/finder?wtlocale=$mL&pub=$s';
     printTime('Fetching publication content: $wolLinkJwOrg');
@@ -109,14 +110,29 @@ Future<String> extractPublicationDescription(Publication? publication, {String? 
       final response = await Api.httpGetWithHeaders(wolLinkJwOrg);
       if (response.statusCode == 200) {
         var document = htmlParser.parse(response.body);
+
+        // --- NOUVELLE VÉRIFICATION DE LA PAGE D'ACCUEIL ---
+        // Vérifie si l'élément <body> a l'ID de la page d'accueil.
+        // Si c'est le cas, cela signifie qu'il y a eu une redirection (lien invalide),
+        // et on retourne une chaîne vide ('').
+        var bodyElement = document.querySelector('body');
+        if (bodyElement?.attributes['id'] == 'mid1011200') {
+          printTime('Redirection vers la page d\'accueil détectée. Retourne une description vide.');
+          return '';
+        }
+        // ----------------------------------------------------
+
+        // La logique existante pour extraire la balise meta 'description'
         var metaDescription = document.querySelector('meta[name="description"]');
 
         if (metaDescription != null) {
           return metaDescription.attributes['content']?.trim() ?? '';
         }
+        // Si la balise meta n'est pas trouvée (et que ce n'est pas la page d'accueil), on retourne aussi une chaîne vide.
+        return '';
       }
       else {
-        throw Exception('Failed to load publication content');
+        throw Exception('Failed to load publication content (Status: ${response.statusCode})');
       }
     }
     catch (e) {

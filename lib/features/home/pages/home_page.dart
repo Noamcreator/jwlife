@@ -89,6 +89,7 @@ class HomePageState extends State<HomePage> {
 
     _loadWolInfo();
     await Mepsunit.loadBibleCluesInfo();
+    await PubCatalog.fetchOtherMeetingsPubs();
     await PubCatalog.fetchAssemblyPublications();
 
     printTime("Refresh MeetingsView start");
@@ -125,6 +126,7 @@ class HomePageState extends State<HomePage> {
       GlobalKeyService.meetingsKey.currentState?.refreshMeetingsPubs();
 
       await Mepsunit.loadBibleCluesInfo();
+      await PubCatalog.fetchOtherMeetingsPubs();
       await PubCatalog.fetchAssemblyPublications();
 
       printTime("Refresh MeetingsView start");
@@ -247,6 +249,7 @@ class HomePageState extends State<HomePage> {
             PubCatalog.updateCatalogCategories();
             GlobalKeyService.meetingsKey.currentState?.refreshMeetingsPubs();
 
+            await PubCatalog.fetchOtherMeetingsPubs();
             await PubCatalog.fetchAssemblyPublications();
 
             GlobalKeyService.meetingsKey.currentState?.refreshConventionsPubs();

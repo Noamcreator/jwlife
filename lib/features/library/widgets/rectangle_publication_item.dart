@@ -9,13 +9,14 @@ import '../../../widgets/image_cached_widget.dart';
 
 class RectanglePublicationItem extends StatelessWidget {
   final Publication publication;
+  final Color? backgroundColor;
 
-  const RectanglePublicationItem({super.key, required this.publication});
+  const RectanglePublicationItem({super.key, required this.publication, this.backgroundColor});
 
   @override
   Widget build(BuildContext context) {
     return Material(
-        color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF292929) : Colors.white,
+        color: backgroundColor ?? (Theme.of(context).brightness == Brightness.dark ? const Color(0xFF292929) : Colors.white),
         child: InkWell(
             onTap: () => publication.showMenu(context),
             child: SizedBox(

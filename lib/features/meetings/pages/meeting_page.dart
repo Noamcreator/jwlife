@@ -8,6 +8,7 @@ import 'package:jwlife/data/models/meps_language.dart';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/repositories/PublicationRepository.dart';
 import 'package:jwlife/data/databases/catalog.dart';
+import 'package:jwlife/features/library/widgets/rectangle_publication_item.dart';
 import 'package:jwlife/i18n/localization.dart';
 import 'package:jwlife/widgets/dialog/utils_dialog.dart';
 import 'package:jwlife/widgets/image_cached_widget.dart';
@@ -514,6 +515,19 @@ class MeetingsPageState extends State<MeetingsPage> {
               ),
               child: _isWeekendMeetingContentIsDownload(context, _dateOfMeetingValue),
             ),
+            const SizedBox(height: 16),
+
+            _buildMeetingCard(
+              context: context,
+              title: 'Autres publications',
+              icon: JwIcons.book_stack,
+              gradient: const LinearGradient(
+                colors: [Color(0xFF458465), Color(0xFF509070)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              child: _meetingsPublications(context),
+            ),
             const SizedBox(height: 40),
 
             /// 🏟️ Section Assemblées
@@ -655,7 +669,7 @@ class MeetingsPageState extends State<MeetingsPage> {
     );
   }
 
-// Vos méthodes existantes restent inchangées
+  // Vos méthodes existantes restent inchangées
   Widget _isMidweekMeetingContentIsDownload(BuildContext context, DateTime weekRange) {
     if (_midweekMeetingPub == null) {
       return _buildEmptyState(
@@ -705,6 +719,38 @@ class MeetingsPageState extends State<MeetingsPage> {
     else {
       return _buildWeekendContent(context);
     }
+  }
+
+  Widget _meetingsPublications(BuildContext context) {
+    List<Publication> publications = [
+      if (_midweekMeetingPub != null) _midweekMeetingPub!,
+      if (_weekendMeetingPub != null) _weekendMeetingPub!,
+      ...PubCatalog.otherMeetingsPublications
+    ];
+
+    // Création de la liste de Widgets avec les séparateurs
+    List<Widget> children = [];
+
+    for (int i = 0; i < publications.length; i++) {
+      // 1. Ajout de l'élément de publication
+      children.add(RectanglePublicationItem(publication: publications[i], backgroundColor: Theme.of(context).cardColor));
+
+      // 2. Ajout du séparateur, sauf après le dernier élément
+      if (i < publications.length - 1) {
+        children.add(const SizedBox(height: 8));
+      }
+    }
+
+    // Utilisation de la Column au lieu du ListView
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+
+      // Alignement au début (par défaut, mais explicite)
+      crossAxisAlignment: CrossAxisAlignment.start,
+
+      // Contenu généré
+      children: children,
+    );
   }
 
   Widget _buildEmptyState(BuildContext context, String message, IconData icon) {

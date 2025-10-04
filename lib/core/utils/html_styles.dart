@@ -31,22 +31,31 @@ class TextHtmlWidget extends StatelessWidget {
     );
   }
 
-  /// Parser récursif pour transformer du pseudo-HTML simple en TextSpan
+  /// Parser récursif pour transformer du pseudo-HTML simple en TextSpan.
+  /// Gère uniquement les balises autorisées et ignore les autres.
   List<InlineSpan> _parseHtml(BuildContext context, String input, TextStyle baseStyle) {
+    // Balises que ce parser sait gérer
+    const allowedTags = {'strong', 'em', 'sup', 'span', 'p'};
+
+    // Regex générale pour capturer N'IMPORTE QUELLE balise HTML
+    final tagReg = RegExp(
+      // Group 1: / (facultatif, pour les balises fermantes)
+      // Group 2: Nom de la balise (e.g., strong, div, a)
+      // Group 3: Valeur de l'attribut class (si class="..." est présent)
+      // Group 4: Reste des attributs
+      r'<(\/?)([a-zA-Z0-9]+)(?: class="([^"]+)")?([^>]*)?>',
+      caseSensitive: false,
+    );
+
     final List<InlineSpan> spans = [];
 
     input = input.replaceAll('&nbsp;', ' ');
-
-    final tagReg = RegExp(
-      r'<(\/?)(strong|em|sup|span|p)(?: class="([^"]+)")?>',
-      caseSensitive: false,
-    );
 
     int index = 0;
     while (index < input.length) {
       final match = tagReg.matchAsPrefix(input, index);
       if (match == null) {
-        // Texte brut jusqu’au prochain tag
+        // Texte brut jusqu’au prochain tag (ou fin de chaîne)
         final nextTag = input.indexOf('<', index);
         final text = nextTag == -1
             ? input.substring(index)
@@ -57,18 +66,31 @@ class TextHtmlWidget extends StatelessWidget {
         }
         index = nextTag == -1 ? input.length : nextTag;
       } else {
+        // Un motif de balise a été trouvé
         final isClosing = match.group(1) == '/';
         final tag = match.group(2)!.toLowerCase();
         final classAttr = match.group(3);
 
+        // --- NOUVEAU : Vérification de la balise ---
+        if (!allowedTags.contains(tag)) {
+          // Balise inconnue ou non autorisée (e.g., <a>, <div>).
+          // On avance l'index pour ignorer toute la balise (la remplacer par '').
+          index = match.end;
+          continue;
+        }
+        // --- FIN NOUVEAU ---
+
+
+        // Le reste de la logique gère UNIQUEMENT les balises connues et autorisées
+
         if (!isClosing) {
-          // balise ouvrante → trouver la fermeture correspondante
+          // Balise ouvrante autorisée → trouver la fermeture correspondante
           final closeTag = '</$tag>';
           final startContent = match.end;
           final endIndex = _findClosingTag(input, startContent, tag);
+
           if (endIndex == -1) {
-            // Pas de fermeture → traiter comme texte brut
-            spans.add(TextSpan(text: match.group(0), style: baseStyle));
+            // Balise ouvrante connue mais sans fermeture → Ignorer la balise ouvrante.
             index = match.end;
             continue;
           }
@@ -95,7 +117,7 @@ class TextHtmlWidget extends StatelessWidget {
           }
 
           if (tag == 'sup') {
-            // On parse récursivement le contenu du sup
+            // Gestion spécifique pour les exposants (WidgetSpan)
             final innerSpans = _parseHtml(
               context,
               inner,
@@ -115,24 +137,24 @@ class TextHtmlWidget extends StatelessWidget {
             );
 
             index = endIndex + closeTag.length;
-            continue; // skip le spans.addAll plus bas
+            continue;
           }
 
           if (tag == 'p') {
-            // contenu du <p>
+            // Gestion spécifique pour les paragraphes (saut de ligne)
             spans.addAll(_parseHtml(context, inner, baseStyle));
             spans.add(const TextSpan(text: '\n\n')); // saut de ligne
             index = endIndex + closeTag.length;
             continue;
           }
 
-          // récursion pour parser l’intérieur
+          // récursion pour parser l’intérieur des balises <strong>, <em>, <span>
           spans.addAll(_parseHtml(context, inner, newStyle));
 
           index = endIndex + closeTag.length;
         } else {
-          // fermeture inattendue → texte brut
-          spans.add(TextSpan(text: match.group(0), style: baseStyle));
+          // Balise fermante inattendue pour un tag connu (e.g., </strong> au début du texte)
+          // On ignore la balise (la remplace par '').
           index = match.end;
         }
       }
@@ -143,6 +165,8 @@ class TextHtmlWidget extends StatelessWidget {
 
   /// Trouve l’index de la balise fermante correspondante (gestion imbriquée simple)
   int _findClosingTag(String input, int start, String tag) {
+    // La regex doit être plus générale pour les balises ouvrantes,
+    // mais elle ne doit chercher que les tags autorisés (ici, le tag actuel)
     final openTag = RegExp('<$tag(\\s+[^>]*)?>', caseSensitive: false);
     final closeTag = RegExp('</$tag>', caseSensitive: false);
 

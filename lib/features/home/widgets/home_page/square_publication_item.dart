@@ -8,8 +8,9 @@ import '../../../../widgets/image_cached_widget.dart';
 
 class HomeSquarePublicationItem extends StatelessWidget {
   final Publication pub;
+  final bool toolbox;
 
-  const HomeSquarePublicationItem({super.key, required this.pub});
+  const HomeSquarePublicationItem({super.key, required this.pub, this.toolbox = false});
 
   @override
   Widget build(BuildContext context) {
@@ -179,7 +180,7 @@ class HomeSquarePublicationItem extends StatelessWidget {
               child: Padding(
                 padding: const EdgeInsets.only(left: 2.0, right: 4.0),
                 child: Text(
-                  publication.getTitle(),
+                  toolbox ? publication.shortTitle : publication.getTitle(),
                   style: const TextStyle(
                     fontSize: 9,
                     height: 1.2,

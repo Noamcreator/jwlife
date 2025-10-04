@@ -160,7 +160,7 @@ class Publication {
       year: json['Year'] ?? 0,
       issueTagNumber: json['IssueTagNumber'] ?? 0,
       symbol: json['Symbol'] ?? '',
-      keySymbol: json['UndatedSymbol'] ?? json['KeySymbol'] ?? '',
+      keySymbol: json['KeySymbol'] ?? json['UndatedSymbol'],
       reserved: json['Reserved'] ?? 0,
       category: json['PublicationTypeId'] != null ? PublicationCategory.all.firstWhere((element) => element.id == json['PublicationTypeId']) : json['PublicationType'] != null ? PublicationCategory.all.firstWhere((element) => element.type == json['PublicationType'] || element.type2 == json['PublicationType']) : PublicationCategory.all.first,
       attribute: json['PublicationAttributeId'] != null ? PublicationAttribute.all.firstWhere((element) => element.id == json['PublicationAttributeId']) : json['Attribute'] != null ? PublicationAttribute.all.firstWhere((element) => element.type == json['Attribute']) : PublicationAttribute.all.first,
@@ -285,6 +285,11 @@ class Publication {
       _downloadOperation = null;
       showBottomMessage('Téléchargement annulé');
     }
+    else if (isDownloadingNotifier.value) {
+      isDownloadingNotifier.value = false;
+      isDownloadedNotifier.value = false;
+      progressNotifier.value = 0;
+    }
   }
 
   Future<void> update(BuildContext context) async {
@@ -342,6 +347,11 @@ class Publication {
       _cancelToken = null;
       _updateOperation = null;
       showBottomMessage('Mis à jour annulée');
+    }
+    else if (isDownloadingNotifier.value) {
+      isDownloadingNotifier.value = false;
+      isDownloadedNotifier.value = false;
+      progressNotifier.value = 0;
     }
   }
 

@@ -685,7 +685,7 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
                           printTime('Link: $link');
                           // Extraire les paramètres
                           Uri uri = Uri.parse(link);
-                          String? pub = uri.queryParameters['pub'];
+                          String? pub = uri.queryParameters['pub']?.toLowerCase();
                           int? issue = uri.queryParameters['issue'] != null ? int.parse(uri.queryParameters['issue']!) : null;
                           int? docId = uri.queryParameters['docid'] != null ? int.parse(uri.queryParameters['docid']!) : null;
                           int? track = uri.queryParameters['track'] != null ? int.parse(uri.queryParameters['track']!) : null;
@@ -721,7 +721,7 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
                       else if (url.startsWith('webpubdl://')) {
                         final uri = Uri.parse(url);
 
-                        final pub = uri.queryParameters['pub'];
+                        final pub = uri.queryParameters['pub']?.toLowerCase();
                         final docId = uri.queryParameters['docid'];
                         final track = uri.queryParameters['track'];
                         final fileformat = uri.queryParameters['fileformat'];
@@ -748,7 +748,7 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
                           }
                           else if (uri.queryParameters.containsKey('pub')) {
                             // Récupère les paramètres
-                            final pub = uri.queryParameters['pub'];
+                            final pub = uri.queryParameters['pub']?.toLowerCase();
                             final issueTagNumber = uri.queryParameters.containsKey('issueTagNumber') ? int.parse(uri.queryParameters['issueTagNumber']!) : 0;
 
                             Publication? publication = await PubCatalog.searchPub(pub!, issueTagNumber, wtlocale!);

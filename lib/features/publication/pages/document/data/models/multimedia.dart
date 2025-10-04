@@ -26,8 +26,8 @@ class Multimedia {
   int issueTagNumber;
   bool hasSuppressZoom;
   String? sizeConstraint;
-  int beginParagraphOrdinal;
-  int endParagraphOrdinal;
+  int? beginParagraphOrdinal;
+  int? endParagraphOrdinal;
 
   Multimedia({
     required this.id,
@@ -79,7 +79,7 @@ class Multimedia {
       creditLineContent: map['CreditLineContent'],
       categoryType: map['CategoryType'] ?? 0,
       filePath: map['FilePath'] ?? '',
-      keySymbol: map['KeySymbol'],
+      keySymbol: map['KeySymbol'].toString().toLowerCase(),
       track: map['Track'],
       mepsDocumentId: map['MepsDocumentId'],
       mepsLanguageId: map['MepsLanguageIndex'],

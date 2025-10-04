@@ -859,7 +859,7 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
                       callback: (args) async {
                         int book = widget.publication.documentsManager!.getCurrentDocument().bookNumber!;
                         int chapter = widget.publication.documentsManager!.getCurrentDocument().chapterNumber!;
-                        int verse = int.parse(args[0]['id']);
+                        int verse = args[0]['id'];
                         int? verseId = await JwLifeApp.bibleCluesInfo.getBibleVerseId(book, chapter, verse);
 
                         Future<List<Map<String, dynamic>>> verseCommentaries = fetchVerseCommentaries(context, widget.publication, verseId!, false);
@@ -1153,7 +1153,7 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
 
                         // Extraire les paramètres
                         Uri uri = Uri.parse(link);
-                        String? pub = uri.queryParameters['pub'];
+                        String? pub = uri.queryParameters['pub']?.toLowerCase();
                         int? issue = uri.queryParameters['issue'] != null ? int.parse(uri.queryParameters['issue']!) : null;
                         int? docId = uri.queryParameters['docid'] != null ? int.parse(uri.queryParameters['docid']!) : null;
                         int? track = uri.queryParameters['track'] != null ? int.parse(uri.queryParameters['track']!) : null;
@@ -1188,7 +1188,7 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
                     else if (url.startsWith('webpubdl://')) {
                       final uri = Uri.parse(url);
 
-                      final pub = uri.queryParameters['pub'];
+                      final pub = uri.queryParameters['pub']?.toLowerCase();
                       final docId = uri.queryParameters['docid'];
                       final track = uri.queryParameters['track'];
                       final fileformat = uri.queryParameters['fileformat'];
