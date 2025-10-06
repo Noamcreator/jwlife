@@ -15,6 +15,7 @@ import '../../app/jwlife_app.dart';
 import '../../app/services/settings_service.dart';
 import '../../features/publication/pages/document/data/models/document.dart';
 
+import '../../features/publication/pages/menu/local/publication_menu_view.dart';
 import '../shared_preferences/shared_preferences_utils.dart';
 
 Future<void> showDownloadPublicationDialog(BuildContext context, Publication publication, {int? mepsDocId, int? bookNumber, int? chapterNumber, DateTime? date, int? startParagraphId, int? endParagraphId, String? textTag, List<String>? wordsSelected}) async {
@@ -93,8 +94,12 @@ class __DownloadDialogContentState extends State<_DownloadDialogContent> {
     if (mounted) {
       Navigator.pop(context);
     }
+
     if (widget.publication.isDownloadedNotifier.value) {
-      if (widget.bookNumber != null && widget.chapterNumber != null) {
+      if(widget.mepsDocId == null && widget.bookNumber == null && widget.chapterNumber == null && widget.date == null && widget.startParagraphId == null && widget.endParagraphId == null && widget.textTag == null && widget.wordsSelected == null) {
+        await showPage(PublicationMenuView(publication: widget.publication));
+      }
+      else if (widget.bookNumber != null && widget.chapterNumber != null) {
         await showPageBibleChapter(widget.publication, widget.bookNumber!, widget.chapterNumber!, firstVerse: widget.startParagraphId, lastVerse: widget.endParagraphId);
       }
       else if (widget.date != null) {

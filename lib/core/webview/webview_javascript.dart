@@ -524,29 +524,7 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
                 viewport.content = 'width=device-width, initial-scale=1.0';
               } 
               else {
-                container.innerHTML = `<article id="article-\${position}" class="\${item.className}">
-                                           \${item.html}
-                                           <div class="articleFooterLinks">
-                                             <div class="articleNavLinks">
-                                                <div class='navLinkPrev'>
-                                                  <div class="primaryButton articleNavButton disabled">
-                                                      <span class="buttonIcon" aria-hidden="true">
-                                                          <svg class="svg-inline--fa jwi-chevron-left fa-w-16" aria-hidden="true" focusable="false" data-prefix="jwf-jw-icons-external" data-icon="chevron-left" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" data-fa-i2svg=""><path fill="currentColor" d="M15.5 19a.493.493 0 01-.315-.112l-8-6.5a.5.5 0 010-.776l8-6.5a.5.5 0 11.63.776L8.293 12l7.522 6.112A.5.5 0 0115.5 19z"></path></svg><!-- <i class="jwf-jw-icons-external jwi-chevron-left"></i> -->
-                                                      </span>
-                                                      <span class="buttonText">Précédent</span>
-                                                  </div>  
-                                                </div>             
-                                                <div class='navLinkNext'>
-                                                  <div class="primaryButton articleNavButton disabled">
-                                                        <span class="buttonIcon" aria-hidden="true">
-                                                            <svg class="svg-inline--fa jwi-chevron-right fa-w-16" aria-hidden="true" focusable="false" data-prefix="jwf-jw-icons-external" data-icon="chevron-right" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" data-fa-i2svg=""><path fill="currentColor" d="M8.5 19a.5.5 0 01-.39-.18.52.52 0 01.07-.71L15.71 12 8.18 5.89a.5.5 0 01.64-.78l8 6.5a.51.51 0 010 .78l-8 6.5a.56.56 0 01-.32.11z"></path></svg><!-- <i class="jwf-jw-icons-external jwi-chevron-right"></i> -->
-                                                        </span>
-                                                        <span class="buttonText">Suivant</span>
-                                                  </div>  
-                                                </div>             
-                                             </div>
-                                           </div>  
-                                       </article>`;
+                container.innerHTML = `<article id="article-\${position}" class="\${item.className}">\${item.html}</article>`;
                 adjustArticle(`article-\${position}`, item.link);
                 addVideoCover(`article-\${position}`);
                 
@@ -604,8 +582,130 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
               article.style.paddingTop = paddingTop;
               article.style.paddingBottom = `\${BOTTOMNAVBAR_FIXED_HEIGHT + (audioPlayerVisible ? AUDIO_PLAYER_HEIGHT : 0) + 30}px`;
             }
+            
+            transformFlipbookHtml(article);
           }
-    
+          
+          function transformFlipbookHtml(articleElement) {
+            // Sélectionner tous les conteneurs flipbook dans l’article
+            const flipbookDivs = articleElement.querySelectorAll('div.gen-flipbook.pm-flipbook-gallery');
+          
+            flipbookDivs.forEach(div => {
+              const figure = div.querySelector('figure.gen-flipbook.pm-flipbook-gallery');
+              if (!figure) return;
+          
+              // Ajouter les classes supplémentaires au figure
+              figure.classList.add(
+                'cc-flipbookGallery--initialized',
+                'cc-flipbookGallery',
+                'cc-flipbookGallery--js'
+              );
+              figure.setAttribute('data-has-client-components', 'true');
+          
+              // Récupérer toutes les images existantes
+              const imgs = Array.from(figure.querySelectorAll('img.gen-flipbook'));
+              if (imgs.length === 0) return;
+          
+              // Construire le markup slick dynamique
+              const slickSlides = imgs.map((img, index) => {
+                const src = img.getAttribute('src');
+                const alt = img.getAttribute('alt') || '';
+                const width = img.getAttribute('width') || '';
+                const height = img.getAttribute('height') || '';
+          
+                // *** MODIFICATION ICI : Suppression des styles de position et d'opacité dans le markup initial ***
+                return `
+                  <div class="slick-slide cc-flipbookGallery-slide \${index === 0 ? 'slick-current slick-active' : ''}" 
+                       data-slick-index="\${index}" 
+                       aria-hidden="\${index === 0 ? 'false' : 'true'}" 
+                       role="tabpanel" 
+                       id="slick-slide0\${index}" 
+                       aria-describedby="slick-slide-control0\${index}"
+                       style="display: \${index === 0 ? 'block' : 'none'}; transition: opacity 800ms;">
+                    <div>
+                      <img class="gen-flipbook" src="\${src}" alt="\${alt}" width="\${width}" height="\${height}" style="width: 100%; display: inline-block;">
+                    </div>
+                  </div>`;
+              }).join('');
+          
+              // Structure complète slick
+              const slickHTML = `
+                <div class="slick-initialized slick-slider slick-dotted">
+                  <div class="cc-flipbookGallery-navigation-previous slick-arrow" style="cursor:pointer;">
+                    <svg class="svg-inline--fa jwi-chevron-left fa-w-16" focusable="false" aria-hidden="true" data-prefix="jwf-jw-icons-external" data-icon="chevron-left" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="currentColor" d="M15.5 19a.493.493 0 01-.315-.112l-8-6.5a.5.5 0 010-.776l8-6.5a.5.5 0 11.63.776L8.293 12l7.522 6.112A.5.5 0 0115.5 19z"></path></svg>
+                  </div>
+                  <div class="slick-list draggable">
+                    <div class="slick-track" style="opacity: 1; width: 100%;">
+                      \${slickSlides}
+                    </div>
+                  </div>
+                  <div class="cc-flipbookGallery-navigation-next slick-arrow" style="cursor:pointer;">
+                    <svg class="svg-inline--fa jwi-chevron-right fa-w-16" focusable="false" aria-hidden="true" data-prefix="jwf-jw-icons-external" data-icon="chevron-right" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="currentColor" d="M8.5 19a.5.5 0 01-.39-.18.52.52 0 01.07-.71L15.71 12 8.18 5.89a.5.5 0 01.64-.78l8 6.5a.51.51 0 010 .78l-8 6.5a.56.56 0 01-.32.11z"></path></svg>
+                  </div>
+                  <ul class="cc-flipbookGallery-navigation-dots" role="tablist">
+                    \${imgs.map((_, i) => `
+            <li class="\${i === 0 ? 'slick-active' : ''}" role="presentation">
+            <button type="button" role="tab" id="slick-slide-control0\${i}" aria-controls="slick-slide0\${i}" aria-label="\${i + 1} of \${imgs.length}" tabindex="\${i === 0 ? 0 : -1}" \${i === 0 ? 'aria-selected="true"' : ''}>\${i + 1}</button>
+            </li>`).join('')}
+                  </ul>
+                </div>`;
+          
+              // Remplacer le contenu du figure par la structure complète
+              figure.innerHTML = slickHTML;
+          
+              // === AJOUT LOGIQUE DE NAVIGATION ===
+              const slides = Array.from(figure.querySelectorAll('.slick-slide'));
+              const dots = Array.from(figure.querySelectorAll('.cc-flipbookGallery-navigation-dots button'));
+              const prevBtn = figure.querySelector('.cc-flipbookGallery-navigation-previous');
+              const nextBtn = figure.querySelector('.cc-flipbookGallery-navigation-next');
+          
+              let currentIndex = 0;
+          
+              function updateSlides() {
+                slides.forEach((slide, i) => {
+                  const isActive = i === currentIndex;
+                  
+                  slide.classList.toggle('slick-current', isActive);
+                  slide.classList.toggle('slick-active', isActive);
+                  
+                  // *** MODIFICATION CRUCIALE ICI : Gestion du display pour la superposition ***
+                  // L'image active est affichée ('block'), les autres sont cachées ('none').
+                  slide.style.display = isActive ? 'block' : 'none';
+                  
+                  // Mise à jour de l'accessibilité
+                  slide.setAttribute('aria-hidden', !isActive);
+                });
+          
+                dots.forEach((btn, i) => {
+                  const li = btn.parentElement;
+                  li.classList.toggle('slick-active', i === currentIndex);
+                  btn.setAttribute('aria-selected', i === currentIndex);
+                  btn.tabIndex = i === currentIndex ? 0 : -1;
+                });
+              }
+          
+              prevBtn.addEventListener('click', () => {
+                currentIndex = (currentIndex - 1 + slides.length) % slides.length;
+                updateSlides();
+              });
+          
+              nextBtn.addEventListener('click', () => {
+                currentIndex = (currentIndex + 1) % slides.length;
+                updateSlides();
+              });
+          
+              dots.forEach((btn, i) => {
+                btn.addEventListener('click', () => {
+                  currentIndex = i;
+                  updateSlides();
+                });
+              });
+              
+              // Initialiser la première vue (au cas où le style initial ait été ignoré)
+              updateSlides();
+            });
+          }
+
           function addVideoCover(articleId) {
             const article = document.getElementById(articleId);
             if (!article) return;
@@ -832,38 +932,8 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
               loadImageSvg(pageCenter, curr.svgs);
             }
             else {
-              pageCenter.innerHTML = `<article id="article-center" class="\${curr.className}">
-                                        \${curr.html}
-                                        <div class="articleFooterLinks">
-                                             <div class="articleNavLinks">
-                                                <div class='navLinkPrev'>
-                                                  <div class="primaryButton articleNavButton PublicationArticle" aria-hidden="true">
-                                                      <span class="buttonIcon" aria-hidden="true">
-                                                          <svg class="svg-inline--fa jwi-chevron-left fa-w-16" aria-hidden="true" focusable="false" data-prefix="jwf-jw-icons-external" data-icon="chevron-left" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" data-fa-i2svg=""><path fill="currentColor" d="M15.5 19a.493.493 0 01-.315-.112l-8-6.5a.5.5 0 010-.776l8-6.5a.5.5 0 11.63.776L8.293 12l7.522 6.112A.5.5 0 0115.5 19z"></path></svg>
-                                                      </span>
-                                                      <span class="buttonText">Précédent</span>
-                                                  </div>  
-                                                </div>             
-                                                <div class='navLinkNext'>
-                                                  <div class="primaryButton articleNavButton PublicationArticle" aria-hidden="true">
-                                                        <span class="buttonIcon" aria-hidden="true">
-                                                            <svg class="svg-inline--fa jwi-chevron-right fa-w-16" aria-hidden="true" focusable="false" data-prefix="jwf-jw-icons-external" data-icon="chevron-right" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" data-fa-i2svg=""><path fill="currentColor" d="M8.5 19a.5.5 0 01-.39-.18.52.52 0 01.07-.71L15.71 12 8.18 5.89a.5.5 0 01.64-.78l8 6.5a.51.51 0 010 .78l-8 6.5a.56.56 0 01-.32.11z"></path></svg>
-                                                        </span>
-                                                        <span class="buttonText">Suivant</span>
-                                                  </div>  
-                                                </div>             
-                                             </div>
-                                           </div>  
-                                      </article>`;
-                                      
-              document.querySelector('.navLinkPrev').addEventListener('click', function() {
-                changePage('left');
-              });
-              
-              document.querySelector('.navLinkNext').addEventListener('click', function() {
-                changePage('right');
-              });
-
+              pageCenter.innerHTML = `<article id="article-center" class="\${curr.className}">\${curr.html}</article>`;
+                                     
               adjustArticle('article-center', curr.link);
               addVideoCover('article-center');
               

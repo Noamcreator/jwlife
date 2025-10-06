@@ -18,6 +18,8 @@ class BiblePage extends StatefulWidget {
 
 class BiblePageState extends State<BiblePage> {
   Publication? currentBible;
+  final GlobalKey<PublicationMenuViewState> _bibleMenuPage = GlobalKey<PublicationMenuViewState>();
+
   @override
   void initState() {
     super.initState();
@@ -35,10 +37,14 @@ class BiblePageState extends State<BiblePage> {
     });
   }
 
+  void goToTheBooksTab() {
+    _bibleMenuPage.currentState!.goToTheBooksTab();
+  }
+
   @override
   Widget build(BuildContext context) {
     if (currentBible != null) {
-      return PublicationMenuView(publication: currentBible!, biblePage: true);
+      return PublicationMenuView(key: _bibleMenuPage, publication: currentBible!, biblePage: true);
     }
     else {
       return Scaffold(

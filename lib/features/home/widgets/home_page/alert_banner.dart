@@ -68,36 +68,36 @@ class AlertBannerState extends State<AlertBanner> {
       child: Container(
         color: Color(0xFF143368),
         padding: const EdgeInsets.all(8),
-        alignment: Alignment.centerLeft,
-        height: 53, // Ajustez la hauteur selon vos besoins
-        child: PageView.builder(
-          controller: _pageController,
-          itemCount: _alerts.length,
-          itemBuilder: (context, index) {
-            final alert = _alerts[index];
-            return Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                    child: TextHtmlWidget(
-                      text: alert['title'],
-                      style: TextStyle(color: Colors.white),
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 2,
-                      isSearch: false,
-                    ),
-                ),
-                const SizedBox(width: 8),
-                if (_alerts.length > 1)
-                  Text(
-                    '${index + 1} sur ${_alerts.length}',
+        // alignment: Alignment.centerLeft, // On supprime cet alignement
+        height: 50, // Ajustez la hauteur selon vos besoins
+        child: Center( // C'est le changement clé : on centre le contenu
+          child: PageView.builder(
+            controller: _pageController,
+            itemCount: _alerts.length,
+            itemBuilder: (context, index) {
+              final alert = _alerts[index];
+              return Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  TextHtmlWidget(
+                    text: alert['title'],
                     style: TextStyle(color: Colors.white),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 2,
+                    isSearch: false,
                   ),
-                const SizedBox(width: 8),
-                Icon(Directionality.of(context) == TextDirection.rtl ? JwIcons.chevron_left : JwIcons.chevron_right, color: Colors.white),
-              ],
-            );
-          },
+                  const SizedBox(width: 8),
+                  if (_alerts.length > 1)
+                    Text(
+                      '${index + 1} sur ${_alerts.length}',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  const SizedBox(width: 8),
+                  Icon(Directionality.of(context) == TextDirection.rtl ? JwIcons.chevron_left : JwIcons.chevron_right, color: Colors.white),
+                ],
+              );
+            },
+          ),
         ),
       ),
     );

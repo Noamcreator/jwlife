@@ -75,10 +75,10 @@ class PublicationMenuView extends StatefulWidget {
   const PublicationMenuView({super.key, required this.publication, this.showAppBar = true, this.biblePage = false});
 
   @override
-  _PublicationMenuViewState createState() => _PublicationMenuViewState();
+  PublicationMenuViewState createState() => PublicationMenuViewState();
 }
 
-class _PublicationMenuViewState extends State<PublicationMenuView> with SingleTickerProviderStateMixin {
+class PublicationMenuViewState extends State<PublicationMenuView> with SingleTickerProviderStateMixin {
   late DocumentsManager _documentsManager;
   late List<TabWithItems> _tabsWithItems = [];
   bool _isLoading = true;
@@ -97,12 +97,6 @@ class _PublicationMenuViewState extends State<PublicationMenuView> with SingleTi
     super.initState();
     _init();
     _iniAudio();
-  }
-
-  @override
-  void dispose() {
-    _tabController?.dispose();
-    super.dispose();
   }
 
   // Méthode pour initialiser la base de données
@@ -427,6 +421,12 @@ class _PublicationMenuViewState extends State<PublicationMenuView> with SingleTi
     );
   }
 
+  Future<void> goToTheBooksTab() async {
+    if(_tabController != null) {
+      _tabController!.animateTo(1);
+    }
+  }
+
   Widget buildNameItem(BuildContext context, bool showImage, ListItem item) {
     String subtitle = item.subTitle.replaceAll('​', '');
     bool showSubTitle = item.subTitle.isNotEmpty && subtitle != item.title;
@@ -688,11 +688,15 @@ class _PublicationMenuViewState extends State<PublicationMenuView> with SingleTi
         bool isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
         double screenWidth = constraints.maxWidth;
 
-        // Calculer le nombre de tuiles en fonction de la largeur de l'écran
+        // Définir la largeur minimale souhaitée pour chaque tuile.
+        // 55.0 est une bonne valeur pour obtenir des tuiles plus petites que 60.
+        const double minTileWidthPortrait = 55.0;
+
+        // Calculer le nombre de tuiles en fonction de la largeur de l'écran.
+        // On augmente le crossAxisCount en portrait pour obtenir des tuiles plus petites.
         int crossAxisCount = isLandscape
-            ? (screenWidth / 140)
-            .floor() // Moins de tuiles en mode paysage (largeur doublée pour des rectangles)
-            : (screenWidth / 60).floor(); // Plus de tuiles en mode portrait
+            ? (screenWidth / 140).floor() // Valeur inchangée pour le paysage (rectangles)
+            : (screenWidth / minTileWidthPortrait).floor(); // Augmenté pour le portrait
 
         // S'assurer qu'il y a au moins une colonne
         crossAxisCount = crossAxisCount < 1 ? 1 : crossAxisCount;
@@ -702,24 +706,23 @@ class _PublicationMenuViewState extends State<PublicationMenuView> with SingleTi
           physics: NeverScrollableScrollPhysics(),
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: crossAxisCount,
-            crossAxisSpacing: 2.0,
-            mainAxisSpacing: 2.0,
+            crossAxisSpacing: 2.0, // Espacement augmenté pour un look moderne et aéré
+            mainAxisSpacing: 2.0,   // Espacement augmenté
             childAspectRatio: isLandscape
                 ? 2.5
-                : 1.0, // Pour des rectangles en paysage
+                : 1.0,
           ),
           itemCount: items.length,
           itemBuilder: (context, index) {
             return GestureDetector(
               onTap: () {
                 showPage(LocalChapterBiblePage(
-                  bible: widget.publication,
-                  book: items[index].bibleBookId!
+                    bible: widget.publication,
+                    book: items[index].bibleBookId!
                 ));
               },
               child: Container(
-                alignment: isLandscape ? Alignment.centerLeft : Alignment
-                    .center,
+                alignment: isLandscape ? Alignment.centerLeft : Alignment.center,
                 padding: const EdgeInsets.all(8.0),
                 decoration: BoxDecoration(
                   color: TypeColors.generateTypeColor(context, items[index].groupId!),
@@ -730,7 +733,8 @@ class _PublicationMenuViewState extends State<PublicationMenuView> with SingleTi
                       : items[index].title,
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: 20,
+                    // Diminuer légèrement la taille de police pour les tuiles plus petites
+                    fontSize: isLandscape ? 20 : 16,
                     fontWeight: FontWeight.bold,
                   ),
                   maxLines: 1,
@@ -1059,13 +1063,11 @@ class _PublicationMenuViewState extends State<PublicationMenuView> with SingleTi
           );
         }
 
-        items.add(const SizedBox(height: 10));
+        items.add(const SizedBox(height: 15));
 
         items.add(
           Text(
-            widget.publication.coverTitle.isNotEmpty
-                ? widget.publication.coverTitle
-                : widget.publication.title,
+            widget.publication.coverTitle.isNotEmpty ? widget.publication.coverTitle : widget.publication.title,
             style: TextStyle(
               color: Theme.of(context).brightness == Brightness.dark
                   ? Colors.white
@@ -1079,7 +1081,7 @@ class _PublicationMenuViewState extends State<PublicationMenuView> with SingleTi
         );
 
         if (widget.publication.description.isEmpty) {
-          items.add(const SizedBox(height: 10));
+          items.add(const SizedBox(height: 15));
         }
         else {
           items.add(
@@ -1091,7 +1093,7 @@ class _PublicationMenuViewState extends State<PublicationMenuView> with SingleTi
                   color: Theme.of(context).brightness == Brightness.dark
                       ? Colors.white
                       : Colors.black,
-                  fontSize: 14,
+                  fontSize: 15,
                   height: 1.2,
                 ),
                 textAlign: TextAlign.center,
@@ -1179,7 +1181,7 @@ class _PublicationMenuViewState extends State<PublicationMenuView> with SingleTi
                       fit: BoxFit.fill,
                       width: double.infinity,
                     ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 15),
                   Text(
                     widget.publication.coverTitle.isNotEmpty
                         ? widget.publication.coverTitle
@@ -1197,7 +1199,7 @@ class _PublicationMenuViewState extends State<PublicationMenuView> with SingleTi
                     textAlign: TextAlign.center,
                   ),
                   if (widget.publication.description.isNotEmpty)
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 15),
                   if (widget.publication.description.isNotEmpty)
                     Padding(
                       padding: const EdgeInsets.all(8.0),
@@ -1207,7 +1209,7 @@ class _PublicationMenuViewState extends State<PublicationMenuView> with SingleTi
                           color: Theme.of(context).brightness == Brightness.dark
                               ? Colors.white
                               : Colors.black,
-                          fontSize: 14,
+                          fontSize: 15,
                           height: 1.2,
                         ),
                         textAlign: TextAlign.center,

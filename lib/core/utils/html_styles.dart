@@ -39,10 +39,6 @@ class TextHtmlWidget extends StatelessWidget {
 
     // Regex générale pour capturer N'IMPORTE QUELLE balise HTML
     final tagReg = RegExp(
-      // Group 1: / (facultatif, pour les balises fermantes)
-      // Group 2: Nom de la balise (e.g., strong, div, a)
-      // Group 3: Valeur de l'attribut class (si class="..." est présent)
-      // Group 4: Reste des attributs
       r'<(\/?)([a-zA-Z0-9]+)(?: class="([^"]+)")?([^>]*)?>',
       caseSensitive: false,
     );
@@ -140,10 +136,10 @@ class TextHtmlWidget extends StatelessWidget {
             continue;
           }
 
+          // Lignes 119-124 :
           if (tag == 'p') {
             // Gestion spécifique pour les paragraphes (saut de ligne)
             spans.addAll(_parseHtml(context, inner, baseStyle));
-            spans.add(const TextSpan(text: '\n\n')); // saut de ligne
             index = endIndex + closeTag.length;
             continue;
           }

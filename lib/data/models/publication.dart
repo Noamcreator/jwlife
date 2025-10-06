@@ -17,6 +17,7 @@ import '../../app/services/notification_service.dart';
 import '../../app/services/settings_service.dart';
 import '../../core/api/api.dart';
 import '../../core/jworg_uri.dart';
+import '../../core/utils/utils_document.dart';
 import '../../features/publication/pages/document/local/documents_manager.dart';
 import '../../features/publication/pages/menu/local/publication_menu_view.dart';
 import '../../features/publication/pages/menu/online/publication_menu.dart';
@@ -389,8 +390,8 @@ class Publication {
     }
     else {
       if(await hasInternetConnection()) {
-        await showPage(PublicationMenu(publication: this));
-        //await download(context);
+        //await showPage(PublicationMenu(publication: this));
+        await showDownloadPublicationDialog(context, this);
       }
       else {
         await showNoConnectionDialog(context);

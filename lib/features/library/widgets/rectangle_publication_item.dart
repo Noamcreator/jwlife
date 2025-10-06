@@ -10,8 +10,9 @@ import '../../../widgets/image_cached_widget.dart';
 class RectanglePublicationItem extends StatelessWidget {
   final Publication publication;
   final Color? backgroundColor;
+  final double imageSize;
 
-  const RectanglePublicationItem({super.key, required this.publication, this.backgroundColor});
+  const RectanglePublicationItem({super.key, required this.publication, this.backgroundColor, this.imageSize = 80});
 
   @override
   Widget build(BuildContext context) {
@@ -20,7 +21,7 @@ class RectanglePublicationItem extends StatelessWidget {
         child: InkWell(
             onTap: () => publication.showMenu(context),
             child: SizedBox(
-                height: 80,
+                height: imageSize,
                 child: Stack(
                   children: [
                     Row(
@@ -29,8 +30,8 @@ class RectanglePublicationItem extends StatelessWidget {
                           child: ImageCachedWidget(
                             imageUrl: publication.imageSqr,
                             pathNoImage: publication.category.image,
-                            height: 80,
-                            width: 80,
+                            height: imageSize,
+                            width: imageSize,
                           ),
                         ),
                         Expanded(

@@ -221,6 +221,13 @@ class JwLifePageState extends State<JwLifePage> {
     setState(() {
       navBarIsDisable[index] = false;
     });
+
+    if(index == 1) {
+      GlobalKeyService.bibleKey.currentState!.goToTheBooksTab();
+    }
+    else if(index == 2) {
+      GlobalKeyService.libraryKey.currentState!.goToThePubsTab();
+    }
   }
 
   void changeNavBarIndex(int index) {

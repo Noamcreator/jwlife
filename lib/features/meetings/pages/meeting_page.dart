@@ -1,6 +1,7 @@
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:jwlife/core/constants.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/jworg_uri.dart';
 import 'package:jwlife/core/utils/utils_document.dart';
@@ -360,6 +361,15 @@ class MeetingsPageState extends State<MeetingsPage> {
           : const Color(0xFF626262),
     );
 
+    const Color _primaryColor = Color(0xFF1E88E5); // Bleu clair
+    const Color _accentColor = Color(0xFFFFB300); // Jaune-orange
+    const Color _midweekColor = Color(0xFF5D4037); // Marron foncé
+    const Color _watchtowerColor = Color(0xFF26A69A); // Cyan/Teal
+    const Color _publicationsColor = Color(0xFF66BB6A); // Vert moyen
+    const Color _assemblyBrColor = Color(0xFFEF5350); // Rouge corail
+    const Color _assemblyCoColor = Color(0xFFFFCA28); // Jaune vif
+    const Color _conventionColor = Color(0xFF42A5F5); // Bleu ciel
+
     return Scaffold(
       resizeToAvoidBottomInset: false,
       appBar: AppBar(
@@ -433,148 +443,176 @@ class MeetingsPageState extends State<MeetingsPage> {
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
         padding: const EdgeInsets.all(16),
-        child: Column(
+        child: Column( // Empile tous les widgets
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            /// 🔝 Prochaine réunion
-            _congregation != null
-                ? Builder(
-              builder: (_) {
+            // 1. WIDGET DE LA PROCHAINE RÉUNION (Builder)
+            _congregation?.nextMeeting() == null
+                ? const SizedBox.shrink()
+                : Builder(
+              builder: (context) {
+                // ... (La logique de détermination de la réunion reste la même)
                 final meeting = _congregation!.nextMeeting();
+
                 if (meeting == null) return const SizedBox.shrink();
 
                 final date = meeting["date"] as DateTime;
                 final type = meeting["type"] as String;
+                final isMidweek = type == "midweek";
+
+                final icon = isMidweek ? JwIcons.sheep : JwIcons.watchtower; // DÉTERMINATION DE L'ICÔNE
 
                 final dateStr = DateFormat("EEEE d MMMM 'à' HH'h'mm", JwLifeSettings().currentLanguage.primaryIetfCode).format(date);
 
-                final typeStr = type == "midweek" ? "Réunion de semaine" : "Réunion de week-end";
-
-                return Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [Colors.indigo[400]!, Colors.indigo[600]!],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
+                // Retourne uniquement le Container stylisé, car le Row externe n'est plus nécessaire.
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 25.0),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 15),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF4A6DA7),
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'PROCHAINE RÉUNION',
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
+                    // Le Row principal gère l'alignement horizontal et vertical
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.center, // <-- ALIGNEMENT VERTICAL AJOUTÉ
+                      children: [
+                       Padding(padding: EdgeInsets.symmetric(horizontal: 16),
+                          child: Icon( // Icône à gauche (taille 50, comme demandé)
+                            icon,
+                            color: Colors.white70,
+                            size: 50,
+                          ),
+                         ),
+                        Expanded( // <-- WIDGET ESSENTIEL AJOUTÉ
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start, // <-- ALIGNE LE TEXTE À DROITE
+                            mainAxisAlignment: MainAxisAlignment.center, // Centre verticalement
+                            mainAxisSize: MainAxisSize.min, // S'assure que la Column ne prend que l'espace nécessaire
+                            children: [
+                              const Text(
+                                'PROCHAINE RÉUNION',
+                                textAlign: TextAlign.right, // <-- ALIGNE LE TEXTE DANS SA ZONE
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              const SizedBox(height: 4), // Espace réduit
+                              Text(
+                                dateStr,
+                                textAlign: TextAlign.right, // <-- ALIGNE LE TEXTE DANS SA ZONE
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  color: Colors.white70,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        dateStr,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          color: Colors.white70,
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 );
               },
-            ) : const SizedBox.shrink(),
-            _congregation != null ? const SizedBox(height: 35) : const SizedBox.shrink(),
-
-            /// 📌 Section Réunions
-            Text('Réunions', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24)),
-            const SizedBox(height: 8),
-
-            _buildMeetingCard(
-              context: context,
-              title: localization(context).navigation_meetings_life_and_ministry,
-              icon: JwIcons.sheep,
-              gradient: const LinearGradient(
-                colors: [Color(0xFF667eea), Color(0xFF764ba2)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              child: _isMidweekMeetingContentIsDownload(context, _dateOfMeetingValue),
             ),
-            const SizedBox(height: 16),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 1. SECTION RÉUNIONS
 
-            _buildMeetingCard(
-              context: context,
-              title: localization(context).navigation_meetings_watchtower_study,
-              icon: JwIcons.watchtower,
-              gradient: const LinearGradient(
-                colors: [Color(0xFF11998e), Color(0xFF38ef7d)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              child: _isWeekendMeetingContentIsDownload(context, _dateOfMeetingValue),
-            ),
-            const SizedBox(height: 16),
+                // Titre de section plus simple
+                const Text(
+                  'Réunions',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600, // Un peu moins gras que 'bold' pour un look moderne
+                    fontSize: 26, // Légèrement plus grand
+                  ),
+                ),
+                const SizedBox(height: 16), // Espacement légèrement augmenté
 
-            _buildMeetingCard(
-              context: context,
-              title: 'Autres publications',
-              icon: JwIcons.book_stack,
-              gradient: const LinearGradient(
-                colors: [Color(0xFF458465), Color(0xFF509070)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              child: _meetingsPublications(context),
-            ),
-            const SizedBox(height: 40),
+                // Carte Réunion Vie et Ministère
+                _buildMeetingCard(
+                  context: context,
+                  title: localization(context).navigation_meetings_life_and_ministry,
+                  icon: JwIcons.sheep,
+                  color: _midweekColor, // Couleur thématique
+                  child: _isMidweekMeetingContentIsDownload(context, _dateOfMeetingValue),
+                ),
+                const SizedBox(height: 12), // Espacement cohérent
 
-            /// 🏟️ Section Assemblées
-            Text('Assemblées', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24)),
-            const SizedBox(height: 8),
+                // Carte Étude de la Tour de Garde
+                _buildMeetingCard(
+                  context: context,
+                  title: localization(context).navigation_meetings_watchtower_study,
+                  icon: JwIcons.watchtower,
+                  color: _watchtowerColor, // Couleur thématique
+                  child: _isWeekendMeetingContentIsDownload(context, _dateOfMeetingValue),
+                ),
+                const SizedBox(height: 12),
 
-            _buildMeetingCard(
-              context: context,
-              title: localization(context).navigation_meetings_assembly_br,
-              icon: JwIcons.arena,
-              gradient: const LinearGradient(
-                colors: [Color(0xFFfc4a1a), Color(0xFFf7b733)], // 🔁 Couleurs modifiées
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              child: _isCircuitBrContentIsDownload(context),
-            ),
-            const SizedBox(height: 16),
+                // Carte Autres Publications
+                _buildMeetingCard(
+                  context: context,
+                  title: 'Autres publications',
+                  icon: JwIcons.book_stack,
+                  color: _publicationsColor, // Couleur thématique
+                  child: _meetingsPublications(context),
+                ),
 
-            _buildMeetingCard(
-              context: context,
-              title: localization(context).navigation_meetings_assembly_co,
-              icon: JwIcons.arena,
-              gradient: const LinearGradient(
-                colors: [Color(0xFFfd746c), Color(0xFFff9068)], // 🔁 Couleurs modifiées
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              child: _isCircuitCoContentIsDownload(context),
-            ),
-            const SizedBox(height: 16),
+                const SizedBox(height: 48), // Grand espacement avant la nouvelle section
 
-            _buildMeetingCard(
-              context: context,
-              title: localization(context).navigation_meetings_convention,
-              icon: JwIcons.arena,
-              gradient: const LinearGradient(
-                colors: [Color(0xFF4facfe), Color(0xFF00f2fe)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              child: _isConventionContentIsDownload(context),
+                // ---
+
+                // 2. SECTION ASSEMBLÉES
+
+                // Titre de section
+                const Text(
+                  'Assemblées',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 26,
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Carte Assemblée de Circonscription (BR)
+                _buildMeetingCard(
+                  context: context,
+                  title: localization(context).navigation_meetings_assembly_br,
+                  icon: JwIcons.arena,
+                  color: _assemblyBrColor, // Couleur thématique
+                  child: _isCircuitBrContentIsDownload(context),
+                ),
+                const SizedBox(height: 12),
+
+                // Carte Assemblée de Circonscription (CO)
+                _buildMeetingCard(
+                  context: context,
+                  title: localization(context).navigation_meetings_assembly_co,
+                  icon: JwIcons.arena,
+                  color: _assemblyCoColor, // Couleur thématique
+                  child: _isCircuitCoContentIsDownload(context),
+                ),
+                const SizedBox(height: 12),
+
+                // Carte Assemblée Régionale/Internationale
+                _buildMeetingCard(
+                  context: context,
+                  title: localization(context).navigation_meetings_convention,
+                  icon: JwIcons.arena,
+                  color: _conventionColor, // Couleur thématique
+                  child: _isConventionContentIsDownload(context),
+                ),
+              ],
             ),
             const SizedBox(height: 40),
           ],
         ),
-      ),
+      )
     );
   }
 
@@ -582,7 +620,7 @@ class MeetingsPageState extends State<MeetingsPage> {
     required BuildContext context,
     required String title,
     required IconData icon,
-    required LinearGradient gradient,
+    required Color color,
     required Widget child
   }) {
     return Container(
@@ -600,7 +638,7 @@ class MeetingsPageState extends State<MeetingsPage> {
         borderRadius: BorderRadius.circular(20),
         child: Container(
           decoration: BoxDecoration(
-            gradient: gradient,
+            color: color
           ),
           child: Column(
             children: [
@@ -613,15 +651,15 @@ class MeetingsPageState extends State<MeetingsPage> {
                 child: Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.all(11),
+                      padding: const EdgeInsets.all(6),
                       decoration: BoxDecoration(
                         color: Colors.white.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(5),
                       ),
                       child: Icon(
                         icon,
                         color: Colors.white,
-                        size: 24,
+                        size: 20,
                       ),
                     ),
                     const SizedBox(width: 16),
@@ -629,7 +667,7 @@ class MeetingsPageState extends State<MeetingsPage> {
                       child: Text(
                         title.toUpperCase(),
                         style: const TextStyle(
-                          fontSize: 16,
+                          fontSize: 14,
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
                           letterSpacing: 1.2,
@@ -649,17 +687,11 @@ class MeetingsPageState extends State<MeetingsPage> {
                     bottomRight: Radius.circular(20),
                   ),
                 ),
-                child: InkWell(
-                  borderRadius: const BorderRadius.only(
-                    bottomLeft: Radius.circular(20),
-                    bottomRight: Radius.circular(20),
-                  ),
-                  child: Container(
-                    constraints: const BoxConstraints(minHeight: 100),
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16),
-                    child: child,
-                  ),
+                child: Container(
+                  constraints: const BoxConstraints(minHeight: 80),
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(0),
+                  child: child,
                 ),
               ),
             ],
@@ -733,7 +765,7 @@ class MeetingsPageState extends State<MeetingsPage> {
 
     for (int i = 0; i < publications.length; i++) {
       // 1. Ajout de l'élément de publication
-      children.add(RectanglePublicationItem(publication: publications[i], backgroundColor: Theme.of(context).cardColor));
+      children.add(RectanglePublicationItem(publication: publications[i], backgroundColor: Theme.of(context).cardColor, imageSize: 70));
 
       // 2. Ajout du séparateur, sauf après le dernier élément
       if (i < publications.length - 1) {
@@ -742,14 +774,17 @@ class MeetingsPageState extends State<MeetingsPage> {
     }
 
     // Utilisation de la Column au lieu du ListView
-    return Column(
-      mainAxisSize: MainAxisSize.min,
+    return Padding(
+        padding: EdgeInsetsGeometry.all(15),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
 
-      // Alignement au début (par défaut, mais explicite)
-      crossAxisAlignment: CrossAxisAlignment.start,
+          // Alignement au début (par défaut, mais explicite)
+          crossAxisAlignment: CrossAxisAlignment.start,
 
-      // Contenu généré
-      children: children,
+          // Contenu généré
+          children: children,
+        )
     );
   }
 
@@ -851,47 +886,50 @@ class MeetingsPageState extends State<MeetingsPage> {
       ) {
     return InkWell(
       onTap: onTap,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: SizedBox(
-              width: 75,
-              height: 75,
-              child: ImageCachedWidget(imageUrl: imagePath),
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min, // Pour éviter d’occuper trop de place verticalement
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).brightness == Brightness.dark
-                        ? Colors.white
-                        : Colors.black,
-                  ),
+      child: Padding(
+          padding: EdgeInsetsGeometry.all(15),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: SizedBox(
+                  width: 65,
+                  height: 65,
+                  child: ImageCachedWidget(imageUrl: imagePath),
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  subtitle,
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Theme.of(context).brightness == Brightness.dark
-                        ? Colors.white70
-                        : Colors.black87,
-                  ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min, // Pour éviter d’occuper trop de place verticalement
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.white
+                            : Colors.black,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 17,
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.white70
+                            : Colors.black87,
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          ),
-        ],
+              ),
+            ],
+          )
       )
     );
   }
@@ -899,39 +937,41 @@ class MeetingsPageState extends State<MeetingsPage> {
   Widget _buildWeekendContent(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
+    return Padding(
+        padding: EdgeInsetsGeometry.all(15),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
 
-        // Titre Discours Publique
-        if(_publicTalkPub != null)
-          Row(
-            children: [
-              Icon(JwIcons.document_speaker, color: Theme.of(context).primaryColor),
-              const SizedBox(width: 8),
-              Text(
-                "DISCOURS PUBLIQUE",
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Theme.of(context).primaryColor,
-                ),
+            // Titre Discours Publique
+            if(_publicTalkPub != null)
+              Row(
+                children: [
+                  Icon(JwIcons.document_speaker, color: Theme.of(context).primaryColor),
+                  const SizedBox(width: 8),
+                  Text(
+                    "DISCOURS PUBLIQUE",
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).primaryColor,
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
-        if(_publicTalkPub != null)
-          const SizedBox(height: 8),
+            if(_publicTalkPub != null)
+              const SizedBox(height: 8),
 
-        // Container contenu Discours
-        if(_publicTalkPub != null)
-          GestureDetector(
-            onLongPress: () {
-              _showPublicTalksDialog();
-            },
-            onTap: () async {
-              if(selectedPublicTalk != null) {
-                showPageDocument(_publicTalkPub!, selectedPublicTalk!.mepsDocumentId);
-                /*
+            // Container contenu Discours
+            if(_publicTalkPub != null)
+              GestureDetector(
+                onLongPress: () {
+                  _showPublicTalksDialog();
+                },
+                onTap: () async {
+                  if(selectedPublicTalk != null) {
+                    showPageDocument(_publicTalkPub!, selectedPublicTalk!.mepsDocumentId);
+                    /*
                 showPage(
                   context,
                   DocumentPage(
@@ -941,103 +981,104 @@ class MeetingsPageState extends State<MeetingsPage> {
                 );
 
                  */
-              }
-              else {
-                _showPublicTalksDialog();
-              }
-            },
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Theme.of(context).primaryColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: selectedPublicTalk != null ? Text(selectedPublicTalk!.title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)) : Text(
-                "Choisir le numéro de discours ici...", // Remplace ceci par le contenu réel si nécessaire
-                style: TextStyle(
-                  fontSize: 16,
-                  color: isDark ? Colors.white70 : Colors.black87,
-                ),
-              ),
-            ),
-          ),
-
-        if(_publicTalkPub != null)
-          const SizedBox(height: 28),
-
-        // Titre Étude de la Tour de Garde
-        if(_publicTalkPub != null)
-          Row(
-            children: [
-              Icon(JwIcons.watchtower, color: Theme.of(context).primaryColor),
-              const SizedBox(width: 8),
-              Text(
-                "ÉTUDE DE LA TOUR DE GARDE",
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Theme.of(context).primaryColor,
-                ),
-              ),
-            ],
-          ),
-
-        if(_publicTalkPub != null)
-          const SizedBox(height: 8),
-
-        // Contenu de l'étude
-        if (_weekendMeeting != null)
-          GestureDetector(
-            onTap: () {
-              showDocumentView(
-                context,
-                _weekendMeeting!['MepsDocumentId'],
-                JwLifeSettings().currentLanguage.id,
-              );
-            },
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: SizedBox(
-                    width: 75,
-                    height: 75,
-                    child: ImageCachedWidget(
-                      imageUrl: '${_weekendMeetingPub!.path!}/${_weekendMeeting!['FilePath']}',
-                      fit: BoxFit.cover,
+                  }
+                  else {
+                    _showPublicTalksDialog();
+                  }
+                },
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).primaryColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: selectedPublicTalk != null ? Text(selectedPublicTalk!.title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)) : Text(
+                    "Choisir le numéro de discours ici...", // Remplace ceci par le contenu réel si nécessaire
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: isDark ? Colors.white70 : Colors.black87,
                     ),
                   ),
                 ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        _weekendMeeting!['ContextTitle'],
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: isDark ? Colors.white70 : Colors.black87,
-                        ),
-                      ),
-                      Text(
-                        _weekendMeeting!['Title'],
-                        style: TextStyle(
-                          fontSize: 19,
-                          fontWeight: FontWeight.bold,
-                          color: isDark ? Colors.white : Colors.black,
-                        ),
-                      ),
-                    ],
+              ),
+
+            if(_publicTalkPub != null)
+              const SizedBox(height: 28),
+
+            // Titre Étude de la Tour de Garde
+            if(_publicTalkPub != null)
+              Row(
+                children: [
+                  Icon(JwIcons.watchtower, color: Theme.of(context).primaryColor),
+                  const SizedBox(width: 8),
+                  Text(
+                    "ÉTUDE DE LA TOUR DE GARDE",
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).primaryColor,
+                    ),
                   ),
+                ],
+              ),
+
+            if(_publicTalkPub != null)
+              const SizedBox(height: 8),
+
+            // Contenu de l'étude
+            if (_weekendMeeting != null)
+              GestureDetector(
+                onTap: () {
+                  showDocumentView(
+                    context,
+                    _weekendMeeting!['MepsDocumentId'],
+                    JwLifeSettings().currentLanguage.id,
+                  );
+                },
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: SizedBox(
+                        width: 65,
+                        height: 65,
+                        child: ImageCachedWidget(
+                          imageUrl: '${_weekendMeetingPub!.path!}/${_weekendMeeting!['FilePath']}',
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            _weekendMeeting!['ContextTitle'],
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: isDark ? Colors.white70 : Colors.black87,
+                            ),
+                          ),
+                          Text(
+                            _weekendMeeting!['Title'],
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: isDark ? Colors.white : Colors.black,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          ),
-      ],
+              ),
+          ],
+        )
     );
   }
 
@@ -1115,7 +1156,7 @@ class MeetingsPageState extends State<MeetingsPage> {
             ],
           );
         } else {
-          return PublicationMenuView(publication: publication, showAppBar: false);
+          return Padding(padding: EdgeInsetsGeometry.all(15), child: PublicationMenuView(publication: publication, showAppBar: false));
         }
       },
     );
@@ -1213,7 +1254,7 @@ class MeetingsPageState extends State<MeetingsPage> {
           );
         }
 
-        return PublicationMenuView(publication: publicationBr, showAppBar: false);
+        return Padding(padding: EdgeInsetsGeometry.all(15), child: PublicationMenuView(publication: publicationBr, showAppBar: false));
       },
     );
   }
@@ -1309,7 +1350,7 @@ class MeetingsPageState extends State<MeetingsPage> {
           );
         }
 
-        return PublicationMenuView(publication: publicationCo, showAppBar: false);
+        return Padding(padding: EdgeInsetsGeometry.all(15), child: PublicationMenuView(publication: publicationCo, showAppBar: false));
       },
     );
   }

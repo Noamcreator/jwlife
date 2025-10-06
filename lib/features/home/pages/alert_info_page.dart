@@ -69,17 +69,35 @@ class _AlertInfoPageState extends State<AlertInfoPage> {
     WebViewData webViewData = JwLifeSettings().webViewData;
 
     String htmlAlerts = '';
-    for (var alert in alerts) {
-      String title = alert['title'] ?? 'Sans titre';
-      String body = alert['body'] ?? '';
 
-      htmlAlerts += '''
-      <div class="alertItem">
-        <h3>$title</h3>
-        <p>$body</p>
-      </div> 
-    ''';
+    // --- MODIFICATION ICI ---
+    if (alerts.isEmpty) {
+      // Message à afficher quand il n'y a pas d'alerte
+      htmlAlerts = '''
+        <div style="padding: 20px; text-align: center; color: ${webViewData.theme == 'dark' ? '#c3c3c3' : '#626262'};">
+          <p style="font-size: 1.1em; margin-bottom: 10px;">
+            Aucune alerte d'information disponible dans cette langue.
+          </p>
+          <p style="font-size: 0.9em;">
+            Veuillez vérifier ultérieurement.
+          </p>
+        </div>
+      ''';
+    } else {
+      // Générer le HTML pour chaque alerte existante
+      for (var alert in alerts) {
+        String title = alert['title'] ?? 'Sans titre';
+        String body = alert['body'] ?? '';
+
+        htmlAlerts += '''
+          <div class="alertItem">
+            <h3>$title</h3>
+            <p>$body</p>
+          </div> 
+        ''';
+      }
     }
+    // -------------------------
 
     String htmlContent = '''
     <!DOCTYPE html>
@@ -122,8 +140,8 @@ class _AlertInfoPageState extends State<AlertInfoPage> {
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       appBar: AppBar(
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
