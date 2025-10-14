@@ -7,10 +7,10 @@ import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/jworg_uri.dart';
 import 'package:jwlife/core/utils/utils.dart';
+import 'package:jwlife/core/utils/utils_language_dialog.dart';
 import 'package:jwlife/core/utils/utils_playlist.dart';
 import 'package:jwlife/data/models/video.dart' hide Subtitles;
-import 'package:jwlife/widgets/dialog/language_dialog.dart';
-import 'package:jwlife/widgets/dialog/utils_dialog.dart';
+import 'package:jwlife/core/utils/utils_dialog.dart';
 import 'package:realm/realm.dart';
 
 import 'package:share_plus/share_plus.dart';
@@ -114,13 +114,9 @@ PopupMenuItem getVideoLanguagesItem(BuildContext context, Video video) {
           final jsonFile = response.body;
           final jsonData = json.decode(jsonFile);
 
-          LanguageDialog languageDialog = LanguageDialog(languagesListJson: jsonData['languages']);
-          showDialog(
-            context: context,
-            builder: (context) => languageDialog,
-          ).then((value) async {
-            if (value != null) {
-              String link = 'https://b.jw-cdn.org/apis/mediator/v1/media-items/${value['Symbol']}/${video.naturalKey}';
+          showLanguageDialog(context, languagesListJson: jsonData['languages']).then((language) async {
+            if (language != null) {
+              String link = 'https://b.jw-cdn.org/apis/mediator/v1/media-items/${language['Symbol']}/${video.naturalKey}';
               final response = await Api.httpGetWithHeaders(link);
               if (response.statusCode == 200) {
                 final jsonFile = response.body;
@@ -132,7 +128,7 @@ PopupMenuItem getVideoLanguagesItem(BuildContext context, Video video) {
                   'BookNumber': video.bookNumber,
                   'IssueTagNumber': video.issueTagNumber,
                   'Track': video.track,
-                  'MepsLanguage': value['Symbol'],
+                  'MepsLanguage': language['Symbol'],
                   'Title': jsonData['media'][0]['title'],
                   'Duration': jsonData['media'][0]['duration'],
                   'FirstPublished': jsonData['media'][0]['firstPublished'],

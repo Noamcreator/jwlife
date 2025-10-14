@@ -44,22 +44,9 @@ class RealmLibrary {
     // Utiliser `symbol` directement est plus propre
     final String languageSymbol = JwLifeSettings().currentLanguage.symbol;
 
-    final categories = realm
-        .all<Category>()
-    // Utiliser une requête plus précise pour la clé et la langue
-        .query("key == \$0 AND language == \$1", [categoryKey, languageSymbol]);
+    final categories = realm.all<Category>().query("key == \$0 AND language == \$1", [categoryKey, languageSymbol]);
 
-    // Optimisation: Utiliser `expand` sur la liste des catégories trouvées
-    // Si la requête est bien indexée, Realm sera très rapide.
-    // L'utilisation de `toSet` garantit l'unicité des `mediaKey`
-    final mediaKeys = categories
-        .expand((c) => c.media)
-        .toSet();
-
-    // Récupérer tous les MediaItem correspondant aux clés en une seule requête si possible,
-    // ou itérer sur les clés. L'itération actuelle est moins performante mais plus simple
-    // à maintenir dans Realm Dart. On garde la structure pour la compatibilité avec votre code,
-    // mais on la simplifie.
+    final mediaKeys = categories.expand((c) => c.media).toSet();
 
     for (final mediaKey in mediaKeys) {
       final mediaItem = realm

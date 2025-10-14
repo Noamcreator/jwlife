@@ -9,9 +9,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
+import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/app/services/global_key_service.dart';
+import 'package:jwlife/app/services/settings_service.dart';
 import 'package:jwlife/app/startup/copy_assets.dart';
 import 'package:jwlife/core/assets.dart';
+import 'package:jwlife/core/shared_preferences/shared_preferences_utils.dart';
 import 'package:jwlife/core/utils/directory_helper.dart';
 import 'package:jwlife/core/utils/files_helper.dart';
 import 'package:jwlife/core/utils/utils.dart';
@@ -21,7 +24,7 @@ import 'package:jwlife/data/models/userdata/tag.dart';
 import 'package:jwlife/data/models/video.dart';
 import 'package:jwlife/data/repositories/PublicationRepository.dart';
 import 'package:jwlife/features/publication/pages/document/data/models/dated_text.dart';
-import 'package:jwlife/widgets/dialog/utils_dialog.dart';
+import 'package:jwlife/core/utils/utils_dialog.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:sqflite/sqflite.dart';
@@ -108,7 +111,7 @@ class Userdata {
 
     // Retourner à la racine dans tous les onglets
     for (int i = 0; i < 7; i++) {
-      GlobalKeyService.jwLifePageKey.currentState!.returnToFirstPage(i);
+      GlobalKeyService.jwLifePageKey.currentState?.returnToFirstPage(i);
     }
   }
 
@@ -867,13 +870,20 @@ class Userdata {
     }
   }
 
-  Future<void> changeBlockRangeStyleWithGuid(String userMarkGuid, int style, int color) async {
+  Future<void> changeBlockRangeStyleWithGuid(String userMarkGuid, int styleIndex, int colorIndex) async {
     try {
       await _database.rawUpdate('''
         UPDATE UserMark 
         SET ColorIndex = ?, StyleIndex = ?
         WHERE UserMarkGuid = ?
-      ''', [color, style, userMarkGuid]);
+      ''', [colorIndex, styleIndex, userMarkGuid]);
+
+      // on enregistre dans la base de donnée les nouveau highlight
+      if(JwLifeSettings().webViewData.styleIndex != styleIndex || JwLifeSettings().webViewData.colorIndex != colorIndex) {
+        JwLifeSettings().webViewData.updateStyleAndColorIndex(styleIndex, colorIndex);
+        setStyleIndex(styleIndex);
+        setColorIndex(colorIndex);
+      }
 
     }
     catch (e) {
@@ -907,6 +917,13 @@ class Userdata {
           'StartToken': blockRange['startToken'],
           'EndToken': blockRange['endToken']
         });
+      }
+
+      // on enregistre dans la base de donnée les nouveau highlight
+      if(JwLifeSettings().webViewData.styleIndex != styleIndex || JwLifeSettings().webViewData.colorIndex != colorIndex) {
+        JwLifeSettings().webViewData.updateStyleAndColorIndex(styleIndex, colorIndex);
+        setStyleIndex(styleIndex);
+        setColorIndex(colorIndex);
       }
 
     } catch (e) {
@@ -1506,8 +1523,6 @@ class Userdata {
     int mepsLanguageId = publication.mepsLanguage.id;
 
     try {
-      String? newTitle = bookNumber != null && chapterNumber != null ? (blockIdentifier != null ? "$title:$blockIdentifier" : title) : null;
-
       int locationId;
       int publicationLocationId;
 
@@ -1601,7 +1616,7 @@ class Userdata {
         'LocationId': locationId,
         'PublicationLocationId': publicationLocationId,
         'Slot': slot,
-        'Title': newTitle ?? title,
+        'Title': title,
         'Snippet': snippet,
         'BlockType': blockType,
         'BlockIdentifier': blockIdentifier,

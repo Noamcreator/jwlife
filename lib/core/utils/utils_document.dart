@@ -9,7 +9,7 @@ import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/repositories/PublicationRepository.dart';
 import 'package:jwlife/data/databases/catalog.dart';
 import 'package:jwlife/data/models/userdata/bookmark.dart';
-import 'package:jwlife/widgets/dialog/utils_dialog.dart';
+import 'package:jwlife/core/utils/utils_dialog.dart';
 
 import '../../app/jwlife_app.dart';
 import '../../app/services/settings_service.dart';
@@ -18,8 +18,12 @@ import '../../features/publication/pages/document/data/models/document.dart';
 import '../../features/publication/pages/menu/local/publication_menu_view.dart';
 import '../shared_preferences/shared_preferences_utils.dart';
 
+bool hideDialog = false;
+
 Future<void> showDownloadPublicationDialog(BuildContext context, Publication publication, {int? mepsDocId, int? bookNumber, int? chapterNumber, DateTime? date, int? startParagraphId, int? endParagraphId, String? textTag, List<String>? wordsSelected}) async {
   String publicationTitle = publication.getTitle();
+
+  hideDialog = false;
 
   await showJwDialog<void>(
     context: context,
@@ -35,25 +39,47 @@ Future<void> showDownloadPublicationDialog(BuildContext context, Publication pub
         closeDialog: false,
         onPressed: (buildContext) async {
           Navigator.of(buildContext).pop(); // Ferme le 1er dialog
-          await showDownloadProgressDialog(context, publication, mepsDocId, bookNumber, chapterNumber, date, startParagraphId, endParagraphId, textTag, wordsSelected); // Ouvre le 2nd proprement
+          // Ajout du paramètre `openOnSuccess: true` pour le comportement initial
+          await showDownloadProgressDialog(context, publication, openOnSuccess: true, mepsDocId: mepsDocId, bookNumber: bookNumber, chapterNumber: chapterNumber, date: date, startParagraphId: startParagraphId, endParagraphId: endParagraphId, textTag: textTag, wordsSelected: wordsSelected); // Ouvre le 2nd proprement
         },
       ),
     ],
   );
 }
 
-Future<void> showDownloadProgressDialog(BuildContext context, Publication publication, int? mepsDocId, int? bookNumber, int? chapterNumber, DateTime? date, int? startParagraphId, int? endParagraphId, String? textTag, List<String>? wordsSelected) async {
+Future<void> showDownloadProgressDialog(BuildContext context, Publication publication, {bool openOnSuccess = false, int? mepsDocId, int? bookNumber, int? chapterNumber, DateTime? date, int? startParagraphId, int? endParagraphId, String? textTag, List<String>? wordsSelected}) async {
   await showJwDialog<void>(
     context: context,
     titleText: "Téléchargement de « ${publication.getTitle()} »",
-    content: _DownloadDialogContent(publication: publication, mepsDocId: mepsDocId, bookNumber: bookNumber, chapterNumber: chapterNumber, date: date, startParagraphId: startParagraphId, endParagraphId: endParagraphId, textTag: textTag, wordsSelected: wordsSelected),
+    // Passage du nouveau paramètre à _DownloadDialogContent
+    content: _DownloadDialogContent(
+        publication: publication,
+        openOnSuccess: openOnSuccess,
+        mepsDocId: mepsDocId,
+        bookNumber: bookNumber,
+        chapterNumber: chapterNumber,
+        date: date,
+        startParagraphId: startParagraphId,
+        endParagraphId: endParagraphId,
+        textTag: textTag,
+        wordsSelected: wordsSelected
+    ),
     buttons: [
       JwDialogButton(
         label: 'ANNULER',
+        closeDialog: false,
         onPressed: (buildContext) async {
           await publication.cancelDownload(context);
-          Navigator.of(buildContext).pop();
         },
+      ),
+      // ⭐ AJOUT DU BOUTON MASQUER
+      JwDialogButton(
+        label: 'MASQUER',
+        closeDialog: false,
+        onPressed: (buildContext) {
+          hideDialog = true;
+          Navigator.of(buildContext).pop();
+        }
       ),
     ],
   );
@@ -61,6 +87,7 @@ Future<void> showDownloadProgressDialog(BuildContext context, Publication public
 
 class _DownloadDialogContent extends StatefulWidget {
   final Publication publication;
+  final bool openOnSuccess; // ⭐ Nouveau paramètre pour contrôler l'ouverture
   final int? mepsDocId;
   final int? bookNumber;
   final int? chapterNumber;
@@ -70,7 +97,18 @@ class _DownloadDialogContent extends StatefulWidget {
   final String? textTag;
   final List<String>? wordsSelected;
 
-  const _DownloadDialogContent({required this.publication, this.mepsDocId, this.bookNumber, this.chapterNumber, this.date, this.startParagraphId, this.endParagraphId, this.textTag, this.wordsSelected});
+  const _DownloadDialogContent({
+    required this.publication,
+    this.openOnSuccess = false, // Valeur par défaut pour éviter les erreurs si non fourni
+    this.mepsDocId,
+    this.bookNumber,
+    this.chapterNumber,
+    this.date,
+    this.startParagraphId,
+    this.endParagraphId,
+    this.textTag,
+    this.wordsSelected
+  });
 
   @override
   State<_DownloadDialogContent> createState() => __DownloadDialogContentState();
@@ -91,22 +129,27 @@ class __DownloadDialogContentState extends State<_DownloadDialogContent> {
 
   Future<void> _startDownload() async {
     await widget.publication.download(context); // ← maintenant dans un contexte sûr
+
+    // Ferme le dialogue de progression UNIQUEMENT s'il est encore visible (mounted)
     if (mounted) {
       Navigator.pop(context);
     }
 
-    if (widget.publication.isDownloadedNotifier.value) {
-      if(widget.mepsDocId == null && widget.bookNumber == null && widget.chapterNumber == null && widget.date == null && widget.startParagraphId == null && widget.endParagraphId == null && widget.textTag == null && widget.wordsSelected == null) {
-        await showPage(PublicationMenuView(publication: widget.publication));
-      }
-      else if (widget.bookNumber != null && widget.chapterNumber != null) {
-        await showPageBibleChapter(widget.publication, widget.bookNumber!, widget.chapterNumber!, firstVerse: widget.startParagraphId, lastVerse: widget.endParagraphId);
-      }
-      else if (widget.date != null) {
-        await showPageDailyText(widget.publication, date: widget.date!);
-      }
-      else {
-        await showPageDocument(widget.publication, widget.mepsDocId!, startParagraphId: widget.startParagraphId, endParagraphId: widget.endParagraphId, textTag: widget.textTag, wordsSelected: widget.wordsSelected);
+    if(!hideDialog) {
+      // ⭐ Changement de comportement ici : l'ouverture de la publication n'a lieu que si `openOnSuccess` est vrai
+      if (widget.publication.isDownloadedNotifier.value && widget.openOnSuccess) {
+        if(widget.mepsDocId == null && widget.bookNumber == null && widget.chapterNumber == null && widget.date == null && widget.startParagraphId == null && widget.endParagraphId == null && widget.textTag == null && widget.wordsSelected == null) {
+          await showPage(PublicationMenuView(publication: widget.publication));
+        }
+        else if (widget.bookNumber != null && widget.chapterNumber != null) {
+          await showPageBibleChapter(widget.publication, widget.bookNumber!, widget.chapterNumber!, firstVerse: widget.startParagraphId, lastVerse: widget.endParagraphId);
+        }
+        else if (widget.date != null) {
+          await showPageDailyText(widget.publication, date: widget.date!);
+        }
+        else {
+          await showPageDocument(widget.publication, widget.mepsDocId!, startParagraphId: widget.startParagraphId, endParagraphId: widget.endParagraphId, textTag: widget.textTag, wordsSelected: widget.wordsSelected);
+        }
       }
     }
   }
@@ -521,8 +564,8 @@ Future<Bookmark?> showBookmarkDialog(BuildContext context, Publication publicati
                                   if (bookmark != null) {
                                     Navigator.pop(context, bookmark); // Retourne le bookmark sélectionné
                                   }
-                                  else if (mepsDocumentId != null) {
-                                    Bookmark? bookmark = await JwLifeApp.userdata.addBookmark(publication, mepsDocumentId, null, null, title!, snippet!, index, blockType!, blockIdentifier);
+                                  else if (bookNumber != null && chapterNumber != null) {
+                                    Bookmark? bookmark = await JwLifeApp.userdata.addBookmark(publication, null, bookNumber, chapterNumber, title!, snippet!, index, blockType!, blockIdentifier);
                                     if(bookmark != null) {
                                       setState(() {
                                         bookmarks.add(bookmark);
@@ -535,8 +578,8 @@ Future<Bookmark?> showBookmarkDialog(BuildContext context, Publication publicati
                                       }
                                     }
                                   }
-                                  else if (bookNumber != null && chapterNumber != null) {
-                                    Bookmark? bookmark = await JwLifeApp.userdata.addBookmark(publication, null, bookNumber, chapterNumber, title!, snippet!, index, blockType!, blockIdentifier);
+                                  else if (mepsDocumentId != null) {
+                                    Bookmark? bookmark = await JwLifeApp.userdata.addBookmark(publication, mepsDocumentId, null, null, title!, snippet!, index, blockType!, blockIdentifier);
                                     if(bookmark != null) {
                                       setState(() {
                                         bookmarks.add(bookmark);

@@ -8,7 +8,7 @@ import 'package:jwlife/core/utils/utils_video.dart'; // Ajout de l'import manqua
 import 'package:jwlife/data/models/media.dart';
 import 'package:jwlife/data/models/userdata/independentMedia.dart';
 import 'package:jwlife/data/models/userdata/playlistItem.dart';
-import 'package:jwlife/widgets/dialog/utils_dialog.dart';
+import 'package:jwlife/core/utils/utils_dialog.dart';
 
 import '../../../core/icons.dart';
 import '../../../data/models/audio.dart';

@@ -217,3 +217,108 @@ Favoris : Correction du bug lors de la suppression d'un favori.
 Lecture depuis playlist : Les audios et vidéos de la bibliothèque dans les playlists peuvent être lus correctement.
 Rendu HTML : Correction du wrap des mots pour certaines classes HTML.
 Vue cantiques : Affichage correct des cantiques en vue image (gauche à gauche, droite à droite).
+
+📢 Mise à jour – 04/10/2025
+
+📂 Nouveautés
+Accès aux Publications : Possibilité d'accéder directement à une publication depuis les alertes et d'y changer la langue.
+
+Contenu des Réunions : Ajout des publications pour les réunions dans la page dédiée (Réunions et Assemblées).
+
+Panoplie d'Enseignement : Ajout de la panoplie complète d'enseignement, avec les tracts affichés en deuxième ligne pour une mise en conformité avec JW Library.
+
+Conformité du Contenu : Mise en conformité pour inclure les nouvelles vidéos et les publications des nouveaux tracts.
+
+Affichage des Descriptions : La description d'une publication n'est maintenant enregistrée et affichée que si elle correspond bien à la description de la publication.
+
+🎨 Améliorations
+Page de Recherche : La page de recherche a été améliorée (performances/ergonomie).
+
+Titres Courts : Ajout des titres courts sous les publications de la panoplie d'enseignement.
+
+✅ Correctifs
+Recherche de Versets : Correction d'un bug sur la page recherche de certains versets.
+
+Bouton Diamant : Correction du bug qui survenait en cliquant sur le diamant depuis la dernière la mise à jour.
+
+Téléchargement/Suppression : Correction du bug qui empêchait de retélécharger une publication immédiatement après l'avoir supprimée.
+
+📢 Mise à jour – 06/10/2025
+
+📂 Nouveautés
+Gestion de la Description d'Image : Ajout d'un nouveau bouton rond avec l'icône de diamant qui permet d'afficher ou de masquer la description d'une image. Ce bouton n'apparaît que si une description d'image est disponible.
+
+Téléchargement Direct des Publications : Tant que les fonctionnalités des menus et des documents en ligne sur wol sont en cours de développement, le fait de cliquer sur une publication déclenche désormais un téléchargement direct de la publication.
+
+Carrousel d'Images : Implémentation du carrousel d'images pour gérer les publications contenant plusieurs images regroupées (similaire à l'affichage dans JW Library, par exemple dans la leçon 02 du livre Vivez pour toujours ! (lff)).
+
+🎨 Améliorations
+Bandeau d'Information : Le texte du bandeau d'information est maintenant centré sur la hauteur.
+
+Navigation Bible (BottomMenu) :
+Le BottomMenu "Bible" a été mis à jour pour afficher tous les livres bibliques d'un seul coup, offrant une vue plus complète.
+Si l'utilisateur est déjà sur l'onglet "Bible" et appuie à nouveau sur le bouton, l'affichage revient directement sur l'onglet "Livres".
+
+Navigation Bibliothèque (BottomMenu) : Si l'utilisateur est déjà sur l'onglet "Bibliothèque" et appuie à nouveau sur le bouton, l'affichage revient directement sur l'onglet "Publications".
+
+Mise à Jour de l'Interface Utilisateur (UI) : L'interface du BottomMenu pour les sections "Réunions et Assemblées" a été repensée pour être plus dense et plus compacte avec de nouvelles couleurs !
+
+Simplification de la Navigation : Retrait des boutons de navigation précédent et suivant pour un design plus épuré, aligné sur l'esthétique de JW.ORG.
+
+✅ Correctifs
+Gestion des Langues dans les Alertes : Correction de l'affichage dans la section Alertes. Si l'utilisateur sélectionne une langue sans alerte disponible, le message "Aucune alerte d'information disponible dans cette langue" est désormais correctement affiché.
+
+
+📢 Mise à jour de l'application – 14/10/2025
+Déploiement d'une mise à jour majeure intégrant de nouvelles fonctionnalités, des améliorations d'interface et des correctifs pour optimiser l'expérience utilisateur et la fluidité de notre étude individuelle.
+
+📂 Nouveautés
+Personnalisation de la Bible : Il est désormais possible de choisir la version de la Bible affichée par défaut dans l'onglet "Bible". La version préférée, sélectionnée dans les réglages "Langues", est enregistrée et s'affiche automatiquement au démarrage.
+
+Ordre des Bibles personnalisé : Ajout de la possibilité de personnaliser l'ordre d'affichage des Bibles dans la fenêtre de comparaison qui s'ouvre lors du clic sur un verset (similaire à JW Library).
+
+Menu déroulant "Réunions et Assemblées" : L'ajout de menus déroulants pour les "Autres Publications" et les sections d'assemblées permet d'optimiser et de réduire l'espace occupé dans le menu "Réunions et Assemblées".
+
+Téléchargement en arrière-plan : Lors du téléchargement d'une publication via une boîte de dialogue, un bouton "MASQUER" a été ajouté. Cela permet de cacher la boîte de dialogue pour continuer la navigation dans l'application pendant le téléchargement. Un bandeau informe de la fin du téléchargement.
+
+Visibilité des langues : Les cinq langues les plus utilisées dans l'application sont maintenant affichées en tant que Recommandé lors de l'accès à "Autres Langues".
+
+🎨 Améliorations
+Visibilité du titre des articles : Le titre des articles sur la page d'accueil affiche désormais jusqu'à 4 lignes pour une lecture complète.
+
+Animation des pages : Ajout de l'animation latérale (provenant du côté) sur l'ensemble des pages pour une transition unifiée.
+
+Gestion de la recherche en ligne : Sur la page de recherche dans les publications, si un lien n'est pas trouvé localement, la publication est automatiquement ouverte en ligne.
+
+Fenêtres de Langues : Mise en conformité de l'apparence et du comportement de toutes les fenêtres de sélection de langues.
+
+Téléchargement de PDF : Le dialogue de téléchargement de PDF a été révisé pour s'harmoniser avec le style des autres dialogues de l'application.
+
+Barre de progression : La barre de progression de téléchargement des publications a été mieux positionnée, notamment pour les images de petite taille.
+
+Sauvegarde des styles : Le dernier style et la dernière couleur choisis sont désormais enregistrés et conservés, quel que soit le document ouvert et après la fermeture de l'application.
+
+Toolbox des tracts : Réduction de la hauteur de la boîte à outils (toolbox) des tracts pour optimiser l'affichage.
+
+Améliorations du Dialog (Webview) :
+
+Le dialogue est maintenant redimensionnable sur la vue web.
+
+Une ombre plus prononcée a été ajoutée pour un meilleur contraste entre le document et la fenêtre.
+
+Le bouton rond (d'action) reste visible lors de l'ouverture d'un dialogue, mais une flèche de retour apparaît (similaire à JW Library).
+
+L'ouverture du même dialogue deux fois consécutivement est bloquée (par exemple, cliquer deux fois sur le même verset n'ouvrira le dialogue qu'une seule fois).
+
+✅ Correctifs
+Catégorie "Nouveautés (assemblée régionale)" : Correction du bug qui empêchait l'affichage du contenu lors du clic sur cette catégorie.
+
+Marque-page dans la Bible : Correction d'un bug lors de l'ajout direct d'un marque-page sur un chapitre ou un verset de la Bible.
+
+Fermeture de la description d'image : La description de l'image dans une vue détaillée s'enlève correctement lors du clic sur le fond.
+
+Ouverture des réunions : Correction d'un bug où le programme de la semaine ou du weekend ne s'ouvrait pas toujours lors du clic.
+
+Suppression de la sauvegarde : Correction du bug qui provoquait un écran noir après la suppression de la sauvegarde.
+
+Mise à jour interne : Mise à jour du fichier mepsunit.db.

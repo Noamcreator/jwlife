@@ -106,7 +106,7 @@ Future<Map<String, dynamic>> fetchVerses(Publication publication, String link) a
 
     db.close();
 
-    for (var bible in PublicationRepository().getAllBibles()) {
+    for (var bible in PublicationRepository().getOrderBibles()) {
       Database? bibleDb;
       if(bible.documentsManager == null) {
         bibleDb = await openDatabase(bible.databasePath!);
@@ -602,7 +602,13 @@ Future<Map<String, dynamic>> fetchCommentaries(BuildContext context, Publication
       WHERE CommentaryMepsDocumentId = ? AND EndParagraphOrdinal >= ? AND BeginParagraphOrdinal <= ?
     ''', [result['mepsDocumentIdCommentary'], result['beginParagraphId'], result['endParagraphId']]);
 
-    Publication bible = PublicationRepository().getAllBibles().first;
+    Publication? bible = PublicationRepository().getLookUpBible();
+    if(bible == null) {
+      return {
+        'items': [],
+        'title': 'Note d\'étude',
+      };
+    }
 
     if (response.isNotEmpty) {
       final items = response.map((commentary) {
@@ -692,7 +698,7 @@ Future<List<Map<String, dynamic>>> fetchVerseCommentaries(
 Future<List<Map<String, dynamic>>> fetchOtherVerseVersion(BuildContext context, Publication publication, int book, int chapter, int verse, int verseId) async {
   try {
     List<Map<String, dynamic>> versesTranslations = [];
-    for (var bible in PublicationRepository().getAllBibles()) {
+    for (var bible in PublicationRepository().getOrderBibles()) {
       Database? bibleDb;
       if(bible.documentsManager == null) {
         bibleDb = await openDatabase(bible.databasePath!);

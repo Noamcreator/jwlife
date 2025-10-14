@@ -7,10 +7,10 @@ import 'package:jwlife/data/models/video.dart';
 import 'package:jwlife/data/databases/catalog.dart';
 import 'package:jwlife/data/realm/catalog.dart';
 import 'package:jwlife/features/library/widgets/rectangle_publication_item.dart';
-import 'package:jwlife/widgets/dialog/language_dialog.dart';
 import 'package:realm/realm.dart';
 
 import '../../../../app/services/settings_service.dart';
+import '../../../../core/utils/utils_language_dialog.dart';
 import '../../../../data/models/audio.dart';
 import '../../../../data/realm/realm_library.dart';
 import '../../widgets/rectangle_mediaItem_item.dart';
@@ -88,11 +88,13 @@ class _ConventionItemsViewState extends State<ConventionItemsView> {
           ),
           IconButton(
             icon: const Icon(JwIcons.language),
-            onPressed: () async {
-              showDialog(
-                context: context,
-                builder: (context) => const LanguageDialog(),
-              ).then((_) => loadItems());
+            onPressed: () {
+              showLanguageDialog(context).then((language) async {
+                if (language != null) {
+                  loadItems();
+                  // TODO ajouter la langue pour le raffraichissement comme sur les Audio et les Vidéos
+                }
+              });
             },
           ),
         ],

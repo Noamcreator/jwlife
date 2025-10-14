@@ -10,6 +10,7 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
   String publicationPath = publication.path ?? '';
   final webViewData = JwLifeSettings().webViewData;
   final fontSize = webViewData.fontSize;
+  final styleIndex = webViewData.styleIndex;
   final colorIndex = webViewData.colorIndex;
   bool isDarkMode = webViewData.theme == 'cc-theme--dark';
   bool isFullscreenMode = webViewData.isFullScreenMode;
@@ -415,7 +416,7 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
           
           const noteAttr = 'note-id';
           
-          let currentStyleIndex = 0;
+          let currentStyleIndex = $styleIndex;
           
           let blockRanges;
           let notes;
@@ -430,6 +431,11 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
           
           function isDarkTheme() {
             return document.body.classList.contains('cc-theme--dark');
+          }
+          
+          function changeStyleAndColorIndex(styleIndex, colorIndex) {
+            currentStyleIndex = styleIndex;
+            setColorIndex(styleIndex, colorIndex); 
           }
           
           function changeFullScreenMode(isFullscreen) {
@@ -1722,16 +1728,24 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
           
           async function fetchVerseInfo(paragraph, pid) {
             const verseInfo = await window.flutter_inappwebview.callHandler('fetchVerseInfo', { id: pid });
-            showVerseInfoDialog(pageCenter, verseInfo);
+            showVerseInfoDialog(pageCenter, verseInfo, 'verse-info-\$pid');
             closeToolbar();
           }
           
+          const HEADER_HEIGHT = 50; // Hauteur fixe du header
+          const PADDING_CONTENT_VERTICAL = 0; // 16px top + 16px bottom padding dans contentContainer (si padding: 16px est utilisé)
+          const MIN_RESIZE_HEIGHT = 150; // Hauteur minimale de redimensionnement
+
           // Système d'historique des dialogs avec sauvegarde complète d'état
           let dialogHistory = [];
           let currentDialogIndex = -1;
           let lastClosedDialog = null; // Pour mémoriser le dernier dialogue fermé
           let globalFullscreenPreference = false; // Préférence globale pour le fullscreen
           let dialogIdCounter = 0; // Compteur pour les ID uniques des dialogues
+          
+          // Icônes des boutons
+          const ICON_BACK_HISTORY = 'jwi-chevron-left'; 
+          const ICON_REOPEN_CLOSED = 'jwi-chevron-right'; // Nouveau bouton pour revenir sur le dernier fermé
           
           // Icônes pour les différents types de dialog
           const DIALOG_ICONS = {
@@ -1744,6 +1758,8 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
               'default': '&#xE658;' // Icône par défaut
           };
           
+          const ARROW_BACK = '&#xE60B;';
+          
           function hideAllDialogs() {
               const dialogs = document.querySelectorAll('.customDialog');
               dialogs.forEach(dialog => {
@@ -1753,10 +1769,9 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
           
           function closeDialog() {
               document.querySelectorAll('.options-menu, .color-menu').forEach(el => el.remove());
-              const dialog = document.getElementById(dialogHistory[currentDialogIndex].dialogId);
+              const dialog = document.getElementById(dialogHistory[currentDialogIndex]?.dialogId);
               if (!dialog) return;
               
-              // Cacher le dialog
               dialog.style.display = 'none';
               
               if (currentDialogIndex >= 0) {
@@ -1771,7 +1786,6 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
               dialogHistory = [];
               currentDialogIndex = -1;
           
-              // Afficher le bouton flottant si on a un dialogue à restaurer
               if (lastClosedDialog) {
                   showFloatingButton();
               }
@@ -1783,56 +1797,44 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
           function removeDialog() {
               if (currentDialogIndex < 0 || dialogHistory.length === 0) return;
           
-              // Récupérer le dernier dialogue
               const dialogData = dialogHistory[currentDialogIndex];
               const dialog = document.getElementById(dialogData.dialogId);
           
               if (dialog) {
-                  // Supprimer le dialog du DOM
                   dialog.remove();
               }
               
-              // Supprimer l'entrée du tableau
               dialogHistory.splice(currentDialogIndex, 1);
-          
-              // Mettre à jour l'index
               currentDialogIndex = dialogHistory.length - 1;
           
               window.flutter_inappwebview?.callHandler('showFullscreenDialog', false);
               window.flutter_inappwebview?.callHandler('showDialog', false);
           }
           
-          // Fonction pour supprimer un dialog spécifique par noteGuid
           function removeDialogByNoteGuid(noteGuid) {
               if (!noteGuid) return false;
               
-              // Trouver l'index du dialog avec ce noteGuid
               const dialogIndex = dialogHistory.findIndex(item => 
                   item.type === 'note' && 
                   item.options?.noteData?.noteGuid === noteGuid
               );
               
-              if (dialogIndex === -1) return false; // Dialog non trouvé
+              if (dialogIndex === -1) return false;
               
               const dialogData = dialogHistory[dialogIndex];
               const dialog = document.getElementById(dialogData.dialogId);
               
-              // Supprimer le dialog du DOM s'il existe
               if (dialog) {
                   dialog.remove();
               }
               
-              // Supprimer l'entrée du tableau
               dialogHistory.splice(dialogIndex, 1);
               
-              // Ajuster l'index courant si nécessaire
               if (dialogIndex <= currentDialogIndex) {
                   currentDialogIndex = Math.max(-1, currentDialogIndex - 1);
               }
               
-              // Si c'était le dialog actuellement affiché
               if (dialogIndex === currentDialogIndex + 1 && dialogHistory.length > 0) {
-                  // Afficher le dialog précédent ou fermer si plus de dialogs
                   if (currentDialogIndex >= 0) {
                       showDialogFromHistory(dialogHistory[currentDialogIndex]);
                   } else {
@@ -1840,7 +1842,6 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
                       window.flutter_inappwebview?.callHandler('showDialog', false);
                   }
               } else if (dialogHistory.length === 0) {
-                  // Plus de dialogs du tout
                   currentDialogIndex = -1;
                   window.flutter_inappwebview?.callHandler('showFullscreenDialog', false);
                   window.flutter_inappwebview?.callHandler('showDialog', false);
@@ -1849,27 +1850,17 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
               return true;
           }
           
-          // Fonction pour naviguer vers le dialog précédent
           function goBackDialog() {
               if (currentDialogIndex > 0 && dialogHistory.length > 1) {
-                  // Supprimer le dernier dialogue (celui qu'on quitte)
                   dialogHistory.pop();
-          
-                  // Décrémenter l'index pour pointer sur le précédent
                   currentDialogIndex--;
-          
-                  // Récupérer le précédent dialogue
                   const previousDialog = dialogHistory[currentDialogIndex];
-          
-                  // Afficher le dialogue précédent
                   showDialogFromHistory(previousDialog);
-          
                   return true;
               }
               return false;
           }
           
-          // Fonction pour créer ou restaurer un dialog depuis l'historique
           function showDialogFromHistory(historyItem) {
               hideAllDialogs();
           
@@ -1881,10 +1872,11 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
                   dialog.style.display = 'block';
               } 
               else {
-                  dialog = createDialogElement(historyItem.options, historyItem.canGoBack, globalFullscreenPreference, historyItem.dialogId);
+                  dialog = createDialogElement(historyItem.options, historyItem.canGoBack, globalFullscreenPreference, 0, historyItem.dialogId);
                   document.body.appendChild(dialog);
               }
           
+              // Appliquer les styles après la création/réaffichage
               applyDialogStyles(historyItem.type, dialog, globalFullscreenPreference);
               
               if (historyItem.type === 'note') {
@@ -1896,16 +1888,91 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
               return dialog;
           }
           
-          // Fonction principale pour créer et afficher un dialog
+          // ===========================================
+          // FONCTIONS DE CRÉATION ET DE STYLE
+          // ===========================================
+          
           function showDialog(options) {
               removeFloatingButton();
               
+              // 1. Déterminer la clé unique du dialogue à ouvrir.
+              // La clé est prioritairement options.href.
+              // Sinon, si c'est une 'note' avec un 'noteGuid', on utilise ce dernier (avec un préfixe pour éviter les collisions).
+              const currentUniqueKey = options.href 
+                  || (options.type === 'note' && options.noteData?.noteGuid ? `noteGuid-\${options.noteData.noteGuid}` : null);
+                  
+              let existingDialogIndex = -1;
+          
+              if (currentUniqueKey) {
+                  // 2. Rechercher un dialogue existant avec la même clé dans l'historique.
+                  existingDialogIndex = dialogHistory.findIndex(item => {
+                      // Déterminer la clé unique de l'élément de l'historique pour comparaison.
+                      const historyItemKey = item.options.href 
+                          || (item.options.type === 'note' && item.options.noteData?.noteGuid ? `noteGuid-\${item.options.noteData.noteGuid}` : null);
+                      
+                      return historyItemKey === currentUniqueKey;
+                  });
+              }
+          
+              // --- Logique de remplacement (options.replace === true) ---
+              if (existingDialogIndex !== -1 && options.replace === true) {
+                  // On supprime l'ancien dialogue (du DOM et de l'historique) avant de créer le nouveau.
+                  const dialogToRemove = dialogHistory[existingDialogIndex];
+                  const dialogElement = document.getElementById(dialogToRemove.dialogId);
+                  
+                  if (dialogElement) {
+                      dialogElement.remove();
+                  }
+                  
+                  dialogHistory.splice(existingDialogIndex, 1);
+                  
+                  // Si le dialogue supprimé était le dialogue courant, on ajuste l'index.
+                  if (existingDialogIndex === currentDialogIndex) {
+                      currentDialogIndex = Math.max(-1, currentDialogIndex - 1);
+                  } else if (existingDialogIndex < currentDialogIndex) {
+                      currentDialogIndex--;
+                  }
+          
+                  // On continue la fonction pour créer le nouveau dialogue juste après (voir l'étape 'NOUVEAU dialogue').
+                  // L'historique a été purgé de l'ancienne version.
+              }
+              // --- Fin Logique de remplacement ---
+              
+              // --- Logique si un dialogue existant est trouvé ET options.replace n'est pas true ---
+              else if (existingDialogIndex !== -1) {
+                  const existingHistoryItem = dialogHistory[existingDialogIndex];
+                  
+                  // 3. Si le dialogue existant est déjà l'élément courant, on le réaffiche au cas où il serait caché.
+                  if (existingDialogIndex === currentDialogIndex) {
+                       const existingDialogElement = document.getElementById(existingHistoryItem.dialogId);
+                       if (existingDialogElement) {
+                           existingDialogElement.style.display = 'block';
+                       }
+                       return existingDialogElement;
+                  }
+          
+                  // 4. Mettre l'élément trouvé à la fin de l'historique et le rendre courant (le ramener au premier plan).
+                  dialogHistory.splice(existingDialogIndex, 1);
+                  dialogHistory.push(existingHistoryItem);
+                  currentDialogIndex = dialogHistory.length - 1;
+                  
+                  window.flutter_inappwebview?.callHandler('showDialog', true);
+                  
+                  // Mettre à jour l'indicateur canGoBack pour l'élément déplacé
+                  existingHistoryItem.canGoBack = dialogHistory.length > 1;
+          
+                  // 5. Afficher le dialogue existant.
+                  return showDialogFromHistory(existingHistoryItem);
+              }
+          
+              // --- Logique pour créer un NOUVEAU dialogue (si non trouvé ou si options.replace était true) ---
+              
               window.flutter_inappwebview?.callHandler('showDialog', true);
                 
-              dialogIdCounter++; // Incrémenter pour un nouvel ID
-              const newDialogId = `customDialog-\${dialogIdCounter}`;
+              dialogIdCounter++;
+              // Utiliser la bonne syntaxe d'interpolation (backticks)
+              const newDialogId = `customDialog-\${dialogIdCounter}`; 
               
-              // Créer et ajouter le nouveau dialogue à l'historique avec son ID
               const newHistoryItem = {
                   options: options,
                   canGoBack: dialogHistory.length > 0,
@@ -1915,32 +1982,30 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
               dialogHistory.push(newHistoryItem);
               currentDialogIndex = dialogHistory.length - 1;
               
-              // Créer et afficher le nouveau dialogue
+              // Si nous venons d'un remplacement, on doit s'assurer que le précédent a été désaffiché.
+              hideAllDialogs(); 
+              
               return showDialogFromHistory(newHistoryItem);
           }
           
-          // Fonction pour créer l'élément dialog avec fullscreen et scroll
           function createDialogElement(options, canGoBack, isFullscreenInit = false, scrollTopInit = 0, newDialogId = null) {
               let isFullscreen = isFullscreenInit;
               
               const dialog = document.createElement('div');
               dialog.id = newDialogId || `customDialog-\${dialogIdCounter}`;
               dialog.classList.add('customDialog');
+              dialog.setAttribute('data-type', options.type || 'default');
               
-              // Appliquer les styles selon le mode
               applyDialogStyles(options.type, dialog, isFullscreen);
               dialog.style.display = 'block';
           
-              // Header
               const header = createHeader(options, isDarkTheme(), dialog, isFullscreen, canGoBack);
               setupDragSystem(header.element, dialog);
           
-              // Content container
               const contentContainer = document.createElement('div');
               contentContainer.id = 'contentContainer';
               applyContentContainerStyles(options.type, contentContainer, isFullscreen);
               
-              // **Modification ici : Appliquer la classe de couleur de la note à la création**
               if (options.type === 'note' && options.noteData && options.noteData.colorIndex) {
                   const noteClass = getNoteClass(options.noteData.colorIndex, false);
                   dialog.classList.add(noteClass);
@@ -1952,10 +2017,8 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
               
               setTimeout(() => {
                   contentContainer.scrollTop = scrollTopInit;
-                  console.log('Scroll restauré:', scrollTopInit);
               }, 10);
           
-              // Setup du bouton fullscreen avec callback pour sauvegarder l'état
               setupFullscreenToggle(
                   options.type,
                   header.fullscreenButton,
@@ -1965,19 +2028,39 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
           
               dialog.appendChild(header.element);
               dialog.appendChild(contentContainer);
+              
+              const resizeHandle = document.createElement('div');
+              resizeHandle.classList.add('resize-handle');
+              resizeHandle.style.cssText = `
+                  position: absolute;
+                  bottom: 0;
+                  right: 0;
+                  width: 20px;
+                  height: 20px;
+                  cursor: nwse-resize; 
+                  z-index: 1001;
+                  border-right: 2px solid \${isDarkTheme() ? 'rgba(255, 255, 255, 0.5)' : 'rgba(0, 0, 0, 0.5)'};
+                  border-bottom: 2px solid \${isDarkTheme() ? 'rgba(255, 255, 255, 0.5)' : 'rgba(0, 0, 0, 0.5)'};
+                  border-bottom-right-radius: 16px;
+              `;
+              dialog.appendChild(resizeHandle);
+              
+              setupResizeSystem(resizeHandle, dialog, contentContainer);
               return dialog;
           }
           
-          // Fonction pour appliquer les styles du dialog
           function applyDialogStyles(type, dialog, isFullscreen, savedPosition = null) {
               const isDark = isDarkTheme();
               const backgroundColor = type == 'note' ? null : (isDarkTheme() ? '#121212' : '#ffffff');
               
               const baseStyles = `
-                  position: fixed;
-                  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
-                  z-index: 1000;
-                  background-color: \${backgroundColor};
+                position: fixed;
+                /* Rendre l'ombre plus prononcée */
+                box-shadow: 0 15px 50px rgba(0, 0, 0, 0.60); /* Augmenter le flou et l'opacité */
+                z-index: 1000;
+                background-color: \${backgroundColor};
+                /* Ajouter une bordure subtile en mode clair */
+                border: 1px solid rgba(0, 0, 0, 0.1);
               `;
           
               if (isFullscreen) {
@@ -1996,50 +2079,93 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
                       margin: 0;
                       border-radius: 0px;
                   `;
-              
+                  const resizeHandle = dialog.querySelector('.resize-handle');
+                  if (resizeHandle) resizeHandle.style.display = 'none';
+          
                   window.flutter_inappwebview?.callHandler('showFullscreenDialog', true);
               }
               else {
                   dialog.classList.remove('fullscreen');
+                  const resizeHandle = dialog.querySelector('.resize-handle');
+                  if (resizeHandle) resizeHandle.style.display = 'block';
           
+                  // Styles de taille initiaux
                   const windowDialogStyles = `
                       width: 85%;
+                      height: fit-content;
                       max-width: 600px;
                       border-radius: 16px;
                   `;
+                  
+                  // Appliquer les styles de base avec la taille initiale
+                  dialog.style.cssText = baseStyles + windowDialogStyles; 
+                  
+                  const currentLeft = dialog.style.left;
+                  const currentTop = dialog.style.top;
+                  
+                  // Priorité 1: Position sauvegardée par drag/resize
+                  if (currentLeft && currentTop && currentLeft !== '50%' && currentTop !== '50%') {
+                      dialog.style.left = currentLeft;
+                      dialog.style.top = currentTop;
+                      dialog.style.transform = 'none';
+                      
+                      // Priorité 2: Hauteur/largeur redimensionnée (si elle existe)
+                      const resizedHeight = dialog.getAttribute('data-resized-height');
+                      const resizedWidth = dialog.getAttribute('data-resized-width');
           
-                  if (savedPosition && savedPosition.left && savedPosition.top) {
-                      dialog.style.cssText = baseStyles + windowDialogStyles + `
-                          left: \${savedPosition.left};
-                          top: \${savedPosition.top};
-                          transform: \${savedPosition.transform || 'none'};
-                      `;
+                      if (resizedHeight) {
+                           dialog.style.height = resizedHeight;
+                           
+                           // Ajuster le contentContainer max-height selon la hauteur redimensionnée
+                           const contentContainer = dialog.querySelector('#contentContainer');
+                           if (contentContainer) {
+                              const newHeight = parseFloat(resizedHeight);
+                              const contentMaxHeight = newHeight - HEADER_HEIGHT - PADDING_CONTENT_VERTICAL;
+                              contentContainer.style.maxHeight = `\${Math.max(0, contentMaxHeight)}px`;
+                           }
+                      } else {
+                           dialog.style.height = 'fit-content';
+                      }
+          
+                      if(resizedWidth) {
+                           dialog.style.width = resizedWidth;
+                      } else {
+                           dialog.style.width = '85%';
+                      }
+          
                   } else {
-                      dialog.style.cssText = baseStyles + windowDialogStyles + `
-                          top: 50%;
-                          left: 50%;
-                          transform: translate(-50%, -50%);
-                      `;
+                      // Position de base (centrée)
+                      dialog.style.top = '50%';
+                      dialog.style.left = '50%';
+                      dialog.style.transform = 'translate(-50%, -50%)';
                   }
           
                   window.flutter_inappwebview?.callHandler('showFullscreenDialog', false);
               }
           }
           
-          // Fonction pour appliquer les styles du container de contenu
           function applyContentContainerStyles(type, contentContainer, isFullscreen) {
-              const maxHeight = isFullscreen ? `calc(100vh - \${APPBAR_FIXED_HEIGHT + BOTTOMNAVBAR_FIXED_HEIGHT + (audioPlayerVisible ? AUDIO_PLAYER_HEIGHT : 0) + 60}px)` : '60vh';
+              const paddingStyle = '0px'; 
+              
+              // MaxHeight par défaut pour le scroll si le dialogue n'est pas redimensionné
+              const maxHeight = isFullscreen 
+                  ? `calc(100vh - \${APPBAR_FIXED_HEIGHT + BOTTOMNAVBAR_FIXED_HEIGHT + (audioPlayerVisible ? AUDIO_PLAYER_HEIGHT : 0) + HEADER_HEIGHT}px)` 
+                  : '60vh'; 
+                  
               const backgroundColor = type === 'note' ? 'transparent' : (isDarkTheme() ? '#121212' : '#ffffff');
               
               contentContainer.style.cssText = `
-                  max-height: \${maxHeight};
+                  max-height: \${maxHeight}; 
                   overflow-y: auto;
                   background-color: \${backgroundColor};
                   user-select: text;
                   border-radius: \${isFullscreen ? '0px' : '0 0 16px 16px'};
+                  padding: \${paddingStyle}; 
+                  box-sizing: border-box; 
               `;
           }
           
+          // NOTE: La fonction createHeader est laissée telle quelle car elle n'a pas été modifiée dans sa logique.
           function createHeader(options, isDark, dialog, isFullscreen, canGoBack) {
               const header = document.createElement('div');
               const headerGradient = isDark 
@@ -2062,7 +2188,7 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
                   display: flex;
                   align-items: center;
                   justify-content: space-between;
-                  height: 50px;
+                  height: \${HEADER_HEIGHT}px;
                   border-bottom: 1px solid \${isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'};
                   border-radius: \${borderRadius};
               `;
@@ -2140,7 +2266,6 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
                 `;
                 
                 moreButton.onclick = (event) => {
-                    // Supprime tout menu existant avant d'en créer un nouveau
                     document.querySelectorAll('.options-menu, .color-menu').forEach(el => el.remove());
                 
                     const popup = header.closest('.customDialog');
@@ -2149,13 +2274,11 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
                     document.body.appendChild(optionsMenu);
                     document.body.appendChild(colorMenu);
                 
-                    // Positionne le menu en dessous du bouton
                     const rect = event.target.getBoundingClientRect();
                     optionsMenu.style.top = `\${rect.bottom + 8}px`;
                     optionsMenu.style.left = `\${rect.right - optionsMenu.offsetWidth - moreButton.offsetWidth - 20}px`;
                     optionsMenu.style.display = 'flex';
                 
-                    // Fermer si clic ailleurs
                     const closeOnClickOutside = (e) => {
                         if (!optionsMenu.contains(e.target) && !colorMenu.contains(e.target) && e.target !== moreButton) {
                             optionsMenu.remove();
@@ -2222,7 +2345,6 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
               rightArea.appendChild(fullscreenButton);
               rightArea.appendChild(closeButton);
           
-              // Ajouter les deux zones au header
               header.appendChild(leftArea);
               header.appendChild(rightArea);
           
@@ -2234,23 +2356,32 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
               };
           }
           
-          // Configuration du fullscreen avec sauvegarde d'état améliorée
+          
           function setupFullscreenToggle(type, fullscreenButton, dialog, contentContainer) {
               fullscreenButton.onclick = function(event) {
                   document.querySelectorAll('.options-menu, .color-menu').forEach(el => el.remove());
                
                   event.stopPropagation();
                   
-                  // Sauvegarder le scroll avant de changer d'état
                   const currentScroll = contentContainer.scrollTop;
                   
+                  if (!globalFullscreenPreference) {
+                      // Sauvegarder la taille actuelle (en pixels) avant de passer en fullscreen
+                      const rect = dialog.getBoundingClientRect();
+                      dialog.setAttribute('data-resized-width', `\${rect.width}px`);
+                      dialog.setAttribute('data-resized-height', `\${rect.height}px`);
+                  } else {
+                       // Retirer les attributs de taille lors du retour du fullscreen
+                       dialog.removeAttribute('data-resized-width');
+                       dialog.removeAttribute('data-resized-height');
+                  }
+          
                   if (globalFullscreenPreference) {
                       // Sortir du fullscreen
                       applyDialogStyles(type, dialog, false);
                       applyContentContainerStyles(type, contentContainer, false);
                       fullscreenButton.innerHTML = '⛶';
                       
-                      // Mettre à jour le border-radius du header
                       const header = dialog.querySelector('div');
                       if (header) {
                           header.style.borderRadius = '16px 16px 0 0';
@@ -2264,7 +2395,6 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
                       applyContentContainerStyles(type, contentContainer, true);
                       fullscreenButton.innerHTML = '⿻';
                       
-                      // Mettre à jour le border-radius du header
                       const header = dialog.querySelector('div');
                       if (header) {
                           header.style.borderRadius = '0px';
@@ -2273,7 +2403,6 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
                       globalFullscreenPreference = true;
                   }
                   
-                  // Restaurer le scroll après le changement d'état
                   setTimeout(() => {
                       contentContainer.scrollTop = currentScroll;
                   }, 10);
@@ -2286,7 +2415,7 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
           
               const startDrag = (e) => {
                   if (globalFullscreenPreference) return;
-                  if (e.target.closest('.dialog-button')) return;
+                  if (e.target.closest('.dialog-button') || e.target.closest('.resize-handle')) return; 
           
                   isDragging = true;
                   startX = e.clientX || (e.touches && e.touches[0].clientX);
@@ -2299,6 +2428,12 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
                   dialog.style.transform = 'none';
                   dialog.style.left = `\${startLeft}px`;
                   dialog.style.top = `\${startTop}px`;
+                  
+                  // Si le dialogue était centré, la taille était relative, on la fixe avant de commencer le drag
+                  if (dialog.style.width === '85%') {
+                       dialog.style.width = `\${rect.width}px`;
+                       dialog.style.height = `\${rect.height}px`;
+                  }
           
                   document.addEventListener('mousemove', drag);
                   document.addEventListener('mouseup', stopDrag);
@@ -2320,13 +2455,11 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
                   const newTop = startTop + (currentY - startY);
               
                   const dialogRect = dialog.getBoundingClientRect();
-                  const headerRect = header.getBoundingClientRect();
-                  
-                  // Limites de la fenêtre
+                  const headerRect = dialog.querySelector('div:first-child').getBoundingClientRect();
+          
                   const minTop = controlsVisible ? APPBAR_FIXED_HEIGHT : 0;
                   const maxLeft = window.innerWidth - dialogRect.width;
           
-                  // Limite verticale pour que le header ne se cache pas derrière le bottom navbar
                   let maxDialogTop = window.innerHeight - headerRect.height;
                   if (controlsVisible) {
                       maxDialogTop -= BOTTOMNAVBAR_FIXED_HEIGHT + (audioPlayerVisible ? AUDIO_PLAYER_HEIGHT : 0);
@@ -2348,6 +2481,112 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
           
               header.addEventListener('mousedown', startDrag);
               header.addEventListener('touchstart', startDrag);
+          }
+          
+          // ===========================================
+          // FONCTION: Système de redimensionnement (CORRIGÉ POUR LA HAUTEUR)
+          // ===========================================
+          function setupResizeSystem(handle, dialog, contentContainer) {
+              let isResizing = false;
+              let startX, startY, startWidth, startHeight, startTop, startLeft;
+              const MIN_WIDTH = 300;
+              const MIN_HEIGHT = MIN_RESIZE_HEIGHT;
+          
+              const startResize = (e) => {
+                  if (dialog.classList.contains('fullscreen')) return;
+          
+                  isResizing = true;
+                  
+                  dialog.style.transition = 'none';
+                  dialog.style.maxWidth = 'none'; 
+          
+                  startX = e.clientX || (e.touches && e.touches[0].clientX);
+                  startY = e.clientY || (e.touches && e.touches[0].clientY);
+          
+                  const rect = dialog.getBoundingClientRect();
+                  startWidth = rect.width;
+                  startHeight = rect.height;
+                  startTop = rect.top;
+                  startLeft = rect.left;
+                  
+                  dialog.style.transform = 'none'; 
+                  dialog.style.left = `\${startLeft}px`;
+                  dialog.style.top = `\${startTop}px`;
+                  dialog.style.width = `\${startWidth}px`; 
+                  dialog.style.height = `\${startHeight}px`;
+          
+                  const initialContentMaxHeight = startHeight - HEADER_HEIGHT - PADDING_CONTENT_VERTICAL;
+                  contentContainer.style.maxHeight = `\${Math.max(0, initialContentMaxHeight)}px`;
+                  contentContainer.style.height = `\${Math.max(0, initialContentMaxHeight)}px`;
+                  contentContainer.style.overflowY = 'auto';
+          
+          
+                  document.addEventListener('mousemove', resize);
+                  document.addEventListener('mouseup', stopResize);
+                  document.addEventListener('touchmove', resize);
+                  document.addEventListener('touchend', stopResize);
+          
+                  e.preventDefault();
+                  e.stopPropagation(); 
+              };
+          
+              const resize = (e) => {
+                  if (!isResizing) return;
+              
+                  const currentX = e.clientX || (e.touches && e.touches[0].clientX);
+                  const currentY = e.clientY || (e.touches && e.touches[0].clientY);
+                  
+                  const deltaX = currentX - startX;
+                  const deltaY = currentY - startY;
+          
+                  let newWidth = startWidth + deltaX;
+                  let newHeight = startHeight + deltaY;
+          
+                  const maxBottom = window.innerHeight - (controlsVisible ? BOTTOMNAVBAR_FIXED_HEIGHT + (audioPlayerVisible ? AUDIO_PLAYER_HEIGHT : 0) : 0);
+          
+                  newWidth = Math.max(MIN_WIDTH, newWidth);
+                  newWidth = Math.min(newWidth, window.innerWidth - startLeft);
+          
+                  newHeight = Math.max(MIN_HEIGHT, newHeight);
+                  newHeight = Math.min(newHeight, maxBottom - startTop);
+          
+                  dialog.style.width = `\${newWidth}px`;
+                  dialog.style.height = `\${newHeight}px`;
+          
+                  const contentMaxHeight = newHeight - HEADER_HEIGHT - PADDING_CONTENT_VERTICAL;
+                  contentContainer.style.maxHeight = `\${Math.max(0, contentMaxHeight)}px`;
+                  contentContainer.style.height = `\${Math.max(0, contentMaxHeight)}px`; 
+              };
+          
+              const stopResize = () => {
+                  isResizing = false;
+                  
+                  dialog.style.transition = '';
+                  dialog.style.maxWidth = '600px'; 
+                  
+                  const currentHeight = dialog.clientHeight;
+          
+                  if (currentHeight >= MIN_HEIGHT) { 
+                       dialog.setAttribute('data-resized-height', dialog.style.height);
+                       dialog.setAttribute('data-resized-width', dialog.style.width);
+                       
+                       contentContainer.style.height = ''; 
+                  } else {
+                       dialog.style.height = 'fit-content';
+                       dialog.removeAttribute('data-resized-height');
+                       dialog.removeAttribute('data-resized-width'); 
+          
+                       applyContentContainerStyles(dialog.getAttribute('data-type'), contentContainer, false); 
+                  }
+          
+                  document.removeEventListener('mousemove', resize);
+                  document.removeEventListener('mouseup', stopResize);
+                  document.removeEventListener('touchmove', resize);
+                  document.removeEventListener('touchend', stopResize);
+              };
+          
+              handle.addEventListener('mousedown', startResize);
+              handle.addEventListener('touchstart', startResize);
           }
           
           // Fonctions utilitaires pour gérer l'historique
@@ -2394,17 +2633,17 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
               const isDark = isDarkTheme();
               const floatingButton = document.createElement('div');
               floatingButton.id = 'dialogFloatingButton';
-              const dialogType = lastClosedDialog.type || 'default';
-              floatingButton.innerHTML = DIALOG_ICONS[dialogType]; // Utilise l'icône en fonction du type de dialogue
+              // L'icône initiale sera définie dans showFloatingButton()
+              
               const backgroundColor = isDark ? darkPrimaryColor : lightPrimaryColor;
               
               floatingButton.style.cssText = `
                   position: fixed;
-                  bottom: \${BOTTOMNAVBAR_FIXED_HEIGHT + (audioPlayerVisible ? AUDIO_PLAYER_HEIGHT : 0) + 15}px;
+                  bottom: \${BOTTOMNAVBAR_FIXED_HEIGHT + (audioPlayerVisible ? AUDIO_PLAYER_HEIGHT : 0) + 25}px;
                   right: 20px;
                   width: 56px;
                   height: 56px;
-                  background: \${backgroundColor};;
+                  background: \${backgroundColor};
                   border-radius: 50%;
                   display: flex;
                   align-items: center;
@@ -2414,55 +2653,79 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
                   color: \${isDark ? '#333333' : '#ffffff'};
                   cursor: pointer;
                   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-                  z-index: 999;
+                  /* 💡 Clé pour le premier plan : z-index très élevé */
+                  z-index: 9999; 
                   transition: all 0.3s ease;
                   opacity: 0;
                   transform: scale(0.8);
                   user-select: none;
               `;
               
-              if(controlsVisible) {
-                // Animation d'apparition
-                setTimeout(() => {
-                    floatingButton.style.opacity = '1';
-                    floatingButton.style.transform = 'scale(1)';
-                }, 100);
-              }
-              else {
-                floatingButton.style.opacity = '0';
-                floatingButton.style.transform = 'scale(1)';
-              }
-          
-              // Action de clic
-              floatingButton.onclick = () => {
-                  restoreLastDialog();
-              };
+              // La logique d'animation sera déplacée dans showFloatingButton pour plus de contrôle
               
               return floatingButton;
           }
           
           function showFloatingButton() {
-              // Supprimer le bouton existant s'il y en a un
-              const existingButton = document.getElementById('dialogFloatingButton');
-              if (existingButton) existingButton.remove();
+              let floatingButton = document.getElementById('dialogFloatingButton');
               
+              // 💡 Crée le bouton UNIQUEMENT s'il n'existe pas
+              if (!floatingButton) {
+                floatingButton = createFloatingButton();
+                document.body.appendChild(floatingButton);
+              }
+              
+              // Assure l'affichage (animation) s'il y a quelque chose à restaurer
               if (lastClosedDialog) {
-                  const floatingButton = createFloatingButton();
-                  document.body.appendChild(floatingButton);
+                  const dialogType = lastClosedDialog.type || 'default';
+                  
+                  // 1. Configure l'icône de RESTAURATION
+                  floatingButton.innerHTML = DIALOG_ICONS[dialogType];
+                  
+                  // 2. Configure l'action de RESTAURATION
+                  floatingButton.onclick = () => {
+                      restoreLastDialog();
+                  };
+          
+                  // 3. Animation d'apparition (si nécessaire)
+                  if(controlsVisible) {
+                    setTimeout(() => {
+                        floatingButton.style.opacity = '1';
+                        floatingButton.style.transform = 'scale(1)';
+                    }, 100);
+                  }
+                  else {
+                    floatingButton.style.opacity = '0';
+                    floatingButton.style.transform = 'scale(1)';
+                  }
+              } else {
+                  // Optionnel : S'assurer que le bouton est masqué s'il n'y a rien à restaurer
+                  floatingButton.style.opacity = '0';
               }
           }
           
           function removeFloatingButton() {
-              const existingButton = document.getElementById('dialogFloatingButton');
-              if (existingButton) {
-                  // Animation de disparition
-                  existingButton.style.opacity = '0';
-                  existingButton.style.transform = 'scale(0.8)';
-                  setTimeout(() => {
-                      if (existingButton.parentNode) {
-                          existingButton.remove();
-                      }
-                  }, 300);
+              let floatingButton = document.getElementById('dialogFloatingButton');
+              
+              // 💡 Crée le bouton UNIQUEMENT s'il n'existe pas
+              if (!floatingButton) {
+                floatingButton = createFloatingButton();
+                document.body.appendChild(floatingButton);
+              }
+              
+              // S'assurer que le bouton existe et qu'il est visible
+              if (floatingButton) {
+                  floatingButton.innerHTML = ARROW_BACK; 
+          
+                  floatingButton.onclick = () => {
+                      closeDialog(); 
+                  };
+                  
+                  // 3. Assure qu'il est visible, si le dialogue l'est
+                  if (controlsVisible) {
+                      floatingButton.style.opacity = '1';
+                      floatingButton.style.transform = 'scale(1)';
+                  }
               }
           }
           
@@ -3017,11 +3280,13 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
           }
        
           // Fonctions spécialisées 
-          function showVerseDialog(article, verses) {
+          function showVerseDialog(article, verses, href, replace) {
               showDialog({
                   title: verses.title,
                   type: 'verse',
                   article: article,
+                  replace: replace,
+                  href: href,
                   contentRenderer: (contentContainer) => {
                       verses.items.forEach((item, index) => {
                           const infoBar = document.createElement('div');
@@ -3088,7 +3353,7 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
                             padding-top: 10px;
                             padding-bottom: 16px;
                           `;
-  
+          
                           wrapWordsWithSpan(article, true);
                           
                           const paragraphsDataDialog = fetchAllParagraphsOfTheArticle(article);
@@ -3126,16 +3391,50 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
                           contentContainer.appendChild(article);
                           
                           repositionAllNotes(article);
+                      }); // Fin de forEach
+                      
+                      // CRÉATION DU BOUTON "PERSONNALISER"
+                      const customizeButton = document.createElement('button');
+                      customizeButton.textContent = 'Personnaliser';
+                      
+                      // Détermination des couleurs selon le thème
+                      const bgColor = isDarkTheme() ? '#8e8e8e' : '#757575';
+                      const textColor = isDarkTheme() ? 'black' : 'white';
+                      
+                      customizeButton.style.cssText = `
+                          display: block;
+                          padding: 8px 25px;
+                          margin: 16px auto 20px; /* marge supérieure + inférieure */
+                          border: none;
+                          border-radius: 8px;
+                          cursor: pointer;
+                          font-size: 16px;
+                          text-align: center;
+                          background-color: \${bgColor};
+                          color: \${textColor};
+                          transition: background-color 0.2s ease;
+                          box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+                      `;
+                      
+                      // Ajouter le listener quand on clique sur le bouton
+                      customizeButton.addEventListener('click', async () => { 
+                        await window.flutter_inappwebview.callHandler('openCustomizeVersesDialog');
+                        const verses = await window.flutter_inappwebview.callHandler('fetchVerses', href);
+                        showVerseDialog(article, verses, href, true);
                       });
+                      
+                      // Ajout du bouton au bas du contentContainer
+                      contentContainer.appendChild(customizeButton);
                   }
               });
           }
           
-          function showVerseReferencesDialog(article, verseReferences) {
+          function showVerseReferencesDialog(article, verseReferences, href) {
             showDialog({
                 title: verseReferences.title || 'Références bibliques',
                 type: 'verse-references',
                 article: article,
+                href: href,
                 contentRenderer: (contentContainer) => {
                     verseReferences.items.forEach((item, index) => {
                         const infoBar = document.createElement('div');
@@ -3224,11 +3523,12 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
             });
         }
           
-          function showVerseInfoDialog(article, verseInfo) {
+          function showVerseInfoDialog(article, verseInfo, href) {
             showDialog({
                 title: verseInfo.title,
                 type: 'verse-info',
                 article: article,
+                href: href,
                 contentRenderer: (contentContainer) => {
         
                     // Définir les onglets et leurs icônes.
@@ -3344,6 +3644,75 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
                                         </article>
                                   `;
                                 }
+                                else if (key === 'versions') {
+                                  const infoBar = document.createElement('div');
+                                  infoBar.style.cssText = `
+                                      display: flex;
+                                      align-items: center;
+                                      padding-inline: 10px;
+                                      padding-block: 6px;
+                                      background: \${isDarkTheme() ? '#000000' : '#f1f1f1'};
+                                      border-bottom: 1px solid \${isDarkTheme() ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)'};
+                                  `;
+                                 
+                                  const img = document.createElement('img');
+                                  img.src = 'file://' + item.imageUrl;
+                                  img.style.cssText = `
+                                      height: 50px;
+                                      width: 50px;
+                                      border-radius: 8px;
+                                      object-fit: cover;
+                                      margin-right: 8px;
+                                      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+                                  `;
+                                  
+                                  const textContainer = document.createElement('div');
+                                  textContainer.style.cssText = 'flex-grow: 1; margin-left: 8px; padding: 8px 0;';
+                                  
+                                  const pubText = document.createElement('div');
+                                  pubText.textContent = item.publicationTitle;
+                                  pubText.style.cssText = `
+                                      font-size: 16px;
+                                      font-weight: 700;
+                                      margin-bottom: 4px;
+                                      line-height: 1.3;
+                                      white-space: nowrap;
+                                      overflow: hidden;
+                                      text-overflow: ellipsis;
+                                  `;
+                                  
+                                  const subtitleText = document.createElement('div');
+                                  subtitleText.textContent = item.subtitle;
+                                  subtitleText.style.cssText = `
+                                      font-size: 12px;
+                                      opacity: 0.8;
+                                      line-height: 1.4;
+                                      white-space: nowrap;
+                                      overflow: hidden;
+                                      text-overflow: ellipsis;
+                                  `;
+                                  
+                                  textContainer.appendChild(pubText);
+                                  textContainer.appendChild(subtitleText);
+                                  
+                                  infoBar.addEventListener('click', function() {
+                                      window.flutter_inappwebview?.callHandler('openMepsDocument', item);
+                                  });
+                                  
+                                  infoBar.appendChild(img);
+                                  infoBar.appendChild(textContainer);
+                                  
+                                  const article = document.createElement('div');
+                                  article.innerHTML = `<article id="verse-dialog" class="\${item.className}">\${item.content}</article>`;
+                                  article.style.cssText = `
+                                    position: relative;
+                                    padding-top: 10px;
+                                    padding-bottom: 16px;
+                                  `;
+                                  
+                                  dynamicContent.appendChild(infoBar);
+                                  dynamicContent.appendChild(article);
+                                }
                                 else {
                                     contentHtml = `
                                         <article id="verse-info-dialog" class="\${item.className || ''}">
@@ -3351,11 +3720,14 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
                                         </article>
                                     `;
                                 }
-                                articleDiv.innerHTML = contentHtml;
-                                articleDiv.addEventListener('click', async (event) => {
-                                    onClickOnPage(articleDiv, event.target);
-                                });
-                                dynamicContent.appendChild(articleDiv);
+                                
+                                if(key !== 'versions') {
+                                  articleDiv.innerHTML = contentHtml;
+                                  articleDiv.addEventListener('click', async (event) => {
+                                      onClickOnPage(articleDiv, event.target);
+                                  });
+                                  dynamicContent.appendChild(articleDiv);
+                                }
                             });
                         } 
                         else {
@@ -3379,11 +3751,12 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
             });
           }
           
-          function showExtractPublicationDialog(article, extractData) {
+          function showExtractPublicationDialog(article, extractData, href) {
               showDialog({
                   title: extractData.title || 'Extrait de publication',
                   type: 'publication',
                   article: article,
+                  href: href,
                   contentRenderer: (contentContainer) => {
                       extractData.items.forEach((item, index) => {
                           // Header avec image et infos
@@ -3545,11 +3918,12 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
               });
           }
           
-          function showVerseCommentaryDialog(article, commentaries) {
+          function showVerseCommentaryDialog(article, commentaries, href) {
               showDialog({
                   title: commentaries.title,
                   type: 'commentary',
                   article: article,
+                  href: href,
                   contentRenderer: (contentContainer) => {
                       commentaries.items.forEach((item, index) => {
                           const infoBar = document.createElement('div');
@@ -3623,11 +3997,12 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
               });
           }
           
-          function showFootNoteDialog(article, footnote) {
+          function showFootNoteDialog(article, footnote, href) {
               showDialog({
                   title: footnote.title,
                   type: 'footnote',
                   article: article,
+                  href: href,
                   contentRenderer: (contentContainer) => {
                       const noteContainer = document.createElement('div');
                       noteContainer.style.cssText = `
@@ -4661,7 +5036,7 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
               
               if (linkClassList.contains('b')) {
                 const verses = await window.flutter_inappwebview.callHandler('fetchVerses', href);
-                showVerseDialog(article, verses);
+                showVerseDialog(article, verses, href, false);
                 closeToolbar();
                 return;
               }
@@ -4674,14 +5049,15 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
                           const extract = await window.flutter_inappwebview.callHandler('fetchGuideVerse', dataXtId); 
               
                           if(extract != null) { 
-                              showExtractPublicationDialog(article, extract); 
+                              showExtractPublicationDialog(article, extract, href); 
                               closeToolbar(); 
                           } 
                       } 
-                  } else { 
+                  } 
+                  else {
                       const extract = await window.flutter_inappwebview.callHandler('fetchExtractPublication', href); 
                       if (extract != null) { 
-                          showExtractPublicationDialog(article, extract); 
+                          showExtractPublicationDialog(article, extract, href); 
                           closeToolbar(); 
                       } 
                   } 
@@ -4691,7 +5067,7 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
               if(href.startsWith('jwpub://c/')) {
                 const commentary = await window.flutter_inappwebview.callHandler('fetchCommentaries', href);
                 if (commentary != null) {
-                  showVerseCommentaryDialog(article, commentary);
+                  showVerseCommentaryDialog(article, commentary, href);
                   closeToolbar();
                 }
                 return;
@@ -4704,7 +5080,7 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
             if (classList.contains('fn')) {
               const fnid = target.getAttribute('data-fnid');
               const footnote = await window.flutter_inappwebview.callHandler('fetchFootnote', fnid);
-              showFootNoteDialog(article, footnote);
+              showFootNoteDialog(article, footnote, 'footnote-' + fnid);
               closeToolbar();
               return;
             }
@@ -4712,7 +5088,7 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
             if (classList.contains('m')) {
               const mid = target.getAttribute('data-mid');
               const versesReference = await window.flutter_inappwebview.callHandler('fetchVersesReference', mid);
-              showVerseReferencesDialog(article, versesReference);
+              showVerseReferencesDialog(article, versesReference, 'verse-references-' + mid);
               closeToolbar();
               return;
             }

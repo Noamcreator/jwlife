@@ -5,9 +5,9 @@ import 'package:realm/realm.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/data/realm/catalog.dart';
 import 'package:jwlife/data/realm/realm_library.dart';
-import 'package:jwlife/widgets/dialog/language_dialog.dart';
 
 import '../../../../core/api/api.dart';
+import '../../../../core/utils/utils_language_dialog.dart';
 import '../../../../data/models/audio.dart';
 import '../../../../data/models/media.dart';
 import '../../../../data/models/video.dart';
@@ -222,13 +222,9 @@ class _VideoItemsPageState extends State<VideoItemsPage> {
           IconButton(
             icon: const Icon(JwIcons.language),
             onPressed: () async {
-              LanguageDialog languageDialog = LanguageDialog(selectedLanguageSymbol: _selectedLanguageSymbol);
-              showDialog(
-                context: context,
-                builder: (context) => languageDialog,
-              ).then((value) async {
-                if (value != null) {
-                  _selectedLanguageSymbol = value['Symbol'] as String;
+              showLanguageDialog(context).then((language) async {
+                if (language != null) {
+                  _selectedLanguageSymbol = language['Symbol'] as String;
                   loadItems(symbol: _selectedLanguageSymbol);
 
                   if(await Api.isLibraryUpdateAvailable(symbol: _selectedLanguageSymbol)) {

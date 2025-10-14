@@ -23,7 +23,7 @@ import 'package:jwlife/data/databases/catalog.dart';
 import 'package:jwlife/features/home/widgets/home_page/favorite_section.dart';
 import 'package:jwlife/features/home/widgets/home_page/latest_medias_section.dart';
 import 'package:jwlife/features/home/widgets/home_page/alert_banner.dart';
-import 'package:jwlife/widgets/dialog/utils_dialog.dart';
+import 'package:jwlife/core/utils/utils_dialog.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:http/http.dart' as http;
 import 'package:html/parser.dart' as html_parser;

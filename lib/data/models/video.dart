@@ -9,7 +9,7 @@ import '../../core/utils/common_ui.dart';
 import '../../core/utils/utils.dart';
 import '../../core/utils/utils_video.dart';
 import '../../features/video/video_player_page.dart';
-import '../../widgets/dialog/utils_dialog.dart';
+import '../../core/utils/utils_dialog.dart';
 import '../repositories/MediaRepository.dart';
 import 'media.dart';
 

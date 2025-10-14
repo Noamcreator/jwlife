@@ -1,3 +1,4 @@
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import 'package:async/async.dart';
@@ -9,7 +10,7 @@ import 'package:jwlife/data/models/publication_attribute.dart';
 import 'package:jwlife/data/models/publication_category.dart';
 import 'package:jwlife/data/models/meps_language.dart';
 import 'package:jwlife/features/publication/pages/document/local/dated_text_manager.dart';
-import 'package:jwlife/widgets/dialog/utils_dialog.dart';
+import 'package:jwlife/core/utils/utils_dialog.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../app/services/global_key_service.dart';
@@ -17,10 +18,10 @@ import '../../app/services/notification_service.dart';
 import '../../app/services/settings_service.dart';
 import '../../core/api/api.dart';
 import '../../core/jworg_uri.dart';
+import '../../core/shared_preferences/shared_preferences_utils.dart';
 import '../../core/utils/utils_document.dart';
 import '../../features/publication/pages/document/local/documents_manager.dart';
 import '../../features/publication/pages/menu/local/publication_menu_view.dart';
-import '../../features/publication/pages/menu/online/publication_menu.dart';
 import '../repositories/PublicationRepository.dart';
 import 'audio.dart';
 
@@ -231,8 +232,8 @@ class Publication {
     }
   }
 
-  Future<void> download(BuildContext context) async {
-    if(await hasInternetConnection()) {
+  Future<bool> download(BuildContext context) async {
+    if (await hasInternetConnection()) {
       if (!isDownloadingNotifier.value) {
         isDownloadingNotifier.value = true;
         progressNotifier.value = 0;
@@ -243,6 +244,7 @@ class Publication {
         _downloadOperation = CancelableOperation.fromFuture(
           downloadJwpubFile(this, context, cancelToken, false),
           onCancel: () {
+            // Ceci s'exécute si l'opération est annulée par `_downloadOperation.cancel()`
             isDownloadingNotifier.value = false;
             isDownloadedNotifier.value = false;
             progressNotifier.value = 0;
@@ -252,11 +254,20 @@ class Publication {
         );
 
         Publication? pubDownloaded = await _downloadOperation!.valueOrCancellation();
+        bool hasBible = PublicationRepository().getAllBibles().isNotEmpty;
 
         if (pubDownloaded != null) {
+          // Téléchargement RÉUSSI
           isDownloadedNotifier.value = true;
 
           if (category.id == 1) {
+            if(!hasBible) {
+              String bibleKey = pubDownloaded.getKey();
+              JwLifeSettings().lookupBible = bibleKey;
+              setLookUpBible(bibleKey);
+            }
+
+            JwLifeSettings().webViewData.addBibleToBibleSet(this);
             GlobalKeyService.bibleKey.currentState?.refreshBiblePage();
           }
 
@@ -264,17 +275,20 @@ class Publication {
 
           // Notification de fin avec bouton "Ouvrir"
           notifyDownload('Téléchargement terminé');
-        }
-        else {
-          // Téléchargement annulé ou échoué
+          isDownloadingNotifier.value = false;
+          return true; // <-- SUCCÈS
+        } else {
+          // Téléchargement annulé ou échoué (valueOrCancellation() retourne null)
           await NotificationService().cancelNotification(hashCode);
+          isDownloadingNotifier.value = false;
+          return false; // <-- ÉCHEC/ANNULATION
         }
-
-        isDownloadingNotifier.value = false;
       }
-    }
-    else {
+      // Si la publication était déjà en cours de téléchargement
+      return false;
+    } else {
       showNoConnectionDialog(context);
+      return false; // Pas de connexion
     }
   }
 
@@ -376,6 +390,39 @@ class Publication {
     showBottomMessage('Publication supprimée');
 
     if (category.id == 1) {
+      // Récupérer la liste des Bibles
+      final List<Publication> bibles = PublicationRepository().getAllBibles();
+
+      // Variable pour stocker la clé finale de la Bible
+      String? bibleKeyToUse;
+
+      if (bibles.isEmpty) {
+        // Cas 1 : Aucune Bible trouvée
+        bibleKeyToUse = '';
+
+      }
+      else {
+        // Cas 3 : Plusieurs Bibles trouvées - Rechercher celle qui correspond à la langue actuelle
+        // Correction de l'erreur : Utilisation de '==' pour la comparaison au lieu de '=' pour l'affectation.
+        final Publication? matchingBible = bibles.firstWhereOrNull((element) => element.mepsLanguage.symbol == mepsLanguage.symbol);
+
+        if (matchingBible != null) {
+          // Sous-cas 3a : Bible correspondante trouvée
+          bibleKeyToUse = matchingBible.getKey();
+        }
+        else {
+          // Sous-cas 3b : Aucune Bible correspondante trouvée, utiliser la première par défaut
+          final Publication defaultBible = bibles.first;
+          bibleKeyToUse = defaultBible.getKey();
+        }
+      }
+
+      // Application unique des mises à jour pour éviter la duplication de code
+      JwLifeSettings().lookupBible = bibleKeyToUse;
+      setLookUpBible(bibleKeyToUse);
+
+      JwLifeSettings().webViewData.removeBibleFromBibleSet(this);
+
       GlobalKeyService.bibleKey.currentState?.refreshBiblePage();
     }
 
@@ -447,6 +494,10 @@ class Publication {
 
   String getSymbolAndIssue() {
     return issueTagNumber != 0 ? '$symbol • $issueTagNumber' : symbol;
+  }
+
+  String getKey() {
+    return '${keySymbol}_${mepsLanguage.symbol}';
   }
 
   String getRelativeDateText() {

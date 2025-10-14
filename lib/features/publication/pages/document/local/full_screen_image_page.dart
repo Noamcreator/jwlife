@@ -129,10 +129,11 @@ class _FullScreenImagePageState extends State<FullScreenImagePage> { // Classe d
             _buildPageView(), // Affichage des médias (images/vidéos)
             if (_controlsVisible) _buildAppBar(), // Barre d'application supérieure
             // Affiche la description si activée
-            if (_descriptionVisible && _currentIndex != -1) _buildDescription(),
+            if (_descriptionVisible && _currentIndex != -1 && _controlsVisible) _buildDescription(),
             if (_controlsVisible && _currentIndex != -1) _buildThumbnailList(), // Liste des vignettes
             _buildFloatingDescriptionButton(), // Bouton flottant pour la description
 
+            /*
             if (_controlsVisible && _currentIndex != -1)
               if (_controlsVisible && _currentIndex != -1)
                 Positioned(
@@ -141,6 +142,8 @@ class _FullScreenImagePageState extends State<FullScreenImagePage> { // Classe d
                     right: 0,
                     child: GlobalKeyService.jwLifePageKey.currentState!.getBottomNavigationBar(isBlack: true) // Barre de navigation inférieure
                 ),
+
+             */
           ],
         ),
       ),

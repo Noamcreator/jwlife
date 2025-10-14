@@ -22,6 +22,8 @@ class JwLifeSettings {
 
   bool notificationDownload = false;
 
+  String lookupBible = '';
+
   Future<void> init() async {
     final theme = await getTheme();
     final themeMod = theme == 'dark'
@@ -61,5 +63,7 @@ class JwLifeSettings {
     );
 
     notificationDownload = await getDownloadNotification();
+
+    lookupBible = await getLookUpBible();
   }
 }

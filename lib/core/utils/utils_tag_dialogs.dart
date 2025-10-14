@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/features/personal/pages/playlist_page.dart';
-import 'package:jwlife/widgets/dialog/utils_dialog.dart';
+import 'package:jwlife/core/utils/utils_dialog.dart';
 
 import '../../data/models/userdata/playlistItem.dart';
 import '../../data/models/userdata/tag.dart';

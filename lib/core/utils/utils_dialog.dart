@@ -3,8 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart' show DateFormat;
 
 import '../../app/services/settings_service.dart';
-import '../../core/icons.dart';
-import 'language_dialog.dart';
+import '../icons.dart';
 
 class JwDialogButton {
   final String label;
@@ -426,12 +425,4 @@ Future<DateTime?> showMonthCalendarDialog(BuildContext context, DateTime initial
   );
 
   return result;
-}
-
-Future showLibraryLanguageDialog(BuildContext context) {
-  LanguageDialog languageDialog = LanguageDialog();
-  return showDialog(
-    context: context,
-    builder: (context) => languageDialog,
-  );
 }

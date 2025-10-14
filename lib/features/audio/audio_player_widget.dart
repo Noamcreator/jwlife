@@ -98,9 +98,7 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
         _position = position;
       });
 
-      if (position != Duration.zero &&
-          position.inSeconds == _duration.inSeconds &&
-          !jwAudioPlayer.player.hasNext) {
+      if (position != Duration.zero && position.inSeconds == _duration.inSeconds && !jwAudioPlayer.player.hasNext) {
         jwAudioPlayer.close();
       }
     });

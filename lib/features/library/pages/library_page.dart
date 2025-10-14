@@ -5,12 +5,12 @@ import 'package:jwlife/data/models/publication_category.dart';
 import 'package:jwlife/data/databases/history.dart';
 import 'package:jwlife/data/realm/catalog.dart';
 import 'package:jwlife/i18n/localization.dart';
-import 'package:jwlife/widgets/dialog/language_dialog.dart';
 import 'package:realm/realm.dart';
 
 import '../../../app/services/global_key_service.dart' show GlobalKeyService;
 import '../../../app/services/settings_service.dart';
 import '../../../core/shared_preferences/shared_preferences_utils.dart';
+import '../../../core/utils/utils_language_dialog.dart';
 import '../../../data/databases/catalog.dart';
 import 'audio/audio_page.dart';
 import 'download/download_page.dart';
@@ -197,16 +197,13 @@ class LibraryPageState extends State<LibraryPage> with TickerProviderStateMixin 
           IconButton(
             icon: const Icon(JwIcons.language),
             onPressed: () async {
-              LanguageDialog languageDialog = LanguageDialog();
-              final value = await showDialog(
-                context: context,
-                builder: (context) => languageDialog,
-              );
-              if (value != null) {
-                // await setLibraryLanguage(value); // Décommentez si cette fonction existe
-                refreshLibraryCategories(); // Utilisation de ta fonction de rafraîchissement d'origine
-                GlobalKeyService.homeKey.currentState?.changeLanguageAndRefresh();
-              }
+              showLanguageDialog(context).then((language) async {
+                if (language != null) {
+                  await setLibraryLanguage(language); // Décommentez si cette fonction existe
+                  refreshLibraryCategories(); // Utilisation de ta fonction de rafraîchissement d'origine
+                  GlobalKeyService.homeKey.currentState?.changeLanguageAndRefresh();
+                }
+              });
             },
           ),
           IconButton(

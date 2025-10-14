@@ -15,6 +15,7 @@ import '../../../app/services/settings_service.dart';
 import '../../../core/api/api.dart';
 import '../../../core/utils/directory_helper.dart';
 import '../../../core/utils/utils.dart';
+import '../../../core/utils/utils_language_dialog.dart';
 import '../../../data/databases/catalog.dart';
 import '../../../data/models/publication.dart';
 import '../../../data/models/video.dart';
@@ -162,14 +163,10 @@ class _AlertInfoPageState extends State<AlertInfoPage> {
           IconButton(
             icon: const Icon(JwIcons.language),
             onPressed: () async {
-              LanguageDialog languageDialog = const LanguageDialog();
-              showDialog(
-                context: context,
-                builder: (context) => languageDialog,
-              ).then((value) async {
+              showLanguageDialog(context).then((language) async {
                 final queryParams = {
                   'type': 'news',
-                  'lang': value['Symbol'],
+                  'lang': language['Symbol'],
                   'context': 'homePage',
                 };
 
@@ -190,8 +187,8 @@ class _AlertInfoPageState extends State<AlertInfoPage> {
                     final data = jsonDecode(alertResponse.body);
 
                     setState(() {
-                      _language = value['VernacularName'];
-                      _languageSymbol = value['Symbol'];
+                      _language = language['VernacularName'];
+                      _languageSymbol = language['Symbol'];
                     });
 
                     _htmlContent = convertAlertsToHtml(data['alerts']);

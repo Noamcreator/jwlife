@@ -54,20 +54,21 @@ class ToolboxSectionState extends State<ToolboxSection> {
             },
           ),
         ),
-        SizedBox(
-          height: 120,
-          child: ListView.builder(
-            padding: const EdgeInsets.all(0.0),
-            scrollDirection: Axis.horizontal,
-            itemCount: _toolboxTracts.length,
-            itemBuilder: (context, index) {
-              return Padding(
-                padding: const EdgeInsets.only(right: 2.0),
-                child: HomeSquarePublicationItem(pub: _toolboxTracts[index], toolbox: true),
-              );
-            },
+        if(_toolboxTracts.isNotEmpty)
+          SizedBox(
+            height: 100,
+            child: ListView.builder(
+              padding: const EdgeInsets.all(0.0),
+              scrollDirection: Axis.horizontal,
+              itemCount: _toolboxTracts.length,
+              itemBuilder: (context, index) {
+                return Padding(
+                  padding: const EdgeInsets.only(right: 2.0),
+                  child: HomeSquarePublicationItem(pub: _toolboxTracts[index], toolbox: true),
+                );
+              },
+            ),
           ),
-        ),
       ],
     );
   }

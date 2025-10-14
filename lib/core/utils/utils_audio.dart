@@ -5,17 +5,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/utils.dart';
+import 'package:jwlife/core/utils/utils_language_dialog.dart';
 import 'package:jwlife/core/utils/utils_playlist.dart';
 import 'package:jwlife/data/models/audio.dart';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/realm/catalog.dart';
 import 'package:jwlife/data/realm/realm_library.dart';
-import 'package:jwlife/widgets/dialog/utils_dialog.dart';
+import 'package:jwlife/core/utils/utils_dialog.dart';
 import 'package:realm/realm.dart';
 
 import 'package:share_plus/share_plus.dart';
 import 'package:jwlife/app/jwlife_app.dart';
-import 'package:jwlife/widgets/dialog/language_dialog.dart';
 
 import '../../app/services/global_key_service.dart';
 import '../../app/services/settings_service.dart';
@@ -124,49 +124,43 @@ PopupMenuItem getAudioLanguagesItem(BuildContext context, Audio audio) {
           final jsonFile = response.body;
           final jsonData = json.decode(jsonFile);
 
-          LanguageDialog languageDialog = LanguageDialog(languagesListJson: jsonData['languages']);
-          showDialog(
-            context: context,
-            builder: (context) => languageDialog,
-          ).then((value) async {
-            if (value != null) {
-              String link = 'https://b.jw-cdn.org/apis/mediator/v1/media-items/${value['Symbol']}/${audio.naturalKey}';
-              print(link);
-              final response = await Api.httpGetWithHeaders(link);
-              if (response.statusCode == 200) {
-                final jsonFile = response.body;
-                final jsonData = json.decode(jsonFile);
+          showLanguageDialog(context, languagesListJson: jsonData['languages']).then((language) async {
+            String link = 'https://b.jw-cdn.org/apis/mediator/v1/media-items/${language['Symbol']}/${audio.naturalKey}';
+            print(link);
+            final response = await Api.httpGetWithHeaders(link);
+            if (response.statusCode == 200) {
+              final jsonFile = response.body;
+              final jsonData = json.decode(jsonFile);
 
-                final mediaList = jsonData['media'] as List<dynamic>?;
-                final media = mediaList != null && mediaList.isNotEmpty
-                    ? mediaList.first as Map<String, dynamic>
-                    : null;
+              final mediaList = jsonData['media'] as List<dynamic>?;
+              final media = mediaList != null && mediaList.isNotEmpty
+                  ? mediaList.first as Map<String, dynamic>
+                  : null;
 
-                final filesList = media?['files'] as List<dynamic>?;
-                final files = filesList != null && filesList.isNotEmpty
-                    ? filesList.first as Map<String, dynamic>
-                    : null;
+              final filesList = media?['files'] as List<dynamic>?;
+              final files = filesList != null && filesList.isNotEmpty
+                  ? filesList.first as Map<String, dynamic>
+                  : null;
 
-                final images = media?['images'] as Map<String, dynamic>?;
+              final images = media?['images'] as Map<String, dynamic>?;
 
-                final audioMap = {
-                  'KeySymbol': audio.keySymbol,
-                  'DocumentId': audio.documentId,
-                  'BookNumber': audio.bookNumber,
-                  'IssueTagNumber': audio.issueTagNumber,
-                  'Track': audio.track,
-                  'MepsLanguage': value['Symbol'],
-                  'Title': media?['title'] ?? '',
-                  'Duration': media?['duration'] ?? 0,
-                  'FirstPublished': media?['firstPublished'] ?? '',
-                  'NaturalKey': media?['languageAgnosticNaturalKey'] ?? '',
-                  'FileUrl': files?['progressiveDownloadURL'] ?? '',
-                  'ImagePath': images?['cvr']?['md'] ?? images?['sqr']?['md'] ?? '',
-                };
+              final audioMap = {
+                'KeySymbol': audio.keySymbol,
+                'DocumentId': audio.documentId,
+                'BookNumber': audio.bookNumber,
+                'IssueTagNumber': audio.issueTagNumber,
+                'Track': audio.track,
+                'MepsLanguage': language['Symbol'],
+                'Title': media?['title'] ?? '',
+                'Duration': media?['duration'] ?? 0,
+                'FirstPublished': media?['firstPublished'] ?? '',
+                'NaturalKey': media?['languageAgnosticNaturalKey'] ?? '',
+                'FileUrl': files?['progressiveDownloadURL'] ?? '',
+                'ImagePath': images?['cvr']?['md'] ?? images?['sqr']?['md'] ?? '',
+              };
 
-                Audio a = Audio.fromJson(json: audioMap);
-                await a.showPlayer(context);
-              }
+              Audio a = Audio.fromJson(json: audioMap);
+              await a.showPlayer(context);
             }
           });
         }

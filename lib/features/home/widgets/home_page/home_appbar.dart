@@ -1,14 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/svg.dart';
+import 'package:jwlife/core/utils/utils_language_dialog.dart';
 
 import '../../../../app/services/global_key_service.dart';
 import '../../../../app/services/settings_service.dart';
-import '../../../../core/assets.dart';
 import '../../../../core/icons.dart';
 import '../../../../core/shared_preferences/shared_preferences_utils.dart';
 import '../../../../data/databases/history.dart';
 import '../../../../i18n/localization.dart';
-import '../../../../widgets/dialog/language_dialog.dart';
 import '../../../../widgets/searchfield/searchfield_all_widget.dart';
 
 class HomeAppBar extends StatefulWidget implements PreferredSizeWidget {
@@ -43,14 +41,10 @@ class _HomeAppBarState extends State<HomeAppBar> {
   }
 
   void onOpenLanguageDialog() async {
-    LanguageDialog languageDialog = LanguageDialog();
-    showDialog(
-      context: context,
-      builder: (context) => languageDialog,
-    ).then((value) async {
-      if (value != null) {
-        if (value['Symbol'] != JwLifeSettings().currentLanguage.symbol) {
-          await setLibraryLanguage(value);
+    showLanguageDialog(context).then((language) async {
+      if (language != null) {
+        if (language['Symbol'] != JwLifeSettings().currentLanguage.symbol) {
+          await setLibraryLanguage(language);
           GlobalKeyService.homeKey.currentState?.changeLanguageAndRefresh();
         }
       }

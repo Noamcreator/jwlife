@@ -211,8 +211,8 @@ class RectanglePublicationItem extends StatelessWidget {
                             ? Positioned(
                           bottom: 0,
                           right: 0,
+                          left: imageSize,
                           height: 2,
-                          width: MediaQuery.of(context).size.width - 20 - 80,
                           child: ValueListenableBuilder<double>(
                             valueListenable: publication.progressNotifier,
                             builder: (context, progress, _) {

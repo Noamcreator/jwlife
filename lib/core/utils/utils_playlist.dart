@@ -6,7 +6,7 @@ import 'package:jwlife/app/services/global_key_service.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/data/models/audio.dart';
 import 'package:jwlife/data/models/userdata/playlist.dart';
-import 'package:jwlife/widgets/dialog/utils_dialog.dart';
+import 'package:jwlife/core/utils/utils_dialog.dart';
 
 import '../../data/models/video.dart';
 import '../../features/personal/pages/playlist_page.dart';

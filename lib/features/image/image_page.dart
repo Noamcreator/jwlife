@@ -47,13 +47,6 @@ class _ImagePageState extends State<ImagePage> {
           children: [
             _buildImageView(),
             if (_controlsVisible) _buildAppBar(context),
-            if (_controlsVisible)
-              Positioned(
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  child: GlobalKeyService.jwLifePageKey.currentState!.getBottomNavigationBar(isBlack: true)
-              ),
           ],
         ),
       ),

@@ -15,7 +15,7 @@ import '../../core/utils/utils_pub.dart';
 import '../../core/utils/widgets_utils.dart';
 import '../../data/databases/userdata.dart';
 import '../../features/publication/pages/menu/local/publication_menu_view.dart';
-import '../../widgets/dialog/utils_dialog.dart';
+import '../../core/utils/utils_dialog.dart';
 
 class FileHandlerService {
   static final FileHandlerService _instance = FileHandlerService._internal();

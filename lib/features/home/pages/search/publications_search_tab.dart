@@ -9,8 +9,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../app/services/settings_service.dart';
 import '../../../../core/jworg_uri.dart';
-import '../../../../core/utils/utils.dart';
-import '../../../../widgets/dialog/language_dialog.dart';
+import '../../../../core/utils/utils_language_dialog.dart';
 
 class PublicationsSearchTab extends StatefulWidget {
   final SearchModel model;
@@ -47,39 +46,36 @@ class _PublicationsSearchTabState extends State<PublicationsSearchTab> {
           itemBuilder: (context, index) {
             final item = results[index];
 
+            String? jwLink = item['links']['jw.org'] ?? '';
+            String? wolLink = item['links']['wol'] ?? '';
+
+            String lank = item['lank'];
+            String keySymbol = '';
+            String issueTagNumber = '0';
+
+            if (wolLink != null && wolLink.isNotEmpty) {
+              RegExp regExp = RegExp(r'^(pub|pi)-([\w-]+?)(?:_(\d+))?$');
+              Match? match = regExp.firstMatch(lank);
+
+              if (match != null) {
+                keySymbol = match.group(2) ?? '';
+                if (match.group(3) != null) {
+                  String rawNumber = match.group(3)!;
+                  issueTagNumber = rawNumber.length == 6 ? '${rawNumber}00' : rawNumber;
+                }
+              }
+            }
+
             return GestureDetector(
               onTap: () async {
-                String? jwLink = item['links']['jw.org'] ?? '';
-                String? wolLink = item['links']['wol'] ?? '';
+                Publication? publication = await PubCatalog.searchPub(
+                  keySymbol,
+                  int.parse(issueTagNumber),
+                  JwLifeSettings().currentLanguage.id,
+                );
 
-                if (wolLink != null && wolLink.isNotEmpty) {
-                  String lank = item['lank'];
-                  String keySymbol = '';
-                  String issueTagNumber = '0';
-
-                  RegExp regExp = RegExp(r'^(pub|pi)-([\w-]+?)(?:_(\d+))?$');
-                  Match? match = regExp.firstMatch(lank);
-
-                  if (match != null) {
-                    keySymbol = match.group(2) ?? '';
-                    if (match.group(3) != null) {
-                      String rawNumber = match.group(3)!;
-                      issueTagNumber = rawNumber.length == 6 ? '${rawNumber}00' : rawNumber;
-                    }
-                  }
-
-                  Publication? publication = await PubCatalog.searchPub(
-                    keySymbol,
-                    int.parse(issueTagNumber),
-                    JwLifeSettings().currentLanguage.id,
-                  );
-
-                  if (publication != null) {
-                    publication.showMenu(context);
-                  }
-                  else {
-                    printTime('Publication not found for lank: $lank');
-                  }
+                if (publication != null) {
+                  publication.showMenu(context);
                 }
                 else {
                   launchUrl(Uri.parse(jwLink!), mode: LaunchMode.externalApplication);
@@ -190,17 +186,18 @@ class _PublicationsSearchTabState extends State<PublicationsSearchTab> {
                                     PopupMenuItem(
                                       child: const Text('Autres langues'),
                                       onTap: () async {
-                                        String link = 'https://b.jw-cdn.org/apis/mediator/v1/media-item-availability/${item['lank']}?clientType=www';
-                                        final response = await Api.httpGetWithHeaders(link);
-                                        if (response.statusCode == 200) {
-                                          final jsonData = json.decode(response.body);
-                                          LanguageDialog languageDialog = LanguageDialog(
-                                            languagesListJson: jsonData['languages'],
-                                          );
-                                          showDialog(
-                                            context: context,
-                                            builder: (context) => languageDialog,
-                                          );
+                                        Publication? publication = await PubCatalog.searchPub(
+                                          keySymbol,
+                                          int.parse(issueTagNumber),
+                                          JwLifeSettings().currentLanguage.id,
+                                        );
+
+                                        if (publication != null) {
+                                          showLanguagePubDialog(context, publication).then((languagePub) async {
+                                            if(languagePub != null) {
+                                              languagePub.showMenu(context);
+                                            }
+                                          });
                                         }
                                       },
                                     ),

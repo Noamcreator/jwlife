@@ -10,9 +10,9 @@ import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/core/utils/files_helper.dart';
 import 'package:jwlife/core/utils/utils_document.dart';
 import 'package:jwlife/core/utils/utils_jwpub.dart';
+import 'package:jwlife/core/utils/utils_language_dialog.dart';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/databases/history.dart';
-import 'package:jwlife/widgets/dialog/language_dialog_pub.dart';
 import 'package:jwlife/widgets/responsive_appbar_actions.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:sqflite/sqflite.dart';
@@ -262,13 +262,9 @@ class _LocalChapterBiblePageState extends State<LocalChapterBiblePage> {
               IconTextButton(
                 text: "Langues",
                 icon: Icon(JwIcons.language),
-                onPressed: () async {
-                  LanguagesPubDialog languageDialog = LanguagesPubDialog(publication: widget.bible);
-                  showDialog(
-                    context: context,
-                    builder: (context) => languageDialog,
-                  ).then((value) {
-                    if (value != null) {
+                onPressed: () {
+                  showLanguagePubDialog(context, widget.bible).then((language) {
+                    if (language != null) {
                       //showPage(PublicationMenu(publication: widget.bible, publicationLanguage: value));
                     }
                   });

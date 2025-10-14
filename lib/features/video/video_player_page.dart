@@ -563,24 +563,6 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
                   ),
                 ),
               ),
-
-            if (_controlsVisible)
-              Positioned(
-                bottom: 0,
-                left: 0,
-                right: 0,
-                child: AnimatedSlide(
-                  duration: const Duration(milliseconds: 300),
-                  offset: _controlsVisible ? Offset.zero : const Offset(0, 1),
-                  curve: Curves.easeInOut,
-                  child: AnimatedOpacity(
-                      duration: const Duration(milliseconds: 300),
-                      opacity: _controlsVisible ? 1.0 : 0.0,
-                      curve: Curves.easeInOut,
-                      child: GlobalKeyService.jwLifePageKey.currentState!.getBottomNavigationBar(isBlack: true)
-                  ),
-                ),
-              ),
           ],
         ),
       ),

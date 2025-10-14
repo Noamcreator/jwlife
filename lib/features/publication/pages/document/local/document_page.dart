@@ -21,9 +21,8 @@ import 'package:jwlife/data/databases/catalog.dart';
 import 'package:jwlife/data/databases/history.dart';
 import 'package:jwlife/data/realm/catalog.dart';
 import 'package:jwlife/features/home/pages/search/search_page.dart';
-import 'package:jwlife/widgets/dialog/language_dialog_pub.dart';
 import 'package:jwlife/widgets/dialog/publication_dialogs.dart';
-import 'package:jwlife/widgets/dialog/utils_dialog.dart';
+import 'package:jwlife/core/utils/utils_dialog.dart';
 import 'package:jwlife/widgets/responsive_appbar_actions.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:uuid/uuid.dart';
@@ -34,6 +33,7 @@ import '../../../../../app/services/global_key_service.dart';
 import '../../../../../app/services/settings_service.dart';
 import '../../../../../core/jworg_uri.dart';
 import '../../../../../core/shared_preferences/shared_preferences_utils.dart';
+import '../../../../../core/utils/utils_language_dialog.dart';
 import '../../../../../core/webview/webview_javascript.dart';
 import '../../../../../core/webview/webview_utils.dart';
 import '../../../../../data/models/userdata/tag.dart';
@@ -383,6 +383,10 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
   Future<void> changeTheme(ThemeMode themeMode) async {
     bool isDark = themeMode == ThemeMode.dark;
     await _controller.evaluateJavascript(source: "changeTheme($isDark);");
+  }
+
+  Future<void> changeStyleAndColorIndex(int styleIndex, colorIndex) async {
+    await _controller.evaluateJavascript(source: "changeStyleAndColorIndex($styleIndex, $colorIndex);");
   }
 
   Future<void> changeFullScreenMode(bool isFullScreen) async {
@@ -943,7 +947,7 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
                             webViewController: _controller,
                             bookNumber: currentDoc.bookNumber,
                             chapterNumber: currentDoc.chapterNumber,
-                            title: '${currentDoc.displayTitle} ${currentDoc.chapterNumber}',
+                            title: '${currentDoc.displayTitle} ${currentDoc.chapterNumber}:$blockIdentifier',
                             snippet: snippet.trim(),
                             blockType: blockType,
                             blockIdentifier: blockIdentifier,
@@ -1111,7 +1115,7 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
                           }
                         }
 
-                        Publication bible = PublicationRepository().getAllBibles().first;
+                        Publication bible = PublicationRepository().getOrderBibles().first;
 
                         audio_service.MediaItem mediaItem = audio_service.MediaItem(
                             id: '0',
@@ -1165,6 +1169,13 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
                           Video video = Video.fromJson(mediaItem: mediaItem);
                           video.showPlayer(context);
                         }
+                      },
+                    );
+
+                    controller.addJavaScriptHandler(
+                      handlerName: 'openCustomizeVersesDialog',
+                      callback: (args) async {
+                        await showCustomizeVersesDialog(context);
                       },
                     );
                   },
@@ -1325,6 +1336,7 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
     setState(() {
       _controlsVisible = visible;
     });
+    GlobalKeyService.jwLifePageKey.currentState!.toggleBottomNavBarVisibility(_controlsVisible);
   }
 
   void toggleOnScroll(bool visible) {
@@ -1332,6 +1344,7 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
       _controlsVisible = visible;
       _controlsVisibleSave = visible;
     });
+    GlobalKeyService.jwLifePageKey.currentState!.toggleBottomNavBarVisibility(_controlsVisible);
   }
 
   void setControlsBySave() {
@@ -1339,6 +1352,7 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
     setState(() {
       _controlsVisible = _controlsVisibleSave;
     });
+    GlobalKeyService.jwLifePageKey.currentState!.toggleBottomNavBarVisibility(_controlsVisible);
   }
 
   void toggleMaximized(bool isMaximized) {
@@ -1350,6 +1364,7 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
         _controlsVisible = _controlsVisibleSave;
       }
     });
+    GlobalKeyService.jwLifePageKey.currentState!.toggleBottomNavBarVisibility(_controlsVisible);
   }
 
   bool isSearching() {
@@ -1368,6 +1383,7 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
       _controlsVisible = true;
       _isImageMode = imageMode;
     });
+    GlobalKeyService.jwLifePageKey.currentState!.toggleBottomNavBarVisibility(_controlsVisible);
   }
 
   void refreshWidget() {
@@ -1492,7 +1508,7 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
                           text: "Marque-pages",
                           icon: Icon(JwIcons.bookmark),
                           onPressed: () async {
-                            Bookmark? bookmark = await showBookmarkDialog(context, widget.publication, webViewController: _controller, mepsDocumentId: widget.publication.documentsManager!.getCurrentDocument().mepsDocumentId, title: widget.publication.documentsManager!.getCurrentDocument().displayTitle, snippet: '', blockType: 0, blockIdentifier: null);
+                            Bookmark? bookmark = await showBookmarkDialog(context, widget.publication, webViewController: _controller, mepsDocumentId: widget.publication.documentsManager!.getCurrentDocument().mepsDocumentId, bookNumber: widget.publication.documentsManager!.getCurrentDocument().bookNumber, chapterNumber: widget.publication.documentsManager!.getCurrentDocument().chapterNumber, title: widget.publication.documentsManager!.getCurrentDocument().getDisplayTitle(), snippet: '', blockType: 0, blockIdentifier: null);
                             if (bookmark != null) {
                               if(bookmark.location.bookNumber != null && bookmark.location.chapterNumber != null) {
                                 int page = widget.publication.documentsManager!.documents.indexWhere((doc) => doc.bookNumber == bookmark.location.bookNumber && doc.chapterNumber == bookmark.location.chapterNumber);
@@ -1525,16 +1541,11 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
                           text: "Langues",
                           icon: Icon(JwIcons.language),
                           onPressed: () async {
-                            LanguagesPubDialog languageDialog = LanguagesPubDialog(publication: widget.publication);
-                            showDialog<Publication>(
-                              context: context,
-                              builder: (context) => languageDialog,
-                            ).then((languagePub) {
-                              if (languagePub != null) {
+                            showLanguagePubDialog(context, widget.publication).then((languagePub) async {
+                              if(languagePub != null) {
                                 showPageDocument(languagePub, widget.publication.documentsManager!.getCurrentDocument().mepsDocumentId);
                               }
-                            }
-                            );
+                            });
                           },
                         ),
                         IconTextButton(
@@ -1636,33 +1647,6 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
               )
           )
         ),
-
-        if(GlobalKeyService.jwLifePageKey.currentState!.audioWidgetVisible)
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: Visibility(
-                visible: _controlsVisible,
-                child: Column(
-                  children: [
-                    GlobalKeyService.jwLifePageKey.currentState!.getAudioWidget(),
-                    GlobalKeyService.jwLifePageKey.currentState!.getBottomNavigationBar()
-                  ]
-                )
-            )
-          ),
-
-        if(!GlobalKeyService.jwLifePageKey.currentState!.audioWidgetVisible)
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: Visibility(
-                visible: _controlsVisible,
-                child: GlobalKeyService.jwLifePageKey.currentState!.getBottomNavigationBar()
-            )
-          ),
       ],
     );
   }

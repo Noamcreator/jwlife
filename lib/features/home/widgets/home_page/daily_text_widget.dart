@@ -203,7 +203,7 @@ class DailyTextWidgetState extends State<DailyTextWidget> {
             ],
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 5),
       ],
     );
   }

@@ -12,10 +12,11 @@ import 'package:intl/intl.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/core/utils/utils_backup_app.dart';
+import 'package:jwlife/core/utils/utils_language_dialog.dart';
 import 'package:jwlife/data/models/meps_language.dart';
 import 'package:jwlife/i18n/app_localizations.dart';
 import 'package:jwlife/i18n/localization.dart';
-import 'package:jwlife/widgets/dialog/utils_dialog.dart';
+import 'package:jwlife/core/utils/utils_dialog.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:realm/realm.dart';
 import 'package:share_plus/share_plus.dart';
@@ -54,6 +55,7 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
   String libraryDate = '';
   String cacheSize = '';
   double _fontSize = 16;
+  int _styleIndex = 0;
   int _colorIndex = 1;
 
   bool _dailyTextNotification = false;
@@ -99,7 +101,8 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
       getLocale(),
       getPrimaryColor(_theme),
       getFontSize(),
-      getLastHighlightColorIndex(),
+      getStyleIndex(),
+      getColorIndex(),
       getDailyTextNotification(),
       getDailyTextNotificationTime(),
       getBibleReadingNotification(),
@@ -111,14 +114,15 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
     final selectedLanguage = futures[1] as String;
     final primaryColor = futures[2] as Color;
     final fontSize = futures[3] as double;
-    final colorIndex = futures[4] as int;
+    final styleIndex = futures[4] as int;
+    final colorIndex = futures[5] as int;
 
-    final dailyTextNotification = futures[5] as bool;
-    final dailyTextNotificationTime = futures[6] as DateTime;
-    final bibleReadingNotification = futures[7] as bool;
-    final bibleReadingNotificationTime = futures[8] as DateTime;
+    final dailyTextNotification = futures[6] as bool;
+    final dailyTextNotificationTime = futures[7] as DateTime;
+    final bibleReadingNotification = futures[8] as bool;
+    final bibleReadingNotificationTime = futures[9] as DateTime;
 
-    final downloadNotification = futures[9] as bool;
+    final downloadNotification = futures[10] as bool;
 
     final themeMode = theme == 'dark'
         ? ThemeMode.dark
@@ -140,6 +144,7 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
         _selectedLocale = Locale(selectedLanguage);
         _selectedColor = primaryColor;
         _fontSize = fontSize;
+        _styleIndex = styleIndex;
         _colorIndex = colorIndex;
 
         _dailyTextNotification = dailyTextNotification;
@@ -944,7 +949,7 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
         title: localization(context).settings_language_library,
         subtitle: _selectedLanguage.vernacular,
         onTap: () {
-          showLibraryLanguageDialog(context).then((value) async {
+          showLanguageDialog(context).then((value) async {
             if (value['Symbol'] != JwLifeSettings().currentLanguage.symbol) {
               await setLibraryLanguage(value);
               GlobalKeyService.homeKey.currentState?.changeLanguageAndRefresh();
@@ -1002,6 +1007,7 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
         title: 'Réinitialiser cette sauvegarde',
         trailing: const Icon(JwIcons.trash),
         onTap: () async {
+          // ÉTAPE 1: Confirmation
           final confirm = await showJwDialog<bool>(
             context: context,
             titleText: 'Confirmer la réinitialisation',
@@ -1023,12 +1029,14 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
 
           if (confirm != true) return;
 
+          // ÉTAPE 2: Affichage du dialogue d'attente (Spinner)
           BuildContext? dialogContext;
           showJwDialog(
             context: context,
             titleText: 'Suppression de la sauvegarde…',
             content: Builder(
               builder: (ctx) {
+                // L'ASSIGNATION du Context du dialogue se fait ici.
                 dialogContext = ctx;
                 return const Padding(
                   padding: EdgeInsets.symmetric(horizontal: 25),
@@ -1041,17 +1049,42 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
             ),
           );
 
+          // ÉTAPE 3: Exécution de l'opération asynchrone
           try {
             await JwLifeApp.userdata.deleteBackup();
 
-            if (dialogContext != null) Navigator.of(dialogContext!).pop();
+            // Utilisation du Context GARANTI non-null.
+            if (dialogContext != null) {
+              // Ferme le dialogue d'attente.
+              Navigator.of(dialogContext!).pop();
+
+              // Dialogue de confirmation.
+              await showJwDialog(
+                context: context,
+                titleText: 'Sauvegarde supprimée',
+                contentText: 'La sauvegarde a bien été supprimée.',
+                buttons: [
+                  JwDialogButton(
+                    label: 'OK',
+                    closeDialog: true,
+                  ),
+                ],
+                buttonAxisAlignment: MainAxisAlignment.end,
+              );
+            }
+
+            // Mises à jour de l'interface
             GlobalKeyService.homeKey.currentState?.refreshFavorites();
             GlobalKeyService.personalKey.currentState?.refreshUserdata();
           }
           catch (e) {
-            if (dialogContext != null) Navigator.of(dialogContext!).pop();
+            // S'assurer de fermer le dialogue d'attente même en cas d'erreur.
+            if (dialogContext != null) {
+              Navigator.of(dialogContext!).pop();
+            }
+
             print(e);
-            await _showErrorDialog('Erreur', 'Erreur lors de la suppression.');
+            await _showErrorDialog('Erreur', 'Erreur lors de la suppression. $e');
           }
         },
       ),
@@ -1118,26 +1151,6 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
             await setFontSize(fontSize);
             JwLifeSettings().webViewData.updateFontSize(fontSize);
             setState(() => _fontSize = fontSize);
-          }
-        },
-      ),
-      SettingsTile(
-        title: 'Couleur du surlignage',
-        subtitle: '$_colorIndex',
-        trailing: const Icon(JwIcons.device_text),
-        onTap: () async {
-          final selectedColor = await showJwChoiceDialog<int>(
-            context: context,
-            titleText: 'Couleur de surlignage',
-            contentText: 'Choisissez une couleur',
-            choices: List.generate(8, (i) => i),
-            initialSelection: _colorIndex,
-            display: (i) => "Couleur $i",
-          );
-          if (selectedColor != null && selectedColor != _colorIndex) {
-            await setLastHighlightColor(selectedColor);
-            JwLifeSettings().webViewData.updateColorIndex(selectedColor);
-            setState(() => _colorIndex = selectedColor);
           }
         },
       ),

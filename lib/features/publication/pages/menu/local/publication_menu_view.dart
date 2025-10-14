@@ -16,13 +16,15 @@ import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/databases/history.dart';
 import 'package:jwlife/data/models/userdata/bookmark.dart';
 import 'package:jwlife/features/publication/pages/menu/local/publication_search_view.dart';
-import 'package:jwlife/widgets/dialog/language_dialog_pub.dart';
 import 'package:jwlife/widgets/responsive_appbar_actions.dart';
 import 'package:jwlife/widgets/searchfield/searchfield_widget.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:string_similarity/string_similarity.dart';
 
 import '../../../../../app/services/global_key_service.dart';
+import '../../../../../app/services/settings_service.dart';
+import '../../../../../core/shared_preferences/shared_preferences_utils.dart';
+import '../../../../../core/utils/utils_language_dialog.dart';
 import '../../../../bible/pages/local_bible_chapter.dart';
 import '../../../../image/image_page.dart';
 import '../../document/data/models/document.dart';
@@ -734,7 +736,7 @@ class PublicationMenuViewState extends State<PublicationMenuView> with SingleTic
                   style: TextStyle(
                     color: Colors.white,
                     // Diminuer légèrement la taille de police pour les tuiles plus petites
-                    fontSize: isLandscape ? 20 : 16,
+                    fontSize: isLandscape ? 20 : 15,
                     fontWeight: FontWeight.bold,
                   ),
                   maxLines: 1,
@@ -928,16 +930,24 @@ class PublicationMenuViewState extends State<PublicationMenuView> with SingleTic
                 text: "Langues",
                 icon: Icon(JwIcons.language),
                 onPressed: () async {
-                  LanguagesPubDialog languageDialog = LanguagesPubDialog(publication: widget.publication);
-                  showDialog<Publication>(
-                    context: context,
-                    builder: (context) => languageDialog,
-                  ).then((languagePub) {
-                    if (languagePub != null) {
-                      languagePub.showMenu(context);
-                    }
+                  if(widget.biblePage) {
+                    showLanguagePubDialog(context, null).then((languageBible) async {
+                      if (languageBible != null) {
+                        String bibleKey = languageBible.getKey();
+                        JwLifeSettings().lookupBible = bibleKey;
+                        setLookUpBible(bibleKey);
+
+                        GlobalKeyService.bibleKey.currentState?.refreshBiblePage();
+                      }
+                    });
                   }
-                  );
+                  else {
+                    showLanguagePubDialog(context, widget.publication).then((languagePub) async {
+                      if(languagePub != null) {
+                        languagePub.showMenu(context);
+                      }
+                    });
+                  }
                 },
               ),
               IconTextButton(

@@ -17,6 +17,7 @@ import '../../../app/services/global_key_service.dart';
 import '../../../app/services/settings_service.dart';
 import '../../../core/shared_preferences/shared_preferences_utils.dart';
 import '../../../core/utils/utils.dart';
+import '../../../core/utils/utils_language_dialog.dart';
 import '../../../core/utils/utils_video.dart';
 import '../../../core/utils/widgets_utils.dart';
 import '../../../core/webview/webview_javascript.dart';
@@ -26,9 +27,8 @@ import '../../../data/models/userdata/bookmark.dart';
 import '../../../data/models/userdata/tag.dart';
 import '../../../data/models/video.dart';
 import '../../../data/realm/catalog.dart';
-import '../../../widgets/dialog/language_dialog_pub.dart';
 import '../../../widgets/dialog/publication_dialogs.dart';
-import '../../../widgets/dialog/utils_dialog.dart';
+import '../../../core/utils/utils_dialog.dart';
 import '../../../widgets/responsive_appbar_actions.dart';
 import '../../personal/pages/tag_page.dart';
 import '../../publication/pages/document/local/dated_text_manager.dart';
@@ -154,6 +154,10 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
   Future<void> changeTheme(ThemeMode themeMode) async {
     bool isDark = themeMode == ThemeMode.dark;
     await _controller.evaluateJavascript(source: "changeTheme($isDark);");
+  }
+
+  Future<void> changeStyleAndColorIndex(int styleIndex, colorIndex) async {
+    await _controller.evaluateJavascript(source: "changeStyleAndColorIndex($styleIndex, $colorIndex);");
   }
 
   Future<void> changeFullScreenMode(bool isFullScreen) async {
@@ -698,6 +702,13 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
                           }
                         },
                       );
+
+                      controller.addJavaScriptHandler(
+                        handlerName: 'openCustomizeVersesDialog',
+                        callback: (args) async {
+                          await showCustomizeVersesDialog(context);
+                        },
+                      );
                     },
                     shouldInterceptRequest: (controller, request) async {
 
@@ -837,6 +848,7 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
     setState(() {
       _controlsVisible = visible;
     });
+    GlobalKeyService.jwLifePageKey.currentState!.toggleBottomNavBarVisibility(_controlsVisible);
   }
 
   void toggleOnScroll(bool visible) {
@@ -844,6 +856,7 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
       _controlsVisible = visible;
       _controlsVisibleSave = visible;
     });
+    GlobalKeyService.jwLifePageKey.currentState!.toggleBottomNavBarVisibility(_controlsVisible);
   }
 
   void setControlsBySave() {
@@ -851,6 +864,7 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
     setState(() {
       _controlsVisible = _controlsVisibleSave;
     });
+    GlobalKeyService.jwLifePageKey.currentState!.toggleBottomNavBarVisibility(_controlsVisible);
   }
 
   void toggleMaximized(bool isMaximized) {
@@ -862,6 +876,7 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
         _controlsVisible = _controlsVisibleSave;
       }
     });
+    GlobalKeyService.jwLifePageKey.currentState!.toggleBottomNavBarVisibility(_controlsVisible);
   }
 
   void changePageAt(int index) {
@@ -869,6 +884,7 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
       widget.publication.datedTextManager!.selectedDatedTextIndex = index;
       _controlsVisible = true;
     });
+    GlobalKeyService.jwLifePageKey.currentState!.toggleBottomNavBarVisibility(_controlsVisible);
   }
 
   void refreshWidget() {
@@ -943,13 +959,9 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
                           text: "Langues",
                           icon: Icon(JwIcons.language),
                           onPressed: () async {
-                            LanguagesPubDialog languageDialog = LanguagesPubDialog(publication: widget.publication);
-                            showDialog(
-                              context: context,
-                              builder: (context) => languageDialog,
-                            ).then((value) {
-                              if (value != null) {
-                                value.showMenu(context);
+                            showLanguagePubDialog(context, widget.publication).then((languagePub) async {
+                              if(languagePub != null) {
+                                languagePub.showMenu(context);
                               }
                             });
                           },
@@ -1020,33 +1032,6 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
                 )
             )
         ),
-
-        if(GlobalKeyService.jwLifePageKey.currentState!.audioWidgetVisible)
-          Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              child: Visibility(
-                  visible: _controlsVisible,
-                  child: Column(
-                      children: [
-                        GlobalKeyService.jwLifePageKey.currentState!.getAudioWidget(),
-                        GlobalKeyService.jwLifePageKey.currentState!.getBottomNavigationBar()
-                      ]
-                  )
-              )
-          ),
-
-        if(!GlobalKeyService.jwLifePageKey.currentState!.audioWidgetVisible)
-          Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              child: Visibility(
-                  visible: _controlsVisible,
-                  child: GlobalKeyService.jwLifePageKey.currentState!.getBottomNavigationBar()
-              )
-          ),
       ],
     );
   }

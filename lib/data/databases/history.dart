@@ -89,6 +89,22 @@ class History {
     return result;
   }
 
+  static Future<List<Map<String, dynamic>>> getMostUsedLanguages() async {
+    final db = await getHistoryDb();
+
+    final result = await db.rawQuery('''
+       SELECT MepsLanguageId, COUNT(*) AS Occurrences
+       FROM History
+       GROUP BY MepsLanguageId
+       ORDER BY Occurrences DESC
+       LIMIT 5;
+    ''');
+
+    await db.close();
+
+    return result;
+  }
+
   static Future<void> insertDocument(String displayTitle, Publication pub, int docId, int? startParagraphId, int? endParagraphId) async {
     final db = await getHistoryDb();
 
@@ -417,22 +433,21 @@ class History {
             return Dialog(
               insetPadding: const EdgeInsets.all(20),
               child: Container(
-                width: MediaQuery.of(context).size.width,
-                padding: EdgeInsets.symmetric(vertical: 16, horizontal: 5),
+                padding: EdgeInsets.symmetric(vertical: 0, horizontal: 30),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Titre avec séparation
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      child: Text(
-                        "Historique",
-                        style: TextStyle(fontFamily: 'Roboto', fontSize: 22, fontWeight: FontWeight.bold),
-                      ),
+                    const Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 20),
+                        child: Text(
+                          "Historique",
+                          style: TextStyle(fontFamily: 'Roboto', fontSize: 20, fontWeight: FontWeight.bold),
+                        ),
                     ),
 
-                    Divider(color: isDarkMode ? Colors.black : Color(0xFFf1f1f1)),
+                    Divider(color: isDarkMode ? Colors.black : Color(0xFFf1f1f1), height: 0),
 
                     // Champ de recherche
                     TextField(
@@ -440,7 +455,7 @@ class History {
                       decoration: InputDecoration(
                         labelText: 'Rechercher...',
                         border: OutlineInputBorder(),
-                        contentPadding: EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                        contentPadding: EdgeInsets.symmetric(vertical: 10),
                         prefixIcon: Icon(JwIcons.magnifying_glass),
                       ),
                       onEditingComplete: () {
@@ -457,7 +472,7 @@ class History {
                       child: ListView.separated(
                         shrinkWrap: true,
                         itemCount: filteredHistory.length, // <== Utilisez la liste filtrée ici
-                        separatorBuilder: (context, index) => Divider(color: isDarkMode ? Colors.black : Color(0xFFf1f1f1)),
+                        separatorBuilder: (context, index) => Divider(color: isDarkMode ? Colors.black : Color(0xFFf1f1f1), height: 0),
                         itemBuilder: (context, index) {
                           var item = filteredHistory[index];
                           IconData icon = item["Type"] == 'webview' ? item['PublicationTypeId'] != null ? PublicationCategory.all.firstWhere(
@@ -510,7 +525,7 @@ class History {
                               }
                             },
                             child: Container(
-                              padding: EdgeInsets.symmetric(vertical: 8, horizontal: 15),
+                              padding: EdgeInsets.symmetric(vertical: 10),
                               child: Row(
                                 crossAxisAlignment: CrossAxisAlignment.center,
                                 children: [
@@ -543,11 +558,11 @@ class History {
                                               : (item["PublicationIssueTitle"] ?? item["PublicationTitle"] ?? item['KeySymbol']),
                                           style: TextStyle(
                                             fontSize: 13,
-                                            color: Theme.of(context).brightness == Brightness.dark
+                                            color: isDarkMode
                                                 ? Color(0xFFc0c0c0)
                                                 : Color(0xFF5a5a5a),
                                           ),
-                                          maxLines: 2,
+                                          maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
                                         ),
                                       ],
@@ -592,6 +607,8 @@ class History {
                         ),
                       ],
                     ),
+
+                    const SizedBox(height: 10),
                   ],
                 ),
               ),

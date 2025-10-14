@@ -76,7 +76,7 @@ class Api {
       final response = await httpGetWithHeaders(url);
 
       if (response.statusCode == 200) {
-        final json = await GZipOptimizer.decompressJSONResponse(response.bodyBytes);
+        final json = await GZipHelper.decompressJson(response.bodyBytes);
         return json['revision'];
       }
     }
@@ -116,7 +116,7 @@ class Api {
         printTime('Le fichier "catalog.db" a été téléchargé');
 
         printTime('Decompression de catalog.db en cours...');
-        await GZipOptimizer.decompressCatalogDb(response.bodyBytes, catalogFile);
+        await GZipHelper.decompressToFile(response.bodyBytes, catalogFile);
         printTime('Le fichier "catalog.db" a été décompressé avec succés dans : $catalogFile');
 
         printTime('On met à jour ala dernière revision ($lastRevisionAvailable) du catalogue dans les préférences');

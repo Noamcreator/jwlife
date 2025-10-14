@@ -7,7 +7,7 @@ import '../../app/services/settings_service.dart';
 import '../../core/api/api.dart';
 import '../../core/utils/utils.dart';
 import '../../core/utils/utils_video.dart';
-import '../../widgets/dialog/utils_dialog.dart';
+import '../../core/utils/utils_dialog.dart';
 import '../repositories/MediaRepository.dart';
 import 'media.dart';
 

@@ -1,7 +1,6 @@
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:jwlife/core/constants.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/jworg_uri.dart';
 import 'package:jwlife/core/utils/utils_document.dart';
@@ -11,7 +10,7 @@ import 'package:jwlife/data/repositories/PublicationRepository.dart';
 import 'package:jwlife/data/databases/catalog.dart';
 import 'package:jwlife/features/library/widgets/rectangle_publication_item.dart';
 import 'package:jwlife/i18n/localization.dart';
-import 'package:jwlife/widgets/dialog/utils_dialog.dart';
+import 'package:jwlife/core/utils/utils_dialog.dart';
 import 'package:jwlife/widgets/image_cached_widget.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:sqflite/sqflite.dart';
@@ -22,9 +21,9 @@ import '../../../app/services/settings_service.dart';
 import '../../../core/shared_preferences/shared_preferences_utils.dart';
 import '../../../core/utils/common_ui.dart';
 import '../../../core/utils/utils.dart';
+import '../../../core/utils/utils_language_dialog.dart';
 import '../../../data/databases/history.dart';
 import '../../../data/models/userdata/congregation.dart';
-import '../../../widgets/dialog/language_dialog.dart';
 import '../../../widgets/responsive_appbar_actions.dart';
 import '../../publication/pages/document/data/models/document.dart';
 import '../../publication/pages/document/local/documents_manager.dart';
@@ -55,6 +54,12 @@ class MeetingsPageState extends State<MeetingsPage> {
   Publication? _circuitCoPub;
   Publication? _circuitBrPub;
 
+  bool _isOtherPublicationsToggle = false;
+
+  bool _isCircuitCoToggle = false;
+  bool _isCircuitBrToggle = false;
+  bool _isConventionToggle = false;
+
   @override
   void initState() {
     super.initState();
@@ -67,6 +72,19 @@ class MeetingsPageState extends State<MeetingsPage> {
     setState(() {
       isLoading = false;
     });
+  }
+
+  Future<void> goToTheMeetingsPage() async {
+    _dateOfMeetingValue = DateTime.now();
+    _isOtherPublicationsToggle = false;
+    _isCircuitCoToggle = false;
+    _isCircuitBrToggle = false;
+    _isConventionToggle = false;
+
+    fetchFirstCongregation();
+    List<Publication> dayPubs = await PubCatalog.getPublicationsForTheDay(date: _dateOfMeetingValue);
+
+    refreshMeetingsPubs(publications: dayPubs);
   }
 
   Future<void> fetchFirstCongregation() async {
@@ -387,14 +405,10 @@ class MeetingsPageState extends State<MeetingsPage> {
                 icon: const Icon(JwIcons.language),
                 text: 'Autres langues',
                 onPressed: () {
-                  LanguageDialog languageDialog = LanguageDialog();
-                  showDialog(
-                    context: context,
-                    builder: (context) => languageDialog,
-                  ).then((value) async {
-                    if (value != null) {
-                      if (value['Symbol'] != JwLifeSettings().currentLanguage.symbol) {
-                        await setLibraryLanguage(value);
+                  showLanguageDialog(context).then((language) async {
+                    if (language != null) {
+                      if (language['Symbol'] != JwLifeSettings().currentLanguage.symbol) {
+                        await setLibraryLanguage(language);
                         GlobalKeyService.homeKey.currentState?.changeLanguageAndRefresh();
                       }
                     }
@@ -466,13 +480,13 @@ class MeetingsPageState extends State<MeetingsPage> {
 
                 // Retourne uniquement le Container stylisé, car le Row externe n'est plus nécessaire.
                 return Padding(
-                  padding: const EdgeInsets.only(bottom: 25.0),
+                  padding: const EdgeInsets.only(bottom: 20.0),
                   child: Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 15),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
                     decoration: BoxDecoration(
                       color: const Color(0xFF4A6DA7),
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(16),
                     ),
                     // Le Row principal gère l'alignement horizontal et vertical
                     child: Row(
@@ -529,10 +543,10 @@ class MeetingsPageState extends State<MeetingsPage> {
                   'Réunions',
                   style: TextStyle(
                     fontWeight: FontWeight.w600, // Un peu moins gras que 'bold' pour un look moderne
-                    fontSize: 26, // Légèrement plus grand
+                    fontSize: 24, // Légèrement plus grand
                   ),
                 ),
-                const SizedBox(height: 16), // Espacement légèrement augmenté
+                const SizedBox(height: 8), // Espacement légèrement augmenté
 
                 // Carte Réunion Vie et Ministère
                 _buildMeetingCard(
@@ -555,57 +569,69 @@ class MeetingsPageState extends State<MeetingsPage> {
                 const SizedBox(height: 12),
 
                 // Carte Autres Publications
-                _buildMeetingCard(
+                _buildExpandableMeetingCard(
                   context: context,
                   title: 'Autres publications',
                   icon: JwIcons.book_stack,
                   color: _publicationsColor, // Couleur thématique
                   child: _meetingsPublications(context),
+                  isExpanded: _isOtherPublicationsToggle,
+                  onToggle: () {
+                    setState(() => _isOtherPublicationsToggle = !_isOtherPublicationsToggle);
+                  },
                 ),
 
-                const SizedBox(height: 48), // Grand espacement avant la nouvelle section
-
-                // ---
-
-                // 2. SECTION ASSEMBLÉES
+                const SizedBox(height: 25), // Grand espacement avant la nouvelle section
 
                 // Titre de section
                 const Text(
                   'Assemblées',
                   style: TextStyle(
                     fontWeight: FontWeight.w600,
-                    fontSize: 26,
+                    fontSize: 24,
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 8),
 
                 // Carte Assemblée de Circonscription (BR)
-                _buildMeetingCard(
+                _buildExpandableMeetingCard(
                   context: context,
                   title: localization(context).navigation_meetings_assembly_br,
                   icon: JwIcons.arena,
                   color: _assemblyBrColor, // Couleur thématique
                   child: _isCircuitBrContentIsDownload(context),
+                  isExpanded: _isCircuitBrToggle,
+                  onToggle: () {
+                    setState(() => _isCircuitBrToggle = !_isCircuitBrToggle);
+                  },
                 ),
                 const SizedBox(height: 12),
 
                 // Carte Assemblée de Circonscription (CO)
-                _buildMeetingCard(
+                _buildExpandableMeetingCard(
                   context: context,
                   title: localization(context).navigation_meetings_assembly_co,
                   icon: JwIcons.arena,
                   color: _assemblyCoColor, // Couleur thématique
                   child: _isCircuitCoContentIsDownload(context),
+                  isExpanded: _isCircuitCoToggle,
+                  onToggle: () {
+                    setState(() => _isCircuitCoToggle = !_isCircuitCoToggle);
+                  },
                 ),
                 const SizedBox(height: 12),
 
                 // Carte Assemblée Régionale/Internationale
-                _buildMeetingCard(
+                _buildExpandableMeetingCard(
                   context: context,
                   title: localization(context).navigation_meetings_convention,
                   icon: JwIcons.arena,
                   color: _conventionColor, // Couleur thématique
                   child: _isConventionContentIsDownload(context),
+                  isExpanded: _isConventionToggle,
+                  onToggle: () {
+                    setState(() => _isConventionToggle = !_isConventionToggle);
+                  },
                 ),
               ],
             ),
@@ -651,7 +677,7 @@ class MeetingsPageState extends State<MeetingsPage> {
                 child: Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.all(6),
+                      padding: const EdgeInsets.all(5),
                       decoration: BoxDecoration(
                         color: Colors.white.withOpacity(0.2),
                         borderRadius: BorderRadius.circular(5),
@@ -696,6 +722,95 @@ class MeetingsPageState extends State<MeetingsPage> {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  // --- Nouvelle version repliable ---
+  Widget _buildExpandableMeetingCard({
+    required BuildContext context,
+    required String title,
+    required IconData icon,
+    required Color color,
+    required bool isExpanded,
+    required VoidCallback onToggle,
+    required Widget child,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: Column(
+          children: [
+            GestureDetector(
+              onTap: onToggle,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(color: color),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(5),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(5),
+                      ),
+                      child: Icon(
+                        icon,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Text(
+                        title.toUpperCase(),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1.1,
+                        ),
+                      ),
+                    ),
+                    AnimatedRotation(
+                      turns: isExpanded ? 0.5 : 0.0,
+                      duration: const Duration(milliseconds: 250),
+                      child: const Icon(Icons.keyboard_arrow_down,
+                          color: Colors.white, size: 28),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            AnimatedSize(
+              duration: const Duration(milliseconds: 250),
+              curve: Curves.easeInOut,
+              alignment: Alignment.topCenter, // L’expansion part du haut vers le bas
+              child: isExpanded
+                  ? Container(
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).cardColor,
+                  borderRadius: const BorderRadius.only(
+                    bottomLeft: Radius.circular(20),
+                    bottomRight: Radius.circular(20),
+                  ),
+                ),
+                child: child,
+              )
+                  : const SizedBox.shrink(),
+            )
+          ],
         ),
       ),
     );
@@ -894,8 +1009,8 @@ class MeetingsPageState extends State<MeetingsPage> {
               ClipRRect(
                 borderRadius: BorderRadius.circular(12),
                 child: SizedBox(
-                  width: 65,
-                  height: 65,
+                  width: 60,
+                  height: 60,
                   child: ImageCachedWidget(imageUrl: imagePath),
                 ),
               ),
@@ -908,7 +1023,7 @@ class MeetingsPageState extends State<MeetingsPage> {
                     Text(
                       title,
                       style: TextStyle(
-                        fontSize: 20,
+                        fontSize: 19,
                         fontWeight: FontWeight.bold,
                         color: Theme.of(context).brightness == Brightness.dark
                             ? Colors.white
@@ -919,7 +1034,7 @@ class MeetingsPageState extends State<MeetingsPage> {
                     Text(
                       subtitle,
                       style: TextStyle(
-                        fontSize: 17,
+                        fontSize: 16,
                         color: Theme.of(context).brightness == Brightness.dark
                             ? Colors.white70
                             : Colors.black87,
@@ -947,12 +1062,12 @@ class MeetingsPageState extends State<MeetingsPage> {
             if(_publicTalkPub != null)
               Row(
                 children: [
-                  Icon(JwIcons.document_speaker, color: Theme.of(context).primaryColor),
+                  Icon(JwIcons.document_speaker, color: Theme.of(context).primaryColor, size: 25),
                   const SizedBox(width: 8),
                   Text(
                     "DISCOURS PUBLIQUE",
                     style: TextStyle(
-                      fontSize: 18,
+                      fontSize: 16,
                       fontWeight: FontWeight.bold,
                       color: Theme.of(context).primaryColor,
                     ),
@@ -988,7 +1103,7 @@ class MeetingsPageState extends State<MeetingsPage> {
                 },
                 child: Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: Theme.of(context).primaryColor.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(12),
@@ -1004,18 +1119,18 @@ class MeetingsPageState extends State<MeetingsPage> {
               ),
 
             if(_publicTalkPub != null)
-              const SizedBox(height: 28),
+              const SizedBox(height: 20),
 
             // Titre Étude de la Tour de Garde
             if(_publicTalkPub != null)
               Row(
                 children: [
-                  Icon(JwIcons.watchtower, color: Theme.of(context).primaryColor),
+                  Icon(JwIcons.watchtower, color: Theme.of(context).primaryColor, size: 25),
                   const SizedBox(width: 8),
                   Text(
                     "ÉTUDE DE LA TOUR DE GARDE",
                     style: TextStyle(
-                      fontSize: 18,
+                      fontSize: 16,
                       fontWeight: FontWeight.bold,
                       color: Theme.of(context).primaryColor,
                     ),

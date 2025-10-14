@@ -5,9 +5,9 @@ import 'package:jwlife/data/models/publication_category.dart';
 import 'package:jwlife/data/repositories/PublicationRepository.dart';
 import 'package:jwlife/data/databases/catalog.dart';
 import 'package:jwlife/features/library/widgets/rectangle_publication_item.dart';
-import 'package:jwlife/widgets/dialog/language_dialog.dart';
 
 import '../../../../app/services/settings_service.dart';
+import '../../../../core/utils/utils_language_dialog.dart';
 import '../../../../data/models/publication_attribute.dart';
 import '../../../../widgets/searchfield/searchfield_widget.dart';
 
@@ -214,13 +214,9 @@ class _PublicationsItemsViewState extends State<PublicationsItemsView> {
           IconButton(
             icon: const Icon(JwIcons.language),
             onPressed: () async {
-              LanguageDialog languageDialog = LanguageDialog();
-              showDialog(
-                context: context,
-                builder: (context) => languageDialog,
-              ).then((value) async {
-                if (value != null) {
-                  loadItems(mepsLanguage: value);
+              showLanguageDialog(context).then((language) async {
+                if (language != null) {
+                  loadItems(mepsLanguage: language);
                 }
               });
             },

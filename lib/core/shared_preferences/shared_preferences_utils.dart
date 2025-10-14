@@ -175,16 +175,66 @@ Future<void> setFullscreen(bool fullscreen) async {
   await sp.setBool(SharedPreferencesKeys.fullscreen.key, fullscreen);
 }
 
-/* HIGHLIGHT */
-Future<int> getLastHighlightColorIndex() async {
+/* WEBVIEW STYLE */
+Future<int> getStyleIndex() async {
   final sp = await _getSP();
-  return sp.getInt(SharedPreferencesKeys.lastHighlightColorIndex.key) ?? SharedPreferencesKeys.lastHighlightColorIndex.defaultValue;
+  return sp.getInt(SharedPreferencesKeys.styleIndex.key) ?? SharedPreferencesKeys.styleIndex.defaultValue;
 }
 
-Future<void> setLastHighlightColor(int lastColorIndex) async {
+Future<void> setStyleIndex(int styleIndex) async {
   final sp = await _getSP();
-  await sp.setInt(SharedPreferencesKeys.lastHighlightColorIndex.key, lastColorIndex);
+  await sp.setInt(SharedPreferencesKeys.styleIndex.key, styleIndex);
 }
+
+Future<int> getColorIndex() async {
+  final sp = await _getSP();
+  return sp.getInt(SharedPreferencesKeys.colorIndex.key) ?? SharedPreferencesKeys.colorIndex.defaultValue;
+}
+
+Future<void> setColorIndex(int colorIndex) async {
+  final sp = await _getSP();
+  await sp.setInt(SharedPreferencesKeys.colorIndex.key, colorIndex);
+}
+
+Future<String> getLookUpBible() async {
+  final sp = await _getSP();
+  return sp.getString(SharedPreferencesKeys.lookupBible.key) ?? SharedPreferencesKeys.lookupBible.defaultValue;
+}
+
+Future<void> setLookUpBible(String lookupBible) async {
+  final sp = await _getSP();
+  await sp.setString(SharedPreferencesKeys.lookupBible.key, lookupBible);
+}
+
+Future<List<String>> getBiblesSet() async {
+  final sp = await _getSP();
+  return sp.getStringList(SharedPreferencesKeys.biblesSet.key) ?? List<String>.from(SharedPreferencesKeys.biblesSet.defaultValue);
+}
+
+Future<void> addBibleSet(String bible) async {
+  final sp = await _getSP();
+  final existingBibles = sp.getStringList(SharedPreferencesKeys.biblesSet.key) ?? [];
+
+  if (!existingBibles.contains(bible)) {
+    existingBibles.add(bible);
+    await sp.setStringList(SharedPreferencesKeys.biblesSet.key, existingBibles);
+  }
+}
+
+Future<void> removeBibleFromSet(String bible) async {
+  final sp = await _getSP();
+  final existingBibles = sp.getStringList(SharedPreferencesKeys.biblesSet.key) ?? [];
+
+  if (existingBibles.remove(bible)) {
+    await sp.setStringList(SharedPreferencesKeys.biblesSet.key, existingBibles);
+  }
+}
+
+Future<void> setBiblesSet(List<String> biblesSet) async {
+  final sp = await _getSP();
+  await sp.setStringList(SharedPreferencesKeys.biblesSet.key, biblesSet);
+}
+
 
 /* Rappeles et notifications */
 Future<bool> getDailyTextNotification() async {

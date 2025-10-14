@@ -1,17 +1,21 @@
 import 'dart:io';
-
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/files_helper.dart';
+import 'package:jwlife/data/databases/history.dart';
 import 'package:sqflite/sqflite.dart';
-
 import '../../app/services/settings_service.dart';
 
 class LanguageDialog extends StatefulWidget {
   final Map<String, dynamic> languagesListJson;
   final String? selectedLanguageSymbol;
 
-  const LanguageDialog({super.key, this.languagesListJson = const {}, this.selectedLanguageSymbol});
+  const LanguageDialog({
+    super.key,
+    this.languagesListJson = const {},
+    this.selectedLanguageSymbol,
+  });
 
   @override
   _LanguageDialogState createState() => _LanguageDialogState();
@@ -22,8 +26,9 @@ class _LanguageDialogState extends State<LanguageDialog> {
   final TextEditingController _searchController = TextEditingController();
   List<Map<String, dynamic>> _allLanguagesList = [];
   List<Map<String, dynamic>> _filteredLanguagesList = [];
-  List<Map<String, dynamic>> _favoriteLanguages = []; // Liste pour les langues favorites
+  List<Map<String, dynamic>> _recommendedLanguages = []; // Renommé de _favoriteLanguages
   Database? database;
+  Timer? _debounce;
 
   @override
   void initState() {
@@ -32,30 +37,32 @@ class _LanguageDialogState extends State<LanguageDialog> {
     _searchController.addListener(_onSearchChanged);
   }
 
-  Future<void> initSettings() async {
-    selectedLanguage = widget.selectedLanguageSymbol ?? JwLifeSettings().currentLanguage.symbol;
-
-    File mepsUnitFile = await getMepsUnitDatabaseFile(); // mepsUnitFile est .db
-
-    if (await mepsUnitFile.exists()) {
-      // Ouvrir la base de données
-      database = await openDatabase(mepsUnitFile.path);
-
-      // Fetch languages using language code
-      await fetchLanguages(selectedLanguage!);
-
-      database!.close();
-    }
-  }
-
   @override
   void dispose() {
+    _debounce?.cancel();
     _searchController.removeListener(_onSearchChanged);
     _searchController.dispose();
     super.dispose();
   }
 
-  Future<void> fetchLanguages(String languageCode) async {
+  Future<void> initSettings() async {
+    selectedLanguage = widget.selectedLanguageSymbol ?? JwLifeSettings().currentLanguage.symbol;
+
+    File mepsUnitFile = await getMepsUnitDatabaseFile();
+
+    if (await mepsUnitFile.exists()) {
+      try {
+        database = await openDatabase(mepsUnitFile.path);
+        await _fetchAllLanguages(selectedLanguage!);
+      } finally {
+        // La base de données est fermée après l'opération
+        await database?.close();
+      }
+    }
+  }
+
+  Future<void> _fetchAllLanguages(String languageCode) async {
+    // La requête SQL reste la même, elle récupère toutes les données nécessaires
     List<Map<String, dynamic>> response = await database!.rawQuery('''
       SELECT 
         l.LanguageId,
@@ -73,25 +80,23 @@ class _LanguageDialogState extends State<LanguageDialog> {
         s.HasSystemDigits
       FROM Language l
       INNER JOIN Script s ON l.ScriptId = s.ScriptId
-      LEFT JOIN LocalizedLanguageName lln_src ON l.LanguageId = lln_src.TargetLanguageId AND lln_src.SourceLanguageId = (SELECT LanguageId FROM Language WHERE Symbol = ?)
+      LEFT JOIN LocalizedLanguageName lln_src 
+        ON l.LanguageId = lln_src.TargetLanguageId 
+        AND lln_src.SourceLanguageId = (SELECT LanguageId FROM Language WHERE Symbol = ?)
       LEFT JOIN LanguageName ln_src ON lln_src.LanguageNameId = ln_src.LanguageNameId
-      
-      -- LEFT JOIN sur la fallback de cette langue (Language.PrimaryFallbackLanguageId)
-      LEFT JOIN LocalizedLanguageName lln_fallback ON l.LanguageId = lln_fallback.TargetLanguageId AND lln_fallback.SourceLanguageId = l.PrimaryFallbackLanguageId
+      LEFT JOIN LocalizedLanguageName lln_fallback 
+        ON l.LanguageId = lln_fallback.TargetLanguageId 
+        AND lln_fallback.SourceLanguageId = l.PrimaryFallbackLanguageId
       LEFT JOIN LanguageName ln_fallback ON lln_fallback.LanguageNameId = ln_fallback.LanguageNameId
-      
-      -- Nom vernaculaire non vide
-      WHERE l.VernacularName IS NOT '' AND (ln_src.Name IS NOT NULL OR (ln_src.Name IS NULL AND ln_fallback.Name IS NOT NULL))
-      ORDER BY Name
+      WHERE l.VernacularName IS NOT '' 
+        AND (ln_src.Name IS NOT NULL OR (ln_src.Name IS NULL AND ln_fallback.Name IS NOT NULL))
+      ORDER BY Name COLLATE NOCASE; -- Ajout de COLLATE NOCASE pour un tri insensible à la casse dans SQL
     ''', [languageCode]);
 
-    // Si le widget.languagesList est vide, on effectue une requête à la base de données.
+    // Si widget.languagesListJson est fourni, filtrer et mapper les résultats
     if (widget.languagesListJson.isNotEmpty) {
-      // Filtrer les résultats pour ne garder que ceux présents dans la liste de langues
-      response = response.where((language) => widget.languagesListJson.keys.contains(language['Symbol'])).toList();
-
-      // Mapper les résultats en un nouveau format
-      response = response.map((language) {
+      response = response.where((language) => widget.languagesListJson.keys.contains(language['Symbol']))
+          .map((language) {
         return {
           'LanguageId': language['LanguageId'],
           'VernacularName': language['VernacularName'],
@@ -99,61 +104,143 @@ class _LanguageDialogState extends State<LanguageDialog> {
           'Symbol': language['Symbol'],
           'Title': widget.languagesListJson[language['Symbol']]['title'],
         };
-      }).toList(); // Assurez-vous de convertir le résultat en liste
+      }).toList();
     }
 
-    // Mise à jour de filteredLanguagesList
+    // Obtenir la liste des langues les plus utilisées
+    List<Map<String, dynamic>> mostUsedLanguages = await getUpdatedMostUsedLanguages(selectedLanguage!, response);
+
+    // Identifier les langues recommandées (sélectionnée + plus utilisées)
+    _recommendedLanguages = response.where((lang) {
+      return isRecommended(lang, mostUsedLanguages); // isRecommended est l'ancien isFavorite
+    }).toList();
+
+    // Trier la liste complète (qui est déjà triée par la requête SQL)
+    // Ici, nous nous assurons que le tri par Name de la requête SQL est suffisant pour le tri général
     List<Map<String, dynamic>> languagesModifiable = List.from(response);
 
     setState(() {
       _allLanguagesList = languagesModifiable;
-      _filteredLanguagesList = languagesModifiable;
-      _favoriteLanguages = _filteredLanguagesList.where((lang) {
-        return isFavorite(lang);
-      }).toList();
-      _filteredLanguagesList.removeWhere((lang) => isFavorite(lang));
+      _filteredLanguagesList = languagesModifiable; // Initialisation complète
+      _applySearchFilter(); // Appliquer le filtre de recherche initial (vide)
     });
   }
 
-  bool isFavorite(Map<String, dynamic> language) {
-    return language['Symbol'] == selectedLanguage;
+  Future<List<Map<String, dynamic>>> getUpdatedMostUsedLanguages(String selectedLanguageSymbol, List<Map<String, dynamic>> allLanguages) async {
+    List<Map<String, dynamic>> mostUsedLanguages =
+    await History.getMostUsedLanguages();
+    List<Map<String, dynamic>> mostUsedLanguagesList =
+    List.from(mostUsedLanguages);
+
+    final selectedLang = allLanguages.firstWhere(
+          (lang) => lang['Symbol'] == selectedLanguageSymbol,
+      orElse: () => <String, dynamic>{},
+    );
+
+    if (selectedLang.isEmpty) {
+      return mostUsedLanguagesList;
+    }
+
+    final alreadyInList = mostUsedLanguagesList.any(
+          (lang) => lang['MepsLanguageId'] == selectedLang['LanguageId'],
+    );
+
+    if (!alreadyInList && mostUsedLanguagesList.isNotEmpty) {
+      mostUsedLanguagesList
+        ..sort((a, b) =>
+            (a['Occurrences'] as int).compareTo(b['Occurrences'] as int))
+        ..removeAt(0)
+        ..add({
+          'MepsLanguageId': selectedLang['LanguageId'],
+          'Occurrences': 0,
+        })
+        ..sort((a, b) =>
+            (b['Occurrences'] as int).compareTo(a['Occurrences'] as int));
+    }
+
+    return mostUsedLanguagesList;
+  }
+
+  bool isRecommended( // Renommé de isFavorite
+      Map<String, dynamic> language,
+      List<Map<String, dynamic>> mostUsedLanguages,
+      ) {
+    return language['Symbol'] == selectedLanguage ||
+        mostUsedLanguages.any(
+              (lang) => lang['MepsLanguageId'] == language['LanguageId'],
+        );
+  }
+
+  void _applySearchFilter() {
+    String searchTerm = _searchController.text.toLowerCase();
+
+    // 1. Filtrer la liste complète (_allLanguagesList)
+    final filtered = _allLanguagesList.where((lang) {
+      final name = lang['Name']?.toString().toLowerCase() ?? '';
+      final vernacularName = lang['VernacularName']?.toString().toLowerCase() ?? '';
+      return name.contains(searchTerm) || vernacularName.contains(searchTerm);
+    }).toList();
+
+    // 2. Déterminer les langues recommandées parmi les résultats filtrés
+    final recommendedSymbols = _recommendedLanguages.map((l) => l['Symbol']).toSet();
+
+    // 3. Appliquer le tri : Recommandé, puis Alphabetique.
+    filtered.sort((a, b) {
+      final aIsRecommended = recommendedSymbols.contains(a['Symbol']);
+      final bIsRecommended = recommendedSymbols.contains(b['Symbol']);
+
+      // 3.1. Priorité à la langue actuellement sélectionnée
+      if (a['Symbol'] == selectedLanguage) return -1;
+      if (b['Symbol'] == selectedLanguage) return 1;
+
+      // 3.2. Priorité aux langues Recommandées
+      if (aIsRecommended && !bIsRecommended) return -1;
+      if (!aIsRecommended && bIsRecommended) return 1;
+
+      // 3.3. Tri alphabétique par 'Name' (traduit)
+      final aName = a['Name']?.toString() ?? '';
+      final bName = b['Name']?.toString() ?? '';
+      return aName.toLowerCase().compareTo(bName.toLowerCase());
+    });
+
+    setState(() {
+      _filteredLanguagesList = filtered;
+    });
   }
 
   Future<void> _onSearchChanged() async {
-    String searchTerm = _searchController.text;
-    List<Map<String, dynamic>> languagesSearchResult = List.from(_allLanguagesList);
-
-    languagesSearchResult = languagesSearchResult.where((lang) {
-      return lang['Name'].toString().toLowerCase().contains(searchTerm.toLowerCase()) || lang['VernacularName'].toString().toLowerCase().contains(searchTerm.toLowerCase());
-    }).toList();
-
-    setState(() {
-      _filteredLanguagesList = languagesSearchResult;
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+    _debounce = Timer(const Duration(milliseconds: 250), () {
+      setState(() {
+        _applySearchFilter();
+      });
     });
   }
 
   @override
   Widget build(BuildContext context) {
     bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final Color dividerColor =
+    isDarkMode ? Colors.black : const Color(0xFFf0f0f0);
+    final Color hintColor =
+    isDarkMode ? const Color(0xFFc5c5c5) : const Color(0xFF666666);
+    final Color subtitleColor =
+    isDarkMode ? const Color(0xFFbdbdbd) : const Color(0xFF626262);
 
-    // Accès au thème pour éviter les erreurs de constantes
-    final Color dividerColor = isDarkMode ? Colors.black : const Color(0xFFf0f0f0);
-    final Color hintColor = isDarkMode ? const Color(0xFFc5c5c5) : const Color(0xFF666666);
-    final Color subtitleColor = isDarkMode ? const Color(0xFFbdbdbd) : const Color(0xFF626262);
+    final recommendedSymbols = _recommendedLanguages.map((l) => l['Symbol']).toSet();
 
-    // Combine favoriteLanguages en haut et filteredLanguagesList en bas
-    final combinedLanguages = [
-      ..._favoriteLanguages.map((language) => {...language, 'isFavorite': true}),
-      ..._filteredLanguagesList.map((language) => {
+    // La liste _filteredLanguagesList est déjà triée avec les langues recommandées en tête
+    final combinedLanguages = _filteredLanguagesList.map((language) {
+      return {
         ...language,
-        'isFavorite': false
-      }),
-    ];
+        'isRecommended': recommendedSymbols.contains(language['Symbol']), // Utilisation de isRecommended
+      };
+    }).toList();
 
     return Dialog(
       insetPadding: const EdgeInsets.all(20),
       child: Container(
-        width: MediaQuery.of(context).size.width,  // Largeur de l'écran
+        width: MediaQuery.of(context).size.width,
         padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -166,30 +253,23 @@ class _LanguageDialogState extends State<LanguageDialog> {
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
             ),
-
             Divider(color: dividerColor),
-
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 15),
               child: Row(
                 children: [
-                  Icon(
-                    JwIcons.magnifying_glass,
-                    color: const Color(0xFF9d9d9d),
-                  ),
+                  const Icon(JwIcons.magnifying_glass, color: Color(0xFF9d9d9d)),
                   const SizedBox(width: 20),
                   Expanded(
                     child: TextField(
                       controller: _searchController,
-                      autocorrect: false, // Désactive la correction automatique
-                      enableSuggestions: false, // Désactive les suggestions
-                      keyboardType: TextInputType.text, // Permet la saisie de texte
+                      autocorrect: false,
+                      enableSuggestions: false,
+                      keyboardType: TextInputType.text,
                       decoration: InputDecoration(
-                        hintText: 'Rechercher une langue (${_filteredLanguagesList.length})',
-                        hintStyle: TextStyle(
-                          fontSize: 18,
-                          color: hintColor,
-                        ),
+                        hintText:
+                        'Rechercher une langue (${_filteredLanguagesList.length})',
+                        hintStyle: TextStyle(fontSize: 18, color: hintColor),
                       ),
                     ),
                   ),
@@ -197,26 +277,31 @@ class _LanguageDialogState extends State<LanguageDialog> {
               ),
             ),
             const SizedBox(height: 10),
-
             Expanded(
               child: ListView.separated(
                 itemCount: combinedLanguages.length,
-                separatorBuilder: (context, index) => Divider(color: dividerColor),
+                separatorBuilder: (context, index) => Divider(color: dividerColor, height: 0),
                 itemBuilder: (BuildContext context, int index) {
                   final languageData = combinedLanguages[index];
+                  final lank = languageData['Symbol'];
                   final vernacularName = languageData['VernacularName'];
                   final translatedName = languageData['Name'] ?? '';
-                  final title = languageData['Title'] ?? ''; // Affichage du titre si disponible
-                  final isFavorite = languageData['isFavorite'] as bool;
+                  final title = languageData['Title'] ?? '';
+                  final isRecommended = languageData['isRecommended'] as bool;
+
+                  // Logique pour afficher les en-têtes de section
+                  bool showRecommendedHeader = isRecommended && (index == 0 || !combinedLanguages[index - 1]['isRecommended']);
+
+                  bool showOtherLanguagesHeader = !isRecommended && (index == 0 || combinedLanguages[index - 1]['isRecommended'] as bool);
 
                   return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      if (isFavorite && index == 0)
+                      if (showRecommendedHeader)
                         Padding(
-                          padding: EdgeInsets.only(left: 20, bottom: 8),
+                          padding: const EdgeInsets.only(left: 20, bottom: 8, top: 10),
                           child: Text(
-                            'Favoris',
+                            'Recommandé', // Nouveau titre
                             style: TextStyle(
                               fontSize: 16,
                               color: Theme.of(context).secondaryHeaderColor,
@@ -224,9 +309,10 @@ class _LanguageDialogState extends State<LanguageDialog> {
                             ),
                           ),
                         ),
-                      if (!isFavorite && index == _favoriteLanguages.length)
+                      if (showOtherLanguagesHeader)
                         Padding(
-                          padding: EdgeInsets.only(left: 20, bottom: 8, top: 10),
+                          padding: const EdgeInsets.only(
+                              left: 20, bottom: 8, top: 10),
                           child: Text(
                             'Autres langues',
                             style: TextStyle(
@@ -237,74 +323,72 @@ class _LanguageDialogState extends State<LanguageDialog> {
                           ),
                         ),
                       InkWell(
-                          onTap: () {
-                            setState(() {
-                              selectedLanguage = languageData['Symbol'];
-                              Navigator.of(context).pop(languageData);
-                            });
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.only(left: 10, right: 5),
-                            child: Row(
-                              children: [
-                                Radio(
-                                  value: languageData['Symbol'],
-                                  activeColor: Theme.of(context).primaryColor,
-                                  groupValue: selectedLanguage,
-                                  onChanged: (value) {
-                                    setState(() {
-                                      selectedLanguage = languageData['Symbol'];
-                                    });
-                                  },
-                                ),
-                                SizedBox(width: 10),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(translatedName, style: const TextStyle(fontSize: 17)),
-                                      title != ''
-                                          ? Text(
-                                        title,
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          color: subtitleColor,
-                                        ),
-                                      ) : Text(
-                                        vernacularName,
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          color: subtitleColor,
-                                        ),
+                        onTap: () {
+                          setState(() {
+                            selectedLanguage = languageData['Symbol'];
+                            Navigator.of(context).pop(languageData);
+                          });
+                        },
+                        child: Container(
+                          padding:
+                          const EdgeInsets.only(left: 10, right: 5, top: 5, bottom: 5),
+                          child: Row(
+                            children: [
+                              Radio(
+                                value: languageData['Symbol'],
+                                activeColor:
+                                Theme.of(context).primaryColor,
+                                groupValue: selectedLanguage,
+                                onChanged: (value) {
+                                  setState(() {
+                                    selectedLanguage = languageData['Symbol'];
+                                    Navigator.of(context).pop(languageData); // Fermer le dialogue au changement
+                                  });
+                                },
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment:
+                                  CrossAxisAlignment.start,
+                                  children: [
+                                    Text(translatedName, style: const TextStyle(fontSize: 16)),
+                                    Text(
+                                      title.isNotEmpty
+                                          ? title
+                                          : vernacularName,
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: subtitleColor,
                                       ),
-                                    ],
-                                  ),
-                                )
-                              ],
-                            ),
-                          )
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
-                    ]
+                    ],
                   );
                 },
-              )
+              ),
             ),
-
             Divider(color: dividerColor),
-
             Align(
               alignment: Alignment.centerRight,
               child: TextButton(
                 child: Text(
                   'TERMINER',
                   style: TextStyle(
-                      fontFamily: 'Roboto',
-                      letterSpacing: 1,
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(context).primaryColor),
+                    fontFamily: 'Roboto',
+                    letterSpacing: 1,
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).primaryColor,
+                  ),
                 ),
                 onPressed: () {
-                  Navigator.pop(context, null); // Retourne null si l'utilisateur ferme la boîte de dialogue
+                  Navigator.pop(context, null);
                 },
               ),
             ),

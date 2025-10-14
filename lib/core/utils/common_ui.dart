@@ -52,28 +52,25 @@ Future<void> showPageDailyText(Publication publication, {DateTime? date}) async 
 Future<void> showPage(Widget page) async {
   GlobalKeyService.jwLifePageKey.currentState!.addPageToTab(page);
 
-  final isFullscreenPage = page is VideoPlayerPage ||
+  final isWebViewFullscreenPage = page is DocumentPage || page is DailyTextPage;
+
+  final isTransparentFullscreenPage = page is VideoPlayerPage ||
       page is FullScreenImagePage ||
       page is ImagePage ||
-      page is DocumentPage ||
-      page is DailyTextPage ||
       page is FullAudioView;
 
-  GlobalKeyService.jwLifePageKey.currentState!.toggleNavBarDisable(isFullscreenPage);
+  GlobalKeyService.jwLifePageKey.currentState!.toggleNavBarDisable(isWebViewFullscreenPage);
+  GlobalKeyService.jwLifePageKey.currentState!.toggleNavBarTransparent(isTransparentFullscreenPage);
 
   final isResizeToAvoidBottomInset = page is NotePage;
 
   GlobalKeyService.jwLifePageKey.currentState!.toggleResizeToAvoidBottomInset(isResizeToAvoidBottomInset);
 
+  final isControlsVisible = GlobalKeyService.jwLifePageKey.currentState!.controlsVisible.value;
+
+  GlobalKeyService.jwLifePageKey.currentState!.toggleBottomNavBarVisibility(true);
+
   await GlobalKeyService.jwLifePageKey.currentState!.getCurrentState().push(
-      isFullscreenPage ? PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) => page,
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          return child;
-        },
-        transitionDuration: const Duration(milliseconds: 0),
-        reverseTransitionDuration: const Duration(milliseconds: 0),
-      ) :
       PageRouteBuilder(
         pageBuilder: (context, animation, secondaryAnimation) => page,
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
@@ -95,6 +92,8 @@ Future<void> showPage(Widget page) async {
       )
   );
 
+  GlobalKeyService.jwLifePageKey.currentState!.toggleBottomNavBarVisibility(isControlsVisible);
+
   print('showPage: ${page.runtimeType}');
 
   GlobalKeyService.jwLifePageKey.currentState!.removePageFromTab();
@@ -106,8 +105,7 @@ void showBottomMessageWithAction(String message, SnackBarAction? action) {
 
   final isDark = Theme.of(context).brightness == Brightness.dark;
   final isAudioPlayerVisible = pageState.audioWidgetVisible;
-  final isNavBarDisabled = pageState.navBarIsDisable[pageState.currentNavigationBottomBarIndex];
-  final bottomPadding = isNavBarDisabled ? (isAudioPlayerVisible ? 130.0 : 55.0) : (isAudioPlayerVisible ? 80.0 : 0.0);
+  final bottomPadding = isAudioPlayerVisible ? 130.0 : 55.0;
 
   final messenger = ScaffoldMessenger.of(context);
 

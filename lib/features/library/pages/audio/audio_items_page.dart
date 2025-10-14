@@ -9,11 +9,11 @@ import 'package:jwlife/core/utils/utils_audio.dart';
 import 'package:jwlife/data/models/audio.dart';
 import 'package:jwlife/data/realm/catalog.dart';
 import 'package:jwlife/data/realm/realm_library.dart';
-import 'package:jwlife/widgets/dialog/language_dialog.dart';
 import 'package:jwlife/widgets/image_cached_widget.dart';
 import 'package:realm/realm.dart';
 
 import '../../../../core/api/api.dart';
+import '../../../../core/utils/utils_language_dialog.dart';
 import '../../../../widgets/searchfield/searchfield_widget.dart';
 
 class AudioItemsPage extends StatefulWidget {
@@ -228,13 +228,9 @@ class _AudioItemsPageState extends State<AudioItemsPage> {
           IconButton(
             icon: const Icon(JwIcons.language),
             onPressed: () async {
-              LanguageDialog languageDialog = LanguageDialog(selectedLanguageSymbol: _selectedLanguageSymbol);
-              showDialog(
-                context: context,
-                builder: (context) => languageDialog,
-              ).then((value) async {
-                if (value != null) {
-                  _selectedLanguageSymbol = value['Symbol'] as String;
+              showLanguageDialog(context).then((language) async {
+                if (language != null) {
+                  _selectedLanguageSymbol = language['Symbol'] as String;
                   loadItems(symbol: _selectedLanguageSymbol);
 
                   if(await Api.isLibraryUpdateAvailable(symbol: _selectedLanguageSymbol)) {

@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:jwlife/app/services/global_key_service.dart';
-import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/features/home/pages/daily_text_page.dart';
 import 'package:jwlife/features/home/pages/home_page.dart';
 import 'package:jwlife/features/personal/pages/note_page.dart';
 import 'package:jwlife/features/publication/pages/document/local/document_page.dart';
 import 'package:jwlife/features/publication/pages/document/local/full_screen_image_page.dart';
 import 'package:jwlife/features/video/video_player_page.dart';
-import 'package:jwlife/widgets/dialog/utils_dialog.dart';
+import 'package:jwlife/core/utils/utils_dialog.dart';
 import '../data/databases/history.dart';
 import '../features/bible/pages/bible_page.dart';
 import '../features/image/image_page.dart';
@@ -34,6 +33,7 @@ class JwLifePage extends StatefulWidget {
 
 class JwLifePageState extends State<JwLifePage> {
   final List<bool> navBarIsDisable = [false, false, false, false, false, false, false];
+  final List<bool> navBarIsTransparent = [false, false, false, false, false, false, false];
   final List<bool> resizeToAvoidBottomInset = [false, false, false, false, false, false, false];
 
   bool audioWidgetVisible = false;
@@ -46,6 +46,8 @@ class JwLifePageState extends State<JwLifePage> {
   List<List<GlobalKey<State<StatefulWidget>>>> webViewPageKeys = List.generate(7, (_) => []);
 
   final Map<int, List<Widget>> pagesByNavigator = {};
+
+  final ValueNotifier<bool> controlsVisible = ValueNotifier<bool>(true);
 
   @override
   void initState() {
@@ -62,7 +64,18 @@ class JwLifePageState extends State<JwLifePage> {
     ];
   }
 
+  @override
+  void dispose() {
+    controlsVisible.dispose();
+    super.dispose();
+  }
+
+  void toggleBottomNavBarVisibility(bool isVisible) {
+    controlsVisible.value = isVisible;
+  }
+
   void toggleNavBarVisibility(bool isVisible) {
+    toggleBottomNavBarVisibility(isVisible);
     _updateSystemUiMode(isVisible);
   }
 
@@ -70,6 +83,14 @@ class JwLifePageState extends State<JwLifePage> {
     if (navBarIsDisable[currentNavigationBottomBarIndex] != isDisable) {
       setState(() {
         navBarIsDisable[currentNavigationBottomBarIndex] = isDisable;
+      });
+    }
+  }
+
+  void toggleNavBarTransparent(bool isDisable) {
+    if (navBarIsTransparent[currentNavigationBottomBarIndex] != isDisable) {
+      setState(() {
+        navBarIsTransparent[currentNavigationBottomBarIndex] = isDisable;
       });
     }
   }
@@ -116,13 +137,11 @@ class JwLifePageState extends State<JwLifePage> {
     }
   }
 
-  // Code optimisé
   Future<void> handleBack<T>(BuildContext context, {T? result}) async {
     final currentNavigator = navigatorKeys[currentNavigationBottomBarIndex].currentState!;
     final currentPages = pagesByNavigator[currentNavigationBottomBarIndex];
     final currentWebKeys = webViewPageKeys[currentNavigationBottomBarIndex];
 
-    // Cas 1: Le menu contextuel est ouvert
     if (_popMenuOpen) {
       togglePopMenuOpen(false);
       if (currentNavigator.canPop()) {
@@ -131,22 +150,20 @@ class JwLifePageState extends State<JwLifePage> {
       return;
     }
 
-    // Cas 2: Gestion des pages web spécifiques
     if (currentPages != null && currentPages.isNotEmpty) {
       final lastPage = currentPages.last;
       if (currentWebKeys.isNotEmpty && (lastPage is DocumentPage || lastPage is DailyTextPage)) {
         final webViewPageState = currentWebKeys.last.currentState;
 
-        // Un seul bloc pour gérer les deux types de pages WebView
         if (webViewPageState is DocumentPageState) {
           if (!await webViewPageState.handleBackPress(fromPopScope: true)) {
-            return; // La WebView a géré le retour, on s'arrête là
+            return;
           }
           currentWebKeys.removeLast();
         }
         else if (webViewPageState is DailyTextPageState) {
           if (!await webViewPageState.handleBackPress(fromPopScope: true)) {
-            return; // La WebView a géré le retour, on s'arrête là
+            return;
           }
           currentWebKeys.removeLast();
         }
@@ -155,40 +172,33 @@ class JwLifePageState extends State<JwLifePage> {
 
     final canPop = currentNavigator.canPop();
 
-    // Cas 3: La navigation est possible dans l'onglet
     if (canPop) {
       final pageBeforePop = currentPages != null && currentPages.length >= 2 ? currentPages[currentPages.length - 2] : null;
 
-      // Fermeture de la page actuelle
       result == null ? currentNavigator.pop() : currentNavigator.pop(result);
 
-      // Mise à jour de l'UI basée sur la page précédente
       _updateUiBasedOnPreviousPage(pageBeforePop);
       _updateSystemUiMode(true);
     }
-    // Cas 4: On est sur la page racine d'un onglet, on change d'onglet
     else if (currentNavigationBottomBarIndex != 0) {
       changeNavBarIndex(0);
     }
-    // Cas 5: On est sur la page racine de l'onglet principal, on propose de quitter
     else {
       _showExitConfirmationDialog(context);
     }
   }
 
   void _updateUiBasedOnPreviousPage(Widget? pageBeforePop) {
-    // Gestion de la barre de navigation
-    final shouldDisableNavBar = pageBeforePop is DocumentPage ||
-        pageBeforePop is DailyTextPage ||
-        pageBeforePop is FullScreenImagePage ||
-        pageBeforePop is ImagePage ||
-        pageBeforePop is VideoPlayerPage;
+    final shouldDisableNavBar = pageBeforePop is DocumentPage || pageBeforePop is DailyTextPage;
+
+    final shouldDisableTransparentNavBar = pageBeforePop is FullScreenImagePage
+        || pageBeforePop is ImagePage || pageBeforePop is VideoPlayerPage;
 
     setState(() {
       navBarIsDisable[currentNavigationBottomBarIndex] = shouldDisableNavBar;
+      navBarIsTransparent[currentNavigationBottomBarIndex] = shouldDisableTransparentNavBar;
     });
 
-    // Gestion du clavier si on revient à une NotePage
     final currentPages = pagesByNavigator[currentNavigationBottomBarIndex];
     if (currentPages != null && currentPages.isNotEmpty && currentPages.last is NotePage) {
       setState(() {
@@ -220,13 +230,17 @@ class JwLifePageState extends State<JwLifePage> {
     webViewPageKeys[index].clear();
     setState(() {
       navBarIsDisable[index] = false;
+      navBarIsTransparent[index] = false;
     });
 
     if(index == 1) {
-      GlobalKeyService.bibleKey.currentState!.goToTheBooksTab();
+      GlobalKeyService.bibleKey.currentState?.goToTheBooksTab();
     }
     else if(index == 2) {
-      GlobalKeyService.libraryKey.currentState!.goToThePubsTab();
+      GlobalKeyService.libraryKey.currentState?.goToThePubsTab();
+    }
+    else if(index == 3) {
+      GlobalKeyService.meetingsKey.currentState?.goToTheMeetingsPage();
     }
   }
 
@@ -239,7 +253,6 @@ class JwLifePageState extends State<JwLifePage> {
       setState(() {
         currentNavigationBottomBarIndex = index;
       });
-
 
       for (var key in GlobalKeyService.jwLifePageKey.currentState!.webViewPageKeys[index]) {
         final state = key.currentState;
@@ -255,15 +268,11 @@ class JwLifePageState extends State<JwLifePage> {
   }
 
   void addPageToTab(Widget page) {
-    // Initialise la liste pour l'onglet s'il n'existe pas encore
     pagesByNavigator.putIfAbsent(currentNavigationBottomBarIndex, () => []);
-
-    // Ajoute la page à la liste des pages ouvertes de cet onglet
     pagesByNavigator[currentNavigationBottomBarIndex]!.add(page);
   }
 
   void removePageFromTab() {
-    // Supprime la page de la liste des pages ouvertes de cet onglet
     if (pagesByNavigator[currentNavigationBottomBarIndex]!.isNotEmpty) {
       pagesByNavigator[currentNavigationBottomBarIndex]!.removeLast();
     }
@@ -273,38 +282,38 @@ class JwLifePageState extends State<JwLifePage> {
     return navigatorKeys[currentNavigationBottomBarIndex].currentState!;
   }
 
-  Widget getBottomNavigationBar({bool isBlack = false}) {
+  Widget _buildBottomNavigationBar({bool isTransparent = false}) {
     return CustomBottomNavigation(
-      currentIndex: currentNavigationBottomBarIndex,
-      selectedFontSize: 8.5,
-      unselectedFontSize: 8.0,
-      selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold),
-      backgroundColor: isBlack ? Colors.transparent : Theme.of(context).bottomNavigationBarTheme.backgroundColor,
-      selectedIconTheme: IconThemeData(color: Theme.of(context).bottomNavigationBarTheme.selectedItemColor),
-      selectedItemColor: Theme.of(context).bottomNavigationBarTheme.selectedItemColor,
-      unselectedItemColor: isBlack ? Colors.white : Theme.of(context).bottomNavigationBarTheme.unselectedItemColor,
-      items: [
-        CustomBottomNavigationItem(label: localization(context).navigation_home, icon: const Icon(JwIcons.home)),
-        CustomBottomNavigationItem(label: localization(context).navigation_bible, icon: const Icon(JwIcons.bible)),
-        CustomBottomNavigationItem(label: localization(context).navigation_library, icon: const Icon(JwIcons.publication_video_music)),
-        CustomBottomNavigationItem(label: localization(context).navigation_meetings, icon: const Icon(JwIcons.speaker_audience)),
-        CustomBottomNavigationItem(label: localization(context).navigation_predication, icon: const Icon(JwIcons.persons_doorstep)),
-        CustomBottomNavigationItem(label: localization(context).navigation_congregations, icon: const Icon(JwIcons.kingdom_hall)),
-        CustomBottomNavigationItem(label: localization(context).navigation_personal, icon: const Icon(JwIcons.person_studying)),
-      ],
-      onTap: (index) {
-        changeNavBarIndex(index);
-      },
-      onLongPress: (index) {
-        if (index != currentNavigationBottomBarIndex) {
-          GlobalKeyService.setCurrentPage(navigatorKeys[index]);
-          setState(() {
-            currentNavigationBottomBarIndex = index;
-          });
+        currentIndex: currentNavigationBottomBarIndex,
+        selectedFontSize: 8.5,
+        unselectedFontSize: 8.0,
+        selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold),
+        backgroundColor: isTransparent ? Colors.transparent : Theme.of(context).bottomNavigationBarTheme.backgroundColor,
+        selectedIconTheme: IconThemeData(color: Theme.of(context).bottomNavigationBarTheme.selectedItemColor),
+        selectedItemColor: Theme.of(context).bottomNavigationBarTheme.selectedItemColor,
+        unselectedItemColor: isTransparent ? Colors.white : Theme.of(context).bottomNavigationBarTheme.unselectedItemColor,
+        items: [
+          CustomBottomNavigationItem(label: localization(context).navigation_home, icon: const Icon(JwIcons.home)),
+          CustomBottomNavigationItem(label: localization(context).navigation_bible, icon: const Icon(JwIcons.bible)),
+          CustomBottomNavigationItem(label: localization(context).navigation_library, icon: const Icon(JwIcons.publication_video_music)),
+          CustomBottomNavigationItem(label: localization(context).navigation_meetings, icon: const Icon(JwIcons.speaker_audience)),
+          CustomBottomNavigationItem(label: localization(context).navigation_predication, icon: const Icon(JwIcons.persons_doorstep)),
+          CustomBottomNavigationItem(label: localization(context).navigation_congregations, icon: const Icon(JwIcons.kingdom_hall)),
+          CustomBottomNavigationItem(label: localization(context).navigation_personal, icon: const Icon(JwIcons.person_studying)),
+        ],
+        onTap: (index) {
+          changeNavBarIndex(index);
+        },
+        onLongPress: (index) {
+          if (index != currentNavigationBottomBarIndex) {
+            GlobalKeyService.setCurrentPage(navigatorKeys[index]);
+            setState(() {
+              currentNavigationBottomBarIndex = index;
+            });
+          }
+          BuildContext context = navigatorKeys[index].currentContext!;
+          History.showHistoryDialog(context, bottomBarIndex: index);
         }
-        BuildContext context = navigatorKeys[index].currentContext!;
-        History.showHistoryDialog(context, bottomBarIndex: index);
-      }
     );
   }
 
@@ -314,40 +323,66 @@ class JwLifePageState extends State<JwLifePage> {
 
   @override
   Widget build(BuildContext context) {
-    final Widget bottomNavigationBar = getBottomNavigationBar();
-
     final Widget content = PopScope(
-      canPop: false,
-      onPopInvokedWithResult: (didPop, result) async {
-        if (didPop) return;
-        handleBack(context);
-      },
-      child: LazyIndexedStack(
-        index: currentNavigationBottomBarIndex,
-        initialIndexes: [0, 2],
-        builders: List.generate(_pages.length, (index) {
-          return (_) => Navigator(
-            key: navigatorKeys[index],
-            onGenerateRoute: (settings) {
-              return MaterialPageRoute(
-                builder: (_) => _pages[index],
-                settings: settings,
-              );
-            },
-          );
-        }),
-      )
+        canPop: false,
+        onPopInvokedWithResult: (didPop, result) async {
+          if (didPop) return;
+          handleBack(context);
+        },
+        child: LazyIndexedStack(
+          index: currentNavigationBottomBarIndex,
+          initialIndexes: [0, 2],
+          builders: List.generate(_pages.length, (index) {
+            return (_) => Navigator(
+              key: navigatorKeys[index],
+              onGenerateRoute: (settings) {
+                return MaterialPageRoute(
+                  builder: (_) => _pages[index],
+                  settings: settings,
+                );
+              },
+            );
+          }),
+        )
     );
 
+    final bool isDisabled = navBarIsDisable[currentNavigationBottomBarIndex] || navBarIsTransparent[currentNavigationBottomBarIndex];
+    final bool isTransparent = navBarIsTransparent[currentNavigationBottomBarIndex];
+
     return Scaffold(
-      resizeToAvoidBottomInset: navBarIsDisable[currentNavigationBottomBarIndex] ? false : resizeToAvoidBottomInset[currentNavigationBottomBarIndex],
-      body: Column(
+      resizeToAvoidBottomInset: isDisabled ? false : resizeToAvoidBottomInset[currentNavigationBottomBarIndex],
+      body: isDisabled
+          ? Stack(
+        children: [
+          content,
+          ValueListenableBuilder<bool>(
+            valueListenable: controlsVisible,
+            builder: (context, isVisible, child) {
+              if (!isVisible) return const SizedBox.shrink();
+              return child!;
+            },
+            child: Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (audioWidgetVisible) getAudioWidget(),
+                  _buildBottomNavigationBar(isTransparent: isTransparent),
+                ],
+              ),
+            ),
+          ),
+        ],
+      )
+          : Column(
         children: [
           Expanded(child: content),
-          audioWidgetVisible && !navBarIsDisable[currentNavigationBottomBarIndex] ? getAudioWidget() : Container(),
+          if (audioWidgetVisible) getAudioWidget(),
+          _buildBottomNavigationBar(),
         ],
       ),
-      bottomNavigationBar: navBarIsDisable[currentNavigationBottomBarIndex] ? null : bottomNavigationBar,
     );
   }
 }

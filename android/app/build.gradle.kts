@@ -71,6 +71,7 @@ android {
 }
 
 dependencies {
+    // Desugaring pour les fonctionnalités de la librairie Java 8+ sur les anciennes versions d'Android
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
 }
 

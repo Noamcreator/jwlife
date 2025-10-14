@@ -42,19 +42,41 @@ class PublicationRepository {
 
   /// Retourne toutes les bibles
   List<Publication> getAllBibles() {
-    int id = JwLifeSettings().currentLanguage.id;
+    return _publications.values.where((p) => p.category.id == 1 && p.isDownloadedNotifier.value).toList();
+  }
 
-    return _publications.values
-        .where((p) => p.category.id == 1 && p.isDownloadedNotifier.value)
-        .toList()
-      ..sort((a, b) {
-        // Priorité à la langue courante
-        if (a.mepsLanguage.id == id && b.mepsLanguage.id != id) return -1;
-        if (a.mepsLanguage.id != id && b.mepsLanguage.id == id) return 1;
+  List<Publication> getOrderBibles() {
+    List<String> biblesSet = JwLifeSettings().webViewData.biblesSet;
 
-        // Remplacer ici par un champ existant pour trier, exemple :
-        return a.title.compareTo(b.title); // ou p.id, p.symbol, etc.
-      });
+    // On filtre d'abord pour ne garder que celles présentes dans biblesSet
+    final filteredBibles = getAllBibles().where((bible) {
+      final key = '${bible.keySymbol}_${bible.mepsLanguage.symbol}';
+      return biblesSet.contains(key);
+    }).toList();
+
+    // Puis on trie selon l’ordre défini dans biblesSet
+    filteredBibles.sort((a, b) {
+      final keyA = '${a.keySymbol}_${a.mepsLanguage.symbol}';
+      final keyB = '${b.keySymbol}_${b.mepsLanguage.symbol}';
+
+      final indexA = biblesSet.indexOf(keyA);
+      final indexB = biblesSet.indexOf(keyB);
+
+      return indexA.compareTo(indexB);
+    });
+
+    return filteredBibles;
+  }
+
+  Publication? getLookUpBible() {
+    String bibleKey = JwLifeSettings().lookupBible;
+
+    List<String> parts = bibleKey.split('_');
+    if(parts.length < 2) return null;
+    String keySymbol = parts[0];
+    String mepsLanguageSymbol = parts[1];
+
+    return getAllPublications().firstWhereOrNull((p) => p.keySymbol == keySymbol && p.mepsLanguage.symbol == mepsLanguageSymbol);
   }
 
   /// Retourne une instance unique d'une publication si elle existe, sinon l'original

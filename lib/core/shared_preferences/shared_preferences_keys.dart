@@ -21,8 +21,12 @@ class SharedPreferencesKeys {
   static const fontSize = _PrefKey('font_size', 20.0);
   static const fullscreen = _PrefKey('fullscreen', true);
 
-  // Surbrillance
-  static const lastHighlightColorIndex = _PrefKey('last_highlight_color_index', 1);
+  // Style dans le webview
+  static const styleIndex = _PrefKey('style_index', 0);
+  static const colorIndex = _PrefKey('color_index', 1);
+
+  static const lookupBible = _PrefKey('lookup_bible', '');
+  static final biblesSet = _PrefKey('bibles_set', []);
 
   // Notifications
   static const dailyTextNotification = _PrefKey('daily_text_notification', false);

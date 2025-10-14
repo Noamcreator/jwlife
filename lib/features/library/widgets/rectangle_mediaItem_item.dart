@@ -57,7 +57,7 @@ class RectangleMediaItemItem extends StatelessWidget {
                           ),
                           const Spacer(),
                           Text(
-                            '${formatDateTime(m.lastModified!).year} - ${m.keySymbol}',
+                            '${formatDateTime(m.lastModified ?? m.firstPublished!).year} - ${m.keySymbol}',
                             style: TextStyle(
                               fontSize: 11,
                               color: Theme.of(context).brightness == Brightness.dark

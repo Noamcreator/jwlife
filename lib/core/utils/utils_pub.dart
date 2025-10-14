@@ -5,12 +5,12 @@ import 'package:html/parser.dart' as htmlParser;
 import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/utils.dart';
+import 'package:jwlife/core/utils/utils_language_dialog.dart';
 import 'package:jwlife/core/utils/widgets_utils.dart';
 import 'package:jwlife/data/models/publication.dart';
-import 'package:jwlife/widgets/dialog/language_dialog_pub.dart';
 
 import '../../app/services/global_key_service.dart';
-import '../../widgets/dialog/utils_dialog.dart';
+import 'utils_dialog.dart';
 import '../api/api.dart';
 
 PopupMenuItem getPubShareMenuItem(Publication publication) {
@@ -38,16 +38,11 @@ PopupMenuItem getPubLanguagesItem(BuildContext context, String title, Publicatio
       ],
     ),
     onTap: () {
-      LanguagesPubDialog languageDialog = LanguagesPubDialog(publication: publication);
-      showDialog<Publication?>(
-        context: context,
-        builder: (context) => languageDialog,
-      ).then((languagePub) {
-          if (languagePub != null) {
-            languagePub.showMenu(context);
-          }
+      showLanguagePubDialog(context, publication).then((languagePub) async {
+        if(languagePub != null) {
+          languagePub.showMenu(context);
         }
-      );
+      });
     },
   );
 }

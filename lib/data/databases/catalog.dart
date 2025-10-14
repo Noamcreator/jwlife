@@ -625,16 +625,21 @@ class PubCatalog {
   /// Rechercher les publications des assemblées régionales
   static Future<List<Publication>> fetchPubsFromConventionsDays() async {
     final catalogFile = await getCatalogDatabaseFile();
+    final mepsFile = await getMepsUnitDatabaseFile();
 
-    if (allFilesExist([catalogFile])) {
+    if (allFilesExist([catalogFile, mepsFile])) {
       final catalog = await openReadOnlyDatabase(catalogFile.path);
+
+      await attachDatabases(catalog, {'meps': mepsFile.path});
 
       try {
         final publications = await catalog.rawQuery('''
           SELECT
-             $publicationSelectQuery
-          FROM PublicationAsset p
+          $publicationSelectQuery,
+          pa.ConventionReleaseDayNumber
+          FROM PublicationAsset pa
           INNER JOIN Publication p ON pa.PublicationId = p.Id
+          INNER JOIN meps.Language ON pa.MepsLanguageId = meps.Language.LanguageId
           LEFT JOIN PublicationAttributeMap pam ON p.Id = pam.PublicationId
           WHERE pa.MepsLanguageId = ? AND pa.ConventionReleaseDayNumber IS NOT NULL;
         ''', [JwLifeSettings().currentLanguage.id]);
@@ -642,6 +647,7 @@ class PubCatalog {
         return publications.map((pub) => Publication.fromJson(pub)).toList();
       }
       finally {
+        await detachDatabases(catalog, ['meps']);
         await catalog.close();
       }
     }

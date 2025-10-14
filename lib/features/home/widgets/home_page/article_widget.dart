@@ -185,7 +185,7 @@ class ArticleWidgetState extends State<ArticleWidget> {
         fontWeight: fontWeight,
         color: isDark ? Colors.white : Colors.black,
       ),
-      maxLines: fontSize > 20 ? 2 : 1,
+      maxLines: fontSize > 20 ? 4 : 1,
       overflow: TextOverflow.ellipsis,
     );
   }

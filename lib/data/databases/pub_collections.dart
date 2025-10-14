@@ -381,7 +381,7 @@ class PubCollections {
   }
 
   Future<Publication?> getDocumentFromMepsDocumentId(int mepsDocId, int currentLanguageId) async {
-    //await open();
+    await open();
 
     List<Map<String, dynamic>> result = await _database.rawQuery('''
       SELECT 
