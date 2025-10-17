@@ -21,7 +21,7 @@ class HomeRectanglePublicationItem extends StatelessWidget {
           ? const Color(0xFF292929)
           : Colors.white,
       child: InkWell(
-        onTap: () => publication.showMenu(context),
+        onTap: () => publication.showMenu(context, showDownloadDialog: false),
         child: SizedBox(
           height: 80,
           width: 320,
@@ -32,7 +32,7 @@ class HomeRectanglePublicationItem extends StatelessWidget {
                   ClipRRect(
                     child: ImageCachedWidget(
                       imageUrl: publication.imageSqr,
-                      pathNoImage: publication.category.image,
+                      icon: publication.category.icon,
                       height: 80,
                       width: 80,
                     ),

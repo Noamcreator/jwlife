@@ -204,7 +204,7 @@ class _DownloadPageState extends State<DownloadPage> {
                         borderRadius: BorderRadius.circular(0),
                         child: ImageCachedWidget(
                           imageUrl: publication.imageSqr,
-                          pathNoImage: publication.category.image,
+                          icon: publication.category.icon,
                           height: 85,
                           width: 85,
                         ),
@@ -245,7 +245,7 @@ class _DownloadPageState extends State<DownloadPage> {
                                 ),
                               const Spacer(),
                               Text(
-                                '${publication.year} · ${publication.symbol}',
+                                '${publication.year} · ${publication.keySymbol}',
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: Theme.of(context).brightness == Brightness.dark
@@ -306,7 +306,7 @@ class _DownloadPageState extends State<DownloadPage> {
                       borderRadius: BorderRadius.circular(0),
                       child: ImageCachedWidget(
                         imageUrl: media.networkImageSqr,
-                        pathNoImage: media is Audio ? "pub_type_audio" : "pub_type_video",
+                        icon: media is Audio ? JwIcons.headphones__simple : JwIcons.video,
                         height: 80,
                         width: 80,
                       ),
@@ -400,7 +400,7 @@ class _DownloadPageState extends State<DownloadPage> {
               showJwpubError(context);
             }
             else {
-              if (jwpub.symbol == 'S-34') {
+              if (jwpub.keySymbol == 'S-34') {
                 GlobalKeyService.meetingsKey.currentState?.refreshMeetingsPubs();
               }
 

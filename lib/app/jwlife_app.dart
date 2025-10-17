@@ -302,7 +302,7 @@ class JwLifeAppState extends State<JwLifeApp> {
         List<Publication> dayPubs = await PubCatalog.getPublicationsForTheDay(date: date);
 
         // Si Publication a un champ 'id' ou 'symbol' à tester
-        Publication? dailyTextPub = dayPubs.firstWhereOrNull((p) => p.symbol.contains('es')); // ou p.symbol, p.title, etc.
+        Publication? dailyTextPub = dayPubs.firstWhereOrNull((p) => p.keySymbol.contains('es')); // ou p.symbol, p.title, etc.
 
         if (dailyTextPub == null) return;
 

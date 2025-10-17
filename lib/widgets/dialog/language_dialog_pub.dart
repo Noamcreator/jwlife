@@ -4,16 +4,13 @@ import 'dart:io';
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:jwlife/core/icons.dart';
-import 'package:jwlife/core/shared_preferences/shared_preferences_utils.dart';
 import 'package:jwlife/core/utils/files_helper.dart';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/repositories/PublicationRepository.dart';
 import 'package:jwlife/data/databases/catalog.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:sqflite/sqflite.dart';
 
 import '../../app/services/settings_service.dart';
-import '../../core/jworg_uri.dart';
 import '../../core/utils/utils.dart';
 import '../../data/databases/history.dart';
 

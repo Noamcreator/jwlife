@@ -76,7 +76,7 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
           _currentTitle = tag.title;
           _currentImageWidget = ImageCachedWidget(
             imageUrl: tag.artUri!.toString(),
-            pathNoImage: 'pub_type_audio',
+            icon: JwIcons.headphones__simple,
             width: 50,
             height: 50,
           );
@@ -217,7 +217,7 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
                   child: _currentImageWidget ??
                       ImageCachedWidget(
                           imageUrl: "",
-                          pathNoImage: "pub_type_audio",
+                          icon: JwIcons.headphones__simple,
                           height: 50,
                           width: 50
                       )
@@ -707,7 +707,7 @@ class _FullAudioViewState extends State<FullAudioView> {
               _currentAlbum = tag.album ?? "";
               _currentImageWidget = ImageCachedWidget(
                 imageUrl: tag.artUri!.toString(),
-                pathNoImage: 'pub_type_audio',
+                icon: JwIcons.headphones__simple,
                 width: 60,
                 height: 60,
               );
@@ -760,8 +760,7 @@ class _FullAudioViewState extends State<FullAudioView> {
         palette = await getDominantColorFromFile(file);
       }
       else {
-        final file = File.fromUri(Uri.parse(_currentImageWidget!.pathNoImage));
-        palette = await getDominantColorFromFile(file);
+        palette = const Color(0xFF8e8e8e);
       }
 
       setState(() {
@@ -819,7 +818,7 @@ class _FullAudioViewState extends State<FullAudioView> {
                           child: _currentImageWidget != null
                               ? ImageCachedWidget(
                             imageUrl: _currentImageWidget!.imageUrl!,
-                            pathNoImage: _currentImageWidget!.pathNoImage,
+                            icon: JwIcons.headphones__simple,
                             width: 380,
                             height: 380,
                           )

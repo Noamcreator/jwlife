@@ -79,7 +79,7 @@ class Multimedia {
       creditLineContent: map['CreditLineContent'],
       categoryType: map['CategoryType'] ?? 0,
       filePath: map['FilePath'] ?? '',
-      keySymbol: map['KeySymbol'].toString().toLowerCase(),
+      keySymbol: map['KeySymbol']?.toString().toLowerCase(),
       track: map['Track'],
       mepsDocumentId: map['MepsDocumentId'],
       mepsLanguageId: map['MepsLanguageIndex'],

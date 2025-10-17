@@ -164,7 +164,7 @@ class Userdata {
           // TODO: Implémenter le chargement des documents en favoris
         }
         else if (type == 1) {
-          final match = allPublications.firstWhereOrNull((p) => p.symbol == row['KeySymbol'] && p.issueTagNumber == row['IssueTagNumber'] && p.mepsLanguage.id == row['MepsLanguage']);
+          final match = allPublications.firstWhereOrNull((p) => p.keySymbol == row['KeySymbol'] && p.issueTagNumber == row['IssueTagNumber'] && p.mepsLanguage.id == row['MepsLanguage']);
 
           if (match != null) {
             match.isFavoriteNotifier.value = true;
@@ -332,11 +332,11 @@ class Userdata {
     try {
       int? locationId;
       if (object is Publication) {
-        locationId = await insertLocation(null, null, null, null, object.issueTagNumber, object.symbol, object.mepsLanguage.id, type: 1);
+        locationId = await insertLocation(null, null, null, null, object.issueTagNumber, object.keySymbol, object.mepsLanguage.id, type: 1);
       }
       else if (object is Document) {
         bool isBibleChapter = object.isBibleChapter();
-        locationId = await insertLocation(object.bookNumber, object.chapterNumber, isBibleChapter ? null : object.mepsDocumentId, null, object.publication.issueTagNumber, object.publication.symbol, object.publication.mepsLanguage.id, type: 0);
+        locationId = await insertLocation(object.bookNumber, object.chapterNumber, isBibleChapter ? null : object.mepsDocumentId, null, object.publication.issueTagNumber, object.publication.keySymbol, object.publication.mepsLanguage.id, type: 0);
       }
       else if (object is Audio) {
         locationId = await insertLocation(null, null, null, object.track, object.issueTagNumber, object.keySymbol, 3, type: 2);
@@ -394,7 +394,7 @@ class Userdata {
         // Pour Publication
         locationId = await _getLocationId(
           issueTagNumber: object.issueTagNumber,
-          keySymbol: object.symbol,
+          keySymbol: object.keySymbol,
           mepsLanguageId: object.mepsLanguage.id,
           type: 1,
         );
@@ -406,7 +406,7 @@ class Userdata {
           chapterNumber: isBibleChapter ? object.chapterNumber : null,
           mepsDocumentId: isBibleChapter ? null : object.mepsDocumentId,
           issueTagNumber: object.publication.issueTagNumber,
-          keySymbol: object.publication.symbol,
+          keySymbol: object.publication.keySymbol,
           mepsLanguageId: object.publication.mepsLanguage.id,
           type: 0,
         );
@@ -497,7 +497,7 @@ class Userdata {
         FROM Tag
         JOIN Location ON Location.IssueTagNumber = ? AND Location.KeySymbol = ? AND Location.MepsLanguage = ? AND Location.Type = ?
         WHERE Tag.Type = 0
-        ''', [i, item.issueTagNumber, item.symbol, item.mepsLanguage.id, 1]);
+        ''', [i, item.issueTagNumber, item.keySymbol, item.mepsLanguage.id, 1]);
       }
       else if (item is Document) {
         bool isBibleChapter = item.isBibleChapter();
@@ -507,7 +507,7 @@ class Userdata {
           FROM Tag
           JOIN Location ON Location.BookNumber = ? AND Location.ChapterNumber = ? AND Location.DocumentId = ? AND Location.IssueTagNumber = ? AND Location.KeySymbol = ? AND Location.MepsLanguage = ? AND Location.Type = ?
           WHERE Tag.Type = 0
-        ''', [i, item.bookNumber, item.chapterNumber, isBibleChapter ? null : item.mepsDocumentId, item.publication.issueTagNumber, item.publication.symbol, item.publication.mepsLanguage.id, 0]);
+        ''', [i, item.bookNumber, item.chapterNumber, isBibleChapter ? null : item.mepsDocumentId, item.publication.issueTagNumber, item.publication.keySymbol, item.publication.mepsLanguage.id, 0]);
       }
       else if (item is Audio) {
         batch.rawInsert('''
@@ -709,7 +709,51 @@ class Userdata {
     if (bookNumber == null && chapterNumber == null && mepsDocumentId == null && track == null && issueTagNumber == null && keySymbol == null && mepsLanguageId == null) return null;
 
     try {
-      Map<String, dynamic> whereClause = {};
+      Map<String, dynamic> insertValues = {}; // Utiliser ce Map pour l'INSERT
+
+      // 1. Définir les valeurs pour l'INSERT
+      if (bookNumber != null && chapterNumber != null) {
+        insertValues.addAll({
+          'BookNumber': bookNumber,
+          'ChapterNumber': chapterNumber,
+        });
+      } else {
+        if (mepsDocumentId != null) insertValues['DocumentId'] = mepsDocumentId;
+        if (track != null) insertValues['track'] = track;
+      }
+
+      if (issueTagNumber != null) insertValues['IssueTagNumber'] = issueTagNumber;
+      if (keySymbol != null) insertValues['KeySymbol'] = keySymbol;
+      // Laisser mepsLanguageId dans insertValues s'il est non-null, sinon il sera null (par défaut)
+      if (mepsLanguageId != null) insertValues['MepsLanguage'] = mepsLanguageId;
+
+      insertValues['Type'] = type;
+
+      // 2. Construire la clause WHERE pour la recherche (SELECT)
+      // Elle doit être basée sur les mêmes valeurs, mais gérée différemment pour NULL
+
+      final List<String> whereClauses = [];
+      final List<dynamic> whereArgs = [];
+
+      // Ajouter toutes les conditions de recherche standard
+      insertValues.forEach((key, value) {
+        // Pour les valeurs non-null, utiliser l'égalité standard
+        if (value != null) {
+          whereClauses.add('$key = ?');
+          whereArgs.add(value);
+        }
+        else {
+          if (key == 'MepsLanguage' && mepsLanguageId == null) {
+            whereClauses.add('$key IS NULL');
+          }
+
+        }
+      });
+
+      // Pour une construction de WHERE plus robuste, il est mieux de la reconstruire
+      // explicitement en gérant le cas MepsLanguage = NULL.
+
+      final Map<String, dynamic> whereClause = {};
 
       if (bookNumber != null && chapterNumber != null) {
         whereClause.addAll({
@@ -723,13 +767,29 @@ class Userdata {
 
       if (issueTagNumber != null) whereClause['IssueTagNumber'] = issueTagNumber;
       if (keySymbol != null) whereClause['KeySymbol'] = keySymbol;
-      if (mepsLanguageId != null) whereClause['MepsLanguage'] = mepsLanguageId;
+
+      // Gestion de MepsLanguage :
+      if (mepsLanguageId != null) {
+        whereClause['MepsLanguage'] = mepsLanguageId;
+      }
 
       whereClause['Type'] = type;
 
-      final whereKeys = whereClause.keys.toList();
-      final whereString = whereKeys.map((k) => '$k = ?').join(' AND ');
-      final whereValues = whereKeys.map((k) => whereClause[k]).toList();
+      final List<String> finalWhereClauses = [];
+      final List<dynamic> finalWhereValues = [];
+
+      whereClause.forEach((key, value) {
+        finalWhereClauses.add('$key = ?');
+        finalWhereValues.add(value);
+      });
+
+      // Ajoutez la condition IS NULL pour MepsLanguage si l'ID est null
+      if (mepsLanguageId == null) {
+        finalWhereClauses.add('MepsLanguage IS NULL');
+      }
+
+      final whereString = finalWhereClauses.join(' AND ');
+      final whereValues = finalWhereValues;
 
       // Choisir le bon objet pour requête
       final dbExecutor = transaction ?? _database;
@@ -747,7 +807,15 @@ class Userdata {
         return existing.first['LocationId'] as int;
       }
 
-      final locationId = await dbExecutor.insert('Location', whereClause);
+      if (mepsLanguageId != null) {
+        insertValues['MepsLanguage'] = mepsLanguageId;
+      } else {
+        // Si l'ID est null, l'insertion sans la clé est implicitement NULL
+        // selon l'implémentation de `insert`, ou vous pouvez forcer :
+        insertValues['MepsLanguage'] = null; // SQLite gère bien l'insertion de null
+      }
+
+      final locationId = await dbExecutor.insert('Location', insertValues);
       return locationId;
     } catch (e) {
       printTime('Erreur lors de insertLocation: $e');
@@ -772,7 +840,7 @@ class Userdata {
     }
   }
 
-  Future<List<Map<String, dynamic>>> getInputFieldsFromDocId(int docId, int mepsLang) async {
+  Future<List<Map<String, dynamic>>> getInputFieldsFromDocumentId(int documentId) async {
     try {
       // Retrieve the unique LocationId
       List<Map<String, dynamic>> inputFieldsData = await _database.rawQuery('''
@@ -780,14 +848,14 @@ class Userdata {
           FROM InputField
           LEFT JOIN Location ON InputField.LocationId = Location.LocationId
           WHERE Location.DocumentId = ?
-          ''', [docId]
+          ''', [documentId]
       );
 
       return inputFieldsData;
 
     } catch (e) {
       printTime('Error: $e');
-      throw Exception('Failed to load notes for the given DocumentId and MepsLanguage.');
+      throw Exception('Failed to load notes for the given DocumentId.');
     }
   }
 
@@ -809,7 +877,7 @@ class Userdata {
     }
   }
 
-  Future<List<Map<String, dynamic>>> getBlockRangesFromChapterNumber(int bookId, int chapterId, int mepsLanguage) async {
+  Future<List<Map<String, dynamic>>> getBlockRangesFromChapterNumber(int bookId, int chapterId, int mepsLanguageId) async {
     try {
       // Joining Location, UserMark, and BlockRange tables to get all required data in one query
       List<Map<String, dynamic>> blockRanges = await _database.rawQuery('''
@@ -818,7 +886,7 @@ class Userdata {
             LEFT JOIN UserMark ON Location.LocationId = UserMark.LocationId
             LEFT JOIN BlockRange ON UserMark.UserMarkId = BlockRange.UserMarkId
             WHERE Location.BookNumber = ? AND Location.ChapterNumber = ? AND Location.MepsLanguage = ?
-            ''', [bookId, chapterId, mepsLanguage]
+            ''', [bookId, chapterId, mepsLanguageId]
       );
 
       return blockRanges;
@@ -829,7 +897,7 @@ class Userdata {
     }
   }
 
-  Future<List<Map<String, dynamic>>> getBlockRangesFromDocumentId(int documentId, int mepsLanguage) async {
+  Future<List<Map<String, dynamic>>> getBlockRangesFromDocumentId(int documentId, int mepsLanguageId) async {
     try {
       // Joining Location, UserMark, and BlockRange tables to get all required data in one query
       List<Map<String, dynamic>> blockRanges = await _database.rawQuery('''
@@ -838,7 +906,7 @@ class Userdata {
             LEFT JOIN UserMark ON Location.LocationId = UserMark.LocationId
             LEFT JOIN BlockRange ON UserMark.UserMarkId = BlockRange.UserMarkId
             WHERE Location.DocumentId = ? AND Location.MepsLanguage = ?
-            ''', [documentId, mepsLanguage]
+            ''', [documentId, mepsLanguageId]
       );
 
       return blockRanges;
@@ -932,18 +1000,18 @@ class Userdata {
     }
   }
 
-  Future<List<Map<String, dynamic>>> getBookmarksFromDocId(int docId, int mepsLang) async {
+  Future<List<Map<String, dynamic>>> getBookmarksFromDocumentId(int documentId, int mepsLanguageId) async {
     try {
       // Retrieve the unique LocationId
-      List<Map<String, dynamic>> inputFieldsData = await _database.rawQuery('''
+      List<Map<String, dynamic>> bookmarksData = await _database.rawQuery('''
           SELECT Slot, BlockType, BlockIdentifier
           FROM Bookmark
           LEFT JOIN Location ON Bookmark.LocationId = Location.LocationId
           WHERE Location.DocumentId = ?
-          ''', [docId]
+          ''', [documentId]
       );
 
-      return inputFieldsData;
+      return bookmarksData;
 
     }
     catch (e) {
@@ -952,7 +1020,7 @@ class Userdata {
     }
   }
 
-  Future<List<Map<String, dynamic>>> getBookmarksFromChapterNumber(int bookNumber, int chapterNumber, int mepsLang) async {
+  Future<List<Map<String, dynamic>>> getBookmarksFromChapterNumber(int bookNumber, int chapterNumber) async {
     try {
       // Retrieve the unique LocationId
       List<Map<String, dynamic>> inputFieldsData = await _database.rawQuery('''
@@ -1023,7 +1091,7 @@ class Userdata {
     return result.map((note) => Note.fromMap(note)).toList();
   }
 
-  Future<List<Map<String, dynamic>>> getNotesFromDocId(int docId, int mepsLang) async {
+  Future<List<Map<String, dynamic>>> getNotesFromDocumentId(int documentId, int mepsLanguageId) async {
     try {
       // Une seule requête optimisée avec JOIN direct
       List<Map<String, dynamic>> notesData = await _database.rawQuery('''
@@ -1043,7 +1111,7 @@ class Userdata {
         LEFT JOIN UserMark ON Note.UserMarkId = UserMark.UserMarkId
         WHERE Location.DocumentId = ? AND Location.MepsLanguage = ?
         GROUP BY Note.NoteId
-    ''', [docId, mepsLang]);
+    ''', [documentId, mepsLanguageId]);
 
       return notesData;
 
@@ -1053,7 +1121,7 @@ class Userdata {
     }
   }
 
-  Future<List<Map<String, dynamic>>> getNotesFromChapterNumber(int bookId, int chapterId, int mepsLang) async {
+  Future<List<Map<String, dynamic>>> getNotesFromChapterNumber(int bookId, int chapterId, int mepsLanguageId) async {
     try {
       // Une seule requête optimisée avec JOIN direct
       List<Map<String, dynamic>> notesData = await _database.rawQuery('''
@@ -1073,7 +1141,7 @@ class Userdata {
         LEFT JOIN UserMark ON Note.UserMarkId = UserMark.UserMarkId
         WHERE Location.BookNumber = ? AND Location.ChapterNumber = ? AND Location.MepsLanguage = ?
         GROUP BY Note.NoteId
-    ''', [bookId, chapterId, mepsLang]);
+    ''', [bookId, chapterId, mepsLanguageId]);
 
       return notesData;
 

@@ -77,8 +77,8 @@ class DatedText {
     List<List<Map<String, dynamic>>> results;
     results = await Future.wait([
       JwLifeApp.userdata.getBlockRangesFromDocumentId(mepsDocumentId, mepsLanguageId),
-      JwLifeApp.userdata.getNotesFromDocId(mepsDocumentId, mepsLanguageId),
-      JwLifeApp.userdata.getBookmarksFromDocId(mepsDocumentId, mepsLanguageId),
+      JwLifeApp.userdata.getNotesFromDocumentId(mepsDocumentId, mepsLanguageId),
+      JwLifeApp.userdata.getBookmarksFromDocumentId(mepsDocumentId, mepsLanguageId),
     ]);
 
     blockRanges = results[0].map((item) => Map<String, dynamic>.from(item)).toList();

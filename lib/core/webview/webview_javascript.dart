@@ -381,7 +381,7 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
           const STYLE = {
             highlight: {
               styleName: 'highlight',
-              icon: '&#xE6DA',
+              icon: '&#xE6DC',
               classes: [
                 'highlight-gray','highlight-yellow','highlight-green',
                 'highlight-blue','highlight-pink','highlight-orange','highlight-purple', 'highlight-red', 'highlight-brown'
@@ -391,7 +391,7 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
             },
             underline: {
               styleName: 'underline',
-              icon: '&#xE6DB',
+              icon: '&#xE6DD',
               classes: [
                 'underline-gray','underline-yellow','underline-green',
                 'underline-blue','underline-pink','underline-orange','underline-purple', 'underline-red', 'underline-brown'
@@ -401,7 +401,7 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
             },
             text: {
               styleName: 'text',
-              icon: '&#xE6DC',
+              icon: '&#xE6DE',
               classes: [
                 'text-gray','text-yellow','text-green', // Changé de 'border-couleur' à 'text-couleur'
                 'text-blue','text-pink','text-orange','text-purple', 'text-red', 'text-brown'

@@ -224,7 +224,7 @@ class _DocumentMediasViewState extends State<DocumentMediasView> {
             borderRadius: BorderRadius.circular(8.0),
             child: ImageCachedWidget(
               imageUrl: '${widget.document.publication.path}/${media.filePath}',
-              pathNoImage: 'pub_type_video',
+              icon: JwIcons.video,
               height: double.infinity,
               width: double.infinity,
               fit: BoxFit.contain,

@@ -31,7 +31,7 @@ class PublicationCategory {
       PublicationCategory._(id: 1, symbols: ['bi'], type: 'Bible', icon: JwIcons.bible, image: "pub_type_bible", hasYears: false),
       PublicationCategory._(id: 2, symbols: ['bk', 'gloss'], type: 'Book', type2: 'Glossary', icon: JwIcons.book_stack, image: "pub_type_book", hasYears: false),
       PublicationCategory._(id: 4, symbols: ['brch'], type: 'Brochure', type2: 'Booklet', icon: JwIcons.brochure_stack, image: "pub_type_booklet_brochure", hasYears: false),
-      PublicationCategory._(id: 10, symbols: ['trct'], type: 'Tract', icon: JwIcons.tract_stack, image: "pub_type_tract", hasYears: false),
+      PublicationCategory._(id: 10, symbols: ['trct'], type: 'Tract', icon: JwIcons.box_stack, image: "pub_type_box_stack", hasYears: false),
       PublicationCategory._(id: 22, symbols: ['web'], type: 'Web', icon: JwIcons.article_stack, image: "pub_type_article_series", hasYears: false),
       PublicationCategory._(id: 14, symbols: ['w'], type: 'Watchtower', icon: JwIcons.watchtower, image: "pub_type_watchtower", hasYears: true),
       PublicationCategory._(id: 13, symbols: ['g'], type: 'Awake!', icon: JwIcons.awake_exclamation_mark, image: "pub_type_awake", hasYears: true),

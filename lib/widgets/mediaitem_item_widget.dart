@@ -244,7 +244,7 @@ class _MediaItemItemWidgetState extends State<MediaItemItemWidget> {
       borderRadius: BorderRadius.circular(2.0),
       child: ImageCachedWidget(
         imageUrl: imageUrl,
-        pathNoImage: widget.media is Audio ? "pub_type_audio" : "pub_type_video",
+        icon: widget.media is Audio ? JwIcons.headphones__simple : JwIcons.video,
         height: widget.width / 2,
         width: widget.width,
         fit: BoxFit.cover,

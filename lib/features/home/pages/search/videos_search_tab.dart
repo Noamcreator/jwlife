@@ -199,7 +199,7 @@ class _VideosSearchTabState extends State<VideosSearchTab> {
                     imageUrl: mediaItem.realmImages?.wideFullSizeImageUrl ??
                         mediaItem.realmImages?.wideImageUrl ??
                         mediaItem.realmImages?.squareImageUrl,
-                    pathNoImage: "pub_type_video",
+                    icon: JwIcons.video,
                     height: 200,
                     width: double.infinity,
                     fit: BoxFit.cover,

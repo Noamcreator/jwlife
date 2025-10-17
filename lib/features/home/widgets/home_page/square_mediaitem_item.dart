@@ -34,7 +34,7 @@ class HomeSquareMediaItemItem extends StatelessWidget {
                     borderRadius: BorderRadius.circular(2.0),
                     child: ImageCachedWidget(
                       imageUrl: m.networkImageSqr,
-                      pathNoImage: "pub_type_video",
+                      icon: m is Audio ? JwIcons.headphones__simple : JwIcons.video,
                       height: 80,
                       width: 80,
                     ),

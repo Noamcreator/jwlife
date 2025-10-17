@@ -982,7 +982,7 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
                                 List<Publication> dayPubs = await PubCatalog.getPublicationsForTheDay(date: selectedDay);
 
                                 // Si Publication a un champ 'symbol' à tester
-                                Publication? dailyTextPub = dayPubs.firstWhereOrNull((p) => p.symbol.contains('es'));
+                                Publication? dailyTextPub = dayPubs.firstWhereOrNull((p) => p.keySymbol.contains('es'));
 
                                 if (dailyTextPub == null) return;
 

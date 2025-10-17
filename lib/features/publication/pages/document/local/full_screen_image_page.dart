@@ -218,7 +218,7 @@ class _FullScreenImagePageState extends State<FullScreenImagePage> { // Classe d
                         mediaItem.realmImages?.wideFullSizeImageUrl ?? // URL de l'image
                             mediaItem.realmImages?.wideImageUrl ??
                             mediaItem.realmImages?.squareImageUrl,
-                        pathNoImage: "pub_type_video",
+                        icon: JwIcons.video,
                         fit: BoxFit.cover,
                       ) : Image.file(File('${widget.publication.path}/${media.filePath}'), fit: BoxFit.contain), // Si c'est un fichier local
                       isVideo ? Icon(JwIcons.play_circle, color: Colors.white.withOpacity(0.8), size: 80) : Container(), // Icône de lecture pour les vidéos
@@ -349,7 +349,7 @@ class _FullScreenImagePageState extends State<FullScreenImagePage> { // Classe d
                               mediaItem.realmImages?.squareFullSizeImageUrl ??
                                   mediaItem.realmImages?.squareImageUrl ??
                                   mediaItem.realmImages?.wideFullSizeImageUrl ?? mediaItem.realmImages?.wideImageUrl, // URL de la vignette
-                              pathNoImage: "pub_type_video",
+                              icon: JwIcons.video,
                               fit: BoxFit.cover,
                             ) : Image.file(File('${widget.publication.path}/${media.filePath}'), fit: BoxFit.cover), // Fichier local
                           ),

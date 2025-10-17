@@ -148,7 +148,7 @@ class _VersesSearchTabState extends State<VersesSearchTab> {
                           children: [
                             ImageCachedWidget(
                               imageUrl: downloadPub.imageSqr,
-                              pathNoImage: downloadPub.category.image,
+                              icon: downloadPub.category.icon,
                               height: 45,
                               width: 45,
                             ),
@@ -174,7 +174,7 @@ class _VersesSearchTabState extends State<VersesSearchTab> {
                                   ),
                                   const SizedBox(height: 1),
                                   Text(
-                                    '${downloadPub.symbol} - ${downloadPub.year}',
+                                    '${downloadPub.keySymbol} - ${downloadPub.year}',
                                     style: TextStyle(
                                       color: Colors.grey[600],
                                       fontSize: 9,

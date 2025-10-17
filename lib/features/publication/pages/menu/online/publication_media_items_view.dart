@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:html/dom.dart' as html_dom;
+import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/widgets/image_cached_widget.dart';
 
 class PublicationMediaItemsView extends StatefulWidget {
@@ -56,7 +57,7 @@ class _PublicationMediaItemsViewState extends State<PublicationMediaItemsView> {
         itemCount: _mediaItems.length,
         itemBuilder: (context, index) {
           return ListTile(
-            leading: ImageCachedWidget(imageUrl: _mediaItems[index]['ImageUrl'], pathNoImage: ''),
+            leading: ImageCachedWidget(imageUrl: _mediaItems[index]['ImageUrl'], icon: JwIcons.video),
           );
         },
       ),

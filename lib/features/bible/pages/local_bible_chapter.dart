@@ -283,7 +283,7 @@ class _LocalChapterBiblePageState extends State<LocalChapterBiblePage> {
                 onPressed: () {
                   String uri = JwOrgUri.bibleBook(
                       wtlocale: widget.bible.mepsLanguage.symbol,
-                      pub: widget.bible.symbol,
+                      pub: widget.bible.keySymbol,
                       book: _booksData[_currentIndex].bookInfo['BibleBookId']
                   ).toString();
 

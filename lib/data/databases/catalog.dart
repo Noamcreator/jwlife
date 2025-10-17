@@ -302,7 +302,7 @@ class PubCatalog {
     return [];
   }
 
-  static Future<List<Map<String, dynamic>>> getAllAvailableBibleBookFromPub(int languageId, String pubSymbol, int issueTagNumber) async {
+  static Future<List<Map<String, dynamic>>> getAllAvailableBibleBookFromPub(int languageId, String keySymbol, int issueTagNumber) async {
     final catalogFile = await getCatalogDatabaseFile();
 
     if (allFilesExist([catalogFile])) {
@@ -312,8 +312,8 @@ class PubCatalog {
       SELECT Book
       FROM AvailableBibleBook
       INNER JOIN Publication ON AvailableBibleBook.PublicationId = Publication.Id
-      WHERE Publication.MepsLanguageId = ? AND Publication.Symbol = ? AND Publication.IssueTagNumber = ?
-    ''', [languageId, pubSymbol, issueTagNumber]);
+      WHERE Publication.MepsLanguageId = ? AND Publication.KeySymbol = ? AND Publication.IssueTagNumber = ?
+    ''', [languageId, keySymbol, issueTagNumber]);
 
       await catalog.close();
 
@@ -323,13 +323,13 @@ class PubCatalog {
   }
 
   /// Rechercher une publication par symbole et la date d'issue.
-  static Future<Publication?> searchPub(String pubSymbol, int issueTagNumber, dynamic language) async {
+  static Future<Publication?> searchPub(String keySymbol, int issueTagNumber, dynamic language) async {
     if (language is String) {
-      Publication? pub = PublicationRepository().getPublicationWithSymbol(pubSymbol, issueTagNumber, language);
+      Publication? pub = PublicationRepository().getPublicationWithSymbol(keySymbol, issueTagNumber, language);
       if (pub != null) return pub;
     }
     else {
-      Publication? pub = PublicationRepository().getPublicationWithMepsLanguageId(pubSymbol, issueTagNumber, language);
+      Publication? pub = PublicationRepository().getPublicationWithMepsLanguageId(keySymbol, issueTagNumber, language);
       if (pub != null) return pub;
     }
 
@@ -350,7 +350,7 @@ class PubCatalog {
       try {
         await attachDatabases(catalog, {'meps': mepsFile.path});
 
-        printTime('pubSymbol: $pubSymbol');
+        printTime('pubSymbol: $keySymbol');
         printTime('issueTagNumber: $issueTagNumber');
         printTime('language: $language');
 
@@ -361,14 +361,37 @@ class PubCatalog {
           AND LOWER(p.KeySymbol) = LOWER(?) 
           AND p.IssueTagNumber = ?
           LIMIT 1
-        ''', [language, pubSymbol, issueTagNumber]);
-
-        printTime('searchPub: ${publications.length}');
+        ''', [language, keySymbol, issueTagNumber]);
 
         return publications.isNotEmpty ? Publication.fromJson(publications.first) : null;
       }
       finally {
         await detachDatabases(catalog, ['meps']);
+        await catalog.close();
+      }
+    }
+    return null;
+  }
+
+  static Future<String?> getKeySymbolFromCatalogue(String symbol, int issueTagNumber, int mepsLanguageId) async {
+    final catalogFile = await getCatalogDatabaseFile();
+
+    if (allFilesExist([catalogFile])) {
+      final catalog = await openReadOnlyDatabase(catalogFile.path);
+      try {
+        final result = await catalog.rawQuery('''
+          SELECT
+            KeySymbol
+          FROM Publication
+          WHERE MepsLanguageId = ? 
+          AND Symbol = ?
+          AND p.IssueTagNumber = ?
+          LIMIT 1
+        ''', [mepsLanguageId, symbol, issueTagNumber]);
+
+        return result.first['KeySymbol'] as String;
+      }
+      finally {
         await catalog.close();
       }
     }

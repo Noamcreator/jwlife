@@ -278,7 +278,7 @@ class _AudioItemsPageState extends State<AudioItemsPage> {
                     borderRadius: BorderRadius.circular(5),
                     child: ImageCachedWidget(
                       imageUrl: audio.networkImageSqr,
-                      pathNoImage: "pub_type_audio",
+                      icon: JwIcons.headphones__simple,
                       height: 55,
                       width: 55,
                     ),

@@ -405,7 +405,7 @@ class _NotePageState extends State<NotePage> {
                             children: [
                               ImageCachedWidget(
                                 imageUrl: pub.imageSqr,
-                                pathNoImage: pub.category.image,
+                                icon: pub.category.icon,
                                 height: 35,
                                 width: 35,
                               ),

@@ -269,7 +269,7 @@ Simplification de la Navigation : Retrait des boutons de navigation précédent 
 Gestion des Langues dans les Alertes : Correction de l'affichage dans la section Alertes. Si l'utilisateur sélectionne une langue sans alerte disponible, le message "Aucune alerte d'information disponible dans cette langue" est désormais correctement affiché.
 
 
-📢 Mise à jour de l'application – 14/10/2025
+📢 Mise à jour – 14/10/2025
 Déploiement d'une mise à jour majeure intégrant de nouvelles fonctionnalités, des améliorations d'interface et des correctifs pour optimiser l'expérience utilisateur et la fluidité de notre étude individuelle.
 
 📂 Nouveautés
@@ -322,3 +322,28 @@ Ouverture des réunions : Correction d'un bug où le programme de la semaine ou 
 Suppression de la sauvegarde : Correction du bug qui provoquait un écran noir après la suppression de la sauvegarde.
 
 Mise à jour interne : Mise à jour du fichier mepsunit.db.
+
+
+📢 Mise à jour – 16/10/2025
+🎨 Améliorations
+Icônes de publication repensées : L'icône de catégorie des publications a été repensée. Elle affiche désormais un effet de fondu et est positionnée devant l'image de la publication avant que l'image soit chargée (au lieu d'être absente).
+
+Historique multilingue : Il est désormais possible d'afficher dans l'historique un document dont la langue est différente de la langue de l'application.
+
+Icône de tract mise à jour : L'icône de tract a été changée pour correspondre à celle utilisée dans JW Library.
+
+Affichage du titre des publications carrées : Le titre court de la publication est désormais affiché à la place du titre long pour les publications de format carré.
+
+Descriptions ajoutées : Une description est maintenant affichée sous le titre pour les publications de type Réveillez-vous ! et La Tour de Garde.
+
+✅ Correctifs
+Correction des vidéos : Résolution d'un bug qui empêchait l'affichage correct de certaines vidéos sur la page des Médias dans une publication.
+
+Suppression de l'image en double : La première image carrée qui s'affichait lors du clic sur Document multimédia a été retirée.
+
+Gestion des marges (Padding) : Ajout d'une marge intérieure (padding) pour les écrans de réunions lorsqu'il n'y a pas de contenu ou lorsqu'il est nécessaire de télécharger le document.
+
+⚠️ Problème Connu (Sauvegarde des données non importée dans JW Library)
+Bug de sauvegarde des notes et surlignages : Un bug affectant la sauvegarde des notes et des surlignages sur les publications avec une date (MWB, W, etc.) a été identifié. Il est dû à une mauvaise keySymbol utilisée.
+
+Solution : Ce problème sera réglé en retéléchargeant les documents concernés (Réveillez-vous !, La Tour de Garde, Cahier Vie et Ministère, Ministère du Royaume) après les avoir tous supprimés. Alternativement, la désinstallation et la réinstallation de l'application est une solution certaine.

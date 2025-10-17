@@ -19,7 +19,7 @@ class RectanglePublicationItem extends StatelessWidget {
     return Material(
         color: backgroundColor ?? (Theme.of(context).brightness == Brightness.dark ? const Color(0xFF292929) : Colors.white),
         child: InkWell(
-            onTap: () => publication.showMenu(context),
+            onTap: () => publication.showMenu(context, showDownloadDialog: false),
             child: SizedBox(
                 height: imageSize,
                 child: Stack(
@@ -29,7 +29,7 @@ class RectanglePublicationItem extends StatelessWidget {
                         ClipRRect(
                           child: ImageCachedWidget(
                             imageUrl: publication.imageSqr,
-                            pathNoImage: publication.category.image,
+                            icon: publication.category.icon,
                             height: imageSize,
                             width: imageSize,
                           ),
@@ -77,7 +77,7 @@ class RectanglePublicationItem extends StatelessWidget {
                                   ),
                                 const Spacer(),
                                 Text(
-                                  '${publication.year} - ${publication.symbol}',
+                                  '${publication.year} - ${publication.keySymbol}',
                                   style: TextStyle(
                                     fontSize: 11,
                                     color: Theme.of(context).brightness == Brightness.dark

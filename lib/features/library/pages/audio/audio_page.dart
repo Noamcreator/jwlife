@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/data/realm/catalog.dart';
 import 'package:jwlife/widgets/image_cached_widget.dart';
@@ -62,7 +63,7 @@ class _AudioPageState extends State<AudioPage> {
               width: itemWidth * 0.6, // 60% de la largeur pour l'image
               child: ImageCachedWidget(
                 imageUrl: category.persistedImages!.extraWideFullSizeImageUrl,
-                pathNoImage: "pub_type_video",
+                icon: JwIcons.headphones__simple,
                 height: 85.0,
                 fit: BoxFit.fill,
               ),

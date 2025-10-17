@@ -4,6 +4,7 @@ import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/data/realm/catalog.dart';
 import 'package:jwlife/widgets/image_cached_widget.dart';
 
+import '../../../../core/icons.dart';
 import 'video_items_page.dart';
 
 class VideoPage extends StatefulWidget {
@@ -63,7 +64,7 @@ class _VideoPageState extends State<VideoPage> {
               width: itemWidth * 0.6, // 60% de la largeur pour l'image
               child: ImageCachedWidget(
                 imageUrl: category.persistedImages!.extraWideFullSizeImageUrl,
-                pathNoImage: "pub_type_video",
+                icon: JwIcons.video,
                 height: 85.0,
                 fit: BoxFit.fill,
               ),

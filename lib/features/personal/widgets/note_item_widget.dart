@@ -35,7 +35,7 @@ class NoteItemWidget extends StatefulWidget {
       return {'pub': null, 'docTitle': ''};
     }
 
-    Publication? pub = PublicationRepository().getAllPublications().firstWhereOrNull((element) => element.symbol == note.location.keySymbol && element.issueTagNumber == note.location.issueTagNumber && element.mepsLanguage.id == note.location.mepsLanguageId);
+    Publication? pub = PublicationRepository().getAllPublications().firstWhereOrNull((element) => element.keySymbol == note.location.keySymbol && element.issueTagNumber == note.location.issueTagNumber && element.mepsLanguage.id == note.location.mepsLanguageId);
 
     String docTitle = '';
     pub ??= await PubCatalog.searchPubNoMepsLanguage(note.location.keySymbol!, note.location.issueTagNumber!, note.location.mepsLanguageId!);
@@ -207,7 +207,7 @@ class _NoteItemWidgetState extends State<NoteItemWidget> {
                       children: [
                         ImageCachedWidget(
                           imageUrl: pub.imageSqr,
-                          pathNoImage: pub.category.image,
+                          icon: pub.category.icon,
                           height: 35,
                           width: 35,
                         ),

@@ -18,7 +18,7 @@ class HomeSquarePublicationItem extends StatelessWidget {
 
     return InkWell(
       onTap: () {
-        publication.showMenu(context);
+        publication.showMenu(context, showDownloadDialog: false);
       },
       child: SizedBox(
         width: 80,
@@ -31,7 +31,7 @@ class HomeSquarePublicationItem extends StatelessWidget {
                   borderRadius: BorderRadius.circular(2.0),
                   child: ImageCachedWidget(
                     imageUrl: publication.imageSqr,
-                    pathNoImage: publication.category.image,
+                    icon: publication.category.icon,
                     height: 80,
                     width: 80,
                   ),
@@ -180,7 +180,7 @@ class HomeSquarePublicationItem extends StatelessWidget {
               child: Padding(
                 padding: const EdgeInsets.only(left: 2.0, right: 4.0),
                 child: Text(
-                  toolbox ? publication.shortTitle : publication.getTitle(),
+                  publication.getShortTitle(),
                   style: const TextStyle(
                     fontSize: 9,
                     height: 1.2,

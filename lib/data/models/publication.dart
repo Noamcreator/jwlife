@@ -117,12 +117,12 @@ class Publication {
         isFavoriteNotifier = isFavoriteNotifier ?? ValueNotifier(false);
 
   factory Publication.fromJson(Map<String, dynamic> json, {bool? isFavorite}) {
-    final symbol = json['Symbol'] ?? '';
+    final keySymbol = json['KeySymbol'] ?? json['UndatedSymbol'] ?? '';
     final issueTagNumber = json['IssueTagNumber'] ?? 0;
     final mepsLanguageId = json['MepsLanguageId'] ?? 0;
 
     // Recherche dans le repository une publication existante
-    Publication? existing = PublicationRepository().getPublicationWithMepsLanguageId(symbol, issueTagNumber, mepsLanguageId);
+    Publication? existing = PublicationRepository().getPublicationWithMepsLanguageId(keySymbol, issueTagNumber, mepsLanguageId);
 
     if (existing != null) { // Si la publication est trouvée
       if(!existing.isDownloadedNotifier.value) {
@@ -143,15 +143,21 @@ class Publication {
       existing.lastModified = json['LastModified'] ?? existing.lastModified;
       existing.conventionReleaseDayNumber = json['ConventionReleaseDayNumber'] ?? existing.conventionReleaseDayNumber;
       existing.isFavoriteNotifier.value = isFavorite ?? existing.isFavoriteNotifier.value;
-      existing.networkImageSqr = json['ImageSqr'] != null ? json['ImageSqr'].toString().startsWith("/data") ? null : "https://app.jw-cdn.org/catalogs/publications/${json['ImageSqr']}" : existing.networkImageSqr;
-      existing.networkImageLsr = json['ImageLsr'] != null ? json['ImageLsr'].toString().startsWith("/data") ? null : "https://app.jw-cdn.org/catalogs/publications/${json['ImageLsr']}" : existing.networkImageLsr;
+      existing.networkImageSqr = json['ImageSqr'] != null ? json['ImageSqr'].toString().startsWith("/data") ? existing.networkImageSqr : "https://app.jw-cdn.org/catalogs/publications/${json['ImageSqr']}" : existing.networkImageSqr;
+      existing.networkImageLsr = json['ImageLsr'] != null ? json['ImageLsr'].toString().startsWith("/data") ? existing.networkImageLsr : "https://app.jw-cdn.org/catalogs/publications/${json['ImageLsr']}" : existing.networkImageLsr;
       return existing;
     }
 
     // Sinon, en créer une nouvelle
     Publication publication = Publication(
       id: json['Id'] ?? json['PublicationId'] ?? -1,
-      mepsLanguage: json['LanguageSymbol'] != null ? MepsLanguage(id: json['MepsLanguageId'], symbol: json['LanguageSymbol'], vernacular: json['LanguageVernacularName'], primaryIetfCode: json['LanguagePrimaryIetfCode'], isSignLanguage: json['IsSignLanguage'] == 1) : JwLifeSettings().currentLanguage,
+      mepsLanguage: json['LanguageSymbol'] != null ?
+        MepsLanguage(
+            id: json['MepsLanguageId'],
+            symbol: json['LanguageSymbol'],
+            vernacular: json['LanguageVernacularName'],
+            primaryIetfCode: json['LanguagePrimaryIetfCode'],
+            isSignLanguage: json['IsSignLanguage'] == 1) : JwLifeSettings().currentLanguage,
       title: json['Title'] ?? '',
       issueTitle: json['IssueTitle'] ?? '',
       shortTitle: json['ShortTitle'] ?? '',
@@ -161,8 +167,8 @@ class Publication {
       description: json['Description'] ?? '',
       year: json['Year'] ?? 0,
       issueTagNumber: json['IssueTagNumber'] ?? 0,
-      symbol: json['Symbol'] ?? '',
-      keySymbol: json['KeySymbol'] ?? json['UndatedSymbol'],
+      symbol: json['Symbol'] ?? keySymbol,
+      keySymbol: keySymbol,
       reserved: json['Reserved'] ?? 0,
       category: json['PublicationTypeId'] != null ? PublicationCategory.all.firstWhere((element) => element.id == json['PublicationTypeId']) : json['PublicationType'] != null ? PublicationCategory.all.firstWhere((element) => element.type == json['PublicationType'] || element.type2 == json['PublicationType']) : PublicationCategory.all.first,
       attribute: json['PublicationAttributeId'] != null ? PublicationAttribute.all.firstWhere((element) => element.id == json['PublicationAttributeId']) : json['Attribute'] != null ? PublicationAttribute.all.firstWhere((element) => element.type == json['Attribute']) : PublicationAttribute.all.first,
@@ -185,7 +191,7 @@ class Publication {
       hasCommentary: json['VerseCommentary'] == 1,
 
       isDownloadedNotifier: ValueNotifier(json['Hash'] != null && json['DatabasePath'] != null && json['Path'] != null),
-      isFavoriteNotifier: ValueNotifier(isFavorite ?? JwLifeApp.userdata.favorites.any((p) => p is Publication && (p.symbol == symbol && p.mepsLanguage.id == mepsLanguageId && p.issueTagNumber == issueTagNumber))),
+      isFavoriteNotifier: ValueNotifier(isFavorite ?? JwLifeApp.userdata.favorites.any((p) => p is Publication && (p.keySymbol == keySymbol && p.mepsLanguage.id == mepsLanguageId && p.issueTagNumber == issueTagNumber))),
     );
 
     PublicationRepository().addPublication(publication);
@@ -200,7 +206,7 @@ class Publication {
   void shareLink() {
     String uri = JwOrgUri.publication(
        wtlocale: mepsLanguage.symbol,
-       pub: symbol,
+       pub: keySymbol,
        issue: issueTagNumber
     ).toString();
 
@@ -219,7 +225,7 @@ class Publication {
           body: getTitle(),
           payload: JwOrgUri.publication(
               wtlocale: mepsLanguage.symbol,
-              pub: symbol,
+              pub: keySymbol,
               issue: issueTagNumber
           ).toString()
       );
@@ -426,19 +432,24 @@ class Publication {
       GlobalKeyService.bibleKey.currentState?.refreshBiblePage();
     }
 
-    if(symbol == 'S-34') {
+    if(keySymbol == 'S-34') {
       GlobalKeyService.meetingsKey.currentState?.refreshMeetingsPubs();
     }
   }
 
-  Future<void> showMenu(BuildContext context) async {
+  Future<void> showMenu(BuildContext context, {bool showDownloadDialog = true}) async {
     if(isDownloadedNotifier.value && !isDownloadingNotifier.value) {
       await showPage(PublicationMenuView(publication: this));
     }
     else {
       if(await hasInternetConnection()) {
         //await showPage(PublicationMenu(publication: this));
-        await showDownloadPublicationDialog(context, this);
+        if(showDownloadDialog) {
+          await showDownloadPublicationDialog(context, this);
+        }
+        else {
+          await download(context);
+        }
       }
       else {
         await showNoConnectionDialog(context);
@@ -493,7 +504,7 @@ class Publication {
   }
 
   String getSymbolAndIssue() {
-    return issueTagNumber != 0 ? '$symbol • $issueTagNumber' : symbol;
+    return issueTagNumber != 0 ? '$keySymbol • $issueTagNumber' : keySymbol;
   }
 
   String getKey() {

@@ -15,7 +15,7 @@ class PublicationRepository {
 
   /// Crée une clé unique à partir des attributs significatifs
   String _generateKey(Publication pub) {
-    return '${pub.symbol}_${pub.issueTagNumber}_${pub.mepsLanguage.id}';
+    return '${pub.keySymbol}_${pub.issueTagNumber}_${pub.mepsLanguage.id}';
   }
 
   void addPublication(Publication publication) {
@@ -31,13 +31,8 @@ class PublicationRepository {
     return _publications.values.where((p) => p.isDownloadedNotifier.value).toList();
   }
 
-  Publication? getByCompositeKeyForDownload(String symbol, int issueTagNumber, String mepsLanguage) {
-    return getAllDownloadedPublications().firstWhereOrNull((p) => p.symbol == symbol && p.issueTagNumber == issueTagNumber && p.mepsLanguage.symbol == mepsLanguage,
-    );
-  }
-
-  Publication? getByCompositeKeyForDownloadWithMepsLanguageId(String symbol, int issueTagNumber, int mepsLanguageId) {
-    return getAllDownloadedPublications().firstWhereOrNull((p) => p.symbol == symbol && p.issueTagNumber == issueTagNumber && p.mepsLanguage.id == mepsLanguageId);
+  Publication? getByCompositeKeyForDownloadWithMepsLanguageId(String keySymbol, int issueTagNumber, int mepsLanguageId) {
+    return getAllDownloadedPublications().firstWhereOrNull((p) => p.keySymbol == keySymbol && p.issueTagNumber == issueTagNumber && p.mepsLanguage.id == mepsLanguageId);
   }
 
   /// Retourne toutes les bibles
@@ -85,13 +80,14 @@ class PublicationRepository {
     return _publications[key] ?? pub;
   }
 
-  Publication? getPublicationWithMepsLanguageId(String symbol, int issueTagNumber, int mepsLanguageId) {
-    final key = '${symbol}_${issueTagNumber}_$mepsLanguageId';
+  Publication? getPublicationWithMepsLanguageId(String keySymbol, int issueTagNumber, int mepsLanguageId) {
+    final key = '${keySymbol}_${issueTagNumber}_$mepsLanguageId';
+    print('key : ${key}');
     return _publications[key];
   }
 
-  Publication? getPublicationWithSymbol(String symbol, int issueTagNumber, String mepsLanguageSymbol) {
-    return _publications.values.firstWhereOrNull((p) => p.symbol == symbol && p.issueTagNumber == issueTagNumber && p.mepsLanguage.symbol == mepsLanguageSymbol);
+  Publication? getPublicationWithSymbol(String keySymbol, int issueTagNumber, String mepsLanguageSymbol) {
+    return _publications.values.firstWhereOrNull((p) => p.keySymbol == keySymbol && p.issueTagNumber == issueTagNumber && p.mepsLanguage.symbol == mepsLanguageSymbol);
   }
 
   /// (Optionnel) Vérifie si une publication est déjà enregistrée

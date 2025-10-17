@@ -49,7 +49,7 @@ class _ImagesSearchTabState extends State<ImagesSearchTab> {
                 Publication downloadPub = PublicationRepository()
                     .getAllDownloadedPublications()
                     .firstWhere((pub) =>
-                pub.symbol == item['Symbol'] &&
+                pub.keySymbol == item['KeySymbol'] &&
                     pub.year == item['Year'] &&
                     pub.mepsLanguage.id == item['MepsLanguageIndex']);
 

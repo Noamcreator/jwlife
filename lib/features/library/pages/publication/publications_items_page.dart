@@ -68,7 +68,7 @@ class _PublicationsItemsViewState extends State<PublicationsItemsView> {
     _publications = publications;
 
     for (var pub in PublicationRepository().getAllDownloadedPublications()) {
-      if (pub.category.id == widget.category.id && pub.mepsLanguage.id == mepsLanguageId && (widget.year == null || pub.year == widget.year) && !_publications.values.expand((list) => list).any((p) => p.symbol == pub.symbol && p.issueTagNumber == pub.issueTagNumber)) {
+      if (pub.category.id == widget.category.id && pub.mepsLanguage.id == mepsLanguageId && (widget.year == null || pub.year == widget.year) && !_publications.values.expand((list) => list).any((p) => p.keySymbol == pub.keySymbol && p.issueTagNumber == pub.issueTagNumber)) {
         _publications.putIfAbsent(pub.attribute, () => []).add(pub);
       }
     }
@@ -94,7 +94,7 @@ class _PublicationsItemsViewState extends State<PublicationsItemsView> {
         // Sinon, on filtre les publications
         _publications.forEach((attribute, publicationList) {
           final filteredList = publicationList.where((pub) {
-            return pub.title.toLowerCase().contains(query.toLowerCase()) || pub.symbol.toLowerCase().contains(query.toLowerCase());
+            return pub.title.toLowerCase().contains(query.toLowerCase()) || pub.keySymbol.toLowerCase().contains(query.toLowerCase());
           }).toList();
 
           if (filteredList.isNotEmpty) {

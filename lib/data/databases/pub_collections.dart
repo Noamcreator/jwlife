@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:jwlife/core/utils/files_helper.dart';
 import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/core/utils/utils_jwpub.dart';
+import 'package:jwlife/data/databases/catalog.dart';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/repositories/PublicationRepository.dart';
 import 'package:sqflite/sqflite.dart';
@@ -82,8 +83,24 @@ class PubCollections {
       int year = pub['year'] is String ? int.parse(pub['year']) : pub['year'];
       int issueTagNum = pub['issueId'];
 
+      String keySymbol = '';
+
+      if(publication != null) {
+        keySymbol = publication.keySymbol;
+      }
+      else {
+        String? keySymbolCatalog = await PubCatalog.getKeySymbolFromCatalogue(symbol, issueTagNum, languageId);
+
+        if(keySymbolCatalog != null) {
+          keySymbol = keySymbolCatalog;
+        }
+        else {
+          keySymbol = pub['undatedSymbol'] ?? symbol;
+        }
+      }
+
       // Vérifier si la publication existe déjà
-      Publication? existPub = PublicationRepository().getByCompositeKeyForDownloadWithMepsLanguageId(symbol, issueTagNum, languageId);
+      Publication? existPub = PublicationRepository().getByCompositeKeyForDownloadWithMepsLanguageId(keySymbol, issueTagNum, languageId);
 
       // Comparer les timestamps si la publication existe déjà
       if (existPub?.timeStamp == timeStamp) {
@@ -99,7 +116,7 @@ class PubCollections {
       bool hasVerseCommentaryTable = await tableExists(publicationDb, 'VerseCommentary') &&
           (await publicationDb.rawQuery("SELECT COUNT(*) FROM VerseCommentary")).first['COUNT(*)'] as int > 0;
 
-      String description = await extractPublicationDescription(publication, symbol: symbol, issueTagNumber: issueTagNum, mepsLanguage: 'F');
+      String description = await extractPublicationDescription(publication, symbol: keySymbol, issueTagNumber: issueTagNum, mepsLanguage: 'F');
       String hashPublication = getPublicationHash(languageId, symbol, year, issueTagNum);
 
       Map<String, dynamic> pubDb = {
@@ -111,8 +128,8 @@ class PubCollections {
         'DisplayTitle': pub['displayTitle'],
         'UndatedReferenceTitle': pub['undatedReferenceTitle'],
         'Description': description,
-        'Symbol': symbol,
-        'KeySymbol': pub['uniqueSymbol'] ?? symbol,
+        'Symbol': pub['symbol'],
+        'KeySymbol': keySymbol,
         'UniqueEnglishSymbol': pub['uniqueEnglishSymbol'],
         'SchemaVersion': pub['schemaVersion'],
         'Year': year,
@@ -143,7 +160,8 @@ class PubCollections {
         await _database.delete('PublicationIssueAttribute', where: 'PublicationId = ?', whereArgs: [publicationId]);
         await _database.delete('PublicationIssueProperty', where: 'PublicationId = ?', whereArgs: [publicationId]);
         await _database.delete('Document', where: 'PublicationId = ?', whereArgs: [publicationId]);
-      } else {
+      }
+      else {
         // Insertion d'une nouvelle publication
         publicationId = await _database.insert('Publication', pubDb);
       }
@@ -189,14 +207,21 @@ class PubCollections {
       // Insertion des propriétés de numéro de publication
       dynamic issueProperties = pub['issueProperties'];
       if (issueProperties != null && issueProperties.isNotEmpty) {
-        batch.insert('PublicationIssueProperty', {
-          'PublicationId': publicationId,
-          'Title': issueProperties['title'] ?? '',
-          'UndatedTitle': issueProperties['undatedTitle'] ?? '',
-          'CoverTitle': issueProperties['coverTitle'] ?? '',
-          'Symbol': issueProperties['symbol'] ?? '',
-          'UndatedSymbol': issueProperties['undatedSymbol'] ?? '',
-        });
+        String title = issueProperties['title'] ?? '';
+        String undatedTitle = issueProperties['undatedTitle'] ?? '';
+        String coverTitle = issueProperties['coverTitle'] ?? '';
+        String symbol = issueProperties['symbol'] ?? '';
+        String undatedSymbol = issueProperties['undatedSymbol'] ?? '';
+        if(title.isNotEmpty && undatedTitle.isNotEmpty && coverTitle.isNotEmpty && symbol.isNotEmpty && undatedSymbol.isNotEmpty) {
+          batch.insert('PublicationIssueProperty', {
+            'PublicationId': publicationId,
+            'Title': title,
+            'UndatedTitle': undatedTitle,
+            'CoverTitle': coverTitle,
+            'Symbol': symbol,
+            'UndatedSymbol': undatedSymbol,
+          });
+        }
       }
 
       // Insertion des documents
@@ -257,8 +282,8 @@ class PubCollections {
       final List<Map<String, dynamic>> results = await txn.query(
         'Publication',
         columns: ['PublicationId'],
-        where: 'Symbol = ? AND IssueTagNumber = ? AND MepsLanguageId = ?',
-        whereArgs: [publication.symbol, publication.issueTagNumber, publication.mepsLanguage.id],
+        where: 'KeySymbol = ? AND IssueTagNumber = ? AND MepsLanguageId = ?',
+        whereArgs: [publication.keySymbol, publication.issueTagNumber, publication.mepsLanguage.id],
       );
 
       if (results.isEmpty) {
@@ -385,7 +410,7 @@ class PubCollections {
 
     List<Map<String, dynamic>> result = await _database.rawQuery('''
       SELECT 
-        p.Symbol,
+        p.KeySymbol,
         p.IssueTagNumber,
         p.MepsLanguageId
       FROM Publication p
@@ -395,7 +420,7 @@ class PubCollections {
     ''', [mepsDocId, currentLanguageId]);
 
     if (result.isNotEmpty) {
-      return PublicationRepository().getPublicationWithMepsLanguageId(result.first['Symbol'], result.first['IssueTagNumber'], result.first['MepsLanguageId']);
+      return PublicationRepository().getPublicationWithMepsLanguageId(result.first['KeySymbol'], result.first['IssueTagNumber'], result.first['MepsLanguageId']);
     }
     return null;
   }

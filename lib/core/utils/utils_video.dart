@@ -25,7 +25,6 @@ import '../api/api.dart';
 import 'common_ui.dart';
 
 MediaItem? getMediaItemFromLank(String lank, String wtlocale) => RealmLibrary.realm.all<MediaItem>().query("languageAgnosticNaturalKey == '$lank'").query("languageSymbol == '$wtlocale'").firstOrNull;
-MediaItem? getVideoItemFromDocId(String docId, String wtlocale) => RealmLibrary.realm.all<MediaItem>().query("documentId == '$docId'").query("languageSymbol == '$wtlocale'").firstOrNull;
 
 MediaItem? getMediaItem(String? keySymbol, int? track, int? documentId, int? issueTagNumber, dynamic mepsLanguage, {bool? isVideo}) {
   var queryParts = <String>[];
@@ -52,6 +51,8 @@ MediaItem? getMediaItem(String? keySymbol, int? track, int? documentId, int? iss
   if (queryParts.isEmpty) return null;
 
   String query = queryParts.join(" AND ");
+
+  print(query);
 
   final results = RealmLibrary.realm.all<MediaItem>().query(query);
   return results.isNotEmpty ? results.first : null;

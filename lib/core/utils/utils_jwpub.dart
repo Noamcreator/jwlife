@@ -13,6 +13,7 @@ import 'dart:typed_data';
 import 'package:encrypt/encrypt.dart' as encrypt;
 
 import '../api/api.dart';
+import '../keys.dart';
 import 'directory_helper.dart';
 
 Future<Publication?> downloadJwpubFile(Publication publication, BuildContext context, CancelToken? cancelToken, bool update) async {
@@ -149,10 +150,8 @@ String computeSha256Hash(int languageId, String symbol, int year, int issueTagNu
 
 /// Effectue l'opération XOR entre deux valeurs hexadécimales
 String xorWithKey(String hashString) {
-  const xorKeyHex = "11cbb5587e32846d4c26790c633da289f66fe5842a3a585ce1bc3a294af5ada7";
-
   final hashBytes = hexToBytes(hashString);
-  final keyBytes = hexToBytes(xorKeyHex);
+  final keyBytes = hexToBytes(Keys.xorKeyHex);
   final xorResult = List<int>.generate(hashBytes.length, (index) => hashBytes[index] ^ keyBytes[index]);
 
   return bytesToHex(xorResult);

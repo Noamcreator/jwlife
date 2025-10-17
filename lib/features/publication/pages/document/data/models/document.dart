@@ -198,6 +198,7 @@ class Document {
           JOIN DocumentMultimedia dm ON dm.MultimediaId = m.MultimediaId
           WHERE m.MimeType IN ('image/jpeg', 'video/mp4')
             AND m.CategoryType != 25
+            AND m.CategoryType != 9
             AND dm.DocumentId = ?;
     ''', [documentId]);
 
@@ -258,7 +259,7 @@ class Document {
       results = await Future.wait([
         JwLifeApp.userdata.getBlockRangesFromChapterNumber(bookNumber!, chapterNumberBible!, mepsLanguageId),
         JwLifeApp.userdata.getNotesFromChapterNumber(bookNumber!, chapterNumberBible!, mepsLanguageId),
-        JwLifeApp.userdata.getBookmarksFromChapterNumber(bookNumber!, chapterNumberBible!, mepsLanguageId),
+        JwLifeApp.userdata.getBookmarksFromChapterNumber(bookNumber!, chapterNumberBible!),
       ]);
 
       blockRanges = results[0].map((item) => Map<String, dynamic>.from(item)).toList();
@@ -268,9 +269,9 @@ class Document {
     else {
       results = await Future.wait([
         JwLifeApp.userdata.getBlockRangesFromDocumentId(mepsDocumentId, mepsLanguageId),
-        JwLifeApp.userdata.getNotesFromDocId(mepsDocumentId, mepsLanguageId),
-        JwLifeApp.userdata.getInputFieldsFromDocId(mepsDocumentId, mepsLanguageId),
-        JwLifeApp.userdata.getBookmarksFromDocId(mepsDocumentId, mepsLanguageId),
+        JwLifeApp.userdata.getNotesFromDocumentId(mepsDocumentId, mepsLanguageId),
+        JwLifeApp.userdata.getInputFieldsFromDocumentId(mepsDocumentId),
+        JwLifeApp.userdata.getBookmarksFromDocumentId(mepsDocumentId, mepsLanguageId),
       ]);
 
       blockRanges = results[0].map((item) => Map<String, dynamic>.from(item)).toList();

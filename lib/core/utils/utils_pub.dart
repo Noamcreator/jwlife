@@ -97,8 +97,8 @@ Future<String> extractPublicationDescription(Publication? publication, {String? 
   String mL = publication?.mepsLanguage.symbol ?? mepsLanguage ?? '';
 
   // La condition d'appel (iTn == 0 && s.isNotEmpty && mL.isNotEmpty) reste la même
-  if (iTn == 0 && s.isNotEmpty && mL.isNotEmpty) {
-    String wolLinkJwOrg = 'https://www.jw.org/finder?wtlocale=$mL&pub=$s';
+  if (s.isNotEmpty && mL.isNotEmpty) {
+    String wolLinkJwOrg = issueTagNumber == 0 ? 'https://www.jw.org/finder?wtlocale=$mL&pub=$s' : 'https://www.jw.org/finder?wtlocale=$mL&pub=$s&issue=$iTn';
     printTime('Fetching publication content: $wolLinkJwOrg');
 
     try {

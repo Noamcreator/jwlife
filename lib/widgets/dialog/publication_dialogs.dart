@@ -37,7 +37,7 @@ Future<String?> _showLocalVideoDialog(BuildContext context, Video video, List<Co
                 children: [
                   ImageCachedWidget(
                       imageUrl: video.networkImageSqr,
-                      pathNoImage: 'pub_type_video',
+                      icon: JwIcons.video,
                       width: 100,
                       height: 100
                   ),

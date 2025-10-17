@@ -110,7 +110,7 @@ class _PendingUpdatesPageState extends State<PendingUpdatesPage> {
         LEFT JOIN meps.Language l ON p.MepsLanguageId = l.LanguageId
         LEFT JOIN catalog.Publication cp 
           ON p.MepsLanguageId = cp.MepsLanguageId 
-          AND p.Symbol = cp.Symbol 
+          AND p.KeySymbol = cp.KeySymbol 
           AND p.IssueTagNumber = cp.IssueTagNumber
         LEFT JOIN catalog.PublicationAsset pa ON cp.Id = pa.PublicationId
         WHERE STRFTIME('%Y-%m-%d %H:%M:%S', pa.LastModified) > STRFTIME('%Y-%m-%d %H:%M:%S', p.Timestamp)
@@ -261,7 +261,7 @@ class _PendingUpdatesPageState extends State<PendingUpdatesPage> {
                 borderRadius: BorderRadius.circular(0),
                 child: ImageCachedWidget(
                   imageUrl: publication.imageSqr,
-                  pathNoImage: publication.category.image,
+                  icon: publication.category.icon,
                   height: 85,
                   width: 85,
                 ),
@@ -406,7 +406,7 @@ class _PendingUpdatesPageState extends State<PendingUpdatesPage> {
                 borderRadius: BorderRadius.circular(0),
                 child: ImageCachedWidget(
                   imageUrl: media.networkImageSqr,
-                  pathNoImage: media is Audio ? "pub_type_audio" : "pub_type_video",
+                  icon: media is Audio ? JwIcons.headphones__simple : JwIcons.video,
                   height: 85,
                   width: 85,
                 ),

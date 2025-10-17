@@ -110,8 +110,8 @@ class History {
 
     List<Map<String, dynamic>> existing = await db.query(
       "History",
-      where: "DocumentId = ? AND Type = ?",
-      whereArgs: [docId, "document"],
+      where: "DocumentId = ? AND MepsLanguageId = ? AND Type = ?",
+      whereArgs: [docId, pub.mepsLanguage.id, "document"],
     );
 
     if (existing.isNotEmpty) {
@@ -154,8 +154,8 @@ class History {
 
     List<Map<String, dynamic>> existing = await db.query(
       "History",
-      where: "KeySymbol = ? AND BookNumber = ? AND ChapterNumber = ? AND Type = ?",
-      whereArgs: [bible.keySymbol, bibleBook, bibleChapter, "chapter"],
+      where: "KeySymbol = ? AND BookNumber = ? AND ChapterNumber = ? AND MepsLanguageId = ? AND Type = ?",
+      whereArgs: [bible.keySymbol, bibleBook, bibleChapter, bible.mepsLanguage.id, "chapter"],
     );
 
     String lastDisplayTitle = startVerse == null && endVerse == null ? "$displayTitle $bibleChapter" : JwLifeApp.bibleCluesInfo.getVerses(bibleBook, bibleChapter, startVerse ?? 0, bibleBook, bibleChapter, endVerse ?? 0);

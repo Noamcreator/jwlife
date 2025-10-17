@@ -25,7 +25,7 @@ import '../app/jwlife_app.dart';
 import '../app/services/global_key_service.dart';
 import '../app/services/notification_service.dart';
 import '../app/services/settings_service.dart';
-import '../core/api/api_keys.dart';
+import '../core/keys.dart';
 import '../core/constants.dart';
 import '../core/shared_preferences/shared_preferences_utils.dart';
 import '../core/utils/files_helper.dart';
@@ -691,8 +691,8 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
   }
 
   Future<String> uploadImageToImgbb(File imageFile) async {
-    const String imgbbApiKey = ApiKey.imgbbApiKey;
-    const String albumId = ApiKey.albumId;
+    const String imgbbApiKey = Keys.imgbbApiKey;
+    const String albumId = Keys.albumId;
     final url = Uri.parse('https://api.imgbb.com/1/upload');
 
     final request = http.MultipartRequest('POST', url)
@@ -762,11 +762,11 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
       buffer.writeln("![Capture d'écran]($imageUrl)");
     }
 
-    final issueUrl = Uri.parse("https://api.github.com/repos/${ApiKey.githubOwner}/${Constants.appRepo}/issues");
+    final issueUrl = Uri.parse("https://api.github.com/repos/${Keys.githubOwner}/${Constants.appRepo}/issues");
     final issueResponse = await http.post(
       issueUrl,
       headers: {
-        "Authorization": "Bearer ${ApiKey.githubToken}",
+        "Authorization": "Bearer ${Keys.githubToken}",
         "Accept": "application/vnd.github.v3+json",
         "Content-Type": "application/json",
       },

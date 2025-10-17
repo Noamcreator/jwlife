@@ -221,4 +221,9 @@ class JwIcons {
   static const IconData woman_sun = IconData(0xE6D7, fontFamily: _kFontFam);
   static const IconData x = IconData(0xE6D8, fontFamily: _kFontFam);
   static const IconData x_circle = IconData(0xE6D9, fontFamily: _kFontFam);
+  static const IconData box_stack = IconData(0xE6DA, fontFamily: _kFontFam);
+  static const IconData box_stack_fill = IconData(0xE6DB, fontFamily: _kFontFam);
+  static const IconData highlighter = IconData(0xE6DC, fontFamily: _kFontFam);
+  static const IconData underline_pencil = IconData(0xE6DD, fontFamily: _kFontFam);
+  static const IconData color_text = IconData(0xE6DE, fontFamily: _kFontFam);
 }

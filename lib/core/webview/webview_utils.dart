@@ -250,7 +250,7 @@ Future<Map<String, dynamic>?> fetchExtractPublication(BuildContext context, Stri
       List<Map<String, dynamic>> notes = [];
       if (extractMepsDocumentId != null) {
         highlights = await JwLifeApp.userdata.getBlockRangesFromDocumentId(extractMepsDocumentId, extract['MepsLanguageIndex']);
-        notes = await JwLifeApp.userdata.getNotesFromDocId(extractMepsDocumentId, extract['MepsLanguageIndex']);
+        notes = await JwLifeApp.userdata.getNotesFromDocumentId(extractMepsDocumentId, extract['MepsLanguageIndex']);
 
         if(publication.documentsManager == null) {
           publication.datedTextManager!.getCurrentDatedText().extractedNotes.clear();
@@ -384,7 +384,7 @@ Future<Map<String, dynamic>?> fetchGuideVerse(BuildContext context, Publication 
       List<Map<String, dynamic>> notes = [];
       if (extractMepsDocumentId != null) {
         highlights = await JwLifeApp.userdata.getBlockRangesFromDocumentId(extractMepsDocumentId, extract['MepsLanguageIndex']);
-        notes = await JwLifeApp.userdata.getNotesFromDocId(extractMepsDocumentId, extract['MepsLanguageIndex']);
+        notes = await JwLifeApp.userdata.getNotesFromDocumentId(extractMepsDocumentId, extract['MepsLanguageIndex']);
 
         if(publication.documentsManager == null) {
           publication.datedTextManager!.getCurrentDatedText().extractedNotes.clear();

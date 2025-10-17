@@ -113,7 +113,6 @@ class _SearchFieldAllState extends State<SearchFieldAll> {
               children: [
                 item.icon?.isNotEmpty ?? false ? ImageCachedWidget(
                   imageUrl: item.icon!,
-                  pathNoImage: 'pub_type_placeholder',
                   width: 40,
                   height: 40,
                 )

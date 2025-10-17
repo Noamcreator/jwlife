@@ -887,8 +887,7 @@ class PublicationMenuViewState extends State<PublicationMenuView> with SingleTic
                     : widget.publication.shortTitle,
                 style: textStyleTitle),
             Text(
-                "${widget.publication.mepsLanguage.vernacular} · ${widget
-                    .publication.symbol}",
+                "${widget.publication.mepsLanguage.vernacular} · ${widget.publication.keySymbol}",
                 style: textStyleSubtitle),
           ],
         ),
