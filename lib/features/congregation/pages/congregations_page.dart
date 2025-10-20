@@ -140,7 +140,7 @@ class _CongregationsPageState extends State<CongregationsPage> {
         _showSearchBar = false;
       });
 
-      GlobalKeyService.meetingsKey.currentState!.fetchFirstCongregation();
+      GlobalKeyService.workShipKey.currentState!.fetchFirstCongregation();
 
       debugPrint('Congrégation enregistrée avec succès.');
     } catch (e) {
@@ -267,6 +267,14 @@ class _CongregationsPageState extends State<CongregationsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       resizeToAvoidBottomInset: false,
+      appBar: AppBar(
+        title: Text(localization(context).navigation_congregations,
+          style: const TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
       body: Column(
         children: [
           if ((_showSearchBar || _congregations.isEmpty) && !_isLoading)

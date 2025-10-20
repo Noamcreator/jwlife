@@ -28,12 +28,55 @@ class FileHandlerService {
   Function(String filePath, String fileType)? onFileReceived;
   Function(String url)? onUrlReceived;
 
+  // Track des fichiers/URLs déjà traités
+  String? _lastProcessedFile;
+  String? _lastProcessedUrl;
+
   Future<void> initialize() async {
     // Écouter les fichiers et URLs entrants
     _channel.setMethodCallHandler(_handleMethodCall);
 
     // Vérifier s'il y a un fichier ou URL en attente au démarrage
     await _checkPendingContent();
+
+    // Définir le callback pour les fichiers reçus
+    onFileReceived = (filePath, fileType) {
+      print('Fichier reçu: $filePath de type $fileType');
+
+      // Ignorer si c'est le même fichier qui a déjà été traité
+      if (_lastProcessedFile == filePath) {
+        print('Fichier déjà traité, on ignore: $filePath');
+        return;
+      }
+
+      _lastProcessedFile = filePath;
+
+      switch (fileType) {
+        case 'jwlibrary':
+          processJwLibraryFile(filePath);
+          break;
+        case 'jwplaylist':
+          processJwPlaylistFile(filePath);
+          break;
+        case 'jwpub':
+          processJwPubFile(filePath);
+          break;
+      }
+    };
+
+    // Callback pour les URLs JW.org
+    onUrlReceived = (url) {
+      print('URL JW.org reçue: $url');
+
+      // Ignorer si c'est la même URL qui a déjà été traitée
+      if (_lastProcessedUrl == url) {
+        print('URL déjà traitée, on ignore: $url');
+        return;
+      }
+
+      _lastProcessedUrl = url;
+      processJwOrgUrl(url);
+    };
   }
 
   Future<void> _handleMethodCall(MethodCall call) async {
@@ -50,6 +93,7 @@ class FileHandlerService {
           // Stocker pour traitement ultérieur
           _pendingFilePath = filePath;
           _pendingFileType = fileType;
+          _lastProcessedFile = null; // Reset pour permettre le traitement après
         }
         break;
 
@@ -63,6 +107,7 @@ class FileHandlerService {
         } else {
           // Stocker pour traitement ultérieur
           _pendingUrl = url;
+          _lastProcessedUrl = null; // Reset pour permettre le traitement après
         }
         break;
     }
@@ -123,6 +168,18 @@ class FileHandlerService {
     }
   }
 
+  // Méthode pour réinitialiser après traitement (à appeler une fois le dialogue fermé)
+  Future<void> resetProcessedContent() async {
+    _lastProcessedFile = null;
+    _lastProcessedUrl = null;
+    // Signaler à Android que le fichier a été traité
+    try {
+      await _channel.invokeMethod('fileProcessed');
+    } catch (e) {
+      print('Erreur lors de la réinitialisation Android: $e');
+    }
+  }
+
   // Méthode pour traiter les URLs JW.org
   Future<void> processJwOrgUrl(String url) async {
     try {
@@ -142,8 +199,6 @@ class FileHandlerService {
 
     } catch (e) {
       print('Erreur lors du traitement de l\'URL JW.org: $e');
-      // En cas d'erreur de parsing, on peut essayer d'ouvrir dans un navigateur web
-      // ou afficher une erreur à l'utilisateur
     }
   }
 
@@ -173,6 +228,9 @@ class FileHandlerService {
 
       await _importJwLibraryFile(file);
 
+      // enlever le fichier
+      await file.delete();
+
     } catch (e) {
       print('Erreur lors du traitement du fichier JW Library: $e');
       throw e;
@@ -190,6 +248,9 @@ class FileHandlerService {
 
       await _importJwPlaylistFile(file);
 
+      // enlever le fichier
+      await file.delete();
+
     } catch (e) {
       print('Erreur lors du traitement du fichier JW Playlist: $e');
       throw e;
@@ -206,6 +267,9 @@ class FileHandlerService {
       }
 
       await _importJwPubFile(file);
+
+      // enlever le fichier
+      await file.delete();
 
     } catch (e) {
       print('Erreur lors du traitement du fichier JW Publication: $e');
@@ -231,7 +295,7 @@ class FileHandlerService {
       await showJwDialog(
         context: context,
         titleText: 'Fichier invalide',
-        contentText: 'Le fichier sélectionné n’est pas une archive valide.',
+        contentText: "Le fichier sélectionné n'est pas une archive valide.",
         buttons: [
           JwDialogButton(
             label: 'OK',
@@ -240,6 +304,8 @@ class FileHandlerService {
         ],
         buttonAxisAlignment: MainAxisAlignment.end,
       );
+      // Réinitialiser après affichage de l'erreur
+      resetProcessedContent();
       return;
     }
 
@@ -258,6 +324,8 @@ class FileHandlerService {
         ],
         buttonAxisAlignment: MainAxisAlignment.end,
       );
+      // Réinitialiser après affichage de l'erreur
+      resetProcessedContent();
       return;
     }
 
@@ -341,11 +409,19 @@ class FileHandlerService {
       if (dialogContext != null) Navigator.of(dialogContext!).pop();
       GlobalKeyService.homeKey.currentState?.refreshFavorites();
       GlobalKeyService.personalKey.currentState?.refreshUserdata();
+
+      // Réinitialiser après succès
+      resetProcessedContent();
+    } else {
+      // Réinitialiser si l'utilisateur annule
+      resetProcessedContent();
     }
   }
 
   Future<void> _importJwPlaylistFile(File file) async {
     print('Import JW Playlist: ${file.path}');
+    // N'oublie pas de réinitialiser aussi ici
+    resetProcessedContent();
   }
 
   Future<void> _importJwPubFile(File file) async {
@@ -369,8 +445,12 @@ class FileHandlerService {
     // Gère le résultat de l'importation.
     if (jwpub == null) {
       showJwpubError(context);
+      // Réinitialiser après erreur
+      resetProcessedContent();
     } else {
       showPage(PublicationMenuView(publication: jwpub));
+      // Réinitialiser après succès
+      resetProcessedContent();
     }
   }
 }

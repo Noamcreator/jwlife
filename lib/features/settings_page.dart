@@ -9,6 +9,7 @@ import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
+import 'package:jwlife/app/startup/auto_update.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/core/utils/utils_backup_app.dart';
@@ -17,7 +18,7 @@ import 'package:jwlife/data/models/meps_language.dart';
 import 'package:jwlife/i18n/app_localizations.dart';
 import 'package:jwlife/i18n/localization.dart';
 import 'package:jwlife/core/utils/utils_dialog.dart';
-import 'package:path_provider/path_provider.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:realm/realm.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:sqflite/sqflite.dart';
@@ -28,6 +29,7 @@ import '../app/services/settings_service.dart';
 import '../core/keys.dart';
 import '../core/constants.dart';
 import '../core/shared_preferences/shared_preferences_utils.dart';
+import '../core/utils/directory_helper.dart';
 import '../core/utils/files_helper.dart';
 import '../core/utils/utils.dart';
 import '../core/utils/widgets_utils.dart';
@@ -65,6 +67,8 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
   DateTime _bibleReadingNotificationTime = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day, 8, 0);
 
   bool _downloadNotification = false;
+
+  String _currentVersion = '1.0.0';
 
   // Cache des styles pour éviter les recréations
   late final TextStyle _subtitleStyle;
@@ -124,6 +128,9 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
 
     final downloadNotification = futures[10] as bool;
 
+    final info = await PackageInfo.fromPlatform();
+    final currentVersion = info.version;
+
     final themeMode = theme == 'dark'
         ? ThemeMode.dark
         : theme == 'light'
@@ -153,6 +160,8 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
         _bibleReadingNotificationTime = bibleReadingNotificationTime;
 
         _downloadNotification = downloadNotification;
+
+        _currentVersion = currentVersion;
       });
     }
 
@@ -162,11 +171,11 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
 
   Future<void> _loadCacheSize() async {
     try {
-      final cacheDir = await getTemporaryDirectory();
-      final sizeInBytes = await getDirectorySize(cacheDir);
+      final appCacheDir = await getAppCacheDirectory();
+      final appCacheSizeInBytes = await getDirectorySize(appCacheDir);
       if (mounted) {
         setState(() {
-          cacheSize = formatBytes(sizeInBytes);
+          cacheSize = formatBytes(appCacheSizeInBytes);
         });
       }
     } catch (e) {
@@ -754,7 +763,7 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
       ..writeln("- **Nom:** $username")
       ..writeln("- **Appareil:** $deviceManufacturer ($deviceModel)")
       ..writeln("- **Version OS:** $androidVersion ${Platform.isAndroid ? '(Android)' : Platform.isIOS ? '(iOS)' : ''}")
-      ..writeln("- **Version ${Constants.appName}:** ${Constants.appVersion}")
+      ..writeln("- **Version ${Constants.appName}:** $_currentVersion")
       ..writeln("- **Timestamp:** ${DateTime.now().toIso8601String()}");
 
     if (imageUrl != null) {
@@ -993,10 +1002,13 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
             if (dialogContext != null) Navigator.of(dialogContext!).pop();
 
             if (backupFile != null) {
-              SharePlus.instance.share(ShareParams(files: [XFile(backupFile.path)]));
+              await SharePlus.instance.share(ShareParams(files: [XFile(backupFile.path)]));
             }
 
             if (mounted) Navigator.pop(context);
+
+            // On supprime le fichier
+            if (backupFile != null) await File(backupFile.path).delete();
           } catch (e) {
             if (dialogContext != null) Navigator.of(dialogContext!).pop();
             await _showErrorDialog('Erreur', 'Erreur lors de l\'exportation.');
@@ -1268,9 +1280,9 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
           );
 
           try {
-            final cacheDir = await getTemporaryDirectory();
-            if (await cacheDir.exists()) {
-              await cacheDir.delete(recursive: true);
+            final appCacheDir = await getAppCacheDirectory();
+            if (await appCacheDir.exists()) {
+              await appCacheDir.delete(recursive: true);
             }
 
             if (dialogContext != null) Navigator.of(dialogContext!).pop();
@@ -1305,7 +1317,10 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
       SettingsSectionHeader(localization(context).settings_about),
       SettingsTile(
         title: localization(context).settings_application_version,
-        subtitle: Constants.appVersion,
+        subtitle: _currentVersion,
+        onTap: () {
+         JwLifeAutoUpdater.checkAndUpdate(showBannerNoUpdate: true);
+        }
       ),
       SettingsTile(
         title: localization(context).settings_catalog_date,

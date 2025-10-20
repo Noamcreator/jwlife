@@ -82,7 +82,6 @@ class PublicationRepository {
 
   Publication? getPublicationWithMepsLanguageId(String keySymbol, int issueTagNumber, int mepsLanguageId) {
     final key = '${keySymbol}_${issueTagNumber}_$mepsLanguageId';
-    print('key : ${key}');
     return _publications[key];
   }
 

@@ -751,7 +751,7 @@ class _FullAudioViewState extends State<FullAudioView> {
         // Télécharger l’image temporairement
         final response = await NetworkAssetBundle(Uri.parse(_currentImageWidget!.imageUrl!)).load("");
         final Uint8List bytes = response.buffer.asUint8List();
-        final tempFile = File('${(await getTemporaryDirectory()).path}/temp_img.jpg');
+        final tempFile = File('${(await getApplicationCacheDirectory()).path}/temp_img.jpg');
         await tempFile.writeAsBytes(bytes);
         palette = await getDominantColorFromFile(tempFile);
       }

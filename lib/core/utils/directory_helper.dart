@@ -50,9 +50,13 @@ Future<Directory> getAppWebViewDirectory() async { // Get the default applicatio
   return appWebViewDirectory;
 }
 
-Future<Directory> getAppCacheDirectory() async { // Get the default application cache directory
-  final directory = await getApplicationCacheDirectory();
-  return directory;
+Future<Directory> getAppCacheDirectory() async { // Get the default application documents directory
+  final directory = await getAppDirectory();
+  Directory appCacheDirectory = Directory('${directory.path}/app_cache');
+  if (!await appCacheDirectory.exists()) {
+    await appCacheDirectory.create();
+  }
+  return appCacheDirectory;
 }
 
 Future<Directory> getAppCodeCacheDirectory() async { // Get the default application cache directory

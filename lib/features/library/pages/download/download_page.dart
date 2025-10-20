@@ -401,7 +401,7 @@ class _DownloadPageState extends State<DownloadPage> {
             }
             else {
               if (jwpub.keySymbol == 'S-34') {
-                GlobalKeyService.meetingsKey.currentState?.refreshMeetingsPubs();
+                GlobalKeyService.workShipKey.currentState?.refreshMeetingsPubs();
               }
 
               if (f == result.files.last) {

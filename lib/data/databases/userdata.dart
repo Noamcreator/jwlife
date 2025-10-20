@@ -110,7 +110,7 @@ class Userdata {
     }
 
     // Retourner à la racine dans tous les onglets
-    for (int i = 0; i < 7; i++) {
+    for (int i = 0; i < 6; i++) {
       GlobalKeyService.jwLifePageKey.currentState?.returnToFirstPage(i);
     }
   }
@@ -2562,7 +2562,7 @@ class Userdata {
       }
 
       // Créer un répertoire temporaire pour la sauvegarde
-      final tempDir = await getTemporaryDirectory();
+      final tempDir = await getAppCacheDirectory();
       final tempBackupDir = Directory('${tempDir.path}/backup_${DateTime.now().millisecondsSinceEpoch}');
       await tempBackupDir.create();
 

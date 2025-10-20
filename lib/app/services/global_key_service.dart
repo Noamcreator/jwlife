@@ -6,18 +6,17 @@ import '../jwlife_app.dart';
 import '../../features/home/pages/home_page.dart';
 import '../../features/bible/pages/bible_page.dart';
 import '../../features/library/pages/library_page.dart';
-import '../../features/meetings/pages/meeting_page.dart';
+import '../../features/workship/pages/workship_page.dart';
 import '../../features/predication/pages/predication_page.dart';
-import '../../features/congregation/pages/congregation_page.dart';
 import '../../features/personal/pages/personal_page.dart';
 
 enum PageType {
   home,
   bible,
   library,
-  meetings,
+  workShip,
   predication,
-  congregation,
+  //congregation,
   personal,
 }
 
@@ -39,9 +38,9 @@ class GlobalKeyService {
     PageType.home: GlobalKey<HomePageState>(),
     PageType.bible: GlobalKey<BiblePageState>(),
     PageType.library: GlobalKey<LibraryPageState>(),
-    PageType.meetings: GlobalKey<MeetingsPageState>(),
+    PageType.workShip: GlobalKey<WorkShipPageState>(),
     PageType.predication: GlobalKey<PredicationPageState>(),
-    PageType.congregation: GlobalKey<CongregationPageState>(),
+    //PageType.congregation: GlobalKey<CongregationPageState>(),
     PageType.personal: GlobalKey<PersonalPageState>(),
   };
 
@@ -49,9 +48,9 @@ class GlobalKeyService {
   static GlobalKey<HomePageState> get homeKey => _pageKeys[PageType.home]! as GlobalKey<HomePageState>;
   static GlobalKey<BiblePageState> get bibleKey => _pageKeys[PageType.bible]! as GlobalKey<BiblePageState>;
   static GlobalKey<LibraryPageState> get libraryKey => _pageKeys[PageType.library]! as GlobalKey<LibraryPageState>;
-  static GlobalKey<MeetingsPageState> get meetingsKey => _pageKeys[PageType.meetings]! as GlobalKey<MeetingsPageState>;
+  static GlobalKey<WorkShipPageState> get workShipKey => _pageKeys[PageType.workShip]! as GlobalKey<WorkShipPageState>;
   static GlobalKey<PredicationPageState> get predicationKey => _pageKeys[PageType.predication]! as GlobalKey<PredicationPageState>;
-  static GlobalKey<CongregationPageState> get congregationKey => _pageKeys[PageType.congregation]! as GlobalKey<CongregationPageState>;
+  //static GlobalKey<CongregationPageState> get congregationKey => _pageKeys[PageType.congregation]! as GlobalKey<CongregationPageState>;
   static GlobalKey<PersonalPageState> get personalKey => _pageKeys[PageType.personal]! as GlobalKey<PersonalPageState>;
 
   /// Récupère une clé générique par type

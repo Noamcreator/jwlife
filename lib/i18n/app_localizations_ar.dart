@@ -132,7 +132,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get navigation_library => 'المكتبة';
 
   @override
-  String get navigation_meetings => 'الاجتماعات والمؤتمرات';
+  String get navigation_workship => 'Culte';
 
   @override
   String get navigation_predication => 'التبشير';
@@ -153,21 +153,21 @@ class AppLocalizationsAr extends AppLocalizations {
   String get navigation_favorites => 'المفضلات';
 
   @override
-  String get navigation_meetings_assembly_br =>
+  String get navigation_workship_assembly_br =>
       'Assemblées de circonscription avec un représentant de la filiale';
 
   @override
-  String get navigation_meetings_assembly_co =>
+  String get navigation_workship_assembly_co =>
       'Assemblées de circonscription avec le responsable de circonscription';
 
   @override
-  String get navigation_meetings_convention => 'مؤتمر الإقليم';
+  String get navigation_workship_convention => 'Assemblée régionale';
 
   @override
-  String get navigation_meetings_life_and_ministry => 'حياة ووزارة';
+  String get navigation_workship_life_and_ministry => 'Réunion de semaine';
 
   @override
-  String get navigation_meetings_watchtower_study => 'دراسة برج المراقبة';
+  String get navigation_workship_watchtower_study => 'Réunion du weekend';
 
   @override
   String get navigation_predication_letters => 'الرسائل';

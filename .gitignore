@@ -4,6 +4,7 @@
 *.pyc
 *.swp
 .DS_Store
+.old_apk/
 .atom/
 .build/
 .buildlog/

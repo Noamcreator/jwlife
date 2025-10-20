@@ -132,7 +132,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get navigation_library => 'Bibliothèque';
 
   @override
-  String get navigation_meetings => 'Réunions et Assemblées';
+  String get navigation_workship => 'Culte';
 
   @override
   String get navigation_predication => 'Prédication';
@@ -153,21 +153,21 @@ class AppLocalizationsFr extends AppLocalizations {
   String get navigation_favorites => 'Favoris';
 
   @override
-  String get navigation_meetings_assembly_br =>
+  String get navigation_workship_assembly_br =>
       'Assemblées de circonscription avec un représentant de la filiale';
 
   @override
-  String get navigation_meetings_assembly_co =>
+  String get navigation_workship_assembly_co =>
       'Assemblées de circonscription avec le responsable de circonscription';
 
   @override
-  String get navigation_meetings_convention => 'Assemblée régionale';
+  String get navigation_workship_convention => 'Assemblée régionale';
 
   @override
-  String get navigation_meetings_life_and_ministry => 'Réunion de semaine';
+  String get navigation_workship_life_and_ministry => 'Réunion de semaine';
 
   @override
-  String get navigation_meetings_watchtower_study => 'Réunion du weekend';
+  String get navigation_workship_watchtower_study => 'Réunion du weekend';
 
   @override
   String get navigation_predication_letters => 'Courriers';

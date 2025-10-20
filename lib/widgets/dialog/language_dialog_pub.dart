@@ -176,7 +176,7 @@ class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
 
     List<Map<String, dynamic>> languagesModifiable = List.from(response);
 
-    List<Map<String, dynamic>> mostUsedLanguages = await getUpdatedMostUsedLanguages(selectedLanguage!, languagesModifiable);
+    List<Map<String, dynamic>> mostUsedLanguages = await getUpdatedMostUsedLanguages(selectedLanguage, languagesModifiable);
 
     _recommendedLanguages = languagesModifiable.where((lang) {
       return isRecommended(lang, mostUsedLanguages);
@@ -190,7 +190,7 @@ class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
     });
   }
 
-  Future<List<Map<String, dynamic>>> getUpdatedMostUsedLanguages(String selectedLanguageSymbol, List<Map<String, dynamic>> allLanguagesList) async {
+  Future<List<Map<String, dynamic>>> getUpdatedMostUsedLanguages(String? selectedLanguageSymbol, List<Map<String, dynamic>> allLanguagesList) async {
     List<Map<String, dynamic>> mostUsedLanguages = await History.getMostUsedLanguages();
     List<Map<String, dynamic>> mostUsedLanguagesList = List.from(mostUsedLanguages);
 

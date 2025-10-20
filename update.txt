@@ -347,3 +347,39 @@ Gestion des marges (Padding) : Ajout d'une marge intérieure (padding) pour les 
 Bug de sauvegarde des notes et surlignages : Un bug affectant la sauvegarde des notes et des surlignages sur les publications avec une date (MWB, W, etc.) a été identifié. Il est dû à une mauvaise keySymbol utilisée.
 
 Solution : Ce problème sera réglé en retéléchargeant les documents concernés (Réveillez-vous !, La Tour de Garde, Cahier Vie et Ministère, Ministère du Royaume) après les avoir tous supprimés. Alternativement, la désinstallation et la réinstallation de l'application est une solution certaine.
+
+📢 **Mise à jour – 1.0.1 (19/10/2025)**
+
+---
+
+### 🐞 **Corrections**
+- Résolution d’un bug sur certains appareils **Samsung** où l’application restait active en arrière-plan après extinction du téléphone.
+- Correction d’un problème empêchant l’affichage des **langues disponibles** lors du téléchargement d’une Bible.
+- L’interface affichée lorsqu’aucune Bible n’est encore téléchargée a été **simplifiée**.
+
+---
+
+### 🧩 **Améliorations**
+- Tous les fichiers sont désormais **centralisés dans un seul dossier cache**.
+- Refonte de la **barre de navigation inférieure (Bottom Navigation Bar)** pour éviter les rechargements inutiles lors de la création d’une WebView.
+- La **version de l’application** affichée dans les paramètres correspond maintenant à celle du **paquet installé**.
+
+---
+
+### 🚀 **Nouvelles fonctionnalités**
+- Ajout d’un **système de vérification automatique des mises à jour** via une API :
+  → Une fenêtre s’affiche en cas de nouvelle version avec les nouveautés.
+  → Deux options : **« Plus tard »** ou **« Mettre à jour »**.
+  → Si la mise à jour n’est pas effectuée immédiatement, elle peut être lancée depuis les **paramètres** en appuyant sur la **version de l’app**.
+
+---
+
+### 🎨 **Interface**
+- Fusion des anciens onglets **« Réunions et Assemblées »** et **« Assemblée Locale »** en un seul onglet nommé **Culte**.
+- Refonte complète de la page **Culte** avec deux onglets distincts : **Réunions** et **Assemblées**, et un design plus doux inspiré de **JW Library**.
+- Pour afficher les assemblées, il suffit désormais d’appuyer sur **PROCHAINE RÉUNION** dans le menu *Culte*.
+
+---
+
+### 📦 **Mises à jour techniques**
+- Mise à jour de la bibliothèque **flutter_local_notifications** : `19.4.2` → `19.5.0`.

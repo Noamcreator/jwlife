@@ -344,11 +344,11 @@ abstract class AppLocalizations {
   /// **'Bibliothèque'**
   String get navigation_library;
 
-  /// No description provided for @navigation_meetings.
+  /// No description provided for @navigation_workship.
   ///
   /// In fr, this message translates to:
-  /// **'Réunions et Assemblées'**
-  String get navigation_meetings;
+  /// **'Culte'**
+  String get navigation_workship;
 
   /// No description provided for @navigation_predication.
   ///
@@ -386,35 +386,35 @@ abstract class AppLocalizations {
   /// **'Favoris'**
   String get navigation_favorites;
 
-  /// No description provided for @navigation_meetings_assembly_br.
+  /// No description provided for @navigation_workship_assembly_br.
   ///
   /// In fr, this message translates to:
   /// **'Assemblées de circonscription avec un représentant de la filiale'**
-  String get navigation_meetings_assembly_br;
+  String get navigation_workship_assembly_br;
 
-  /// No description provided for @navigation_meetings_assembly_co.
+  /// No description provided for @navigation_workship_assembly_co.
   ///
   /// In fr, this message translates to:
   /// **'Assemblées de circonscription avec le responsable de circonscription'**
-  String get navigation_meetings_assembly_co;
+  String get navigation_workship_assembly_co;
 
-  /// No description provided for @navigation_meetings_convention.
+  /// No description provided for @navigation_workship_convention.
   ///
   /// In fr, this message translates to:
   /// **'Assemblée régionale'**
-  String get navigation_meetings_convention;
+  String get navigation_workship_convention;
 
-  /// No description provided for @navigation_meetings_life_and_ministry.
+  /// No description provided for @navigation_workship_life_and_ministry.
   ///
   /// In fr, this message translates to:
   /// **'Réunion de semaine'**
-  String get navigation_meetings_life_and_ministry;
+  String get navigation_workship_life_and_ministry;
 
-  /// No description provided for @navigation_meetings_watchtower_study.
+  /// No description provided for @navigation_workship_watchtower_study.
   ///
   /// In fr, this message translates to:
   /// **'Réunion du weekend'**
-  String get navigation_meetings_watchtower_study;
+  String get navigation_workship_watchtower_study;
 
   /// No description provided for @navigation_predication_letters.
   ///

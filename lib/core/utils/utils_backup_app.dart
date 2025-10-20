@@ -98,7 +98,7 @@ Future<void> importAppBackup(File zipFile) async {
   }
 
   // 1. Créer un répertoire temporaire pour extraire le ZIP
-  final tempDir = await getTemporaryDirectory();
+  final tempDir = await getAppCacheDirectory();
   final extractDir = Directory('${tempDir.path}/backup_extract_${DateTime.now().millisecondsSinceEpoch}');
   if (!await extractDir.exists()) {
     await extractDir.create(recursive: true);

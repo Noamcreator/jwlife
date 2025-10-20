@@ -275,13 +275,3 @@ img.Image resizeAndCropCenter(img.Image originalImage, int targetSize) {
 String toHex(Color color) {
   return '#${color.value.toRadixString(16).substring(2).toUpperCase()}';
 }
-
-
-Future<File> getTempFile(String fileName) async {
-  final tempDir = await getTemporaryDirectory();
-  final tempFile = File('${tempDir.path}/$fileName');
-  if (!await tempFile.exists()) {
-    await tempFile.create(recursive: true);
-  }
-  return tempFile;
-}

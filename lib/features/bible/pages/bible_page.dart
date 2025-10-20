@@ -30,11 +30,9 @@ class BiblePageState extends State<BiblePage> {
 
   void refreshBiblePage() {
     Publication? bible = PublicationRepository().getLookUpBible();
-    if (bible != null) {
-      setState(() {
-        currentBible = bible;
-      });
-    }
+    setState(() {
+      currentBible = bible;
+    });
   }
 
   void goToTheBooksTab() {
@@ -55,45 +53,34 @@ class BiblePageState extends State<BiblePage> {
       return Scaffold(
         resizeToAvoidBottomInset: false,
         appBar: AppBar(
-            title: Text(localization(context).navigation_bible)
+            title: Text(localization(context).navigation_bible, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
         ),
         body: Center(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  JwIcons.bible,
-                  size: 80,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                const SizedBox(height: 20),
-                ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    textStyle: const TextStyle(fontSize: 17, fontWeight: FontWeight.w500),
-                    elevation: 3,
-                  ),
-                  onPressed: () async {
-                    showLanguagePubDialog(context, null).then((bible) async {
-                      if (bible != null) {
-                        String bibleKey = bible.getKey();
-                        JwLifeSettings().lookupBible = bibleKey;
-                        setLookUpBible(bibleKey);
+                textStyle: const TextStyle(fontSize: 17, fontWeight: FontWeight.w500),
+                elevation: 3,
+              ),
+              onPressed: () async {
+                showLanguagePubDialog(context, null).then((bible) async {
+                  if (bible != null) {
+                    String bibleKey = bible.getKey();
+                    JwLifeSettings().lookupBible = bibleKey;
+                    setLookUpBible(bibleKey);
 
-                        setState(() {
-                          currentBible = bible;
-                        });
-                      }
+                    setState(() {
+                      currentBible = bible;
                     });
-                  },
-                  icon: const Icon(JwIcons.cloud_arrow_down),
-                  label: const Text('Télécharger une Bible'),
-                ),
-              ],
+                  }
+                });
+              },
+              child: const Text('Télécharger une Bible'),
             ),
           ),
         ),

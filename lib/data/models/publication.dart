@@ -433,7 +433,7 @@ class Publication {
     }
 
     if(keySymbol == 'S-34') {
-      GlobalKeyService.meetingsKey.currentState?.refreshMeetingsPubs();
+      GlobalKeyService.workShipKey.currentState?.refreshMeetingsPubs();
     }
   }
 

@@ -7,10 +7,10 @@ class CongregationPage extends StatefulWidget {
   const CongregationPage({super.key});
 
   @override
-  CongregationPageState createState() => CongregationPageState();
+  _CongregationPageState createState() => _CongregationPageState();
 }
 
-class CongregationPageState extends State<CongregationPage> {
+class _CongregationPageState extends State<CongregationPage> {
   @override
   void initState() {
     super.initState();

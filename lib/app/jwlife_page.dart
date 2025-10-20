@@ -11,9 +11,8 @@ import 'package:jwlife/core/utils/utils_dialog.dart';
 import '../data/databases/history.dart';
 import '../features/bible/pages/bible_page.dart';
 import '../features/image/image_page.dart';
-import '../features/meetings/pages/meeting_page.dart';
+import '../features/workship/pages/workship_page.dart';
 import '../features/predication/pages/predication_page.dart';
-import 'package:jwlife/features/congregation/pages/congregation_page.dart';
 import 'package:jwlife/features/library/pages/library_page.dart';
 import 'package:jwlife/features/personal/pages/personal_page.dart';
 
@@ -21,7 +20,7 @@ import '../core/icons.dart';
 import 'package:jwlife/i18n/localization.dart';
 
 import '../features/audio/audio_player_widget.dart';
-import '../widgets/custom_bottom_navigation_item.dart';
+import '../widgets/long_press_bottom_navigation_bar.dart';
 import '../widgets/slide_indexed_stack.dart';
 
 class JwLifePage extends StatefulWidget {
@@ -32,9 +31,9 @@ class JwLifePage extends StatefulWidget {
 }
 
 class JwLifePageState extends State<JwLifePage> {
-  final List<bool> navBarIsDisable = [false, false, false, false, false, false, false];
-  final List<bool> navBarIsTransparent = [false, false, false, false, false, false, false];
-  final List<bool> resizeToAvoidBottomInset = [false, false, false, false, false, false, false];
+  final List<bool> navBarIsDisable = [false, false, false, false, false, false];
+  final List<bool> navBarIsTransparent = [false, false, false, false, false, false];
+  final List<bool> resizeToAvoidBottomInset = [false, false, false, false, false, false];
 
   bool audioWidgetVisible = false;
   int currentNavigationBottomBarIndex = 0;
@@ -42,8 +41,8 @@ class JwLifePageState extends State<JwLifePage> {
 
   late final List<Widget> _pages;
 
-  final List<GlobalKey<NavigatorState>> navigatorKeys = List.generate(7, (_) => GlobalKey<NavigatorState>());
-  List<List<GlobalKey<State<StatefulWidget>>>> webViewPageKeys = List.generate(7, (_) => []);
+  final List<GlobalKey<NavigatorState>> navigatorKeys = List.generate(6, (_) => GlobalKey<NavigatorState>());
+  List<List<GlobalKey<State<StatefulWidget>>>> webViewPageKeys = List.generate(6, (_) => []);
 
   final Map<int, List<Widget>> pagesByNavigator = {};
 
@@ -57,9 +56,8 @@ class JwLifePageState extends State<JwLifePage> {
       HomePage(key: GlobalKeyService.getKey<HomePageState>(PageType.home)),
       BiblePage(key: GlobalKeyService.getKey<BiblePageState>(PageType.bible)),
       LibraryPage(key: GlobalKeyService.getKey<LibraryPageState>(PageType.library)),
-      MeetingsPage(key: GlobalKeyService.getKey<MeetingsPageState>(PageType.meetings)),
+      WorkShipPage(key: GlobalKeyService.getKey<WorkShipPageState>(PageType.workShip)),
       PredicationPage(key: GlobalKeyService.getKey<PredicationPageState>(PageType.predication)),
-      CongregationPage(key: GlobalKeyService.getKey<CongregationPageState>(PageType.congregation)),
       PersonalPage(key: GlobalKeyService.getKey<PersonalPageState>(PageType.personal)),
     ];
   }
@@ -240,7 +238,7 @@ class JwLifePageState extends State<JwLifePage> {
       GlobalKeyService.libraryKey.currentState?.goToThePubsTab();
     }
     else if(index == 3) {
-      GlobalKeyService.meetingsKey.currentState?.goToTheMeetingsPage();
+      GlobalKeyService.workShipKey.currentState?.goToTheMeetingsTab();
     }
   }
 
@@ -283,37 +281,56 @@ class JwLifePageState extends State<JwLifePage> {
   }
 
   Widget _buildBottomNavigationBar({bool isTransparent = false}) {
-    return CustomBottomNavigation(
-        currentIndex: currentNavigationBottomBarIndex,
-        selectedFontSize: 8.5,
-        unselectedFontSize: 8.0,
-        selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold),
-        backgroundColor: isTransparent ? Colors.transparent : Theme.of(context).bottomNavigationBarTheme.backgroundColor,
-        selectedIconTheme: IconThemeData(color: Theme.of(context).bottomNavigationBarTheme.selectedItemColor),
-        selectedItemColor: Theme.of(context).bottomNavigationBarTheme.selectedItemColor,
-        unselectedItemColor: isTransparent ? Colors.white : Theme.of(context).bottomNavigationBarTheme.unselectedItemColor,
-        items: [
-          CustomBottomNavigationItem(label: localization(context).navigation_home, icon: const Icon(JwIcons.home)),
-          CustomBottomNavigationItem(label: localization(context).navigation_bible, icon: const Icon(JwIcons.bible)),
-          CustomBottomNavigationItem(label: localization(context).navigation_library, icon: const Icon(JwIcons.publication_video_music)),
-          CustomBottomNavigationItem(label: localization(context).navigation_meetings, icon: const Icon(JwIcons.speaker_audience)),
-          CustomBottomNavigationItem(label: localization(context).navigation_predication, icon: const Icon(JwIcons.persons_doorstep)),
-          CustomBottomNavigationItem(label: localization(context).navigation_congregations, icon: const Icon(JwIcons.kingdom_hall)),
-          CustomBottomNavigationItem(label: localization(context).navigation_personal, icon: const Icon(JwIcons.person_studying)),
-        ],
-        onTap: (index) {
-          changeNavBarIndex(index);
-        },
-        onLongPress: (index) {
-          if (index != currentNavigationBottomBarIndex) {
-            GlobalKeyService.setCurrentPage(navigatorKeys[index]);
-            setState(() {
-              currentNavigationBottomBarIndex = index;
-            });
-          }
-          BuildContext context = navigatorKeys[index].currentContext!;
-          History.showHistoryDialog(context, bottomBarIndex: index);
+    return LongPressBottomNavBar(
+      currentIndex: currentNavigationBottomBarIndex,
+      type: BottomNavigationBarType.fixed,
+      backgroundColor: isTransparent ? Colors.transparent : Theme.of(context).bottomNavigationBarTheme.backgroundColor,
+      selectedItemColor: Theme.of(context).bottomNavigationBarTheme.selectedItemColor,
+      unselectedItemColor: isTransparent ? Colors.white : Theme.of(context).bottomNavigationBarTheme.unselectedItemColor,
+      selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 8.5),
+      unselectedLabelStyle: const TextStyle(fontSize: 8.0),
+      onTap: (index) {
+        changeNavBarIndex(index);
+      },
+      onLongPress: (index) {
+        if (index != currentNavigationBottomBarIndex) {
+          GlobalKeyService.setCurrentPage(navigatorKeys[index]);
+          setState(() {
+            currentNavigationBottomBarIndex = index;
+          });
         }
+        BuildContext context = navigatorKeys[index].currentContext!;
+        // Faire vibre le tel
+        HapticFeedback.lightImpact();
+
+        History.showHistoryDialog(context, bottomBarIndex: index);
+      },
+      items: [
+        BottomNavigationBarItem(
+          icon: const Icon(JwIcons.home),
+          label: localization(context).navigation_home,
+        ),
+        BottomNavigationBarItem(
+          icon: const Icon(JwIcons.bible),
+          label: localization(context).navigation_bible,
+        ),
+        BottomNavigationBarItem(
+          icon: const Icon(JwIcons.publication_video_music),
+          label: localization(context).navigation_library,
+        ),
+        BottomNavigationBarItem(
+          icon: const Icon(JwIcons.speaker_audience),
+          label: localization(context).navigation_workship,
+        ),
+        BottomNavigationBarItem(
+          icon: const Icon(JwIcons.persons_doorstep),
+          label: localization(context).navigation_predication,
+        ),
+        BottomNavigationBarItem(
+          icon: const Icon(JwIcons.person_studying),
+          label: localization(context).navigation_personal,
+        ),
+      ],
     );
   }
 
@@ -323,36 +340,38 @@ class JwLifePageState extends State<JwLifePage> {
 
   @override
   Widget build(BuildContext context) {
+    final bool isDisabled = navBarIsDisable[currentNavigationBottomBarIndex] || navBarIsTransparent[currentNavigationBottomBarIndex];
+    final bool isTransparent = navBarIsTransparent[currentNavigationBottomBarIndex];
+
     final Widget content = PopScope(
         canPop: false,
         onPopInvokedWithResult: (didPop, result) async {
           if (didPop) return;
           handleBack(context);
         },
-        child: LazyIndexedStack(
-          index: currentNavigationBottomBarIndex,
-          initialIndexes: [0, 2],
-          builders: List.generate(_pages.length, (index) {
-            return (_) => Navigator(
-              key: navigatorKeys[index],
-              onGenerateRoute: (settings) {
-                return MaterialPageRoute(
-                  builder: (_) => _pages[index],
-                  settings: settings,
-                );
-              },
-            );
-          }),
+        child: Padding(
+          padding: EdgeInsets.only(bottom: !isDisabled ? 70 : 0),
+          child: LazyIndexedStack(
+            index: currentNavigationBottomBarIndex,
+            initialIndexes: [0, 2],
+            builders: List.generate(_pages.length, (index) {
+              return (_) => Navigator(
+                key: navigatorKeys[index],
+                onGenerateRoute: (settings) {
+                  return MaterialPageRoute(
+                    builder: (_) => _pages[index],
+                    settings: settings,
+                  );
+                },
+              );
+            }),
+          ),
         )
     );
 
-    final bool isDisabled = navBarIsDisable[currentNavigationBottomBarIndex] || navBarIsTransparent[currentNavigationBottomBarIndex];
-    final bool isTransparent = navBarIsTransparent[currentNavigationBottomBarIndex];
-
     return Scaffold(
       resizeToAvoidBottomInset: isDisabled ? false : resizeToAvoidBottomInset[currentNavigationBottomBarIndex],
-      body: isDisabled
-          ? Stack(
+      body: Stack(
         children: [
           content,
           ValueListenableBuilder<bool>(
@@ -361,10 +380,8 @@ class JwLifePageState extends State<JwLifePage> {
               if (!isVisible) return const SizedBox.shrink();
               return child!;
             },
-            child: Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
+            child: Align(
+              alignment: Alignment.bottomCenter,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -374,13 +391,6 @@ class JwLifePageState extends State<JwLifePage> {
               ),
             ),
           ),
-        ],
-      )
-          : Column(
-        children: [
-          Expanded(child: content),
-          if (audioWidgetVisible) getAudioWidget(),
-          _buildBottomNavigationBar(),
         ],
       ),
     );

@@ -13,6 +13,8 @@ import '../utils/files_helper.dart';
 import '../utils/gzip_helper.dart';
 
 class Api {
+  static final String gitubApi = 'https://github.com/Noamcreator/jwlife/raw/refs/heads/main/api/';
+
   // URLs des API nécessaires
   static const String version = 'v5';
   static const String apiVersionUrl = 'https://app.jw-cdn.org/catalogs/publications/$version/manifest.json';

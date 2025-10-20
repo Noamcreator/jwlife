@@ -52,8 +52,6 @@ MediaItem? getMediaItem(String? keySymbol, int? track, int? documentId, int? iss
 
   String query = queryParts.join(" AND ");
 
-  print(query);
-
   final results = RealmLibrary.realm.all<MediaItem>().query(query);
   return results.isNotEmpty ? results.first : null;
 }

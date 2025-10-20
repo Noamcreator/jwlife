@@ -42,29 +42,6 @@ Future<void> main() async {
   // Initialiser le service de fichiers
   await FileHandlerService().initialize();
 
-  // Définir le callback pour les fichiers reçus
-  FileHandlerService().onFileReceived = (filePath, fileType) {
-    print('Fichier reçu: $filePath de type $fileType');
-
-    switch (fileType) {
-      case 'jwlibrary':
-        FileHandlerService().processJwLibraryFile(filePath);
-        break;
-      case 'jwplaylist':
-        FileHandlerService().processJwPlaylistFile(filePath);
-        break;
-      case 'jwpub':
-        FileHandlerService().processJwPubFile(filePath);
-        break;
-    }
-  };
-
-  // NOUVEAU: Callback pour les URLs JW.org
-  FileHandlerService().onUrlReceived = (url) {
-    print('URL JW.org reçue: $url');
-    FileHandlerService().processJwOrgUrl(url);
-  };
-
   // Initialise le service de lecture audio avec une notification persistante sur Android
   JustAudioBackground.init(
     androidNotificationChannelId: 'org.noam.jwlife.channel.audio',

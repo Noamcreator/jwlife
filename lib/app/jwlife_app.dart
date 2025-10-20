@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:jwlife/app/services/global_key_service.dart';
 import 'package:jwlife/app/services/settings_service.dart';
+import 'package:jwlife/app/startup/auto_update.dart';
 import 'package:jwlife/app/startup/create_database.dart';
 import 'package:jwlife/app/startup/splash_screen.dart';
 import 'package:jwlife/core/bible_clues_info.dart';
@@ -174,6 +175,8 @@ class JwLifeAppState extends State<JwLifeApp> {
 
     await Future.wait(futures);
 
+    JwLifeAutoUpdater.checkAndUpdate();
+
     printTime('End: Copying assets, downloading, loading homepage, and fetching API data...');
     AssetsDownload.download();
   }
@@ -314,8 +317,8 @@ class JwLifeAppState extends State<JwLifeApp> {
 
         List<Publication> dayPubs = await PubCatalog.getPublicationsForTheDay(date: date);
 
-        GlobalKeyService.meetingsKey.currentState!.refreshMeetingsPubs(publications: dayPubs);
-        GlobalKeyService.meetingsKey.currentState!.refreshSelectedDay(date);
+        GlobalKeyService.workShipKey.currentState!.refreshMeetingsPubs(publications: dayPubs);
+        GlobalKeyService.workShipKey.currentState!.refreshSelectedDay(date);
 
         GlobalKeyService.jwLifePageKey.currentState!.changeNavBarIndex(3);
       }

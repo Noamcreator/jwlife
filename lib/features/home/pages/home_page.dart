@@ -94,7 +94,7 @@ class HomePageState extends State<HomePage> {
 
     printTime("Refresh MeetingsView start");
 
-    GlobalKeyService.meetingsKey.currentState?.refreshConventionsPubs();
+    GlobalKeyService.workShipKey.currentState?.refreshConventionsPubs();
   }
 
   Future<void> _initPage() async {
@@ -123,14 +123,14 @@ class HomePageState extends State<HomePage> {
 
       fetchVerseOfTheDay();
 
-      GlobalKeyService.meetingsKey.currentState?.refreshMeetingsPubs();
+      GlobalKeyService.workShipKey.currentState?.refreshMeetingsPubs();
 
       await Mepsunit.loadBibleCluesInfo();
       await PubCatalog.fetchOtherMeetingsPubs();
       await PubCatalog.fetchAssemblyPublications();
 
       printTime("Refresh MeetingsView start");
-      GlobalKeyService.meetingsKey.currentState?.refreshConventionsPubs();
+      GlobalKeyService.workShipKey.currentState?.refreshConventionsPubs();
     });
 
     _articlesKey.currentState!.setArticles([]);
@@ -247,12 +247,12 @@ class HomePageState extends State<HomePage> {
             fetchVerseOfTheDay();
 
             PubCatalog.updateCatalogCategories();
-            GlobalKeyService.meetingsKey.currentState?.refreshMeetingsPubs();
+            GlobalKeyService.workShipKey.currentState?.refreshMeetingsPubs();
 
             await PubCatalog.fetchOtherMeetingsPubs();
             await PubCatalog.fetchAssemblyPublications();
 
-            GlobalKeyService.meetingsKey.currentState?.refreshConventionsPubs();
+            GlobalKeyService.workShipKey.currentState?.refreshConventionsPubs();
           });
         }),
       );

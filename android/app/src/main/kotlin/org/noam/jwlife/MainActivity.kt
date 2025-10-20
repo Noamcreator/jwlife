@@ -11,11 +11,14 @@ import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStream
 
-// Cette classe étend AudioServiceActivity mais ajoute la gestion des fichiers
 class MainActivity: AudioServiceActivity() {
     private val CHANNEL = "org.noam.jwlife.filehandler"
     private var pendingFilePath: String? = null
     private var methodChannel: MethodChannel? = null
+
+    // Flag pour tracker le dernier fichier/URL traité
+    private var lastProcessedUri: String? = null
+    private var isFileProcessedAndSent = false
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -25,7 +28,6 @@ class MainActivity: AudioServiceActivity() {
             when (call.method) {
                 "getPendingFile" -> {
                     val resultMap = if (pendingFilePath != null) {
-                        // Vérifier si c'est une URL ou un chemin de fichier
                         if (pendingFilePath!!.startsWith("http")) {
                             mapOf("url" to pendingFilePath)
                         } else {
@@ -37,6 +39,12 @@ class MainActivity: AudioServiceActivity() {
                     result.success(resultMap)
                     pendingFilePath = null
                 }
+                "fileProcessed" -> {
+                    println("Flutter a confirmé le traitement du fichier")
+                    isFileProcessedAndSent = false
+                    lastProcessedUri = null
+                    result.success(null)
+                }
                 else -> result.notImplemented()
             }
         }
@@ -46,32 +54,28 @@ class MainActivity: AudioServiceActivity() {
         super.onCreate(savedInstanceState)
 
         // ========== OPTIMISATIONS CLAVIER MIUI/HyperOS ==========
-
-        // 1. Forcer le mode adjustPan pour éviter les reconstructions
         window.setSoftInputMode(
             WindowManager.LayoutParams.SOFT_INPUT_ADJUST_PAN or
                     WindowManager.LayoutParams.SOFT_INPUT_STATE_HIDDEN
         )
 
-        // 2. Forcer l'accélération matérielle
         window.setFlags(
             WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED,
             WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED
         )
 
-        // 3. Désactiver les animations de transition du clavier (spécifique MIUI)
         try {
             window.attributes = window.attributes.apply {
-                // Réduire la durée des animations de la fenêtre
                 windowAnimations = android.R.style.Animation
             }
         } catch (e: Exception) {
             println("Impossible de modifier les animations: ${e.message}")
         }
-
         // ========== FIN OPTIMISATIONS ==========
 
         println("=== MainActivity onCreate ===")
+        isFileProcessedAndSent = false
+        lastProcessedUri = null
         handleIncomingFile(intent)
     }
 
@@ -79,6 +83,13 @@ class MainActivity: AudioServiceActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         println("=== MainActivity onNewIntent ===")
+
+        if (intent.action == null) {
+            println("onNewIntent sans action, on ignore")
+            return
+        }
+
+        isFileProcessedAndSent = false
         handleIncomingFile(intent)
     }
 
@@ -93,20 +104,16 @@ class MainActivity: AudioServiceActivity() {
                 val uri = intent.data
                 println("ACTION_VIEW avec URI: $uri")
                 if (uri != null) {
-                    // Vérifier si c'est un lien web JW.org
                     if (isJwOrgUrl(uri)) {
                         handleJwOrgUrl(uri)
                     } else {
-                        // C'est un fichier local
                         processUri(uri)
                     }
                 }
             }
             Intent.ACTION_SEND -> {
-                // Gérer les deux cas : texte partagé et fichier partagé
                 when (intent.type) {
                     "text/plain" -> {
-                        // Lien ou texte partagé
                         val sharedText = intent.getStringExtra(Intent.EXTRA_TEXT)
                         println("ACTION_SEND avec texte: $sharedText")
                         if (!sharedText.isNullOrEmpty()) {
@@ -114,7 +121,6 @@ class MainActivity: AudioServiceActivity() {
                         }
                     }
                     else -> {
-                        // Fichier partagé
                         val uri = intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM)
                         println("ACTION_SEND avec URI: $uri")
                         if (uri != null) {
@@ -131,19 +137,15 @@ class MainActivity: AudioServiceActivity() {
         println("Texte partagé: $sharedText")
 
         try {
-            // Vérifier si c'est une URL
             if (sharedText.startsWith("http://") || sharedText.startsWith("https://")) {
                 val uri = Uri.parse(sharedText)
 
-                // Vérifier si c'est un lien JW.org
                 if (isJwOrgUrl(uri)) {
                     handleJwOrgUrl(uri)
                 } else {
-                    // Autre lien web
                     handleGenericUrl(uri)
                 }
             } else {
-                // Texte simple (pas une URL)
                 handlePlainText(sharedText)
             }
         } catch (e: Exception) {
@@ -157,13 +159,16 @@ class MainActivity: AudioServiceActivity() {
         println("URL: $uri")
 
         try {
-            // Envoyer l'URL générique à Flutter
+            val urlString = uri.toString()
+            lastProcessedUri = urlString
+
             methodChannel?.let { channel ->
                 println("Envoi de l'URL générique vers Flutter")
-                channel.invokeMethod("onUrlReceived", mapOf("url" to uri.toString()))
+                channel.invokeMethod("onUrlReceived", mapOf("url" to urlString))
+                isFileProcessedAndSent = true
             } ?: run {
                 println("Flutter pas encore prêt, stockage de l'URL en pending")
-                pendingFilePath = uri.toString()
+                pendingFilePath = urlString
             }
         } catch (e: Exception) {
             println("Erreur lors du traitement de l'URL générique: ${e.message}")
@@ -176,13 +181,15 @@ class MainActivity: AudioServiceActivity() {
         println("Texte: $text")
 
         try {
-            // Envoyer le texte à Flutter
+            lastProcessedUri = text
+
             methodChannel?.let { channel ->
                 println("Envoi du texte vers Flutter")
                 channel.invokeMethod("onTextReceived", mapOf("text" to text))
+                isFileProcessedAndSent = true
             } ?: run {
                 println("Flutter pas encore prêt, stockage du texte en pending")
-                pendingFilePath = text // Réutiliser ce champ pour le texte
+                pendingFilePath = text
             }
         } catch (e: Exception) {
             println("Erreur lors du traitement du texte: ${e.message}")
@@ -200,13 +207,16 @@ class MainActivity: AudioServiceActivity() {
         println("URL: $uri")
 
         try {
-            // Envoyer l'URL à Flutter
+            val urlString = uri.toString()
+            lastProcessedUri = urlString
+
             methodChannel?.let { channel ->
                 println("Envoi de l'URL vers Flutter")
-                channel.invokeMethod("onUrlReceived", mapOf("url" to uri.toString()))
+                channel.invokeMethod("onUrlReceived", mapOf("url" to urlString))
+                isFileProcessedAndSent = true
             } ?: run {
                 println("Flutter pas encore prêt, stockage de l'URL en pending")
-                pendingFilePath = uri.toString() // On réutilise ce champ pour l'URL
+                pendingFilePath = urlString
             }
         } catch (e: Exception) {
             println("Erreur lors du traitement de l'URL JW.org: ${e.message}")
@@ -217,13 +227,16 @@ class MainActivity: AudioServiceActivity() {
     private fun processUri(uri: Uri) {
         try {
             println("Traitement de l'URI: $uri")
-            val filePath = copyUriToInternalStorage(uri)
+            lastProcessedUri = uri.toString()
+
+            val filePath = copyUriToAppCache(uri)
             if (filePath != null) {
                 println("Fichier copié vers: $filePath")
 
                 methodChannel?.let { channel ->
                     println("Envoi vers Flutter via MethodChannel")
                     channel.invokeMethod("onFileReceived", mapOf("filePath" to filePath))
+                    isFileProcessedAndSent = true
                 } ?: run {
                     println("Flutter pas encore prêt, stockage en pending")
                     pendingFilePath = filePath
@@ -237,28 +250,33 @@ class MainActivity: AudioServiceActivity() {
         }
     }
 
-    private fun copyUriToInternalStorage(uri: Uri): String? {
+    // 🔄 Nouvelle version : copie dans app_cache (dans cacheDir)
+    private fun copyUriToAppCache(uri: Uri): String? {
         return try {
             val inputStream: InputStream? = contentResolver.openInputStream(uri)
             if (inputStream != null) {
                 val fileName = getFileName(uri) ?: "imported_file_${System.currentTimeMillis()}"
                 println("Nom du fichier détecté: $fileName")
 
-                val internalFile = File(filesDir, fileName)
-                val outputStream = FileOutputStream(internalFile)
+                // ✅ Utiliser /data/user/0/org.noam.jwlife/app_cache/
+                val appCacheDir = File(cacheDir.parentFile, "app_cache")
+                if (!appCacheDir.exists()) appCacheDir.mkdirs()
+
+                val cacheFile = File(appCacheDir, fileName)
+                val outputStream = FileOutputStream(cacheFile)
 
                 val bytesTransferred = inputStream.copyTo(outputStream)
                 inputStream.close()
                 outputStream.close()
 
-                println("Fichier copié: ${internalFile.absolutePath} ($bytesTransferred bytes)")
-                internalFile.absolutePath
+                println("Fichier copié dans app_cache: ${cacheFile.absolutePath} ($bytesTransferred bytes)")
+                cacheFile.absolutePath
             } else {
                 println("Erreur: InputStream null")
                 null
             }
         } catch (e: Exception) {
-            println("Erreur copyUriToInternalStorage: ${e.message}")
+            println("Erreur copyUriToAppCache: ${e.message}")
             e.printStackTrace()
             null
         }
@@ -277,7 +295,6 @@ class MainActivity: AudioServiceActivity() {
                 val cursor = contentResolver.query(uri, null, null, null, null)
                 cursor?.use {
                     if (it.moveToFirst()) {
-                        // Essayer plusieurs colonnes possibles
                         val columnNames = arrayOf("_display_name", "_data", "title")
                         var fileName: String? = null
 
