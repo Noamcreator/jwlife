@@ -8,7 +8,7 @@ import '../../data/models/userdata/tag.dart';
 import '../../features/personal/pages/tag_page.dart';
 import 'common_ui.dart';
 
-Future<void> showAddTagDialog(BuildContext context, bool isPlaylist) async {
+Future<void> showAddTagDialog(BuildContext context, bool isPlaylist, {bool showTagPage = true}) async {
   TextEditingController textController = TextEditingController();
 
   // Affichage du dialogue avec la structure showJwDialog
@@ -37,7 +37,7 @@ Future<void> showAddTagDialog(BuildContext context, bool isPlaylist) async {
           if (name.isNotEmpty) {
             Tag? tag = await JwLifeApp.userdata.addTag(name, isPlaylist ? 2 : 1);
             Navigator.pop(buildContext);
-            if (tag != null) {
+            if (tag != null && showTagPage) {
               if (isPlaylist) {
                 await showPage(PlaylistPage(playlist: tag));
               }

@@ -175,6 +175,14 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
 
   @override
   Widget build(BuildContext context) {
+    String? keySymbol = _currentExtras?['keySymbol'];
+    int? track = _currentExtras?['track'];
+    int? mepsDocumentId = _currentExtras?['documentId'];
+    int? issueTagNumber = _currentExtras?['issueTagNumber'];
+    String? mepsLanguage = _currentExtras?['mepsLanguage'];
+
+    realm.MediaItem? mediaItem = getMediaItem(keySymbol, track, mepsDocumentId, issueTagNumber, mepsLanguage);
+
     return GestureDetector(
       onTap: () {
         showPage(FullAudioView());
@@ -388,7 +396,7 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
                                   onSelected: (value) => GlobalKeyService.jwLifePageKey.currentState!.togglePopMenuOpen(false),
                                   onCanceled: () => GlobalKeyService.jwLifePageKey.currentState!.togglePopMenuOpen(false),
                                   constraints: const BoxConstraints(minWidth: 2.0),
-                                  offset: const Offset(30, -350),
+                                  offset: Offset(30, mediaItem != null ? -350 : -260),
                                   popUpAnimationStyle: AnimationStyle(
                                     curve: Curves.fastLinearToSlowEaseIn,
                                     duration: const Duration(milliseconds: 200),
@@ -396,14 +404,6 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
                                     reverseDuration: const Duration(milliseconds: 200),
                                   ),
                                   itemBuilder: (context) {
-                                    String? keySymbol = _currentExtras?['keySymbol'];
-                                    int? track = _currentExtras?['track'];
-                                    int? mepsDocumentId = _currentExtras?['documentId'];
-                                    int? issueTagNumber = _currentExtras?['issueTagNumber'];
-                                    String? mepsLanguage = _currentExtras?['mepsLanguage'];
-
-                                    realm.MediaItem? mediaItem = getMediaItem(keySymbol, track, mepsDocumentId, issueTagNumber, mepsLanguage);
-
                                     final List<PopupMenuEntry> items = [];
 
                                     if (mediaItem != null) {

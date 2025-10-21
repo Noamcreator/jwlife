@@ -50,6 +50,20 @@ class StudyTabViewState extends State<StudyTabView> {
     setState(() {});
   }
 
+  Future<void> refreshNote() async {
+    notes = await JwLifeApp.userdata.getNotes(limit: 4);
+    setState(() {});
+  }
+
+  Future<void> refreshPlaylist() async {
+    playlists = await JwLifeApp.userdata.getPlaylists(limit: 4);
+    setState(() {});
+  }
+
+  Future<void> refreshTag() async {
+    setState(() {});
+  }
+
   Widget buildSectionHeaderBibleReading() {
     return Padding(
       padding: const EdgeInsets.only(left: 8, right: 8, top: 0, bottom: 0),

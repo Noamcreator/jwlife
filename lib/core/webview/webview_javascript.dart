@@ -43,7 +43,7 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
             --color-orange-rgb: 255, 186, 138;
             --color-purple-rgb: 193, 167, 226;
             --color-red-rgb: 255, 150, 150; 
-            --color-brown-rgb: 200, 175, 145; /* Marron clair/beige pour Light mode */
+            --color-brown-rgb: 200, 175, 145;
             
             /* Couleur de Bordure Grise */
             --color-gray-rgb: 220, 220, 220;
@@ -60,7 +60,7 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
             --color-orange-rgb: 255, 134, 46;
             --color-purple-rgb: 146, 111, 189;
             --color-red-rgb: 255, 80, 80; 
-            --color-brown-rgb: 145, 100, 50; /* Marron foncé et riche pour Dark mode */
+            --color-brown-rgb: 145, 100, 50;
             
             --color-gray-rgb: 80, 80, 80;
           }
@@ -252,18 +252,18 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
           }
           
           /* L'opacité (0.85) est appliquée ici, une seule fois pour tous les thèmes/couleurs */
-          .underline-yellow { text-decoration-color: rgba(var(--color-yellow-rgb), 0.5); }
-          .underline-green { text-decoration-color: rgba(var(--color-green-rgb), 0.5); }
-          .underline-blue { text-decoration-color: rgba(var(--color-blue-rgb), 0.5); }
-          .underline-pink { text-decoration-color: rgba(var(--color-pink-rgb), 0.5); }
-          .underline-orange { text-decoration-color: rgba(var(--color-orange-rgb), 0.5); }
-          .underline-purple { text-decoration-color: rgba(var(--color-purple-rgb), 0.5); }
-          .underline-red { text-decoration-color: rgba(var(--color-red-rgb), 0.5); }
-          .underline-brown { text-decoration-color: rgba(var(--color-brown-rgb), 0.5); }
+          .underline-yellow { text-decoration-color: rgba(var(--color-yellow-rgb), 0.85); }
+          .underline-green { text-decoration-color: rgba(var(--color-green-rgb), 0.85); }
+          .underline-blue { text-decoration-color: rgba(var(--color-blue-rgb), 0.85); }
+          .underline-pink { text-decoration-color: rgba(var(--color-pink-rgb), 0.85); }
+          .underline-orange { text-decoration-color: rgba(var(--color-orange-rgb), 0.85); }
+          .underline-purple { text-decoration-color: rgba(var(--color-purple-rgb), 0.85); }
+          .underline-red { text-decoration-color: rgba(var(--color-red-rgb), 0.85); }
+          .underline-brown { text-decoration-color: rgba(var(--color-brown-rgb), 0.85); }
           
           /* Application du style à toutes les classes utilisant la variable --c */
-          [class*="text-"] { 
-            color: rgba(var(--c), 0.75);
+          [class*="text-"] {
+            color: color-mix(in srgb, rgba(var(--c), 1) 80%, #555 20%);
           }
           
           .text-gray { --c: var(--color-gray-rgb); } 
@@ -3418,9 +3418,23 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
                       
                       // Ajouter le listener quand on clique sur le bouton
                       customizeButton.addEventListener('click', async () => { 
-                        await window.flutter_inappwebview.callHandler('openCustomizeVersesDialog');
-                        const verses = await window.flutter_inappwebview.callHandler('fetchVerses', href);
-                        showVerseDialog(article, verses, href, true);
+                        // 1. Appel du handler et ATTENTE de la valeur de retour (true si modification, false sinon)
+                        const hasChanges = await window.flutter_inappwebview.callHandler('openCustomizeVersesDialog');
+                        
+                        // 2. Vérification si des changements ont eu lieu AVANT de recharger les versets
+                        if (hasChanges === true) {
+                          // Si des changements ont eu lieu, on appelle 'fetchVerses' pour obtenir les nouvelles données
+                          const verses = await window.flutter_inappwebview.callHandler('fetchVerses', href);
+                          // Puis on met à jour l'affichage
+                          showVerseDialog(article, verses, href, true);
+                        } else {
+                          // Si aucun changement n'a eu lieu, on ne fait rien pour optimiser la performance
+                          // ou si showVerseDialog a besoin d'être appelé dans tous les cas,
+                          // on peut le laisser ici sans l'appel à 'fetchVerses' si on suppose que 
+                          // les verses sont déjà à jour.
+                          // Cependant, dans ce scénario, on ne ferait généralement rien.
+                          console.log("Aucun changement de version, les versets ne sont pas rechargés.");
+                        }
                       });
                       
                       // Ajout du bouton au bas du contentContainer

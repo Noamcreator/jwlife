@@ -788,7 +788,8 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
 
     if (issueResponse.statusCode == 201) {
       showBottomMessage("${type == 'suggestion' ? 'Suggestion' : 'Bug'} envoyé avec succès ✅");
-    } else {
+    }
+    else {
       showBottomMessage("Échec de l'envoi de ${type == 'suggestion' ? 'la suggestion' : 'du bug'} ❌");
       print("Erreur d'envoi de l'issue (statut: ${issueResponse.statusCode}) : ${issueResponse.body}");
     }

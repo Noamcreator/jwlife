@@ -706,7 +706,8 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
                       controller.addJavaScriptHandler(
                         handlerName: 'openCustomizeVersesDialog',
                         callback: (args) async {
-                          await showCustomizeVersesDialog(context);
+                          bool hasChanges = await showCustomizeVersesDialog(context);
+                          return hasChanges;
                         },
                       );
                     },

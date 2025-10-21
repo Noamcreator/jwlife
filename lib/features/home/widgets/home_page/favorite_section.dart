@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:jwlife/app/jwlife_app.dart';
+import 'package:jwlife/data/repositories/PublicationRepository.dart';
 import 'package:jwlife/features/home/widgets/home_page/square_mediaitem_item.dart';
 import 'package:jwlife/features/home/widgets/home_page/square_publication_item.dart';
 
 import '../../../../core/icons.dart';
+import '../../../../core/utils/utils_document.dart';
 import '../../../../data/models/media.dart';
 import '../../../../data/models/publication.dart';
 import '../../../../i18n/localization.dart';
@@ -70,16 +72,28 @@ class FavoritesSectionState extends State<FavoritesSection> {
   }
 
   Widget _buildFavoriteItem(dynamic item, BuildContext context) {
+    Publication? pub;
     if (item is Publication) {
-      return HomeSquarePublicationItem(pub: item);
+      pub = PublicationRepository().getPublicationWithMepsLanguageId(item.keySymbol, item.issueTagNumber, item.mepsLanguage.id);
+      if(pub != null) {
+        return HomeSquarePublicationItem(pub: item);
+      }
     }
     if (item is Media) {
       return HomeSquareMediaItemItem(media: item);
     }
+    else {
+      pub = PublicationRepository().getPublicationWithMepsLanguageId(item['KeySymbol'] ?? '', item['IssueTagNumber'] ?? 0, item['MepsLanguage'] ?? 0);
+      if(pub != null) {
+        return HomeSquarePublicationItem(pub: pub);
+      }
+    }
 
     // fallback custom widget for other types
     return InkWell(
-      onTap: () {},
+      onTap: () {
+        showImportPublication(context, item['KeySymbol'] ?? '', item['IssueTagNumber'] ?? 0, item['MepsLanguage'] ?? 0);
+      },
       child: SizedBox(
         width: 80,
         child: Column(

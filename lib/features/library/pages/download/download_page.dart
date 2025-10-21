@@ -406,6 +406,8 @@ class _DownloadPageState extends State<DownloadPage> {
 
               if (f == result.files.last) {
                 PubCatalog.updateCatalogCategories();
+                GlobalKeyService.homeKey.currentState!.refreshFavorites();
+
                 // Recharger les données après import
                 _isLoading = true;
                 setState(() {});

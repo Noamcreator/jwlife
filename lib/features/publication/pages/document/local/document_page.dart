@@ -1175,7 +1175,8 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
                     controller.addJavaScriptHandler(
                       handlerName: 'openCustomizeVersesDialog',
                       callback: (args) async {
-                        await showCustomizeVersesDialog(context);
+                        bool hasChanges = await showCustomizeVersesDialog(context);
+                        return hasChanges;
                       },
                     );
                   },

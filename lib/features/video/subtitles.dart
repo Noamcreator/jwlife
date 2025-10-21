@@ -75,13 +75,13 @@ class Subtitles {
           String value = style.split(':')[1].trim();
           if (param == 'align') {
             if (value == 'left') {
-              alignment = Alignment.centerLeft;
+              alignment = Alignment.bottomLeft;
             }
             else if (value == 'right') {
-              alignment = Alignment.centerRight;
+              alignment = Alignment.bottomRight;
             }
             else {
-              alignment = Alignment.center;
+              alignment = Alignment.bottomCenter;
             }
           }
         }

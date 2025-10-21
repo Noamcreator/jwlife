@@ -283,10 +283,12 @@ Future<void> _downloadAndOpenPdf(String fileUrl) async {
 }
 
 /// Affiche le dialogue pour personnaliser et réordonner les versions de la Bible.
-Future<void> showCustomizeVersesDialog(BuildContext context) async {
-  // Simule l'initialisation des données
+Future<bool> showCustomizeVersesDialog(BuildContext context) async {
   List<Publication> allBibles = PublicationRepository().getAllBibles();
   List<Publication> initialOrderedBibles = PublicationRepository().getOrderBibles();
+
+  // On crée une copie immédiate des clés initiales pour la comparaison finale.
+  final List<String> initialKeys = initialOrderedBibles.map((p) => p.getKey()).toList();
 
   final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
@@ -295,6 +297,10 @@ Future<void> showCustomizeVersesDialog(BuildContext context) async {
     builder: (BuildContext dialogContext) {
       return StatefulBuilder(
         builder: (context, setState) {
+          // currentOrderedBibles est l'état courant DANS le dialogue.
+          // Il est initialisé avec la version la plus récente de initialOrderedBibles,
+          // qui est mise à jour après chaque action dans le dialogue (ajout/suppression/réordre)
+          // pour maintenir la persistance de l'état au sein du StatefulBuilder.
           List<Publication> currentOrderedBibles = List.from(initialOrderedBibles);
           Set<String> orderedBibleCodes = currentOrderedBibles.map((p) => p.getKey()).toSet();
 
@@ -375,7 +381,7 @@ Future<void> showCustomizeVersesDialog(BuildContext context) async {
                   Text(
                     "Pour télécharger d'autres traductions, allez dans la section Bible et touchez le bouton « Langues ».",
                     style: TextStyle(fontSize: 16, color: Colors.grey),
-                      textAlign: TextAlign.center,
+                    textAlign: TextAlign.center,
                   ),
 
                   const SizedBox(height: 30),
@@ -391,6 +397,7 @@ Future<void> showCustomizeVersesDialog(BuildContext context) async {
                           if (newIndex > oldIndex) newIndex -= 1;
                           final Publication item = currentOrderedBibles.removeAt(oldIndex);
                           currentOrderedBibles.insert(newIndex, item);
+                          // Met à jour la référence pour les prochains builds (si setState est appelé ailleurs)
                           initialOrderedBibles = List.from(currentOrderedBibles);
                         });
                       },
@@ -429,6 +436,7 @@ Future<void> showCustomizeVersesDialog(BuildContext context) async {
                             if (!isLastBible) {
                               setState(() {
                                 currentOrderedBibles.removeWhere((p) => p.getKey() == bible.getKey());
+                                // Met à jour la référence pour les prochains builds
                                 initialOrderedBibles = List.from(currentOrderedBibles);
                               });
                             }
@@ -466,9 +474,9 @@ Future<void> showCustomizeVersesDialog(BuildContext context) async {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
-                      // Le bouton 'FERMER' devrait être 'ANNULER' si 'TERMINÉ' est utilisé pour valider
+                      // Le bouton 'ANNULER' renvoie null
                       TextButton(
-                        onPressed: () => Navigator.pop(context), // Ferme sans renvoyer de résultat (annuler)
+                        onPressed: () => Navigator.pop(context), // Ferme sans renvoyer de résultat (annuler -> null)
                         child: Text(
                           "ANNULER",
                           style: TextStyle(
@@ -479,6 +487,7 @@ Future<void> showCustomizeVersesDialog(BuildContext context) async {
                           ),
                         ),
                       ),
+                      // Le bouton 'TERMINÉ' renvoie la liste finale (currentOrderedBibles)
                       TextButton(
                         onPressed: () => Navigator.pop(context, currentOrderedBibles),
                         child: Text(
@@ -504,8 +513,35 @@ Future<void> showCustomizeVersesDialog(BuildContext context) async {
     },
   );
 
+  // --- LOGIQUE DE RETOUR Future<bool> ---
   if (result != null) {
-    // Cette logique est à l'extérieur du showDialog, elle est correcte
+    // L'utilisateur a cliqué sur 'TERMINÉ'
+
+    // 1. Mise à jour des données (sauvegarde de la nouvelle liste ordonnée)
     JwLifeSettings().webViewData.updateBiblesSet(result);
+
+    // 2. Vérification s'il y a eu un changement (ajout, suppression ou changement d'ordre)
+    final resultKeys = result.map((p) => p.getKey()).toList();
+
+    bool hasChanges = false;
+
+    // a) Vérification du nombre d'éléments
+    if (initialKeys.length != resultKeys.length) {
+      hasChanges = true;
+    } else {
+      // b) Vérification de l'ordre
+      for (int i = 0; i < initialKeys.length; i++) {
+        if (initialKeys[i] != resultKeys[i]) {
+          hasChanges = true; // Changement d'ordre
+          break;
+        }
+      }
+    }
+
+    return hasChanges;
+
+  } else {
+    // L'utilisateur a annulé (résultat est null)
+    return false;
   }
 }

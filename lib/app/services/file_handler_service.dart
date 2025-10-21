@@ -13,6 +13,7 @@ import '../../core/utils/utils_jwpub.dart';
 import '../../core/jworg_uri.dart';
 import '../../core/utils/utils_pub.dart';
 import '../../core/utils/widgets_utils.dart';
+import '../../data/databases/catalog.dart';
 import '../../data/databases/userdata.dart';
 import '../../features/publication/pages/menu/local/publication_menu_view.dart';
 import '../../core/utils/utils_dialog.dart';
@@ -257,7 +258,7 @@ class FileHandlerService {
     }
   }
 
-  Future<void> processJwPubFile(String filePath) async {
+  Future<void> processJwPubFile(String filePath, {String keySymbol = '', int issueTagNumber = 0, int mepsLanguageId = 0}) async {
     try {
       print('Traitement du fichier JW Publication: $filePath');
 
@@ -266,7 +267,7 @@ class FileHandlerService {
         throw Exception('Fichier non trouvé: $filePath');
       }
 
-      await _importJwPubFile(file);
+      await _importJwPubFile(file, keySymbol: keySymbol, issueTagNumber: issueTagNumber, mepsLanguageId: mepsLanguageId);
 
       // enlever le fichier
       await file.delete();
@@ -424,7 +425,7 @@ class FileHandlerService {
     resetProcessedContent();
   }
 
-  Future<void> _importJwPubFile(File file) async {
+  Future<void> _importJwPubFile(File file, {String keySymbol = '', int issueTagNumber = 0, int mepsLanguageId = 0}) async {
     // Récupère le contexte de la page actuelle.
     BuildContext context = GlobalKeyService.jwLifePageKey.currentState!.navigatorKeys[GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex].currentState!.context;
 
@@ -447,8 +448,17 @@ class FileHandlerService {
       showJwpubError(context);
       // Réinitialiser après erreur
       resetProcessedContent();
-    } else {
-      showPage(PublicationMenuView(publication: jwpub));
+    }
+    else {
+      if(keySymbol.isNotEmpty) {
+        showJwPubNotGoodFile(keySymbol);
+        PubCatalog.updateCatalogCategories();
+        GlobalKeyService.homeKey.currentState!.refreshFavorites();
+      }
+      else {
+        showPage(PublicationMenuView(publication: jwpub));
+      }
+
       // Réinitialiser après succès
       resetProcessedContent();
     }

@@ -8,6 +8,7 @@ import 'package:jwlife/features/publication/pages/document/local/document_page.d
 import 'package:jwlife/features/publication/pages/document/local/full_screen_image_page.dart';
 import 'package:jwlife/features/video/video_player_page.dart';
 import 'package:jwlife/core/utils/utils_dialog.dart';
+import 'package:pip_view/pip_view.dart';
 import '../data/databases/history.dart';
 import '../features/bible/pages/bible_page.dart';
 import '../features/image/image_page.dart';
@@ -47,6 +48,8 @@ class JwLifePageState extends State<JwLifePage> {
   final Map<int, List<Widget>> pagesByNavigator = {};
 
   final ValueNotifier<bool> controlsVisible = ValueNotifier<bool>(true);
+
+  Orientation orientation = Orientation.portrait;
 
   @override
   void initState() {
@@ -120,7 +123,7 @@ class JwLifePageState extends State<JwLifePage> {
 
   void _updateSystemUiMode(bool isVisible) {
     if (!isVisible) {
-      SystemChrome.setEnabledSystemUIMode(SystemUiMode.leanBack, overlays: SystemUiOverlay.values);
+      SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky, overlays: []);
     }
     else {
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge, overlays: SystemUiOverlay.values);
@@ -164,6 +167,29 @@ class JwLifePageState extends State<JwLifePage> {
             return;
           }
           currentWebKeys.removeLast();
+        }
+      }
+      else if (lastPage is VideoPlayerPage) {
+        Orientation currentOrientation = MediaQuery.of(context).orientation;
+        if (currentOrientation != orientation) {
+          if(orientation == Orientation.portrait) {
+            // revenir en mode portrait
+            SystemChrome.setPreferredOrientations([
+              DeviceOrientation.portraitUp,
+              DeviceOrientation.portraitDown,
+              DeviceOrientation.landscapeLeft,
+              DeviceOrientation.landscapeRight,
+            ]);
+          }
+          else if (orientation == Orientation.landscape) {
+            // revenir en mode landscape
+            SystemChrome.setPreferredOrientations([
+              DeviceOrientation.landscapeLeft,
+              DeviceOrientation.landscapeRight,
+              DeviceOrientation.portraitUp,
+              DeviceOrientation.portraitDown,
+            ]);
+          }
         }
       }
     }
@@ -350,7 +376,7 @@ class JwLifePageState extends State<JwLifePage> {
           handleBack(context);
         },
         child: Padding(
-          padding: EdgeInsets.only(bottom: !isDisabled ? 70 : 0),
+          padding: EdgeInsets.only(bottom: !isDisabled ? audioWidgetVisible ? 150 : 70 : 0),
           child: LazyIndexedStack(
             index: currentNavigationBottomBarIndex,
             initialIndexes: [0, 2],

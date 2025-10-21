@@ -23,6 +23,10 @@ class PersonalPageState extends State<PersonalPage> {
     _studyKey.currentState?.reloadData();
   }
 
+  void refreshPlaylist() {
+    _studyKey.currentState?.refreshPlaylist();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(

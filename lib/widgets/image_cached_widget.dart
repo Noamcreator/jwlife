@@ -8,6 +8,7 @@ class ImageCachedWidget extends StatefulWidget {
   final double? width;
   final double? height;
   final BoxFit fit;
+  final bool animation;
 
   const ImageCachedWidget({
     super.key,
@@ -16,6 +17,7 @@ class ImageCachedWidget extends StatefulWidget {
     this.height,
     this.width,
     this.fit = BoxFit.cover,
+    this.animation = true,
   });
 
   @override
@@ -53,7 +55,8 @@ class _ImageCachedWidgetState extends State<ImageCachedWidget> {
   }
 
   Widget _buildPlaceholder(bool isDark) {
-    final Color backgroundColor = isDark ? const Color(0xFF4F4F4F) : const Color(0xFF999999);
+    final Color backgroundColor =
+    isDark ? const Color(0xFF4F4F4F) : const Color(0xFF999999);
 
     double? width = widget.width;
     double? height = widget.height;
@@ -105,10 +108,34 @@ class _ImageCachedWidgetState extends State<ImageCachedWidget> {
 
         final file = snapshot.data?.file;
 
+        // 🧩 Si animation désactivée, on affiche directement le contenu
+        if (!widget.animation) {
+          if (isImageReady && file != null) {
+            return Image.file(
+              file,
+              key: ValueKey(file.path),
+              width: widget.width,
+              height: widget.height,
+              cacheWidth:
+              safeToInt(widget.width != null ? widget.width! * pixelRatio : null),
+              cacheHeight:
+              safeToInt(widget.height != null ? widget.height! * pixelRatio : null),
+              fit: widget.fit,
+            );
+          }
+          else {
+            return SizedBox(
+              width: widget.width,
+              height: widget.height,
+            );
+          }
+        }
+
+        // 🪄 Version avec animation
         return Stack(
           alignment: Alignment.center,
           children: [
-            // Fade-out du placeholder quand l’image est affichée
+            // Fade-out du placeholder
             AnimatedOpacity(
               opacity: isImageReady ? 0.0 : 1.0,
               duration: const Duration(milliseconds: 200),
@@ -158,7 +185,7 @@ class _FadeInImageWidget extends StatefulWidget {
 class _FadeInImageWidgetState extends State<_FadeInImageWidget>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller =
-  AnimationController(vsync: this, duration: const Duration(milliseconds: 200));
+  AnimationController(vsync: this, duration: const Duration(milliseconds: 150));
   late final Animation<double> _fade = CurvedAnimation(parent: _controller, curve: Curves.easeIn);
 
   @override
@@ -187,8 +214,10 @@ class _FadeInImageWidgetState extends State<_FadeInImageWidget>
         key: ValueKey(widget.file.path),
         width: widget.width,
         height: widget.height,
-        cacheWidth: safeToInt(widget.width != null ? widget.width! * widget.pixelRatio : null),
-        cacheHeight: safeToInt(widget.height != null ? widget.height! * widget.pixelRatio : null),
+        cacheWidth:
+        safeToInt(widget.width != null ? widget.width! * widget.pixelRatio : null),
+        cacheHeight:
+        safeToInt(widget.height != null ? widget.height! * widget.pixelRatio : null),
         fit: widget.fit,
       ),
     );

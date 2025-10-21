@@ -385,11 +385,11 @@ class PubCatalog {
           FROM Publication
           WHERE MepsLanguageId = ? 
           AND Symbol = ?
-          AND p.IssueTagNumber = ?
+          AND IssueTagNumber = ?
           LIMIT 1
         ''', [mepsLanguageId, symbol, issueTagNumber]);
 
-        return result.first['KeySymbol'] as String;
+        return result.isNotEmpty ? result.first['KeySymbol'] as String : null;
       }
       finally {
         await catalog.close();

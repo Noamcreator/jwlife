@@ -22,6 +22,7 @@ import '../../core/shared_preferences/shared_preferences_utils.dart';
 import '../../core/utils/utils_document.dart';
 import '../../features/publication/pages/document/local/documents_manager.dart';
 import '../../features/publication/pages/menu/local/publication_menu_view.dart';
+import '../databases/catalog.dart';
 import '../repositories/PublicationRepository.dart';
 import 'audio.dart';
 
@@ -232,9 +233,12 @@ class Publication {
     }
     else {
       BuildContext context = GlobalKeyService.jwLifePageKey.currentState!.getCurrentState().context;
-      showBottomMessageWithAction(getTitle(), SnackBarAction(label: 'Ouvrir', onPressed: () {
-        showMenu(context);
-      }));
+      showBottomMessageWithAction(getTitle(), SnackBarAction(
+          label: 'Ouvrir',
+          textColor:  Theme.of(context).primaryColor,
+          onPressed: () {
+            showMenu(context);
+          }));
     }
   }
 
@@ -283,7 +287,8 @@ class Publication {
           notifyDownload('Téléchargement terminé');
           isDownloadingNotifier.value = false;
           return true; // <-- SUCCÈS
-        } else {
+        }
+        else {
           // Téléchargement annulé ou échoué (valueOrCancellation() retourne null)
           await NotificationService().cancelNotification(hashCode);
           isDownloadingNotifier.value = false;
@@ -435,10 +440,27 @@ class Publication {
     if(keySymbol == 'S-34') {
       GlobalKeyService.workShipKey.currentState?.refreshMeetingsPubs();
     }
+    
+    // on cherche si la publication est dans le catalogue
+    String? keySymbolString = await PubCatalog.getKeySymbolFromCatalogue(symbol, issueTagNumber, mepsLanguage.id);
+    if(keySymbolString == null) {
+      // on enlève du repository
+      PublicationRepository().removePublication(this);
+      GlobalKeyService.homeKey.currentState!.refreshFavorites();
+    }
   }
 
   Future<void> showMenu(BuildContext context, {bool showDownloadDialog = true}) async {
     if(isDownloadedNotifier.value && !isDownloadingNotifier.value) {
+      if(hasUpdate()) {
+        showBottomMessageWithAction('Une mise à jour de la publication est disponible', SnackBarAction(
+          label: 'Mettre à jour',
+          textColor: Theme.of(context).primaryColor,
+          onPressed: () {
+            update(context);
+          },
+        ));
+      }
       await showPage(PublicationMenuView(publication: this));
     }
     else {

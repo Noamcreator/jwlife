@@ -22,6 +22,10 @@ class PublicationRepository {
     _publications[_generateKey(publication)] = publication;
   }
 
+  void removePublication(Publication publication) {
+      _publications.remove(_generateKey(publication));
+    }
+
   /// Retourne toutes les publications centralisées
   List<Publication> getAllPublications() {
     return _publications.values.toList();

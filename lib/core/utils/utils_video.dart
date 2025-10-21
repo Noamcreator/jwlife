@@ -91,7 +91,7 @@ PopupMenuItem getVideoAddPlaylistItem(BuildContext context, Video video) {
       ],
     ),
     onTap: () {
-      showAddPlaylistDialog(context, video);
+      showAddItemToPlaylistDialog(context, video);
     },
   );
 }

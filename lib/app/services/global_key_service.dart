@@ -40,7 +40,6 @@ class GlobalKeyService {
     PageType.library: GlobalKey<LibraryPageState>(),
     PageType.workShip: GlobalKey<WorkShipPageState>(),
     PageType.predication: GlobalKey<PredicationPageState>(),
-    //PageType.congregation: GlobalKey<CongregationPageState>(),
     PageType.personal: GlobalKey<PersonalPageState>(),
   };
 

@@ -102,7 +102,7 @@ PopupMenuItem getAudioAddPlaylistItem(BuildContext context, Audio audio) {
       ],
     ),
     onTap: () {
-      showAddPlaylistDialog(context, audio);
+      showAddItemToPlaylistDialog(context, audio);
     },
   );
 }

@@ -164,6 +164,24 @@ Future<BuildContext?> showJwImport(BuildContext context, String fileName) async 
   return completer.future;
 }
 
+void showJwPubNotGoodFile(String keySymbol) {
+  final BuildContext context = GlobalKeyService.jwLifePageKey.currentState!.getCurrentState().context;
+
+  showJwDialog(
+    context: context,
+    titleText: 'Mauvaise publication', // Plus concis
+    // Meilleure formulation pour l'utilisateur
+    contentText: 'Le fichier .jwpub sélectionné ne correspond pas à la publication requise. Veuillez choisir une publication avec pour symbol "$keySymbol".',
+    buttonAxisAlignment: MainAxisAlignment.end,
+    buttons: [
+      JwDialogButton(
+        label: 'OK',
+        closeDialog: true,
+      ),
+    ],
+  );
+}
+
 void showJwpubError(BuildContext context) {
   showJwDialog(
     context: context,

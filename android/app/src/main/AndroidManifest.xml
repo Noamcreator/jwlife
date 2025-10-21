@@ -48,7 +48,7 @@
             android:launchMode="singleTask"
             android:taskAffinity=""
             android:theme="@style/LaunchTheme"
-            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|layoutDirection"
+            android:configChanges="orientation|smallestScreenSize|keyboardHidden|keyboard|screenSize|locale|layoutDirection"
             android:hardwareAccelerated="true"
             android:windowSoftInputMode="adjustPan"
             android:showWhenLocked="false"

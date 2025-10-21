@@ -68,7 +68,12 @@ Future<void> showPage(Widget page) async {
 
   final isControlsVisible = GlobalKeyService.jwLifePageKey.currentState!.controlsVisible.value;
 
-  GlobalKeyService.jwLifePageKey.currentState!.toggleBottomNavBarVisibility(true);
+  if(page is VideoPlayerPage) {
+    GlobalKeyService.jwLifePageKey.currentState!.toggleNavBarVisibility(false);
+  }
+  else {
+    GlobalKeyService.jwLifePageKey.currentState!.toggleBottomNavBarVisibility(true);
+  }
 
   await GlobalKeyService.jwLifePageKey.currentState!.getCurrentState().push(
       PageRouteBuilder(
