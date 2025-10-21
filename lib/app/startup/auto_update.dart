@@ -35,9 +35,12 @@ class JwLifeAutoUpdater {
       // Remplace les \n\n échappés par de vrais sauts de paragraphe
       String formattedChangelog = changelog.replaceAll(r'\n', '\n');
 
+      print(formattedChangelog);
+
       if (_isNewerVersion(latestVersion, currentVersion)) {
         _showUpdateDialog(latestVersion, formattedChangelog, apkUrl);
-      } else {
+      }
+      else {
         debugPrint("✅ Aucune mise à jour disponible (version actuelle: $currentVersion)");
         if(showBannerNoUpdate) {
           showBottomMessage("✅ Aucune mise à jour disponible (version actuelle: $currentVersion)");
