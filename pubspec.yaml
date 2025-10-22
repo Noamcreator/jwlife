@@ -1,6 +1,6 @@
 name: jwlife
 description: "JW Life est une application codé avec Flutter. L'objectif de ce projet est de refaire l'application \"Jw Library\" pour corriger des bugs et pour ajouter des fonctionalités à la vie d'un Témoin de Jéhovah !"
-version: 1.0.2
+version: 1.0.3
 publish_to: 'none'
 
 environment:
