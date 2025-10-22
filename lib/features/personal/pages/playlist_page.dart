@@ -6,12 +6,15 @@ import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/utils_tag_dialogs.dart';
 
 import 'package:jwlife/data/models/userdata/playlistItem.dart';
+import 'package:jwlife/features/personal/pages/playlist_player.dart';
+import '../../../app/services/global_key_service.dart';
+import '../../../core/utils/utils_dialog.dart';
+import '../../../core/utils/utils_pub.dart';
 import '../../../data/models/userdata/playlist.dart';
-import '../../../data/models/userdata/tag.dart';
 import '../widgets/rectangle_playlistItem_item.dart';
 
 class PlaylistPage extends StatefulWidget {
-  final Tag playlist;
+  final Playlist playlist;
 
   const PlaylistPage({super.key, required this.playlist});
 
@@ -20,7 +23,7 @@ class PlaylistPage extends StatefulWidget {
 }
 
 class _PlaylistPageState extends State<PlaylistPage> {
-  late Tag _playlist;
+  late Playlist _playlist;
   List<PlaylistItem> _filteredPlaylistItem = [];
 
   @override
@@ -31,35 +34,20 @@ class _PlaylistPageState extends State<PlaylistPage> {
   }
 
   Future<void> playlistItemByPlaylist() async {
-    // Fetch notes by category first
-    List<PlaylistItem> playlistItem = await JwLifeApp.userdata.getPlaylistItemByPlaylistId(_playlist.id);
+    List<PlaylistItem> playlistItem =
+    await JwLifeApp.userdata.getPlaylistItemByPlaylistId(_playlist.id);
 
-    // Now update the state with the fetched notes
     setState(() {
       _filteredPlaylistItem = playlistItem;
     });
   }
 
-  String _formatDuration(int? offsetTicks) {
-    if (offsetTicks == null) return "0:00";
-    // Convertir les ticks en secondes (10 000 000 ticks = 1 seconde)
-    int totalSeconds = (offsetTicks / 10000000).round();
-    int minutes = totalSeconds ~/ 60;
-    int seconds = totalSeconds % 60;
-    return "$minutes:${seconds.toString().padLeft(2, '0')}";
-  }
-
   void _playAll() async {
-    //JwLifeApp.audioPlayer.playAudios(widget.category, allAudios);
+    showPlaylistPlayer(_filteredPlaylistItem);
   }
 
   void _playRandom() async {
-    /*
-    if (allAudios.isEmpty) return;
-    final randomIndex = Random().nextInt(allAudios.length);
-    JwLifeApp.audioPlayer.playAudios(widget.category, allAudios, id: randomIndex, randomMode: true);
-
-     */
+    showPlaylistPlayer(_filteredPlaylistItem, randomMode: true);
   }
 
   Widget _buildOutlinedButton(IconData icon, String label, VoidCallback onPressed) {
@@ -67,30 +55,25 @@ class _PlaylistPageState extends State<PlaylistPage> {
       onPressed: onPressed,
       icon: Icon(icon),
       label: Text(label),
-      style: OutlinedButton.styleFrom(
-        overlayColor: Theme.of(context).brightness == Brightness.dark ? Color(0xFF8e8e8e) : Color(0xFF757575),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
-      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    // Styles partagés
-    final textStyleTitle = const TextStyle(fontSize: 20, fontWeight: FontWeight.bold);
+    final textStyleTitle =
+    const TextStyle(fontSize: 20, fontWeight: FontWeight.bold);
     final textStyleSubtitle = TextStyle(
       fontSize: 14,
       color: Theme.of(context).brightness == Brightness.dark
           ? const Color(0xFFc3c3c3)
           : const Color(0xFF626262),
-
     );
 
     return Scaffold(
       resizeToAvoidBottomInset: false,
       appBar: AppBar(
         leading: IconButton(
-          icon: Icon(Icons.arrow_back),
+          icon: const Icon(Icons.arrow_back),
           onPressed: () {
             Navigator.pop(context, _playlist);
           },
@@ -98,24 +81,16 @@ class _PlaylistPageState extends State<PlaylistPage> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              _playlist.name,
-              style: textStyleTitle
-            ),
-            Text(
-              '${_filteredPlaylistItem.length} éléments',
-              style: textStyleSubtitle
-            ),
+            Text(_playlist.name, style: textStyleTitle),
+            Text('${_filteredPlaylistItem.length} éléments',
+                style: textStyleSubtitle),
           ],
         ),
         actions: <Widget>[
           IconButton(
-            icon: Icon(JwIcons.pencil),
+            icon: const Icon(JwIcons.pencil),
             onPressed: () async {
-              // Utiliser await à l'extérieur du setState
-              Tag? updatedCategory = await showEditTagDialog(context, _playlist);
-
-              // Si la catégorie a été mise à jour, on applique le setState
+              Playlist? updatedCategory = await showEditTagDialog(context, _playlist) as Playlist?;
               if (updatedCategory != null) {
                 setState(() {
                   _playlist = updatedCategory;
@@ -124,79 +99,152 @@ class _PlaylistPageState extends State<PlaylistPage> {
             },
           ),
           IconButton(
-            icon: Icon(JwIcons.trash),
+            icon: const Icon(JwIcons.trash),
             onPressed: () async {
-               await showDeleteTagDialog(context, _playlist, items: _filteredPlaylistItem).then((value) => setState(() {}));
-               Navigator.pop(context);
+              await showDeleteTagDialog(context, _playlist, items: _filteredPlaylistItem).then((value) {
+                if (value != null && value) {
+                  Navigator.pop(context);
+                }
+              });
+
             },
           ),
           IconButton(
-            icon: Icon(JwIcons.share),
+            icon: const Icon(JwIcons.share),
             onPressed: () {
-              // Action de partage
+              showSharePlaylist(context, _playlist, items: _filteredPlaylistItem);
             },
           ),
         ],
       ),
-      body: Column(
-        children: [
-          // Boutons de contrôle
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            child: Wrap(
-              spacing: 10,
-              children: [
-                _buildOutlinedButton(Icons.playlist_play, "TOUT LIRE", _playAll),
-                _buildOutlinedButton(Icons.shuffle, "LECTURE ALÉATOIRE", _playRandom),
-              ],
-            ),
-          ),
-          // Liste des éléments
-          Expanded(
-            child: ListView.separated(
-              padding: const EdgeInsets.all(5.0),
-              itemCount: _filteredPlaylistItem.length,
-              itemBuilder: (context, index) => RectanglePlaylistItemItem(
-                item: _filteredPlaylistItem[index],
-                onDelete: (item) {
-                  setState(() {
-                    _filteredPlaylistItem.remove(item);
-                  });
-                }
+      body: SingleChildScrollView(
+        // <-- SingleChildScrollView englobe tout le contenu
+        child: Padding(
+          padding: const EdgeInsets.all(5.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // --- SCROLL HORIZONTAL POUR LES DEUX BOUTONS ---
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                padding:
+                const EdgeInsets.symmetric(horizontal: 5, vertical: 5),
+                child: Row(
+                  children: [
+                    _buildOutlinedButton(JwIcons.play, "TOUT LIRE", _playAll),
+                    const SizedBox(width: 10),
+                    _buildOutlinedButton(JwIcons.arrows_twisted_right, "LECTURE ALÉATOIRE", _playRandom),
+                  ],
+                ),
               ),
-              separatorBuilder: (context, index) => const SizedBox(height: 3), // espace entre éléments
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: InkWell(
-              onTap: () {
-                // Action d'importation
-              },
-              borderRadius: BorderRadius.circular(6),
-              child: Padding(
-                padding: const EdgeInsets.all(8.0),
+
+              const SizedBox(height: 5), // Petit espace
+
+              // --- LISTE DES ÉLÉMENTS (Intégrée dans la Column) ---
+              ..._filteredPlaylistItem.asMap().entries.map((entry) {
+                int index = entry.key;
+                PlaylistItem item = entry.value;
+                return Column(
+                  children: [
+                    RectanglePlaylistItemItem(
+                      items: _filteredPlaylistItem,
+                      item: item,
+                      onDelete: (itemToDelete) {
+                        setState(() {
+                          _filteredPlaylistItem.remove(itemToDelete);
+                        });
+                      },
+                    ),
+                    if (index < _filteredPlaylistItem.length - 1)
+                      const SizedBox(height: 3),
+                  ],
+                );
+              }).toList(),
+
+              const SizedBox(height: 8), // Petit espace avant le bouton importer
+
+              // --- BOUTON IMPORTER UN FICHIER EN BAS ---
+              Padding(
+                padding:
+                const EdgeInsets.only(bottom: 8.0, left: 3.0, right: 3.0),
                 child: InkWell(
                   onTap: () async {
                     FilePickerResult? result = await FilePicker.platform.pickFiles(
-                      type: FileType.any, // Spécifie que vous voulez un type de fichier personnalisé
-                      allowMultiple: true, // Permet de sélectionner un seul fichier
+                      type: FileType.any,
+                      allowMultiple: true,
                     );
 
-                    // 2. Vérifier si l'utilisateur a sélectionné un fichier
+                    // Mettez les extensions en minuscules pour une comparaison non sensible à la casse.
+                    List<String> allowedExtensions = [
+                      'png',
+                      'jpg',
+                      'jpeg',
+                      'mp4',
+                      'm4v',
+                      '3gp',
+                      'mov',
+                      'mp3',
+                      'aac',
+                      'heic',
+                      'webp'
+                    ];
+
+                    List<String> invalidFiles = [];
+
                     if (result != null) {
-                      // Le fichier a été sélectionné
-                      PlatformFile file = result.files.first;
+                      for (var file in result.files) {
 
-                      print('Nom du fichier : ${file.name}');
-                      print('Chemin du fichier : ${file.path}');
-                      print('Taille du fichier : ${file.size}');
+                        BuildContext? dialogContext = await showJwImport(context, file.name);
 
-                      // Ici, vous pouvez ajouter la logique pour UPLOADER ou TRAITER le fichier
-                      // Par exemple :
-                      // MonServiceUpload.upload(file);
+                        // L'extension de PlatformFile peut être nulle, et doit être mise en minuscules.
+                        String? fileExtension = file.extension?.toLowerCase();
 
+                        // On vérifie si l'extension n'est PAS dans la liste des extensions autorisées.
+                        if (fileExtension != null && allowedExtensions.contains(fileExtension)) {
+                          // ✅ Fichier accepté : on l'insère dans la playlist.
+                          if (file.path != null) {
+                            await JwLifeApp.userdata.insertIndependentMediaInPlaylist(widget.playlist, file.path!);
+                          }
+                        }
+                        else {
+                          // ❌ Fichier rejeté : on ajoute son nom à la liste des fichiers invalides.
+                          invalidFiles.add(file.name);
+                        }
+
+                        // Ferme le dialogue de chargement une fois l'importation terminée.
+                        if (dialogContext != null) {
+                          Navigator.of(dialogContext).pop();
+                        }
+                      }
+
+                      // --- Affichage du dialogue si des fichiers ont été rejetés ---
+                      if (invalidFiles.isNotEmpty) {
+                        String message;
+                        if (invalidFiles.length == 1) {
+                          message = 'Le fichier "${invalidFiles.first}" n\'a pas une extension autorisée.';
+                        } else {
+                          message = 'Les fichiers suivants n\'ont pas une extension autorisée :\n- ${invalidFiles.join('\n- ')}';
+                        }
+
+                        // Affichez votre dialogue personnalisé
+                        // (Assurez-vous d'avoir accès au BuildContext ici pour les dialogues.)
+                        showJwDialog(
+                          context: context, // Utilisez le BuildContext de votre Widget
+                          titleText: 'Fichier(s) Non Supporté(s)',
+                          contentText: message,
+                          buttons: [
+                            JwDialogButton(
+                              label: 'OK'
+                            ),
+                          ]
+                        );
+                      }
+
+                      // rafraishir la playlist
+                      playlistItemByPlaylist();
+
+                      // on met à jour les playlist sur la vue personelle
+                      GlobalKeyService.personalKey.currentState?.refreshPlaylist();
                     }
                   },
                   borderRadius: BorderRadius.circular(6),
@@ -205,32 +253,30 @@ class _PlaylistPageState extends State<PlaylistPage> {
                       strokeWidth: 1.5,
                       dashPattern: [5, 3],
                       padding: const EdgeInsets.symmetric(vertical: 30),
-                      color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black,
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.white
+                          : Colors.black,
                     ),
                     child: SizedBox(
-                      width: double.infinity, // prend toute la largeur
+                      width: double.infinity,
                       child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center, // centre le texte et l'icône
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(
-                            JwIcons.plus,
-                          ),
+                          const Icon(JwIcons.plus),
                           const SizedBox(width: 6),
-                          Text(
+                          const Text(
                             "Importer un fichier",
-                            style: TextStyle(
-                              fontWeight: FontWeight.w500,
-                            ),
+                            style: TextStyle(fontWeight: FontWeight.w500),
                           ),
                         ],
                       ),
                     ),
-                  )
+                  ),
                 ),
-              )
-            ),
-          )
-        ],
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

@@ -14,7 +14,7 @@ import '../repositories/MediaRepository.dart';
 import 'media.dart';
 
 class Video extends Media {
-  final int videoId;
+  int? videoId;
   double? frameRate;
   int? frameHeight;
   int? frameWidth;
@@ -23,8 +23,8 @@ class Video extends Media {
   Subtitles? subtitles;
 
   Video({
-    required this.videoId,
-    required super.mediaId,
+    this.videoId,
+    super.mediaId,
     super.naturalKey,
     super.keySymbol,
     super.categoryKey,
@@ -176,10 +176,12 @@ class Video extends Media {
   }
 
   @override
-  Future<void> showPlayer(BuildContext context, {Duration initialPosition = Duration.zero}) async {
+  Future<void> showPlayer(BuildContext context, {Duration initialPosition = Duration.zero, List<Media> medias = const []}) async {
     if(isDownloadedNotifier.value) {
+      // Exemple de mapping/filtrage si Video est un type spécifique dans la liste
       showPage(VideoPlayerPage(
           video: this,
+          videos: medias.whereType<Video>().toList(),
           initialPosition: initialPosition
       ));
     }
@@ -187,6 +189,7 @@ class Video extends Media {
       if(await hasInternetConnection()) {
         showPage(VideoPlayerPage(
             video: this,
+            videos: medias.whereType<Video>().toList(),
             initialPosition: initialPosition
         ));
       }

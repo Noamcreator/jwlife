@@ -15,6 +15,7 @@ import '../../core/utils/utils_pub.dart';
 import '../../core/utils/widgets_utils.dart';
 import '../../data/databases/catalog.dart';
 import '../../data/databases/userdata.dart';
+import '../../data/models/userdata/playlist.dart';
 import '../../features/publication/pages/menu/local/publication_menu_view.dart';
 import '../../core/utils/utils_dialog.dart';
 
@@ -56,7 +57,7 @@ class FileHandlerService {
         case 'jwlibrary':
           processJwLibraryFile(filePath);
           break;
-        case 'jwplaylist':
+        case 'jwlplaylist':
           processJwPlaylistFile(filePath);
           break;
         case 'jwpub':
@@ -208,8 +209,8 @@ class FileHandlerService {
     switch (extension) {
       case '.jwlibrary':
         return 'jwlibrary';
-      case '.jwplaylist':
-        return 'jwplaylist';
+      case '.jwlplaylist':
+        return 'jwlplaylist';
       case '.jwpub':
         return 'jwpub';
       default:
@@ -420,9 +421,39 @@ class FileHandlerService {
   }
 
   Future<void> _importJwPlaylistFile(File file) async {
-    print('Import JW Playlist: ${file.path}');
-    // N'oublie pas de réinitialiser aussi ici
-    resetProcessedContent();
+    // Récupère le contexte de la page actuelle.
+    BuildContext context = GlobalKeyService.jwLifePageKey.currentState!.navigatorKeys[GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex].currentState!.context;
+
+    // Sépare le nom du fichier du chemin complet.
+    String fileName = file.path.split('/').last;
+
+    // Affiche le dialogue d'importation et attend son BuildContext.
+    BuildContext? dialogContext = await showJwImport(context, fileName);
+
+    Playlist? playlist = await JwLifeApp.userdata.importPlaylistFromFile(file);
+
+    // Ferme le dialogue de chargement une fois l'importation terminée.
+    if (dialogContext != null) {
+      Navigator.of(dialogContext).pop();
+    }
+
+    // Gère le résultat de l'importation.
+    if (playlist == null) {
+      showImportFileError(context, '.jwplaylist');
+      // Réinitialiser après erreur
+      resetProcessedContent();
+    }
+    else {
+      // on refresh les playlist
+      GlobalKeyService.personalKey.currentState?.openPlaylist(playlist);
+
+      if (context.mounted) {
+        showBottomMessage('Import de la liste de lecture réussi.');
+      }
+
+      // N'oublie pas de réinitialiser aussi ici
+      resetProcessedContent();
+    }
   }
 
   Future<void> _importJwPubFile(File file, {String keySymbol = '', int issueTagNumber = 0, int mepsLanguageId = 0}) async {
@@ -445,7 +476,7 @@ class FileHandlerService {
 
     // Gère le résultat de l'importation.
     if (jwpub == null) {
-      showJwpubError(context);
+      showImportFileError(context, '.jwpub');
       // Réinitialiser après erreur
       resetProcessedContent();
     }

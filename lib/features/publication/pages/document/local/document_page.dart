@@ -13,6 +13,7 @@ import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/core/utils/utils_audio.dart';
 import 'package:jwlife/core/utils/utils_document.dart';
 import 'package:jwlife/core/utils/utils_jwpub.dart';
+import 'package:jwlife/core/utils/utils_search.dart';
 import 'package:jwlife/core/utils/utils_video.dart';
 import 'package:jwlife/data/models/audio.dart';
 import 'package:jwlife/data/models/publication.dart';
@@ -619,6 +620,21 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
                           'tags': JwLifeApp.userdata.tags.map((t) => t.toMap()).toList(),
                           'colorIndex': note == null ? 0 : note['ColorIndex'],
                         };
+                      },
+                    );
+
+                    controller.addJavaScriptHandler(
+                      handlerName: 'getFilteredTags',
+                      callback: (args) {
+                        String query = args[0] as String;
+                        // Récupérer la liste brute
+                        List<dynamic> dynamicTags = args[1] as List<dynamic>;
+
+                        // ➡️ Ligne corrigée pour gérer les valeurs null ou non-entiers
+                        List<int> tagsId = dynamicTags.where((e) => e is int).cast<int>().toList();
+
+                        // Reste du code inchangé
+                        return getFilteredTags(query, tagsId).map((t) => t.toMap()).toList();
                       },
                     );
 

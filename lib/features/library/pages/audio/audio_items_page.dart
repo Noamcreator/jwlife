@@ -155,9 +155,9 @@ class _AudioItemsPageState extends State<AudioItemsPage> {
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             child: Row(
               children: [
-                _buildOutlinedButton(Icons.playlist_play, "TOUT LIRE", _playAll),
+                _buildOutlinedButton(JwIcons.play, "TOUT LIRE", _playAll),
                 const SizedBox(width: 10),
-                _buildOutlinedButton(Icons.shuffle, "LECTURE ALÉATOIRE", _playRandom),
+                _buildOutlinedButton(JwIcons.arrows_twisted_right, "LECTURE ALÉATOIRE", _playRandom),
                 //const SizedBox(width: 10),
                 //_buildOutlinedButton(JwIcons.language, "LANGUE ALÉATOIRE", _playRandomLanguage),
               ],
@@ -253,10 +253,6 @@ class _AudioItemsPageState extends State<AudioItemsPage> {
       onPressed: onPressed,
       icon: Icon(icon),
       label: Text(label),
-      style: OutlinedButton.styleFrom(
-        overlayColor: Theme.of(context).brightness == Brightness.dark ? Color(0xFF8e8e8e) : Color(0xFF757575),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
-      ),
     );
   }
 

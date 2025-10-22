@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/core/utils/utils.dart';
+import 'package:jwlife/data/models/media.dart';
 import 'package:jwlife/data/models/video.dart' hide Subtitles;
 import 'package:jwlife/data/databases/history.dart';
 
@@ -19,10 +20,11 @@ import 'subtitles.dart';
 
 class VideoPlayerPage extends StatefulWidget {
   final Video video;
+  final List<Video>? videos;
   final dynamic onlineVideo;
   final Duration initialPosition;
 
-  const VideoPlayerPage({super.key, required this.video, this.onlineVideo, this.initialPosition=Duration.zero});
+  const VideoPlayerPage({super.key, required this.video, this.onlineVideo, this.initialPosition=Duration.zero, this.videos});
 
   @override
   _VideoPlayerPageState createState() => _VideoPlayerPageState();
@@ -818,7 +820,7 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
                                     iconSize: 75.0,
                                     padding: const EdgeInsets.all(2),
                                     icon: Icon(
-                                      isPlaying ? Icons.pause : Icons.play_arrow,
+                                      isPlaying ? JwIcons.pause : JwIcons.play,
                                       color: Colors.white,
                                     ),
                                     onPressed: _togglePlayPause,
@@ -1026,7 +1028,7 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
                                 ),
                                 const Spacer(),
                                 IconButton(
-                                  icon: const Icon(JwIcons.text_box, color: Colors.white),
+                                  icon: Icon(_showSubtitle ? JwIcons.caption : JwIcons.caption_crossed, color: Colors.white),
                                   onPressed: _showSubtitles,
                                 ),
                                 ValueListenableBuilder<double>(

@@ -3,13 +3,14 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
+import 'package:audio_info/audio_info.dart';
 import 'package:collection/collection.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_video_info/flutter_video_info.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
-import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/app/services/global_key_service.dart';
 import 'package:jwlife/app/services/settings_service.dart';
 import 'package:jwlife/app/startup/copy_assets.dart';
@@ -25,7 +26,7 @@ import 'package:jwlife/data/models/video.dart';
 import 'package:jwlife/data/repositories/PublicationRepository.dart';
 import 'package:jwlife/features/publication/pages/document/data/models/dated_text.dart';
 import 'package:jwlife/core/utils/utils_dialog.dart';
-import 'package:path_provider/path_provider.dart';
+import 'package:mime/mime.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:uuid/uuid.dart' as uuid;
@@ -42,7 +43,6 @@ import '../models/userdata/location.dart';
 import '../models/userdata/note.dart';
 import '../models/userdata/playlist.dart';
 import '../models/userdata/playlistItem.dart';
-import '../realm/catalog.dart';
 
 import 'package:image/image.dart' as img;
 
@@ -608,10 +608,15 @@ class Userdata {
         'Name': name
       });
 
-      Tag tag = Tag.fromMap({'TagId': tagId, 'Type': type ?? 1, 'Name': name});
-      if (tag.type != 2) {
+      Tag tag;
+      if (type == 2) {
+         tag = Playlist.fromMap({'TagId': tagId, 'Type': type ?? 2, 'Name': name});
+      }
+      else {
+        tag = Tag.fromMap({'TagId': tagId, 'Type': type ?? 1, 'Name': name});
         tags.add(tag);
       }
+
       return tag;
     }
     catch (e) {
@@ -658,32 +663,42 @@ class Userdata {
 
   Future<bool> deleteTag(Tag tag, {List<PlaylistItem>? items}) async {
     try {
-      int count = await _database.delete(
-        'Tag',
-        where: 'TagId = ? AND Type = ?',
-        whereArgs: [tag.id, tag.type],
-      );
-
-      // On enlève aussi les associations dans les TagMap
-      await _database.delete(
-        'TagMap',
-        where: 'TagId = ?',
-        whereArgs: [tag.id],
-      );
+      int count = 0;
 
       // Mise à jour de la liste locale `tags`
       if (tag.type == 1) {
+        count = await _database.delete(
+          'Tag',
+          where: 'TagId = ? AND Type = ?',
+          whereArgs: [tag.id, tag.type],
+        );
+
+        // On enlève aussi les associations dans les TagMap
+        await _database.delete(
+          'TagMap',
+          where: 'TagId = ?',
+          whereArgs: [tag.id],
+        );
+
         tags.removeWhere((t) => t.id == tag.id);
       }
-      else if(tag.type == 2) {
-        items?.forEach((item) {
+      else if (tag.type == 2) {
+        items ??= await getPlaylistItemByPlaylistId(tag.id);
+
+        // On attend que tous les PlaylistItem soient supprimés
+        for (var item in items) {
           deletePlaylistItem(item);
-        });
+        }
+
+        count = await _database.delete(
+          'Tag',
+          where: 'TagId = ? AND Type = ?',
+          whereArgs: [tag.id, tag.type],
+        );
       }
 
       return count > 0;
-    }
-    catch (e) {
+    } catch (e) {
       printTime('Erreur lors de la suppression du tag : $e');
       return false;
     }
@@ -1278,6 +1293,7 @@ class Userdata {
         'Content': content,
         'LastModified': DateTime.now().toIso8601String(),
         'Created': DateTime.now().toIso8601String(),
+        'TagsId': categoryIds,
         'BlockType': blockType,
         'BlockIdentifier': blockIdentifier
       });
@@ -1392,7 +1408,8 @@ class Userdata {
       INSERT INTO TagMap (NoteId, TagId, Position)
       VALUES (?, ?, ?)
     ''', [noteId, tagId, newPosition]);
-    } catch (e) {
+    }
+    catch (e) {
       printTime('Error: $e');
       throw Exception('Failed to add tag to note with Guid $guid.');
     }
@@ -1964,60 +1981,158 @@ class Userdata {
     return result.map((playlist) => Playlist.fromMap(playlist)).toList();
   }
 
-  Future<List<PlaylistItem>> getPlaylistItemByPlaylistId(int playlistId) async {
-    List<Map<String, dynamic>> result = await _database.rawQuery('''
-      SELECT PlaylistItem.*, TagMap.Position, Location.*, IndependentMedia.*, PlaylistItemIndependentMediaMap.DurationTicks, PlaylistItemLocationMap.BaseDurationTicks
+  Future<List<PlaylistItem>> getPlaylistItemByPlaylistId(int playlistId, {Database? database}) async {
+    Database db = database ?? _database;
+    List<Map<String, dynamic>> result = await db.rawQuery('''
+      SELECT 
+        PlaylistItem.*,
+        TagMap.Position,
+        Location.*,
+        IndependentMedia.*,
+        PlaylistItemIndependentMediaMap.DurationTicks,
+        PlaylistItemLocationMap.MajorMultimediaType,
+        PlaylistItemLocationMap.BaseDurationTicks,
+    
+        -- Colonnes du thumbnail (jointure supplémentaire)
+        ThumbnailMedia.OriginalFileName AS ThumbnailOriginalFileName,
+        ThumbnailMedia.FilePath AS ThumbnailFilePath,
+        ThumbnailMedia.MimeType AS ThumbnailMimeType,
+        ThumbnailMedia.Hash AS ThumbnailHash
+    
       FROM PlaylistItem
-      INNER JOIN TagMap ON PlaylistItem.PlaylistItemId = TagMap.PlaylistItemId
-      INNER JOIN Tag ON TagMap.TagId = Tag.TagId
-      LEFT JOIN PlaylistItemLocationMap ON PlaylistItem.PlaylistItemId = PlaylistItemLocationMap.PlaylistItemId
-      LEFT JOIN Location ON PlaylistItemLocationMap.LocationId = Location.LocationId
-      LEFT JOIN PlaylistItemIndependentMediaMap ON PlaylistItem.PlaylistItemId = PlaylistItemIndependentMediaMap.PlaylistItemId
-      LEFT JOIN IndependentMedia ON PlaylistItemIndependentMediaMap.IndependentMediaId = IndependentMedia.IndependentMediaId
+      INNER JOIN TagMap 
+        ON PlaylistItem.PlaylistItemId = TagMap.PlaylistItemId
+      INNER JOIN Tag 
+        ON TagMap.TagId = Tag.TagId
+      LEFT JOIN PlaylistItemLocationMap 
+        ON PlaylistItem.PlaylistItemId = PlaylistItemLocationMap.PlaylistItemId
+      LEFT JOIN Location 
+        ON PlaylistItemLocationMap.LocationId = Location.LocationId
+      LEFT JOIN PlaylistItemIndependentMediaMap 
+        ON PlaylistItem.PlaylistItemId = PlaylistItemIndependentMediaMap.PlaylistItemId
+      LEFT JOIN IndependentMedia 
+        ON PlaylistItemIndependentMediaMap.IndependentMediaId = IndependentMedia.IndependentMediaId
+    
+      -- Jointure pour récupérer le thumbnail
+      LEFT JOIN IndependentMedia AS ThumbnailMedia ON PlaylistItem.ThumbnailFilePath = ThumbnailMedia.FilePath
+    
       WHERE Tag.TagId = ?
     ''', [playlistId]);
 
     return result.map((map) => PlaylistItem.fromMap(map)).toList();
   }
 
+  Future<bool> _isIndependentMediaUsedElsewhere({
+    required String filePath,
+    required int excludedPlaylistItemId}) async {
+
+    // Le média peut être soit le média principal, soit le thumbnail d'un autre item.
+    final List<Map<String, Object?>> results = await _database.rawQuery('''
+      SELECT
+        PlaylistItemId
+      FROM
+        PlaylistItem
+      WHERE
+        ThumbnailFilePath = ?
+        AND PlaylistItemId != ?
+  
+      UNION ALL
+  
+      SELECT
+        T1.PlaylistItemId
+      FROM
+        PlaylistItemIndependentMediaMap AS T1
+      LEFT JOIN
+        IndependentMedia AS T2
+        ON T1.IndependentMediaId = T2.IndependentMediaId
+      WHERE
+        T2.FilePath = ?
+        AND T1.PlaylistItemId != ?
+  
+      LIMIT 1;
+    ''', [
+      // Paramètres pour la première partie (Thumbnail)
+      filePath,
+      excludedPlaylistItemId,
+      // Paramètres pour la deuxième partie (IndependentMedia)
+      filePath,
+      excludedPlaylistItemId
+    ]);
+
+    return results.isNotEmpty;
+  }
+
   Future<void> deletePlaylistItem(PlaylistItem playlistItem) async {
     final id = playlistItem.playlistItemId;
 
-    // Récupérer les IndependentMediaId associés
-    final independentMediaMaps = await _database.query(
-      'PlaylistItemIndependentMediaMap',
-      columns: ['IndependentMediaId'],
-      where: 'PlaylistItemId = ?',
-      whereArgs: [id],
-    );
-
-    // Supprimer les liaisons dans PlaylistItemIndependentMediaMap
+    // 1. Supprimer les liaisons dans PlaylistItemIndependentMediaMap
     await _database.delete(
       'PlaylistItemIndependentMediaMap',
       where: 'PlaylistItemId = ?',
       whereArgs: [id],
     );
 
-    // Supprimer les IndependentMediaMap liés
-    for (var row in independentMediaMaps) {
-      final independentMediaId = row['IndependentMediaId'];
-      if (independentMediaId != null) {
+    // 2. Gestion du média principal (IndependentMedia)
+    if (playlistItem.independentMedia != null && !playlistItem.independentMedia!.isNull()) {
+      final media = playlistItem.independentMedia!;
+
+      // VÉRIFICATION : Est-ce que ce média est utilisé par un autre PlaylistItem ?
+      final isUsedElsewhere = await _isIndependentMediaUsedElsewhere(
+        filePath: media.filePath!,
+        excludedPlaylistItemId: id, // id est non null ici
+      );
+
+      if (!isUsedElsewhere) {
+        // S'il n'est utilisé nulle part ailleurs, on le supprime de la DB et du système de fichiers
         await _database.delete(
           'IndependentMedia',
-          where: 'IndependentMediaId = ?',
-          whereArgs: [independentMediaId],
+          where: 'Hash = ? AND FilePath = ?',
+          whereArgs: [media.hash, media.filePath],
         );
+
+        // Supprimer le fichier
+        media.removeMediaFile();
       }
     }
 
-    // Supprimer les TagMap liés au PlaylistItem
+    // 3. Supprimer les liaisons dans PlaylistItemLocationMap
+    await _database.delete(
+      'PlaylistItemLocationMap',
+      where: 'PlaylistItemId = ?',
+      whereArgs: [id],
+    );
+
+    // 4. Gestion de la vignette (thumbnail)
+    if (playlistItem.thumbnail != null && !playlistItem.thumbnail!.isNull()) {
+      final thumbnail = playlistItem.thumbnail!;
+
+      // VÉRIFICATION : Est-ce que ce thumbnail est utilisé par un autre PlaylistItem ?
+      final isUsedElsewhere = await _isIndependentMediaUsedElsewhere(
+        filePath: thumbnail.filePath!,
+        excludedPlaylistItemId: id, // id est non null ici
+      );
+
+      if (!isUsedElsewhere) {
+        // S'il n'est utilisé nulle part ailleurs, on le supprime de la DB et du système de fichiers
+        await _database.delete(
+          'IndependentMedia',
+          where: 'Hash = ? AND FilePath = ?',
+          whereArgs: [thumbnail.hash, thumbnail.filePath],
+        );
+
+        // Supprimer le fichier
+        thumbnail.removeMediaFile();
+      }
+    }
+
+    // 5. Supprimer les TagMap liés au PlaylistItem
     await _database.delete(
       'TagMap',
       where: 'PlaylistItemId = ?',
       whereArgs: [id],
     );
 
-    // Enfin, supprimer le PlaylistItem
+    // 6. Enfin, supprimer le PlaylistItem
     await _database.delete(
       'PlaylistItem',
       where: 'PlaylistItemId = ?',
@@ -2039,109 +2154,173 @@ class Userdata {
   }
 
 
-  Future<String> insertThumbnailInPlaylist(String path) async {
-    Directory userdataDir = await getAppUserDataDirectory();
-    Uuid uuid = Uuid();
+  Future<IndependentMedia> insertThumbnailInPlaylist(String filePath) async {
+    String mimeType = lookupMimeType(filePath) ?? 'image/jpeg';
+    final Directory userDataDir = await getAppUserDataDirectory();
+    final Uuid uuid = Uuid();
+    late img.Image thumbnail;
 
-    img.Image thumbnail;
-    if(path.isNotEmpty) {
-      Uint8List imageBytes;
-      if(path.startsWith('https')) {
-        http.Response response = await http.get(Uri.parse(path));
+    final String nameWithoutExtension = path.basenameWithoutExtension(filePath);
+
+
+    Uint8List? imageBytes;
+
+    // --- Si le fichier existe ou est distant ---
+    if (filePath.isNotEmpty) {
+      // Charger les bytes selon la source
+      if (filePath.startsWith('https')) {
+        final http.Response response = await http.get(Uri.parse(filePath));
         imageBytes = response.bodyBytes;
       }
       else {
-        // Charger l'image pour traitement thumbnail
-        imageBytes = await File(path).readAsBytes();
-      }
-      img.Image? originalImage = img.decodeImage(imageBytes);
-      if (originalImage == null) {
-        throw Exception("Impossible de décoder l'image source");
+        imageBytes = await File(filePath).readAsBytes();
       }
 
-      // Redimensionner à 250x250 (tu peux changer la méthode si tu veux garder le ratio)
-      thumbnail = resizeAndCropCenter(originalImage, 250);
-    }
-    else {
-      String thumbnailPath = '${userdataDir.path}/default_thumbnail.png';
-      File file = File(thumbnailPath);
-
-      // Lire les bytes du fichier
-      Uint8List bytes = await file.readAsBytes();
-
-      // Décoder l'image
-      img.Image? defaultThumbnail = img.decodeImage(bytes);
-
-      // Optionnel : si tu veux forcer la taille 250x250, resize ou crop après.
-      if (defaultThumbnail != null) {
-        thumbnail = img.copyResize(defaultThumbnail, width: 250, height: 250);
+      // --- Si c’est une image classique ---
+      if (mimeType.startsWith('image/')) {
+        final img.Image? originalImage = img.decodeImage(imageBytes);
+        if (originalImage == null) throw Exception("Impossible de décoder l'image source");
+        thumbnail = resizeAndCropCenter(originalImage, 250);
       }
+
+      // --- Si c’est un audio ou vidéo → lire la vignette depuis les métadonnées ---
+      else if (mimeType.startsWith('audio/') || mimeType.startsWith('video/')) {
+        Uint8List? embeddedPicture = await AudioInfo.getAudioImage(filePath);
+
+        if (embeddedPicture != null) {
+          // Image d’album trouvée
+          final img.Image? cover = img.decodeImage(embeddedPicture);
+          //mimeType = metadata.pictures.first.mimetype;
+
+          if (cover == null) throw Exception("Impossible de décoder l'image d'album");
+          thumbnail = resizeAndCropCenter(cover, 250);
+        }
+        else {
+          // Pas d’image → fallback par défaut
+          final defaultPath = '${userDataDir.path}/default_thumbnail.png';
+          final defaultBytes = await File(defaultPath).readAsBytes();
+          final img.Image? defaultImage = img.decodeImage(defaultBytes);
+          thumbnail = img.copyResize(defaultImage!, width: 250, height: 250);
+        }
+      }
+
+      // --- Sinon (autre type de fichier) ---
       else {
-        throw Exception("Impossible de décoder l'image source");
+        final defaultPath = '${userDataDir.path}/default_thumbnail.png';
+        final defaultBytes = await File(defaultPath).readAsBytes();
+        final img.Image? defaultImage = img.decodeImage(defaultBytes);
+        thumbnail = img.copyResize(defaultImage!, width: 250, height: 250);
       }
     }
 
-    // Sauvegarder le thumbnail
-    String thumbnailName = uuid.v4();
-    String thumbnailPath = '${userdataDir.path}/$thumbnailName';
-    File thumbnailFile = File(thumbnailPath);
+    // --- Si path est vide : miniature par défaut ---
+    else {
+      final defaultPath = '${userDataDir.path}/default_thumbnail.png';
+      final defaultBytes = await File(defaultPath).readAsBytes();
+      final img.Image? defaultImage = img.decodeImage(defaultBytes);
+      if (defaultImage == null) throw Exception("Impossible de décoder l'image par défaut");
+      thumbnail = img.copyResize(defaultImage, width: 250, height: 250);
+    }
+
+    // --- Sauvegarde du thumbnail ---
+    final String thumbnailName = uuid.v4();
+    final String thumbnailPath = '${userDataDir.path}/$thumbnailName';
+    final File thumbnailFile = File(thumbnailPath);
+
+    // ✅ Écrit réellement le fichier
     await thumbnailFile.writeAsBytes(img.encodeJpg(thumbnail));
 
-    String hash = await sha256hashOfFile(thumbnailPath);
+    // --- Calcul du hash ---
+    final String hash = await sha256hashOfFile(thumbnailPath);
 
+    // --- Insertion dans la base ---
     await _database.insert(
       'IndependentMedia',
       {
-        'OriginalFilename': path.split('/').last.split('.').first,
+        'OriginalFilename': nameWithoutExtension,
         'FilePath': thumbnailName,
         'MimeType': 'image/jpeg',
         'Hash': hash,
       },
     );
 
-    return thumbnailName;
+    // --- Retour ---
+    return IndependentMedia(
+      originalFileName: nameWithoutExtension,
+      filePath: thumbnailName,
+      mimeType: 'image/jpeg',
+      hash: hash,
+    );
   }
 
-  Future<int> insertImageInPlaylist(Playlist playlist, String filepath) async {
-    String thumbnailName = await insertThumbnailInPlaylist(filepath);
-    File imageFile = File(filepath);
-    Directory userdataDir = await getAppUserDataDirectory();
-    Uuid uuid = Uuid();
+  Future<int> insertIndependentMediaInPlaylist(Playlist playlist, String filepath) async {
+    printTime('FILE PATH : $filepath');
+    // Type MIME et extension
+    final String mimeType = lookupMimeType(filepath) ?? 'image/jpeg';
+    final String fileExtension = filepath.split('.').last;
 
-    // Générer nom pour image originale copiée
-    String imageName = '${uuid.v4()}.jpg';
+    // Miniature
+    final IndependentMedia thumbnail = await insertThumbnailInPlaylist(filepath);
 
-    // Copier l'image originale dans userdata
-    String imagePath = '${userdataDir.path}/$imageName';
-    await imageFile.copy(imagePath);
+    // Fichier d’origine et dossier utilisateur
+    final File originalFile = File(filepath);
+    final Directory userDataDir = await getAppUserDataDirectory();
 
-    String hash = await sha256hashOfFile(imagePath);
+    // Copie du fichier avec nom unique
+    final String independentMediaName = '${Uuid().v4()}.$fileExtension';
+    final String independentMediaPath = '${userDataDir.path}/$independentMediaName';
+    await originalFile.copy(independentMediaPath);
 
-    // Créer IndependentMedia (il manque la hash, à générer si tu veux)
-    IndependentMedia independentMedia = IndependentMedia(
-      originalFileName: imageFile.path.split('/').last,
-      filePath: imageName,
-      mimeType: 'image/jpeg',
-      hash: hash, // À générer si besoin
+    // Hash du fichier
+    final String hash = await sha256hashOfFile(independentMediaPath);
+
+    // Création de l’objet IndependentMedia
+    final IndependentMedia independentMedia = IndependentMedia(
+      originalFileName: originalFile.uri.pathSegments.last,
+      filePath: independentMediaName,
+      mimeType: mimeType,
+      hash: hash,
     );
 
-    PlaylistItem playlistItem = PlaylistItem(
+    // Durée par défaut (images = 4s)
+    int durationTicks = 40000000;
+
+    // Si audio ou vidéo → récupérer la durée réelle
+    if (mimeType.startsWith('audio/')) {
+      AudioData? audioInfo = await AudioInfo.getAudioInfo(filepath);
+      if(audioInfo == null) return -1;
+      print(audioInfo.duration);
+
+      durationTicks = int.parse(audioInfo.duration) * 10000;
+    }
+    else if(mimeType.startsWith('video/')) {
+      VideoData? videoInfo = await FlutterVideoInfo().getVideoInfo(filepath);
+      if (videoInfo == null || videoInfo.duration == null) return -1;
+
+      durationTicks = (videoInfo.duration! * 10000).toInt();
+    }
+
+    // Création de l’élément de playlist
+    final PlaylistItem playlistItem = PlaylistItem(
       playlistItemId: -1,
-      label: imageFile.path.split('/').last,
-      thumbnailFilePath: thumbnailName,
-      independentMedia: independentMedia
+      label: originalFile.uri.pathSegments.last,
+      thumbnail: thumbnail,
+      independentMedia: independentMedia,
+      durationTicks: durationTicks,
     );
 
+    // Insertion dans la playlist
     return insertPlaylistItem(playlistItem, playlist: playlist);
   }
 
   Future<int> insertMediaItemInPlaylist(Playlist playlist, Media media) async {
-    String thumbnailName = await insertThumbnailInPlaylist(media.networkImageSqr ?? media.networkImageLsr ?? '');
+    IndependentMedia thumbnail = await insertThumbnailInPlaylist(media.networkImageSqr ?? media.networkImageLsr ?? '');
 
     PlaylistItem playlistItem = PlaylistItem(
         playlistItemId: -1,
         label: media.title,
-        thumbnailFilePath: thumbnailName,
+        thumbnail: thumbnail,
+        majorMultimediaType: media is Video ? 2 : 0,
         baseDurationTicks: durationSecondsToTicks(media.duration),
         location: Location(
           keySymbol: media.keySymbol,
@@ -2157,32 +2336,34 @@ class Userdata {
     return insertPlaylistItem(playlistItem, playlist: playlist);
   }
 
-  Future<int> insertPlaylistItem(PlaylistItem playlistItem, {required Playlist playlist, MediaItem? mediaItem}) async {
-    return await _database.transaction<int>((txn) async {
-      // 1️⃣ Insérer (ou ignorer si existe) IndependentMedia
-      int? independentMediaId;
-      if (playlistItem.independentMedia != null) {
-        // Vérifier si le média existe déjà par hash ou FilePath
-        final existingMedia = await txn.query(
-          'IndependentMedia',
-          where: 'Hash = ? AND FilePath = ?',
-          whereArgs: [playlistItem.independentMedia!.hash, playlistItem.independentMedia!.filePath],
-          limit: 1,
-        );
-
-        if (existingMedia.isNotEmpty) {
-          independentMediaId = existingMedia.first['IndependentMediaId'] as int;
-        }
-        else {
-          independentMediaId = await txn.insert(
+  Future<int> insertPlaylistItem(PlaylistItem playlistItem, {required Playlist playlist, Database? db}) async {
+    Database database = db ?? _database;
+    return await database.transaction<int>((txn) async {
+      // 1️⃣ Insérer thumbnail(ou ignorer si existe) IndependentMedia
+      if (playlistItem.thumbnail != null) {
+        if(!playlistItem.thumbnail!.isNull()) {
+          // Vérifier si le média existe déjà par hash ou FilePath
+          final existingMedia = await txn.query(
             'IndependentMedia',
-            {
-              'OriginalFilename': playlistItem.independentMedia!.originalFileName,
-              'FilePath': playlistItem.independentMedia!.filePath,
-              'MimeType': playlistItem.independentMedia!.mimeType,
-              'Hash': playlistItem.independentMedia!.hash,
-            },
+            where: 'Hash = ? AND FilePath = ?',
+            whereArgs: [playlistItem.thumbnail!.hash, playlistItem.thumbnail!.filePath],
+            limit: 1,
           );
+
+          if (existingMedia.isNotEmpty) {
+            existingMedia.first['IndependentMediaId'] as int;
+          }
+          else {
+            await txn.insert(
+              'IndependentMedia',
+              {
+                'OriginalFilename': playlistItem.thumbnail!.originalFileName,
+                'FilePath': playlistItem.thumbnail!.filePath,
+                'MimeType': playlistItem.thumbnail!.mimeType,
+                'Hash': playlistItem.thumbnail!.hash,
+              },
+            );
+          }
         }
       }
 
@@ -2195,9 +2376,37 @@ class Userdata {
           'EndTrimOffsetTicks': playlistItem.endTrimOffsetTicks,
           'Accuracy': playlistItem.accuracy,
           'EndAction': playlistItem.endAction,
-          'ThumbnailFilePath': playlistItem.thumbnailFilePath,
+          'ThumbnailFilePath': playlistItem.thumbnail!.filePath,
         },
       );
+
+      int? independentMediaId;
+      if (playlistItem.independentMedia != null) {
+        if(!playlistItem.independentMedia!.isNull()) {
+          // Vérifier si le média existe déjà par hash ou FilePath
+          final existingMedia = await txn.query(
+            'IndependentMedia',
+            where: 'Hash = ? AND FilePath = ?',
+            whereArgs: [playlistItem.independentMedia!.hash, playlistItem.independentMedia!.filePath],
+            limit: 1,
+          );
+
+          if (existingMedia.isNotEmpty) {
+            independentMediaId = existingMedia.first['IndependentMediaId'] as int;
+          }
+          else {
+            independentMediaId = await txn.insert(
+              'IndependentMedia',
+              {
+                'OriginalFilename': playlistItem.independentMedia!.originalFileName,
+                'FilePath': playlistItem.independentMedia!.filePath,
+                'MimeType': playlistItem.independentMedia!.mimeType,
+                'Hash': playlistItem.independentMedia!.hash,
+              },
+            );
+          }
+        }
+      }
 
       // Récupérer la dernière position
       final maxPositionResult = await txn.query(
@@ -2254,7 +2463,7 @@ class Userdata {
             {
               'PlaylistItemId': playlistItemId,
               'LocationId': locationId,
-              'MajorMultimediaType': playlistItem.location!.type == 2 ? 0 : 2, // adapter si besoin
+              'MajorMultimediaType': playlistItem.majorMultimediaType, // adapter si besoin
               'BaseDurationTicks': playlistItem.baseDurationTicks ?? 0,
             },
           );
@@ -2301,7 +2510,7 @@ class Userdata {
       whereArgs: [playlistItem.playlistItemId],
     );
 
-    playlistItem.thumbnailFilePath = thumbnailFile.path;
+    playlistItem.thumbnail!.filePath = thumbnailFile.path;
 
     return playlistItem;
   }
@@ -2368,7 +2577,33 @@ class Userdata {
     return formattedTimestamp;
   }
 
-  Future<void> importPlaylistFromFile(File file) async {
+  /// Cherche un nom de playlist unique en ajoutant un suffixe (2), (3), etc. si nécessaire.
+  Future<String> _getUniquePlaylistName(String baseName) async {
+    String uniqueName = baseName;
+    int counter = 1;
+
+    // Chercher les playlists existantes avec un nom similaire
+    // On suppose que la base de données _database est initialisée et accessible ici.
+    List<Map<String, Object?>> existingNames = await _database.rawQuery('''
+    SELECT Name 
+    FROM Tag 
+    WHERE Type = 2 AND Name LIKE ?
+  ''', ['$baseName%']); // Commence par le nom de base
+
+    // Stocker tous les noms exacts ou numérotés existants pour la vérification
+    Set<String> takenNames = existingNames.map((row) => row['Name'] as String).toSet();
+
+    // Boucle pour trouver un nom non utilisé (ex: "Ma Playlist", "Ma Playlist (2)", etc.)
+    while (takenNames.contains(uniqueName)) {
+      counter++;
+      uniqueName = '$baseName ($counter)';
+    }
+
+    return uniqueName;
+  }
+
+  Future<Playlist?> importPlaylistFromFile(File file) async {
+    Playlist? playlist;
     try {
       // 1) (Re)création du dossier user data
       final Directory userDataDir = await getAppUserDataDirectory();
@@ -2378,133 +2613,248 @@ class Userdata {
 
       // 2) Dézipper l'archive
       final List<int> bytes = await file.readAsBytes();
+      // La classe ZipDecoder() doit être importée d'un package comme 'archive'
       final Archive archive = ZipDecoder().decodeBytes(bytes);
 
-      File? jwplaylistDb;
+      File? jwPlaylistDbFile;
 
       for (final ArchiveFile archiveFile in archive) {
         final newFile = File('${userDataDir.path}/${archiveFile.name}');
         if (archiveFile.isFile) {
           if (archiveFile.name == 'userData.db') {
-            Directory tempDir = await getAppTemp();
-            jwplaylistDb = File('${tempDir.path}/jwplaylist.db');
-            await jwplaylistDb.create(recursive: true);
-            await jwplaylistDb.writeAsBytes(archiveFile.content as List<int>);
-          }
-          else if(archiveFile.name != 'manifest.json') {
+            final Directory tempDir = await getAppCacheDirectory();
+            jwPlaylistDbFile = File('${tempDir.path}/userData.db');
+            await jwPlaylistDbFile.create(recursive: true);
+            await jwPlaylistDbFile.writeAsBytes(archiveFile.content as List<int>);
+          } else if (archiveFile.name != 'manifest.json') {
             await newFile.create(recursive: true);
             await newFile.writeAsBytes(archiveFile.content as List<int>);
           }
-        }
-        else {
+        } else {
           await Directory(newFile.path).create(recursive: true);
         }
       }
 
       // 3) Si on a une base à importer : fusion "replace"
-      if (jwplaylistDb != null) {
-        // Ouvre la base principale
-        await _database.transaction((txn) async {
-          try {
-            // ATTACH la base importée
-            await txn.execute("ATTACH DATABASE ? AS jwplaylist;", [jwplaylistDb!.path]);
+      if (jwPlaylistDbFile != null) {
+        final Database jwPlaylistDb = await openDatabase(jwPlaylistDbFile.path);
 
-            // Tables à copier
-            final tablesToCopy = [
-              'IndependentMedia',
-              'PlaylistItem',
-              'PlaylistItemIndependentMediaMap',
-              'PlaylistItemLocationMap',
-              'PlaylistItemMarker',
-              'PlaylistItemMarkerBibleVerseMap',
-              'PlaylistItemMarkerParagraphMap',
-              'Tag',
-              'TagMap'
-            ];
+        // Chercher la première playlist
+        final List<Map<String, Object?>> firstPlaylistResult = await jwPlaylistDb.rawQuery('''
+          SELECT TagId, Name 
+          FROM Tag 
+          ORDER BY TagId ASC 
+          LIMIT 1
+        ''');
 
-            final whereClauses = tablesToCopy.map((table) => "name LIKE '$table'").join(' OR ');
+        if (firstPlaylistResult.isEmpty) {
+          await jwPlaylistDb.close();
+          return playlist;
+        }
 
-            // Récupère les tables "main" à copier
-            final List<Map<String, Object?>> tables = await txn.rawQuery('''
-            SELECT name
-            FROM main.sqlite_master
-            WHERE type = 'table'
-            AND ($whereClauses);
-          ''');
+        final int? playlistItemId = firstPlaylistResult.first['TagId'] as int?;
+        final String? playlistName = firstPlaylistResult.first['Name'] as String?;
 
-            for (final row in tables) {
-              final String table = row['name'] as String;
-              printTime('Importing $table...');
+        if (playlistItemId == null || playlistName == null) {
+          await jwPlaylistDb.close();
+          return playlist;
+        }
 
-              // Vérifie que la table existe aussi dans la DB importée
-              final List<Map<String, Object?>> existsInImp = await txn.rawQuery(
-                  "SELECT name FROM jwplaylist.sqlite_master WHERE type='table' AND name=?;",
-                  [table]
-              );
-              if (existsInImp.isEmpty) continue;
+        final List<PlaylistItem> playlistItems = await getPlaylistItemByPlaylistId(playlistItemId, database: jwPlaylistDb);
 
-              // Colonnes dans la DB principale "main"
-              final List<Map<String, Object?>> colsInfoMain = await txn.rawQuery(
-                  "PRAGMA main.table_info('$table');"
-              );
-              if (colsInfoMain.isEmpty) continue;
-              final List<String> colNamesMain = colsInfoMain.map((c) => c['name'] as String).toList(growable: false);
+        await jwPlaylistDb.close();
 
-              // Colonnes dans la DB attachée "jwplaylist"
-              final List<Map<String, Object?>> colsInfoImp = await txn.rawQuery(
-                  "PRAGMA jwplaylist.table_info('$table');"
-              );
-              if (colsInfoImp.isEmpty) continue;
-              final Set<String> colNamesImp = colsInfoImp.map((c) => c['name'] as String).toSet();
-
-              // Intersection des colonnes présentes dans les deux tables
-              final List<String> commonCols = colNamesMain.where((c) => colNamesImp.contains(c)).toList(growable: false);
-
-              if (commonCols.isEmpty) continue;
-
-              // ✅ CORRECTION : On garde TOUTES les colonnes communes
-              final String colsIdent = commonCols.join(", ");
-              final String colsSelect = commonCols.map((c) => "jwplaylist.$table.$c").join(", ");
-
-              final String sql = """
-              INSERT OR REPLACE INTO $table ($colsIdent)
-              SELECT $colsSelect FROM jwplaylist.$table;
-            """;
-
-              printTime(sql);
-
-              await txn.execute(sql);
-            }
-
-            // ✅ DETACH dans un try-catch séparé pour éviter les blocages
-          } catch (e) {
-            printTime('Error during import: $e');
-            rethrow;
-          } finally {
-            // ✅ DETACH optionnel - SQLite se charge du nettoyage automatiquement
-            try {
-              await txn.execute("DETACH DATABASE jwplaylist;");
-              printTime('Database detached successfully');
-            } catch (detachError) {
-              // ✅ Ce n'est pas grave - SQLite détachera automatiquement à la fermeture
-              printTime('Info: Database will be auto-detached (${detachError.toString().split('(')[0].trim()})');
-            }
-          }
-        });
-
-        // ✅ AMÉLIORATION : Nettoyer le fichier temporaire
         try {
-          if (await jwplaylistDb.exists()) {
-            await jwplaylistDb.delete();
+          // 🔹 1. Vérification et renommage de la playlist si nécessaire pour obtenir un nom unique
+          final String finalPlaylistName = await _getUniquePlaylistName(playlistName);
+
+          // 🔹 2. Insertion directe du Tag sans transaction avec le nom unique
+          final int tagId = await _database.rawInsert('''
+            INSERT INTO Tag (Type, Name)
+            VALUES (?, ?)
+          ''', [2, finalPlaylistName]); // Utiliser le nom unique ici
+
+          playlist = Playlist(
+            id: tagId,
+            type: 2,
+            name: finalPlaylistName,
+          );
+
+          for (final PlaylistItem playlistItem in playlistItems) {
+            await insertPlaylistItem(playlistItem, playlist: playlist);
           }
-        } catch (cleanupError) {
-          printTime('Warning: Could not cleanup temp file: $cleanupError');
+
+          printTime('✅ Playlist "$finalPlaylistName" importée avec succès.');
+        }
+        catch (e) {
+          printTime('Error during import insert: $e');
+          rethrow;
+        }
+
+        // 4) Nettoyage du fichier temporaire
+        try {
+          if (await jwPlaylistDbFile.exists()) {
+            await jwPlaylistDbFile.delete();
+          }
+        }
+        catch (cleanupError) {
+          printTime('⚠️ Warning: Could not cleanup temp file: $cleanupError');
         }
       }
     }
     catch (e, st) {
-      printTime('Error: $e ⚠️');
+      // ✅ Bloc manquant — capture de toute erreur globale
+      printTime('❌ Error while importing playlist: $e');
       printTime('Stack trace: $st');
+    }
+
+    return playlist;
+  }
+
+  Future<File?> exportPlaylistToFile(Playlist playlist, {List<PlaylistItem>? items}) async {
+    // 1. Charger les éléments si non fournis
+    items ??= await getPlaylistItemByPlaylistId(playlist.id);
+
+    // 2. Créer un répertoire temporaire propre
+    final appCache = await getAppCacheDirectory();
+    final tempDir = Directory(path.join(appCache.path, 'playlist'));
+
+    if (await tempDir.exists()) {
+      await tempDir.delete(recursive: true);
+    }
+    await tempDir.create(recursive: true);
+
+    // 3. Copier la base modèle vers le répertoire
+    final dbPath = path.join(tempDir.path, 'userData.db');
+    await CopyAssets.copyFileFromAssetsToDirectory(Assets.userDataUserData, dbPath);
+
+    Database? db;
+    try {
+      db = await openDatabase(dbPath);
+
+      // 4. Créer le Tag (Playlist)
+      final int tagId = await db.rawInsert(
+        'INSERT INTO Tag (Type, Name) VALUES (?, ?)',
+        [2, playlist.name],
+      );
+
+      final Playlist newPlaylist = Playlist(
+        id: tagId,
+        type: 2,
+        name: playlist.name,
+      );
+
+      // 5. Insérer les éléments
+      for (final PlaylistItem playlistItem in items) {
+        await insertPlaylistItem(playlistItem, playlist: newPlaylist, db: db);
+
+        // --- Copier les fichiers associés ---
+        final IndependentMedia thumbnail = playlistItem.thumbnail!;
+        final IndependentMedia? independentMedia = playlistItem.independentMedia;
+
+        final File thumbnailSourceFile = await thumbnail.getMediaFile();
+        final String thumbnailDestPath = path.join(tempDir.path, path.basename(thumbnailSourceFile.path));
+
+        try {
+          await thumbnailSourceFile.copy(thumbnailDestPath);
+        } catch (e) {
+          printTime('⚠️ Erreur copie thumbnail: $e');
+        }
+
+        if (independentMedia != null) {
+          try {
+            final File mediaFile = await independentMedia.getMediaFile();
+            final String mediaDestPath = path.join(tempDir.path, path.basename(mediaFile.path));
+            await mediaFile.copy(mediaDestPath);
+          }
+          catch (e) {
+            printTime('⚠️ Erreur copie média: $e');
+          }
+        }
+      }
+
+      await db.close();
+
+      // 6. Création de l’archive ZIP (.jwlplaylist)
+      final Archive archive = Archive();
+      final String currentDate = DateFormat('yyyy-MM-dd').format(DateTime.now());
+      final String deviceName = await _getDeviceName();
+      final String fileName = '${playlist.name}.jwlplaylist';
+
+      final DateTime currentTimestamp = DateTime.now().toUtc();
+      final String formattedTimestamp = DateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'").format(currentTimestamp);
+
+      final File userDataFile = File(dbPath);
+
+      printTime('Calcul du hash...');
+      final String hash = await sha256hashOfFile(userDataFile.path);
+      printTime('Hash calculé : $hash');
+
+      // Ajouter tous les fichiers du répertoire
+      final List<FileSystemEntity> files = tempDir.listSync(recursive: true);
+      for (var entity in files) {
+        if (entity is File) {
+          final String baseName = path.basename(entity.path);
+          if (!baseName.endsWith('manifest.json')) {
+            try {
+              final List<int> fileBytes = await entity.readAsBytes();
+              archive.addFile(ArchiveFile(baseName, fileBytes.length, fileBytes));
+            } catch (e) {
+              printTime('⚠️ Erreur lecture fichier $baseName : $e');
+            }
+          }
+        }
+      }
+
+      final int version = await _database.getVersion();
+
+      // Manifest JSON
+      final Map<String, dynamic> manifestData = {
+        "name": fileName,
+        "creationDate": currentDate,
+        "version": 1,
+        "type": 1,
+        "userDataBackup": {
+          "lastModifiedDate": formattedTimestamp,
+          "deviceName": deviceName,
+          "databaseName": "userData.db",
+          "hash": hash,
+          "schemaVersion": version,
+        }
+      };
+
+      final String manifestJson = jsonEncode(manifestData);
+      archive.addFile(ArchiveFile('manifest.json', manifestJson.length, utf8.encode(manifestJson)));
+
+      // Encodage ZIP
+      final Uint8List bytes = Uint8List.fromList(
+        ZipEncoder().encode(archive, level: DeflateLevel.defaultCompression),
+      );
+
+      // Sauvegarde finale du .jwlplaylist
+      final File outputFile = File(path.join(appCache.path, fileName));
+      await outputFile.writeAsBytes(bytes);
+
+      printTime('✅ Export terminé avec succès : ${outputFile.path}');
+      return outputFile;
+    }
+    catch (e) {
+      printTime('❌ Erreur lors de l’export : $e');
+
+      // Nettoyage en cas d’échec
+      if (await tempDir.exists()) {
+        await tempDir.delete(recursive: true);
+      }
+      rethrow;
+    }
+    finally {
+      if (await tempDir.exists()) {
+        await tempDir.delete(recursive: true);
+      }
+
+      if (db != null && db.isOpen) {
+        await db.close();
+      }
     }
   }
 

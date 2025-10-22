@@ -10,7 +10,7 @@ import '../../core/utils/common_ui.dart';
 import '../../core/utils/utils_media.dart';
 
 abstract class Media {
-  final int mediaId;
+  int? mediaId;
   String? naturalKey;
   String? keySymbol;
   int? documentId;
@@ -47,7 +47,7 @@ abstract class Media {
   final ValueNotifier<bool> isFavoriteNotifier;
 
   Media({
-    required this.mediaId,
+    this.mediaId,
     this.naturalKey,
     this.keySymbol,
     this.documentId,
@@ -208,7 +208,7 @@ abstract class Media {
     showBottomMessage('Media supprimé');
   }
 
-  Future<void> showPlayer(BuildContext context, {Duration initialPosition = Duration.zero});
+  Future<void> showPlayer(BuildContext context, {Duration initialPosition = Duration.zero, List<Media> medias});
 
   bool hasUpdate() {
     if (lastModified == null || timeStamp == null) {

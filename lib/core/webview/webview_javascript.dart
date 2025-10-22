@@ -90,13 +90,15 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
           
           .page {
             flex: 0 0 100%;
-            height: 100vh;
+            height: 100%;
             overflow-y: auto;
-            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
           }
           
           #page-center {
             position: relative;
+            height: 100%;
             opacity: 0;
             pointer-events: none;
             transition: opacity 0.35s ease-in-out; 
@@ -1893,256 +1895,293 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
           // ===========================================
           
           function showDialog(options) {
-              removeFloatingButton();
-              
-              // 1. Déterminer la clé unique du dialogue à ouvrir.
-              // La clé est prioritairement options.href.
-              // Sinon, si c'est une 'note' avec un 'noteGuid', on utilise ce dernier (avec un préfixe pour éviter les collisions).
-              const currentUniqueKey = options.href 
-                  || (options.type === 'note' && options.noteData?.noteGuid ? `noteGuid-\${options.noteData.noteGuid}` : null);
-                  
-              let existingDialogIndex = -1;
-          
-              if (currentUniqueKey) {
-                  // 2. Rechercher un dialogue existant avec la même clé dans l'historique.
-                  existingDialogIndex = dialogHistory.findIndex(item => {
-                      // Déterminer la clé unique de l'élément de l'historique pour comparaison.
-                      const historyItemKey = item.options.href 
-                          || (item.options.type === 'note' && item.options.noteData?.noteGuid ? `noteGuid-\${item.options.noteData.noteGuid}` : null);
-                      
-                      return historyItemKey === currentUniqueKey;
-                  });
-              }
-          
-              // --- Logique de remplacement (options.replace === true) ---
-              if (existingDialogIndex !== -1 && options.replace === true) {
-                  // On supprime l'ancien dialogue (du DOM et de l'historique) avant de créer le nouveau.
-                  const dialogToRemove = dialogHistory[existingDialogIndex];
-                  const dialogElement = document.getElementById(dialogToRemove.dialogId);
-                  
-                  if (dialogElement) {
-                      dialogElement.remove();
-                  }
-                  
-                  dialogHistory.splice(existingDialogIndex, 1);
-                  
-                  // Si le dialogue supprimé était le dialogue courant, on ajuste l'index.
-                  if (existingDialogIndex === currentDialogIndex) {
-                      currentDialogIndex = Math.max(-1, currentDialogIndex - 1);
-                  } else if (existingDialogIndex < currentDialogIndex) {
-                      currentDialogIndex--;
-                  }
-          
-                  // On continue la fonction pour créer le nouveau dialogue juste après (voir l'étape 'NOUVEAU dialogue').
-                  // L'historique a été purgé de l'ancienne version.
-              }
-              // --- Fin Logique de remplacement ---
-              
-              // --- Logique si un dialogue existant est trouvé ET options.replace n'est pas true ---
-              else if (existingDialogIndex !== -1) {
-                  const existingHistoryItem = dialogHistory[existingDialogIndex];
-                  
-                  // 3. Si le dialogue existant est déjà l'élément courant, on le réaffiche au cas où il serait caché.
-                  if (existingDialogIndex === currentDialogIndex) {
-                       const existingDialogElement = document.getElementById(existingHistoryItem.dialogId);
-                       if (existingDialogElement) {
-                           existingDialogElement.style.display = 'block';
-                       }
-                       return existingDialogElement;
-                  }
-          
-                  // 4. Mettre l'élément trouvé à la fin de l'historique et le rendre courant (le ramener au premier plan).
-                  dialogHistory.splice(existingDialogIndex, 1);
-                  dialogHistory.push(existingHistoryItem);
-                  currentDialogIndex = dialogHistory.length - 1;
-                  
-                  window.flutter_inappwebview?.callHandler('showDialog', true);
-                  
-                  // Mettre à jour l'indicateur canGoBack pour l'élément déplacé
-                  existingHistoryItem.canGoBack = dialogHistory.length > 1;
-          
-                  // 5. Afficher le dialogue existant.
-                  return showDialogFromHistory(existingHistoryItem);
-              }
-          
-              // --- Logique pour créer un NOUVEAU dialogue (si non trouvé ou si options.replace était true) ---
-              
-              window.flutter_inappwebview?.callHandler('showDialog', true);
-                
-              dialogIdCounter++;
-              // Utiliser la bonne syntaxe d'interpolation (backticks)
-              const newDialogId = `customDialog-\${dialogIdCounter}`; 
-              
-              const newHistoryItem = {
-                  options: options,
-                  canGoBack: dialogHistory.length > 0,
-                  type: options.type || 'default',
-                  dialogId: newDialogId,
-              };
-              dialogHistory.push(newHistoryItem);
-              currentDialogIndex = dialogHistory.length - 1;
-              
-              // Si nous venons d'un remplacement, on doit s'assurer que le précédent a été désaffiché.
-              hideAllDialogs(); 
-              
-              return showDialogFromHistory(newHistoryItem);
-          }
-          
-          function createDialogElement(options, canGoBack, isFullscreenInit = false, scrollTopInit = 0, newDialogId = null) {
-              let isFullscreen = isFullscreenInit;
-              
-              const dialog = document.createElement('div');
-              dialog.id = newDialogId || `customDialog-\${dialogIdCounter}`;
-              dialog.classList.add('customDialog');
-              dialog.setAttribute('data-type', options.type || 'default');
-              
-              applyDialogStyles(options.type, dialog, isFullscreen);
-              dialog.style.display = 'block';
-          
-              const header = createHeader(options, isDarkTheme(), dialog, isFullscreen, canGoBack);
-              setupDragSystem(header.element, dialog);
-          
-              const contentContainer = document.createElement('div');
-              contentContainer.id = 'contentContainer';
-              applyContentContainerStyles(options.type, contentContainer, isFullscreen);
-              
-              if (options.type === 'note' && options.noteData && options.noteData.colorIndex) {
-                  const noteClass = getNoteClass(options.noteData.colorIndex, false);
-                  dialog.classList.add(noteClass);
-              }
-          
-              if (options.contentRenderer) {
-                  options.contentRenderer(contentContainer, options);
-              }
-              
-              setTimeout(() => {
-                  contentContainer.scrollTop = scrollTopInit;
-              }, 10);
-          
-              setupFullscreenToggle(
-                  options.type,
-                  header.fullscreenButton,
-                  dialog,
-                  contentContainer
-              );
-          
-              dialog.appendChild(header.element);
-              dialog.appendChild(contentContainer);
-              
-              const resizeHandle = document.createElement('div');
-              resizeHandle.classList.add('resize-handle');
-              resizeHandle.style.cssText = `
-                  position: absolute;
-                  bottom: 0;
-                  right: 0;
-                  width: 20px;
-                  height: 20px;
-                  cursor: nwse-resize; 
-                  z-index: 1001;
-                  border-right: 2px solid \${isDarkTheme() ? 'rgba(255, 255, 255, 0.5)' : 'rgba(0, 0, 0, 0.5)'};
-                  border-bottom: 2px solid \${isDarkTheme() ? 'rgba(255, 255, 255, 0.5)' : 'rgba(0, 0, 0, 0.5)'};
-                  border-bottom-right-radius: 16px;
-              `;
-              dialog.appendChild(resizeHandle);
-              
-              setupResizeSystem(resizeHandle, dialog, contentContainer);
-              return dialog;
-          }
-          
-          function applyDialogStyles(type, dialog, isFullscreen, savedPosition = null) {
-              const isDark = isDarkTheme();
-              const backgroundColor = type == 'note' ? null : (isDarkTheme() ? '#121212' : '#ffffff');
-              
-              const baseStyles = `
-                position: fixed;
-                /* Rendre l'ombre plus prononcée */
-                box-shadow: 0 15px 50px rgba(0, 0, 0, 0.60); /* Augmenter le flou et l'opacité */
-                z-index: 1000;
-                background-color: \${backgroundColor};
-                /* Ajouter une bordure subtile en mode clair */
-                border: 1px solid rgba(0, 0, 0, 0.1);
-              `;
-          
-              if (isFullscreen) {
-                  const bottomOffset = BOTTOMNAVBAR_FIXED_HEIGHT + (audioPlayerVisible ? AUDIO_PLAYER_HEIGHT : 0);
-              
-                  dialog.classList.add('fullscreen');
-                  dialog.style.cssText = `
-                      \${baseStyles}
-                      top: \${APPBAR_FIXED_HEIGHT}px;
-                      left: 0;
-                      right: 0;
-                      bottom: \${bottomOffset}px;
-                      width: 100vw;
-                      height: calc(100vh - \${APPBAR_FIXED_HEIGHT + bottomOffset}px);
-                      transform: none;
-                      margin: 0;
-                      border-radius: 0px;
-                  `;
-                  const resizeHandle = dialog.querySelector('.resize-handle');
-                  if (resizeHandle) resizeHandle.style.display = 'none';
-          
-                  window.flutter_inappwebview?.callHandler('showFullscreenDialog', true);
-              }
-              else {
-                  dialog.classList.remove('fullscreen');
-                  const resizeHandle = dialog.querySelector('.resize-handle');
-                  if (resizeHandle) resizeHandle.style.display = 'block';
-          
-                  // Styles de taille initiaux
-                  const windowDialogStyles = `
-                      width: 85%;
-                      height: fit-content;
-                      max-width: 600px;
-                      border-radius: 16px;
-                  `;
-                  
-                  // Appliquer les styles de base avec la taille initiale
-                  dialog.style.cssText = baseStyles + windowDialogStyles; 
-                  
-                  const currentLeft = dialog.style.left;
-                  const currentTop = dialog.style.top;
-                  
-                  // Priorité 1: Position sauvegardée par drag/resize
-                  if (currentLeft && currentTop && currentLeft !== '50%' && currentTop !== '50%') {
-                      dialog.style.left = currentLeft;
-                      dialog.style.top = currentTop;
-                      dialog.style.transform = 'none';
-                      
-                      // Priorité 2: Hauteur/largeur redimensionnée (si elle existe)
-                      const resizedHeight = dialog.getAttribute('data-resized-height');
-                      const resizedWidth = dialog.getAttribute('data-resized-width');
-          
-                      if (resizedHeight) {
-                           dialog.style.height = resizedHeight;
-                           
-                           // Ajuster le contentContainer max-height selon la hauteur redimensionnée
-                           const contentContainer = dialog.querySelector('#contentContainer');
-                           if (contentContainer) {
-                              const newHeight = parseFloat(resizedHeight);
-                              const contentMaxHeight = newHeight - HEADER_HEIGHT - PADDING_CONTENT_VERTICAL;
-                              contentContainer.style.maxHeight = `\${Math.max(0, contentMaxHeight)}px`;
-                           }
-                      } else {
-                           dialog.style.height = 'fit-content';
-                      }
-          
-                      if(resizedWidth) {
-                           dialog.style.width = resizedWidth;
-                      } else {
-                           dialog.style.width = '85%';
-                      }
-          
-                  } else {
-                      // Position de base (centrée)
-                      dialog.style.top = '50%';
-                      dialog.style.left = '50%';
-                      dialog.style.transform = 'translate(-50%, -50%)';
-                  }
-          
-                  window.flutter_inappwebview?.callHandler('showFullscreenDialog', false);
-              }
-          }
+    removeFloatingButton();
+    
+    const currentUniqueKey = options.href 
+        || (options.type === 'note' && options.noteData?.noteGuid ? `noteGuid-\${options.noteData.noteGuid}` : null);
+        
+    let existingDialogIndex = -1;
+
+    if (currentUniqueKey) {
+        existingDialogIndex = dialogHistory.findIndex(item => {
+            const historyItemKey = item.options.href 
+                || (item.options.type === 'note' && item.options.noteData?.noteGuid ? `noteGuid-\${item.options.noteData.noteGuid}` : null);
+            
+            return historyItemKey === currentUniqueKey;
+        });
+    }
+
+    if (existingDialogIndex !== -1 && options.replace === true) {
+        const dialogToRemove = dialogHistory[existingDialogIndex];
+        const dialogElement = document.getElementById(dialogToRemove.dialogId);
+        
+        if (dialogElement) {
+            dialogElement.remove();
+        }
+        
+        dialogHistory.splice(existingDialogIndex, 1);
+        
+        if (existingDialogIndex === currentDialogIndex) {
+            currentDialogIndex = Math.max(-1, currentDialogIndex - 1);
+        } else if (existingDialogIndex < currentDialogIndex) {
+            currentDialogIndex--;
+        }
+    }
+    else if (existingDialogIndex !== -1) {
+        const existingHistoryItem = dialogHistory[existingDialogIndex];
+        
+        if (existingDialogIndex === currentDialogIndex) {
+            const existingDialogElement = document.getElementById(existingHistoryItem.dialogId);
+            if (existingDialogElement) {
+                existingDialogElement.style.display = 'block';
+            }
+            return existingDialogElement;
+        }
+
+        dialogHistory.splice(existingDialogIndex, 1);
+        dialogHistory.push(existingHistoryItem);
+        currentDialogIndex = dialogHistory.length - 1;
+        
+        window.flutter_inappwebview?.callHandler('showDialog', true);
+        
+        existingHistoryItem.canGoBack = dialogHistory.length > 1;
+
+        return showDialogFromHistory(existingHistoryItem);
+    }
+
+    window.flutter_inappwebview?.callHandler('showDialog', true);
+      
+    dialogIdCounter++;
+    const newDialogId = `customDialog-\${dialogIdCounter}`;
+    
+    const newHistoryItem = {
+        options: options,
+        canGoBack: dialogHistory.length > 0,
+        type: options.type || 'default',
+        dialogId: newDialogId,
+    };
+    dialogHistory.push(newHistoryItem);
+    currentDialogIndex = dialogHistory.length - 1;
+    
+    hideAllDialogs();
+    
+    // Utiliser createDialogElement ici au lieu de showDialogFromHistory pour l'injection initiale
+    const dialogElement = createDialogElement(newHistoryItem.options, newHistoryItem.canGoBack, newHistoryItem.options.isFullscreenInit, newHistoryItem.options.scrollTopInit, newDialogId);
+    document.body.appendChild(dialogElement);
+    
+    // const dialogElement = showDialogFromHistory(newHistoryItem); // Remplacé par createDialogElement ci-dessus
+    
+    // ✅ CORRECTION DU CENTRAGE ET POSITIONNEMENT:
+    if (dialogElement) {
+        // Assurer que left: 50% est défini pour le centrage horizontal de base
+        dialogElement.style.left = '50%'; 
+        dialogElement.style.marginLeft = '0';
+    }
+
+    if (dialogElement && options.type === 'note') {
+        // Écouter l'apparition du clavier
+        const handleResize = () => {
+            const viewportHeight = window.innerHeight;
+            
+            // Si le dialogue est en mode normal (non-fullscreen) et le viewport est réduit (clavier ouvert)
+            if (!dialogElement.classList.contains('fullscreen') && viewportHeight < window.screen.height * 0.7) {
+                // Positionner près du haut et réduire la taille maximale
+                dialogElement.style.maxHeight = `\${viewportHeight - 20}px`;
+                dialogElement.style.top = '10px'; 
+                dialogElement.style.bottom = 'auto'; 
+                // translate(-50%, 0) garantit le centrage horizontal (X)
+                dialogElement.style.transform = 'translate(-50%, 0)'; 
+            } else if (dialogElement.classList.contains('fullscreen')) {
+                // S'il est en fullscreen, les styles sont gérés par applyDialogStyles (pas de top/transform)
+                // Assurez-vous que le positionnement vertical est correct en fullscreen
+                const bottomOffset = BOTTOMNAVBAR_FIXED_HEIGHT + (audioPlayerVisible ? AUDIO_PLAYER_HEIGHT : 0);
+                dialogElement.style.top = `\${APPBAR_FIXED_HEIGHT}px`;
+                dialogElement.style.bottom = `\${bottomOffset}px`;
+                dialogElement.style.transform = 'none';
+            } 
+            else {
+                // Rétablir la position par défaut (centrée au milieu) si l'utilisateur n'a pas fait de drag/resize
+                // et si le clavier est fermé.
+                 const currentLeft = dialogElement.style.left;
+                 const currentTop = dialogElement.style.top;
+                 if (currentLeft === '50%' && currentTop === '50%') {
+                    dialogElement.style.maxHeight = '';
+                    dialogElement.style.top = '50%';
+                    dialogElement.style.bottom = '';
+                    dialogElement.style.transform = 'translate(-50%, -50%)';
+                }
+            }
+        };
+        
+        handleResize(); // Exécuter immédiatement
+
+        window.addEventListener('resize', handleResize);
+        
+        // Cleanup
+        const cleanupHandler = () => {
+            window.removeEventListener('resize', handleResize);
+        };
+        
+        dialogElement.addEventListener('close', cleanupHandler);
+        dialogElement.addEventListener('dialogClosed', cleanupHandler);
+    }
+    
+    return dialogElement;
+}
+
+
+// --- Fonctions de base du dialogue ---
+
+function createDialogElement(options, canGoBack, isFullscreenInit = false, scrollTopInit = 0, newDialogId = null) {
+    let isFullscreen = isFullscreenInit;
+    
+    const dialog = document.createElement('div');
+    dialog.id = newDialogId || `customDialog-\${dialogIdCounter}`;
+    dialog.classList.add('customDialog');
+    dialog.setAttribute('data-type', options.type || 'default');
+    
+    applyDialogStyles(options.type, dialog, isFullscreen);
+    dialog.style.display = 'block';
+
+    const header = createHeader(options, isDarkTheme(), dialog, isFullscreen, canGoBack);
+    setupDragSystem(header.element, dialog);
+
+    const contentContainer = document.createElement('div');
+    contentContainer.id = 'contentContainer';
+    applyContentContainerStyles(options.type, contentContainer, isFullscreen);
+    
+    if (options.type === 'note' && options.noteData && options.noteData.colorIndex) {
+        const noteClass = getNoteClass(options.noteData.colorIndex, false);
+        dialog.classList.add(noteClass);
+    }
+
+    if (options.contentRenderer) {
+        options.contentRenderer(contentContainer, options);
+    }
+    
+    setTimeout(() => {
+        contentContainer.scrollTop = scrollTopInit;
+    }, 10);
+
+    setupFullscreenToggle(
+        options.type,
+        header.fullscreenButton,
+        dialog,
+        contentContainer
+    );
+
+    dialog.appendChild(header.element);
+    dialog.appendChild(contentContainer);
+    
+    const resizeHandle = document.createElement('div');
+    resizeHandle.classList.add('resize-handle');
+    resizeHandle.style.cssText = `
+        position: absolute;
+        bottom: 0;
+        right: 0;
+        width: 20px;
+        height: 20px;
+        cursor: nwse-resize; 
+        z-index: 1001;
+        border-right: 2px solid \${isDarkTheme() ? 'rgba(255, 255, 255, 0.5)' : 'rgba(0, 0, 0, 0.5)'};
+        border-bottom: 2px solid \${isDarkTheme() ? 'rgba(255, 255, 255, 0.5)' : 'rgba(0, 0, 0, 0.5)'};
+        border-bottom-right-radius: 16px;
+    `;
+    dialog.appendChild(resizeHandle);
+    
+    setupResizeSystem(resizeHandle, dialog, contentContainer);
+    return dialog;
+}
+
+function applyDialogStyles(type, dialog, isFullscreen, savedPosition = null) {
+    const isDark = isDarkTheme();
+    const backgroundColor = type == 'note' ? null : (isDarkTheme() ? '#121212' : '#ffffff');
+    
+    const baseStyles = `
+      position: fixed;
+      box-shadow: 0 15px 50px rgba(0, 0, 0, 0.60); 
+      z-index: 1000;
+      background-color: \${backgroundColor};
+      border: 1px solid rgba(0, 0, 0, 0.1);
+    `;
+
+    if (isFullscreen) {
+        const bottomOffset = BOTTOMNAVBAR_FIXED_HEIGHT + (audioPlayerVisible ? AUDIO_PLAYER_HEIGHT : 0);
+    
+        dialog.classList.add('fullscreen');
+        // ✅ CORRECTION: S'assurer que le positionnement est basé sur top/bottom/left/right et non translate
+        dialog.style.cssText = `
+            \${baseStyles}
+            top: \${APPBAR_FIXED_HEIGHT}px;
+            left: 0;
+            right: 0;
+            bottom: \${bottomOffset}px;
+            width: 100vw;
+            height: calc(100vh - \${APPBAR_FIXED_HEIGHT + bottomOffset}px);
+            transform: none !important; /* Annuler toute transformation */
+            margin: 0;
+            border-radius: 0px;
+        `;
+        const resizeHandle = dialog.querySelector('.resize-handle');
+        if (resizeHandle) resizeHandle.style.display = 'none';
+
+        window.flutter_inappwebview?.callHandler('showFullscreenDialog', true);
+    }
+    else {
+        dialog.classList.remove('fullscreen');
+        const resizeHandle = dialog.querySelector('.resize-handle');
+        if (resizeHandle) resizeHandle.style.display = 'block';
+
+        // Styles de taille initiaux
+        const windowDialogStyles = `
+            width: 85%;
+            height: fit-content;
+            max-width: 600px;
+            border-radius: 16px;
+        `;
+        
+        dialog.style.cssText = baseStyles + windowDialogStyles; 
+        
+        const currentLeft = dialog.style.left;
+        const currentTop = dialog.style.top;
+        
+        if (currentLeft && currentTop && currentLeft !== '50%' && currentTop !== '50%') {
+            dialog.style.left = currentLeft;
+            dialog.style.top = currentTop;
+            dialog.style.transform = 'none';
+            
+            const resizedHeight = dialog.getAttribute('data-resized-height');
+            const resizedWidth = dialog.getAttribute('data-resized-width');
+
+            if (resizedHeight) {
+                 dialog.style.height = resizedHeight;
+                 
+                 const contentContainer = dialog.querySelector('#contentContainer');
+                 if (contentContainer) {
+                    const newHeight = parseFloat(resizedHeight);
+                    const contentMaxHeight = newHeight - HEADER_HEIGHT - PADDING_CONTENT_VERTICAL;
+                    contentContainer.style.maxHeight = `\${Math.max(0, contentMaxHeight)}px`;
+                 }
+            } else {
+                 dialog.style.height = 'fit-content';
+            }
+
+            if(resizedWidth) {
+                 dialog.style.width = resizedWidth;
+            } else {
+                 dialog.style.width = '85%';
+            }
+
+        } else {
+            // Position de base (centrée)
+            dialog.style.top = '50%';
+            dialog.style.left = '50%';
+            dialog.style.transform = 'translate(-50%, -50%)';
+        }
+
+        window.flutter_inappwebview?.callHandler('showFullscreenDialog', false);
+    }
+}
           
           function applyContentContainerStyles(type, contentContainer, isFullscreen) {
               const paddingStyle = '0px'; 
@@ -2729,8 +2768,12 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
               }
           }
           
-          // Fonction pour ouvrir un dialogue de note
           async function openNoteDialog(userMarkGuid, noteGuid) {
+              if (!window.flutter_inappwebview) {
+                  console.error("Handler natif flutter_inappwebview non disponible.");
+                  return;
+              }
+              
               const note = await window.flutter_inappwebview.callHandler('getNoteByGuid', noteGuid);
              
               if (!note) {
@@ -2745,8 +2788,8 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
                       noteGuid: noteGuid,
                       title: note.title,
                       content: note.content,
-                      tags: note.tags,
-                      tagsId: note.tagsId,
+                      tags: note.tags, 
+                      tagsId: note.tagsId, 
                       colorIndex: note.colorIndex,
                   },
                   contentRenderer: (contentContainer, noteOptions) => {
@@ -2758,395 +2801,470 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
           }
           
           function createNoteContent(contentContainer, options) {
-              if (!options || !options.noteData) {
-                  console.error("Les données de la note sont manquantes. Impossible de charger le contenu.");
-                  contentContainer.innerHTML = "<p>Erreur: Contenu non disponible.</p>";
-                  return;
-              }
-          
-              const { noteGuid, title, content, tags, tagsId, colorIndex } = options.noteData;
-              const isDark = isDarkTheme();
-              const isEditMode = true;
-          
-              const dialogElement = contentContainer.closest('.customDialog');
-              if (dialogElement) {
-                  dialogElement.classList.add('note-dialog');
-              }
-          
-              // ✅ Conteneur principal (on évite le scroll global, seule la zone contenu scrolle)
-              const mainContainer = document.createElement('div');
-              mainContainer.style.cssText = `
-                  display: flex;
-                  flex-direction: column;
-                  height: 100%;
-                  padding: 16px;
-                  box-sizing: border-box;
-                  overflow: hidden; /* ← important : pas de scroll ici */
-                  gap: 12px;
-              `;
-          
-              // ✅ Titre multi-ligne (textarea)
-              const titleElement = document.createElement('textarea');
-              titleElement.className = 'note-title';
-              titleElement.value = title || '';
-              titleElement.placeholder = 'Titre de la note';
-              titleElement.rows = 1;
-              titleElement.style.cssText = `
-                  border: none;
-                  outline: none;
-                  resize: none;
-                  font-size: 20px;
-                  font-weight: bold;
-                  line-height: 1.3;
-                  background: transparent;
-                  color: inherit;
-                  padding: 4px 0;
-                  flex-shrink: 0;
-                  overflow: hidden;
-              `;
-              const autoResizeTitle = () => {
-                  titleElement.style.height = 'auto';
-                  const max = 6 * parseFloat(getComputedStyle(titleElement).lineHeight); // jusqu’à ~6 lignes
-                  titleElement.style.height = Math.min(titleElement.scrollHeight, max) + 'px';
-              };
-              titleElement.addEventListener('input', autoResizeTitle);
-          
-              // ✅ Zone de contenu (auto-ajustée jusqu'à 80vh)
-              const contentElement = document.createElement('textarea');
-              contentElement.className = 'note-content';
-              contentElement.value = content || '';
-              contentElement.placeholder = 'Écrivez votre note ici...';
-              contentElement.style.cssText = `
-                  border: none;
-                  outline: none;
-                  resize: none;
-                  font-size: inherit;
-                  line-height: 1.5;
-                  background: transparent;
-                  color: inherit;
-                  overflow-y: auto;
-                  padding: 8px 0;
-                  flex: 0 0 auto;
-                  min-height: 100px;   /* ← hauteur de base quand peu de texte */
-              `;
-              
-              // Fonction de redimensionnement dynamique
-              const autoResize = () => {
-                  const maxHeight = Math.round(window.innerHeight * 0.8); // 80% du viewport
-                  contentElement.style.height = 'auto'; // reset
-                  const newHeight = Math.min(contentElement.scrollHeight, maxHeight);
-                  contentElement.style.height = `\${newHeight}px`;
-              };
-              
-              // Écouteurs
-              ['input','cut','paste'].forEach(evt =>
-                  contentElement.addEventListener(evt, autoResize)
-              );
-              
-              autoResize();
-          
-              // 🚀 Intégration des fonctionnalités de tags et suggestions
-              const currentTagIds = !tagsId || tagsId === '' ? [] : tagsId.split(',').map(id => parseInt(id));
-          
-              const createTagElement = (tag) => {
-                  const tagElement = document.createElement('span');
-                  tagElement.style.cssText = `
-                      display: flex;
-                      align-items: center;
-                      background: \${isDark ? '#4a4a4a' : 'rgba(255,255,255,0.9)'};
-                      color: \${isDark ? '#fff' : '#2c3e50'};
-                      padding: 6px 10px;
-                      border-radius: 20px;
-                      font-size: 14px;
-                      font-weight: 500;
-                      white-space: nowrap;
-                      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-                      border: 1px solid \${isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)'};
-                      cursor: pointer;
-                  `;
-                  const text = document.createElement('span');
-                  text.textContent = tag.Name;
-                  tagElement.appendChild(text);
-          
-                  const closeBtn = document.createElement('span');
-                  closeBtn.textContent = '×';
-                  closeBtn.style.cssText = `
-                      margin-left: 6px;
-                      cursor: pointer;
-                      font-weight: bold;
-                      color: \${isDark ? '#e0e0e0' : 'inherit'};
-                  `;
-                  closeBtn.addEventListener('click', (e) => {
-                      e.stopPropagation();
-                      tagsContainer.removeChild(tagElement);
-                      const index = currentTagIds.indexOf(tag.TagId);
-                      if (index > -1) currentTagIds.splice(index, 1);
-                      window.flutter_inappwebview.callHandler('removeTagToNote', {
-                          noteGuid: noteGuid,
-                          tagId: tag.TagId
-                      });
-                  });
-                  tagElement.appendChild(closeBtn);
-          
-                  tagElement.addEventListener('click', () => {
-                      window.flutter_inappwebview.callHandler('openTagPage', { tagId: tag.TagId });
-                  });
-                  return tagElement;
-              };
-          
-              const addTagToUI = (tag) => {
-                  if (!currentTagIds.includes(tag.TagId)) {
-                      const tagElement = createTagElement(tag);
-                      tagsContainer.insertBefore(tagElement, tagInputWrapper);
-                      currentTagIds.push(tag.TagId);
-                      window.flutter_inappwebview.callHandler('addTagToNote', {
-                          noteGuid: noteGuid,
-                          tagId: tag.TagId
-                      });
-                  }
-              };
-          
-              // ✅ Footer catégories : toujours visible en bas
-              const tagsContainer = document.createElement('div');
-              tagsContainer.style.cssText = `
-                  display: flex;
-                  flex-wrap: wrap;
-                  gap: 8px;
-                  max-height: 160px;
-                  overflow-y: auto;
-                  border-top: 1px solid \${isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.08)'};
-                  padding: 12px 0 4px 0;
-                  flex-shrink: 0;
-                  position: sticky;   /* ← colle au bas du conteneur visible */
-                  bottom: 0;          /* ← position collante en bas */
-                  background: transparent;
-                  backdrop-filter: blur(6px);
-              `;
-          
-              currentTagIds.forEach(tagId => {
-                  const tag = tags.find(t => t.TagId === tagId);
-                  if (tag) tagsContainer.appendChild(createTagElement(tag));
-              });
-          
-              const tagInputWrapper = document.createElement('div');
-              tagInputWrapper.style.cssText = `
-                  display: flex;
-                  align-items: center;
-                  gap: 10px;
-                  min-width: 150px;
-                  position: relative;
-              `;
-          
-              const tagInput = document.createElement('input');
-              tagInput.className = 'note-tags';
-              tagInput.type = 'text';
-              tagInput.placeholder = 'Ajouter une catégorie...';
-              tagInput.style.cssText = `
-                  border: none;
-                  outline: none;
-                  resize: none;
-                  font-size: inherit;
-                  flex: 1;
-                  min-width: 100px;
-                  border: none;
-                  padding: 4px;
-                  font-size: 14px;
-                  background: transparent;
-                  color: inherit;
-              `;
-          
-              const suggestionsList = document.createElement('div');
-              suggestionsList.className = 'suggestions-list';
-              suggestionsList.style.cssText = `
-                  position: fixed;
-                  background: \${isDark ? '#333' : 'rgba(255, 255, 255, 0.95)'};
-                  border: 1px solid \${isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'};
-                  border-radius: 8px;
-                  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
-                  max-height: 150px;
-                  overflow-y: auto;
-                  z-index: 9000;
-                  backdrop-filter: blur(10px);
-                  display: none;
-              `;
-          
-              const fuzzySearch = (query, text) => {
-                  if (!query) return true;
-                  const regex = new RegExp(query.split('').join('.*?'), 'i');
-                  return regex.test(text);
-              };
-              
-              async function addTagToDatabase(value) {
-                const result = await window.flutter_inappwebview.callHandler('addTag', { tagName: value });    
-                if (result && result.tag) addTagToUI(result.tag);
-              }
-          
-              const showSuggestions = (filteredTags) => {
-                  suggestionsList.innerHTML = '';
-                  const value = tagInput.value.trim();
-                  const exactMatch = filteredTags.some(tag => tag.Name.toLowerCase() === value.toLowerCase());
-          
-                  if (value !== '' && !exactMatch) {
-                      const addNew = document.createElement('div');
-                      addNew.textContent = `Ajouter la catégorie: "\${value}"`;
-                      addNew.style.cssText = `
-                          padding: 8px 12px;
-                          cursor: pointer;
-                          font-size: 14px;
-                          color: \${isDark ? '#fff' : '#2c3e50'};
-                          border-bottom: \${filteredTags.length > 0 ? '1px solid ' + (isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)') : 'none'};
-                          white-space: nowrap;
-                      `;
-                      addNew.addEventListener('click', async () => {
-                        tagInput.value = '';
-                        suggestionsList.style.display = 'none';
-                        addTagToDatabase(value);
-                        tagInput.focus(); // seulement après l’await
-                      });
-          
-                      suggestionsList.appendChild(addNew);
-                  }
-          
-                  filteredTags.forEach(tag => {
-                      const item = document.createElement('div');
-                      item.textContent = tag.Name;
-                      item.style.cssText = `
-                          padding: 8px 12px;
-                          cursor: pointer;
-                          font-size: 14px;
-                          color: \${isDark ? '#fff' : '#2c3e50'};
-                          transition: background-color 0.2s ease;
-                          white-space: nowrap;
-                      `;
-                      item.addEventListener('mouseenter', () => item.style.backgroundColor = isDark ? '#4a4a4a' : 'rgba(52, 152, 219, 0.1)');
-                      item.addEventListener('mouseleave', () => item.style.backgroundColor = 'transparent');
-                      item.addEventListener('click', () => {
-                          addTagToUI(tag);
-                          tagInput.value = '';
-                          tagInput.focus();
-                          suggestionsList.style.display = 'none';
-                      });
-                      suggestionsList.appendChild(item);
-                  });
-          
-                  suggestionsList.style.display = (suggestionsList.children.length > 0) ? 'block' : 'none';
-              };
-          
-              const updateSuggestionsPosition = () => {
-                  const rect = tagInput.getBoundingClientRect();
-                  suggestionsList.style.left = `\${rect.left}px`;
-                  suggestionsList.style.top = `\${rect.bottom + 5}px`;
-                  suggestionsList.style.width = `\${Math.max(200, tagInput.offsetWidth)}px`;
-              };
-          
-              tagInput.addEventListener('input', () => {
-                  const value = tagInput.value.trim();
-                  const availableTags = tags.filter(tag => !currentTagIds.includes(tag.TagId));
-                  let filteredTags = (value === '') ? availableTags : availableTags.filter(tag => fuzzySearch(value, tag.Name));
-                  showSuggestions(filteredTags);
-                  updateSuggestionsPosition();
-              });
-          
-              tagInput.addEventListener('focus', () => {
-                  const value = tagInput.value.trim();
-                  const availableTags = tags.filter(tag => !currentTagIds.includes(tag.TagId));
-                  let filteredTags = (value === '') ? availableTags : availableTags.filter(tag => fuzzySearch(value, tag.Name));
-                  showSuggestions(filteredTags);
-                  updateSuggestionsPosition();
-              });
-          
-              tagInput.addEventListener('blur', (e) => {
-                  setTimeout(() => {
-                      if (!suggestionsList.contains(document.activeElement)) {
-                          suggestionsList.style.display = 'none';
-                      }
-                  }, 100);
-              });
-          
-              tagInput.addEventListener('keypress', (e) => {
-                  if (e.key === 'Enter') {
-                      const value = tagInput.value.trim();
-                      if (value !== '') {
-                          const exactMatch = tags.find(tag => tag.Name.toLowerCase() === value.toLowerCase());
-                          if (exactMatch) {
-                              addTagToUI(exactMatch);
-                          } else {
-                              window.flutter_inappwebview.callHandler('addTag', { tagName: value }).then(result => {
-                                  if (result && result.tag) addTagToUI(result.tag);
-                              });
-                          }
-                          tagInput.value = '';
-                          suggestionsList.style.display = 'none';
-                          tagInput.focus();
-                      }
-                      e.preventDefault();
-                  }
-              });
-          
-              // Assemblage
-              if (isEditMode) {
-                  tagInputWrapper.appendChild(tagInput);
-                  tagsContainer.appendChild(tagInputWrapper);
-              }
-          
-              mainContainer.appendChild(titleElement);
-              mainContainer.appendChild(contentElement);
-              mainContainer.appendChild(tagsContainer);
-              contentContainer.appendChild(mainContainer);
-          
-              // 💡 Suggestions en dehors du dialogue
-              document.body.appendChild(suggestionsList);
-          
-              // Lancements initiaux
-              setTimeout(() => {
-                  autoResizeTitle();
-                  autoResize();
-              }, 0);
-              window.addEventListener('resize', autoResize);
-          
-              // Sauvegarde live
-              const saveChanges = () => {
-                  const titleVal = titleElement.value;
-                  const contentVal = contentElement.value;
-                  window.flutter_inappwebview.callHandler('updateNote', {
-                      noteGuid: noteGuid,
-                      title: titleVal,
-                      content: contentVal
-                  });
-              };
-              contentElement.addEventListener('input', saveChanges);
-              titleElement.addEventListener('input', saveChanges);
-          
-              const addTag = () => {
-                  const tagName = tagInput.value.trim();
-                  if (tagName && tagName.length > 0) {
-                      window.flutter_inappwebview.callHandler('addTagToNote', {
-                          noteGuid: noteGuid,
-                          tagName: tagName
-                      });
-                      tagInput.value = '';
-                  }
-              };
-          
-              tagInput.addEventListener('keypress', (e) => {
-                  if (e.key === 'Enter') {
-                      addTag();
-                  }
-              });
-          
-              const cleanup = () => {
-                  if (suggestionsList && suggestionsList.parentNode) {
-                      suggestionsList.remove();
-                  }
-                  window.removeEventListener('resize', autoResize);
-              };
-          
-              if (dialogElement) {
-                  dialogElement.addEventListener('close', cleanup);
-                  dialogElement.addEventListener('dialogClosed', cleanup);
-              }
-          }
-          
+    if (!options || !options.noteData) {
+        console.error("Les données de la note sont manquantes. Impossible de charger le contenu.");
+        contentContainer.innerHTML = "<p>Erreur: Contenu non disponible.</p>";
+        return;
+    }
+
+    const { noteGuid, title, content, tags, tagsId, colorIndex } = options.noteData;
+    const isDark = isDarkTheme();
+    const isEditMode = true;
+
+    const dialogElement = contentContainer.closest('.customDialog');
+    if (dialogElement) {
+        dialogElement.classList.add('note-dialog');
+    }
+
+    // Conteneur principal (Défilant)
+    const mainContainer = document.createElement('div');
+    mainContainer.style.cssText = `
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        padding: 16px;
+        box-sizing: border-box;
+        overflow-y: auto;
+        gap: 12px;
+    `;
+
+    // Titre
+    const titleElement = document.createElement('textarea');
+    titleElement.className = 'note-title';
+    titleElement.value = title || '';
+    titleElement.placeholder = 'Titre de la note';
+    titleElement.rows = 1;
+    titleElement.style.cssText = `
+        border: none; outline: none; resize: none; font-size: 20px; font-weight: bold; 
+        line-height: 1.3; background: transparent; color: inherit; padding: 4px 0; 
+        flex-shrink: 0; overflow: hidden; text-align: center;
+    `;
+    
+    const autoResizeTitle = () => {
+        titleElement.style.height = 'auto';
+        const max = 6 * parseFloat(getComputedStyle(titleElement).lineHeight);
+        titleElement.style.height = Math.min(titleElement.scrollHeight, max) + 'px';
+    };
+    titleElement.addEventListener('input', autoResizeTitle);
+
+    // Zone de contenu
+    const contentElement = document.createElement('textarea');
+    contentElement.className = 'note-content';
+    contentElement.value = content || '';
+    contentElement.placeholder = 'Écrivez votre note ici...';
+    contentElement.style.cssText = `
+        border: none; outline: none; resize: none; font-size: inherit; line-height: 1.5; 
+        background: transparent; color: inherit; overflow-y: hidden; 
+        padding: 8px 0; flex: 1 1 auto; min-height: 100px; text-align: center;
+    `;
+    
+    // Scroll automatique pour garder le curseur visible en bas
+    const scrollToInput = (element) => {
+        const scrollContainer = contentContainer.querySelector('.note-dialog > div:nth-child(1)'); 
+        const isTagInput = element.className.includes('note-tags');
+    
+        if (!scrollContainer) {
+            element.scrollIntoView({ behavior: 'smooth', block: isTagInput ? 'center' : 'nearest' });
+            setTimeout(updateSuggestionsPosition, 350); 
+            return;
+        }
+
+        // Logique Spécifique pour l'Input de Tags (centrage)
+        if (isTagInput) {
+            setTimeout(() => {
+                const elementRect = element.getBoundingClientRect();
+                const containerRect = scrollContainer.getBoundingClientRect();
+                
+                const elementRelativeTop = elementRect.top - containerRect.top + scrollContainer.scrollTop;
+                const centerOffset = (containerRect.height / 2) - (elementRect.height / 2);
+        
+                let newScrollTop = elementRelativeTop - centerOffset;
+                newScrollTop = Math.max(0, newScrollTop);
+        
+                scrollContainer.scrollTo({
+                    top: newScrollTop,
+                    behavior: 'smooth'
+                });
+                
+                setTimeout(updateSuggestionsPosition, 350); 
+            }, 10);
+            return;
+        }
+
+        // LOGIQUE CRITIQUE POUR LE CONTENT ELEMENT (TEXTAREA)
+        setTimeout(() => {
+            // 1. Défilement INTERNE du TEXTAREA d'abord pour positionner le curseur au fond du textarea.
+            if (element === contentElement && contentElement.scrollHeight > contentElement.clientHeight) {
+                contentElement.scrollTop = contentElement.scrollHeight;
+            }
+
+            // 2. Défilement du CONTENEUR PRINCIPAL jusqu'à son fond.
+            // Cela monte la note au-dessus du clavier.
+            scrollContainer.scrollTo({
+                top: scrollContainer.scrollHeight,
+                behavior: 'auto' 
+            });
+        }, 10);
+    };
+    
+    const autoResize = () => {
+        const maxHeight = Math.round(window.innerHeight * 0.8);
+        const previousHeight = contentElement.offsetHeight;
+        // Vérifie si nous sommes déjà stabilisés à la taille maximale et en mode scroll.
+        const isMaxHeightReached = contentElement.style.overflowY === 'auto' && previousHeight >= maxHeight;
+
+        if (isMaxHeightReached) {
+            // Ne fait rien pour éviter le reflow.
+            return; 
+        }
+
+        contentElement.style.height = 'auto';
+        const newHeight = contentElement.scrollHeight;
+        
+        // Si la nouvelle hauteur atteint ou dépasse la taille maximale pour la première fois
+        if (newHeight >= maxHeight) {
+            contentElement.style.height = `\${maxHeight}px`;
+            contentElement.style.overflowY = 'auto'; 
+        } else {
+            // Si le contenu est court, ajuster précisément la hauteur
+            const finalHeight = Math.min(newHeight, maxHeight);
+            contentElement.style.height = `\${finalHeight}px`;
+            contentElement.style.overflowY = 'hidden'; 
+        }
+    };
+    
+    ['input','cut','paste'].forEach(evt =>
+        contentElement.addEventListener(evt, () => {
+            autoResize();
+            saveChanges();
+            
+            // Délai pour laisser le redimensionnement du DOM se terminer avant de scroller.
+            setTimeout(() => {
+                scrollToInput(contentElement);
+            }, 50); 
+        })
+    );
+    
+    autoResize();
+    
+    // Gestion des tags
+    const currentTagIds = !options.noteData.tagsId || options.noteData.tagsId === '' ? [] : options.noteData.tagsId.split(',')
+        .map(id => parseInt(id))
+        .filter(id => !isNaN(id));
+        
+    const createTagElement = (tag) => {
+        const tagElement = document.createElement('span');
+        tagElement.style.cssText = `
+            display: inline-flex;
+            align-items: center;
+            background: \${isDark ? '#4a4a4a' : 'rgba(255,255,255,0.9)'};
+            color: \${isDark ? '#fff' : '#2c3e50'};
+            padding: 6px 10px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 500;
+            white-space: nowrap;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+            border: 1px solid \${isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)'};
+            cursor: pointer;
+        `;
+        
+        const text = document.createElement('span');
+        text.textContent = tag.Name;
+        text.style.pointerEvents = 'none';
+        tagElement.appendChild(text);
+
+        const closeBtn = document.createElement('span');
+        closeBtn.textContent = '×';
+        closeBtn.style.cssText = `margin-left: 6px; cursor: pointer; font-weight: bold; color: \${isDark ? '#e0e0e0' : 'inherit'}; font-size: 18px; line-height: 1; padding: 0 2px;`;
+        
+        closeBtn.onclick = (e) => {
+            e.preventDefault();
+            tagsContainer.removeChild(tagElement);
+            const index = currentTagIds.indexOf(tag.TagId);
+            if (index > -1) currentTagIds.splice(index, 1);
+            window.flutter_inappwebview.callHandler('removeTagToNote', { noteGuid: noteGuid, tagId: tag.TagId });
+            setTimeout(() => tagInput.focus(), 10);
+        };
+        
+        tagElement.appendChild(closeBtn);
+        tagElement.onclick = (e) => {
+            if (e.target === closeBtn) return;
+            window.flutter_inappwebview.callHandler('openTagPage', { tagId: tag.TagId });
+        };
+        
+        return tagElement;
+    };
+
+    const addTagToUI = (tag) => {
+        if (!currentTagIds.includes(tag.TagId)) {
+            const tagElement = createTagElement(tag);
+            tagsContainer.insertBefore(tagElement, tagInputWrapper);
+            currentTagIds.push(tag.TagId);
+            window.flutter_inappwebview.callHandler('addTagToNote', { noteGuid: noteGuid, tagId: tag.TagId });
+        }
+    };
+
+    // Footer catégories (Sticky Bottom)
+    const tagsContainer = document.createElement('div');
+    tagsContainer.style.cssText = `
+        display: flex; flex-wrap: wrap; gap: 8px; max-height: 160px; overflow-y: auto;
+        border-top: 1px solid \${isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.08)'};
+        padding: 12px 0 4px 0; flex-shrink: 0;
+        position: sticky; bottom: 0; z-index: 10;
+        background: transparent;
+        backdrop-filter: blur(6px);
+    `;
+    
+    (() => {
+        if (!Array.isArray(currentTagIds) || currentTagIds.length === 0) return;
+        try {
+            currentTagIds.forEach(tagId => {
+                const tag = tags?.find(t => t.TagId === tagId);
+                if (!tag) return;
+                const el = createTagElement(tag);
+                if (el) tagsContainer.appendChild(el);
+            });
+        } catch (error) {
+            console.error('Erreur lors du chargement des tags :', error);
+        }
+    })();
+
+    const tagInputWrapper = document.createElement('div');
+    tagInputWrapper.style.cssText = `display: flex; align-items: center; gap: 10px; min-width: 150px; position: relative;`;
+
+    const tagInput = document.createElement('input');
+    tagInput.className = 'note-tags';
+    tagInput.type = 'text';
+    tagInput.placeholder = 'Ajouter une catégorie...';
+    tagInput.style.cssText = `border: none; outline: none; resize: none; font-size: 14px; flex: 1; min-width: 100px; padding: 4px; background: transparent; color: inherit;`;
+    
+    // Overlay de suggestions SCROLLABLE (Fixed pour rester au-dessus du clavier)
+    const suggestionsList = document.createElement('div');
+    suggestionsList.className = 'suggestions-list';
+    
+    suggestionsList.style.cssText = `
+        /* Fixité/Isolation : Crucial pour rester au-dessus du clavier */
+        position: fixed; 
+        top: auto; 
+        bottom: 0; /* Positionnement par rapport au bas du viewport */
+        left: 0;
+        right: 0;
+        z-index: 99999; 
+        
+        /* Apparence (ajustez selon votre thème) */
+        background: \${isDark ? '#333' : 'rgba(255, 255, 255, 0.95)'};
+        border: 1px solid \${isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'};
+        border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+        backdrop-filter: blur(10px);
+        
+        /* Défilement : Pour garantir la fluidité et la priorité */
+        max-height: 250px;
+        overflow-y: auto;
+        
+        /* 1. Fluidité iOS (défilement inertiel) */
+        -webkit-overflow-scrolling: touch; 
+        
+        /* 2. Priorité/Isolation Android (empêche le scroll de remonter à la page) */
+        overscroll-behavior: contain;
+        
+        /* État initial */
+        display: none;
+    `;
+
+    async function addTagToDatabase(value) {
+        const result = await window.flutter_inappwebview.callHandler('addTag', { tagName: value });    
+        if (result && result.tag) addTagToUI(result.tag);
+    }
+
+    const showSuggestions = async (filteredTags, query) => {
+        suggestionsList.innerHTML = '';
+        const value = query.trim();
+        const exactMatch = filteredTags.some(tag => tag.Name.toLowerCase() === value.toLowerCase());
+
+        if (value !== '' && !exactMatch) {
+            const addNew = document.createElement('div');
+            addNew.textContent = `Ajouter la catégorie: "\${value}"`;
+            addNew.style.cssText = `padding: 12px 16px; cursor: pointer; font-size: 14px; color: \${isDark ? '#fff' : '#2c3e50'}; border-bottom: \${filteredTags.length > 0 ? '1px solid ' + (isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)') : 'none'}; white-space: nowrap; user-select: none; -webkit-user-select: none;`;
+            
+            addNew.onmousedown = async (e) => {
+                e.preventDefault();
+                await addTagToDatabase(value);
+                tagInput.value = '';
+                // 💡 CORRECTION 1 (Ajout): Afficher les suggestions immédiatement après l'ajout/reset
+                const updatedTags = await window.flutter_inappwebview.callHandler('getFilteredTags', '', currentTagIds);
+                showSuggestions(updatedTags, '');
+                
+                setTimeout(() => tagInput.focus(), 10);
+            };
+
+            suggestionsList.appendChild(addNew);
+        }
+
+        filteredTags.forEach(tag => {
+            const item = document.createElement('div');
+            item.textContent = tag.Name;
+            item.style.cssText = `padding: 12px 16px; cursor: pointer; font-size: 14px; color: \${isDark ? '#fff' : '#2c3e50'}; transition: background-color 0.2s ease; white-space: nowrap; user-select: none; -webkit-user-select: none;`;
+            
+            item.onmouseenter = () => item.style.backgroundColor = isDark ? '#4a4a4a' : 'rgba(52, 152, 219, 0.1)';
+            item.onmouseleave = () => item.style.backgroundColor = 'transparent';
+            
+            item.onmousedown = async (e) => {
+                e.preventDefault();
+                addTagToUI(tag);
+                tagInput.value = '';
+                // 💡 CORRECTION 1 (Ajout): Afficher les suggestions immédiatement après l'ajout/reset
+                const updatedTags = await window.flutter_inappwebview.callHandler('getFilteredTags', '', currentTagIds);
+                showSuggestions(updatedTags, '');
+
+                setTimeout(() => tagInput.focus(), 10);
+            };
+            
+            suggestionsList.appendChild(item);
+        });
+
+        suggestionsList.style.display = (suggestionsList.children.length > 0) ? 'block' : 'none';
+        updateSuggestionsPosition(); // Mettre à jour la position après l'affichage/masquage
+    };
+
+    // Positionner les suggestions intelligemment (au-dessus du clavier)
+    const updateSuggestionsPosition = () => {
+        if(suggestionsList.style.display === 'none') return;
+        
+        const rect = tagInput.getBoundingClientRect();
+        const viewportHeight = window.innerHeight;
+        const spaceBelow = viewportHeight - rect.bottom;
+        
+        // Ajustement pour être au-dessus du clavier
+        if (spaceBelow < 300) {
+            suggestionsList.style.bottom = `\${viewportHeight - rect.top + 5}px`;
+            suggestionsList.style.top = 'auto';
+        } else {
+            suggestionsList.style.top = `\${rect.bottom + 5}px`;
+            suggestionsList.style.bottom = 'auto';
+        }
+        
+        suggestionsList.style.left = `\${rect.left}px`;
+        suggestionsList.style.width = `\${Math.max(250, tagInput.offsetWidth)}px`;
+    };
+
+    // --- Événements de Saisie et Focus ---
+    tagInput.addEventListener('input', async () => {
+        const value = tagInput.value.trim();
+        try {
+            const filteredTags = await window.flutter_inappwebview.callHandler('getFilteredTags', value, currentTagIds);
+            showSuggestions(filteredTags, value);
+        } catch (error) {
+            console.error('Erreur lors de la récupération des tags filtrés', error);
+        }
+    });
+
+    tagInput.addEventListener('focus', async () => {
+        scrollToInput(tagInput); // Ramène l'input et les tags dans la zone visible (centrage)
+        const value = tagInput.value.trim();
+        try {
+            const filteredTags = await window.flutter_inappwebview.callHandler('getFilteredTags', value, currentTagIds);
+            showSuggestions(filteredTags, value);
+        } catch (error) {
+            console.error('Erreur lors de la récupération des tags filtrés', error);
+        }
+    });
+    
+    titleElement.addEventListener('focus', () => scrollToInput(titleElement));
+    contentElement.addEventListener('focus', () => scrollToInput(contentElement));
+
+    tagInput.addEventListener('blur', () => {
+        // 💡 CORRECTION 2 : Retarder le masquage pour permettre au clic sur la suggestion d'être traité
+        setTimeout(() => { 
+            // Vérifier si le focus est revenu sur l'input après le délai (par exemple, si le clic n'a pas été traité)
+            if (document.activeElement !== tagInput) {
+                suggestionsList.style.display = 'none'; 
+            }
+        }, 200);
+    });
+
+    tagInput.addEventListener('keypress', async (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const value = tagInput.value.trim();
+            if (value !== '') {
+                try {
+                    const filteredTags = await window.flutter_inappwebview.callHandler('getFilteredTags', value, currentTagIds);
+                    const exactMatch = filteredTags.find(tag => tag.Name.toLowerCase() === value.toLowerCase());
+                    if (exactMatch) {
+                        addTagToUI(exactMatch);
+                    } else {
+                        await addTagToDatabase(value);
+                    }
+                    tagInput.value = '';
+                    // 💡 CORRECTION 3 : Afficher les suggestions immédiatement après l'ajout via 'Enter'
+                    const updatedTags = await window.flutter_inappwebview.callHandler('getFilteredTags', '', currentTagIds);
+                    showSuggestions(updatedTags, '');
+                    
+                    setTimeout(() => tagInput.focus(), 10);
+                } catch (error) {
+                    console.error("Erreur lors de l'ajout du tag", error);
+                }
+            }
+        }
+    });
+
+    // --- Assemblage et Nettoyage ---
+    if (isEditMode) {
+        tagInputWrapper.appendChild(tagInput);
+        tagsContainer.appendChild(tagInputWrapper);
+    }
+
+    mainContainer.appendChild(titleElement);
+    mainContainer.appendChild(contentElement);
+    mainContainer.appendChild(tagsContainer);
+    contentContainer.appendChild(mainContainer);
+
+    document.body.appendChild(suggestionsList);
+
+    // Sauvegarde live
+    const saveChanges = () => {
+        window.flutter_inappwebview.callHandler('updateNote', {
+            noteGuid: noteGuid,
+            title: titleElement.value,
+            content: contentElement.value
+        });
+    };
+    titleElement.addEventListener('input', saveChanges);
+
+    // Initialisation
+    setTimeout(() => {
+        autoResizeTitle();
+        autoResize();
+    }, 0);
+    
+    window.addEventListener('resize', () => {
+        // Gérer le cas où le clavier s'ouvre/se ferme
+        if(tagInput === document.activeElement) { 
+          scrollToInput(tagInput);
+        }
+        
+        if (contentElement === document.activeElement) {
+             scrollToInput(contentElement);
+        }
+        
+        if (suggestionsList.style.display === 'block') {
+            updateSuggestionsPosition();
+        }
+    });
+
+    const cleanup = () => {
+        if (suggestionsList && suggestionsList.parentNode) {
+            suggestionsList.remove();
+        }
+    };
+
+    if (dialogElement) {
+        dialogElement.addEventListener('close', cleanup);
+        dialogElement.addEventListener('dialogClosed', cleanup);
+    }
+}
+ 
           // ✅ Fonction corrigée
           function createOptionsMenu(noteGuid, popup, isDark) {
               const optionsMenu = document.createElement('div');

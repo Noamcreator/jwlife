@@ -2,8 +2,8 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:jwlife/app/jwlife_app.dart';
-import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/core/utils/utils.dart';
+import 'package:jwlife/core/utils/utils_audio.dart';
 import 'package:jwlife/core/utils/utils_video.dart'; // Ajout de l'import manquant
 import 'package:jwlife/data/models/media.dart';
 import 'package:jwlife/data/models/userdata/independentMedia.dart';
@@ -11,18 +11,20 @@ import 'package:jwlife/data/models/userdata/playlistItem.dart';
 import 'package:jwlife/core/utils/utils_dialog.dart';
 
 import '../../../core/icons.dart';
+import '../../../core/utils/utils_playlist.dart';
 import '../../../data/models/audio.dart';
 import '../../../data/models/userdata/location.dart';
 import '../../../data/models/video.dart';
 import '../../../data/repositories/MediaRepository.dart';
-import '../../image/image_page.dart';
+import '../pages/playlist_player.dart';
 
 // 1. Convertir en StatefulWidget
 class RectanglePlaylistItemItem extends StatefulWidget {
+  final List<PlaylistItem> items;
   final PlaylistItem item;
   final Function(PlaylistItem) onDelete;
 
-  const RectanglePlaylistItemItem({super.key, required this.item, required this.onDelete});
+  const RectanglePlaylistItemItem({super.key, required this.items, required this.item, required this.onDelete});
 
   @override
   State<RectanglePlaylistItemItem> createState() => _RectanglePlaylistItemItemState();
@@ -148,13 +150,29 @@ class _RectanglePlaylistItemItemState extends State<RectanglePlaylistItemItem> {
 
     // Il y a des problèmes potentiels d'opérateur de nullité `!`
     if (!location.isNull()) {
-      media = MediaRepository().getByCompositeKey(getMediaItem(playlistItem.location?.keySymbol, playlistItem.location?.track, playlistItem.location?.mepsDocumentId, playlistItem.location?.issueTagNumber, playlistItem.location?.mepsLanguageId, isVideo: playlistItem.location?.type == 2 ? false : true)!);
-      isAudio = media is Audio;
+      final mediaItem = getMediaItem(
+        playlistItem.location?.keySymbol,
+        playlistItem.location?.track,
+        playlistItem.location?.mepsDocumentId,
+        playlistItem.location?.issueTagNumber,
+        playlistItem.location?.mepsLanguageId,
+        isVideo: playlistItem.location?.type != 2, // plus clair et inversé logiquement
+      );
+
+      if (mediaItem != null) {
+        final mediaRepo = MediaRepository();
+        final existingMedia = mediaRepo.getByCompositeKey(mediaItem);
+
+        if (mediaItem.type == 'AUDIO') {
+          media = existingMedia ?? Audio.fromJson(mediaItem: mediaItem);
+        } else {
+          media = existingMedia ?? Video.fromJson(mediaItem: mediaItem);
+        }
+
+        isAudio = media is Audio;
+      }
     }
-    else if (independentMedia != null) {
-      // Bloc vide dans le code original, conservé
-    }
-    else {
+    else if(independentMedia == null) {
       return Container();
     }
 
@@ -164,35 +182,7 @@ class _RectanglePlaylistItemItemState extends State<RectanglePlaylistItemItem> {
           : Colors.white,
       child: InkWell(
         onTap: () async {
-          if (media != null) {
-            // S'assurer que showPlayer est une méthode définie sur Media
-            media.showPlayer(context);
-          }
-          else if (independentMedia != null) {
-            // Problème potentiel: les vérifications de type MIME peuvent être faites sur independentMedia.mimeType!
-            if(independentMedia.mimeType?.contains('image') == true) { // Utilisation du `?` et vérification de booléen
-              // La variable locale 'independentMedia' est écrasée ici, ce qui est une mauvaise pratique.
-              // J'ai renommé la variable de fichier pour éviter le conflit.
-              File imageFile = await playlistItem.independentMedia!.getImageFile();
-              showPage(ImagePage(filePath: imageFile.path));
-            }
-            // Les blocs 'video' et 'audio' sont étranges car ils appellent `media.showPlayer(context)`
-            // alors que `media` n'est défini que dans le bloc `if (!location.isNull())`.
-            // S'il n'y a pas de location, `media` est probablement null.
-            // Je suppose que vous vouliez appeler une méthode pour jouer le média indépendant.
-            else if(independentMedia.mimeType?.contains('video') == true) {
-              // Devrait probablement jouer le média indépendant
-              // if(media != null) { // Ceci est incorrect si c'est un média indépendant sans location
-              //   media.showPlayer(context);
-              // }
-            }
-            else if(independentMedia.mimeType?.contains('audio') == true) {
-              // Devrait probablement jouer le média indépendant
-              // if(media != null) { // Ceci est incorrect si c'est un média indépendant sans location
-              //   media.showPlayer(context);
-              // }
-            }
-          }
+          showPlaylistPlayer(widget.items, startIndex: widget.items.indexOf(widget.item));
         },
         child: SizedBox(
           height: 80,
@@ -261,23 +251,10 @@ class _RectanglePlaylistItemItemState extends State<RectanglePlaylistItemItem> {
                   right: -10,
                   child: RepaintBoundary(
                     child: PopupMenuButton(
-                      // La propriété `popUpAnimationStyle` n'existe plus dans les versions récentes de Flutter.
-                      // Elle a été remplacée par `splashRadius` et d'autres contrôles d'animation
-                      // ou est gérée par le thème. Je la supprime pour éviter l'erreur de compilation.
-                      /*
-                    popUpAnimationStyle: AnimationStyle.lerp(
-                      const AnimationStyle(curve: Curves.ease),
-                      const AnimationStyle(curve: Curves.ease),
-                      0.5,
-                    ),
-                    */
                       icon: const Icon(Icons.more_vert, color: Color(0xFF9d9d9d)),
                       itemBuilder: (context) {
                         final items = <PopupMenuEntry>[
                           PopupMenuItem(
-                            // Le onTap sur le PopupMenuItem doit être déplacé sur le `onSelected` du `PopupMenuButton`
-                            // ou être géré dans l'implémentation de la fonction de retour (ce qui semble être l'intention).
-                            // Laissez le onTap ici pour une exécution immédiate.
                             child: Row(
                               children: const [
                                 Icon(JwIcons.pencil),
@@ -289,8 +266,11 @@ class _RectanglePlaylistItemItemState extends State<RectanglePlaylistItemItem> {
                               TextEditingController controller = TextEditingController(text: widget.item.label);
                               showJwDialog(context: context,
                                 titleText: 'Renommer',
-                                content: TextField(
-                                  controller: controller,
+                                content: Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 25),
+                                    child: TextField(
+                                      controller: controller,
+                                    ),
                                 ),
                                 buttons: [
                                   JwDialogButton(label: 'ANNULER', closeDialog: true),
@@ -320,15 +300,46 @@ class _RectanglePlaylistItemItemState extends State<RectanglePlaylistItemItem> {
                           ),
                         ];
 
+                        if (media == null && widget.item.independentMedia != null && widget.item.independentMedia!.filePath != null) {
+                          items.add(
+                              PopupMenuItem(
+                                child: Row(
+                                  children: [
+                                    Icon(JwIcons.list_plus),
+                                    SizedBox(width: 8),
+                                    Text('Ajouter à la liste de lecture'),
+                                  ],
+                                ),
+                                onTap: () {
+                                  showAddItemToPlaylistDialog(context, widget.item);
+                                },
+                              )
+                          );
+                        }
+
                         // S'assurer que media est un Video si vous appelez getVideoShareItem
                         if (media != null && media is Video) {
                           items.addAll([
                             getVideoShareItem(media),
+                            getVideoAddPlaylistItem(context, media),
                             getVideoLanguagesItem(context, media),
                             getVideoFavoriteItem(media),
                             getVideoDownloadItem(context, media),
                             getShowSubtitlesItem(context, media),
                             getCopySubtitlesItem(context, media),
+                          ]);
+                        }
+
+                        // S'assurer que media est un Video si vous appelez getVideoShareItem
+                        if (media != null && media is Audio) {
+                          items.addAll([
+                            getAudioShareItem(media),
+                            getAudioAddPlaylistItem(context, media),
+                            getAudioLanguagesItem(context, media),
+                            getAudioFavoriteItem(media),
+                            getAudioDownloadItem(context, media),
+                            getAudioLyricsItem(context, media),
+                            getCopyLyricsItem(media),
                           ]);
                         }
 
@@ -362,10 +373,6 @@ class _RectanglePlaylistItemItemState extends State<RectanglePlaylistItemItem> {
                     ),
                   ),
                 ),
-
-              // Le bloc de code commenté `Stack` n'est pas corrigé car il n'est pas utilisé
-              // et il contient de nombreuses références à des variables (`MediaItem`) qui
-              // ne sont pas définies dans le contexte actuel.
             ],
           ),
         ),

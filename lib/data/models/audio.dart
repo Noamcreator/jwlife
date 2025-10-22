@@ -12,12 +12,12 @@ import '../repositories/MediaRepository.dart';
 import 'media.dart';
 
 class Audio extends Media {
-  final int audioId;
+  int? audioId;
   List<Marker> markers;
 
   Audio({
-    required this.audioId,
-    required super.mediaId,
+    this.audioId,
+    super.mediaId,
     super.naturalKey,
     super.keySymbol,
     super.categoryKey,
@@ -161,7 +161,7 @@ class Audio extends Media {
   }
 
   @override
-  Future<void> showPlayer(BuildContext context, {Duration initialPosition = Duration.zero}) async {
+  Future<void> showPlayer(BuildContext context, {Duration initialPosition = Duration.zero, List<Media> medias = const []}) async {
     if(isDownloadedNotifier.value) {
       JwLifeApp.audioPlayer.playAudio(this, initialPosition: initialPosition);
     }

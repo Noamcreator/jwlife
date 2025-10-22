@@ -890,8 +890,7 @@ class _FullAudioViewState extends State<FullAudioView> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   IconButton(
-                    icon: Icon(
-                        Icons.skip_previous, color: Colors.white, size: 40),
+                    icon: Icon(Icons.skip_previous, color: Colors.white, size: 40),
                     onPressed: () {
                       jwAudioPlayer.previous();
                     },
@@ -899,8 +898,7 @@ class _FullAudioViewState extends State<FullAudioView> {
                   SizedBox(width: 20),
                   IconButton(
                     icon: Icon(
-                      _isPlaying ? Icons.pause_circle_filled : Icons
-                          .play_circle_filled,
+                      _isPlaying ? Icons.pause_circle_filled : Icons.play_circle_filled,
                       color: Colors.white,
                       size: 80,
                     ),
@@ -924,7 +922,7 @@ class _FullAudioViewState extends State<FullAudioView> {
                 ],
               ),
             ),
-            SizedBox(height: 40),
+            SizedBox(height: 80),
           ],
         ),
       ),

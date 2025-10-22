@@ -73,14 +73,18 @@ class Note {
       userMarkId: map['UserMarkId'],
       userMarkGuid: map['UserMarkGuid'],
       location: Location.fromMap(map),
-      tagsId: map['TagsId'] != null
-          ? map['TagsId']
+      tagsId: map['TagsId'] == null
+          ? [] // Si la clé est absente ou nulle, retourne une liste vide.
+          : (map['TagsId'] is List<int>)
+          ? map['TagsId'] // Si c'est déjà une List<int>, on la garde.
+          : (map['TagsId'] is String)
+          ? (map['TagsId'] as String) // On s'assure que c'est bien une chaîne.
           .split(',')
-          .map((e) => int.tryParse(e.trim()))
-          .where((e) => e != null)
+          .map((e) => int.tryParse(e.trim())) // Tente de convertir chaque partie en int.
+          .where((e) => e != null) // Filtre les null (ceux qui n'ont pas pu être convertis).
           .cast<int>()
           .toList()
-          : [],
+          : [], // Dans tout autre cas (par exemple, si c'est un seul int, bool, etc.), retourne une liste vide.
     );
   }
 

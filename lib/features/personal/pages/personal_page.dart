@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:jwlife/data/models/userdata/playlist.dart';
 import 'package:jwlife/i18n/localization.dart';
 
+import '../../../app/services/global_key_service.dart';
 import 'study_page.dart';
 
 class PersonalPage extends StatefulWidget {
@@ -25,6 +27,12 @@ class PersonalPageState extends State<PersonalPage> {
 
   void refreshPlaylist() {
     _studyKey.currentState?.refreshPlaylist();
+  }
+
+  void openPlaylist(Playlist playlist) {
+    // fermer d'abord toutes les pages
+    GlobalKeyService.jwLifePageKey.currentState?.changeNavBarIndex(5, goToFirstPage: true);
+    _studyKey.currentState?.openPlaylist(playlist);
   }
 
   @override

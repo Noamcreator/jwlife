@@ -224,7 +224,7 @@ class JwLifeAppState extends State<JwLifeApp> {
         Publication? biblePub = GlobalKeyService.bibleKey.currentState!.currentBible;
         if (biblePub == null) return;
 
-        GlobalKeyService.jwLifePageKey.currentState!.changeNavBarIndex(1);
+        GlobalKeyService.jwLifePageKey.currentState!.changeNavBarIndex(1, goToFirstPage: true);
 
         showPage(
             LocalChapterBiblePage(
@@ -263,7 +263,7 @@ class JwLifeAppState extends State<JwLifeApp> {
         Publication? biblePub = GlobalKeyService.bibleKey.currentState!.currentBible;
         if (biblePub == null) return;
 
-        GlobalKeyService.jwLifePageKey.currentState!.changeNavBarIndex(1);
+        GlobalKeyService.jwLifePageKey.currentState!.changeNavBarIndex(1, goToFirstPage: true);
 
         showPageBibleChapter(
           biblePub,
@@ -289,12 +289,12 @@ class JwLifeAppState extends State<JwLifeApp> {
 
         if (mediaItem == null) return;
 
-        GlobalKeyService.jwLifePageKey.currentState!.changeNavBarIndex(0);
         if(mediaItem.type == 'AUDIO') {
           Audio audio = Audio.fromJson(mediaItem: mediaItem);
           audio.showPlayer(context, initialPosition: startTime);
         }
         else {
+          GlobalKeyService.jwLifePageKey.currentState!.changeNavBarIndex(0, goToFirstPage: true);
           Video video = Video.fromJson(mediaItem: mediaItem);
           video.showPlayer(context, initialPosition: startTime);
         }
@@ -309,7 +309,7 @@ class JwLifeAppState extends State<JwLifeApp> {
 
         if (dailyTextPub == null) return;
 
-        GlobalKeyService.jwLifePageKey.currentState!.changeNavBarIndex(0);
+        GlobalKeyService.jwLifePageKey.currentState!.changeNavBarIndex(0, goToFirstPage: true);
         showPageDailyText(dailyTextPub, date: date);
       }
       else if (uri.isMeetings) {
@@ -320,7 +320,7 @@ class JwLifeAppState extends State<JwLifeApp> {
         GlobalKeyService.workShipKey.currentState!.refreshMeetingsPubs(publications: dayPubs);
         GlobalKeyService.workShipKey.currentState!.refreshSelectedDay(date);
 
-        GlobalKeyService.jwLifePageKey.currentState!.changeNavBarIndex(3);
+        GlobalKeyService.jwLifePageKey.currentState!.changeNavBarIndex(3, goToFirstPage: true);
       }
     }
     catch (e) {

@@ -9,6 +9,7 @@ import '../../app/services/global_key_service.dart';
 import '../../data/models/publication.dart';
 import '../../features/audio/audio_player_widget.dart';
 import '../../features/image/image_page.dart';
+import '../../features/personal/pages/playlist_player.dart';
 
 Future<void> showPageDocument(Publication publication, int mepsDocumentId, {int? startParagraphId, int? endParagraphId, String? textTag, List<String>? wordsSelected}) async {
   final GlobalKey<DocumentPageState> documentPageKey = GlobalKey<DocumentPageState>();
@@ -54,7 +55,7 @@ Future<void> showPage(Widget page) async {
 
   final isWebViewFullscreenPage = page is DocumentPage || page is DailyTextPage;
 
-  final isTransparentFullscreenPage = page is VideoPlayerPage ||
+  final isTransparentFullscreenPage = page is VideoPlayerPage || page is PlaylistPlayerPage ||
       page is FullScreenImagePage ||
       page is ImagePage ||
       page is FullAudioView;
@@ -68,7 +69,7 @@ Future<void> showPage(Widget page) async {
 
   final isControlsVisible = GlobalKeyService.jwLifePageKey.currentState!.controlsVisible.value;
 
-  if(page is VideoPlayerPage) {
+  if(page is VideoPlayerPage || page is PlaylistPlayerPage) {
     GlobalKeyService.jwLifePageKey.currentState!.toggleNavBarVisibility(false);
   }
   else {
@@ -79,21 +80,21 @@ Future<void> showPage(Widget page) async {
       PageRouteBuilder(
         pageBuilder: (context, animation, secondaryAnimation) => page,
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          // On wrap le WebView dans un RepaintBoundary pour isoler la redessination
+          // 1. Le glissement de la nouvelle page (comme vous l'aviez)
           return SlideTransition(
             position: animation.drive(
               Tween<Offset>(
-                begin: const Offset(1.0, 0.0),
-                end: Offset.zero,
-              ).chain(CurveTween(curve: Curves.easeInOutCubic)),
+                begin: const Offset(1.0, 0.0), // Vient de la droite
+                end: Offset.zero,              // Arrive à l'écran
+              ).chain(CurveTween(curve: Curves.easeOutQuart)), // Courbe plus douce pour ressembler à iOS
             ),
             child: RepaintBoundary(
-              child: child, // ici 'child' est ton WebView
+              child: child,
             ),
           );
         },
-        transitionDuration: const Duration(milliseconds: 300),
-        reverseTransitionDuration: const Duration(milliseconds: 300),
+        transitionDuration: const Duration(milliseconds: 400), // Une durée un peu plus longue
+        reverseTransitionDuration: const Duration(milliseconds: 375),
       )
   );
 

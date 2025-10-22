@@ -268,8 +268,16 @@ class JwLifePageState extends State<JwLifePage> {
     }
   }
 
-  void changeNavBarIndex(int index) {
+  void changeNavBarIndex(int index, {bool goToFirstPage = false}) {
     if (index == currentNavigationBottomBarIndex) {
+      returnToFirstPage(index);
+    }
+    else if(goToFirstPage) {
+      GlobalKeyService.setCurrentPage(navigatorKeys[index]);
+      setState(() {
+        currentNavigationBottomBarIndex = index;
+      });
+
       returnToFirstPage(index);
     }
     else {
@@ -277,17 +285,6 @@ class JwLifePageState extends State<JwLifePage> {
       setState(() {
         currentNavigationBottomBarIndex = index;
       });
-
-      for (var key in GlobalKeyService.jwLifePageKey.currentState!.webViewPageKeys[index]) {
-        final state = key.currentState;
-
-        if (state is DocumentPageState) {
-          state.updateBottomBar();
-        }
-        else if (state is DailyTextPageState) {
-          state.updateBottomBar();
-        }
-      }
     }
   }
 
@@ -411,7 +408,7 @@ class JwLifePageState extends State<JwLifePage> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  if (audioWidgetVisible) getAudioWidget(),
+                  if (audioWidgetVisible && !isTransparent) getAudioWidget(),
                   _buildBottomNavigationBar(isTransparent: isTransparent),
                 ],
               ),

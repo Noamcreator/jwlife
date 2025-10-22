@@ -117,25 +117,159 @@ class _VideoItemsPageState extends State<VideoItemsPage> {
         ),
       );
     } else {
+      // Le ListView.builder est conservé comme bodyContent
       bodyContent = ListView.builder(
-        key: ValueKey(_filteredVideos.length),
-        itemCount: _filteredVideos.length,
+        // L'itemCount est augmenté de 1 pour inclure le bouton
+        itemCount: _filteredVideos.length + 1,
         itemBuilder: (context, index) {
-          final subCategory = _filteredVideos[index];
+          // Si l'index est 0, on affiche le bouton "Lecture aléatoire"
+          if (index == 0) {
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              child: OutlinedButton.icon(
+                onPressed: () {
+                  // Votre liste initiale de catégories
+                  List<Category> cats = List.from(_subcategories);
+
+                  // Initialiser la liste finale qui contiendra tous les médias
+                  List<String> allMedias = [];
+
+                  // 2. Boucler sur les catégories (maintenant mélangées)
+                  for (Category category in cats) {
+                    // Créer une copie modifiable des médias de la catégorie
+                    List<String> medias = List.from(category.media);
+                    // 4. Ajouter les médias mélangés de cette catégorie à la liste finale
+                    allMedias.addAll(medias);
+                  }
+
+                  List<Media> shuffledMedias = [];
+
+                  // me donner une liste de medias en strinf
+                  for(String mediaKey in allMedias) {
+                    final mediaItem = RealmLibrary.realm.all<MediaItem>().query("naturalKey == '$mediaKey'").first;
+
+                    Media media = mediaItem.type == 'AUDIO' ? Audio.fromJson(mediaItem: mediaItem) : Video.fromJson(mediaItem: mediaItem);
+                    shuffledMedias.add(media);
+                  }
+
+                  shuffledMedias.shuffle();
+
+                  shuffledMedias.first.showPlayer(context, medias: shuffledMedias);
+                },
+                icon: Icon(JwIcons.arrows_twisted_right, size: 20),
+                label: Text('Lecture aléatoire', style: TextStyle(fontSize: 16)),
+              ),
+            );
+          }
+
+          // Pour les index suivants, on affiche les catégories de vidéos (index - 1)
+          final subCategory = _filteredVideos[index - 1];
           final mediaList = _filteredMediaMap[subCategory.key!] ?? subCategory.media;
 
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Text(
-                  subCategory.localizedName!,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 22,
-                  ),
-                ),
+                  padding: const EdgeInsets.all(8.0),
+                  child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          subCategory.localizedName!,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 21,
+                          ),
+                        ),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Row(
+                              children: <Widget>[
+                                // Premier IconButton : Lecture séquentielle
+                                IconButton(
+                                  padding: const EdgeInsets.all(0),
+                                  visualDensity: VisualDensity.compact,
+                                  icon: Icon(
+                                    JwIcons.play,
+                                    color: Theme.of(context).primaryColor,
+                                    size: 25,
+                                  ),
+                                  // LOGIQUE DU BOUTON "Play" (Lecture séquentielle)
+                                  onPressed: () {
+                                    // 1. Convertir la liste de mediaKey en objets Media
+                                    List<Media> sequentialMedias = [];
+
+                                    // mediaList contient les keys des médias dans l'ordre séquentiel
+                                    for (String mediaKey in mediaList) {
+                                      final mediaItem = RealmLibrary.realm
+                                          .all<MediaItem>()
+                                          .query("naturalKey == '$mediaKey'")
+                                          .first;
+
+                                      Media media = mediaItem.type == 'AUDIO'
+                                          ? Audio.fromJson(mediaItem: mediaItem)
+                                          : Video.fromJson(mediaItem: mediaItem);
+
+                                      sequentialMedias.add(media);
+                                    }
+
+                                    // 2. Lancer la lecture avec la première vidéo de la liste
+                                    // et fournir toute la liste pour la lecture continue.
+                                    if (sequentialMedias.isNotEmpty) {
+                                      sequentialMedias.first
+                                          .showPlayer(context, medias: sequentialMedias);
+                                    }
+                                  },
+                                ),
+
+                                // Deuxième IconButton : Lecture aléatoire
+                                IconButton(
+                                  // Réduire le padding au minimum.
+                                  padding: const EdgeInsets.all(0),
+                                  // Réduire la densité visuelle.
+                                  visualDensity: VisualDensity.compact,
+                                  icon: Icon(
+                                    JwIcons.arrows_twisted_right,
+                                    color: Theme.of(context).primaryColor,
+                                    size: 25,
+                                  ),
+                                  // LOGIQUE DU BOUTON "Random Play" (Lecture aléatoire)
+                                  onPressed: () {
+                                    // 1. Créer une copie modifiable et la mélanger
+                                    List<String> shuffledMediaKeys = List.from(mediaList);
+                                    shuffledMediaKeys.shuffle();
+
+                                    // 2. Convertir la liste de mediaKey mélangée en objets Media
+                                    List<Media> shuffledMedias = [];
+
+                                    for (String mediaKey in shuffledMediaKeys) {
+                                      final mediaItem = RealmLibrary.realm
+                                          .all<MediaItem>()
+                                          .query("naturalKey == '$mediaKey'")
+                                          .first;
+
+                                      Media media = mediaItem.type == 'AUDIO'
+                                          ? Audio.fromJson(mediaItem: mediaItem)
+                                          : Video.fromJson(mediaItem: mediaItem);
+
+                                      shuffledMedias.add(media);
+                                    }
+
+                                    // 3. Lancer la lecture avec la première vidéo de la liste mélangée
+                                    // et fournir toute la liste pour la lecture continue aléatoire.
+                                    if (shuffledMedias.isNotEmpty) {
+                                      shuffledMedias.first
+                                          .showPlayer(context, medias: shuffledMedias);
+                                    }
+                                  },
+                                ),
+                              ],
+                            )
+                          ],
+                        ),
+                      ]
+                  )
               ),
               Container(
                 height: 140,
@@ -143,8 +277,8 @@ class _VideoItemsPageState extends State<VideoItemsPage> {
                 child: ListView.builder(
                   scrollDirection: Axis.horizontal,
                   itemCount: mediaList.length,
-                  itemBuilder: (context, index) {
-                    final mediaKey = mediaList[index];
+                  itemBuilder: (context, idx) {
+                    final mediaKey = mediaList[idx];
                     final mediaItem = RealmLibrary.realm.all<MediaItem>().query("naturalKey == '$mediaKey'").first;
 
                     Media media = mediaItem.type == 'AUDIO' ? Audio.fromJson(mediaItem: mediaItem) : Video.fromJson(mediaItem: mediaItem);

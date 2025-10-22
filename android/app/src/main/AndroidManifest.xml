@@ -103,14 +103,14 @@
                     android:host="*" />
             </intent-filter>
 
-            <!-- Fichiers .jwplaylist depuis le système de fichiers -->
+            <!-- Fichiers .jwlplaylist depuis le système de fichiers -->
             <intent-filter android:label="JW Life">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="file"
                     android:mimeType="*/*"
-                    android:pathPattern=".*\\.jwplaylist"
+                    android:pathPattern=".*\\.jwlplaylist"
                     android:host="*" />
             </intent-filter>
 
@@ -169,7 +169,7 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="http"
-                    android:pathPattern=".*\\.jwplaylist" />
+                    android:pathPattern=".*\\.jwlplaylist" />
             </intent-filter>
 
             <intent-filter android:label="JW Life">
@@ -193,7 +193,7 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="https"
-                    android:pathPattern=".*\\.jwplaylist" />
+                    android:pathPattern=".*\\.jwlplaylist" />
             </intent-filter>
 
             <intent-filter android:label="JW Life">

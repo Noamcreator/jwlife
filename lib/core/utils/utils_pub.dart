@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:html/parser.dart' as htmlParser;
+import 'package:path/path.dart' as path;
 import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/utils.dart';
@@ -182,11 +183,11 @@ void showJwPubNotGoodFile(String keySymbol) {
   );
 }
 
-void showJwpubError(BuildContext context) {
+void showImportFileError(BuildContext context, String extension) {
   showJwDialog(
     context: context,
     titleText: 'Erreur de fichier',
-    contentText: 'Le fichier .jwpub sélectionné est corrompu ou invalide. Veuillez vérifier le fichier et réessayer.',
+    contentText: 'Le fichier $extension sélectionné est corrompu ou invalide. Veuillez vérifier le fichier et réessayer.',
     buttonAxisAlignment: MainAxisAlignment.end,
     buttons: [
       JwDialogButton(
@@ -195,4 +196,31 @@ void showJwpubError(BuildContext context) {
       ),
     ],
   );
+}
+
+bool showInvalidExtensionDialog(BuildContext context, {required String filePath, required String expectedExtension}) {
+  // Récupérer proprement l’extension du fichier sélectionné
+  String ext = path.extension(filePath).toLowerCase();
+
+  if(ext == expectedExtension) return true;
+
+  // Si aucune extension trouvée
+  if (ext.isEmpty) ext = '(aucune extension)';
+
+  showJwDialog(
+    context: context,
+    titleText: 'Format de fichier invalide',
+    contentText:
+    'Le fichier sélectionné ($ext) n’est pas au bon format.\n\n'
+        'Format attendu : $expectedExtension',
+    buttonAxisAlignment: MainAxisAlignment.end,
+    buttons: [
+      JwDialogButton(
+        label: 'OK',
+        closeDialog: true,
+      ),
+    ],
+  );
+
+  return false;
 }

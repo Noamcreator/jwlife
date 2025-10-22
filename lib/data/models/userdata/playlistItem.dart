@@ -12,9 +12,10 @@ class PlaylistItem {
   int? endTrimOffsetTicks;
   int? accuracy = 1;
   int? endAction = 0;
-  String? thumbnailFilePath;
+  IndependentMedia? thumbnail;
   int? position;
-  int? durationTicks = 40000000;
+  int? durationTicks;
+  int? majorMultimediaType;
   int? baseDurationTicks;
   Location? location;
   IndependentMedia? independentMedia;
@@ -26,9 +27,10 @@ class PlaylistItem {
     this.endTrimOffsetTicks,
     this.accuracy = 1,
     this.endAction = 0,
-    this.thumbnailFilePath,
+    this.thumbnail,
     this.position,
-    this.durationTicks = 40000000,
+    this.durationTicks,
+    this.majorMultimediaType,
     this.baseDurationTicks,
     this.location,
     this.independentMedia
@@ -43,9 +45,10 @@ class PlaylistItem {
       endTrimOffsetTicks: map['EndTrimOffsetTicks'],
       accuracy: map['Accuracy'] ?? 1,
       endAction: map['EndAction'] ?? 0,
-      thumbnailFilePath: map['ThumbnailFilePath'],
+      thumbnail: IndependentMedia(originalFileName: map['ThumbnailOriginalFileName'], filePath: map['ThumbnailFilePath'], mimeType: map['ThumbnailMimeType'], hash: map['ThumbnailHash']),
       position: map['Position'],
-      durationTicks: map['DurationTicks'] ?? 40000000,
+      durationTicks: map['DurationTicks'],
+      majorMultimediaType: map['MajorMultimediaType'],
       baseDurationTicks: map['BaseDurationTicks'],
       location: Location.fromMap(map),
       independentMedia: IndependentMedia.fromMap(map),
@@ -53,12 +56,12 @@ class PlaylistItem {
   }
 
   Future<File?> getThumbnailFile() async {
-    if (thumbnailFilePath == null || thumbnailFilePath!.isEmpty) {
+    if(thumbnail == null) {
       return null;
     }
 
     final userDataDir = await getAppUserDataDirectory();
-    final fullPath = '${userDataDir.path}/$thumbnailFilePath';
+    final fullPath = '${userDataDir.path}/${thumbnail!.filePath}';
     final file = File(fullPath);
 
     if (await file.exists()) {

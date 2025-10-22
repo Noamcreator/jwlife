@@ -93,10 +93,10 @@ class _FullScreenImagePageState extends State<FullScreenImagePage> {
     GlobalKeyService.jwLifePageKey.currentState!.toggleNavBarVisibility(_controlsVisible.value);
   }
 
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       backgroundColor: const Color(0xFF101010),
       body: Stack(
         children: [

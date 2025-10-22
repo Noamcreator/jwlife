@@ -11,6 +11,7 @@ import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/repositories/MediaRepository.dart';
 import 'package:jwlife/i18n/localization.dart';
 import 'package:jwlife/widgets/image_cached_widget.dart';
+import 'package:path/path.dart' as path;
 
 import '../../../../app/services/global_key_service.dart';
 import '../../../../core/utils/utils.dart';
@@ -107,8 +108,8 @@ class _DownloadPageState extends State<DownloadPage> {
         // Bouton d'import
         OutlinedButton.icon(
           onPressed: _importJwpub,
-          icon: const Icon(JwIcons.publications_pile),
-          label: Text(localization(context).import_jwpub.toUpperCase()),
+          icon: const Icon(JwIcons.document),
+          label: Text(localization(context).import_jwpub),
           style: OutlinedButton.styleFrom(shape: const RoundedRectangleBorder()),
         ),
         const SizedBox(height: 10),
@@ -381,11 +382,12 @@ class _DownloadPageState extends State<DownloadPage> {
 
   void _importJwpub() {
     FilePicker.platform.pickFiles(allowMultiple: true).then((result) async {
-      if (result != null) {
+      if (result != null && result.files.isNotEmpty) {
         for (PlatformFile f in result.files) {
-          File file = File(f.path!);
-          if (file.path.endsWith('.jwpub')) {
-            String fileName = file.path.split('/').last;
+          String filePath = f.path!;
+          File file = File(filePath);
+          if (showInvalidExtensionDialog(context, filePath: filePath, expectedExtension: '.jwpub')) {
+            String fileName = path.basename(file.path);
             BuildContext? dialogContext = await showJwImport(context, fileName);
 
             Publication? jwpub = await jwpubUnzip(file.readAsBytesSync());
@@ -397,7 +399,7 @@ class _DownloadPageState extends State<DownloadPage> {
 
             // Gère le résultat de l'importation.
             if (jwpub == null) {
-              showJwpubError(context);
+              showImportFileError(context, '.jwpub');
             }
             else {
               if (jwpub.keySymbol == 'S-34') {

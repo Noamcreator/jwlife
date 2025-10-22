@@ -73,8 +73,18 @@ class AppTheme {
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: ButtonStyle(
-          foregroundColor: WidgetStateProperty.all(primaryColor),
-          overlayColor: WidgetStateProperty.all(primaryColor.withAlpha(40)),
+          foregroundColor: WidgetStateProperty.all(primaryColor), // Couleur du texte
+          side: WidgetStateProperty.all(
+            BorderSide(
+              color: primaryColor,
+              width: 1.0,
+            ),
+          ),
+          shape: WidgetStateProperty.all(
+            RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(0.0),
+            ),
+          ),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
@@ -176,9 +186,18 @@ class AppTheme {
         ),
         outlinedButtonTheme: OutlinedButtonThemeData(
           style: ButtonStyle(
-            foregroundColor: WidgetStateProperty.all(Colors.white),
-            overlayColor: WidgetStateProperty.all(Colors.white),
-            iconColor: WidgetStateProperty.all(primaryColor),
+            foregroundColor: WidgetStateProperty.all(primaryColor), // Couleur du texte
+            side: WidgetStateProperty.all(
+              BorderSide(
+                color: primaryColor,
+                width: 1.0,
+              ),
+            ),
+            shape: WidgetStateProperty.all(
+              RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(0.0),
+              ),
+            ),
           ),
         ),
         textButtonTheme: TextButtonThemeData(

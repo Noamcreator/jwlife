@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 
 import '../core/icons.dart';
@@ -15,13 +14,15 @@ import 'image_cached_widget.dart';
 
 class MediaItemItemWidget extends StatefulWidget {
   final Media media;
+  final List<Media> medias;
   final bool timeAgoText;
   final double width;
 
   const MediaItemItemWidget({
     super.key,
     required this.media,
-    required this.timeAgoText,
+    this.medias = const [],
+    this.timeAgoText = false,
     this.width = 165,
   });
 

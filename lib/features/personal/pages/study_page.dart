@@ -10,6 +10,9 @@ import 'package:jwlife/data/models/userdata/note.dart';
 import 'package:jwlife/features/personal/pages/playlist_page.dart';
 import 'package:jwlife/features/personal/pages/playlists_page.dart';
 
+import 'package:path/path.dart' as path;
+import '../../../app/services/global_key_service.dart';
+import '../../../core/utils/utils_pub.dart';
 import '../../../core/utils/utils_tag_dialogs.dart';
 import '../../../data/models/userdata/playlist.dart';
 import '../widgets/empty_message.dart';
@@ -62,6 +65,11 @@ class StudyTabViewState extends State<StudyTabView> {
 
   Future<void> refreshTag() async {
     setState(() {});
+  }
+
+  Future<void> openPlaylist(Playlist playlist) async {
+    await showPage(PlaylistPage(playlist: playlist));
+    initPlaylist();
   }
 
   Widget buildSectionHeaderBibleReading() {
@@ -180,8 +188,6 @@ class StudyTabViewState extends State<StudyTabView> {
     );
   }
 
-  //allowedExtensions: ['png', 'jpg', 'jpeg', 'mp4', 'm4v', '3gp', 'mov', 'mp3', 'aac', 'heic', 'webp'], // adapte si besoin
-
   Widget buildSectionHeaderPlaylist(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(left: 8, right: 8, top: 0, bottom: 10),
@@ -228,21 +234,41 @@ class StudyTabViewState extends State<StudyTabView> {
                 onTap: () async {
                   await Future.delayed(Duration.zero); // idem
                   final result = await FilePicker.platform.pickFiles(
-                    type: FileType.any,
+                    type: FileType.any
                   );
                   if (result != null && result.files.isNotEmpty) {
-                    final path = result.files.single.path;
-                    if (path != null) {
+                    final filePath = result.files.single.path;
+                    if (filePath != null) {
+                      String fileName = path.basename(filePath);
                       try {
-                        await JwLifeApp.userdata.importPlaylistFromFile(File(path));
-                        initPlaylist();
-                        if (context.mounted) {
-                          showBottomMessage('Import réussi.');
+                        if (!showInvalidExtensionDialog(context, filePath: filePath, expectedExtension: '.jwlplaylist')) return;
+
+                        // Affiche le dialogue d'importation et attend son BuildContext.
+                        BuildContext? dialogContext = await showJwImport(context, fileName);
+
+                        Playlist? playlist = await JwLifeApp.userdata.importPlaylistFromFile(File(filePath));
+
+                        // Ferme le dialogue de chargement une fois l'importation terminée.
+                        if (dialogContext != null) {
+                          Navigator.of(dialogContext).pop();
+                        }
+
+                        // Gère le résultat de l'importation.
+                        if (playlist == null) {
+                          showImportFileError(context, '.jwplaylist');
+                        }
+                        else {
+                          // on refresh les playlist
+                          GlobalKeyService.personalKey.currentState?.openPlaylist(playlist);
+
+                          if (context.mounted) {
+                            showBottomMessage('Import de la liste de lecture réussi.');
+                          }
                         }
                       }
                       catch (e) {
                         if (context.mounted) {
-                          showBottomMessage('Échec de l’import : $e');
+                          showBottomMessage('Échec de l’import de la liste de lecture : $e');
                         }
                       }
                     }
@@ -608,7 +634,7 @@ class StudyTabViewState extends State<StudyTabView> {
                                         ],
                                       ),
                                       onTap: () {
-                                        //sharePlaylist(context, playlist);
+                                        showSharePlaylist(context, playlist);
                                       },
                                     ),
                                   ],

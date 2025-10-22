@@ -21,6 +21,11 @@ public final class GeneratedPluginRegistrant {
       Log.e(TAG, "Error registering plugin app_settings, com.spencerccf.app_settings.AppSettingsPlugin", e);
     }
     try {
+      flutterEngine.getPlugins().add(new com.kumpali.audio_info.AudioInfoPlugin());
+    } catch (Exception e) {
+      Log.e(TAG, "Error registering plugin audio_info, com.kumpali.audio_info.AudioInfoPlugin", e);
+    }
+    try {
       flutterEngine.getPlugins().add(new com.ryanheise.audioservice.AudioServicePlugin());
     } catch (Exception e) {
       Log.e(TAG, "Error registering plugin audio_service, com.ryanheise.audioservice.AudioServicePlugin", e);
@@ -64,6 +69,11 @@ public final class GeneratedPluginRegistrant {
       flutterEngine.getPlugins().add(new io.flutter.plugins.flutter_plugin_android_lifecycle.FlutterAndroidLifecyclePlugin());
     } catch (Exception e) {
       Log.e(TAG, "Error registering plugin flutter_plugin_android_lifecycle, io.flutter.plugins.flutter_plugin_android_lifecycle.FlutterAndroidLifecyclePlugin", e);
+    }
+    try {
+      flutterEngine.getPlugins().add(new com.example.flutter_video_info.FlutterVideoInfoPlugin());
+    } catch (Exception e) {
+      Log.e(TAG, "Error registering plugin flutter_video_info, com.example.flutter_video_info.FlutterVideoInfoPlugin", e);
     }
     try {
       flutterEngine.getPlugins().add(new studio.midoridesign.gal.GalPlugin());
