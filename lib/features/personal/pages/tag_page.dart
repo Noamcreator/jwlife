@@ -21,6 +21,7 @@ class TagPage extends StatefulWidget {
 class _TagPageState extends State<TagPage> {
   late Tag _tag;
   List<Note> _filteredNotes = [];
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
@@ -29,11 +30,14 @@ class _TagPageState extends State<TagPage> {
     notesByCategory();
   }
 
-  Future<void> notesByCategory() async {
-    // Fetch notes by category first
-    List<Note> notes = await JwLifeApp.userdata.getNotesByTag(_tag.id);
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
 
-    // Now update the state with the fetched notes
+  Future<void> notesByCategory() async {
+    List<Note> notes = await JwLifeApp.userdata.getNotesByTag(_tag.id);
     setState(() {
       _filteredNotes = notes;
     });
@@ -78,10 +82,7 @@ class _TagPageState extends State<TagPage> {
           IconButton(
             icon: Icon(JwIcons.pencil),
             onPressed: () async {
-              // Utiliser await à l'extérieur du setState
               Tag? updatedCategory = await showEditTagDialog(context, _tag);
-
-              // Si la catégorie a été mise à jour, on applique le setState
               if (updatedCategory != null) {
                 setState(() {
                   _tag = updatedCategory;
@@ -92,13 +93,8 @@ class _TagPageState extends State<TagPage> {
           IconButton(
             icon: Icon(JwIcons.tag_crossed),
             onPressed: () async {
-              // Affiche le dialogue de confirmation
               bool? tagDeleted = await showDeleteTagDialog(context, _tag);
-
-              // Rafraîchit l’état après fermeture du dialogue
               setState(() {});
-
-              // Si la suppression est confirmée, on revient à la page précédente
               if (tagDeleted == true) {
                 GlobalKeyService.jwLifePageKey.currentState?.handleBack(context, result: _tag);
               }
@@ -108,16 +104,26 @@ class _TagPageState extends State<TagPage> {
       ),
       body: Scrollbar(
         interactive: true,
-        child: ListView.builder(
+        controller: _scrollController,
+        child: ListView.separated(
+          controller: _scrollController,
+          // Physics qui empêche les sauts
+          physics: ClampingScrollPhysics(),
+          // Padding pour éviter les problèmes de bords
+          padding: EdgeInsets.zero,
           itemCount: _filteredNotes.length,
+          // Séparateur invisible pour stabiliser les hauteurs
+          separatorBuilder: (context, index) => SizedBox(height: 0),
           itemBuilder: (context, index) {
             final note = _filteredNotes[index];
 
             if (note.noteId == -1) {
-              return Container();
+              return SizedBox.shrink();
             }
 
-            return NoteItemWidget(
+            // Wrapping dans AutomaticKeepAliveClientMixin via un widget custom
+            return _KeepAliveNoteItem(
+              key: ValueKey('note_${note.noteId}'),
               note: note,
               tag: _tag,
               onUpdated: () => setState(() {}),
@@ -125,6 +131,42 @@ class _TagPageState extends State<TagPage> {
           },
         ),
       ),
+    );
+  }
+}
+
+// Widget custom qui maintient l'état vivant pour éviter les sauts
+class _KeepAliveNoteItem extends StatefulWidget {
+  final Note note;
+  final Tag tag;
+  final VoidCallback onUpdated;
+
+  const _KeepAliveNoteItem({
+    super.key,
+    required this.note,
+    required this.tag,
+    required this.onUpdated,
+  });
+
+  @override
+  State<_KeepAliveNoteItem> createState() => _KeepAliveNoteItemState();
+}
+
+class _KeepAliveNoteItemState extends State<_KeepAliveNoteItem>
+    with AutomaticKeepAliveClientMixin {
+
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context); // Important pour AutomaticKeepAliveClientMixin
+
+    return NoteItemWidget(
+      note: widget.note,
+      tag: widget.tag,
+      onUpdated: widget.onUpdated,
+      fullNote: true,
     );
   }
 }

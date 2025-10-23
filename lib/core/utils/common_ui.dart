@@ -73,7 +73,7 @@ Future<void> showPage(Widget page) async {
     GlobalKeyService.jwLifePageKey.currentState!.toggleNavBarVisibility(false);
   }
   else {
-    GlobalKeyService.jwLifePageKey.currentState!.toggleBottomNavBarVisibility(true);
+    GlobalKeyService.jwLifePageKey.currentState!.toggleBottomNavBarVisibility(isResizeToAvoidBottomInset ? false : true);
   }
 
   await GlobalKeyService.jwLifePageKey.currentState!.getCurrentState().push(

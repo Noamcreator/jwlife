@@ -373,7 +373,7 @@ class JwLifePageState extends State<JwLifePage> {
           handleBack(context);
         },
         child: Padding(
-          padding: EdgeInsets.only(bottom: !isDisabled ? audioWidgetVisible ? 150 : 70 : 0),
+          padding: EdgeInsets.only(bottom: resizeToAvoidBottomInset[currentNavigationBottomBarIndex] ? 0 : !isDisabled ? audioWidgetVisible ? 150 : 70 : 0),
           child: LazyIndexedStack(
             index: currentNavigationBottomBarIndex,
             initialIndexes: [0, 2],
