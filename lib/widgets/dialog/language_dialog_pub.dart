@@ -94,11 +94,14 @@ class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
         baseQuery = '''
           SELECT 
             Publication.*,
+            PublicationAsset.ExpandedSize,
             mepsLang.Symbol as LanguageSymbol,
             COALESCE(meps.LanguageName.Name, mepsLangFallback.Name) AS LanguageName,
             mepsLang.VernacularName
           FROM 
             Publication
+          INNER JOIN
+            PublicationAsset ON Publication.Id = PublicationAsset.PublicationId  
           JOIN 
             meps.Language AS mepsLang ON Publication.MepsLanguageId = mepsLang.LanguageId
           LEFT JOIN 
@@ -120,11 +123,14 @@ class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
         baseQuery = '''
           SELECT 
             Publication.*,
+            PublicationAsset.ExpandedSize,
             mepsLang.Symbol as LanguageSymbol,
             COALESCE(meps.LanguageName.Name, mepsLangFallback.Name) AS LanguageName,
             mepsLang.VernacularName
           FROM 
             Publication
+          INNER JOIN
+            PublicationAsset ON Publication.Id = PublicationAsset.PublicationId  
           JOIN 
             meps.Language AS mepsLang ON Publication.MepsLanguageId = mepsLang.LanguageId
           LEFT JOIN 
@@ -148,12 +154,15 @@ class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
       baseQuery = '''
         SELECT 
           Publication.*,
+          PublicationAsset.ExpandedSize,
           mepsLang.Symbol as LanguageSymbol,
           COALESCE(meps.LanguageName.Name, mepsLangFallback.Name) AS LanguageName,
           mepsLang.VernacularName
         FROM 
           Publication
-        JOIN 
+        INNER JOIN
+          PublicationAsset ON Publication.Id = PublicationAsset.PublicationId  
+        JOIN
           meps.Language AS mepsLang ON Publication.MepsLanguageId = mepsLang.LanguageId
         LEFT JOIN 
           meps.LocalizedLanguageName AS lln_src ON mepsLang.LanguageId = lln_src.TargetLanguageId AND lln_src.SourceLanguageId = ?
@@ -511,72 +520,75 @@ class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
               ),
 
               // PopupMenuButton (positionné à droite)
-              Positioned(
-                right: 0,
-                top: 0,
-                child: PopupMenuButton(
-                  icon: const Icon(
-                    Icons.more_vert,
-                    color: Color(0xFF9d9d9d),
+              if(publication?.isDownloadedNotifier.value == true)
+                Positioned(
+                  right: 0,
+                  top: 0,
+                  bottom: 0,
+                  child: PopupMenuButton(
+                    icon: const Icon(
+                      Icons.more_vert,
+                      color: Color(0xFF9d9d9d),
+                    ),
+                    itemBuilder: (context) {
+                      return [
+                        PopupMenuItem(
+                          onTap: () async {
+                            Publication? publication = await PubCatalog.searchPub(keySymbol, issueTagNumber, languageSymbol);
+
+                            if(publication == null) return;
+                            publication.shareLink();
+                          },
+                          child: Row(
+                            children: [
+                              Icon(JwIcons.share),
+                              SizedBox(width: 8),
+                              Text('Envoyer le lien'),
+                            ],
+                          ),
+                        ),
+                        PopupMenuItem(
+                          onTap: () async {
+                            publication ??= await PubCatalog.searchPub(keySymbol, issueTagNumber, languageSymbol);
+
+                            if(publication != null) {
+                              if(publication!.isDownloadedNotifier.value) {
+                                await publication!.remove(context);
+                              }
+                              else {
+                                setState(() {
+                                  _publication = publication;
+                                });
+
+                                await publication!.download(context);
+                              }
+
+                              if (mounted) {
+                                setState(() {
+                                  _publication = null;
+                                });
+                              }
+                            }
+                          },
+                          child: Row(
+                            children: [
+                              publication != null && publication?.isDownloadedNotifier.value == true ? Icon(JwIcons.trash) : Icon(JwIcons.cloud_arrow_down),
+                              SizedBox(width: 8),
+                              publication != null && publication?.isDownloadedNotifier.value == true ? Text('Supprimer') : Text('Télécharger'),
+                            ],
+                          ),
+                        ),
+                      ];
+                    },
                   ),
-                  itemBuilder: (context) {
-                    return [
-                      PopupMenuItem(
-                        onTap: () async {
-                          Publication? publication = await PubCatalog.searchPub(keySymbol, issueTagNumber, languageSymbol);
-
-                          if(publication == null) return;
-                          publication.shareLink();
-                        },
-                        child: Row(
-                          children: [
-                            Icon(JwIcons.share),
-                            SizedBox(width: 8),
-                            Text('Envoyer le lien'),
-                          ],
-                        ),
-                      ),
-                      PopupMenuItem(
-                        onTap: () async {
-                          publication ??= await PubCatalog.searchPub(keySymbol, issueTagNumber, languageSymbol);
-
-                          if(publication != null) {
-                            if(publication!.isDownloadedNotifier.value) {
-                              await publication!.remove(context);
-                            }
-                            else {
-                              setState(() {
-                                _publication = publication;
-                              });
-
-                              await publication!.download(context);
-                            }
-
-                            if (mounted) {
-                              setState(() {
-                                _publication = null;
-                              });
-                            }
-                          }
-                        },
-                        child: Row(
-                          children: [
-                            publication != null && publication?.isDownloadedNotifier.value == true ? Icon(JwIcons.trash) : Icon(JwIcons.cloud_arrow_down),
-                            SizedBox(width: 8),
-                            publication != null && publication?.isDownloadedNotifier.value == true ? Text('Supprimer') : Text('Télécharger'),
-                          ],
-                        ),
-                      ),
-                    ];
-                  },
                 ),
-              ),
 
               // PopupMenuButton (positionné à droite)
               if(publication == null || publication?.isDownloadedNotifier.value == false)
                 Positioned(
-                  right: 30,
-                  top: 0,
+                  right: 0,
+                  top: widget.publication == null ? 0 : -5,
+                  bottom: isDownloading ? 0 : null,
                   child: IconButton(
                     icon: Icon(
                       isDownloading ? JwIcons.x : JwIcons.cloud_arrow_down,
@@ -602,6 +614,20 @@ class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
                         await _handlePublicationSelection(context, publication);
                       }
                     }
+                  ),
+                ),
+
+              // PopupMenuButton (positionné à droite)
+              if((publication == null || publication?.isDownloadedNotifier.value == false) && languageData['ExpandedSize'] != null && !isDownloading)
+                Positioned(
+                  right: 5,
+                  bottom: 0,
+                  child: Text(
+                      formatFileSize(languageData['ExpandedSize'] ?? 0),
+                    style: TextStyle(
+                      color: Color(0xFF9d9d9d),
+                      fontSize: widget.publication == null ? 14 : 12
+                    ),
                   ),
                 ),
 

@@ -15,7 +15,6 @@ import '../../data/databases/tiles_cache.dart';
 import '../../data/models/publication.dart';
 import '../../data/models/publication_category.dart';
 import '../../data/repositories/PublicationRepository.dart';
-import '../../features/publication/pages/document/data/models/document.dart';
 import '../utils/files_helper.dart';
 
 /*

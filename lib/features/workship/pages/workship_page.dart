@@ -876,7 +876,7 @@ class WorkShipPageState extends State<WorkShipPage> with TickerProviderStateMixi
     List<Widget> children = [];
 
     for (int i = 0; i < publications.length; i++) {
-      children.add(RectanglePublicationItem(publication: publications[i], backgroundColor: Theme.of(context).cardColor, imageSize: 70));
+      children.add(RectanglePublicationItem(publication: publications[i], backgroundColor: Theme.of(context).cardColor, height: 70));
 
       if (i < publications.length - 1) {
         children.add(const SizedBox(height: 8));

@@ -5,15 +5,16 @@ import 'package:jwlife/widgets/searchfield/searchfield_with_suggestions/input_de
 import 'package:jwlife/widgets/searchfield/searchfield_with_suggestions/searchfield.dart';
 import 'package:jwlife/widgets/searchfield/searchfield_with_suggestions/searchfield_list_item.dart';
 
+import '../../features/home/pages/search/suggestion.dart';
 import '../../i18n/localization.dart';
 
 class SearchFieldWidget extends StatefulWidget {
   final String query;
-  final List<SearchFieldListItem<Map<String, dynamic>>>? Function(String) onSearchTextChanged;
-  final Function(SearchFieldListItem<Map<String, dynamic>>) onSuggestionTap;
+  final void Function(String) onSearchTextChanged;
+  final Function(SearchFieldListItem<SuggestionItem>) onSuggestionTap;
   final Function(String) onSubmit;
-  final Function(PointerEvent) onTapOutside;
-  final List<Map<String, dynamic>> suggestions;
+  final Function(PointerDownEvent) onTapOutside;
+  final ValueNotifier<List<SuggestionItem>> suggestionsNotifier;
 
   const SearchFieldWidget({
     super.key,
@@ -22,7 +23,7 @@ class SearchFieldWidget extends StatefulWidget {
     required this.onSuggestionTap,
     required this.onSubmit,
     required this.onTapOutside,
-    required this.suggestions,
+    required this.suggestionsNotifier,
   });
 
   @override
@@ -35,41 +36,21 @@ class _SearchFieldWidgetState extends State<SearchFieldWidget> {
   @override
   void initState() {
     super.initState();
-    _controller = TextEditingController(text: widget.query); // Initialiser le contrôleur avec la valeur de `query`
+    _controller = TextEditingController(text: widget.query);
     if(widget.query.isNotEmpty) {
       widget.onSearchTextChanged(widget.query);
     }
   }
 
   @override
-  Widget build(BuildContext context) {
-    return SearchField<Map<String, dynamic>>(
-      controller: _controller, // Le contrôleur mis à jour
-      animationDuration: Duration.zero,
-      itemHeight: 50,
-      autofocus: true,
-      offset: const Offset(0, 50),
-      maxSuggestionsInViewPort: 9,
-      searchInputDecoration: buildSearchInputDecoration(context),
-      suggestionsDecoration: buildSuggestionsDecoration(context),
-      onSearchTextChanged: (text) {
-        widget.onSearchTextChanged(text);
-        return [];
-      },
-      onSuggestionTap: (item) {
-        // Appel du callback sur la suggestion sélectionnée
-        widget.onSuggestionTap(item);
-      },
-      onSubmit: widget.onSubmit,
-      suggestions: widget.suggestions.map((item) => SearchFieldListItem<Map<String, dynamic>>(
-          item['query'],
-          item: item,
-          child: _buildSuggestionItem(context, item),
-        ),
-      ).toList(),
-    );
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
   }
 
+  // -------------------------------------------------------------------
+  // Fonctions de décoration (inchangées)
+  // -------------------------------------------------------------------
   static SearchInputDecoration buildSearchInputDecoration(BuildContext context) {
     return SearchInputDecoration(
       hintText: localization(context).search_hint,
@@ -78,7 +59,7 @@ class _SearchFieldWidgetState extends State<SearchFieldWidget> {
       filled: true,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       cursorColor: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black,
-      border: OutlineInputBorder(
+      border: const OutlineInputBorder(
         borderRadius: BorderRadius.zero,
         borderSide: BorderSide.none,
       ),
@@ -91,24 +72,101 @@ class _SearchFieldWidgetState extends State<SearchFieldWidget> {
     );
   }
 
+  // -------------------------------------------------------------------
+  // Construction d'un élément de suggestion (CORRIGÉ : gestion de l'icône)
+  // -------------------------------------------------------------------
+  Widget _buildSuggestionItem(BuildContext context, SuggestionItem suggestionItem) {
+    // Utilisation directe des propriétés de SuggestionItem (caption et subtitle)
+    final bool hasSubtitle = suggestionItem.subtitle?.isNotEmpty == true;
 
-  Widget _buildSuggestionItem(BuildContext context, Map<String, dynamic> item) {
+    final IconData icon = suggestionItem.icon ?? JwIcons.magnifying_glass; // Icône de recherche par défaut
+
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        mainAxisAlignment: MainAxisAlignment.start,
         children: [
-          Icon(JwIcons.magnifying_glass, color: Theme.of(context).brightness == Brightness.dark ? Colors.white : const Color(0xFF4c4c4c)),
+          // Utilise l'icône par défaut (ou mappée)
+          Icon(
+              icon,
+              color: Theme.of(context).brightness == Brightness.dark ? Colors.white : const Color(0xFF4c4c4c)
+          ),
           const SizedBox(width: 10),
           Expanded(
-            child: Text(
-              item['word'] ?? '',
-              style: TextStyle(fontSize: 16, color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFFb8b8b8) : const Color(0xFF757575)),
-              overflow: TextOverflow.ellipsis,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // Titre (caption)
+                Text(
+                  suggestionItem.title,
+                  style: TextStyle(
+                      fontSize: hasSubtitle ? 15 : 16,
+                      color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                // Sous-titre (subtitle)
+                if (hasSubtitle)
+                  Text(
+                    suggestionItem.subtitle!,
+                    style: TextStyle(
+                        fontSize: 12,
+                        color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFFc0c0c0) : const Color(0xFF757575)
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+              ],
             ),
           ),
         ],
       ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Utiliser ValueListenableBuilder pour réagir aux changements de suggestionsNotifier
+    return ValueListenableBuilder<List<SuggestionItem>>(
+      valueListenable: widget.suggestionsNotifier,
+      builder: (context, suggestions, child) {
+        // 1. Transformer la liste de SuggestionItem en List<SearchFieldListItem<SuggestionItem>>
+        final List<SearchFieldListItem<SuggestionItem>> searchFieldListItems = suggestions.map((suggestionItem) {
+          // Utilise la propriété 'caption' comme valeur d'affichage
+          final String displayValue = suggestionItem.title;
+          return SearchFieldListItem<SuggestionItem>(
+            displayValue,
+            item: suggestionItem, // L'objet complet SuggestionItem
+            child: _buildSuggestionItem(context, suggestionItem),
+          );
+        }).toList();
+
+        // 2. Retourner le SearchField reconstruit avec la nouvelle liste
+        return SearchField<SuggestionItem>(
+          controller: _controller,
+          animationDuration: Duration.zero,
+          itemHeight: 50,
+          autofocus: true,
+          offset: const Offset(0, 50),
+          maxSuggestionsInViewPort: 9,
+          searchInputDecoration: buildSearchInputDecoration(context),
+          suggestionsDecoration: buildSuggestionsDecoration(context),
+
+          onSearchTextChanged: (text) {
+            widget.onSearchTextChanged(text);
+            return []; // L'update UI se fait via le ValueListenableBuilder
+          },
+
+          onSuggestionTap: (item) {
+            // Passer le SearchFieldListItem<SuggestionItem> au callback
+            widget.onSuggestionTap(item);
+          },
+          onSubmit: widget.onSubmit,
+
+          // Utilise la liste mise à jour
+          suggestions: searchFieldListItems,
+        );
+      },
     );
   }
 }

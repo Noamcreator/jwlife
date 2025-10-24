@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/material.dart';
 import 'package:jwlife/app/services/global_key_service.dart';
 import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/data/models/publication.dart';
@@ -353,8 +354,6 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
           let isChangingParagraph = false;
           
           const bookmarkAssets = Array.from({ length: 10 }, (_, i) => `bookmarks/$theme/bookmark\${i + 1}.png`);
-          const highlightAssets = Array.from({ length: 6 }, (_, i) => `highlights/$theme/highlight\${i + 1}.png`);
-          const highlightSelectedAssets = Array.from({ length: 6 }, (_, i) => `highlights/$theme/highlight\${i + 1}_selected.png`);
           
           const handleLeft = `images/handle_left.png`;
           const handleRight = `images/handle_right.png`;
@@ -364,7 +363,7 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
           
           // Valeurs fixes de hauteur des barres
           const APPBAR_FIXED_HEIGHT = 56;
-          const BOTTOMNAVBAR_FIXED_HEIGHT = 55;
+          const BOTTOMNAVBAR_FIXED_HEIGHT = $kBottomNavigationBarHeight;
           const AUDIO_PLAYER_HEIGHT = 80;
           
           const MAGNIFIER_SIZE = 130;

@@ -34,7 +34,7 @@ import '../data/databases/tiles_cache.dart';
 import '../data/models/audio.dart';
 import '../data/models/video.dart';
 import '../features/audio/audio_player_model.dart';
-import '../features/bible/pages/local_bible_chapter.dart';
+import '../features/bible/pages/bible_chapter_page.dart';
 import '../features/home/pages/daily_text_page.dart';
 import '../features/publication/pages/document/local/document_page.dart';
 import 'jwlife_page.dart';
@@ -227,7 +227,7 @@ class JwLifeAppState extends State<JwLifeApp> {
         GlobalKeyService.jwLifePageKey.currentState!.changeNavBarIndex(1, goToFirstPage: true);
 
         showPage(
-            LocalChapterBiblePage(
+            BibleChapterPage(
             bible: biblePub,
             book: uri.book!
         ));

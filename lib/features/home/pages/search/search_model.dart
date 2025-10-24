@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/core/api/api.dart';
 import 'package:jwlife/core/api/wikipedia_api.dart';
+import 'package:jwlife/data/models/userdata/inputField.dart';
 import 'package:jwlife/data/models/userdata/note.dart';
 import 'package:jwlife/data/repositories/PublicationRepository.dart';
 import 'package:sqflite/sqflite.dart';
@@ -30,7 +31,7 @@ class SearchModel {
   List<Map<String, dynamic>> images = [];
 
   List<Note> notes = [];
-  List<Map<String, dynamic>> inputFields = [];
+  List<InputField> inputFields = [];
 
   void clear() {
     wikipediaArticles = [];
@@ -267,9 +268,7 @@ class SearchModel {
 
   Future<List<Map<String, dynamic>>> _fetchImagesFromPublication(Publication pub, String query) async {
     DocumentsManager? documentsManager = pub.documentsManager;
-    Database db = documentsManager != null
-        ? documentsManager.database
-        : await openDatabase(pub.databasePath!);
+    Database db = documentsManager != null ? documentsManager.database : await openDatabase(pub.databasePath!);
 
     Future<bool> tableExists(Database db, String name) async {
       final result = await db.rawQuery(
@@ -291,7 +290,7 @@ class SearchModel {
                d.Content,
                d.MepsDocumentId,
                p.Title AS PublicationTitle,
-               p.KeySymbol,
+               p.UndatedSymbol AS KeySymbol,
                p.Year,
                p.MepsLanguageIndex,
                p.IssueTagNumber,
@@ -301,13 +300,13 @@ class SearchModel {
         JOIN Document d ON dm.DocumentId = d.DocumentId
         LEFT JOIN Publication p ON d.PublicationId = p.PublicationId
         JOIN Multimedia m ON dm.MultimediaId = m.MultimediaId
-        WHERE (m.Label LIKE '%' || ? || '%' OR m.Caption LIKE '%' || ? || '%')
-          AND m.MimeType = 'image/jpeg'
+        WHERE (m.Label LIKE '%' || ? || '%' OR m.Caption LIKE '%' || ? || '%') AND m.MimeType = 'image/jpeg'
       ''', [query, query]);
       }
     } catch (e) {
       printTime('Error reading database ${pub.databasePath}: $e');
-    } finally {
+    }
+    finally {
       if (documentsManager == null) await db.close();
     }
 
@@ -415,7 +414,7 @@ class SearchModel {
     return await JwLifeApp.userdata.getNotes(query: query);
   }
 
-  Future<List<Map<String, dynamic>>> fetchInputFields() async {
+  Future<List<InputField>> fetchInputFields() async {
     if (inputFields.isNotEmpty) return inputFields;
     return await JwLifeApp.userdata.getInputFields(query);
   }

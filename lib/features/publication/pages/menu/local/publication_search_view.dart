@@ -4,20 +4,17 @@ import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/databases/history.dart';
-import 'package:jwlife/widgets/searchfield/searchfield_widget.dart';
 
 import '../../../../../core/utils/utils.dart';
-import '../../../models/local/publication_search_model.dart';
-import '../../document/local/documents_manager.dart';
-import 'package:string_similarity/string_similarity.dart'; // ajouter string_similarity: ^2.0.0 à pubspec.yaml
+import '../../../../../widgets/searchfield/searchfield_widget.dart';
+import '../../../models/menu/local/publication_search_model.dart';
 
 
 class PublicationSearchView extends StatefulWidget {
   final String query;
   final Publication publication;
-  final DocumentsManager documentsManager;
 
-  const PublicationSearchView({super.key, required this.query, required this.publication, required this.documentsManager});
+  const PublicationSearchView({super.key, required this.query, required this.publication});
 
   @override
   _PublicationSearchViewState createState() => _PublicationSearchViewState();
@@ -26,31 +23,30 @@ class PublicationSearchView extends StatefulWidget {
 class _PublicationSearchViewState extends State<PublicationSearchView> {
   late PublicationSearchModel _model;
   String _query = "";
-  bool exactMatch = false;
-  bool exactMatchVerse = false;
+  bool _exactMatch = false;
+  bool _exactMatchVerse = false;
   int _sortMode = 0;
 
-  Map<int, bool> _expandedDocuments = {};
-  final int maxCharacters = 200;
+  final Map<int, bool> _expandedDocuments = {};
+  final int _maxCharacters = 200;
 
   bool _isSearching = false;
-  List<Map<String, dynamic>> suggestions = [];
 
   @override
   void initState() {
     super.initState();
     _query = widget.query;
-    _model = PublicationSearchModel(widget.publication, widget.documentsManager);
+    _model = PublicationSearchModel(widget.publication);
     searchQuery(_query);
   }
 
   Future<void> searchQuery(String query) async {
     _query = query;
     if (widget.publication.isBible()) {
-      await _model.searchBibleVerses(widget.query, 1);
+      await _model.searchBibleVerses(widget.query, 1, newSearch: true);
     }
     else {
-      await _model.searchDocuments(widget.query, 1);
+      await _model.searchDocuments(widget.query, 1, newSearch: true);
     }
     setState(() {});
   }
@@ -80,11 +76,11 @@ class _PublicationSearchViewState extends State<PublicationSearchView> {
               Row(
                 children: [
                   Checkbox(
-                    value: exactMatch,
+                    value: _exactMatch,
                     onChanged: (bool? value) {
                       setState(() {
-                        exactMatch = value ?? false;
-                        _model.searchDocuments(_query, exactMatch ? 2 : 1);
+                        _exactMatch = value ?? false;
+                        _model.searchDocuments(_query, _exactMatch ? 2 : 1);
                       });
                     },
                   ),
@@ -112,7 +108,7 @@ class _PublicationSearchViewState extends State<PublicationSearchView> {
                 }
 
                 // Décide si on tronque (mais jamais à l'intérieur d'un paragraphe)
-                final bool shouldTruncate = totalChars > maxCharacters && !isExpanded;
+                final bool shouldTruncate = totalChars > _maxCharacters && !isExpanded;
 
                 // Calcule combien de paragraphes complets on affiche en mode réduit
                 int visibleCount = paragraphs.length;
@@ -123,7 +119,7 @@ class _PublicationSearchViewState extends State<PublicationSearchView> {
                     final int len = (p['paragraphText'] as String).length;
                     // On ajoute le paragraphe complet si on reste sous la limite
                     // ou si c'est le tout premier (toujours afficher au moins 1 paragraphe entier)
-                    if (acc + len <= maxCharacters || visibleCount == 0) {
+                    if (acc + len <= _maxCharacters || visibleCount == 0) {
                       acc += len;
                       visibleCount++;
                     } else {
@@ -317,12 +313,12 @@ class _PublicationSearchViewState extends State<PublicationSearchView> {
                   Row(
                     children: [
                       Checkbox(
-                        value: exactMatchVerse, // Make sure this is a defined state variable
+                        value: _exactMatchVerse, // Make sure this is a defined state variable
                         onChanged: (bool? value) {
                           setState(() {
-                            exactMatchVerse = value ?? false;
+                            _exactMatchVerse = value ?? false;
                             // Assuming a method like _model.searchVerses exists
-                            if(exactMatchVerse) {
+                            if(_exactMatchVerse) {
                               _model.searchBibleVerses(_query, 2); // 2 for exact match
                             }
                             else {
@@ -531,39 +527,31 @@ class _PublicationSearchViewState extends State<PublicationSearchView> {
           title: SearchFieldWidget(
             query: _query,
             onSearchTextChanged: (text) {
-              fetchSuggestions(text);
+              widget.publication.wordsSuggestionsModel?.fetchSuggestions(text);
             },
             onSuggestionTap: (item) async {
-              String query = item.item!['word'];
-              showPage(
-                PublicationSearchView(
-                  query: query,
-                  publication: widget.publication,
-                  documentsManager: widget.publication.documentsManager!,
-                ),
-              );
+              final String query = item.item!.query;
+
               setState(() {
                 _isSearching = false;
               });
+
+              searchQuery(query);
+
             },
-            onSubmit: (text) async {
+            onSubmit: (query) async {
               setState(() {
                 _isSearching = false;
               });
-              showPage(
-                PublicationSearchView(
-                  query: text,
-                  publication: widget.publication,
-                  documentsManager: widget.publication.documentsManager!,
-                ),
-              );
+
+              searchQuery(query);
             },
             onTapOutside: (event) {
               setState(() {
                 _isSearching = false;
               });
             },
-            suggestions: suggestions,
+            suggestionsNotifier: _model.publication.wordsSuggestionsModel?.suggestionsNotifier ?? ValueNotifier([]),
           ),
         )
             : AppBar(
@@ -619,60 +607,5 @@ class _PublicationSearchViewState extends State<PublicationSearchView> {
             : documentsList,
       ),
     );
-  }
-
-  int _latestRequestId = 0;
-
-  Future<void> fetchSuggestions(String text) async {
-    final int requestId = ++_latestRequestId;
-
-    if (text.isEmpty) {
-      if (requestId != _latestRequestId) return;
-      setState(() {
-        suggestions.clear();
-      });
-      return;
-    }
-
-    String normalizedText = normalize(text);
-
-    List<String> words = normalizedText.split(' ');
-    List<Map<String, dynamic>> allSuggestions = [];
-
-    for (String word in words) {
-      final suggestionsForWord = await widget.documentsManager.database.rawQuery(
-        '''
-      SELECT Word
-      FROM Word
-      WHERE Word LIKE ?
-      ''',
-        ['%$word%'],
-      );
-
-      allSuggestions.addAll(suggestionsForWord);
-      if (requestId != _latestRequestId) return;
-    }
-
-    // Trier par similarité avec le texte tapé
-    allSuggestions.sort((a, b) {
-      double simA = StringSimilarity.compareTwoStrings(normalize(a['Word']), normalizedText);
-      double simB = StringSimilarity.compareTwoStrings(normalize(b['Word']), normalizedText);
-      return simB.compareTo(simA); // du plus similaire au moins similaire
-    });
-
-    List<Map<String, dynamic>> suggs = [];
-    for (Map<String, dynamic> suggestion in allSuggestions) {
-      suggs.add({
-        'type': 0,
-        'query': text,
-        'word': suggestion['Word'],
-      });
-    }
-
-    if (requestId != _latestRequestId) return;
-
-    setState(() {
-      suggestions = suggs;
-    });
   }
 }

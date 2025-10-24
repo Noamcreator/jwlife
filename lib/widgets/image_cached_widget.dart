@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../data/models/tile.dart';
 import 'package:jwlife/data/databases/tiles_cache.dart';
+import 'dart:io';
 
 class ImageCachedWidget extends StatefulWidget {
   final String? imageUrl;
@@ -8,6 +9,7 @@ class ImageCachedWidget extends StatefulWidget {
   final double? width;
   final double? height;
   final BoxFit fit;
+  final Alignment alignment; // <-- La propriété d'alignement est ici
   final bool animation;
 
   const ImageCachedWidget({
@@ -17,6 +19,7 @@ class ImageCachedWidget extends StatefulWidget {
     this.height,
     this.width,
     this.fit = BoxFit.cover,
+    this.alignment = Alignment.center, // Valeur par défaut
     this.animation = true,
   });
 
@@ -47,6 +50,7 @@ class _ImageCachedWidgetState extends State<ImageCachedWidget> {
     } else {
       _imageFuture = TilesCache().getOrDownloadImage(widget.imageUrl).then((tile) {
         if (tile != null && mounted) {
+          // Utiliser la bonne méthode pour la prévisualisation d'une image locale
           precacheImage(FileImage(tile.file), context);
         }
         return tile;
@@ -76,7 +80,8 @@ class _ImageCachedWidgetState extends State<ImageCachedWidget> {
       width: width,
       height: height,
       color: backgroundColor,
-      alignment: Alignment.center,
+      // 🚀 APPLIQUÉ 1/3 : Applique l'alignement au Container du placeholder
+      alignment: widget.alignment,
       child: widget.icon != null
           ? Icon(
         widget.icon,
@@ -121,6 +126,8 @@ class _ImageCachedWidgetState extends State<ImageCachedWidget> {
               cacheHeight:
               safeToInt(widget.height != null ? widget.height! * pixelRatio : null),
               fit: widget.fit,
+              // 🚀 APPLIQUÉ 2/3 : Applique l'alignement à l'Image.file (sans animation)
+              alignment: widget.alignment,
             );
           }
           else {
@@ -133,12 +140,13 @@ class _ImageCachedWidgetState extends State<ImageCachedWidget> {
 
         // 🪄 Version avec animation
         return Stack(
+          // Important: L'alignement du Stack doit être center pour que les enfants se chevauchent correctement
           alignment: Alignment.center,
           children: [
             // Fade-out du placeholder
             AnimatedOpacity(
               opacity: isImageReady ? 0.0 : 1.0,
-              duration: const Duration(milliseconds: 200),
+              duration: const Duration(milliseconds: 150),
               curve: Curves.easeOut,
               child: SizedBox(
                 width: widget.width,
@@ -154,6 +162,8 @@ class _ImageCachedWidgetState extends State<ImageCachedWidget> {
                 width: widget.width,
                 height: widget.height,
                 fit: widget.fit,
+                // 🚀 APPLIQUÉ 3/3 : Passe l'alignement au widget d'animation enfant
+                alignment: widget.alignment,
                 pixelRatio: pixelRatio,
               ),
           ],
@@ -164,10 +174,12 @@ class _ImageCachedWidgetState extends State<ImageCachedWidget> {
 }
 
 class _FadeInImageWidget extends StatefulWidget {
-  final dynamic file;
+  // L'objet File est plus approprié que dynamic ici si vous travaillez avec dart:io.
+  final File file;
   final double? width;
   final double? height;
   final BoxFit fit;
+  final Alignment alignment; // <-- Reçoit la propriété
   final double pixelRatio;
 
   const _FadeInImageWidget({
@@ -175,6 +187,7 @@ class _FadeInImageWidget extends StatefulWidget {
     required this.width,
     required this.height,
     required this.fit,
+    required this.alignment,
     required this.pixelRatio,
   });
 
@@ -182,10 +195,8 @@ class _FadeInImageWidget extends StatefulWidget {
   State<_FadeInImageWidget> createState() => _FadeInImageWidgetState();
 }
 
-class _FadeInImageWidgetState extends State<_FadeInImageWidget>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller =
-  AnimationController(vsync: this, duration: const Duration(milliseconds: 150));
+class _FadeInImageWidgetState extends State<_FadeInImageWidget> with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 50));
   late final Animation<double> _fade = CurvedAnimation(parent: _controller, curve: Curves.easeIn);
 
   @override
@@ -218,6 +229,8 @@ class _FadeInImageWidgetState extends State<_FadeInImageWidget>
         safeToInt(widget.width != null ? widget.width! * widget.pixelRatio : null),
         cacheHeight:
         safeToInt(widget.height != null ? widget.height! * widget.pixelRatio : null),
+        // 🚀 APPLIQUÉ 4/4 : Utilise l'alignement dans le widget final Image.file
+        alignment: widget.alignment,
         fit: widget.fit,
       ),
     );

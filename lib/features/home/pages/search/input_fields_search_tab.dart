@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:jwlife/core/utils/utils_document.dart';
+import 'package:jwlife/data/models/userdata/inputField.dart';
 import 'package:jwlife/features/home/pages/search/search_model.dart';
+import 'package:jwlife/features/personal/widgets/input_field_item_widget.dart';
 
 import '../../../../app/services/settings_service.dart';
 
@@ -17,7 +19,7 @@ class _InputFieldsSearchTabState extends State<InputFieldsSearchTab> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: FutureBuilder<List<Map<String, dynamic>>>(
+      body: FutureBuilder<List<InputField>>(
         future: widget.model.fetchInputFields(), // Future<List<Map<String, dynamic>>>
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -30,30 +32,73 @@ class _InputFieldsSearchTabState extends State<InputFieldsSearchTab> {
 
           final inputFields = snapshot.data!;
 
-          return ListView.builder(
-            padding: const EdgeInsets.all(10.0),
-            itemCount: inputFields.length,
-            itemBuilder: (context, index) {
-              final item = inputFields[index];
-              final textTag = item['TextTag']?.toString() ?? '';
-              final value = item['Value']?.toString() ?? '';
-              final mepsDocumentId = item['DocumentId'] ?? 0;
-              final mepsLanguageId = JwLifeSettings().currentLanguage.id;
+          return Scrollbar(
+            interactive: true,
+            child: CustomScrollView(
+              physics: ClampingScrollPhysics(),
+              slivers: [
+                SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                        (context, index) {
+                      final inputField = inputFields[index];
 
-              return Card(
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(0)),
-                margin: const EdgeInsets.symmetric(vertical: 5),
-                child: ListTile(
-                  title: Text(value),
-                  onTap: () {
-                    showDocumentView(context, mepsDocumentId, mepsLanguageId, textTag: textTag);
-                  },
+                      return _KeepAliveNoteItem(
+                        key: ValueKey('field_${inputField.textTag}_${inputField.location.mepsDocumentId}'),
+                        inputField: inputField,
+                        onUpdated: () => setState(() {}),
+                        // 🌟 TRANSMISSION du terme de recherche au widget enfant
+                        searchQuery: widget.model.query,
+                      );
+                    },
+                    childCount: inputFields.length,
+                    addAutomaticKeepAlives: true,
+                    addRepaintBoundaries: true,
+                    addSemanticIndexes: true,
+                  ),
                 ),
-              );
-            },
+              ],
+            ),
           );
         },
       ),
     );
   }
 }
+
+
+class _KeepAliveNoteItem extends StatefulWidget {
+  final InputField inputField;
+  final VoidCallback onUpdated;
+  final String searchQuery;
+
+  const _KeepAliveNoteItem({
+    super.key,
+    required this.inputField,
+    required this.onUpdated,
+    this.searchQuery = '', // Initialisé à vide par défaut
+  });
+
+  @override
+  State<_KeepAliveNoteItem> createState() => _KeepAliveNoteItemState();
+}
+
+class _KeepAliveNoteItemState extends State<_KeepAliveNoteItem>
+    with AutomaticKeepAliveClientMixin {
+
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+
+    return InputFieldItemWidget(
+      inputField: widget.inputField,
+      onUpdated: widget.onUpdated,
+      fullField: false,
+      // 🌟 TRANSMISSION au NoteItemWidget (nommé ici highlightQuery pour clarifier son rôle)
+      highlightQuery: widget.searchQuery,
+    );
+  }
+}
+

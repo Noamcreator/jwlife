@@ -63,6 +63,7 @@ class WikipediaArticle {
   final String extractHtml;
   final String? thumbnailUrl;
   final String? originalImageUrl;
+  final String? url;
 
   WikipediaArticle({
     required this.title,
@@ -71,9 +72,15 @@ class WikipediaArticle {
     required this.extractHtml,
     this.thumbnailUrl,
     this.originalImageUrl,
+    this.url,
   });
 
   factory WikipediaArticle.fromJson(Map<String, dynamic> json) {
+    // Option 1 : Utiliser le chaînage conditionnel de manière complète
+    final contentUrls = json['content_urls'] as Map<String, dynamic>?;
+    final mobileUrls = contentUrls?['mobile'] as Map<String, dynamic>?;
+    final pageUrl = mobileUrls?['page'] as String?;
+
     return WikipediaArticle(
       title: json['title'] as String? ?? '',
       description: json['description'] as String? ?? '',
@@ -81,6 +88,8 @@ class WikipediaArticle {
       extractHtml: json['extract_html'] as String? ?? '',
       thumbnailUrl: (json['thumbnail'] as Map<String, dynamic>?)?['source'] as String?,
       originalImageUrl: (json['originalimage'] as Map<String, dynamic>?)?['source'] as String?,
+      // URL corrigée : s'assure que 'mobile' n'est pas null avant d'accéder à 'page'
+      url: pageUrl,
     );
   }
 }

@@ -72,7 +72,7 @@ PopupMenuItem getPubFavoriteItem(Publication pub) {
   );
 }
 
-PopupMenuItem getPubDownloadItem(BuildContext context, Publication publication, {void Function(double downloadProgress)? update}) {
+PopupMenuItem getPubDownloadItem(BuildContext context, Publication publication) {
   return PopupMenuItem(
     child: Row(
       children: [

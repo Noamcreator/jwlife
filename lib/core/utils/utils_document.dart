@@ -290,21 +290,30 @@ String createHtmlContent(String html, String articleClasses, String javascript) 
         <meta name="viewport" content="initial-scale=1.0, user-scalable=no">
         <link rel="stylesheet" href="jw-styles.css" />
       </head>
-      <body>
+      <body class="${webViewData.theme}"> 
         <style>
           body {
             user-select: none;
             font-size: ${webViewData.fontSize}px;
-            background-color: ${webViewData.backgroundColor};
           }
           
-          /* Style du texte surligné (highlight) */
-          .word.highlighted {
-            background-color: yellow;
+          /* Sélecteurs pour cibler le body avec la classe du thème */
+          body.cc-theme--dark {
+            background-color: #000000;
+          }
+          
+          body.cc-theme--light {
+            background-color: #f1f1f1;
+          }
+          
+          /* Ajout du padding à l'élément article */
+          #article {
+            padding-top: 20px;    // Marge intérieure en haut
+            padding-bottom: 20px; // Marge intérieure en bas
           }
           
         </style>
-        <article id="article" class="$articleClasses ${webViewData.theme}">
+        <article id="article" class="$articleClasses">
           $html
         </article>
         <script>

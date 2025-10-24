@@ -166,13 +166,15 @@ class _NoteItemWidgetState extends State<NoteItemWidget> {
   Widget build(BuildContext context) {
     if (widget.note.noteId == -1) return SizedBox.shrink();
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     // Styles de mise en évidence
-    final defaultTitleStyle = TextStyle(fontSize: 16, fontWeight: FontWeight.bold);
+    final defaultTitleStyle = TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black);
     final highlightTitleStyle = defaultTitleStyle.copyWith(
       backgroundColor: Colors.yellow.withOpacity(0.4),
       color: Theme.of(context).brightness == Brightness.dark ? Colors.black : Colors.black, // Assurer la lisibilité
     );
-    final defaultContentStyle = TextStyle(fontSize: 14);
+    final defaultContentStyle = TextStyle(fontSize: 14, color: isDark ? Colors.white : Colors.black);
     final highlightContentStyle = defaultContentStyle.copyWith(
       backgroundColor: Colors.yellow.withOpacity(0.4),
       color: Theme.of(context).brightness == Brightness.dark ? Colors.black : Colors.black,

@@ -41,6 +41,7 @@ import '../../../../../data/models/userdata/tag.dart';
 import '../../../../../data/models/video.dart';
 import '../../../../../widgets/searchfield/searchfield_widget.dart';
 import '../../../../personal/pages/tag_page.dart';
+import '../../../models/menu/local/words_suggestions_model.dart';
 import '../data/models/multimedia.dart';
 import 'document_medias_page.dart';
 import '../data/models/document.dart';
@@ -151,6 +152,8 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
     else {
       widget.publication.documentsManager = DocumentsManager(publication: widget.publication, mepsDocumentId: widget.mepsDocumentId, bookNumber: widget.book, chapterNumber: widget.chapter);
       await widget.publication.documentsManager!.initializeDatabaseAndData();
+
+      widget.publication.wordsSuggestionsModel = WordsSuggestionsModel(widget.publication);
     }
 
     widget.publication.fetchAudios().then((value) {
@@ -1442,10 +1445,10 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
                     ? SearchFieldWidget(
                   query: '',
                   onSearchTextChanged: (text) {
-                    fetchSuggestions(text);
+                    widget.publication.wordsSuggestionsModel!.fetchSuggestions(text);
                   },
                   onSuggestionTap: (item) async {
-                    String query = item.item!['word'];
+                    String query = item.item!.query;
 
                     // Encodage JS sûr
                     final safeQuery = jsonEncode([query]); // Exemple : ["mot"]
@@ -1470,7 +1473,7 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
                       _isSearching = false;
                     });
                   },
-                  suggestions: suggestions,
+                  suggestionsNotifier: widget.publication.wordsSuggestionsModel?.suggestionsNotifier ?? ValueNotifier([])
                 )
                     : Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1666,51 +1669,5 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
         ),
       ],
     );
-  }
-
-  int _latestRequestId = 0;
-
-  Future<void> fetchSuggestions(String text) async {
-    final int requestId = ++_latestRequestId;
-
-    if (text.isEmpty) {
-      if (requestId != _latestRequestId) return;
-      setState(() {
-        suggestions.clear();
-      });
-      return;
-    }
-
-    List<String> words = text.split(' ');
-    List<Map<String, dynamic>> allSuggestions = [];
-
-    for (String word in words) {
-      final suggestionsForWord = await widget.publication.documentsManager!.database.rawQuery(
-        '''
-      SELECT Word
-      FROM Word
-      WHERE Word LIKE ?
-      ''',
-        ['%$word%'],
-      );
-
-      allSuggestions.addAll(suggestionsForWord);
-      if (requestId != _latestRequestId) return;
-    }
-
-    List<Map<String, dynamic>> suggs = [];
-    for (Map<String, dynamic> suggestion in allSuggestions) {
-      suggs.add({
-        'type': 0,
-        'query': text,
-        'word': suggestion['Word'],
-      });
-    }
-
-    if (requestId != _latestRequestId) return;
-
-    setState(() {
-      suggestions = suggs;
-    });
   }
 }

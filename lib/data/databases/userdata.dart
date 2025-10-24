@@ -39,6 +39,7 @@ import '../models/audio.dart';
 import '../models/media.dart';
 import '../models/userdata/congregation.dart';
 import '../models/userdata/independentMedia.dart';
+import '../models/userdata/inputField.dart';
 import '../models/userdata/location.dart';
 import '../models/userdata/note.dart';
 import '../models/userdata/playlist.dart';
@@ -838,7 +839,7 @@ class Userdata {
     }
   }
 
-  Future<List<Map<String, dynamic>>> getInputFields(String query) async {
+  Future<List<InputField>> getInputFields(String query) async {
     try {
       final likeQuery = '%$query%';
       final result = await _database.rawQuery('''
@@ -848,7 +849,7 @@ class Userdata {
       WHERE InputField.Value LIKE ?
     ''', [likeQuery]);
 
-      return result;
+      return result.map((note) => InputField.fromMap(note)).toList();
     } catch (e) {
       printTime('Error: $e');
       throw Exception('Failed to load input fields for the given query.');

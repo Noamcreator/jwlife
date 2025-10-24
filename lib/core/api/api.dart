@@ -251,7 +251,7 @@ class Api {
       return null;
     }
     catch (e) {
-      print('Error fetching audio: $e');
+      print('Error fetching audios: $e');
       return null;
     }
   }

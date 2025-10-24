@@ -31,7 +31,6 @@ class _AllSearchTabState extends State<AllSearchTab> {
   }
 
   // Hauteur fixe raisonnable pour les versets/snippets.
-  // Augmentée légèrement pour compenser le débordement de 7.0 pixels si présent
   static const double _verseListHeight = 180.0;
 
   Widget _buildVerseList(dynamic result) {

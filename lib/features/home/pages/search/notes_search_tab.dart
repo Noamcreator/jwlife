@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../data/models/userdata/note.dart';
+import '../../../personal/widgets/note_item_widget.dart';
 import 'search_model.dart'; // ton modèle avec la méthode fetchNotes qui doit retourner List<Note>
 
 class NotesSearchTab extends StatefulWidget {
@@ -12,6 +13,7 @@ class NotesSearchTab extends StatefulWidget {
 }
 
 class _NotesSearchTabState extends State<NotesSearchTab> {
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -28,94 +30,72 @@ class _NotesSearchTabState extends State<NotesSearchTab> {
 
           final notes = snapshot.data!;
 
-          return ListView.builder(
-            padding: const EdgeInsets.all(10.0),
-            itemCount: notes.length,
-            itemBuilder: (context, index) {
-              final note = notes[index];
+          return Scrollbar(
+            interactive: true,
+            child: CustomScrollView(
+              physics: ClampingScrollPhysics(),
+              slivers: [
+                SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                        (context, index) {
+                      final note = notes[index];
 
-              return GestureDetector(
-                onTap: () {
-                  // TODO : remplacer par ta navigation vers la page détail note
-                  showNoteDetail(context, note);
-                },
-                child: Card(
-                  color: note.getColor(context),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(0)),
-                  margin: const EdgeInsets.symmetric(vertical: 5),
-                  child: Padding(
-                    padding: const EdgeInsets.all(13),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (note.title != null && note.title!.isNotEmpty)
-                          Text(
-                            note.title!,
-                            style: TextStyle(
-                              color: Theme.of(context).brightness == Brightness.dark
-                                  ? Colors.white
-                                  : Colors.black87,
-                              fontSize: 20,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        if (note.title != null && note.title!.isNotEmpty)
-                          const SizedBox(height: 10),
-                        if (note.content != null && note.content!.isNotEmpty)
-                          Text(
-                            note.content!,
-                            style: const TextStyle(fontSize: 17),
-                          ),
-                        const SizedBox(height: 15),
-                        Divider(
-                          height: 20,
-                          thickness: 1,
-                          color: Colors.grey[800],
-                        ),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              note.getRelativeTime(),
-                              style: TextStyle(
-                                color: Colors.grey[600],
-                                fontSize: 12,
-                              ),
-                            ),
-                            if (note.location.title != null && note.location.title!.isNotEmpty)
-                              Text(
-                                note.location.title!,
-                                style: TextStyle(
-                                  color: Colors.grey[500],
-                                  fontSize: 11,
-                                  fontStyle: FontStyle.italic,
-                                ),
-                              ),
-                          ],
-                        ),
-                      ],
-                    ),
+                      return _KeepAliveNoteItem(
+                        key: ValueKey('note_${note.noteId}'),
+                        note: note,
+                        onUpdated: () => setState(() {}),
+                        // 🌟 TRANSMISSION du terme de recherche au widget enfant
+                        searchQuery: widget.model.query,
+                      );
+                    },
+                    childCount: notes.length,
+                    addAutomaticKeepAlives: true,
+                    addRepaintBoundaries: true,
+                    addSemanticIndexes: true,
                   ),
                 ),
-              );
-            },
+              ],
+            ),
           );
         },
       ),
     );
   }
+}
 
-  void showNoteDetail(BuildContext context, Note note) {
-    // Placeholder : afficher un dialogue ou page détail note
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: Text(note.title ?? 'Note'),
-        content: SingleChildScrollView(child: Text(note.content ?? '')),
-        actions: [
-          TextButton(onPressed: () {}, child: const Text('Fermer')),
-        ],
-      ),
+class _KeepAliveNoteItem extends StatefulWidget {
+  final Note note;
+  final VoidCallback onUpdated;
+  final String searchQuery;
+
+  const _KeepAliveNoteItem({
+    super.key,
+    required this.note,
+    required this.onUpdated,
+    this.searchQuery = '', // Initialisé à vide par défaut
+  });
+
+  @override
+  State<_KeepAliveNoteItem> createState() => _KeepAliveNoteItemState();
+}
+
+class _KeepAliveNoteItemState extends State<_KeepAliveNoteItem>
+    with AutomaticKeepAliveClientMixin {
+
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+
+    return NoteItemWidget(
+      note: widget.note,
+      tag: null,
+      onUpdated: widget.onUpdated,
+      fullNote: false,
+      // 🌟 TRANSMISSION au NoteItemWidget (nommé ici highlightQuery pour clarifier son rôle)
+      highlightQuery: widget.searchQuery,
     );
   }
 }

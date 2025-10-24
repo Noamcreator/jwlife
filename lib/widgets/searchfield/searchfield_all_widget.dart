@@ -103,7 +103,7 @@ class _SearchFieldAllState extends State<SearchFieldAll> {
 
   SearchFieldListItem<SuggestionItem> _buildSuggestionItem(SuggestionItem item) {
     return SearchFieldListItem<SuggestionItem>(
-      item.caption,
+      item.title,
       item: item,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 4),
@@ -111,8 +111,8 @@ class _SearchFieldAllState extends State<SearchFieldAll> {
           children: [
             Row(
               children: [
-                item.icon?.isNotEmpty ?? false ? ImageCachedWidget(
-                  imageUrl: item.icon!,
+                item.image?.isNotEmpty ?? false ? ImageCachedWidget(
+                  imageUrl: item.image!,
                   width: 40,
                   height: 40,
                 )
@@ -122,17 +122,31 @@ class _SearchFieldAllState extends State<SearchFieldAll> {
             ),
             Expanded(
               child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(item.caption, style: TextStyle(fontSize: item.subtitle?.isNotEmpty ?? false ? 16 : 20), overflow: TextOverflow.ellipsis),
+                  Text(item.title, style: TextStyle(fontSize: item.subtitle?.isNotEmpty ?? false ? 16 : 20), overflow: TextOverflow.ellipsis),
                   if (item.subtitle?.isNotEmpty ?? false)
                     Text(item.subtitle!, style: const TextStyle(fontSize: 12, color: Colors.grey), overflow: TextOverflow.ellipsis),
                 ],
               ),
             ),
-            if (item.type == 5) const SizedBox(width: 5),
-            if (item.type == 5)
-              Icon(item.label == 'Audio' ? JwIcons.music : JwIcons.video),
+            if (item.type == 'video' || item.type == 'audio') const SizedBox(width: 10),
+            if (item.type == 'video' || item.type == 'audio')
+              Icon(item.type == 'audio' ? JwIcons.music : JwIcons.video),
+
+            if (item.type == 'topic') const SizedBox(width: 10),
+            if (item.type == 'topic' && item.label != null)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                decoration: const BoxDecoration(
+                  color: Color(0xFFc0c0c0),
+                ),
+                child: Text(
+                  item.label!,
+                  style: const TextStyle(color: Colors.white),
+                )
+              )
           ],
         ),
       ),
@@ -158,12 +172,10 @@ class _SearchFieldAllState extends State<SearchFieldAll> {
     for (var item in items) {
       newSuggestions.add(
         SuggestionItem(
-          type: item['type'],
+          type: item['type'] == 1 ? 'bible' : item['type'] == 2 ? 'publication' : item['type'] == 3 ? 'topic' : 'word',
           query: item['query'],
-          caption: item['caption'],
-          icon: '', // ton icône
-          subtitle: item['label'], // ton sous-titre
-          label: '',
+          title: item['caption'],
+          label: item['label'],
         ),
       );
     }
@@ -204,10 +216,10 @@ class _SearchFieldAllState extends State<SearchFieldAll> {
         });
 
         newSuggestions.add(SuggestionItem(
-          type: 4,
+          type: 'document',
           query: topicsList.first['MepsDocumentId'],
-          caption: topicsList.first['DisplayTopic'] as String,
-          icon: pub.imageSqr,
+          title: topicsList.first['DisplayTopic'] as String,
+          image: pub.imageSqr,
           subtitle: pub.title,
           label: 'Ouvrage de référence',
         ));
@@ -247,23 +259,21 @@ class _SearchFieldAllState extends State<SearchFieldAll> {
         if(media.type == 'AUDIO') {
           Audio audio = Audio.fromJson(mediaItem: media);
           newSuggestions.add(SuggestionItem(
-            type: 5,
+            type: 'audio',
             query: media,
-            caption: audio.title,
-            icon: audio.networkImageSqr,
+            title: audio.title,
+            image: audio.networkImageSqr,
             subtitle: category?.localizedName ?? '',
-            label: 'Audio',
           ));
         }
         else {
           Video video = Video.fromJson(mediaItem: media);
           newSuggestions.add(SuggestionItem(
-            type: 5,
+            type: 'video',
             query: video,
-            caption: video.title,
-            icon: video.networkImageSqr,
+            title: video.title,
+            image: video.networkImageSqr,
             subtitle: category?.localizedName ?? '',
-            label: 'Vidéo',
           ));
         }
       }
@@ -283,21 +293,21 @@ class _SearchFieldAllState extends State<SearchFieldAll> {
     if (selected == null) return;
     BuildContext context = GlobalKeyService.jwLifePageKey.currentState!.getCurrentState().context;
     switch (selected.type) {
-      case 4:
+      case 'document':
         await showDocumentView(context, selected.query, JwLifeSettings().currentLanguage.id);
         break;
-      case 6:
+      case 'bible':
         showPage(SearchBiblePage(query: selected.query));
         break;
-      case 7:
+      case 'publication':
         final publication = await PubCatalog.searchPub(selected.query, 0, JwLifeSettings().currentLanguage.id);
         if (publication != null) {
           publication.showMenu(context);
         } else {
-          showErrorDialog(context, "Aucune publication ${selected.query} n'a pu être trouvée.");
+          showErrorDialog(context, "Aucune publications ${selected.query} n'a pu être trouvée.");
         }
         break;
-      case 5:
+      case 'audio' || 'video':
         selected.query.showPlayer(context);
         break;
       default:

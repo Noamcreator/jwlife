@@ -20,6 +20,7 @@ import '../../core/api/api.dart';
 import '../../core/jworg_uri.dart';
 import '../../core/shared_preferences/shared_preferences_utils.dart';
 import '../../core/utils/utils_document.dart';
+import '../../features/publication/models/menu/local/words_suggestions_model.dart';
 import '../../features/publication/pages/document/local/documents_manager.dart';
 import '../../features/publication/pages/menu/local/publication_menu_view.dart';
 import '../databases/catalog.dart';
@@ -62,6 +63,7 @@ class Publication {
   bool hasCommentary = false;
   DocumentsManager? documentsManager;
   DatedTextManager? datedTextManager;
+  WordsSuggestionsModel? wordsSuggestionsModel;
 
   List<Audio> audios = [];
 
@@ -122,10 +124,10 @@ class Publication {
     final issueTagNumber = json['IssueTagNumber'] ?? 0;
     final mepsLanguageId = json['MepsLanguageId'] ?? 0;
 
-    // Recherche dans le repository une publication existante
+    // Recherche dans le repository une publications existante
     Publication? existing = PublicationRepository().getPublicationWithMepsLanguageId(keySymbol, issueTagNumber, mepsLanguageId);
 
-    if (existing != null) { // Si la publication est trouvée
+    if (existing != null) { // Si la publications est trouvée
       if(!existing.isDownloadedNotifier.value) {
         existing.hash = json['Hash'] ?? existing.hash;
         existing.timeStamp = json['Timestamp'] ?? existing.timeStamp;
@@ -311,7 +313,7 @@ class Publication {
       _downloadOperation = null;
       showBottomMessage('Téléchargement annulé');
     }
-    else if (isDownloadingNotifier.value) {
+    if (isDownloadingNotifier.value) {
       isDownloadingNotifier.value = false;
       isDownloadedNotifier.value = false;
       progressNotifier.value = 0;
@@ -350,7 +352,7 @@ class Publication {
 
           progressNotifier.value = 1.0;
 
-          // ✅ Notification de fin avec bouton "Ouvrir" (comme dans download)
+          // ✅ Notification de fin avec bouton "Ouvrir" (comme dans downloads)
           notifyDownload('Mise à jour terminée');
         } else {
           // Téléchargement annulé ou échoué
@@ -374,7 +376,7 @@ class Publication {
       _updateOperation = null;
       showBottomMessage('Mis à jour annulée');
     }
-    else if (isDownloadingNotifier.value) {
+    if (isDownloadingNotifier.value) {
       isDownloadingNotifier.value = false;
       isDownloadedNotifier.value = false;
       progressNotifier.value = 0;
