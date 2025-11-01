@@ -11,14 +11,14 @@ import '../../data/models/audio.dart';
 import '../../data/models/video.dart';
 import '../api/api.dart';
 
-Future<Media?> downloadMedia(BuildContext context, Media media, String? fileUrl, dynamic mediaData, CancelToken cancelToken, bool update, {int? file = 0}) async {
+Future<Media?> downloadMedia(BuildContext context, Media media, String? fileUrl, dynamic mediaData, CancelToken cancelToken, bool update, {int? resolution = 0}) async {
   Api.dio.interceptors.clear();
 
   double lastProgress = 0.0;
 
   try {
     // Télécharger le fichier avec mise à jour de la progression
-    final responseMedia = await Api.dio.get(fileUrl ?? mediaData['files'][file]['progressiveDownloadURL'],
+    final responseMedia = await Api.dio.get(fileUrl ?? mediaData['files'][resolution]['progressiveDownloadURL'],
       options: Options(
         responseType: ResponseType.bytes,
       ),
@@ -43,7 +43,7 @@ Future<Media?> downloadMedia(BuildContext context, Media media, String? fileUrl,
       throw Exception('Erreur lors du téléchargement du fichier média');
     }
 
-    return await mediaCopy(responseMedia.data!, fileUrl, mediaData, media, update: update, file: file);
+    return await mediaCopy(responseMedia.data!, fileUrl, mediaData, media, update: update, resolution: resolution);
   }
   catch (e) {
     printTime('Erreur lors du téléchargement du fichier média : $e');
@@ -52,7 +52,7 @@ Future<Media?> downloadMedia(BuildContext context, Media media, String? fileUrl,
   }
 }
 
-Future<Media?> mediaCopy(Uint8List bytes, String? fileUrl, dynamic mediaData, Media media, {bool update = false, int? file = 0}) async {
+Future<Media?> mediaCopy(Uint8List bytes, String? fileUrl, dynamic mediaData, Media media, {bool update = false, int? resolution = 0}) async {
   if(update) {
     await removeMedia(media);
   }
@@ -68,7 +68,7 @@ Future<Media?> mediaCopy(Uint8List bytes, String? fileUrl, dynamic mediaData, Me
     await mediasDirectory.create(recursive: true);
   }
 
-  final mediaFileName = (fileUrl ?? mediaData['files'][file]['progressiveDownloadURL']).split('/').last;
+  final mediaFileName = (fileUrl ?? mediaData['files'][resolution]['progressiveDownloadURL']).split('/').last;
   final mediaFilePath = '${mediasDirectory.path}/$mediaFileName';
 
   // Enregistrer le fichier
@@ -76,17 +76,17 @@ Future<Media?> mediaCopy(Uint8List bytes, String? fileUrl, dynamic mediaData, Me
 
   String subtitleFilePath = '';
   if (media is Video && mediaData != null) {
-    if(mediaData['files'][file]['subtitles'] != null) {
+    if(mediaData['files'][resolution]['subtitles'] != null) {
       final subtitlesDirectory = Directory('${directory.path}/Subtitles');
       if (!await subtitlesDirectory.exists()) {
         await subtitlesDirectory.create(recursive: true);
       }
 
-      final subtitleFileName = mediaData['files'][file]['subtitles']['url'].split('/').last;
+      final subtitleFileName = mediaData['files'][resolution]['subtitles']['url'].split('/').last;
       subtitleFilePath = '${subtitlesDirectory.path}/$subtitleFileName';
 
       final subtitleResponse = await Api.dio.get(
-        mediaData['files'][file]['subtitles']['url'],
+        mediaData['files'][resolution]['subtitles']['url'],
         options: Options(responseType: ResponseType.bytes),
       );
 
@@ -100,7 +100,7 @@ Future<Media?> mediaCopy(Uint8List bytes, String? fileUrl, dynamic mediaData, Me
   media.filePath = mediaFilePath;
 
   if(mediaData != null) {
-    dynamic fileMap = mediaData['files'][file];
+    dynamic fileMap = mediaData['files'][resolution];
 
     media.title = mediaData['title'] ?? '';
     media.version = 1;
@@ -119,7 +119,7 @@ Future<Media?> mediaCopy(Uint8List bytes, String? fileUrl, dynamic mediaData, Me
       media.label = fileMap['label'] ?? '';
       media.specialtyDescription = fileMap['specialtyDescription'];
 
-      if(mediaData['files'][file]['subtitles'] != null) {
+      if(mediaData['files'][resolution]['subtitles'] != null) {
         media.subtitles = Subtitles(
           checkSum: fileMap['subtitles']['checksum'],
           timeStamp: fileMap['subtitles']['modifiedDatetime'],
@@ -130,7 +130,7 @@ Future<Media?> mediaCopy(Uint8List bytes, String? fileUrl, dynamic mediaData, Me
     }
   }
 
-  return await JwLifeApp.mediaCollections.insertMedia(media, file: file);
+  return await JwLifeApp.mediaCollections.insertMedia(media, file: resolution);
 }
 
 Future<void> removeMedia(Media media) async {

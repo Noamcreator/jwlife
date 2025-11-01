@@ -10,7 +10,7 @@ import 'package:diacritic/diacritic.dart'; // <<< Importation de la librairie di
 class PublicationsItemsViewModel with ChangeNotifier {
   // --- État ---
   String _language = '';
-  String _languageSymbol = '';
+  String _selectedLanguageSymbol = '';
   // Liste complète des publications, telle que chargée depuis la base de données
   Map<PublicationAttribute, List<Publication>> _publications = {};
   // La carte des publications par attribut est utilisée pour l'affichage filtré
@@ -27,7 +27,7 @@ class PublicationsItemsViewModel with ChangeNotifier {
 
   // --- Getters publics ---
   String get language => _language;
-  String get languageSymbol => _languageSymbol;
+  String get selectedLanguageSymbol => _selectedLanguageSymbol;
   Map<PublicationAttribute, List<Publication>> get filteredPublications => _filteredPublications;
   bool get isSearching => _isSearching;
   bool get isLoading => _isLoading;
@@ -45,7 +45,7 @@ class PublicationsItemsViewModel with ChangeNotifier {
     Map<PublicationAttribute, List<Publication>> publications;
 
     int mepsLanguageId = mepsLanguage?['LanguageId'] ?? JwLifeSettings().currentLanguage.id;
-    _languageSymbol = mepsLanguage?['Symbol'] ?? JwLifeSettings().currentLanguage.symbol;
+    _selectedLanguageSymbol = mepsLanguage?['Symbol'] ?? JwLifeSettings().currentLanguage.symbol;
 
     if (year != null) {
       publications = await PubCatalog.getPublicationsFromCategory(

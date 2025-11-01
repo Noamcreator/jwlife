@@ -1552,10 +1552,52 @@ class Userdata {
             AND tm2.TagId = ?
       )
       GROUP BY N.NoteId
-      ORDER BY N.LastModified DESC;
+      ORDER BY TM.Position, N.LastModified DESC;
     ''', [tagId]);
 
     return result.map((map) => Note.fromMap(map)).toList();
+  }
+
+  Future<void> reorderNotesInTag(int tagId, List<int> noteIdsInNewOrder) async {
+    await _database.transaction((txn) async {
+      // --- 1. Dégager toutes les positions pour éviter les conflits UNIQUE ---
+      for (int i = 0; i < noteIdsInNewOrder.length; i++) {
+        final int noteId = noteIdsInNewOrder[i];
+
+        // Attribuer une position temporaire négative (ex: -1, -2, -3...)
+        // Ce Position Id temporaire doit aussi être UNIQUE pour éviter une autre violation.
+        final int tempPosition = -(i + 1);
+
+        final Map<String, dynamic> tempValues = {
+          'Position': tempPosition,
+        };
+
+        await txn.update(
+          'TagMap',
+          tempValues,
+          where: 'TagId = ? AND NoteId = ?',
+          whereArgs: [tagId, noteId],
+        );
+      }
+
+      // --- 2. Ranger toutes les positions à leur valeur finale correcte ---
+      for (int i = 0; i < noteIdsInNewOrder.length; i++) {
+        final int noteId = noteIdsInNewOrder[i];
+        final int newPosition = i;
+
+        final Map<String, dynamic> finalValues = {
+          'Position': newPosition,
+        };
+
+        // Exécution de la mise à jour sur la table TagMap
+        await txn.update(
+          'TagMap',
+          finalValues,
+          where: 'TagId = ? AND NoteId = ?',
+          whereArgs: [tagId, noteId],
+        );
+      }
+    });
   }
 
   Future<List<Bookmark>> getBookmarksFromPub(Publication publication) async {
@@ -1967,17 +2009,31 @@ class Userdata {
       limitClause = 'LIMIT $limit';
     }
 
+    // Utilisation d'une CTE pour trouver le PlaylistItemId associé à la Position minimale (0, 1, etc.) pour chaque TagId
     List<Map<String, dynamic>> result = await _database.rawQuery('''
+    WITH MinPositionMap AS (
       SELECT 
-        Tag.TagId, 
-        Tag.Name,
-        PlaylistItem.ThumbnailFilePath
-      FROM Tag
-      LEFT JOIN TagMap ON Tag.TagId = TagMap.TagId AND TagMap.Position = 0
-      LEFT JOIN PlaylistItem ON TagMap.PlaylistItemId = PlaylistItem.PlaylistItemId
-      WHERE Tag.Type = 2
-      $limitClause
-    ''');
+        TagId, 
+        PlaylistItemId, 
+        Position
+      FROM TagMap
+      -- Utilisation d'une fonction fenêtre pour classer les éléments TagMap par position dans chaque groupe de TagId
+      WHERE Position = (
+        SELECT MIN(Position) 
+        FROM TagMap AS TM_Inner 
+        WHERE TM_Inner.TagId = TagMap.TagId
+      )
+    )
+    SELECT 
+      Tag.TagId, 
+      Tag.Name,
+      PlaylistItem.ThumbnailFilePath
+    FROM Tag
+    LEFT JOIN MinPositionMap ON Tag.TagId = MinPositionMap.TagId
+    LEFT JOIN PlaylistItem ON MinPositionMap.PlaylistItemId = PlaylistItem.PlaylistItemId
+    WHERE Tag.Type = 2
+    $limitClause
+  ''');
 
     return result.map((playlist) => Playlist.fromMap(playlist)).toList();
   }
@@ -2018,9 +2074,55 @@ class Userdata {
       LEFT JOIN IndependentMedia AS ThumbnailMedia ON PlaylistItem.ThumbnailFilePath = ThumbnailMedia.FilePath
     
       WHERE Tag.TagId = ?
+      ORDER BY TagMap.Position ASC;
     ''', [playlistId]);
 
     return result.map((map) => PlaylistItem.fromMap(map)).toList();
+  }
+
+  Future<void> reorderPlaylistItemInPlaylist(int playlistId, List<int> playlistItemIdsInNewOrder) async {
+    print(playlistId);
+    print(playlistItemIdsInNewOrder);
+
+    await _database.transaction((txn) async {
+      // --- 1. Dégager toutes les positions pour éviter les conflits UNIQUE ---
+      for (int i = 0; i < playlistItemIdsInNewOrder.length; i++) {
+        final int noteId = playlistItemIdsInNewOrder[i];
+
+        // Attribuer une position temporaire négative (ex: -1, -2, -3...)
+        // Ce Position Id temporaire doit aussi être UNIQUE pour éviter une autre violation.
+        final int tempPosition = -(i + 1);
+
+        final Map<String, dynamic> tempValues = {
+          'Position': tempPosition,
+        };
+
+        await txn.update(
+          'TagMap',
+          tempValues,
+          where: 'TagId = ? AND PlaylistItemId = ?',
+          whereArgs: [playlistId, noteId],
+        );
+      }
+
+      // --- 2. Ranger toutes les positions à leur valeur finale correcte ---
+      for (int i = 0; i < playlistItemIdsInNewOrder.length; i++) {
+        final int noteId = playlistItemIdsInNewOrder[i];
+        final int newPosition = i;
+
+        final Map<String, dynamic> finalValues = {
+          'Position': newPosition,
+        };
+
+        // Exécution de la mise à jour sur la table TagMap
+        await txn.update(
+          'TagMap',
+          finalValues,
+          where: 'TagId = ? AND PlaylistItemId = ?',
+          whereArgs: [playlistId, noteId],
+        );
+      }
+    });
   }
 
   Future<bool> _isIndependentMediaUsedElsewhere({

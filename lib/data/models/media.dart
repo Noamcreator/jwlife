@@ -81,7 +81,7 @@ abstract class Media {
         isDownloadedNotifier = isDownloadedNotifier ?? ValueNotifier(false),
         isFavoriteNotifier = isFavoriteNotifier ?? ValueNotifier(false);
 
-  Future<void> download(BuildContext context);
+  Future<void> download(BuildContext context, {int? resolution});
 
   Future<void> notifyDownload(String title) async {
     if(JwLifeSettings().notificationDownload) {
@@ -104,7 +104,7 @@ abstract class Media {
     }
   }
 
-  Future<void> performDownload(BuildContext context, Map<String, dynamic>? mediaJson, {int? file = 0}) async {
+  Future<void> performDownload(BuildContext context, Map<String, dynamic>? mediaJson, {int? resolution = 0}) async {
     isDownloadingNotifier.value = true;
     progressNotifier.value = 0;
 
@@ -112,7 +112,7 @@ abstract class Media {
     _cancelToken = cancelToken;
 
     _downloadOperation = CancelableOperation.fromFuture(
-      downloadMedia(context, this, fileUrl, mediaJson, cancelToken, false, file: file),
+      downloadMedia(context, this, fileUrl, mediaJson, cancelToken, false, resolution: resolution),
       onCancel: () {
         isDownloadingNotifier.value = false;
         isDownloadedNotifier.value = false;
@@ -157,7 +157,7 @@ abstract class Media {
     _cancelToken = cancelToken;
 
     _updateOperation = CancelableOperation.fromFuture(
-      downloadMedia(context, this, fileUrl, mediaJson, cancelToken, true, file: 0), // TODO mettre le bon file pour la mise à jour
+      downloadMedia(context, this, fileUrl, mediaJson, cancelToken, true, resolution: 0), // TODO mettre le bon file pour la mise à jour
       onCancel: () {
         isDownloadingNotifier.value = false;
         isDownloadedNotifier.value = false;

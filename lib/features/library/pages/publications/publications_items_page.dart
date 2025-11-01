@@ -42,11 +42,11 @@ class _PublicationsItemsViewState extends State<PublicationsItemsView> {
   }
 
   // Méthode d'aide pour le Widget
-  Widget _buildCategoryHeader(BuildContext context, PublicationAttribute attribute, bool isFirst) {
+  Widget _buildCategoryHeader(BuildContext context, PublicationAttribute attribute) {
     return Padding(
       padding: EdgeInsets.only(
-        top: isFirst ? 0.0 : 40.0,
-        bottom: 5.0,
+        top: 20.0,
+        bottom: 0.0,
       ),
       child: Text(
         attribute.name,
@@ -130,7 +130,7 @@ class _PublicationsItemsViewState extends State<PublicationsItemsView> {
               IconButton(
                 icon: const Icon(JwIcons.language),
                 onPressed: () async {
-                  showLanguageDialog(context, selectedLanguageSymbol: _model.languageSymbol).then((language) async {
+                  showLanguageDialog(context, selectedLanguageSymbol: _model.selectedLanguageSymbol).then((language) async {
                     if (language != null) {
                       _model.loadItems(mepsLanguage: language);
                     }
@@ -155,7 +155,7 @@ class _PublicationsItemsViewState extends State<PublicationsItemsView> {
 
 class _PublicationsItemsBody extends StatelessWidget {
   final PublicationsItemsViewModel viewModel;
-  final Widget Function(BuildContext, PublicationAttribute, bool) buildCategoryHeader;
+  final Widget Function(BuildContext, PublicationAttribute) buildCategoryHeader;
 
   const _PublicationsItemsBody({
     required this.viewModel,
@@ -212,7 +212,6 @@ class _PublicationsItemsBody extends StatelessWidget {
             final double childAspectRatio = itemWidth / kItemHeight;
 
             final List<Widget> slivers = [];
-            bool isFirstGroup = true;
 
             // Parcourir les groupes d'attributs filtrés
             filteredPublications.forEach((attribute, publicationList) {
@@ -224,11 +223,10 @@ class _PublicationsItemsBody extends StatelessWidget {
                   SliverToBoxAdapter(
                     child: Padding(
                       padding: EdgeInsets.symmetric(horizontal: contentPadding),
-                      child: buildCategoryHeader(context, attribute, isFirstGroup),
+                      child: buildCategoryHeader(context, attribute),
                     ),
                   ),
                 );
-                isFirstGroup = false;
               }
 
               // 2. Ajout de la grille de publications (SliverGrid)

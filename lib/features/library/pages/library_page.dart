@@ -8,6 +8,7 @@ import 'package:jwlife/features/library/pages/videos/videos_categories_page.dart
 import 'package:jwlife/i18n/localization.dart';
 
 import '../../../app/services/global_key_service.dart' show GlobalKeyService;
+import '../../../core/shared_preferences/shared_preferences_utils.dart';
 import '../../../core/utils/utils_language_dialog.dart';
 import '../../../data/models/publication_category.dart';
 import '../models/library_model.dart';
@@ -94,8 +95,7 @@ class LibraryPageState extends State<LibraryPage> with TickerProviderStateMixin 
   void _onLanguagePressed(BuildContext context) async {
     showLanguageDialog(context).then((language) async {
       if (language != null) {
-        // Supposons que setLibraryLanguage existe et soit asynchrone
-        // await setLibraryLanguage(language);
+        await setLibraryLanguage(language);
         _model.refreshLibraryCategories(); // Utilisation de la fonction du modèle
         GlobalKeyService.homeKey.currentState?.changeLanguageAndRefresh();
       }

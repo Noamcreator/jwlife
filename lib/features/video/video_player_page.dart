@@ -6,7 +6,6 @@ import 'package:flutter/services.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/core/utils/utils.dart';
-import 'package:jwlife/data/models/media.dart';
 import 'package:jwlife/data/models/video.dart' hide Subtitles;
 import 'package:jwlife/data/databases/history.dart';
 
@@ -20,11 +19,11 @@ import 'subtitles.dart';
 
 class VideoPlayerPage extends StatefulWidget {
   final Video video;
-  final List<Video>? videos;
+  final List<Video> videos;
   final dynamic onlineVideo;
   final Duration initialPosition;
 
-  const VideoPlayerPage({super.key, required this.video, this.onlineVideo, this.initialPosition=Duration.zero, this.videos});
+  const VideoPlayerPage({super.key, required this.video, this.onlineVideo, this.initialPosition=Duration.zero, this.videos = const []});
 
   @override
   _VideoPlayerPageState createState() => _VideoPlayerPageState();
@@ -66,9 +65,12 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
   bool _isDragging = false;
   bool _justDidTwoFingerAction = false;
 
-  // Variables pour sauvegarder l'état lors du changement de résolution
+  // Variables pour sauvegarder l'état lors du changement de résolution ou de navigation
   Duration? _lastPosition;
   bool _wasPlaying = false;
+
+  // NOUVEAU : Index de la vidéo en cours dans la liste widget.videos
+  int _currentVideoIndex = 0;
 
   Timer? _doubleTapTimer;
   DateTime? _lastTapTime;
@@ -83,6 +85,18 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
     super.initState();
     _title = widget.video.title;
     _duration = Duration(seconds: widget.video.duration.toInt());
+
+    // NOUVEAU : Trouver l'index de la vidéo initiale
+    _currentVideoIndex = widget.videos.indexWhere((v) => v.naturalKey == widget.video.naturalKey);
+    if (_currentVideoIndex == -1 && widget.videos.isNotEmpty) {
+      // Si la vidéo initiale n'est pas dans la liste (cas possible pour un lien direct),
+      // on peut la laisser à 0 ou gérer un état spécifique si nécessaire.
+      // Ici, on la laisse à 0 par défaut (cas simple).
+      _currentVideoIndex = 0;
+    } else if (widget.videos.isEmpty) {
+      _currentVideoIndex = 0;
+    }
+
 
     BuildContext context = GlobalKeyService.jwLifePageKey.currentContext!;
     _isFullScreen = MediaQuery.of(context).orientation == Orientation.landscape;
@@ -154,7 +168,13 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
     if (value.position >= value.duration && value.duration.inSeconds > 0 && !_isClosingVideo) {
       _isClosingVideo = true;
 
-      GlobalKeyService.jwLifePageKey.currentState?.handleBack(context);
+      // NOUVEAU : Ajouter la logique de passage automatique à la vidéo suivante si nécessaire
+      if (_hasNextItem() && _currentLoopMode == 0) { // Exemple simple: si on n'est pas en boucle simple
+        _nextItem();
+        _isClosingVideo = false; // Réinitialiser pour la prochaine vidéo
+      } else {
+        GlobalKeyService.jwLifePageKey.currentState?.handleBack(context);
+      }
     }
   }
 
@@ -176,17 +196,46 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
     }
   }
 
+  /// S'occupe de la logique de nettoyage du VideoPlayerController actuel.
+  Future<void> _disposeCurrentController() async {
+    if (_controller != null) {
+      _controller!.removeListener(_videoListener);
+      _isInitializedNotifier.value = false;
+
+      final oldController = _controller;
+      _controller = null;
+
+      // Dispose l'ancien contrôleur
+      await oldController!.dispose();
+    }
+  }
+
+  /// S'occupe de la logique de lancement de la lecture pour une nouvelle vidéo.
+  Future<void> _playNewVideo(Video newVideo) async {
+    History.insertVideo(newVideo);
+
+    if(newVideo.isDownloadedNotifier.value) {
+      await playLocalVideo(video: newVideo);
+    }
+    else {
+      await getVideoApi(video: newVideo);
+    }
+  }
+
   // ============== GESTION DES RÉSOLUTIONS ==============
 
-  void _updateAvailableResolutions(dynamic media) {
-    if (media == null || media['files'] == null) return;
+  void _updateAvailableResolutions(dynamic media, {bool isGetPubMedia = false}) {
+    String listName = isGetPubMedia ? 'MP4' : 'files';
+    String download = isGetPubMedia ? 'file' : 'progressiveDownloadURL';
 
-    final files = media['files'] as List<dynamic>;
+    if (media == null || media[listName] == null) return;
+
+    final files = media[listName] as List<dynamic>;
     _availableResolutions = files
         .where((file) =>
     file['mimetype'] == 'video/mp4' &&
         file.containsKey('label') &&
-        file.containsKey('progressiveDownloadURL'))
+        file.containsKey(download))
         .map<String>((file) => file['label'] as String)
         .toSet()
         .toList();
@@ -203,13 +252,16 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
     return _availableResolutions.first;
   }
 
-  Future<void> fetchMedia(dynamic media, {String? desiredResolution}) async {
-    if (media == null || media['files'] == null) {
+  Future<void> fetchMedia(dynamic media, {String? desiredResolution, bool isGetPubMedia = false}) async {
+    String listName = isGetPubMedia ? 'MP4' : 'files';
+    String download = isGetPubMedia ? 'file' : 'progressiveDownloadURL';
+
+    if (media == null || media[listName] == null) {
       printTime('Données média invalides');
       return;
     }
 
-    final files = media['files'] as List<dynamic>;
+    final files = media[listName] as List<dynamic>;
 
     String resolutionToPlay = desiredResolution ?? _getBestAvailableResolution();
 
@@ -219,10 +271,10 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
       selectedFile = files.firstWhere(
             (file) =>
         file['mimetype'] == 'video/mp4' &&
-            file.containsKey('progressiveDownloadURL') &&
+            file.containsKey(download) &&
             file['label'] == resolutionToPlay,
         orElse: () => files.firstWhere(
-              (file) => file['mimetype'] == 'video/mp4' && file.containsKey('progressiveDownloadURL'),
+              (file) => file['mimetype'] == 'video/mp4' && file.containsKey(download),
           orElse: () => null,
         ),
       );
@@ -234,9 +286,9 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
             (file) =>
         file['label'] == resolutionToPlay &&
             file['mimetype'] == 'video/mp4' &&
-            file.containsKey('progressiveDownloadURL'),
+            file.containsKey(download),
         orElse: () => files.firstWhere(
-              (file) => file['mimetype'] == 'video/mp4' && file.containsKey('progressiveDownloadURL'),
+              (file) => file['mimetype'] == 'video/mp4' && file.containsKey(download),
           orElse: () => null,
         ),
       );
@@ -245,35 +297,42 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
       });
     }
 
-    if (selectedFile == null || !selectedFile.containsKey('progressiveDownloadURL')) {
+    if (selectedFile == null || !selectedFile.containsKey(download)) {
       printTime('Aucun fichier vidéo valide trouvé');
       return;
     }
 
-    final videoUrl = selectedFile['progressiveDownloadURL'];
+    if(isGetPubMedia) {
+      // Si c'est un changement de vidéo, on met à jour le titre/durée
+      if (_onlineMediaData != widget.onlineVideo) {
+        setState(() {
+          _title = selectedFile['title'];
+          _duration = Duration(seconds: selectedFile['duration'].toInt());
+        });
+      }
+    }
+
+    final videoUrl = isGetPubMedia ? selectedFile['file']['url'] : selectedFile['progressiveDownloadURL'];
 
     if (_controller != null) {
       _lastPosition = _controller!.value.position;
       _wasPlaying = _controller!.value.isPlaying;
 
-      _controller!.removeListener(_videoListener);
-      _isInitializedNotifier.value = false;
-
-      final oldController = _controller;
-      _controller = null;
-
-      await oldController!.dispose();
+      await _disposeCurrentController(); // Utilisation de la nouvelle fonction utilitaire
     }
 
     await playOnlineVideo(videoUrl);
   }
 
-  Future<void> getVideoApi() async {
-    String? lank = widget.video.naturalKey;
-    String? lang = widget.video.mepsLanguage;
+// MODIFICATION : Ajout d'un paramètre optionnel 'video'
+  Future<void> getVideoApi({Video? video}) async {
+    final currentVideo = video ?? widget.video;
 
-    if(widget.video.fileUrl != null) {
-      final videoUrl = widget.video.fileUrl!;
+    String? lank = currentVideo.naturalKey;
+    String? lang = currentVideo.mepsLanguage;
+
+    if(currentVideo.fileUrl != null) {
+      final videoUrl = currentVideo.fileUrl!;
       await playOnlineVideo(videoUrl);
       return;
     }
@@ -298,8 +357,59 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
         printTime('An exception occurred: $e');
       }
     }
-    else {
-      printTime('Lank or lang parameters are missing in the URL.');
+    else if (currentVideo.mepsLanguage != null) {
+      // Déclaration et initialisation des variables
+      String? pub = currentVideo.keySymbol;
+      int? issue = currentVideo.issueTagNumber;
+      int? docId = currentVideo.documentId;
+      int? track = currentVideo.track;
+      String langwritten = currentVideo.mepsLanguage!;
+
+      // 1. Préparation des paramètres de requête
+      final Map<String, String> queryParameters = {
+        'langwritten': langwritten,
+      };
+
+      if (pub != null) {
+        queryParameters['pub'] = pub;
+      }
+      if (issue != null) {
+        queryParameters['issue'] = issue.toString();
+      }
+      if (docId != null) {
+        queryParameters['docId'] = docId.toString();
+      }
+      if (track != null) {
+        queryParameters['track'] = track.toString();
+      }
+
+      // 2. Construction de l'URL sécurisée
+      final uri = Uri.https(
+        'app.jw-cdn.org',
+        '/apis/pub-media/GETPUBMEDIALINKS',
+        queryParameters,
+      );
+
+      final apiUrl = uri.toString();
+
+      printTime('apiUrl: $apiUrl');
+
+      try {
+        final response = await Api.httpGetWithHeaders(apiUrl);
+
+        if (response.statusCode == 200) {
+          final data = json.decode(response.body);
+          _onlineMediaData = data['files'][langwritten];
+          _updateAvailableResolutions(_onlineMediaData, isGetPubMedia: true);
+          fetchMedia(_onlineMediaData, isGetPubMedia: true);
+        }
+        else {
+          printTime('Loading error: ${response.statusCode}');
+        }
+      }
+      catch (e) {
+        printTime('An exception occurred: $e');
+      }
     }
   }
 
@@ -313,6 +423,7 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
         if (!mounted) return;
         _controller!.addListener(_videoListener);
 
+        // Utilise _lastPosition (sauvé lors de la navigation ou du changement de résolution)
         Duration position = _lastPosition ?? widget.initialPosition;
         _controller!.seekTo(position);
 
@@ -320,11 +431,13 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
           _controller!.setPlaybackSpeed(_speedNotifier.value);
         }
 
+        // Reprend la lecture si c'était le cas avant ou si c'est la première lecture
         if (_wasPlaying || _lastPosition == null) {
           _controller!.play();
           _startControlsTimer();
         }
 
+        // Réinitialisation des états de navigation/changement
         _lastPosition = null;
         _wasPlaying = false;
 
@@ -336,18 +449,32 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
       });
   }
 
-  Future<void> playLocalVideo() async {
-    File file = File(widget.video.filePath!);
+// MODIFICATION : Ajout d'un paramètre optionnel 'video'
+  Future<void> playLocalVideo({Video? video}) async {
+    final currentVideo = video ?? widget.video;
+    File file = File(currentVideo.filePath!); // Utilisation de currentVideo
 
     _controller = VideoPlayerController.file(file)
       ..initialize().then((_) {
         if (!mounted) return;
         _controller!.addListener(_videoListener);
-        _controller!.play();
-        _controller!.seekTo(widget.initialPosition);
+
+        // Utilise _lastPosition pour reprendre après la navigation
+        Duration position = _lastPosition ?? widget.initialPosition;
+        _controller!.seekTo(position);
+
+        // Reprend la lecture si c'était le cas ou si c'est la première lecture
+        if (_wasPlaying || _lastPosition == null) {
+          _controller!.play();
+        }
+
         _isInitializedNotifier.value = true;
         _isPlayingNotifier.value = true;
         _startControlsTimer();
+
+        // Réinitialisation des états de navigation/changement
+        _lastPosition = null;
+        _wasPlaying = false;
       });
   }
 
@@ -376,6 +503,92 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
     } else {
       _timer?.cancel();
     }
+  }
+
+  /// Vérifie s'il y a une vidéo suivante dans la liste 'widget.videos'.
+  bool _hasNextItem() {
+    // S'assurer que _currentVideoIndex est à jour.
+    final int currentIndex = _currentVideoIndex;
+
+    // Retourne true si la liste n'est pas vide et l'index n'est pas le dernier.
+    return widget.videos.isNotEmpty && currentIndex != -1 && currentIndex < widget.videos.length - 1;
+  }
+
+  /// Vérifie s'il y a une vidéo précédente dans la liste 'widget.videos'.
+  bool _hasPreviousItem() {
+    // S'assurer que _currentVideoIndex est à jour.
+    final int currentIndex = _currentVideoIndex;
+
+    // Retourne true si l'index est supérieur à 0 (pas la première vidéo).
+    return widget.videos.isNotEmpty && currentIndex > 0;
+  }
+
+  /// Charge la vidéo suivante SANS changer de page.
+  Future<void> _nextItem() async {
+    if (!_hasNextItem()) {
+      printTime('Aucun élément suivant disponible.');
+      return;
+    }
+
+    // 1. Détermination de la prochaine vidéo et mise à jour de l'index
+    final int nextIndex = _currentVideoIndex + 1;
+    final Video nextVideo = widget.videos[nextIndex];
+
+    // 2. Nettoyage du contrôleur actuel (important pour libérer les ressources)
+    // Sauvegarde de l'état de lecture actuel (pour la prochaine vidéo)
+    _lastPosition = Duration.zero; // Nouvelle vidéo commence au début
+    _wasPlaying = _controller?.value.isPlaying ?? false; // Reprendre la lecture si elle était en cours
+
+    await _disposeCurrentController();
+
+    // 3. Mise à jour de l'état du widget pour la nouvelle vidéo
+    setState(() {
+      // Note: widget.video ne change pas, seule la variable interne _currentVideoIndex
+      // et les états d'affichage (_title, _duration) changent.
+      _currentVideoIndex = nextIndex;
+      _title = nextVideo.title;
+      _duration = Duration(seconds: nextVideo.duration.toInt());
+      // Réinitialisation des états spécifiques à la vidéo
+      _onlineMediaData = null;
+      _currentResolution = 'Auto';
+      _availableResolutions = [];
+    });
+
+    // 4. Initialisation de la nouvelle vidéo (Utilise la logique locale ou API)
+    await _playNewVideo(nextVideo);
+  }
+
+  /// Charge la vidéo précédente SANS changer de page.
+  Future<void> _previousItem() async {
+    if (!_hasPreviousItem() || _positionNotifier.value >= 1.0) {
+      // retourner au début de la vidéo
+      _controller?.seekTo(Duration.zero);
+      return;
+    }
+
+    // 1. Détermination de la vidéo précédente et mise à jour de l'index
+    final int previousIndex = _currentVideoIndex - 1;
+    final Video previousVideo = widget.videos[previousIndex];
+
+    // 2. Nettoyage du contrôleur actuel
+    _lastPosition = Duration.zero;
+    _wasPlaying = _controller?.value.isPlaying ?? false;
+
+    await _disposeCurrentController();
+
+    // 3. Mise à jour de l'état du widget pour la nouvelle vidéo
+    setState(() {
+      _currentVideoIndex = previousIndex;
+      _title = previousVideo.title;
+      _duration = Duration(seconds: previousVideo.duration.toInt());
+      // Réinitialisation des états spécifiques à la vidéo
+      _onlineMediaData = null;
+      _currentResolution = 'Auto';
+      _availableResolutions = [];
+    });
+
+    // 4. Initialisation de la nouvelle vidéo
+    await _playNewVideo(previousVideo);
   }
 
   void setSpeed(double value) {
@@ -759,19 +972,27 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
                           ),
 
                           // Sous-titres superposés
-                          // 📝 Sous-titres - Affichés en bas de la vidéo
                           if (_showSubtitle && _subtitles.isNotEmpty)
                             Positioned.fill(
                               child: ValueListenableBuilder<double>(
                                 valueListenable: _positionNotifier,
                                 builder: (context, position, child) {
+
+                                  // 1. Déterminer l'orientation
+                                  final orientation = MediaQuery.of(context).orientation;
+                                  final isLandscape = orientation == Orientation.landscape;
+
+                                  // 2. Définir la marge en fonction de l'orientation
+                                  final double bottomMargin = isLandscape ? _controlsVisibleNotifier.value == true ? 130.0 : 10.0 : 10.0; // Plus haut en mode paysage (par exemple 50.0)
+
                                   final subtitle = _getCurrentSubtitle();
                                   if (subtitle.text.isEmpty) return const SizedBox.shrink();
 
                                   return Align(
                                     alignment: Alignment.bottomCenter, // toujours en bas
                                     child: Container(
-                                      margin: const EdgeInsets.only(bottom: 10), // petit décalage du bord
+                                      // 3. Utiliser la marge calculée
+                                      margin: EdgeInsets.only(bottom: bottomMargin),
                                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                       decoration: BoxDecoration(
                                         color: Colors.black.withOpacity(0.8),
@@ -817,7 +1038,7 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
                                     color: Colors.black.withOpacity(0.5),
                                   ),
                                   child: IconButton(
-                                    iconSize: 75.0,
+                                    iconSize: 50.0,
                                     padding: const EdgeInsets.all(2),
                                     icon: Icon(
                                       isPlaying ? JwIcons.pause : JwIcons.play,
@@ -961,120 +1182,166 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
               ValueListenableBuilder<bool>(
                 valueListenable: _controlsVisibleNotifier,
                 builder: (context, controlsVisible, child) {
-                  return AnimatedOpacity(
-                    duration: const Duration(milliseconds: 150),
-                    opacity: controlsVisible ? 1.0 : 0.0,
-                    child: Align(
-                      alignment: Alignment.bottomCenter,
-                      child: Container(
-                        padding: const EdgeInsets.only(bottom: 65),
-                        color: Colors.transparent,
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            ValueListenableBuilder<double>(
-                              valueListenable: _positionNotifier,
-                              builder: (context, position, child) {
-                                return SliderTheme(
-                                  data: const SliderThemeData(
-                                    padding: EdgeInsets.symmetric(horizontal: 10),
-                                    trackHeight: 2.0,
-                                    thumbShape: RoundSliderThumbShape(enabledThumbRadius: 6.0),
-                                  ),
-                                  child: Slider(
-                                    value: position,
-                                    min: 0.0,
-                                    max: _duration.inSeconds.toDouble(),
-                                    onChanged: (double newValue) {
-                                      _positionNotifier.value = newValue;
-                                    },
-                                    onChangeStart: (double newValue) {
-                                      _isPositionSeeking = true;
-                                    },
-                                    onChangeEnd: (double newValue) {
-                                      _controller?.seekTo(Duration(seconds: newValue.toInt()));
-                                      _isPositionSeeking = false;
-                                      _startControlsTimer();
-                                    },
-                                    activeColor: Theme.of(context).primaryColor,
-                                    inactiveColor: Colors.white.withOpacity(0.5),
-                                  ),
-                                );
-                              },
-                            ),
-                            Row(
-                              children: [
-                                ValueListenableBuilder<bool>(
-                                  valueListenable: _isPlayingNotifier,
-                                  builder: (context, isPlaying, child) {
-                                    return IconButton(
-                                      padding: EdgeInsets.zero,
-                                      icon: Icon(
-                                        isPlaying ? JwIcons.pause : JwIcons.play,
-                                        color: Colors.white,
-                                      ),
-                                      onPressed: _togglePlayPause,
-                                    );
-                                  },
-                                ),
-                                ValueListenableBuilder<double>(
-                                  valueListenable: _positionNotifier,
-                                  builder: (context, position, child) {
-                                    return Text(
-                                      "${formatDuration(position)} / ${formatDuration(_duration.inSeconds.toDouble())}",
-                                      style: const TextStyle(color: Colors.white),
-                                    );
-                                  },
-                                ),
-                                const Spacer(),
-                                IconButton(
-                                  icon: Icon(_showSubtitle ? JwIcons.caption : JwIcons.caption_crossed, color: Colors.white),
-                                  onPressed: _showSubtitles,
-                                ),
-                                ValueListenableBuilder<double>(
-                                  valueListenable: _volumeNotifier,
-                                  builder: (context, volume, child) {
-                                    return IconButton(
-                                      padding: EdgeInsets.zero,
-                                      icon: Icon(
-                                          volume == 0.0 ? JwIcons.sound_x : JwIcons.sound,
-                                          color: Colors.white
-                                      ),
-                                      onPressed: () {
-                                        _controller?.setVolume(volume == 0.0 ? 1.0 : 0.0);
+                  return SafeArea(
+                    child: AnimatedOpacity(
+                      duration: const Duration(milliseconds: 150),
+                      opacity: controlsVisible ? 1.0 : 0.0,
+                      child: Align(
+                        alignment: Alignment.bottomCenter,
+                        child: Container(
+                          padding: const EdgeInsets.only(bottom: 50),
+                          color: Colors.transparent,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              ValueListenableBuilder<double>(
+                                valueListenable: _positionNotifier,
+                                builder: (context, position, child) {
+                                  return SliderTheme(
+                                    data: const SliderThemeData(
+                                      padding: EdgeInsets.symmetric(horizontal: 10),
+                                      trackHeight: 2.0,
+                                      thumbShape: RoundSliderThumbShape(enabledThumbRadius: 6.0),
+                                    ),
+                                    child: Slider(
+                                      value: position,
+                                      min: 0.0,
+                                      max: _duration.inSeconds.toDouble(),
+                                      onChanged: (double newValue) {
+                                        _positionNotifier.value = newValue;
+                                      },
+                                      onChangeStart: (double newValue) {
+                                        _isPositionSeeking = true;
+                                      },
+                                      onChangeEnd: (double newValue) {
+                                        _controller?.seekTo(Duration(seconds: newValue.toInt()));
+                                        _isPositionSeeking = false;
                                         _startControlsTimer();
                                       },
-                                    );
-                                  },
-                                ),
-                                _buildSettingsMenu(),
-                                IconButton(
-                                  icon: Icon(_isFullScreen ? JwIcons.arrows_inward : JwIcons.arrows_outward, color: Colors.white),
-                                  onPressed: () {
-                                    // mettre en plein écran
-                                    _isFullScreen = !_isFullScreen;
+                                      activeColor: Theme.of(context).primaryColor,
+                                      inactiveColor: Colors.white.withOpacity(0.5),
+                                    ),
+                                  );
+                                },
+                              ),
+                              Row(
+                                children: [
+                                  // 1. Bouton Play/Pause (Pas de padding si désiré)
+                                  ValueListenableBuilder<bool>(
+                                    valueListenable: _isPlayingNotifier,
+                                    builder: (context, isPlaying, child) {
+                                      return IconButton(
+                                        visualDensity: VisualDensity.compact,
+                                        padding: EdgeInsets.zero,
+                                        icon: Icon(
+                                          isPlaying ? JwIcons.pause : JwIcons.play,
+                                          color: Colors.white,
+                                        ),
+                                        onPressed: _togglePlayPause,
+                                      );
+                                    },
+                                  ),
 
-                                    // change portrait or landscape
-                                    if (_isFullScreen) {
-                                      SystemChrome.setPreferredOrientations([
-                                        DeviceOrientation.landscapeLeft,
-                                        DeviceOrientation.landscapeRight,
-                                      ]);
-                                    }
-                                    else {
-                                      SystemChrome.setPreferredOrientations([
-                                        DeviceOrientation.portraitUp,
-                                        DeviceOrientation.portraitDown,
-                                      ]);
-                                    }
-                                  },
-                                ),
-                              ],
-                            ),
-                          ],
+                                  const SizedBox(width: 5),
+
+                                  // 2. Durée (Contrainte par Expanded pour éviter le débordement)
+                                  ValueListenableBuilder<double>(
+                                    valueListenable: _positionNotifier,
+                                    builder: (context, position, child) {
+                                      return Text(
+                                        "${formatDuration(position)} / ${formatDuration(_duration.inSeconds.toDouble())}",
+                                        style: const TextStyle(color: Colors.white),
+                                        overflow: TextOverflow.ellipsis, // Coupe le texte s'il est trop long
+                                        maxLines: 1,
+                                      );
+                                    },
+                                  ),
+
+                                  const SizedBox(width: 5),
+
+                                  // 3. Bouton Précédent
+                                  IconButton(
+                                    visualDensity: VisualDensity.compact,
+                                    padding: EdgeInsets.zero,
+                                    splashRadius: 1,
+                                    onPressed: _previousItem,
+                                    icon: Icon(
+                                      JwIcons.triangle_to_bar_left,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+
+                                  // 4. Bouton Suivant
+                                  IconButton(
+                                    visualDensity: VisualDensity.compact,
+                                    padding: EdgeInsets.zero,
+                                    onPressed: _hasNextItem() ? _nextItem : null,
+                                    icon: Icon(
+                                      JwIcons.triangle_to_bar_right,
+                                      color: _hasNextItem() ? Colors.white : Colors.white.withOpacity(0.3),
+                                    ),
+                                  ),
+
+                                  const Spacer(flex: 1),
+
+                                  // 5. Bouton Sous-titres
+                                  IconButton(
+                                    padding: EdgeInsets.zero,
+                                    icon: Icon(_showSubtitle ? JwIcons.caption : JwIcons.caption_crossed, color: Colors.white),
+                                    onPressed: _showSubtitles,
+                                  ),
+
+                                  // 6. Bouton Volume
+                                  ValueListenableBuilder<double>(
+                                    valueListenable: _volumeNotifier,
+                                    builder: (context, volume, child) {
+                                      return IconButton(
+                                        visualDensity: VisualDensity.compact,
+                                        padding: EdgeInsets.zero,
+                                        icon: Icon(
+                                            volume == 0.0 ? JwIcons.sound_x : JwIcons.sound,
+                                            color: Colors.white
+                                        ),
+                                        onPressed: () {
+                                          _controller?.setVolume(volume == 0.0 ? 1.0 : 0.0);
+                                          _startControlsTimer();
+                                        },
+                                      );
+                                    },
+                                  ),
+
+                                  // Bouton Plein Écran
+                                  IconButton(
+                                    visualDensity: VisualDensity.compact,
+                                    padding: EdgeInsets.zero,
+                                    icon: Icon(_isFullScreen ? JwIcons.arrows_inward : JwIcons.arrows_outward, color: Colors.white),
+                                    onPressed: () {
+                                      _isFullScreen = !_isFullScreen;
+
+                                      if (_isFullScreen) {
+                                        SystemChrome.setPreferredOrientations([
+                                          DeviceOrientation.landscapeLeft,
+                                          DeviceOrientation.landscapeRight,
+                                        ]);
+                                      }
+                                      else {
+                                        SystemChrome.setPreferredOrientations([
+                                          DeviceOrientation.portraitUp,
+                                          DeviceOrientation.portraitDown,
+                                        ]);
+                                      }
+                                    },
+                                  ),
+
+                                  // Menu Paramètres (Le code _buildSettingsMenu() est conservé tel quel)
+                                  _buildSettingsMenu(),
+                                ],
+                              )
+                            ],
+                          ),
                         ),
                       ),
-                    ),
+                    )
                   );
                 },
               ),

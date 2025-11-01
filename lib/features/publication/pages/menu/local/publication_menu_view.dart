@@ -22,6 +22,7 @@ import '../../../../../app/services/settings_service.dart';
 import '../../../../../core/app_dimens.dart';
 import '../../../../../core/shared_preferences/shared_preferences_utils.dart';
 import '../../../../../core/utils/utils_language_dialog.dart';
+import '../../../../../core/utils/utils_pub.dart';
 import '../../../../bible/pages/bible_chapter_page.dart';
 import '../../../../image/image_page.dart';
 import '../../../models/menu/local/menu_list_item.dart';
@@ -265,7 +266,7 @@ class PublicationMenuViewState extends State<PublicationMenuView> with SingleTic
         child: Container(
           decoration: BoxDecoration(
             // Note: BibleColorGroup n'est pas défini, mais conservé pour la complétude
-            color: BibleColorGroup.getGroupColorAt(context, groupId),
+            color: BibleColorGroup.getGroupColorAt(groupId),
           ),
           child: Center(
             child: Padding(
@@ -305,7 +306,7 @@ class PublicationMenuViewState extends State<PublicationMenuView> with SingleTic
       },
       child: Container(
         decoration: BoxDecoration(
-          color: BibleColorGroup.getGroupColorAt(context, groupId),
+          color: BibleColorGroup.getGroupColorAt(groupId),
         ),
         child: Stack(
           children: [
@@ -941,7 +942,7 @@ class PublicationMenuViewState extends State<PublicationMenuView> with SingleTic
                 else { showLanguagePubDialog(context, widget.publication).then((languagePub) async { if(languagePub != null) { languagePub.showMenu(context); } }); }
               }),
               IconTextButton(text: "Ajouter un widget sur l'écran d'accueil", icon: const Icon(JwIcons.article), onPressed: () async { /* ... */ }),
-              IconTextButton(text: "Télécharger les médias", icon: const Icon(JwIcons.cloud_arrow_down), onPressed: () { /* ... */ }),
+              IconTextButton(text: "Télécharger les médias", icon: const Icon(JwIcons.cloud_arrow_down), onPressed: () { showDownloadMediasDialog(context, widget.publication); }),
               IconTextButton(text: "Historique", icon: const Icon(JwIcons.arrow_circular_left_clock), onPressed: () { History.showHistoryDialog(context); }),
               IconTextButton(text: "Envoyer le lien", icon: const Icon(JwIcons.share), onPressed: () { widget.publication.shareLink(); }),
             ],

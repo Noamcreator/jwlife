@@ -6,7 +6,6 @@ import 'package:jwlife/features/library/widgets/rectangle_publication_item.dart'
 import 'package:jwlife/i18n/localization.dart';
 
 import '../../../app/services/settings_service.dart';
-import '../../../core/icons.dart';
 import '../../../core/utils/utils_language_dialog.dart';
 import '../../publication/pages/menu/local/publication_menu_view.dart';
 
@@ -37,6 +36,10 @@ class BiblePageState extends State<BiblePage> {
 
   void goToTheBooksTab() {
     _bibleMenuPage.currentState?.goToTheBooksTab();
+  }
+
+  void refreshColor() {
+    setState(() {});
   }
 
   @override

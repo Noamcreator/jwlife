@@ -139,7 +139,7 @@ class Audio extends Media {
   }
 
   @override
-  Future<void> download(BuildContext context) async {
+  Future<void> download(BuildContext context, {int? resolution}) async {
     if(naturalKey == null) {
       super.performDownload(context, null);
     }

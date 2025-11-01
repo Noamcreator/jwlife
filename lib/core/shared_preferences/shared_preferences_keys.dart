@@ -5,6 +5,7 @@ class SharedPreferencesKeys {
   // Thème
   static const theme = _PrefKey('theme', 'system');
   static const primaryColor = _PrefKey('primary_color', null);
+  static const bibleColor = _PrefKey('bible_color', null);
 
   // Langue
   static const locale = _PrefKey('locale', 'en');

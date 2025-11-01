@@ -428,6 +428,7 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
                     verticalScrollBarEnabled: false,
                     horizontalScrollBarEnabled: false,
                     useShouldOverrideUrlLoading: true,
+                    supportMultipleWindows: true,
                     mediaPlaybackRequiresUserGesture: false,
                     useOnLoadResource: false,
                     allowUniversalAccessFromFileURLs: true,
@@ -1174,6 +1175,8 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
                       callback: (args) async {
                         String link = args[0];
 
+                        print(link);
+
                         // Extraire les paramètres
                         Uri uri = Uri.parse(link);
                         String? pub = uri.queryParameters['pub']?.toLowerCase();
@@ -1187,6 +1190,21 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
                         if(mediaItem != null) {
                           Video video = Video.fromJson(mediaItem: mediaItem);
                           video.showPlayer(context);
+                        }
+                        else {
+                          Video video = Video(
+                            keySymbol: pub,
+                            issueTagNumber: issue,
+                            mepsLanguage: langwritten,
+                            track: track,
+                            documentId: docId,
+                          );
+
+                          video.showPlayer(context);
+
+                          // dialog pour importer le média
+                          
+                          //showImportPublication(context, keySymbol, issueTagNumber, mepsLanguageId)
                         }
                       },
                     );

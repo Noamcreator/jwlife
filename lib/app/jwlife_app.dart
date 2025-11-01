@@ -114,6 +114,15 @@ class JwLifeAppState extends State<JwLifeApp> {
     }
   }
 
+  Future<void> toggleBibleColor(Color color) async {
+    JwLifeSettings().bibleColor = color;
+    setBibleColor(color);
+
+    if(GlobalKeyService.bibleKey.currentState != null) {
+      GlobalKeyService.bibleKey.currentState!.refreshBiblePage();
+    }
+  }
+
   void changeLocale(Locale locale) {
     setState(() {
       _locale = locale;

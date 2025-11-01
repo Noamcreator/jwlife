@@ -73,6 +73,28 @@ Future<void> setPrimaryColor(ThemeMode theme, Color color) async {
   await sp.setStringList(SharedPreferencesKeys.primaryColor.key, colors);
 }
 
+/// Récupère la couleur primaire
+Future<Color> getBibleColor() async {
+  final sp = await _getSP();
+
+  final color = sp.getString(SharedPreferencesKeys.bibleColor.key);
+  if (color != null) {
+    try {
+      return color.fromHex();
+    }
+    catch (e) {
+      debugPrint('Erreur conversion couleur : $e');
+    }
+  }
+  return Constants.defaultBibleColor;
+}
+
+/// Sauvegarde une couleur primaire
+Future<void> setBibleColor(Color color) async {
+  final sp = await _getSP();
+  await sp.setString(SharedPreferencesKeys.bibleColor.key, color.toHex());
+}
+
 /* LOCALE */
 Future<String> getLocale() async {
   final sp = await _getSP();

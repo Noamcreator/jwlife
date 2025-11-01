@@ -51,6 +51,7 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
   Locale _selectedLocale = const Locale('en');
   String _selectedLocaleVernacular = 'English';
   Color? _selectedColor = Colors.blue;
+  Color? _bibleSelectedColor = Colors.blue;
   final MepsLanguage _selectedLanguage = JwLifeSettings().currentLanguage;
 
   String catalogDate = '';
@@ -104,6 +105,7 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
       getTheme(),
       getLocale(),
       getPrimaryColor(_theme),
+      getBibleColor(),
       getFontSize(),
       getStyleIndex(),
       getColorIndex(),
@@ -117,16 +119,17 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
     final theme = futures[0] as String;
     final selectedLanguage = futures[1] as String;
     final primaryColor = futures[2] as Color;
-    final fontSize = futures[3] as double;
-    final styleIndex = futures[4] as int;
-    final colorIndex = futures[5] as int;
+    final bibleColor = futures[3] as Color;
+    final fontSize = futures[4] as double;
+    final styleIndex = futures[5] as int;
+    final colorIndex = futures[6] as int;
 
-    final dailyTextNotification = futures[6] as bool;
-    final dailyTextNotificationTime = futures[7] as DateTime;
-    final bibleReadingNotification = futures[8] as bool;
-    final bibleReadingNotificationTime = futures[9] as DateTime;
+    final dailyTextNotification = futures[7] as bool;
+    final dailyTextNotificationTime = futures[8] as DateTime;
+    final bibleReadingNotification = futures[9] as bool;
+    final bibleReadingNotificationTime = futures[10] as DateTime;
 
-    final downloadNotification = futures[10] as bool;
+    final downloadNotification = futures[11] as bool;
 
     final info = await PackageInfo.fromPlatform();
     final currentVersion = info.version;
@@ -150,6 +153,7 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
         _theme = themeMode;
         _selectedLocale = Locale(selectedLanguage);
         _selectedColor = primaryColor;
+        _bibleSelectedColor = bibleColor;
         _fontSize = fontSize;
         _styleIndex = styleIndex;
         _colorIndex = colorIndex;
@@ -279,6 +283,15 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
     }
   }
 
+  Future<void> _updateBibleColor(Color color) async {
+    if (_bibleSelectedColor != color) {
+      setState(() {
+        _bibleSelectedColor = color;
+      });
+      GlobalKeyService.jwLifeAppKey.currentState?.toggleBibleColor(color);
+    }
+  }
+
   Future<void> _updateLocale(Locale locale, String vernacular) async {
     if (_selectedLocale != locale) {
       setState(() {
@@ -333,13 +346,13 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
     }
   }
 
-  void showColorSelectionDialog() {
-    Color tempColor = _selectedColor!;
+  void showColorSelectionDialog(bool isPrimaryColor) {
+    Color tempColor = isPrimaryColor ? _selectedColor! : _bibleSelectedColor!;
 
     showJwDialog(
       context: context,
-      title: const Text(
-        'Couleur Principale',
+      title: Text(
+        isPrimaryColor ? 'Couleur Principale' : 'Couleur des livres de la Bible',
         style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
       ),
       buttonAxisAlignment: MainAxisAlignment.end,
@@ -361,11 +374,9 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
                 onPressed: () {
                   // Met à jour la couleur et reconstruit la boîte de dialogue pour mettre à jour le sélecteur
                   setState(() {
-                    tempColor = Theme.of(context).brightness == Brightness.dark
-                        ? Constants.defaultDarkPrimaryColor
-                        : Constants.defaultLightPrimaryColor;
+                    tempColor = isPrimaryColor ? Theme.of(context).brightness == Brightness.dark ? Constants.defaultDarkPrimaryColor : Constants.defaultLightPrimaryColor : Constants.defaultBibleColor;
                   });
-                  _updatePrimaryColor(tempColor);
+                  isPrimaryColor ? _updatePrimaryColor(tempColor) : _updateBibleColor(tempColor);
                 },
               ),
             ],
@@ -380,7 +391,7 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
           label: localization(context).action_save.toUpperCase(),
           closeDialog: true,
           onPressed: (BuildContext context) {
-            _updatePrimaryColor(tempColor);
+            isPrimaryColor ? _updatePrimaryColor(tempColor) : _updateBibleColor(tempColor);
           },
         ),
       ],
@@ -944,8 +955,13 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
       ),
       SettingsColorTile(
         title: 'Couleur Principale',
-        color: Theme.of(context).primaryColor,
-        onTap: showColorSelectionDialog,
+        color: _selectedColor!,
+        onTap: () => showColorSelectionDialog(true),
+      ),
+      SettingsColorTile(
+        title: 'Couleur des livres de la Bible',
+        color: _bibleSelectedColor!,
+        onTap: () => showColorSelectionDialog(false),
       ),
       const Divider(),
 

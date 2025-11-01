@@ -19,6 +19,7 @@ class JwLifeSettings {
   WebViewData webViewData = WebViewData();
   Color lightPrimaryColor = Constants.defaultLightPrimaryColor;
   Color darkPrimaryColor = Constants.defaultDarkPrimaryColor;
+  Color bibleColor = Constants.defaultBibleColor;
 
   bool notificationDownload = false;
 
@@ -36,6 +37,9 @@ class JwLifeSettings {
     final darkColor = await getPrimaryColor(ThemeMode.dark);
     lightPrimaryColor = lightColor;
     darkPrimaryColor = darkColor;
+
+    final bibleColor = await getBibleColor();
+    this.bibleColor = bibleColor;
 
     final localeCode = await getLocale();
     locale = Locale(localeCode);

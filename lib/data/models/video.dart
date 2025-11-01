@@ -155,18 +155,20 @@ class Video extends Media {
   String get subtitlesFilePath => filePath!.replaceAll('.mp4', '.vtt');
 
   @override
-  Future<void> download(BuildContext context) async {
+  Future<void> download(BuildContext context, {int? resolution}) async {
     if (await hasInternetConnection()) {
-      if (!isDownloadingNotifier.value) {
+      if (!isDownloadingNotifier.value && !isDownloadedNotifier.value) {
         String link = 'https://b.jw-cdn.org/apis/mediator/v1/media-items/$mepsLanguage/$naturalKey';
         final response = await Api.httpGetWithHeaders(link);
         if (response.statusCode == 200) {
           final jsonData = json.decode(response.body);
-          showVideoDownloadDialog(context, jsonData['media'][0]['files']).then((value) async {
-            if (value != null) {
-              await super.performDownload(context, jsonData['media'][0], file: value);
-            }
-          });
+
+          // Si 'file' est null, assigne le résultat de showVideoDownloadDialog à 'file'.
+          resolution ??= await showVideoDownloadDialog(context, jsonData['media'][0]['files']);
+
+          if(resolution == null) return;
+
+          await super.performDownload(context, jsonData['media'][0], resolution: resolution);
         }
       }
     }

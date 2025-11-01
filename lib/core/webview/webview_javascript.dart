@@ -193,12 +193,10 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
             background-size: auto 75%; /* La hauteur est de 75% de la hauteur de l'élément, la largeur est automatique */
           }
           
-          .word.searched {
-            background-color: rgba(255, 185, 46, 0.8);
-          }
-          
-          .user-selected {
-            user-select: text; /* Permet la sélection normale du texte */
+          body.selection-active .word,
+          body.selection-active .punctuation,
+          body.selection-active .escape {
+            user-select: text;
           }
             
           a:hover, a:active, a:visited, a:focus {
@@ -1525,7 +1523,7 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
           function removeAllSelected() {
             firstLongPressTarget = null;
             lastLongPressTarget = null;
-            document.body.classList.remove('user-selected');
+            toggleSelection(false);
             isSelecting = false;
             currentGuid = '';
             pressTimer = null;
@@ -5078,7 +5076,7 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
           async function onClickOnPage(article, target) {
             const tagName = target.tagName;
             
-            if(document.body.classList.contains('user-selected') || isSelecting) {
+            if(document.body.classList.contains('selection-active') || isSelecting) {
               removeAllSelected();
               closeToolbar();
               return;
@@ -5230,25 +5228,29 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
               while (left > 0 && /\w/.test(text[left - 1])) {
                   left--;
               }
-              // Une version plus simple pour inclure la ponctuation interne :
-              // while (left > 0 && !/\s/.test(text[left - 1])) {
-              //     left--;
-              // }
           
               // 2. Recherche de la limite droite du mot
               // On avance tant qu'on rencontre des caractères non-espace/non-séparateur
               while (right < text.length && /\w/.test(text[right])) {
                   right++;
               }
-              // Une version plus simple pour inclure la ponctuation interne :
-              // while (right < text.length && !/\s/.test(text[right])) {
-              //     right++;
-              // }
               
               // 3. Applique les limites à la Range
               range.setStart(textNode, left);
               range.setEnd(textNode, right);
           }
+          
+          function toggleSelection(active) {
+            if(active) {
+              document.body.classList.add('selection-active');
+            }
+            else {
+               document.body.classList.remove('selection-active');
+            }
+          }
+          
+          // Variable pour ignorer le premier selectionchange lors de l'appui long
+          let isInitialSelectionChange = false;
           
           // Empêche le menu contextuel du navigateur (qui apparaît suite à un clic droit ou un appui long)
           pageCenter.addEventListener('contextmenu', (event) => {
@@ -5256,6 +5258,9 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
                 isLongTouchFix = false;
                 isSelecting = true;
                 event.preventDefault();
+                
+                // NOUVEAU : On indique qu'on est en train de créer la sélection initiale
+                isInitialSelectionChange = true;
               
                 closeToolbar();
                 
@@ -5281,8 +5286,22 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
                 if (firstLongPressTarget) {
                     showSelectedToolbar(firstLongPressTarget);
                 }
+                
+                // NOUVEAU : On réactive la surveillance après un court délai
+                setTimeout(() => {
+                  isInitialSelectionChange = false;
+                }, 100);
               } 
           }, false);
+          
+          document.addEventListener('selectionchange', () => {
+            // NOUVEAU : Ignore le selectionchange si c'est la sélection initiale
+            if (isInitialSelectionChange) {
+              return;
+            }
+            
+            closeToolbar();
+          });
           
           // Gestionnaire d'événements click optimisé
           pageCenter.addEventListener('click', async (event) => {
@@ -5304,61 +5323,34 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
               firstLongPressTarget = event.target;
           
               pressTimer = setTimeout(async () => {
-                document.body.classList.add('user-selected');
                 closeToolbar();
+                toggleSelection(true);
           
                 const firstTargetClassList = firstLongPressTarget?.classList;
                 if (firstLongPressTarget && firstTargetClassList && (firstTargetClassList.contains('word') || firstTargetClassList.contains('punctuation'))) {
                   try {
                     // GUID pour le style courant
-                    const cfg = getStyleConfig(currentStyleIndex);
                     const uuid = await window.flutter_inappwebview.callHandler('getGuid');
                     currentGuid = uuid.guid;
           
                     setLongPressing(true);
                     isLongTouchFix = true;
-  
-                    // Si on démarre sur un token déjà stylé : on « transfère » le groupe vers le nouveau guid + classe
-                    const oldId = firstLongPressTarget.getAttribute(blockRangeAttr);
-                    if (oldId) {
-                      const newClass = getStyleClass(currentStyleIndex, getColorIndex());
-                      const elements = Array.from(pageCenter.querySelectorAll(`[\${blockRangeAttr}="\${oldId}"]`));
-          
-                      if (elements.length > 0) {
-                        elements.forEach(el => {
-                          // remplace classes du type
-                          removeAllStylesClasses(el);
-                          el.classList.add(newClass);
-                          // remplace l'id
-                          el.setAttribute(blockRangeAttr, currentGuid);
-                        });
-          
-                        // mettre à jour les targets
-                        firstLongPressTarget = elements[0];
-                        lastLongPressTarget  = elements[elements.length - 1];
-          
-                        // notifier Flutter pour supprimer l’ancien style (compat highlight)
-                        window.flutter_inappwebview.callHandler('removeBlockRange', {
-                           guid: oldId,
-                           newGuid: currentGuid,
-                           showAlertDialog: false
-                        });
-          
-                        // mettre à jour le cache des tokens sélectionnés pour ce nouveau guid
-                        tempTokensByGuid.set(currentGuid, new Set(elements));
-                      }
-                    }
-                  } catch (error) {
+                  } 
+                  catch (error) {
                     console.error('Error getting style GUID:', error);
                   }
                 }
-              }, 200);
+              }, 220);
             }
           }, { passive: false });
           
           // --- Touchmove optimisé ---
           const handleTouchMove = throttle((event) => {
             isLongTouchFix = false;
+            
+            if(document.body.classList.contains('selection-active') && !isSelecting) {
+              document.body.classList.remove('selection-active');
+            }
           
             if (isLongPressing && currentGuid && !isSelecting) {
               if (event.cancelable) event.preventDefault();
@@ -5404,7 +5396,7 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
            * GET CLOSEST ELEMENT (inchangé)
            **************/
           function getClosestElementHorizontally(x, y) {
-            const allElements = pageCenter.querySelectorAll('.word, .punctuation');
+            const allElements = getAllWordsAndPuncts();
             let closest = null;
             let minDistance = Infinity;
           
@@ -5902,6 +5894,18 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
             return null;
           }
           
+          function getAllWordsAndPuncts() {
+            let allTokens = [];
+            
+            // Parcourir tous les paragraphes dans la Map
+            paragraphsData.forEach(paragraphData => {
+              // Ajouter les wordAndPunctTokens de chaque paragraphe
+              allTokens = allTokens.concat(paragraphData.wordAndPunctTokens);
+            });
+            
+            return allTokens;
+          }
+          
           function fetchAllParagraphsOfTheArticle(article) {
             let paragraphsData = new Map();
                         
@@ -6007,19 +6011,21 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
             return map;
           }
           
+          // Variables pour la détection multi-touch
+          let initialDistance = 0;
+          let isTwoFingerSwipe = false;
+          
           async function changePage(direction) {
-            try { // Début du bloc try
-              
+            try {
               if (direction === 'right') {
                 currentTranslate = -200;
                 container.style.transform = "translateX(-200%)";
                 
-                // On utilise une fonction fléchée asynchrone dans setTimeout
                 setTimeout(async () => {
                   currentIndex++;
                   currentTranslate = -100;
                   closeToolbar();
-                  await loadPages(currentIndex); // Utiliser await ici si loadPages est asynchrone
+                  await loadPages(currentIndex);
                 }, 200);
                 
               } 
@@ -6027,46 +6033,63 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
                 currentTranslate = 0;
                 container.style.transform = "translateX(0%)";
                 
-                // On utilise une fonction fléchée asynchrone dans setTimeout
                 setTimeout(async () => {
                   currentIndex--;
                   currentTranslate = -100;
                   closeToolbar();
-                  await loadPages(currentIndex); // Utiliser await ici si loadPages est asynchrone
+                  await loadPages(currentIndex);
                 }, 200);
                 
               } 
               else {
-                // Cas par défaut (souvent après un glissement annulé)
                 container.style.transform = "translateX(-100%)";
               }
               
-            } // 💥 FIN DU BLOC TRY (Accolade ajoutée ici) 💥
-            catch (error) {
+            } catch (error) {
               console.error('Error in changePage function:', error);
             }  
           }
           
-          // Gestionnaires d'événements pour le conteneur optimisés
+          // Gestionnaire touchstart modifié pour détecter 2 doigts
           container.addEventListener('touchstart', (e) => {
             if (isLongPressing) return;
             
             document.querySelectorAll('.options-menu, .color-menu').forEach(el => el.remove());
             
-            startX = e.touches[0].clientX;
-            startY = e.touches[0].clientY;
-            isDragging = true;
-            isVerticalScroll = false;
-          
-            container.style.transition = "none";
+            // Détecter si c'est un swipe à 2 doigts
+            if (e.touches.length === 2) {
+              isTwoFingerSwipe = true;
+              startX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+              startY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+              isDragging = true;
+              isVerticalScroll = false;
+              container.style.transition = "none";
+            } else {
+              isTwoFingerSwipe = false;
+              startX = e.touches[0].clientX;
+              startY = e.touches[0].clientY;
+              isDragging = false; // Ne pas activer le drag avec 1 doigt
+            }
           }, { passive: true });
           
-          // Gestionnaire touchmove pour le conteneur avec throttle
+          // Gestionnaire touchmove modifié
           const handleContainerTouchMove = throttle((e) => {
             if (isLongPressing || !isDragging) return;
             
-            const x = e.touches[0].clientX;
-            const y = e.touches[0].clientY;
+            // Vérifier qu'on a toujours 2 doigts
+            if (e.touches.length !== 2 && isTwoFingerSwipe) {
+              isTwoFingerSwipe = false;
+              isDragging = false;
+              container.style.transition = "transform 0.2s ease-in-out";
+              container.style.transform = `translateX(\${currentTranslate}%)`;
+              return;
+            }
+            
+            if (!isTwoFingerSwipe) return;
+            
+            // Calculer la position moyenne des 2 doigts
+            const x = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+            const y = (e.touches[0].clientY + e.touches[1].clientY) / 2;
             const dx = x - startX;
             const dy = y - startY;
           
@@ -6086,31 +6109,43 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
           
           container.addEventListener('touchmove', handleContainerTouchMove, { passive: true });
           
-          // Gestionnaire touchend pour le conteneur optimisé
+          // Gestionnaire touchend modifié
           container.addEventListener('touchend', async (e) => {
             isLongTouchFix = false;
             
             if (isLongPressing) {
               setLongPressing(false);
               isDragging = false;
+              isTwoFingerSwipe = false;
               return;
             }
           
-            if (!isDragging) return;
+            if (!isDragging || !isTwoFingerSwipe) {
+              isDragging = false;
+              isTwoFingerSwipe = false;
+              return;
+            }
+            
             isDragging = false;
           
             if (isVerticalScroll) {
               container.style.transition = "transform 0.2s ease-in-out";
               container.style.transform = `translateX(\${currentTranslate}%)`;
+              isTwoFingerSwipe = false;
               return;
             }
             
-            const dx = e.changedTouches[0].clientX - startX;
+            // Calculer la position finale moyenne
+            const finalX = e.changedTouches.length === 2 
+              ? (e.changedTouches[0].clientX + e.changedTouches[1].clientX) / 2
+              : e.changedTouches[0].clientX;
+            
+            const dx = finalX - startX;
             const percentage = dx / window.innerWidth;
             container.style.transition = "transform 0.2s ease-in-out";
           
             if (percentage < -0.15 && currentIndex < maxIndex) {
-                changePage('right');
+              changePage('right');
             } 
             else if (percentage > 0.15 && currentIndex > 0) {
               changePage('left');
@@ -6118,6 +6153,8 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
             else {
               container.style.transform = "translateX(-100%)";
             }
+            
+            isTwoFingerSwipe = false;
           }, { passive: true });
         </script>
       </body>

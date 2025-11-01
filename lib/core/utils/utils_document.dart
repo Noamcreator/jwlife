@@ -792,3 +792,35 @@ Future<Bookmark?> showBookmarkDialog(BuildContext context, Publication publicati
     },
   );
 }
+
+Future<void> showImportVideo(BuildContext context, String keySymbol, int issueTagNumber, int mepsLanguageId) async {
+  await showJwDialog<void>(
+    context: context,
+    titleText: "Publication non disponible",
+    contentText: "Importer une publication",
+    buttons: [
+      JwDialogButton(
+        label: 'ANNULER',
+        closeDialog: true,
+      ),
+      JwDialogButton(
+        label: 'IMPORTER',
+        closeDialog: false,
+        onPressed: (buildContext) async {
+          Navigator.of(buildContext).pop(); // Ferme le 1er dialog
+          // Demander un fichier à l'utilisateur
+          FilePicker.platform.pickFiles(allowMultiple: true).then((result) async {
+            if (result != null) {
+              for (PlatformFile f in result.files) {
+                File file = File(f.path!);
+                if (file.path.endsWith('.jwpub')) {
+                  FileHandlerService().processJwPubFile(file.path, keySymbol: keySymbol, issueTagNumber: issueTagNumber, mepsLanguageId: mepsLanguageId);
+                }
+              }
+            }
+          });
+        },
+      ),
+    ],
+  );
+}

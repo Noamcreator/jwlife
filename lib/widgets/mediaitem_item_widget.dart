@@ -10,13 +10,15 @@ import '../data/models/media.dart';
 import '../data/models/tile.dart';
 import '../data/models/video.dart';
 import '../data/repositories/MediaRepository.dart';
+import '../features/library/models/videos/videos_items_model.dart';
 import 'image_cached_widget.dart';
 
 class MediaItemItemWidget extends StatefulWidget {
   final Media media;
-  final List<Media> medias;
+  final List<String> medias;
   final bool timeAgoText;
   final double width;
+  final VideoItemsModel? model;
 
   const MediaItemItemWidget({
     super.key,
@@ -24,6 +26,7 @@ class MediaItemItemWidget extends StatefulWidget {
     this.medias = const [],
     this.timeAgoText = false,
     this.width = 165,
+    this.model,
   });
 
   @override
@@ -67,7 +70,15 @@ class _MediaItemItemWidgetState extends State<MediaItemItemWidget> {
 
     return InkWell(
       onTap: () {
-        m.showPlayer(context);
+        if(widget.model == null) {
+          m.showPlayer(context);
+        }
+
+        // Convertit les clés en objets Media
+        final List<Media> mediaObjects = widget.model!.getAllMedias(context, widget.medias.cast<String>());
+
+        // Lance le lecteur à partir de l'objet 'm'
+        m.showPlayer(context, medias: mediaObjects);
       },
       child: Padding(
         padding: const EdgeInsets.only(right: 2.0),

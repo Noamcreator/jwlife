@@ -8,4 +8,6 @@ class Constants {
 
   static const Color defaultLightPrimaryColor = Color(0xFF143368);
   static Color defaultDarkPrimaryColor = Color(0xFF9EB6D3);
+
+  static const Color defaultBibleColor = Color(0xFF1D3254);
 }

@@ -3,11 +3,11 @@ import 'package:jwlife/core/app_dimens.dart';
 
 import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/data/realm/catalog.dart';
+import 'package:jwlife/features/library/pages/videos/videos_items_page.dart';
 import 'package:jwlife/widgets/image_cached_widget.dart';
 
 import '../../../../core/icons.dart';
 import '../../widgets/responsive_categories_wrap_layout.dart';
-import 'video_items_page.dart';
 
 class VideosCategoriesPage extends StatelessWidget {
   final Category categories;

@@ -262,18 +262,57 @@ PopupMenuItem getCopySubtitlesItem(BuildContext context, Video video) {
 
 // Fonction pour afficher le dialogue de téléchargement
 Future<int?> showVideoDownloadDialog(BuildContext context, List<dynamic> files) async {
-  // Trier les fichiers par taille décroissante
-  files.sort((a, b) => b['filesize'].compareTo(a['filesize']));
+
+  // Fonction utilitaire pour obtenir la taille de fichier en toute sécurité.
+  // Retourne la taille réelle ou 0 si la clé est manquante ou nulle.
+  int getFileSize(dynamic file) {
+    // Utiliser l'opérateur 'as' pour s'assurer que 'filesize' est traité comme un entier,
+    // ou retourner 0 s'il est null ou manquant.
+    return (file['filesize'] as int?) ?? 0;
+  }
+
+  // Fonction pour extraire la valeur numérique de la résolution à partir du label (ex: "720p" -> 720)
+  int getResolutionValue(dynamic file) {
+    final label = file['label'] as String?;
+    if (label == null) return 0; // Aucune valeur de tri si le label est manquant
+
+    // Utilise une expression régulière pour trouver le premier nombre dans la chaîne (ex: "720p" ou "480p").
+    final match = RegExp(r'(\d+)').firstMatch(label);
+
+    // Si un nombre est trouvé, le convertit en entier. Sinon, retourne 0.
+    return int.tryParse(match?.group(0) ?? '') ?? 0;
+  }
+
+  if(files.any((file) => file['filesize'] != null)) {
+    files.sort((a, b) => getFileSize(b).compareTo(getFileSize(a)));
+  }
+  else {
+    files.sort((a, b) {
+      final resA = getResolutionValue(a);
+      final resB = getResolutionValue(b);
+
+      // Tri primaire : par résolution (720 avant 480).
+      final resolutionComparison = resB.compareTo(resA);
+
+      // Tri secondaire : Si les résolutions sont égales (ou 0), trier par taille décroissante.
+      if (resolutionComparison != 0) {
+        return resolutionComparison;
+      }
+
+      // Tri secondaire par taille (décroissante)
+      return getFileSize(b).compareTo(getFileSize(a));
+    });
+  }
 
   return showDialog<int>(
     context: context,
     builder: (BuildContext context) {
       return Dialog(
         child: Container(
-          width: MediaQuery.of(context).size.width * 0.8, // Largeur personnalisée
-          padding: EdgeInsets.all(20.0), // Ajouter un padding
+          width: MediaQuery.of(context).size.width * 0.8,
+          padding: EdgeInsets.all(20.0),
           child: Column(
-            mainAxisSize: MainAxisSize.min, // Pour ne pas remplir tout l'espace
+            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
@@ -284,19 +323,31 @@ Future<int?> showVideoDownloadDialog(BuildContext context, List<dynamic> files) 
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: files.map<Widget>((file) {
-                  // Convertir la taille en Mo ou Go
-                  double fileSize = file['filesize'] / (1024 * 1024); // Taille en Mo
-                  String sizeText = fileSize < 1024
-                      ? "${fileSize.toStringAsFixed(2)} Mo"
-                      : "${(fileSize / 1024).toStringAsFixed(2)} Go"; // Si la taille est plus grande que 1 Go
+                  // GESTION DE L'AFFICHAGE SÉCURISÉ DE LA TAILLE :
+                  final int rawFilesize = getFileSize(file);
 
+                  // L'option 'label' est toujours supposée exister pour l'affichage
+                  final String label = file['label'] ?? 'Qualité inconnue';
+
+                  String sizeText;
+                  if (rawFilesize == 0) {
+                    sizeText = "Taille inconnue";
+                  } else {
+                    // Calcul de la taille en Mo ou Go
+                    double fileSize = rawFilesize / (1024 * 1024); // Taille en Mo
+                    sizeText = fileSize < 1024
+                        ? "${fileSize.toStringAsFixed(2)} Mo"
+                        : "${(fileSize / 1024).toStringAsFixed(2)} Go";
+                  }
+
+                  // Affichage conditionnel basé sur la présence de la taille
                   return ListTile(
-                    title: Text("Télécharger ${file['label']} ($sizeText)"),
+                    title: rawFilesize == 0
+                        ? Text("Télécharger les vidéos en $label")
+                        : Text("Télécharger $label ($sizeText)"),
                     onTap: () {
-                      // Gérer le téléchargement ici
-                      printTime("Télécharger: ${file['progressiveDownloadURL']}");
-
-                      Navigator.of(context).pop(files.indexOf(file)); // Retourner l'index du fichier sélectionné
+                      // Retourner l'index du fichier sélectionné
+                      Navigator.of(context).pop(files.indexOf(file));
                     },
                   );
                 }).toList(),
@@ -306,7 +357,8 @@ Future<int?> showVideoDownloadDialog(BuildContext context, List<dynamic> files) 
                 alignment: Alignment.centerRight,
                 child: TextButton(
                   onPressed: () {
-                    Navigator.of(context).pop(); // Fermer le dialogue et retourner -1 en cas d'annulation
+                    // Fermer le dialogue et retourner null
+                    Navigator.of(context).pop(null);
                   },
                   child: Text('ANNULER'),
                 ),

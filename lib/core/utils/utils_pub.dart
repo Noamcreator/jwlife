@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:html/parser.dart' as htmlParser;
+import 'package:jwlife/data/models/audio.dart';
 import 'package:path/path.dart' as path;
 import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/core/icons.dart';
@@ -11,6 +12,7 @@ import 'package:jwlife/core/utils/widgets_utils.dart';
 import 'package:jwlife/data/models/publication.dart';
 
 import '../../app/services/global_key_service.dart';
+import '../../features/publication/widgets/audio_download_content.dart';
 import 'utils_dialog.dart';
 import '../api/api.dart';
 
@@ -137,6 +139,44 @@ Future<String> extractPublicationDescription(Publication? publication, {String? 
     }
   }
   return '';
+}
+
+Future<BuildContext?> showDownloadMediasDialog(BuildContext context, Publication publication) async {
+  Completer<BuildContext?> completer = Completer<BuildContext?>();
+
+  List<Audio> audios = publication.audios;
+
+  // Calcul de la taille totale des fichiers audio (avec gestion des valeurs nulles)
+  int totalSize = audios.fold(0, (previousValue, element) => previousValue + (element.fileSize ?? 0));
+
+  showJwDialog(
+    context: context,
+    // Utilisation du Builder pour obtenir le BuildContext (ctx) du dialogue
+    content: Builder(
+      builder: (ctx) {
+        // Le dialogue est construit, on complète le Future
+        if (!completer.isCompleted) {
+          completer.complete(ctx);
+        }
+
+        // On passe le BuildContext du dialogue (ctx) au widget à état
+        return AudioDownloadContent(
+          audios: audios,
+          totalSize: totalSize,
+          dialogContext: ctx, // Le contexte nécessaire pour l'appel à download()
+        );
+      },
+    ),
+    buttonAxisAlignment: MainAxisAlignment.end,
+    buttons: [
+      JwDialogButton(
+        label: 'FERMER',
+        closeDialog: true,
+      ),
+    ],
+  );
+
+  return completer.future;
 }
 
 Future<BuildContext?> showJwImport(BuildContext context, String fileName) async {

@@ -12,6 +12,7 @@ class Assets {
   static const String audioLyricsPage = 'lib/features/audio/lyrics_page.dart';
   static const String audioServiceJustAudioBackground = 'lib/app/services/audio_service/just_audio_background.dart';
   static const String audiosAudiosCategoriesPage = 'lib/features/library/pages/audios/audios_categories_page.dart';
+  static const String audiosAudiosItemsModel = 'lib/features/library/models/audios/audios_items_model.dart';
   static const String audiosAudiosItemsPage = 'lib/features/library/pages/audios/audios_items_page.dart';
   static const String coreAppDimens = 'lib/core/app_dimens.dart';
   static const String coreAssets = 'lib/core/assets.dart';
@@ -296,6 +297,7 @@ class Assets {
   static const String videoSubtitles = 'lib/features/video/subtitles.dart';
   static const String videoSubtitlesView = 'lib/features/video/subtitles_view.dart';
   static const String videoVideoPlayerPage = 'lib/features/video/video_player_page.dart';
+  static const String videosVideoItemsModel = 'lib/features/library/models/videos/video_items_model.dart';
   static const String videosVideoItemsPage = 'lib/features/library/pages/videos/video_items_page.dart';
   static const String videosVideosCategoriesPage = 'lib/features/library/pages/videos/videos_categories_page.dart';
   static const String webviewWebviewJavascript = 'lib/core/webview/webview_javascript.dart';

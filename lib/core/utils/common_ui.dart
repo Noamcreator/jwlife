@@ -93,8 +93,9 @@ Future<void> showPage(Widget page) async {
             ),
           );
         },
+        opaque: false,
         transitionDuration: const Duration(milliseconds: 400), // Une durée un peu plus longue
-        reverseTransitionDuration: const Duration(milliseconds: 375),
+        reverseTransitionDuration: const Duration(milliseconds: 350),
       )
   );
 

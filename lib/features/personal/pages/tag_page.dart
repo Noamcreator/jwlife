@@ -21,7 +21,6 @@ class TagPage extends StatefulWidget {
 class _TagPageState extends State<TagPage> {
   late Tag _tag;
   List<Note> _filteredNotes = [];
-  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
@@ -30,17 +29,31 @@ class _TagPageState extends State<TagPage> {
     notesByCategory();
   }
 
-  @override
-  void dispose() {
-    _scrollController.dispose();
-    super.dispose();
-  }
-
   Future<void> notesByCategory() async {
     List<Note> notes = await JwLifeApp.userdata.getNotesByTag(_tag.id);
     setState(() {
       _filteredNotes = notes;
     });
+  }
+
+  // --- Fonctions de réordonnancement ---
+  void _onReorder(int oldIndex, int newIndex) {
+    setState(() {
+      if (oldIndex < newIndex) {
+        newIndex -= 1;
+      }
+
+      final Note note = _filteredNotes.removeAt(oldIndex);
+      _filteredNotes.insert(newIndex, note);
+
+      // Déclencher l'enregistrement du nouvel ordre
+      _updateNoteOrderInDatabase();
+    });
+  }
+
+  Future<void> _updateNoteOrderInDatabase() async {
+    List<int> noteIdsInNewOrder = _filteredNotes.map((note) => note.noteId).toList();
+    await JwLifeApp.userdata.reorderNotesInTag(_tag.id, noteIdsInNewOrder);
   }
 
   @override
@@ -104,21 +117,18 @@ class _TagPageState extends State<TagPage> {
       ),
       body: Scrollbar(
         interactive: true,
-        controller: _scrollController,
-        child: ListView.separated(
-          controller: _scrollController,
+        child: ReorderableListView.builder(
+          onReorder: _onReorder,
           // Physics qui empêche les sauts
           physics: ClampingScrollPhysics(),
           // Padding pour éviter les problèmes de bords
           padding: EdgeInsets.zero,
           itemCount: _filteredNotes.length,
-          // Séparateur invisible pour stabiliser les hauteurs
-          separatorBuilder: (context, index) => SizedBox(height: 0),
           itemBuilder: (context, index) {
             final note = _filteredNotes[index];
 
             if (note.noteId == -1) {
-              return SizedBox.shrink();
+              return const SizedBox.shrink(key: ValueKey('note_hidden'));
             }
 
             // Wrapping dans AutomaticKeepAliveClientMixin via un widget custom
