@@ -5,7 +5,7 @@ import 'package:jwlife/data/models/publication_attribute.dart';
 import 'package:jwlife/data/databases/catalog.dart';
 import 'package:jwlife/data/repositories/PublicationRepository.dart';
 import 'package:jwlife/app/services/settings_service.dart';
-import 'package:diacritic/diacritic.dart'; // <<< Importation de la librairie diacritic
+import 'package:diacritic/diacritic.dart';
 
 class PublicationsItemsViewModel with ChangeNotifier {
   // --- État ---
@@ -16,12 +16,17 @@ class PublicationsItemsViewModel with ChangeNotifier {
   // La carte des publications par attribut est utilisée pour l'affichage filtré
   Map<PublicationAttribute, List<Publication>> _filteredPublications = {};
   bool _isSearching = false;
-
   bool _isLoading = true;
+
+  // Critère de tri actuel, 'title' par défaut.
+  String _currentSortCriterion = 'title_asc';
 
   // Paramètres injectés à l'initialisation
   final PublicationCategory category;
   final int? year;
+
+  // Attribut factice/générique pour le regroupement lors du tri par année (constant)
+  static final genericAttribute = PublicationAttribute.all.first;
 
   PublicationsItemsViewModel({required this.category, this.year});
 
@@ -31,6 +36,7 @@ class PublicationsItemsViewModel with ChangeNotifier {
   Map<PublicationAttribute, List<Publication>> get filteredPublications => _filteredPublications;
   bool get isSearching => _isSearching;
   bool get isLoading => _isLoading;
+  String get currentSortCriterion => _currentSortCriterion;
 
   // --- Actions/Mutations d'État ---
 
@@ -61,7 +67,7 @@ class PublicationsItemsViewModel with ChangeNotifier {
       );
     }
 
-    // Ajout des publications téléchargées qui ne sont pas dans le catalogue (logique complexe déplacée ici)
+    // Ajout des publications téléchargées
     for (var pub in PublicationRepository().getAllDownloadedPublications()) {
       if (pub.category.id == category.id && pub.mepsLanguage.id == mepsLanguageId && (year == null || pub.year == year) && !publications.values.expand((list) => list).any((p) => p.keySymbol == pub.keySymbol && p.issueTagNumber == pub.issueTagNumber)) {
         publications.putIfAbsent(pub.attribute, () => []).add(pub);
@@ -74,7 +80,9 @@ class PublicationsItemsViewModel with ChangeNotifier {
 
     // Initialise la liste filtrée avec toutes les publications
     _filteredPublications = Map.from(_publications);
-    _sortPublicationsInMap();
+
+    // Applique le tri par défaut/actuel après le chargement
+    _applySorting(_filteredPublications);
 
     _language = mepsLanguage?['VernacularName'] ?? JwLifeSettings().currentLanguage.vernacular;
 
@@ -84,6 +92,7 @@ class PublicationsItemsViewModel with ChangeNotifier {
 
   void filterPublications(String query) {
     if (query.isEmpty) {
+      // Si la recherche est vide, on repart de la structure complète originale
       _filteredPublications = Map.from(_publications);
     } else {
       // Normalisation de la requête pour la recherche (sans diacritiques et minuscule)
@@ -104,36 +113,139 @@ class PublicationsItemsViewModel with ChangeNotifier {
         }
       });
     }
-    _sortPublicationsInMap();
+
+    // Applique le tri actuel après le filtrage
+    _applySorting(_filteredPublications);
     notifyListeners(); // Rafraîchit l'interface
   }
 
-  // Logique de tri (privée car interne au modèle)
-  void _sortPublicationsInMap() {
-    _filteredPublications.forEach((attribute, publicationsFromAttribute) {
-      if (category.hasYears) {
-        publicationsFromAttribute.sort((a, b) => a.issueTagNumber.compareTo(b.issueTagNumber));
-      }
-      else {
-        bool shouldSortByYear = attribute.id != -1 && attribute.order == 1;
+  /// Change le critère de tri et réapplique le tri à la liste filtrée.
+  void sortPublications(String newCriterion) {
+    if (_currentSortCriterion == newCriterion) {
+      return;
+    }
 
-        if (shouldSortByYear) {
-          publicationsFromAttribute.sort((a, b) => b.year.compareTo(a.year));
+    // --- Logique de restauration de la structure après un tri 'year' ---
+    // Vérifie si la carte est actuellement "aplatie" (tri par année)
+    bool wasFlattened = _filteredPublications.length == 1 && _filteredPublications.containsKey(genericAttribute);
+
+    // Si on change pour un critère qui n'est pas 'year' ET que la liste était aplatie
+    if (newCriterion != 'year' && wasFlattened) {
+      final List<Publication> flattenedList = _filteredPublications[genericAttribute]!;
+
+      // Restaurer la structure de _filteredPublications en fonction des attributs
+      _filteredPublications = {};
+
+      // Reconstruction des groupes d'attributs pour les publications actuellement affichées
+      for (var pub in flattenedList) {
+        _filteredPublications.putIfAbsent(pub.attribute, () => []).add(pub);
+      }
+    }
+    // -----------------------------------------------------------------
+
+    _currentSortCriterion = newCriterion;
+    _applySorting(_filteredPublications);
+    notifyListeners();
+  }
+
+  /// Logique de tri générique appliquée après le chargement, le filtrage ou le changement de critère.
+  void _applySorting(Map<PublicationAttribute, List<Publication>> mapToSort) {
+    String field = '';
+    String order = ''; // 'asc' ou 'desc'
+
+    final parts = _currentSortCriterion.split('_');
+    if (parts.length == 2) {
+      field = parts[0];
+      order = parts[1];
+    } else {
+      // Cas de critère non-standard (ex: tri interne par défaut 'issueTagNumber')
+      field = _currentSortCriterion;
+      order = 'asc'; // Ordre par défaut si non spécifié
+    }
+
+    // --- 2. Tri par Année (Logique de Fusion) ---
+    if (field == 'year') {
+      // ... (Le code de tri par année est correct)
+      List<Publication> allPublications = mapToSort.values.expand((list) => list).toList();
+      bool isIssueTagNumber = allPublications.every((pub) => pub.issueTagNumber != 0);
+
+      allPublications.sort((a, b) {
+        int comparison;
+        if(isIssueTagNumber) {
+          comparison = a.issueTagNumber.compareTo(b.issueTagNumber);
         }
         else {
-          publicationsFromAttribute.sort((a, b) {
-            // Normalisation pour un tri insensible à la casse et aux diacritiques
-            String titleA = removeDiacritics(a.title).toLowerCase();
-            String titleB = removeDiacritics(b.title).toLowerCase();
-
-            // La logique de tri pour les caractères spéciaux au début est conservée.
-            bool isSpecialA = RegExp(r'^[^a-zA-Z]').hasMatch(titleA);
-            bool isSpecialB = RegExp(r'^[^a-zA-Z]').hasMatch(titleB);
-
-            return isSpecialA == isSpecialB ? titleA.compareTo(titleB) : (isSpecialA ? -1 : 1);
-          });
+          comparison = a.year.compareTo(b.year);
         }
-      }
+        // Logique correcte : Inverser si 'desc', garder si 'asc'
+        return isIssueTagNumber ? ((order == 'desc') ? comparison : -comparison) : (order == 'desc') ? -comparison : comparison;
+      });
+      mapToSort.clear();
+      mapToSort[genericAttribute] = allPublications;
+      return;
+    }
+
+    if(field == 'symbol') {
+      List<Publication> allPublications = mapToSort.values.expand((list) => list).toList();
+
+      allPublications.sort((a, b) {
+        final comparison = a.keySymbol.compareTo(b.keySymbol);
+        return order == 'desc' ? -comparison : comparison;
+      });
+      mapToSort.clear();
+      mapToSort[genericAttribute] = allPublications;
+      return;
+    }
+
+    // --- 3. Tri par Attribut / Tri par défaut ---
+
+    // ... (Le bloc de tri 'issueTagNumber' reste inchangé)
+    if (category.hasYears) {
+      mapToSort.forEach((attribute, publicationsFromAttribute) {
+        publicationsFromAttribute.sort((a, b) => a.issueTagNumber.compareTo(b.issueTagNumber));
+      });
+      return;
+    }
+
+    // Tri par Attribut (Titre, Symbole, Année interne)
+    mapToSort.forEach((attribute, publicationsFromAttribute) {
+      bool shouldSortByYearInternal = attribute.id != -1 && attribute.order == 1;
+
+      publicationsFromAttribute.sort((a, b) {
+        if (shouldSortByYearInternal) {
+          // Tri primaire : Année (descendant)
+          final int primaryComparison = b.year.compareTo(a.year);
+
+          // Tri secondaire : issueTagNumber (descendant) si les années sont égales
+          if (primaryComparison == 0) {
+            return a.issueTagNumber.compareTo(b.issueTagNumber);
+          }
+
+          // Retourner le résultat du tri primaire si les années sont différentes
+          return primaryComparison;
+        }
+
+        // --- Logique de Tri par Critère Utilisateur ---
+
+        final int comparison;
+
+        // Tri par défaut (Titre)
+        String titleA = removeDiacritics(a.title).toLowerCase();
+        String titleB = removeDiacritics(b.title).toLowerCase();
+
+        bool isSpecialA = RegExp(r'^[^a-zA-Z]').hasMatch(titleA);
+        bool isSpecialB = RegExp(r'^[^a-zA-Z]').hasMatch(titleB);
+
+        // Comparaison finale
+        comparison = isSpecialA == isSpecialB
+            ? titleA.compareTo(titleB)
+            : (isSpecialA ? -1 : 1);
+
+        // 🎯 CORRECTION: Appliquer l'ordre (ascendant ou descendant) en se basant uniquement sur 'order'
+        return (order == 'asc')
+            ? comparison
+            : -comparison;
+      });
     });
   }
 }

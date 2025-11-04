@@ -64,10 +64,7 @@ class PublicationSearchModel {
     documents.clear();
 
     if(_documents.isEmpty) {
-      // Liste des ensembles de DocumentIds pour chaque mot
       List<Set<int>> documentIdSets = [];
-
-      // Stockage temporaire de tous les documents trouvés par mot
       Map<int, Map<String, dynamic>> tempDocuments = {};
 
       await Future.wait(wordsSelectedDocument.map((queryWord) async {
@@ -81,16 +78,13 @@ class PublicationSearchModel {
             final doc = Map<String, dynamic>.from(rawDoc);
             final int id = doc['documentId'] as int;
 
-            // Convertir les paragraphes proprement
             final List<Map<String, dynamic>> newParagraphs = (doc['paragraphs'] as List)
                 .map((p) => Map<String, dynamic>.from(p as Map))
                 .toList();
 
             if (tempDocuments.containsKey(id)) {
-              // Cumuler les occurrences
               tempDocuments[id]!['occurrences'] += doc['occurrences'] as int;
 
-              // Paragraphes déjà présents
               final existingParagraphs = tempDocuments[id]!['paragraphs'] as List<dynamic>;
 
               for (var newPara in newParagraphs) {
@@ -114,7 +108,6 @@ class PublicationSearchModel {
                     ...newWords.where((w) => !existingIndexes.contains(w['index']))
                   ];
 
-                  // Mise à jour triée
                   existingPara['words'] = mergedWords..sort((a, b) => (a['index'] as int).compareTo(b['index'] as int));
                   existingParagraphs[existingIndex] = existingPara;
                 } else {
@@ -122,7 +115,6 @@ class PublicationSearchModel {
                 }
               }
             } else {
-              // Ajout du nouveau webview
               tempDocuments[id] = {
                 ...doc,
                 'paragraphs': newParagraphs,
@@ -132,7 +124,6 @@ class PublicationSearchModel {
         }
       }));
 
-      // Intersection des documents qui contiennent tous les mots
       if (documentIdSets.isNotEmpty) {
         final commonDocumentIds = documentIdSets.reduce((a, b) => a.intersection(b));
         _documents.addAll(tempDocuments.entries
@@ -150,14 +141,12 @@ class PublicationSearchModel {
       documents = _documents.map((doc) {
         final paragraphs = doc['paragraphs'] as List<dynamic>;
 
-        // Liste des paragraphes qui contiennent au moins une séquence valide
         final matchingParagraphs = <dynamic>[];
 
         for (final para in paragraphs) {
           final words = para['words'] as List<dynamic>;
           if (words.length < expectedWordCount) continue;
 
-          // Vérifie s'il existe au moins une séquence de mots consécutifs
           for (int i = 0; i <= words.length - expectedWordCount; i++) {
             bool sequenceMatch = true;
 
@@ -173,14 +162,13 @@ class PublicationSearchModel {
 
             if (sequenceMatch) {
               matchingParagraphs.add(para);
-              break; // une seule occurrence suffit pour garder ce paragraphe
+              break;
             }
           }
         }
 
         if (matchingParagraphs.isEmpty) return null;
 
-        // Ajoute le champ "occurrences" = nombre de paragraphes avec match
         return {
           ...doc,
           'paragraphs': matchingParagraphs,
@@ -189,12 +177,10 @@ class PublicationSearchModel {
       }).whereType<Map<String, dynamic>>().toList();
     }
 
-    // Calculer le nombre total de mots trouvés en fonction du mode
     for (var doc in documents) {
       nbWordResultsInDocuments += doc['occurrences'] as int;
     }
 
-    // Trier par occurrences décroissantes
     documents.sort((a, b) => b['occurrences'].compareTo(a['occurrences']));
   }
 
@@ -221,7 +207,6 @@ class PublicationSearchModel {
         final positions = getWordsPositionsAndParagraphId(document['TextPositions']);
         final lengths = getWordsLengths(document['TextLengths']);
 
-        // Initialisation du webview dans tempDocuments si pas déjà présent
         tempDocuments.putIfAbsent(documentIds[i], () => {
           'documentId': documentIds[i],
           'mepsDocumentId': document['MepsDocumentId'],
@@ -232,7 +217,6 @@ class PublicationSearchModel {
 
         final docEntry = tempDocuments[documentIds[i]]!;
 
-        // Ajouter le nombre d'occurrences
         docEntry['occurrences'] += wordOccurrencesInDocuments[i];
 
         for(int wordPositionalsListInDocument in wordPositionalsListInDocuments[i]) {
@@ -246,7 +230,6 @@ class PublicationSearchModel {
               String paragraphText = '';
               int? paragraphId = wordPosition['paragraphId'];
 
-              // Si le paragraphe n'existe pas, on l'ajoute
               if (!docEntry['paragraphs'].containsKey(paragraphId)) {
                 final beginPosition = paragraphPosition['BeginPosition'];
                 final endPosition = paragraphPosition['EndPosition'];
@@ -267,7 +250,6 @@ class PublicationSearchModel {
                 };
               }
 
-              // Ajouter la position et la longueur comme un seul objet
               docEntry['paragraphs'][paragraphId]['words'].add({
                 'index': wordPositionalsListInDocument,
                 'startHighlight': wordPosition['position'],
@@ -279,7 +261,6 @@ class PublicationSearchModel {
       }
     }
 
-    // Transformer la map de paragraphes en liste pour chaque webview
     for (var doc in tempDocuments.values) {
       doc['paragraphs'] = (doc['paragraphs'] as Map<int, Map<String, dynamic>>).values.toList();
     }
@@ -307,11 +288,14 @@ class PublicationSearchModel {
     nbWordResultsInVerses = 0;
     verses.clear();
 
+    // Optimisation : Charge le classement une seule fois si besoin
+    if (versesRanking.isEmpty) {
+      await findRankingBlob();
+    }
+
     if ( _verses.isEmpty && wordsSelectedVerse.isNotEmpty) {
       List<Set<int>> verseIdSets = [];
       Map<int, Map<String, dynamic>> tempVerses = {};
-
-      findRankingBlob();
 
       await Future.wait(wordsSelectedVerse.map((queryWord) async {
         final results = await searchWordInBibleVerses(queryWord);
@@ -329,7 +313,6 @@ class PublicationSearchModel {
 
           currentWordVerseIds.add(verseId);
 
-          // Initialisation si le verset n'existe pas encore
           tempVerses.putIfAbsent(verseId, () => {
             'verseId': verseId,
             'bookNumber': bookNumber,
@@ -340,9 +323,15 @@ class PublicationSearchModel {
             'words': <Map<String, int?>>[]
           });
 
-          // Ajout des mots au champ 'words'
           final existingWords = tempVerses[verseId]!['words'] as List<Map<String, int?>>;
-          existingWords.addAll(words);
+
+          final existingIndexes = existingWords.map((w) => w['index']).toSet();
+          final mergedWords = [
+            ...existingWords,
+            ...words.where((w) => !existingIndexes.contains(w['index']))
+          ];
+
+          tempVerses[verseId]!['words'] = mergedWords..sort((a, b) => (a['index'] as int).compareTo(b['index'] as int));
         }
 
         if (currentWordVerseIds.isNotEmpty) {
@@ -375,19 +364,13 @@ class PublicationSearchModel {
         for (int i = 0; i <= words.length - expectedWordCount; i++) {
           bool sequenceMatch = true;
 
-          for (int j = 0; j < expectedWordCount; j++) {
-            // La condition de vérification de la séquence est à revoir
-            // La logique actuelle est probablement incorrecte.
-            // Si l'objectif est de trouver une séquence de mots consécutifs, il faut vérifier
-            // que les indices des mots sont croissants et consécutifs (ex: 1, 2, 3).
+          for (int j = 1; j < expectedWordCount; j++) {
             final int currentIndex = words[i + j]['index'] as int;
+            final int prevIndex = words[i + j - 1]['index'] as int;
 
-            if (j > 0) {
-              final int prevIndex = words[i + j - 1]['index'] as int;
-              if (currentIndex != prevIndex + 1) {
-                sequenceMatch = false;
-                break;
-              }
+            if (currentIndex != prevIndex + 1) {
+              sequenceMatch = false;
+              break;
             }
           }
 
@@ -407,7 +390,6 @@ class PublicationSearchModel {
       verses = matchingVerses;
     }
 
-    // Calculer le nombre total de mots trouvés en fonction du mode
     for (var verse in verses) {
       nbWordResultsInVerses += verse['occurrences'] as int;
     }
@@ -429,9 +411,14 @@ class PublicationSearchModel {
       final wordPositionalsListInVerses = getPositionsInDocument(searchResults.first['PositionalList'] as Uint8List, wordOccurrencesInVerses);
 
       final bibleVerses = await getVerses(bibleVerseIds);
+      final versesById = { for (var v in bibleVerses) v['BibleVerseId'] as int : v };
 
       for (int i = 0; i < bibleVerseIds.length; i++) {
-        final verse = bibleVerses[i];
+        final verseId = bibleVerseIds[i];
+        final verse = versesById[verseId];
+
+        if (verse == null) continue;
+
         final positions = getWordsPositionsAndParagraphId(verse['TextPositions']);
         final lengths = getWordsLengths(verse['TextLengths']);
 
@@ -439,7 +426,6 @@ class PublicationSearchModel {
 
         List<PositionAdjustment> adjustments = verse['AdjustmentInfo'] == null ? [] : getAdjustmentsInfo(verse['AdjustmentInfo']);
 
-        // Utilisation d'une expression régulière pour extraire les numéros
         RegExp regExp = RegExp(r'id="v(\d+)-(\d+)-(\d+)"');
         Match? match = regExp.firstMatch(verseHtml);
 
@@ -457,10 +443,11 @@ class PublicationSearchModel {
         }
 
         String verseText = parse(verseHtml).body?.text ?? '';
+        final wordOccurrences = wordOccurrencesInVerses[i];
+        final wordPositionals = wordPositionalsListInVerses[i];
 
-        // Initialisation du webview dans tempDocuments si pas déjà présent
-        tempVerses.putIfAbsent(bibleVerses[i]['BibleVerseId'], () => {
-          'verseId': bibleVerses[i]['BibleVerseId'],
+        tempVerses.putIfAbsent(verseId, () => {
+          'verseId': verseId,
           'bookNumber': bookNumber,
           'chapterNumber': chapterNumber,
           'verseNumber': verseNumber,
@@ -469,22 +456,21 @@ class PublicationSearchModel {
           'words': <Map<String, int?>>[]
         });
 
-        final verseEntry = tempVerses[bibleVerses[i]['BibleVerseId']]!;
+        final verseEntry = tempVerses[verseId]!;
 
-        // Ajouter le nombre d'occurrences
-        verseEntry['occurrences'] += wordOccurrencesInVerses[i];
+        verseEntry['occurrences'] += wordOccurrences;
 
-        for(int wordPositionalsListInDocument in wordPositionalsListInVerses[i]) {
-          final wordPosition = positions.elementAtOrNull(wordPositionalsListInDocument);
-          final wordLength = lengths.elementAtOrNull(wordPositionalsListInDocument);
+        for(int j = 0; j < wordOccurrences; j++) {
+          final wordPositionalListIndex = wordPositionals[j];
+          final wordPosition = positions.elementAtOrNull(wordPositionalListIndex);
+          final wordLength = lengths.elementAtOrNull(wordPositionalListIndex);
 
           if (wordPosition != null && wordLength != null) {
             int start = adjustPosition(wordPosition['position']!, adjustments);
             int end = start + wordLength;
 
-            // Ajouter la position et la longueur comme un seul objet
             verseEntry['words'].add({
-              'index': wordPositionalsListInDocument,
+              'index': wordPositionalListIndex,
               'startHighlight': start,
               'endHighlight': end,
             });
@@ -496,78 +482,67 @@ class PublicationSearchModel {
     return tempVerses.values.toList();
   }
 
-  // fonction pour trier les versets
   void sortVerses(int type) {
-    if(type == 0) { // tri par ordre de verse id
+    if(type == 0) {
       verses.sort((a, b) => a['verseId'].compareTo(b['verseId']));
     }
-    if(type == 1) { // tri par ordre de score du classement
-      verses.sort((verse1, verse2) {
-        int rank1 = versesRanking[verse1['verseId']];
-        int rank2 = versesRanking[verse2['verseId']];
-        return rank1.compareTo(rank2);
-      });
+    else if(type == 1) {
+      if (versesRanking.isNotEmpty && versesRanking.length > 0) {
+        verses.sort((verse1, verse2) {
+          final int verseId1 = verse1['verseId'];
+          final int verseId2 = verse2['verseId'];
+
+          int rank1 = (verseId1 < versesRanking.length && versesRanking.elementAt(verseId1) != -1) ? versesRanking.elementAt(verseId1) : 999999;
+          int rank2 = (verseId2 < versesRanking.length && versesRanking.elementAt(verseId2) != -1) ? versesRanking.elementAt(verseId2) : 999999;
+
+          return rank1.compareTo(rank2);
+        });
+      } else {
+        verses.sort((a, b) => a['verseId'].compareTo(b['verseId']));
+      }
     }
-    else if(type == 2) { // tri par ordre de nombre d'occurrences du mot par verset
+    else if(type == 2) {
       verses.sort((a, b) => b['occurrences'].compareTo(a['occurrences']));
     }
   }
 
-  /// Fonction pour obtenir le classement des versets depuis la base de données
   Future<void> findRankingBlob() async {
-    // Exécution de la première requête pour obtenir RankingData
     List<Map<String, dynamic>> rankingResult = await publication.documentsManager!.database.rawQuery('''
       SELECT RankingData FROM BibleVerseRanking WHERE Keyword = '<default>';
     ''');
 
-    // Exécution de la seconde requête pour obtenir la taille de la table BibleVerse
     List<Map<String, dynamic>> countResult = await publication.documentsManager!.database.rawQuery('''
       SELECT COUNT(*) FROM BibleVerse;
     ''');
 
-    // Récupérer les données de RankingData (si présentes)
-    Uint8List versesRanking = rankingResult.isNotEmpty ? rankingResult.first['RankingData'] as Uint8List : Uint8List(0);
-
-    // Récupérer la taille de la table BibleVerse
+    Uint8List versesRankingBlob = rankingResult.isNotEmpty ? rankingResult.first['RankingData'] as Uint8List : Uint8List(0);
     int nbMaxVerses = countResult.isNotEmpty ? countResult.first['COUNT(*)'] as int : 0;
 
-    // Appel de la fonction avec les résultats récupérés
-    getVersesRanking(versesRanking, nbMaxVerses);
+    getVersesRanking(versesRankingBlob, nbMaxVerses);
   }
 
-  /// Fonction pour obtenir le classement des versets depuis le BLOB
   void getVersesRanking(Uint8List versesRankingBlob, int nbMaxVerses) {
-    // Vérifier si la taille du BLOB est paire
-    if (versesRankingBlob.length % 2 != 0) {
-      printTime("Erreur : BLOB a une taille impaire");
+    if (versesRankingBlob.length % 2 != 0 || versesRankingBlob.length != nbMaxVerses * 2) {
+      printTime("Erreur: Taille BLOB/nb versets incohérente.");
+      versesRanking = List.filled(nbMaxVerses + 1, 999999);
       return;
     }
 
-    // Vérifier si la taille du BLOB est cohérente avec le nombre de versets
-    if (versesRankingBlob.length != nbMaxVerses * 2) {
-      printTime("Erreur : La taille du BLOB ne correspond pas au nombre de versets attendu");
-      return;
-    }
-
-    versesRanking = List.filled(nbMaxVerses, -1);
+    versesRanking = List.filled(nbMaxVerses + 1, 999999);
     int index = 0;
     int nbRanking = 0;
 
-    while (index < versesRankingBlob.length && nbRanking < nbMaxVerses) {
+    while (index < versesRankingBlob.length) {
       int byte0 = versesRankingBlob[index++] & 0xFF;
       int byte1 = versesRankingBlob[index++] & 0xFF;
       int verseId = byte0 + (byte1 << 8);
 
-      if (verseId >= nbMaxVerses) {
-        printTime("VerseId trop grand");
+      if (verseId >= versesRanking.length) {
+        printTime("VerseId trop grand: $verseId");
         break;
       }
 
       versesRanking[verseId] = nbRanking++;
-    }
-
-    if (nbRanking > nbMaxVerses) {
-      printTime("Trop de versets dans le BLOB");
     }
   }
 
@@ -576,17 +551,14 @@ class PublicationSearchModel {
     int currentIndex = 0;
 
     while (currentIndex < data.length) {
-      // Décode le code d'opération
       final List<int> operationCodeHolder = [0];
       final int bytesForOp = decodeVariableLengthInt(data, currentIndex, operationCodeHolder);
       currentIndex += bytesForOp;
 
-      // Décode la position
       final List<int> positionHolder = [0];
       final int bytesForPos = decodeVariableLengthInt(data, currentIndex, positionHolder);
       currentIndex += bytesForPos;
 
-      // Décode la longueur
       final List<int> lengthHolder = [0];
       final int bytesForLen = decodeVariableLengthInt(data, currentIndex, lengthHolder);
       currentIndex += bytesForLen;
@@ -729,12 +701,10 @@ class PublicationSearchModel {
     while (true) {
       int currentByte = buffer[startIndex + currentOffset];
       if ((currentByte & 128) == 0) {
-        // Dernier byte (bit de continuation = 0)
         currentOffset++;
         resultHolder[0] = resultHolder[0] + (currentByte << (shiftCount * 7));
         shiftCount++;
       } else {
-        // Byte avec continuation (bit de continuation = 1)
         int bytesRead = currentOffset + 1;
         resultHolder[0] = resultHolder[0] + ((currentByte & 127) << (shiftCount * 7));
         return bytesRead;

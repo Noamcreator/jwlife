@@ -60,6 +60,8 @@ Future<void> showPage(Widget page) async {
       page is ImagePage ||
       page is FullAudioView;
 
+  final isBottomTransition = page is FullAudioView || page is NotePage;
+
   GlobalKeyService.jwLifePageKey.currentState!.toggleNavBarDisable(isWebViewFullscreenPage);
   GlobalKeyService.jwLifePageKey.currentState!.toggleNavBarTransparent(isTransparentFullscreenPage);
 
@@ -80,13 +82,21 @@ Future<void> showPage(Widget page) async {
       PageRouteBuilder(
         pageBuilder: (context, animation, secondaryAnimation) => page,
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          // 1. Le glissement de la nouvelle page (comme vous l'aviez)
+          // Déterminer le point de départ de la transition
+          final beginOffset = isBottomTransition
+              ? const Offset(0.0, 1.0)  // Vient du bas si true
+              : const Offset(1.0, 0.0); // Vient de la droite si false
+
+          // La courbe de l'animation
+          final curve = isBottomTransition ? Curves.easeOutCubic : Curves.easeOutQuart;
+
+          // La transition de glissement
           return SlideTransition(
             position: animation.drive(
               Tween<Offset>(
-                begin: const Offset(1.0, 0.0), // Vient de la droite
-                end: Offset.zero,              // Arrive à l'écran
-              ).chain(CurveTween(curve: Curves.easeOutQuart)), // Courbe plus douce pour ressembler à iOS
+                begin: beginOffset,  // Point de départ
+                end: Offset.zero,    // Point d'arrivée (centre de l'écran)
+              ).chain(CurveTween(curve: curve)),
             ),
             child: RepaintBoundary(
               child: child,
@@ -94,7 +104,7 @@ Future<void> showPage(Widget page) async {
           );
         },
         opaque: false,
-        transitionDuration: const Duration(milliseconds: 400), // Une durée un peu plus longue
+        transitionDuration: const Duration(milliseconds: 400),
         reverseTransitionDuration: const Duration(milliseconds: 350),
       )
   );

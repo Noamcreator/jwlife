@@ -87,10 +87,11 @@ class HomePageState extends State<HomePage> {
     _refresh(first: first);
     printTime("Refresh page end");
 
-    _loadWolInfo();
     await Mepsunit.loadBibleCluesInfo();
     await PubCatalog.fetchOtherMeetingsPubs();
     await PubCatalog.fetchAssemblyPublications();
+
+    _loadWolInfo();
 
     printTime("Refresh MeetingsView start");
 
@@ -135,9 +136,9 @@ class HomePageState extends State<HomePage> {
 
     _articlesKey.currentState!.setArticles([]);
 
-    _loadWolInfo();
     _initPage();
     _refresh(first: true);
+    _loadWolInfo();
   }
 
   Future<void> _loadWolInfo() async {

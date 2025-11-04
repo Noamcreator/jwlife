@@ -1,5 +1,7 @@
 import 'dart:typed_data';
 
+import 'package:jwlife/data/models/publication.dart';
+
 class Multimedia {
   final int id;
   int? linkMultimediaId;
@@ -89,5 +91,10 @@ class Multimedia {
       beginParagraphOrdinal: map['BeginParagraphOrdinal'],
       endParagraphOrdinal: map['EndParagraphOrdinal'],
     );
+  }
+
+  String? getImage(Publication publication) {
+    String? pubPath = publication.path;
+    return pubPath == null ? null : "$pubPath/$filePath";
   }
 }

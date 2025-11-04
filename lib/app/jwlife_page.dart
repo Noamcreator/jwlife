@@ -8,7 +8,6 @@ import 'package:jwlife/features/publication/pages/document/local/document_page.d
 import 'package:jwlife/features/publication/pages/document/local/full_screen_image_page.dart';
 import 'package:jwlife/features/video/video_player_page.dart';
 import 'package:jwlife/core/utils/utils_dialog.dart';
-import 'package:pip_view/pip_view.dart';
 import '../data/databases/history.dart';
 import '../features/bible/pages/bible_page.dart';
 import '../features/image/image_page.dart';

@@ -143,7 +143,6 @@ class PubCatalog {
   }
 
   static Future<void> loadPublicationsInHomePage() async {
-    printTime('load PublicationsInHomePage');
     final catalogFile = await getCatalogDatabaseFile();
     final mepsFile = await getMepsUnitDatabaseFile();
     final historyFile = await getHistoryDatabaseFile();
@@ -166,6 +165,8 @@ class PubCatalog {
           List<Map<String, Object?>> result3 = [];
           List<Map<String, Object?>> result4 = [];
 
+          printTime('Start: Dated Publications');
+
           result1 = await txn.rawQuery('''
               SELECT DISTINCT
                 $publicationSelectQuery
@@ -179,6 +180,9 @@ class PubCatalog {
 
           datedPublications = result1.map((item) => Publication.fromJson(item)).toList();
 
+          printTime('End: Dated Publications');
+
+          printTime('Start: Recent Publications');
           result2 = await txn.rawQuery('''
               SELECT DISTINCT
                 SUM(hp.VisitCount) AS TotalVisits,
@@ -194,7 +198,9 @@ class PubCatalog {
             ''');
 
           recentPublications = result2.map((item) => Publication.fromJson(item)).toList();
+          printTime('End: Recent Publications');
 
+          printTime('Start: Latest Publications');
           result3 = await txn.rawQuery('''
               SELECT DISTINCT
                 $publicationQuery
@@ -204,7 +210,9 @@ class PubCatalog {
             ''', [languageId, 12]);
 
           latestPublications = result3.map((item) => Publication.fromJson(item)).toList();
+          printTime('End: Latest Publications');
 
+          printTime('Start: ToolBox Pubs');
           result4 = await txn.rawQuery('''
               SELECT DISTINCT
                 ca.SortOrder,
@@ -247,6 +255,8 @@ class PubCatalog {
             }
           }
 
+          printTime('End: ToolBox Pubs');
+
           await txn.execute("DETACH DATABASE meps");
           await txn.execute("DETACH DATABASE history");
         });
@@ -261,8 +271,6 @@ class PubCatalog {
     else {
       printTime('Catalog file does not exist');
     }
-
-    printTime('loadHomePage end');
   }
 
   static Future<List<Publication>> getPublicationsForTheDay({DateTime? date}) async {

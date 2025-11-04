@@ -193,6 +193,10 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
             background-size: auto 75%; /* La hauteur est de 75% de la hauteur de l'élément, la largeur est automatique */
           }
           
+          .word.searched {
+            background-color: rgba(255, 185, 46, 0.8);
+          }
+          
           body.selection-active .word,
           body.selection-active .punctuation,
           body.selection-active .escape {
@@ -1674,59 +1678,36 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
             
             const rect = paragraph.getBoundingClientRect();
             const scrollY = window.scrollY;
-            const scrollX = window.scrollX;
+            // const scrollX = window.scrollX; // Pas nécessaire si on se base sur rect.left pour le calcul horizontal initial
             
-            const toolbarHeight = 40;
+            const toolbarHeight = 40; 
             const safetyMargin = 10;
-            
-            const pageCenter = document.getElementById('page-center');
-            
-            // Centrage horizontal absolu
-            const left = rect.left + scrollX + (rect.width / 2);
-            
-            // Position verticale au-dessus du paragraphe (par défaut)
-            let top = rect.top + scrollY - toolbarHeight - safetyMargin;
-            
-            // Si le haut du paragraphe n'est **pas visible** à cause de l'AppBar (ou du haut de l'écran)
-            const minVisibleY = scrollY + appBarHeight + safetyMargin;
-            if (top < minVisibleY) {
-              // On place la toolbar **juste sous le haut du paragraphe**, visible
-              top = Math.max(rect.top + scrollY + safetyMargin, minVisibleY);
-            }
-
+            const viewportWidth = window.innerWidth;
+          
+            // 1. Préparation de la toolbar et des boutons
             const toolbar = document.createElement('div');
             toolbar.classList.add('toolbar');
             toolbar.setAttribute('data-pid', pid);
-            toolbar.style.top = `\${top}px`;
-            toolbar.style.left = `\${left}px`;
-          
-            document.body.appendChild(toolbar);
-          
+            
+            // On s'assure que transform n'est jamais utilisé pour le centrage
+            toolbar.style.transform = 'none'; 
+            
+            // ... (Logique pour déterminer les boutons et le texte, inchangée) ...
             let buttons = [];
-            
             let allParagraphsText = '';
-
             paragraphs.forEach((paragraph, pIndex) => {
-                // Sélectionne uniquement les descendants avec les classes souhaitées
                 const relevantElements = paragraph.querySelectorAll('.word, .punctuation, .escape');
-            
-                // Concatène le texte des éléments pertinents
                 let paragraphText = '';
                 relevantElements.forEach((elem, index) => {
                     const text = index === 0 ? elem.textContent.trim() : elem.textContent;
                     if (!text) return;
-            
                     paragraphText += text;
                 });
-            
-                // Ajoute le texte du paragraphe à la chaîne globale
                 if (paragraphText) {
-                    if (allParagraphsText) allParagraphsText += ' '; // espace entre les paragraphes
+                    if (allParagraphsText) allParagraphsText += ' ';
                     allParagraphsText += paragraphText;
                 }
             });
-            
-            console.log(allParagraphsText);
             
             if (type === 'verse') {
               buttons = [
@@ -1746,11 +1727,74 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
               ];
             }
           
+            if (hasAudio) {
+              buttons.push(['&#xE65E;', () => callHandler('playAudio', { id: pid, isBible: type === 'verse' })]);
+            }
+            
             buttons.forEach(([icon, handler]) => toolbar.appendChild(createToolbarButton(icon, handler)));
           
-            if (hasAudio) {
-              toolbar.appendChild(createToolbarButton('&#xE65E;', () => callHandler('playAudio', { id: pid, isBible: type === 'verse' })));
+            // 2. Positionnement initial pour la mesure
+            toolbar.style.visibility = 'hidden';
+            toolbar.style.opacity = '0'; 
+            // Position temporaire pour la mesure, sans affecter le flux de la page (important pour .offsetWidth)
+            toolbar.style.position = 'absolute'; 
+            
+            document.body.appendChild(toolbar);
+            
+            // 3. Correction horizontale (Centrage et débordement)
+            const toolbarWidth = toolbar.offsetWidth;
+            const toolbarHalfWidth = toolbarWidth / 2;
+            
+            // Centre absolu du paragraphe dans le document
+            const paragraphCenter = rect.left + scrollX + (rect.width / 2);
+            
+            // Position de départ (bord gauche de la toolbar) si elle était centrée sur le paragraphe
+            let newLeft = paragraphCenter - toolbarHalfWidth; 
+          
+            // Correction du débordement gauche
+            if (newLeft < safetyMargin) {
+              newLeft = safetyMargin;
             }
+            
+            // Correction du débordement droit
+            const rightEdge = newLeft + toolbarWidth;
+            if (rightEdge > viewportWidth - safetyMargin) {
+              newLeft = viewportWidth - toolbarWidth - safetyMargin;
+            }
+          
+            // S'assurer que la correction droite n'a pas repoussé newLeft trop loin à gauche (cas d'une très longue toolbar sur petit écran)
+            // On prend la plus grande des positions minimales: newLeft (corrigé) ou safetyMargin.
+            newLeft = Math.max(newLeft, safetyMargin);
+            
+            toolbar.style.left = `\${newLeft}px`; // Application du positionnement horizontal
+          
+            // 4. Correction verticale (Logique inchangée, elle est robuste)
+            
+            // Position verticale au-dessus du paragraphe (par défaut)
+            let top = rect.top + scrollY - toolbarHeight - safetyMargin;
+            
+            // Limite supérieure (sous l'AppBar)
+            const minVisibleY = scrollY + appBarHeight + safetyMargin;
+            
+            // Position verticale sous le paragraphe
+            const positionUnderneath = rect.bottom + scrollY + safetyMargin;
+            
+            if (top < minVisibleY) {
+              top = positionUnderneath;
+              
+              // Limite inférieure 
+              const maxVisibleY = scrollY + window.innerHeight - toolbarHeight - safetyMargin;
+              
+              if (top > maxVisibleY) {
+                  top = minVisibleY; 
+              }
+            } 
+            
+            toolbar.style.top = `\${top}px`; 
+          
+            // 5. Affichage final
+            toolbar.style.visibility = 'visible';
+            toolbar.style.opacity = '1';
           }
           
           async function fetchVerseInfo(paragraph, pid) {
@@ -1762,298 +1806,6 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
           const HEADER_HEIGHT = 50; // Hauteur fixe du header
           const PADDING_CONTENT_VERTICAL = 0; // 16px top + 16px bottom padding dans contentContainer (si padding: 16px est utilisé)
           const MIN_RESIZE_HEIGHT = 150; // Hauteur minimale de redimensionnement
-
-          // Système d'historique des dialogs avec sauvegarde complète d'état
-          let dialogHistory = [];
-          let currentDialogIndex = -1;
-          let lastClosedDialog = null; // Pour mémoriser le dernier dialogue fermé
-          let globalFullscreenPreference = false; // Préférence globale pour le fullscreen
-          let dialogIdCounter = 0; // Compteur pour les ID uniques des dialogues
-          
-          // Icônes des boutons
-          const ICON_BACK_HISTORY = 'jwi-chevron-left'; 
-          const ICON_REOPEN_CLOSED = 'jwi-chevron-right'; // Nouveau bouton pour revenir sur le dernier fermé
-          
-          // Icônes pour les différents types de dialog
-          const DIALOG_ICONS = {
-              'verse': '&#xE61D;', // Icône Bible
-              'verse-references': '&#xE61F;', // Icône Bible
-              'verse-info': '&#xE620;', // Icône Bible
-              'publication': '&#xE629;', // Icône Publication
-              'footnote': '&#xE69B;', // Icône Footer
-              'note': '&#xE6BF;', // Icône Note
-              'default': '&#xE658;' // Icône par défaut
-          };
-          
-          const ARROW_BACK = '&#xE60B;';
-          
-          function hideAllDialogs() {
-              const dialogs = document.querySelectorAll('.customDialog');
-              dialogs.forEach(dialog => {
-                  dialog.style.display = 'none';
-              });
-          }
-          
-          function closeDialog() {
-              document.querySelectorAll('.options-menu, .color-menu').forEach(el => el.remove());
-              const dialog = document.getElementById(dialogHistory[currentDialogIndex]?.dialogId);
-              if (!dialog) return;
-              
-              dialog.style.display = 'none';
-              
-              if (currentDialogIndex >= 0) {
-                  lastClosedDialog = {
-                      ...dialogHistory[currentDialogIndex],
-                      historyIndex: currentDialogIndex,
-                      fullHistory: [...dialogHistory],
-                      type: dialogHistory[currentDialogIndex].type,
-                  };
-              }
-              
-              dialogHistory = [];
-              currentDialogIndex = -1;
-          
-              if (lastClosedDialog) {
-                  showFloatingButton();
-              }
-          
-              window.flutter_inappwebview?.callHandler('showFullscreenDialog', false);
-              window.flutter_inappwebview?.callHandler('showDialog', false);
-          }
-          
-          function removeDialog() {
-              if (currentDialogIndex < 0 || dialogHistory.length === 0) return;
-          
-              const dialogData = dialogHistory[currentDialogIndex];
-              const dialog = document.getElementById(dialogData.dialogId);
-          
-              if (dialog) {
-                  dialog.remove();
-              }
-              
-              dialogHistory.splice(currentDialogIndex, 1);
-              currentDialogIndex = dialogHistory.length - 1;
-          
-              window.flutter_inappwebview?.callHandler('showFullscreenDialog', false);
-              window.flutter_inappwebview?.callHandler('showDialog', false);
-          }
-          
-          function removeDialogByNoteGuid(noteGuid) {
-              if (!noteGuid) return false;
-              
-              const dialogIndex = dialogHistory.findIndex(item => 
-                  item.type === 'note' && 
-                  item.options?.noteData?.noteGuid === noteGuid
-              );
-              
-              if (dialogIndex === -1) return false;
-              
-              const dialogData = dialogHistory[dialogIndex];
-              const dialog = document.getElementById(dialogData.dialogId);
-              
-              if (dialog) {
-                  dialog.remove();
-              }
-              
-              dialogHistory.splice(dialogIndex, 1);
-              
-              if (dialogIndex <= currentDialogIndex) {
-                  currentDialogIndex = Math.max(-1, currentDialogIndex - 1);
-              }
-              
-              if (dialogIndex === currentDialogIndex + 1 && dialogHistory.length > 0) {
-                  if (currentDialogIndex >= 0) {
-                      showDialogFromHistory(dialogHistory[currentDialogIndex]);
-                  } else {
-                      window.flutter_inappwebview?.callHandler('showFullscreenDialog', false);
-                      window.flutter_inappwebview?.callHandler('showDialog', false);
-                  }
-              } else if (dialogHistory.length === 0) {
-                  currentDialogIndex = -1;
-                  window.flutter_inappwebview?.callHandler('showFullscreenDialog', false);
-                  window.flutter_inappwebview?.callHandler('showDialog', false);
-              }
-              
-              return true;
-          }
-          
-          function goBackDialog() {
-              if (currentDialogIndex > 0 && dialogHistory.length > 1) {
-                  dialogHistory.pop();
-                  currentDialogIndex--;
-                  const previousDialog = dialogHistory[currentDialogIndex];
-                  showDialogFromHistory(previousDialog);
-                  return true;
-              }
-              return false;
-          }
-          
-          function showDialogFromHistory(historyItem) {
-              hideAllDialogs();
-          
-              const existingDialog = document.getElementById(historyItem.dialogId);
-              let dialog;
-          
-              if (existingDialog) {
-                  dialog = existingDialog;
-                  dialog.style.display = 'block';
-              } 
-              else {
-                  dialog = createDialogElement(historyItem.options, historyItem.canGoBack, globalFullscreenPreference, 0, historyItem.dialogId);
-                  document.body.appendChild(dialog);
-              }
-          
-              // Appliquer les styles après la création/réaffichage
-              applyDialogStyles(historyItem.type, dialog, globalFullscreenPreference);
-              
-              if (historyItem.type === 'note') {
-                  const noteClass = getNoteClass(historyItem.options.noteData.colorIndex, false);
-                  removeNoteClasses(dialog);
-                  dialog.classList.add(noteClass);
-              }
-          
-              return dialog;
-          }
-          
-          // ===========================================
-          // FONCTIONS DE CRÉATION ET DE STYLE
-          // ===========================================
-          
-          function showDialog(options) {
-              removeFloatingButton();
-              
-              const currentUniqueKey = options.href 
-                  || (options.type === 'note' && options.noteData?.noteGuid ? `noteGuid-\${options.noteData.noteGuid}` : null);
-                  
-              let existingDialogIndex = -1;
-          
-              if (currentUniqueKey) {
-                  existingDialogIndex = dialogHistory.findIndex(item => {
-                      const historyItemKey = item.options.href 
-                          || (item.options.type === 'note' && item.options.noteData?.noteGuid ? `noteGuid-\${item.options.noteData.noteGuid}` : null);
-                      
-                      return historyItemKey === currentUniqueKey;
-                  });
-              }
-          
-              if (existingDialogIndex !== -1 && options.replace === true) {
-                  const dialogToRemove = dialogHistory[existingDialogIndex];
-                  const dialogElement = document.getElementById(dialogToRemove.dialogId);
-                  
-                  if (dialogElement) {
-                      dialogElement.remove();
-                  }
-                  
-                  dialogHistory.splice(existingDialogIndex, 1);
-                  
-                  if (existingDialogIndex === currentDialogIndex) {
-                      currentDialogIndex = Math.max(-1, currentDialogIndex - 1);
-                  } else if (existingDialogIndex < currentDialogIndex) {
-                      currentDialogIndex--;
-                  }
-              }
-              else if (existingDialogIndex !== -1) {
-                  const existingHistoryItem = dialogHistory[existingDialogIndex];
-                  
-                  if (existingDialogIndex === currentDialogIndex) {
-                      const existingDialogElement = document.getElementById(existingHistoryItem.dialogId);
-                      if (existingDialogElement) {
-                          existingDialogElement.style.display = 'block';
-                      }
-                      return existingDialogElement;
-                  }
-          
-                  dialogHistory.splice(existingDialogIndex, 1);
-                  dialogHistory.push(existingHistoryItem);
-                  currentDialogIndex = dialogHistory.length - 1;
-                  
-                  window.flutter_inappwebview?.callHandler('showDialog', true);
-                  
-                  existingHistoryItem.canGoBack = dialogHistory.length > 1;
-          
-                  return showDialogFromHistory(existingHistoryItem);
-              }
-          
-              window.flutter_inappwebview?.callHandler('showDialog', true);
-                
-              dialogIdCounter++;
-              const newDialogId = `customDialog-\${dialogIdCounter}`;
-              
-              const newHistoryItem = {
-                  options: options,
-                  canGoBack: dialogHistory.length > 0,
-                  type: options.type || 'default',
-                  dialogId: newDialogId,
-              };
-              dialogHistory.push(newHistoryItem);
-              currentDialogIndex = dialogHistory.length - 1;
-              
-              hideAllDialogs();
-             
-              return showDialogFromHistory(newHistoryItem);
-          }
-            
-          // --- Fonctions de base du dialogue ---
-          function createDialogElement(options, canGoBack, isFullscreenInit = false, scrollTopInit = 0, newDialogId = null) {
-              let isFullscreen = isFullscreenInit;
-              
-              const dialog = document.createElement('div');
-              dialog.id = newDialogId || `customDialog-\${dialogIdCounter}`;
-              dialog.classList.add('customDialog');
-              dialog.setAttribute('data-type', options.type || 'default');
-              
-              applyDialogStyles(options.type, dialog, isFullscreen);
-              dialog.style.display = 'block';
-          
-              const header = createHeader(options, isDarkTheme(), dialog, isFullscreen, canGoBack);
-              setupDragSystem(header.element, dialog);
-          
-              const contentContainer = document.createElement('div');
-              contentContainer.id = 'contentContainer';
-              applyContentContainerStyles(options.type, contentContainer, isFullscreen);
-              
-              if (options.type === 'note' && options.noteData && options.noteData.colorIndex) {
-                  const noteClass = getNoteClass(options.noteData.colorIndex, false);
-                  dialog.classList.add(noteClass);
-              }
-          
-              if (options.contentRenderer) {
-                  options.contentRenderer(contentContainer, options);
-              }
-              
-              setTimeout(() => {
-                  contentContainer.scrollTop = scrollTopInit;
-              }, 10);
-          
-              setupFullscreenToggle(
-                  options.type,
-                  header.fullscreenButton,
-                  dialog,
-                  contentContainer
-              );
-          
-              dialog.appendChild(header.element);
-              dialog.appendChild(contentContainer);
-              
-              const resizeHandle = document.createElement('div');
-              resizeHandle.classList.add('resize-handle');
-              resizeHandle.style.cssText = `
-                  position: absolute;
-                  bottom: 0;
-                  right: 0;
-                  width: 20px;
-                  height: 20px;
-                  cursor: nwse-resize; 
-                  z-index: 1001;
-                  border-right: 2px solid \${isDarkTheme() ? 'rgba(255, 255, 255, 0.5)' : 'rgba(0, 0, 0, 0.5)'};
-                  border-bottom: 2px solid \${isDarkTheme() ? 'rgba(255, 255, 255, 0.5)' : 'rgba(0, 0, 0, 0.5)'};
-                  border-bottom-right-radius: 16px;
-              `;
-              dialog.appendChild(resizeHandle);
-              
-              setupResizeSystem(resizeHandle, dialog, contentContainer);
-              return dialog;
-          }
           
           function applyDialogStyles(type, dialog, isFullscreen, savedPosition = null) {
               const isDark = isDarkTheme();
@@ -2165,198 +1917,6 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
                   box-sizing: border-box; 
               `;
           }
-          
-          // NOTE: La fonction createHeader est laissée telle quelle car elle n'a pas été modifiée dans sa logique.
-          function createHeader(options, isDark, dialog, isFullscreen, canGoBack) {
-              const header = document.createElement('div');
-              const headerGradient = isDark 
-                  ? 'linear-gradient(135deg, #2a2a2a 0%, #1e1e1e 100%)' 
-                  : 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)';
-                  
-              const type = options.type;
-              const title = options.title;
-                  
-              const backgroundColor = type === 'note' ? 'transparent' : headerGradient;
-              
-              const borderRadius = isFullscreen ? '0px' : '16px 16px 0 0';
-              
-              header.style.cssText = `
-                  background: \${backgroundColor};
-                  color: \${isDark ? '#ffffff' : '#333333'};
-                  padding: 12px 16px;
-                  font-size: 18px;
-                  font-weight: 600;
-                  display: flex;
-                  align-items: center;
-                  justify-content: space-between;
-                  height: \${HEADER_HEIGHT}px;
-                  border-bottom: 1px solid \${isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'};
-                  border-radius: \${borderRadius};
-              `;
-              
-              header.addEventListener('touchstart', (e) => {
-                  document.querySelectorAll('.options-menu, .color-menu').forEach(el => el.remove());
-              });
-              
-          
-              // Left area: back button + title
-              const leftArea = document.createElement('div');
-              leftArea.style.cssText = 'display: flex; align-items: center; gap: 8px;';
-          
-              if (canGoBack) {
-                  const backButton = document.createElement('button');
-                  backButton.classList.add('dialog-button', 'back-button', 'jwf-jw-icons-external', 'jwi-chevron-left');
-                  backButton.style.cssText = `
-                      font-size: 18px;
-                      padding: 8px;
-                      background: \${isDark ? '#121212' : '#ffffff'};
-                      border: none;
-                      border-radius: 8px;
-                      color: inherit;
-                      cursor: pointer;
-                      transition: all 0.2s ease;
-                      display: flex;
-                      align-items: center;
-                      justify-content: center;
-                      width: 36px;
-                      height: 36px;
-                      opacity: 0.8;
-                  `;
-          
-                  backButton.onclick = (event) => {
-                      event.stopPropagation();
-                      event.preventDefault();
-                      goBackDialog();
-                  };
-          
-                  leftArea.appendChild(backButton);
-              }
-          
-              const titleArea = document.createElement('div');
-              titleArea.style.cssText = `
-                  user-select: none;
-                  cursor: move;
-                  font-weight: 600;
-                  letter-spacing: 0.5px;
-              `;
-              titleArea.innerHTML = title;
-              leftArea.appendChild(titleArea);
-          
-              // Right area: fullscreen + close
-              const rightArea = document.createElement('div');
-              rightArea.style.cssText = 'display: flex; align-items: center; gap: 8px;';
-              
-              if(type === 'note' && options.noteData) {
-                const moreButton = document.createElement('button');
-                moreButton.innerHTML = '☰';
-                moreButton.className = 'dialog-button';
-                moreButton.style.cssText = `
-                    font-size: 18px;
-                    padding: 8px;
-                    background: \${isDark ? '#121212' : '#ffffff'};
-                    border: none;
-                    border-radius: 8px;
-                    color: inherit;
-                    cursor: pointer;
-                    transition: all 0.2s ease;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    width: 36px;
-                    height: 36px;
-                `;
-                
-                moreButton.onclick = (event) => {
-                    document.querySelectorAll('.options-menu, .color-menu').forEach(el => el.remove());
-                
-                    const popup = header.closest('.customDialog');
-                    const { element: optionsMenu, colorMenu } = createOptionsMenu(options.noteData.noteGuid, popup, isDark);
-                
-                    document.body.appendChild(optionsMenu);
-                    document.body.appendChild(colorMenu);
-                
-                    const rect = event.target.getBoundingClientRect();
-                    optionsMenu.style.top = `\${rect.bottom + 8}px`;
-                    optionsMenu.style.left = `\${rect.right - optionsMenu.offsetWidth - moreButton.offsetWidth - 20}px`;
-                    optionsMenu.style.display = 'flex';
-                
-                    const closeOnClickOutside = (e) => {
-                        if (!optionsMenu.contains(e.target) && !colorMenu.contains(e.target) && e.target !== moreButton) {
-                            optionsMenu.remove();
-                            colorMenu.remove();
-                            document.removeEventListener('click', closeOnClickOutside);
-                            moreButton.removeEventListener('click', closeOnClickOutside);
-                            popup.removeEventListener('click', closeOnClickOutside);
-                        }
-                    };
-                    document.addEventListener('click', closeOnClickOutside);
-                    moreButton.addEventListener('click', closeOnClickOutside);
-                    popup.addEventListener('click', closeOnClickOutside);
-                };
-                
-                rightArea.appendChild(moreButton);
-              }
-          
-              const fullscreenButton = document.createElement('button');
-              fullscreenButton.innerHTML = isFullscreen ? '⿻' : '⛶';
-              fullscreenButton.className = 'dialog-button';
-              fullscreenButton.style.cssText = `
-                  font-size: 18px;
-                  padding: 8px;
-                  background: \${isDark ? '#121212' : '#ffffff'};
-                  border: none;
-                  border-radius: 8px;
-                  color: inherit;
-                  cursor: pointer;
-                  transition: all 0.2s ease;
-                  display: flex;
-                  align-items: center;
-                  justify-content: center;
-                  width: 36px;
-                  height: 36px;
-              `;
-          
-              const closeButton = document.createElement('button');
-              closeButton.innerHTML = '✕';
-              closeButton.className = 'dialog-button';
-              closeButton.style.cssText = `
-                  font-family: jw-icons-external;
-                  font-size: 18px;
-                  padding: 8px;
-                  background: rgba(220, 53, 69, 0.1);
-                  border: none;
-                  border-radius: 8px;
-                  color: #dc3545;
-                  cursor: pointer;
-                  transition: all 0.2s ease;
-                  display: flex;
-                  align-items: center;
-                  justify-content: center;
-                  width: 36px;
-                  height: 36px;
-              `;
-          
-              closeButton.onclick = (event) => {
-                  event.stopPropagation();
-                  event.preventDefault();
-                  
-                  closeDialog();
-              };
-          
-              rightArea.appendChild(fullscreenButton);
-              rightArea.appendChild(closeButton);
-          
-              header.appendChild(leftArea);
-              header.appendChild(rightArea);
-          
-              return {
-                  element: header,
-                  dragArea: titleArea,
-                  fullscreenButton,
-                  closeButton
-              };
-          }
-          
           
           function setupFullscreenToggle(type, fullscreenButton, dialog, contentContainer) {
               fullscreenButton.onclick = function(event) {
@@ -2590,53 +2150,667 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
               handle.addEventListener('touchstart', startResize);
           }
           
-          // Fonctions utilitaires pour gérer l'historique
-          function clearDialogHistory() {
-              // Supprimer physiquement tous les dialogues du DOM
-              const dialogs = document.querySelectorAll('.customDialog');
-              dialogs.forEach(dialog => dialog.remove());
+          // NOTE: La fonction createHeader est laissée telle quelle car elle n'a pas été modifiée dans sa logique.
+          function createHeader(options, isDark, dialog, isFullscreen, canGoBack) {
+              const header = document.createElement('div');
+              const headerGradient = isDark 
+                  ? 'linear-gradient(135deg, #2a2a2a 0%, #1e1e1e 100%)' 
+                  : 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)';
+                  
+              const type = options.type;
+              const title = options.title;
+                  
+              const backgroundColor = type === 'note' ? 'transparent' : headerGradient;
               
+              const borderRadius = isFullscreen ? '0px' : '16px 16px 0 0';
+              
+              header.style.cssText = `
+                  background: \${backgroundColor};
+                  color: \${isDark ? '#ffffff' : '#333333'};
+                  padding: 12px 16px;
+                  font-size: 18px;
+                  font-weight: 600;
+                  display: flex;
+                  align-items: center;
+                  justify-content: space-between;
+                  height: \${HEADER_HEIGHT}px;
+                  border-bottom: 1px solid \${isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'};
+                  border-radius: \${borderRadius};
+              `;
+              
+              header.addEventListener('touchstart', (e) => {
+                  document.querySelectorAll('.options-menu, .color-menu').forEach(el => el.remove());
+              });
+              
+          
+              // Left area: back button + title
+              const leftArea = document.createElement('div');
+              leftArea.style.cssText = 'display: flex; align-items: center; gap: 8px;';
+          
+              if (canGoBack) {
+                  const backButton = document.createElement('button');
+                  backButton.classList.add('dialog-button', 'back-button', 'jwf-jw-icons-external', 'jwi-chevron-left');
+                  backButton.style.cssText = `
+                      font-size: 18px;
+                      padding: 8px;
+                      background: \${isDark ? '#121212' : '#ffffff'};
+                      border: none;
+                      border-radius: 8px;
+                      color: inherit;
+                      cursor: pointer;
+                      transition: all 0.2s ease;
+                      display: flex;
+                      align-items: center;
+                      justify-content: center;
+                      width: 36px;
+                      height: 36px;
+                      opacity: 0.8;
+                  `;
+          
+                  backButton.onclick = (event) => {
+                      event.stopPropagation();
+                      event.preventDefault();
+                      goBackDialog();
+                  };
+          
+                  leftArea.appendChild(backButton);
+              }
+          
+              const titleArea = document.createElement('div');
+              titleArea.style.cssText = `
+                  user-select: none;
+                  cursor: move;
+                  font-weight: 600;
+                  letter-spacing: 0.5px;
+              `;
+              titleArea.innerHTML = title;
+              leftArea.appendChild(titleArea);
+          
+              // Right area: fullscreen + close
+              const rightArea = document.createElement('div');
+              rightArea.style.cssText = 'display: flex; align-items: center; gap: 8px;';
+              
+              if(type === 'note' && options.noteData) {
+                const moreButton = document.createElement('button');
+                moreButton.innerHTML = '☰';
+                moreButton.className = 'dialog-button';
+                moreButton.style.cssText = `
+                    font-size: 18px;
+                    padding: 8px;
+                    background: \${isDark ? '#121212' : '#ffffff'};
+                    border: none;
+                    border-radius: 8px;
+                    color: inherit;
+                    cursor: pointer;
+                    transition: all 0.2s ease;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    width: 36px;
+                    height: 36px;
+                `;
+                
+                moreButton.onclick = (event) => {
+                    document.querySelectorAll('.options-menu, .color-menu').forEach(el => el.remove());
+                
+                    const popup = header.closest('.customDialog');
+                    const { element: optionsMenu, colorMenu } = createOptionsMenu(options.noteData.noteGuid, popup, isDark);
+                
+                    document.body.appendChild(optionsMenu);
+                    document.body.appendChild(colorMenu);
+                
+                    const rect = event.target.getBoundingClientRect();
+                    optionsMenu.style.top = `\${rect.bottom + 8}px`;
+                    optionsMenu.style.left = `\${rect.right - optionsMenu.offsetWidth - moreButton.offsetWidth - 20}px`;
+                    optionsMenu.style.display = 'flex';
+                
+                    const closeOnClickOutside = (e) => {
+                        if (!optionsMenu.contains(e.target) && !colorMenu.contains(e.target) && e.target !== moreButton) {
+                            optionsMenu.remove();
+                            colorMenu.remove();
+                            document.removeEventListener('click', closeOnClickOutside);
+                            moreButton.removeEventListener('click', closeOnClickOutside);
+                            popup.removeEventListener('click', closeOnClickOutside);
+                        }
+                    };
+                    document.addEventListener('click', closeOnClickOutside);
+                    moreButton.addEventListener('click', closeOnClickOutside);
+                    popup.addEventListener('click', closeOnClickOutside);
+                };
+                
+                rightArea.appendChild(moreButton);
+              }
+          
+              const fullscreenButton = document.createElement('button');
+              fullscreenButton.innerHTML = isFullscreen ? '⿻' : '⛶';
+              fullscreenButton.className = 'dialog-button';
+              fullscreenButton.style.cssText = `
+                  font-size: 18px;
+                  padding: 8px;
+                  background: \${isDark ? '#121212' : '#ffffff'};
+                  border: none;
+                  border-radius: 8px;
+                  color: inherit;
+                  cursor: pointer;
+                  transition: all 0.2s ease;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  width: 36px;
+                  height: 36px;
+              `;
+          
+              const closeButton = document.createElement('button');
+              closeButton.innerHTML = '✕';
+              closeButton.className = 'dialog-button';
+              closeButton.style.cssText = `
+                  font-family: jw-icons-external;
+                  font-size: 18px;
+                  padding: 8px;
+                  background: rgba(220, 53, 69, 0.1);
+                  border: none;
+                  border-radius: 8px;
+                  color: #dc3545;
+                  cursor: pointer;
+                  transition: all 0.2s ease;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  width: 36px;
+                  height: 36px;
+              `;
+          
+              closeButton.onclick = (event) => {
+                  event.stopPropagation();
+                  event.preventDefault();
+                  
+                  closeDialog();
+              };
+          
+              rightArea.appendChild(fullscreenButton);
+              rightArea.appendChild(closeButton);
+          
+              header.appendChild(leftArea);
+              header.appendChild(rightArea);
+          
+              return {
+                  element: header,
+                  dragArea: titleArea,
+                  fullscreenButton,
+                  closeButton
+              };
+          }
+
+          let dialogHistory = [];
+          let currentDialogIndex = -1;
+          let lastClosedDialog = null; 
+          let globalFullscreenPreference = false; 
+          let dialogIdCounter = 0; 
+          let baseDialog = null; 
+          
+          // --- Constantes d'Icônes ---
+          const ICON_BACK_HISTORY = 'jwi-chevron-left'; 
+          const ICON_REOPEN_CLOSED = 'jwi-chevron-right'; 
+          const ARROW_BACK = '&#xE60B;'; 
+          const DIAMOND = '&#xE658;'; 
+          
+          // Icônes pour les différents types de dialogue
+          const DIALOG_ICONS = {
+              'base': DIAMOND, 
+              'verse': '&#xE61D;', 
+              'verse-references': '&#xE61F;', 
+              'verse-info': '&#xE620;', 
+              'publication': '&#xE629;', 
+              'footnote': '&#xE69B;', 
+              'note': '&#xE6BF;', 
+              'default': DIAMOND 
+          };
+          
+          async function createNotesDashboardContent(container, opt) {
+    // Nettoyer l'indicateur de chargement
+    container.innerHTML = '<h2>Mes Notes Récentes</h2><p>Chargement des notes...</p>';
+    
+    if (typeof applyContentContainerStyles === 'function') {
+        applyContentContainerStyles('base', container, globalFullscreenPreference);
+    }
+    
+    // Conteneur interne pour le padding
+    const innerContainer = document.createElement('div');
+    
+    container.innerHTML = ''; // Nettoyer l'indicateur de chargement
+    container.appendChild(innerContainer); // Ajout du conteneur interne
+    
+    let notes = await window.flutter_inappwebview.callHandler('getNotes');
+
+    if (!notes || notes.length === 0) { // Vérification de l'existence de 'notes'
+        innerContainer.innerHTML += '<p>Vous n\\'avez pas encore créé de note.</p>'; // Utiliser += si le titre doit rester
+        return;
+    }
+
+    // Ajouter chaque note
+    notes.forEach(note => {
+     
+        const noteData = {
+            noteGuid: note.guid,
+            title: note.title,
+            content: note.content,
+            tags: note.tags,
+            tagsId: note.tagsId,
+            colorIndex: note.colorIndex,
+        };
+    
+        const newNote = { 'noteData': noteData }; 
+    
+        // 1. Appel de la fonction pour créer l'élément de la note.
+        // On suppose que createNoteContent retourne l'élément DOM de la note.
+        const noteElement = createNoteContent(innerContainer, newNote); 
+        
+        // 2. AJOUT DU PADDING (Marge inférieure)
+        // Ceci ajoutera un espace de 16 pixels SOUS chaque note.
+        if (noteElement) {
+            noteElement.style.marginBottom = '16px'; 
+            
+            // Optionnel : Enlever la marge sur la dernière note pour un look plus propre
+            if (notes.indexOf(note) === notes.length - 1) {
+                noteElement.style.marginBottom = '0';
+            }
+            
+            // 3. Ajout de l'élément de la note au conteneur.
+            innerContainer.appendChild(noteElement);
+        }
+    });
+}
+          
+          /**
+           * Initialise le dialogue de base
+           */
+          function initializeBaseDialog() {
+              if (baseDialog) return; 
+          
+              baseDialog = {
+                  options: {
+                      title: 'Notes', // Mis à jour pour refléter le contenu
+                      type: 'base', 
+                      // 🚨 Utilisation de la nouvelle fonction pour le contenu
+                      contentRenderer: createNotesDashboardContent
+                  },
+                  canGoBack: false, 
+                  type: 'base',
+                  dialogId: 'customDialog-base',
+              };
+          }
+          initializeBaseDialog(); // Initialisation déplacée ici pour la clarté.
+          
+          function hideAllDialogs() {
+              document.querySelectorAll('.customDialog').forEach(dialog => {
+                  dialog.style.display = 'none';
+              });
+          }
+          
+          function closeDialog() {
+              document.querySelectorAll('.options-menu, .color-menu').forEach(el => el.remove());
+              
+              // Ferme l'historique complet, SAUF si le seul élément est le baseDialog
+              if (currentDialogIndex < 0 || dialogHistory.length === 0) return;
+          
+              const currentDialogData = dialogHistory[currentDialogIndex];
+              const dialog = document.getElementById(currentDialogData.dialogId);
+              
+              if (dialog) {
+                  dialog.style.display = 'none';
+              }
+          
+              // Le baseDialog n'est jamais le lastClosedDialog
+              if (currentDialogData.type !== 'base') {
+                  lastClosedDialog = {
+                      ...currentDialogData,
+                      historyIndex: currentDialogIndex,
+                      fullHistory: [...dialogHistory],
+                  };
+              }
+              
+              // On vide tout l'historique
               dialogHistory = [];
               currentDialogIndex = -1;
-              lastClosedDialog = null; // Nettoyer aussi le dernier dialogue fermé
-              globalFullscreenPreference = false; // Reset de la préférence globale
-              removeFloatingButton();
-              dialogIdCounter = 0; // Réinitialiser le compteur d'ID
+          
+              showFloatingButton(); 
+          
+              window.flutter_inappwebview?.callHandler('showFullscreenDialog', false);
+              window.flutter_inappwebview?.callHandler('showDialog', false);
           }
           
-          function getDialogHistoryLength() {
-              return dialogHistory.length;
+          function removeCurrentDialog() {
+              // Correction: On ne peut pas retirer le baseDialog (index 0)
+              if (currentDialogIndex <= 0 || dialogHistory.length === 0) return; 
+          
+              const dialogData = dialogHistory[currentDialogIndex];
+              const dialog = document.getElementById(dialogData.dialogId);
+          
+              if (dialog) {
+                  dialog.remove();
+              }
+              
+              dialogHistory.splice(currentDialogIndex, 1);
+              currentDialogIndex = dialogHistory.length - 1;
+          
+              if (currentDialogIndex >= 0) {
+                  showDialogFromHistory(dialogHistory[currentDialogIndex]);
+              } else {
+                  // Cela ne devrait jamais arriver car le baseDialog est toujours le premier
+                  window.flutter_inappwebview?.callHandler('showFullscreenDialog', false);
+                  window.flutter_inappwebview?.callHandler('showDialog', false);
+                  showFloatingButton(); 
+              }
           }
           
-          function canGoBack() {
-              return currentDialogIndex > 0;
+          function goBackDialog() {
+              // Correction: On ne peut reculer que si l'index actuel est > 0 (pour éviter le baseDialog)
+              if (currentDialogIndex > 0 && dialogHistory.length > 1) {
+                  const currentDialog = dialogHistory[currentDialogIndex];
+                  const dialogElement = document.getElementById(currentDialog.dialogId);
+                  
+                  if (dialogElement) {
+                      // Retirer l'élément DOM du dialogue que l'on quitte
+                      dialogElement.remove(); 
+                  }
+                  
+                  // Retirer l'élément de l'historique
+                  dialogHistory.splice(currentDialogIndex, 1);
+                  currentDialogIndex--;
+                  
+                  const previousDialog = dialogHistory[currentDialogIndex];
+                  showDialogFromHistory(previousDialog);
+                  
+                  // Mettre à jour la capacité de reculer pour le nouveau dialogue actuel
+                  // C'est true si l'index actuel > 0 (c'est-à-dire s'il n'est pas le baseDialog)
+                  previousDialog.canGoBack = currentDialogIndex > 0; 
+          
+                  return true;
+              }
+              return false;
+          }
+          
+          function showDialogFromHistory(historyItem) {
+              hideAllDialogs();
+          
+              const existingDialog = document.getElementById(historyItem.dialogId);
+              let dialog;
+          
+              if (existingDialog) {
+                  dialog = existingDialog;
+                  dialog.style.display = 'block';
+              } 
+              else {
+                  // Note: Ici, on passe le 'canGoBack' de l'historique
+                  dialog = createDialogElement(historyItem.options, historyItem.canGoBack, globalFullscreenPreference, 0, historyItem.dialogId);
+                  document.body.appendChild(dialog);
+              }
+          
+              if (typeof applyDialogStyles === 'function') {
+                  applyDialogStyles(historyItem.type, dialog, globalFullscreenPreference);
+              }
+              
+              if (historyItem.type === 'note' && typeof getNoteClass === 'function') {
+                  const noteClass = getNoteClass(historyItem.options.noteData.colorIndex, false);
+                  dialog.classList.add(noteClass);
+              }
+          
+              const isFullscreen = historyItem.type !== 'base' && globalFullscreenPreference;
+              window.flutter_inappwebview?.callHandler('showFullscreenDialog', isFullscreen);
+              window.flutter_inappwebview?.callHandler('showDialog', true);
+          
+              updateFloatingButtonForClose();
+              
+              return dialog;
+          }
+          
+          function showDialog(options) {
+              if (!baseDialog) initializeBaseDialog();
+          
+              // 1. Assurer que le baseDialog est le premier élément si on ouvre un nouveau dialogue
+              if (dialogHistory.length === 0) {
+                  dialogHistory.push(baseDialog);
+                  currentDialogIndex = 0;
+              }
+              
+              updateFloatingButtonForClose();
+              
+              // CHAÎNE LITTÉRALE : \${options.noteData.noteGuid}
+              const currentUniqueKey = options.href 
+                  || (options.type === 'note' && options.noteData?.noteGuid ? `noteGuid-\${options.noteData.noteGuid}` : null);
+                  
+              let existingDialogIndex = -1;
+          
+              // 2. Vérifier l'existence (en ignorant le baseDialog à l'index 0)
+              if (currentUniqueKey) {
+                  existingDialogIndex = dialogHistory.findIndex((item, index) => {
+                      // Ne jamais considérer le baseDialog (index 0) pour la réactivation/remplacement
+                      if (index === 0) return false; 
+                      // CHAÎNE LITTÉRALE : \${item.options.noteData.noteGuid}
+                      const historyItemKey = item.options.href 
+                          || (item.options.type === 'note' && item.options.noteData?.noteGuid ? `noteGuid-\${item.options.noteData.noteGuid}` : null);
+                      return historyItemKey === currentUniqueKey;
+                  });
+              }
+          
+              // 3. Logique de Remplacement (`replace: true`)
+              if (existingDialogIndex !== -1 && options.replace === true) {
+                  const dialogToRemove = dialogHistory[existingDialogIndex];
+                  const dialogElement = document.getElementById(dialogToRemove.dialogId);
+                  
+                  if (dialogElement) {
+                      dialogElement.remove();
+                  }
+                  
+                  dialogHistory.splice(existingDialogIndex, 1);
+                  
+                  // Mettre à jour l'index actuel après la suppression
+                  if (existingDialogIndex === currentDialogIndex) {
+                      // L'élément remplacé était le dernier, on recule
+                      currentDialogIndex = Math.max(0, currentDialogIndex - 1); 
+                  } else if (existingDialogIndex < currentDialogIndex) {
+                      // L'élément supprimé était avant le dernier, on décale l'index
+                      currentDialogIndex--;
+                  }
+                  
+                  // Maintenant, on ajoute le nouveau dialogue à la fin de l'historique, comme d'habitude.
+                  // On continue au point 5.
+              }
+              // 4. Logique de Réactivation d'un dialogue existant
+              else if (existingDialogIndex !== -1) {
+                  const existingHistoryItem = dialogHistory[existingDialogIndex];
+                  
+                  if (existingDialogIndex === currentDialogIndex) {
+                      const existingDialogElement = document.getElementById(existingHistoryItem.dialogId);
+                      if (existingDialogElement) {
+                          existingDialogElement.style.display = 'block';
+                      }
+                      return existingDialogElement;
+                  }
+          
+                  // On le déplace à la fin de l'historique
+                  dialogHistory.splice(existingDialogIndex, 1);
+                  dialogHistory.push(existingHistoryItem);
+                  currentDialogIndex = dialogHistory.length - 1;
+                  
+                  // Correction: canGoBack est true si on n'est pas le baseDialog (index 0)
+                  existingHistoryItem.canGoBack = currentDialogIndex > 0; 
+                  
+                  return showDialogFromHistory(existingHistoryItem);
+              }
+              
+              // 5. Création et Ajout d'un Nouveau Dialogue
+              
+              dialogIdCounter++;
+              // CHAÎNE LITTÉRALE : \${dialogIdCounter}
+              const newDialogId = `customDialog-\${dialogIdCounter}`;
+              
+              const newHistoryItem = {
+                  options: options,
+                  // Correction: canGoBack est true si on n'est pas le baseDialog (donc s'il y a plus d'un élément au total)
+                  canGoBack: dialogHistory.length > 0, 
+                  type: options.type || 'default',
+                  dialogId: newDialogId,
+              };
+          
+              // Si on était sur le baseDialog et qu'on ouvre un nouveau dialogue,
+              // on doit d'abord masquer le baseDialog pour ne pas avoir deux dialogues actifs
+              if (currentDialogIndex === 0) {
+                  hideAllDialogs();
+              }
+              
+              dialogHistory.push(newHistoryItem);
+              currentDialogIndex = dialogHistory.length - 1;
+              
+              // hideAllDialogs() est appelé dans showDialogFromHistory
+              // hideAllDialogs(); 
+             
+              return showDialogFromHistory(newHistoryItem);
+          }
+          
+          /**
+           * Crée l'élément DOM du dialogue.
+           */
+          function createDialogElement(options, canGoBack, isFullscreenInit = false, scrollTopInit = 0, newDialogId = null) {
+              let isFullscreen = isFullscreenInit;
+              
+              // CHAÎNE LITTÉRALE : \${dialogIdCounter}
+              const dialog = document.createElement('div');
+              dialog.id = newDialogId || `customDialog-\${dialogIdCounter}`;
+              dialog.classList.add('customDialog');
+              dialog.setAttribute('data-type', options.type || 'default');
+              
+              if (typeof applyDialogStyles === 'function') {
+                  applyDialogStyles(options.type, dialog, isFullscreen);
+              }
+              dialog.style.display = 'block';
+          
+              const header = createHeader(options, isDarkTheme(), dialog, isFullscreen, canGoBack);
+              if (typeof setupDragSystem === 'function') {
+                  setupDragSystem(header.element, dialog);
+              }
+          
+              const contentContainer = document.createElement('div');
+              contentContainer.id = 'contentContainer';
+              if (typeof applyContentContainerStyles === 'function') {
+                  applyContentContainerStyles(options.type, contentContainer, isFullscreen);
+              }
+              
+              contentContainer.style.cssText += `
+                  flex-grow: 1;
+                  min-height: 0;
+                  overflow-y: auto;
+              `;
+          
+              if (options.type === 'note' && options.noteData && options.noteData.colorIndex && typeof getNoteClass === 'function') {
+                  const noteClass = getNoteClass(options.noteData.colorIndex, false);
+                  dialog.classList.add(noteClass);
+              }
+          
+              if (options.contentRenderer) {
+                  options.contentRenderer(contentContainer, options);
+              }
+          
+              setTimeout(() => {
+                  contentContainer.scrollTop = scrollTopInit;
+              }, 10);
+          
+              if (typeof setupFullscreenToggle === 'function') {
+                  setupFullscreenToggle(
+                      options.type,
+                      header.fullscreenButton,
+                      dialog,
+                      contentContainer
+                  );
+              }
+          
+              dialog.appendChild(header.element);
+              dialog.appendChild(contentContainer);
+          
+              const resizeHandle = document.createElement('div');
+              resizeHandle.classList.add('resize-handle');
+          
+              // CHAÎNES LITTÉRALES : \${isDarkTheme() ? 'rgba(255, 255, 255, 0.5)' : 'rgba(0, 0, 0, 0.5)'}
+              resizeHandle.style.cssText = `
+                  position: absolute;
+                  bottom: 0;
+                  right: 0;
+                  width: 20px;
+                  height: 20px;
+                  cursor: nwse-resize;
+                  z-index: 1001;
+                  border-right: 2px solid \${isDarkTheme() ? 'rgba(255, 255, 255, 0.5)' : 'rgba(0, 0, 0, 0.5)'};
+                  border-bottom: 2px solid \${isDarkTheme() ? 'rgba(255, 255, 255, 0.5)' : 'rgba(0, 0, 0, 0.5)'};
+                  border-bottom-right-radius: 16px;
+              `;
+              dialog.appendChild(resizeHandle);
+          
+              if (typeof setupResizeSystem === 'function') {
+                  setupResizeSystem(resizeHandle, dialog, contentContainer);
+              }
+              return dialog;
           }
           
           function restoreLastDialog() {
               if (!lastClosedDialog) return;
+              
+              // Correction: Si l'historique est vide, on restaure l'historique complet,
+              // en s'assurant que le baseDialog est le premier.
+              if (dialogHistory.length === 0) {
+                  dialogHistory = lastClosedDialog.fullHistory;
+                  currentDialogIndex = lastClosedDialog.historyIndex;
+                  
+                  // Assurer que le baseDialog est à l'index 0 et que l'index actuel est au moins 0
+                  if (dialogHistory[0].type !== 'base') {
+                      dialogHistory.unshift(baseDialog);
+                      currentDialogIndex++;
+                  }
+                  currentDialogIndex = Math.max(0, currentDialogIndex);
+                  
+                  showDialogFromHistory(dialogHistory[currentDialogIndex]);
+              } 
+              else {
+                  // Si l'historique est déjà ouvert, on ouvre juste le dernier dialogue fermé
+                  // (il sera ajouté au-dessus de l'historique existant)
+                  showDialog(lastClosedDialog.options);
+              }
+              
+              lastClosedDialog = null; 
           
-              // Mettre à jour l'index et l'historique
-              currentDialogIndex = lastClosedDialog.historyIndex;
-              dialogHistory = lastClosedDialog.fullHistory;
-          
-              removeFloatingButton();
-          
-              showDialogFromHistory(lastClosedDialog);
-          
-              lastClosedDialog = null;
+              updateFloatingButtonForClose(); 
           
               window.flutter_inappwebview?.callHandler('showDialog', true);
           }
           
-          // ========== SYSTÈME DE BOUTON FLOTTANT ==========
+          /**
+           * Affiche le baseDialog lorsque l'historique est vide.
+           */
+          function showBaseDialog() {
+              if (!baseDialog) initializeBaseDialog();
+          
+              hideAllDialogs();
+              dialogHistory = [];
+              currentDialogIndex = -1;
+              
+              dialogHistory.push(baseDialog);
+              currentDialogIndex = 0;
+              
+              showDialogFromHistory(baseDialog);
+              
+              updateFloatingButtonForClose();
+          }
+          // ... (Reste des fonctions utilitaires inchangé, à l'exception des chaînes littérales que je ne peux pas garantir)
           
           function createFloatingButton() {
-              const isDark = isDarkTheme();
-              const floatingButton = document.createElement('div');
-              floatingButton.id = 'dialogFloatingButton';
-              // L'icône initiale sera définie dans showFloatingButton()
+              let floatingButton = document.getElementById('dialogFloatingButton');
+              if (floatingButton) return floatingButton;
               
+              const isDark = isDarkTheme();
               const backgroundColor = isDark ? darkPrimaryColor : lightPrimaryColor;
+              
+              floatingButton = document.createElement('div');
+              floatingButton.id = 'dialogFloatingButton';
+              floatingButton.innerHTML = DIAMOND;
               
               floatingButton.style.cssText = `
                   position: fixed;
@@ -2654,82 +2828,75 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
                   color: \${isDark ? '#333333' : '#ffffff'};
                   cursor: pointer;
                   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-                  /* 💡 Clé pour le premier plan : z-index très élevé */
                   z-index: 9999; 
                   transition: all 0.3s ease;
-                  opacity: 0;
-                  transform: scale(0.8);
                   user-select: none;
-              `;
-              
-              // La logique d'animation sera déplacée dans showFloatingButton pour plus de contrôle
-              
+                  opacity: 0; 
+              `;              
+              document.body.appendChild(floatingButton);
               return floatingButton;
           }
           
           function showFloatingButton() {
-              let floatingButton = document.getElementById('dialogFloatingButton');
+              const floatingButton = createFloatingButton();
               
-              // 💡 Crée le bouton UNIQUEMENT s'il n'existe pas
-              if (!floatingButton) {
-                floatingButton = createFloatingButton();
-                document.body.appendChild(floatingButton);
-              }
-              
-              // Assure l'affichage (animation) s'il y a quelque chose à restaurer
-              if (lastClosedDialog) {
-                  const dialogType = lastClosedDialog.type || 'default';
-                  
-                  // 1. Configure l'icône de RESTAURATION
-                  floatingButton.innerHTML = DIALOG_ICONS[dialogType];
-                  
-                  // 2. Configure l'action de RESTAURATION
-                  floatingButton.onclick = () => {
-                      restoreLastDialog();
-                  };
-          
-                  // 3. Animation d'apparition (si nécessaire)
-                  if(controlsVisible) {
-                    setTimeout(() => {
-                        floatingButton.style.opacity = '1';
-                        floatingButton.style.transform = 'scale(1)';
-                    }, 100);
-                  }
-                  else {
-                    floatingButton.style.opacity = '0';
-                    floatingButton.style.transform = 'scale(1)';
+              if (dialogHistory.length === 0) {
+                  if (lastClosedDialog) {
+                      // État 1: Restaurer
+                      const dialogType = lastClosedDialog.type || 'default';
+                      floatingButton.innerHTML = DIALOG_ICONS[dialogType] || DIALOG_ICONS['default'];
+                      floatingButton.onclick = restoreLastDialog;
+                  } else {
+                      // État 2: Ouvrir le baseDialog
+                      floatingButton.innerHTML = DIALOG_ICONS['base'];
+                      floatingButton.onclick = showBaseDialog;
                   }
               } else {
-                  // Optionnel : S'assurer que le bouton est masqué s'il n'y a rien à restaurer
+                  // Le dialogue est actif, le FAB sert à fermer
+                  updateFloatingButtonForClose();
+                  return; 
+              }
+              
+              // Animation d'apparition
+              if(controlsVisible) {
+                  floatingButton.style.opacity = '1';
+              } else {
                   floatingButton.style.opacity = '0';
               }
           }
           
-          function removeFloatingButton() {
-              let floatingButton = document.getElementById('dialogFloatingButton');
+          function updateFloatingButtonForClose() {
+              const floatingButton = createFloatingButton();
               
-              // 💡 Crée le bouton UNIQUEMENT s'il n'existe pas
-              if (!floatingButton) {
-                floatingButton = createFloatingButton();
-                document.body.appendChild(floatingButton);
-              }
-              
-              // S'assurer que le bouton existe et qu'il est visible
-              if (floatingButton) {
+              if (dialogHistory.length > 0) {
+                  // Le FAB sert à Fermer/Revenir à la base, même si c'est le baseDialog qui est affiché.
+                  // C'est la fonction closeDialog qui gère l'effacement de l'historique.
                   floatingButton.innerHTML = ARROW_BACK; 
-          
-                  floatingButton.onclick = () => {
-                      closeDialog(); 
-                  };
+                  floatingButton.onclick = closeDialog; 
                   
-                  // 3. Assure qu'il est visible, si le dialogue l'est
-                  if (controlsVisible) {
+                  if(controlsVisible) {
                       floatingButton.style.opacity = '1';
-                      floatingButton.style.transform = 'scale(1)';
                   }
+              } 
+              else {
+                  hideFloatingButton();
               }
           }
           
+          function hideFloatingButton() {
+              const floatingButton = document.getElementById('dialogFloatingButton');
+              if (floatingButton) {
+                  floatingButton.style.opacity = '0';
+              }
+          }
+          
+          // =============================================================================
+          // V. Initialisation
+          // =============================================================================
+          
+          // Initialiser le FAB au chargement
+          showFloatingButton();
+
           async function openNoteDialog(userMarkGuid, noteGuid) {
               const note = await window.flutter_inappwebview.callHandler('getNoteByGuid', noteGuid);
              
@@ -2758,439 +2925,489 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
           }
           
           function createNoteContent(contentContainer, options) {
-    if (!options || !options.noteData) {
-        console.error("Les données de la note sont manquantes. Impossible de charger le contenu.");
-        contentContainer.innerHTML = "<p>Erreur: Contenu non disponible.</p>";
-        return;
-    }
-
-    const { noteGuid, title, content, tags, tagsId, colorIndex } = options.noteData;
-    const isDark = isDarkTheme();
-    const isEditMode = true;
-
-    const dialogElement = contentContainer.closest('.customDialog');
-    if (dialogElement) {
-        dialogElement.classList.add('note-dialog');
-    }
-
-    // 🎯 CONTENEUR PRINCIPAL UNIQUE AVEC SCROLL TOTAL
-    const scrollContainer = document.createElement('div');
-    scrollContainer.style.cssText = `
-        height: 100%;
-        overflow-y: auto;
-        overflow-x: hidden;
-        -webkit-overflow-scrolling: touch;
-        overscroll-behavior: contain;
-        padding: 16px;
-        box-sizing: border-box;
-    `;
-
-    // 📝 TITRE (TOUJOURS ENTIÈREMENT VISIBLE)
-    const titleElement = document.createElement('textarea');
-    titleElement.className = 'note-title';
-    titleElement.value = title || '';
-    titleElement.placeholder = 'Titre de la note';
-    titleElement.style.cssText = `
-        border: none;
-        outline: none;
-        resize: none;
-        font-size: 20px;
-        font-weight: bold;
-        line-height: 1.3;
-        background: transparent;
-        color: inherit;
-        padding: 4px 0;
-        overflow: hidden;
-        text-align: center;
-        width: 100%;
-        box-sizing: border-box;
-        display: block;
-        margin-bottom: 12px;
-    `;
-    
-    const autoResizeTitle = () => {
-        titleElement.style.height = 'auto';
-        titleElement.style.height = titleElement.scrollHeight + 'px';
-    };
-
-    titleElement.addEventListener('input', () => {
-        //autoResizeTitle();
-        saveChanges();
-    });
-
-    // SÉPARATEUR
-    const separator1 = document.createElement('div');
-    separator1.style.cssText = `
-        height: 1px;
-        background: \${isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.08)'};
-        margin: 12px 0;
-    `;
-
-    // 📄 CONTENU (TOUJOURS ENTIÈREMENT VISIBLE)
-    const contentElement = document.createElement('textarea');
-    contentElement.className = 'note-content';
-    contentElement.value = content || '';
-    contentElement.placeholder = 'Écrivez votre note ici...';
-    contentElement.style.cssText = `
-        border: none;
-        outline: none;
-        resize: none;
-        font-size: inherit;
-        line-height: 1.5;
-        background: transparent;
-        color: inherit;
-        overflow: hidden;
-        padding: 8px 0;
-        text-align: center;
-        width: 100%;
-        box-sizing: border-box;
-        display: block;
-        margin-bottom: 12px;
-        min-height: 200px;
-    `;
-    
-    const autoResizeContent = () => {
-        contentElement.style.height = 'auto';
-        contentElement.style.height = contentElement.scrollHeight + 'px';
-    };
-
-    contentElement.addEventListener('input', () => {
-        //autoResizeContent();
-        saveChanges();
-    });
-
-    // SÉPARATEUR
-    const separator2 = document.createElement('div');
-    separator2.style.cssText = `
-        height: 1px;
-        background: \${isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.08)'};
-        margin: 12px 0;
-    `;
-
-    // 🏷️ GESTION DES TAGS
-    const currentTagIds = !options.noteData.tagsId || options.noteData.tagsId === '' ? [] : options.noteData.tagsId.split(',')
-        .map(id => parseInt(id))
-        .filter(id => !isNaN(id));
-        
-    const createTagElement = (tag) => {
-        const tagElement = document.createElement('span');
-        tagElement.style.cssText = `
-            display: inline-flex;
-            align-items: center;
-            background: \${isDark ? '#4a4a4a' : 'rgba(255,255,255,0.9)'};
-            color: \${isDark ? '#fff' : '#2c3e50'};
-            padding: 6px 10px;
-            border-radius: 20px;
-            font-size: 14px;
-            font-weight: 500;
-            white-space: nowrap;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-            border: 1px solid \${isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)'};
-            cursor: pointer;
-        `;
-        
-        const text = document.createElement('span');
-        text.textContent = tag.Name;
-        text.style.pointerEvents = 'none';
-        tagElement.appendChild(text);
-
-        const closeBtn = document.createElement('span');
-        closeBtn.textContent = '×';
-        closeBtn.style.cssText = `
-            margin-left: 6px;
-            cursor: pointer;
-            font-weight: bold;
-            color: \${isDark ? '#e0e0e0' : 'inherit'};
-            font-size: 18px;
-            line-height: 1;
-            padding: 0 2px;
-        `;
-        
-        closeBtn.onclick = (e) => {
-            e.preventDefault();
-            tagsContainer.removeChild(tagElement);
-            const index = currentTagIds.indexOf(tag.TagId);
-            if (index > -1) currentTagIds.splice(index, 1);
-            window.flutter_inappwebview.callHandler('removeTagToNote', { noteGuid: noteGuid, tagId: tag.TagId });
-            setTimeout(() => tagInput.focus(), 10);
-        };
-        
-        tagElement.appendChild(closeBtn);
-        tagElement.onclick = (e) => {
-            if (e.target === closeBtn) return;
-            window.flutter_inappwebview.callHandler('openTagPage', { tagId: tag.TagId });
-        };
-        
-        return tagElement;
-    };
-
-    const addTagToUI = (tag) => {
-        if (!currentTagIds.includes(tag.TagId)) {
-            const tagElement = createTagElement(tag);
-            tagsContainer.insertBefore(tagElement, tagInputWrapper);
-            currentTagIds.push(tag.TagId);
-            window.flutter_inappwebview.callHandler('addTagToNote', { noteGuid: noteGuid, tagId: tag.TagId });
-        }
-    };
-
-    // 🏷️ CONTENEUR DE TAGS (ADAPTE À SON CONTENU)
-    const tagsContainer = document.createElement('div');
-    tagsContainer.style.cssText = `
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-        padding: 12px 0;
-        padding-bottom: 20px;
-        min-height: auto;
-    `;
-    
-    // Charger les tags existants
-    (() => {
-        if (!Array.isArray(currentTagIds) || currentTagIds.length === 0) return;
-        try {
-            currentTagIds.forEach(tagId => {
-                const tag = tags?.find(t => t.TagId === tagId);
-                if (!tag) return;
-                const el = createTagElement(tag);
-                if (el) tagsContainer.appendChild(el);
-            });
-        } catch (error) {
-            console.error('Erreur lors du chargement des tags :', error);
-        }
-    })();
-
-    const tagInputWrapper = document.createElement('div');
-    tagInputWrapper.style.cssText = `
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        min-width: 150px;
-        position: relative;
-    `;
-
-    const tagInput = document.createElement('input');
-    tagInput.className = 'note-tags';
-    tagInput.type = 'text';
-    tagInput.placeholder = 'Ajouter une catégorie...';
-    tagInput.style.cssText = `
-        border: none;
-        outline: none;
-        font-size: 14px;
-        flex: 1;
-        min-width: 100px;
-        padding: 4px;
-        background: transparent;
-        color: inherit;
-    `;
-    
-    // 💡 SUGGESTIONS OVERLAY (FIXED)
-    const suggestionsList = document.createElement('div');
-    suggestionsList.className = 'suggestions-list';
-    
-    suggestionsList.style.cssText = `
-        position: fixed;
-        z-index: 99999;
-        background: \${isDark ? '#333' : 'rgba(255, 255, 255, 0.95)'};
-        border: 1px solid \${isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'};
-        border-radius: 8px;
-        box-shadow: 0 4px 16px rgba(0,0,0,0.15);
-        backdrop-filter: blur(10px);
-        max-height: 250px;
-        overflow-y: auto;
-        -webkit-overflow-scrolling: touch;
-        overscroll-behavior: contain;
-        display: none;
-    `;
-
-    async function addTagToDatabase(value) {
-        const result = await window.flutter_inappwebview.callHandler('addTag', { tagName: value });    
-        if (result && result.tag) addTagToUI(result.tag);
-    }
-
-    const showSuggestions = async (filteredTags, query) => {
-        suggestionsList.innerHTML = '';
-        const value = query.trim();
-        const exactMatch = filteredTags.some(tag => tag.Name.toLowerCase() === value.toLowerCase());
-
-        if (value !== '' && !exactMatch) {
-            const addNew = document.createElement('div');
-            addNew.textContent = `Ajouter la catégorie: "\${value}"`;
-            addNew.style.cssText = `
-                padding: 12px 16px;
-                cursor: pointer;
-                font-size: 14px;
-                color: \${isDark ? '#fff' : '#2c3e50'};
-                border-bottom: \${filteredTags.length > 0 ? '1px solid ' + (isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)') : 'none'};
-                white-space: nowrap;
-                user-select: none;
-                -webkit-user-select: none;
-            `;
-            
-            addNew.onmousedown = async (e) => {
-                e.preventDefault();
-                await addTagToDatabase(value);
-                tagInput.value = '';
-                const updatedTags = await window.flutter_inappwebview.callHandler('getFilteredTags', '', currentTagIds);
-                showSuggestions(updatedTags, '');
-                setTimeout(() => tagInput.focus(), 10);
-            };
-
-            suggestionsList.appendChild(addNew);
-        }
-
-        filteredTags.forEach(tag => {
-            const item = document.createElement('div');
-            item.textContent = tag.Name;
-            item.style.cssText = `
-                padding: 12px 16px;
-                cursor: pointer;
-                font-size: 14px;
-                color: \${isDark ? '#fff' : '#2c3e50'};
-                transition: background-color 0.2s ease;
-                white-space: nowrap;
-                user-select: none;
-                -webkit-user-select: none;
-            `;
-            
-            item.onmouseenter = () => item.style.backgroundColor = isDark ? '#4a4a4a' : 'rgba(52, 152, 219, 0.1)';
-            item.onmouseleave = () => item.style.backgroundColor = 'transparent';
-            
-            item.onmousedown = async (e) => {
-                e.preventDefault();
-                addTagToUI(tag);
-                tagInput.value = '';
-                const updatedTags = await window.flutter_inappwebview.callHandler('getFilteredTags', '', currentTagIds);
-                showSuggestions(updatedTags, '');
-                setTimeout(() => tagInput.focus(), 10);
-            };
-            
-            suggestionsList.appendChild(item);
-        });
-
-        suggestionsList.style.display = (suggestionsList.children.length > 0) ? 'block' : 'none';
-        updateSuggestionsPosition();
-    };
-
-    const updateSuggestionsPosition = () => {
-        if(suggestionsList.style.display === 'none') return;
-        
-        const rect = tagInput.getBoundingClientRect();
-        const viewportHeight = window.innerHeight;
-        const spaceBelow = viewportHeight - rect.bottom;
-        
-        if (spaceBelow < 300) {
-            suggestionsList.style.bottom = `\${viewportHeight - rect.top + 5}px`;
-            suggestionsList.style.top = 'auto';
-        } else {
-            suggestionsList.style.top = `\${rect.bottom + 5}px`;
-            suggestionsList.style.bottom = 'auto';
-        }
-        
-        suggestionsList.style.left = `\${rect.left}px`;
-        suggestionsList.style.width = `\${Math.max(250, tagInput.offsetWidth)}px`;
-    };
-
-    // Événements Input Tags
-    tagInput.addEventListener('input', async () => {
-        const value = tagInput.value.trim();
-        try {
-            const filteredTags = await window.flutter_inappwebview.callHandler('getFilteredTags', value, currentTagIds);
-            showSuggestions(filteredTags, value);
-        } catch (error) {
-            console.error('Erreur lors de la récupération des tags filtrés', error);
-        }
-    });
-
-    tagInput.addEventListener('focus', async () => {
-        const value = tagInput.value.trim();
-        try {
-            const filteredTags = await window.flutter_inappwebview.callHandler('getFilteredTags', value, currentTagIds);
-            showSuggestions(filteredTags, value);
-        } catch (error) {
-            console.error('Erreur lors de la récupération des tags filtrés', error);
-        }
-    });
-
-    tagInput.addEventListener('blur', () => {
-        setTimeout(() => { 
-            if (document.activeElement !== tagInput) {
-                suggestionsList.style.display = 'none'; 
-            }
-        }, 200);
-    });
-
-    tagInput.addEventListener('keypress', async (e) => {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            const value = tagInput.value.trim();
-            if (value !== '') {
-                try {
-                    const filteredTags = await window.flutter_inappwebview.callHandler('getFilteredTags', value, currentTagIds);
-                    const exactMatch = filteredTags.find(tag => tag.Name.toLowerCase() === value.toLowerCase());
-                    if (exactMatch) {
-                        addTagToUI(exactMatch);
-                    } else {
-                        await addTagToDatabase(value);
-                    }
-                    tagInput.value = '';
-                    const updatedTags = await window.flutter_inappwebview.callHandler('getFilteredTags', '', currentTagIds);
-                    showSuggestions(updatedTags, '');
-                    setTimeout(() => tagInput.focus(), 10);
-                } catch (error) {
-                    console.error("Erreur lors de l'ajout du tag", error);
-                }
-            }
-        }
-    });
-
-    // 🔨 ASSEMBLAGE FINAL - UN SEUL SCROLL POUR TOUT
-    if (isEditMode) {
-        tagInputWrapper.appendChild(tagInput);
-        tagsContainer.appendChild(tagInputWrapper);
-    }
-
-    scrollContainer.appendChild(titleElement);
-    scrollContainer.appendChild(separator1);
-    scrollContainer.appendChild(contentElement);
-    scrollContainer.appendChild(separator2);
-    scrollContainer.appendChild(tagsContainer);
-    
-    contentContainer.appendChild(scrollContainer);
-    document.body.appendChild(suggestionsList);
-
-    // Sauvegarde
-    const saveChanges = () => {
-        window.flutter_inappwebview.callHandler('updateNote', {
-            noteGuid: noteGuid,
-            title: titleElement.value,
-            content: contentElement.value
-        });
-    };
-
-    // Initialisation
-    setTimeout(() => {
-        autoResizeTitle();
-        autoResizeContent();
-    }, 0);
-    
-    window.addEventListener('resize', () => {
-        if (suggestionsList.style.display === 'block') {
-            updateSuggestionsPosition();
-        }
-    });
-
-    // Cleanup
-    const cleanup = () => {
-        if (suggestionsList && suggestionsList.parentNode) {
-            suggestionsList.remove();
-        }
-    };
-
-    if (dialogElement) {
-        dialogElement.addEventListener('close', cleanup);
-        dialogElement.addEventListener('dialogClosed', cleanup);
-    }
-}
+              if (!options || !options.noteData) {
+                  console.error("Les données de la note sont manquantes. Impossible de charger le contenu.");
+                  contentContainer.innerHTML = "<p>Erreur: Contenu non disponible.</p>";
+                  return;
+              }
+          
+              const { noteGuid, title, content, tags, tagsId, colorIndex } = options.noteData;
+              const isDark = isDarkTheme();
+              const isEditMode = true;
+              
+              const noteClass = getNoteClass(colorIndex, false);
+          
+              const dialogElement = contentContainer.closest('.customDialog');
+              if (dialogElement) {
+                  dialogElement.classList.add('note-dialog');
+              }
+          
+              // 🎯 CONTENEUR DE CONTENU DE LA NOTE (pour le padding)
+              const noteContentWrapper = document.createElement('div');
+              noteContentWrapper.style.cssText = `
+                  padding: 16px;
+                  box-sizing: border-box;
+              `;
+              noteContentWrapper.classList.add(noteClass);
+          
+              // 📝 TITRE
+              const titleElement = document.createElement('textarea');
+              titleElement.className = 'note-title';
+              titleElement.value = title || '';
+              titleElement.placeholder = 'Titre de la note';
+              titleElement.style.cssText = `
+                  border: none;
+                  outline: none;
+                  resize: none;
+                  font-size: 20px;
+                  font-weight: bold;
+                  line-height: 1.3;
+                  background: transparent;
+                  color: inherit;
+                  padding: 4px 0;
+                  /* Le titre ne doit pas défiler, il doit s'étendre verticalement jusqu'à ce que overflow:hidden le coupe s'il n'y a pas assez de place, 
+                     mais comme nous désactivons l'auto-resize, il agira comme un textarea classique (qui scroll en interne s'il ne peut pas grandir) */
+                  overflow: hidden; 
+                  width: 100%;
+                  box-sizing: border-box;
+                  display: block;
+                  margin-bottom: 12px;
+              `;
+              
+              const autoResizeTitle = () => {
+                  const initialScrollTop = contentContainer.scrollTop;
+                  titleElement.style.height = 'auto';
+                  titleElement.style.height = titleElement.scrollHeight + 'px';
+                  contentContainer.scrollTop = initialScrollTop; // Tente de maintenir la position
+              };
+          
+              titleElement.addEventListener('input', () => {
+                  // L'utilisateur a demandé de ne PAS auto-réajuster le titre.
+                  autoResizeTitle(); 
+                  saveChanges();
+              });
+          
+              // SÉPARATEUR
+              const separator1 = document.createElement('div');
+              separator1.style.cssText = `
+                  height: 1px;
+                  background: \${isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.08)'};
+                  margin: 12px 0;
+              `;
+          
+              // 📄 CONTENU
+              const contentElement = document.createElement('textarea');
+              contentElement.className = 'note-content';
+              contentElement.value = content || '';
+              contentElement.placeholder = 'Écrivez votre note ici...';
+              contentElement.style.cssText = `
+                  border: none;
+                  outline: none;
+                  resize: none;
+                  font-size: inherit;
+                  line-height: 1.5;
+                  background: transparent;
+                  color: inherit;
+                  overflow: hidden; /* Important : le conteneur parent (contentContainer) gère le scroll */
+                  padding: 8px 0;
+                  width: 100%;
+                  box-sizing: border-box;
+                  display: block;
+                  margin-bottom: 12px;
+                  min-height: 200px;
+              `;
+              
+              const autoResizeContent = () => {
+                  const initialScrollTop = contentContainer.scrollTop;
+                  contentElement.style.height = 'auto';
+                  contentElement.style.height = contentElement.scrollHeight + 'px';
+                  contentContainer.scrollTop = initialScrollTop; // Tente de maintenir la position
+              };
+          
+              contentElement.addEventListener('input', () => {
+                  autoResizeContent();
+                  saveChanges();
+              });
+          
+              // SÉPARATEUR
+              const separator2 = document.createElement('div');
+              separator2.style.cssText = `
+                  height: 1px;
+                  background: \${isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.08)'};
+                  margin: 12px 0;
+              `;
+          
+              // 🏷️ GESTION DES TAGS
+             const currentTagIds = (typeof tagsId === 'string' && tagsId !== '')
+              ? tagsId.split(',')
+                      .map(id => parseInt(id))
+                      .filter(id => !isNaN(id))
+              : [];
+                  
+              const createTagElement = (tag) => {
+                  const tagElement = document.createElement('span');
+                  tagElement.style.cssText = `
+                      display: inline-flex;
+                      align-items: center;
+                      background: \${isDark ? '#4a4a4a' : 'rgba(52, 152, 219, 0.1)'};
+                      color: \${isDark ? '#fff' : '#2c3e50'};
+                      padding: 6px 10px;
+                      border-radius: 20px;
+                      font-size: 14px;
+                      font-weight: 500;
+                      white-space: nowrap;
+                      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+                      border: 1px solid \${isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0, 0, 0, 0.1)'};
+                      cursor: pointer;
+                  `;
+                  
+                  const text = document.createElement('span');
+                  text.textContent = tag.Name;
+                  text.style.pointerEvents = 'none';
+                  tagElement.appendChild(text);
+          
+                  const closeBtn = document.createElement('span');
+                  closeBtn.textContent = '×';
+                  closeBtn.style.cssText = `
+                      margin-left: 6px;
+                      cursor: pointer;
+                      font-weight: bold;
+                      color: \${isDark ? '#e0e0e0' : 'inherit'};
+                      font-size: 18px;
+                      line-height: 1;
+                      padding: 0 2px;
+                  `;
+                  
+                  closeBtn.onclick = (e) => {
+                      e.preventDefault();
+                      tagsContainer.removeChild(tagElement);
+                      const index = currentTagIds.indexOf(tag.TagId);
+                      if (index > -1) currentTagIds.splice(index, 1);
+                      window.flutter_inappwebview.callHandler('removeTagToNote', { noteGuid: noteGuid, tagId: tag.TagId });
+                      setTimeout(() => tagInput.focus(), 10);
+                  };
+                  
+                  tagElement.appendChild(closeBtn);
+                  tagElement.onclick = (e) => {
+                      if (e.target === closeBtn) return;
+                      window.flutter_inappwebview.callHandler('openTagPage', { tagId: tag.TagId });
+                  };
+                  
+                  return tagElement;
+              };
+          
+              const addTagToUI = (tag) => {
+                  if (!currentTagIds.includes(tag.TagId)) {
+                      const tagElement = createTagElement(tag);
+                      tagsContainer.insertBefore(tagElement, tagInputWrapper);
+                      currentTagIds.push(tag.TagId);
+                      window.flutter_inappwebview.callHandler('addTagToNote', { noteGuid: noteGuid, tagId: tag.TagId });
+                  }
+              };
+          
+              // 🏷️ CONTENEUR DE TAGS
+              const tagsContainer = document.createElement('div');
+              tagsContainer.style.cssText = `
+                  display: flex;
+                  flex-wrap: wrap;
+                  gap: 8px;
+                  padding: 12px 0;
+                  padding-bottom: 20px;
+                  min-height: auto;
+              `;
+              
+              // Charger les tags existants
+              (() => {
+                  if (!Array.isArray(currentTagIds) || currentTagIds.length === 0) return;
+                  try {
+                      currentTagIds.forEach(tagId => {
+                          const tag = tags?.find(t => t.TagId === tagId);
+                          if (!tag) return;
+                          const el = createTagElement(tag);
+                          if (el) tagsContainer.appendChild(el);
+                      });
+                  } catch (error) {
+                      console.error('Erreur lors du chargement des tags :', error);
+                  }
+              })();
+          
+              const tagInputWrapper = document.createElement('div');
+              tagInputWrapper.style.cssText = `
+                  display: flex;
+                  align-items: center;
+                  gap: 10px;
+                  min-width: 150px;
+                  position: relative;
+              `;
+          
+              const tagInput = document.createElement('input');
+              tagInput.className = 'note-tags';
+              tagInput.type = 'text';
+              tagInput.placeholder = 'Ajouter une catégorie...';
+              tagInput.style.cssText = `
+                  border: none;
+                  outline: none;
+                  font-size: 14px;
+                  flex: 1;
+                  min-width: 100px;
+                  padding: 4px;
+                  background: transparent;
+                  color: inherit;
+              `;
+              
+              // 💡 SUGGESTIONS OVERLAY (FIXED)
+              const suggestionsList = document.createElement('div');
+              suggestionsList.className = 'suggestions-list';
+              
+              suggestionsList.style.cssText = `
+                  position: fixed;
+                  z-index: 100001; /* Z-index élevé pour être au premier plan */
+                  background: \${isDark ? '#333' : 'rgba(255, 255, 255, 0.95)'};
+                  border: 1px solid \${isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'};
+                  border-radius: 8px;
+                  box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+                  backdrop-filter: blur(10px);
+                  max-height: 250px;
+                  overflow-y: auto; 
+                  -webkit-overflow-scrolling: touch; 
+                  overscroll-behavior: contain; 
+                  display: none;
+              `;
+          
+              // 🚀 AJOUT CRUCIAL : Isolation du défilement de la liste de suggestions
+              // ----------------------------------------------------------------------
+          
+              // 1. Isolation pour la souris (molette)
+              suggestionsList.addEventListener('wheel', (e) => {
+                  e.stopPropagation(); // Empêche le défilement de remonter aux parents (contentContainer/body)
+              });
+          
+              // 2. Isolation pour le tactile (touchmove)
+              suggestionsList.addEventListener('touchstart', (e) => {
+                  // Enregistre la position de départ pour calculer la direction du défilement
+                  suggestionsList._startY = e.touches[0].pageY;
+              }, { passive: true }); // Lecture seule
+          
+              suggestionsList.addEventListener('touchmove', (e) => {
+                  if (suggestionsList.scrollHeight <= suggestionsList.offsetHeight) {
+                      // Si la liste n'a pas besoin de défilement, on ne fait rien
+                      return;
+                  }
+          
+                  const currentY = e.touches[0].pageY;
+                  const delta = suggestionsList._startY - currentY; // Delta positif = défilement vers le bas
+                  
+                  const isAtTop = suggestionsList.scrollTop === 0 && delta < 0; 
+                  const isAtBottom = (suggestionsList.scrollHeight - suggestionsList.offsetHeight - suggestionsList.scrollTop) <= 1 && delta > 0;
+          
+                  if (!isAtTop && !isAtBottom) {
+                      // Si l'utilisateur est au milieu de la liste, on arrête la propagation du mouvement
+                      e.stopPropagation();
+                  } else {
+                       // Si l'utilisateur est aux extrémités ET essaie de défiler au-delà, on empêche le défilement par défaut (qui irait sur le parent)
+                       e.preventDefault();
+                  }
+              }, { passive: false }); // 'passive: false' est CRUCIAL pour que preventDefault fonctionne
+          
+              async function addTagToDatabase(value) {
+                  const result = await window.flutter_inappwebview.callHandler('addTag', { tagName: value });    
+                  if (result && result.tag) addTagToUI(result.tag);
+              }
+          
+              const showSuggestions = async (filteredTags, query) => {
+                  suggestionsList.innerHTML = '';
+                  const value = query.trim();
+                  const exactMatch = filteredTags.some(tag => tag.Name.toLowerCase() === value.toLowerCase());
+          
+                  if (value !== '' && !exactMatch) {
+                      const addNew = document.createElement('div');
+                      addNew.textContent = `Ajouter la catégorie: "\${value}"`;
+                      addNew.style.cssText = `
+                          padding: 12px 16px;
+                          cursor: pointer;
+                          font-size: 14px;
+                          color: \${isDark ? '#fff' : '#2c3e50'};
+                          border-bottom: \${filteredTags.length > 0 ? '1px solid ' + (isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)') : 'none'};
+                          white-space: nowrap;
+                          user-select: none;
+                          -webkit-user-select: none;
+                      `;
+                      
+                      addNew.onmousedown = async (e) => {
+                          e.preventDefault();
+                          await addTagToDatabase(value);
+                          tagInput.value = '';
+                          const updatedTags = await window.flutter_inappwebview.callHandler('getFilteredTags', '', currentTagIds);
+                          showSuggestions(updatedTags, '');
+                          setTimeout(() => tagInput.focus(), 10);
+                      };
+          
+                      suggestionsList.appendChild(addNew);
+                  }
+          
+                  filteredTags.forEach(tag => {
+                      const item = document.createElement('div');
+                      item.textContent = tag.Name;
+                      item.style.cssText = `
+                          padding: 12px 16px;
+                          cursor: pointer;
+                          font-size: 14px;
+                          color: \${isDark ? '#fff' : '#2c3e50'};
+                          transition: background-color 0.2s ease;
+                          white-space: nowrap;
+                          user-select: none;
+                          -webkit-user-select: none;
+                      `;
+                      
+                      item.onmouseenter = () => item.style.backgroundColor = isDark ? '#4a4a4a' : 'rgba(52, 152, 219, 0.1)';
+                      item.onmouseleave = () => item.style.backgroundColor = 'transparent';
+                      
+                      item.onmousedown = async (e) => {
+                          e.preventDefault();
+                          addTagToUI(tag);
+                          tagInput.value = '';
+                          const updatedTags = await window.flutter_inappwebview.callHandler('getFilteredTags', '', currentTagIds);
+                          showSuggestions(updatedTags, '');
+                          setTimeout(() => tagInput.focus(), 10);
+                      };
+                      
+                      suggestionsList.appendChild(item);
+                  });
+          
+                  suggestionsList.style.display = (suggestionsList.children.length > 0) ? 'block' : 'none';
+                  updateSuggestionsPosition();
+              };
+          
+              const updateSuggestionsPosition = () => {
+                  if(suggestionsList.style.display === 'none') return;
+                  
+                  const rect = tagInput.getBoundingClientRect();
+                  
+                  // 🚀 CORRECTION: Positionnement strict sous l'input
+                  suggestionsList.style.top = `\${rect.bottom + 5}px`;
+                  suggestionsList.style.bottom = 'auto'; // Force la position sous l'élément
+                  
+                  suggestionsList.style.left = `\${rect.left}px`;
+                  suggestionsList.style.width = `\${Math.max(250, tagInput.offsetWidth)}px`;
+          
+                  // Suppression de la logique de basculement au-dessus, comme demandé
+              };
+          
+              // Événements Input Tags
+              tagInput.addEventListener('input', async () => {
+                  const value = tagInput.value.trim();
+                  try {
+                      const filteredTags = await window.flutter_inappwebview.callHandler('getFilteredTags', value, currentTagIds);
+                      showSuggestions(filteredTags, value);
+                  } catch (error) {
+                      console.error('Erreur lors de la récupération des tags filtrés', error);
+                  }
+              });
+          
+              tagInput.addEventListener('focus', async () => {
+                  const value = tagInput.value.trim();
+                  try {
+                      const filteredTags = await window.flutter_inappwebview.callHandler('getFilteredTags', value, currentTagIds);
+                      showSuggestions(filteredTags, value);
+                  } catch (error) {
+                      console.error('Erreur lors de la récupération des tags filtrés', error);
+                  }
+                  // Scroll pour s'assurer que l'input tag est visible
+                  if (dialogElement && contentContainer) {
+                      const rect = tagInput.getBoundingClientRect();
+                      // Défilement pour amener l'élément en vue (avec un petit décalage de 50px)
+                      const targetScrollTop = contentContainer.scrollTop + (rect.top - contentContainer.getBoundingClientRect().top - 50);
+                      contentContainer.scrollTop = targetScrollTop; 
+                  }
+              });
+          
+              tagInput.addEventListener('blur', () => {
+                  setTimeout(() => { 
+                      if (document.activeElement !== tagInput) {
+                          suggestionsList.style.display = 'none'; 
+                      }
+                  }, 200);
+              });
+          
+              tagInput.addEventListener('keypress', async (e) => {
+                  if (e.key === 'Enter') {
+                      e.preventDefault();
+                      const value = tagInput.value.trim();
+                      if (value !== '') {
+                          try {
+                              const filteredTags = await window.flutter_inappwebview.callHandler('getFilteredTags', value, currentTagIds);
+                              const exactMatch = filteredTags.find(tag => tag.Name.toLowerCase() === value.toLowerCase());
+                              if (exactMatch) {
+                                  addTagToUI(exactMatch);
+                              } else {
+                                  await addTagToDatabase(value);
+                              }
+                              tagInput.value = '';
+                              const updatedTags = await window.flutter_inappwebview.callHandler('getFilteredTags', '', currentTagIds);
+                              showSuggestions(updatedTags, '');
+                              setTimeout(() => tagInput.focus(), 10);
+                          } catch (error) {
+                              console.error("Erreur lors de l'ajout du tag", error);
+                          }
+                      }
+                  }
+              });
+          
+              // 🔨 ASSEMBLAGE FINAL
+              if (isEditMode) {
+                  tagInputWrapper.appendChild(tagInput);
+                  tagsContainer.appendChild(tagInputWrapper);
+              }
+          
+              noteContentWrapper.appendChild(titleElement);
+              noteContentWrapper.appendChild(separator1);
+              noteContentWrapper.appendChild(contentElement);
+              noteContentWrapper.appendChild(separator2);
+              noteContentWrapper.appendChild(tagsContainer);
+              
+              // Le contentContainer est le conteneur de défilement du dialogue
+              contentContainer.appendChild(noteContentWrapper);
+              document.body.appendChild(suggestionsList);
+          
+              // Sauvegarde
+              const saveChanges = () => {
+                  window.flutter_inappwebview.callHandler('updateNote', {
+                      noteGuid: noteGuid,
+                      title: titleElement.value,
+                      content: contentElement.value
+                  });
+              };
+          
+              // Initialisation
+              setTimeout(() => {
+                  // L'utilisateur a demandé de ne PAS auto-réajuster le titre.
+                  autoResizeTitle(); 
+                  autoResizeContent();
+              }, 0);
+              
+              contentContainer.addEventListener('scroll', updateSuggestionsPosition);
+          
+              window.addEventListener('resize', () => {
+                  if (suggestionsList.style.display === 'block') {
+                      updateSuggestionsPosition();
+                  }
+              });
+          
+              // Cleanup
+              const cleanup = () => {
+                  if (suggestionsList && suggestionsList.parentNode) {
+                      suggestionsList.remove();
+                  }
+                  contentContainer.removeEventListener('scroll', updateSuggestionsPosition);
+              };
+          
+              if (dialogElement) {
+                  dialogElement.addEventListener('close', cleanup);
+                  dialogElement.addEventListener('dialogClosed', cleanup);
+              }
+              
+              return noteContentWrapper;
+          }
  
           // ✅ Fonction corrigée
           function createOptionsMenu(noteGuid, popup, isDark) {
@@ -3405,8 +3622,7 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
                           
                           item.highlights.forEach(h => {
                             if (h.Identifier >= item.firstVerseNumber && h.Identifier <= item.lastVerseNumber) {
-                               const paragraphInfo = paragraphsDataDialog.get(h.Identifier);
-                               addBlockRange(paragraphInfo, h.BlockType, h.Identifier, h.StartToken, h.EndToken, h.UserMarkGuid, h.StyleIndex, h.ColorIndex);
+                               addBlockRange(paragraphsDataDialog, h.BlockType, h.Identifier, h.StartToken, h.EndToken, h.UserMarkGuid, h.StyleIndex, h.ColorIndex);
                             }
                           });
                           
@@ -3428,14 +3644,8 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
                             }
                           });
                           
-                          article.addEventListener('click', async (event) => {
-                              onClickOnPage(article, event.target);
-                          });
-                          
                           contentContainer.appendChild(infoBar);
                           contentContainer.appendChild(article);
-                          
-                          repositionAllNotes(article);
                       }); // Fin de forEach
                       
                       // CRÉATION DU BOUTON "PERSONNALISER"
@@ -3484,6 +3694,12 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
                       
                       // Ajout du bouton au bas du contentContainer
                       contentContainer.appendChild(customizeButton);
+                      
+                      contentContainer.addEventListener('click', async (event) => {
+                        onClickOnPage(contentContainer, event.target);
+                      });
+                          
+                      repositionAllNotes(contentContainer);
                   }
               });
           }
@@ -3916,10 +4132,9 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
                           const paragraphsDataDialog = fetchAllParagraphsOfTheArticle(article);
                           
                           item.highlights.forEach(h => {
-                            if ((item.startParagraphId == null || h.Identifier >= item.startParagraphId) && (item.endParagraphId == null || h.Identifier <= item.endParagraphId)) {
-                              const paragraphInfo = paragraphsDataDialog.get(h.Identifier);
+                            if (h.Identifier >= item.startParagraphId && h.Identifier <= item.endParagraphId) {
                               addBlockRange(
-                                paragraphInfo,
+                                paragraphsDataDialog,
                                 h.BlockType,
                                 h.Identifier,
                                 h.StartToken,
@@ -4305,12 +4520,7 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
     
           async function loadUserdata() {
             const userdata = await window.flutter_inappwebview.callHandler('getUserdata');
-            
-            // NOTE: Ces variables ne sont plus utilisées si l'on utilise paragraphsData pour l'itération, 
-            // mais elles restent nécessaires pour isBible().
-            // const bibleMode = isBible(); 
-            // const selector = bibleMode ? '.v' : '[data-pid]'; 
-            // const idAttr = bibleMode ? 'id' : 'data-pid';
+           
             const blockTypeInt = isBible() ? 2 : 1; // 2 pour Verset, 1 pour Paragraphe (basé sur le code Flutter supposé)
           
             blockRanges = userdata.blockRanges;
@@ -4374,7 +4584,7 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
               // 3. Gérer les surlignages (Highlights/BlockRanges)
               const matchingHighlights = blockRangeMap.get(idKey) || [];
               matchingHighlights.forEach(h => {
-                addBlockRange(paragraphInfo, h.BlockType, h.Identifier, h.StartToken, h.EndToken, h.UserMarkGuid, h.StyleIndex, h.ColorIndex);
+                addBlockRange(paragraphsData, h.BlockType, h.Identifier, h.StartToken, h.EndToken, h.UserMarkGuid, h.StyleIndex, h.ColorIndex);
               });
           
               // 4. Gérer les notes (Notes)
@@ -4527,12 +4737,11 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
             }
           }
           
-          function addBlockRange(paragraphInfo, blockType, blockIdentifier, startToken, endToken, guid, styleIndex, colorIndex) {
-            if (!paragraphInfo) {
-              paragraphInfo = paragraphsData.get(blockIdentifier);
-              if (!paragraphInfo) return; 
-            }
-          
+          function addBlockRange(paragraphsDataMap, blockType, blockIdentifier, startToken, endToken, guid, styleIndex, colorIndex) {
+            const paragraphInfo = paragraphsDataMap.get(blockIdentifier);
+            
+            if (!paragraphInfo) return; 
+
             // Extraire les tableaux de tokens de l'objet de données complet
             const allTokens = paragraphInfo.allTokens;
             const wordAndPunctTokens = paragraphInfo.wordAndPunctTokens;
@@ -4899,6 +5108,7 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
             } 
           
             setupScrollBar();
+            createFloatingButton();
             
             //const bodyClone = pageCenter.cloneNode(true);
             //magnifierContent.appendChild(bodyClone);  
@@ -4997,11 +5207,17 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
                   
                   if(scrollDirection === 'down') {
                      controlsVisible = false;
-                     if (floatingButton) floatingButton.style.opacity = '0';
+                     if (floatingButton) {
+                        floatingButton.style.opacity = '0';
+                        floatingButton.style.pointerEvents = 'none';
+                     }
                   }
                   else if (scrollDirection === 'up') {
                     controlsVisible = true;
-                    if (floatingButton) floatingButton.style.opacity = '1';
+                    if (floatingButton) {
+                        floatingButton.style.opacity = '1';
+                        floatingButton.style.pointerEvents = 'auto';
+                    }
                   }
                 }
               } 
@@ -5506,7 +5722,7 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
           }
           
           function getNoteClass(colorIndex, isIndicator) {
-            console.log('noteCLass = \${colorIndex}');
+            console.log('noteClass = \${colorIndex}');
             const colorName = colorsList[colorIndex ?? 0]; 
           
             if (colorName) {
@@ -5907,7 +6123,7 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
           }
           
           function fetchAllParagraphsOfTheArticle(article) {
-            let paragraphsData = new Map();
+            const paragraphsDataMap = new Map();
                         
             // 1. Récupérer les paragraphes/versets groupés avec leurs métadonnées
             const fetchedParagraphs = fetchAllParagraphs(article);
@@ -5915,7 +6131,7 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
             // 2. Indexer les tokens pour chaque groupe
             const indexedTokens = indexTokens(fetchedParagraphs);
             
-            // 3. Fusionner les deux et stocker le résultat final dans paragraphsData
+            // 3. Fusionner les deux et stocker le résultat final dans paragraphsDataMap
             fetchedParagraphs.forEach(group => {
               
               // CHANGEMENT ICI : La clé pour récupérer les tokens est le tableau 'group.paragraphs'
@@ -5926,7 +6142,7 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
               }; 
               
               // Fusion des objets
-              paragraphsData.set(group.id, {
+              paragraphsDataMap.set(group.id, {
                 paragraphs: group.paragraphs, // Les éléments DOM du paragraphe/verset
                 id: group.id,                // L'ID unique (ex: "15" ou data-pid)
                 isVerse: group.isVerse,      // Booléen indiquant si c'est un verset
@@ -5936,7 +6152,7 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
               });
             });
             
-            return paragraphsData;
+            return paragraphsDataMap;
           }
           
           function fetchAllParagraphs(article) {
@@ -6011,10 +6227,6 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
             return map;
           }
           
-          // Variables pour la détection multi-touch
-          let initialDistance = 0;
-          let isTwoFingerSwipe = false;
-          
           async function changePage(direction) {
             try {
               if (direction === 'right') {
@@ -6056,40 +6268,20 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
             
             document.querySelectorAll('.options-menu, .color-menu').forEach(el => el.remove());
             
-            // Détecter si c'est un swipe à 2 doigts
-            if (e.touches.length === 2) {
-              isTwoFingerSwipe = true;
-              startX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
-              startY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
-              isDragging = true;
-              isVerticalScroll = false;
-              container.style.transition = "none";
-            } else {
-              isTwoFingerSwipe = false;
-              startX = e.touches[0].clientX;
-              startY = e.touches[0].clientY;
-              isDragging = false; // Ne pas activer le drag avec 1 doigt
-            }
+            startX = e.touches[0].clientX;
+            startY = e.touches[0].clientY;
+            isDragging = true;
+            isVerticalScroll = false;
+          
+            container.style.transition = "none";
           }, { passive: true });
           
           // Gestionnaire touchmove modifié
           const handleContainerTouchMove = throttle((e) => {
             if (isLongPressing || !isDragging) return;
             
-            // Vérifier qu'on a toujours 2 doigts
-            if (e.touches.length !== 2 && isTwoFingerSwipe) {
-              isTwoFingerSwipe = false;
-              isDragging = false;
-              container.style.transition = "transform 0.2s ease-in-out";
-              container.style.transform = `translateX(\${currentTranslate}%)`;
-              return;
-            }
-            
-            if (!isTwoFingerSwipe) return;
-            
-            // Calculer la position moyenne des 2 doigts
-            const x = (e.touches[0].clientX + e.touches[1].clientX) / 2;
-            const y = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+            const x = e.touches[0].clientX;
+            const y = e.touches[0].clientY;
             const dx = x - startX;
             const dy = y - startY;
           
@@ -6120,27 +6312,17 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
               return;
             }
           
-            if (!isDragging || !isTwoFingerSwipe) {
-              isDragging = false;
-              isTwoFingerSwipe = false;
-              return;
-            }
+            if (!isDragging) return;
             
             isDragging = false;
           
             if (isVerticalScroll) {
               container.style.transition = "transform 0.2s ease-in-out";
               container.style.transform = `translateX(\${currentTranslate}%)`;
-              isTwoFingerSwipe = false;
               return;
             }
             
-            // Calculer la position finale moyenne
-            const finalX = e.changedTouches.length === 2 
-              ? (e.changedTouches[0].clientX + e.changedTouches[1].clientX) / 2
-              : e.changedTouches[0].clientX;
-            
-            const dx = finalX - startX;
+            const dx = e.changedTouches[0].clientX - startX;
             const percentage = dx / window.innerWidth;
             container.style.transition = "transform 0.2s ease-in-out";
           

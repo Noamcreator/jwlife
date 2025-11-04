@@ -30,10 +30,6 @@ class FileHandlerService {
   Function(String filePath, String fileType)? onFileReceived;
   Function(String url)? onUrlReceived;
 
-  // Track des fichiers/URLs déjà traités
-  String? _lastProcessedFile;
-  String? _lastProcessedUrl;
-
   Future<void> initialize() async {
     // Écouter les fichiers et URLs entrants
     _channel.setMethodCallHandler(_handleMethodCall);
@@ -44,14 +40,6 @@ class FileHandlerService {
     // Définir le callback pour les fichiers reçus
     onFileReceived = (filePath, fileType) {
       print('Fichier reçu: $filePath de type $fileType');
-
-      // Ignorer si c'est le même fichier qui a déjà été traité
-      if (_lastProcessedFile == filePath) {
-        print('Fichier déjà traité, on ignore: $filePath');
-        return;
-      }
-
-      _lastProcessedFile = filePath;
 
       switch (fileType) {
         case 'jwlibrary':
@@ -70,13 +58,6 @@ class FileHandlerService {
     onUrlReceived = (url) {
       print('URL JW.org reçue: $url');
 
-      // Ignorer si c'est la même URL qui a déjà été traitée
-      if (_lastProcessedUrl == url) {
-        print('URL déjà traitée, on ignore: $url');
-        return;
-      }
-
-      _lastProcessedUrl = url;
       processJwOrgUrl(url);
     };
   }
@@ -95,7 +76,6 @@ class FileHandlerService {
           // Stocker pour traitement ultérieur
           _pendingFilePath = filePath;
           _pendingFileType = fileType;
-          _lastProcessedFile = null; // Reset pour permettre le traitement après
         }
         break;
 
@@ -109,7 +89,6 @@ class FileHandlerService {
         } else {
           // Stocker pour traitement ultérieur
           _pendingUrl = url;
-          _lastProcessedUrl = null; // Reset pour permettre le traitement après
         }
         break;
     }
@@ -172,8 +151,6 @@ class FileHandlerService {
 
   // Méthode pour réinitialiser après traitement (à appeler une fois le dialogue fermé)
   Future<void> resetProcessedContent() async {
-    _lastProcessedFile = null;
-    _lastProcessedUrl = null;
     // Signaler à Android que le fichier a été traité
     try {
       await _channel.invokeMethod('fileProcessed');
@@ -194,7 +171,8 @@ class FileHandlerService {
       final context = GlobalKeyService.jwLifeAppKey.currentState?.context;
       if (context != null) {
         GlobalKeyService.jwLifeAppKey.currentState!.handleUri(uri);
-      } else {
+      }
+      else {
         // Si le contexte n'est pas encore prêt, stocker l'URI pour plus tard
         JwOrgUri.startUri = uri;
       }

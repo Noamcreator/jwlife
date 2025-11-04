@@ -1,46 +1,50 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
-import '../../core/assets.dart';
+import '../../core/assets.dart'; // Assurez-vous que ce chemin est correct
 
 class SplashScreen extends StatelessWidget {
   const SplashScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    // Récupère la couleur principale du thème (Primary Color)
+    final Color primaryColor = Theme.of(context).primaryColor;
+
+    // Utilise une couleur dérivée du thème pour l'arrière-plan de la progress bar,
+    // garantissant une bonne visibilité quel que soit le thème (clair/sombre).
+    final Color progressBackgroundColor = Theme.of(context).colorScheme.onSurface.withOpacity(0.2);
+
     return Scaffold(
+      // Le fond du Scaffold est souvent blanc ou la couleur de fond du thème
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
-            // Remplacer l'image par un SVG avec la couleur principale du thème
+            // --- LOGO SVG ---
             Container(
-              padding: const EdgeInsets.all(0),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                // La bordure arrondie sur le fond blanc
-                borderRadius: BorderRadius.circular(0.0),
-              ),
-              child: ClipRRect(
-                // 💡 Définir le MÊME rayon d'arrondi sur ClipRRect
-                borderRadius: BorderRadius.circular(0.0),
-                child: SvgPicture.asset(
-                  Assets.assetsIconsJwLife,
-                  width: 160,
-                  height: 160,
-                  colorFilter: ColorFilter.mode(Color(0xFF143368), BlendMode.srcIn),
-                ),
+              color: Colors.white,
+              child: SvgPicture.asset(
+                Assets.assetsIconsJwLife, // Assurez-vous que cette référence est correcte
+                width: 150,
+                height: 150,
+                // Applique la couleur principale du thème au SVG
+                colorFilter: ColorFilter.mode(primaryColor, BlendMode.srcIn),
               ),
             ),
 
-            const SizedBox(height: 4),
-            // Indicateur de progression avec une hauteur plus petite
+            const SizedBox(height: 4), // Augmentation de l'espace pour une meilleure esthétique
+
+            // --- INDICATEUR DE PROGRESSION ---
             SizedBox(
-              height: 4, // Hauteur personnalisée de l'indicateur
-              width: 160,
+              height: 3,
+              width: 150, // Doit correspondre à la largeur du logo pour l'alignement
               child: LinearProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).primaryColor),
-                backgroundColor: Color(0xFF686868)
+                // Couleur de la barre de progression
+                  valueColor: AlwaysStoppedAnimation<Color>(primaryColor),
+                  // Couleur de fond de la barre
+                  backgroundColor: progressBackgroundColor
               ),
             ),
           ],

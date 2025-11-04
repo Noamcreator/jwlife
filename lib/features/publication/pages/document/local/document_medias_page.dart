@@ -93,12 +93,7 @@ class _DocumentMediasViewState extends State<DocumentMediasView> {
     final spacing = _getSpacing(screenWidth);
 
     final textStyleTitle = TextStyle(fontSize: 20, fontWeight: FontWeight.bold);
-    final textStyleSubtitle = TextStyle(
-      fontSize: 14,
-      color: Theme.of(context).brightness == Brightness.dark
-          ? const Color(0xFFc3c3c3)
-          : const Color(0xFF626262),
-    );
+    final textStyleSubtitle = TextStyle(fontSize: 14, color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFFc3c3c3) : const Color(0xFF626262));
 
     return Scaffold(
       appBar: AppBar(

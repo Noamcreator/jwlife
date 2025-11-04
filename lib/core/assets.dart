@@ -27,7 +27,8 @@ class Assets {
   static const String darkHighlight6 = 'assets/icons/highlights/dark/highlight6.png';
   static const String darkHighlight6Selected = 'assets/icons/highlights/dark/highlight6_selected.png';
   static const String darkHighlightSelected = 'assets/icons/highlights/dark/highlight_selected.png';
-  static const String mepsUnit = 'assets/db/mepsunit.zip';
+  static const String mepsUnit = 'assets/meps/mepsunit.zip';
+  static const String mepsManifest = 'assets/meps/manifest.json';
   static const String fontsJwIcons = 'assets/fonts/JwIcons.ttf';
   static const String fontsNotoSansBold = 'assets/fonts/NotoSans-Bold.ttf';
   static const String fontsRobotoBold = 'assets/fonts/Roboto-Bold.ttf';
@@ -75,6 +76,4 @@ class Assets {
   static const String lightHighlight6Selected = 'assets/icons/highlights/light/highlight6_selected.png';
   static const String lightHighlightSelected = 'assets/icons/highlights/light/highlight_selected.png';
   static const String userDataDefaultThumbnail = 'assets/userData/default_thumbnail.png';
-  static const String userDataUserData = 'assets/userData/userData.db';
-
 }

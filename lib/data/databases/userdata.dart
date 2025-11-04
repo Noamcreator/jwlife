@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
+import 'dart:ui';
 
 import 'package:archive/archive.dart';
 import 'package:audio_info/audio_info.dart';
@@ -55,11 +56,13 @@ class Userdata {
 
   Future<void> init() async {
     File userdataFile = await getUserdataDatabaseFile();
-    if (await userdataFile.exists()) {
-      _database = await openDatabase(userdataFile.path, version: schemaVersion);
-      await getFavorites();
-      getTags();
-    }
+
+    _database = await openDatabase(userdataFile.path, version: schemaVersion, onCreate: (db, version) async {
+      await createDbUserdata(db);
+    });
+
+    await fetchFavorites();
+    fetchTags();
   }
 
   String get formattedTimestamp => DateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'").format(DateTime.now().toUtc());
@@ -116,7 +119,7 @@ class Userdata {
     }
   }
 
-  Future<void> getFavorites() async {
+  Future<void> fetchFavorites() async {
     favorites = [];
 
     try {
@@ -561,7 +564,7 @@ class Userdata {
     await batch.commit(noResult: true);
   }
 
-  Future<void> getTags() async {
+  Future<void> fetchTags() async {
     List<Map<String, dynamic>> result = await _database.rawQuery('''
       SELECT DISTINCT 
         Tag.TagId, 
@@ -893,17 +896,33 @@ class Userdata {
     }
   }
 
-  Future<List<Map<String, dynamic>>> getBlockRangesFromChapterNumber(int bookId, int chapterId, int mepsLanguageId) async {
+  Future<List<Map<String, dynamic>>> getBlockRangesFromChapterNumber(int bookId, int chapterId, String keySymbol, int mepsLanguageId, {int? startVerse, int? endVerse}) async {
     try {
-      // Joining Location, UserMark, and BlockRange tables to get all required data in one query
-      List<Map<String, dynamic>> blockRanges = await _database.rawQuery('''
-            SELECT BlockRange.BlockType, BlockRange.Identifier, BlockRange.StartToken, BlockRange.EndToken, UserMark.ColorIndex, UserMark.StyleIndex, UserMark.StyleIndex, UserMark.UserMarkGuid
-            FROM Location
-            LEFT JOIN UserMark ON Location.LocationId = UserMark.LocationId
-            LEFT JOIN BlockRange ON UserMark.UserMarkId = BlockRange.UserMarkId
-            WHERE Location.BookNumber = ? AND Location.ChapterNumber = ? AND Location.MepsLanguage = ?
-            ''', [bookId, chapterId, mepsLanguageId]
-      );
+      List<dynamic> arguments = [bookId, chapterId, keySymbol, mepsLanguageId];
+      String whereClause = 'WHERE Location.BookNumber = ? AND Location.ChapterNumber = ? AND Location.KeySymbol = ? AND Location.MepsLanguage = ?';
+
+      // 1. Ajouter le filtre de début de verset (Identifier >= startVerse)
+      if (startVerse != null) {
+        whereClause += ' AND BlockRange.Identifier >= ?';
+        arguments.add(startVerse);
+      }
+
+      // 2. Ajouter le filtre de fin de verset (Identifier <= endVerse)
+      if (endVerse != null) {
+        whereClause += ' AND BlockRange.Identifier <= ?';
+        arguments.add(endVerse);
+      }
+
+      // La requête SQL complète avec la clause WHERE construite dynamiquement
+      String sqlQuery = '''
+          SELECT BlockRange.BlockType, BlockRange.Identifier, BlockRange.StartToken, BlockRange.EndToken, UserMark.ColorIndex, UserMark.StyleIndex, UserMark.UserMarkGuid
+          FROM Location
+          LEFT JOIN UserMark ON Location.LocationId = UserMark.LocationId
+          LEFT JOIN BlockRange ON UserMark.UserMarkId = BlockRange.UserMarkId
+          $whereClause
+    ''';
+
+      List<Map<String, dynamic>> blockRanges = await _database.rawQuery(sqlQuery, arguments);
 
       return blockRanges;
 
@@ -913,17 +932,33 @@ class Userdata {
     }
   }
 
-  Future<List<Map<String, dynamic>>> getBlockRangesFromDocumentId(int documentId, int mepsLanguageId) async {
+  Future<List<Map<String, dynamic>>> getBlockRangesFromDocumentId(int documentId, int mepsLanguageId, {int? startParagraph, int? endParagraph}) async {
     try {
-      // Joining Location, UserMark, and BlockRange tables to get all required data in one query
-      List<Map<String, dynamic>> blockRanges = await _database.rawQuery('''
-            SELECT BlockRange.BlockType, BlockRange.Identifier, BlockRange.StartToken, BlockRange.EndToken, UserMark.ColorIndex, UserMark.StyleIndex, UserMark.StyleIndex, UserMark.UserMarkGuid
-            FROM Location
-            LEFT JOIN UserMark ON Location.LocationId = UserMark.LocationId
-            LEFT JOIN BlockRange ON UserMark.UserMarkId = BlockRange.UserMarkId
-            WHERE Location.DocumentId = ? AND Location.MepsLanguage = ?
-            ''', [documentId, mepsLanguageId]
-      );
+      List<dynamic> arguments = [documentId, mepsLanguageId];
+      String whereClause = 'WHERE Location.DocumentId = ? AND Location.MepsLanguage = ?';
+
+      // 1. Ajouter le filtre de début de paragraphe (Identifier >= startParagraph)
+      if (startParagraph != null) {
+        whereClause += ' AND BlockRange.Identifier >= ?';
+        arguments.add(startParagraph);
+      }
+
+      // 2. Ajouter le filtre de fin de paragraphe (Identifier <= endParagraph)
+      if (endParagraph != null) {
+        whereClause += ' AND BlockRange.Identifier <= ?';
+        arguments.add(endParagraph);
+      }
+
+      // La requête SQL complète avec la clause WHERE construite
+      String sqlQuery = '''
+          SELECT BlockRange.BlockType, BlockRange.Identifier, BlockRange.StartToken, BlockRange.EndToken, UserMark.ColorIndex, UserMark.StyleIndex, UserMark.UserMarkGuid
+          FROM Location
+          LEFT JOIN UserMark ON Location.LocationId = UserMark.LocationId
+          LEFT JOIN BlockRange ON UserMark.UserMarkId = BlockRange.UserMarkId
+          $whereClause
+    ''';
+
+      List<Map<String, dynamic>> blockRanges = await _database.rawQuery(sqlQuery, arguments);
 
       return blockRanges;
 
@@ -1036,15 +1071,15 @@ class Userdata {
     }
   }
 
-  Future<List<Map<String, dynamic>>> getBookmarksFromChapterNumber(int bookNumber, int chapterNumber) async {
+  Future<List<Map<String, dynamic>>> getBookmarksFromChapterNumber(int bookNumber, int chapterNumber, String keySymbol) async {
     try {
       // Retrieve the unique LocationId
       List<Map<String, dynamic>> inputFieldsData = await _database.rawQuery('''
           SELECT Slot, BlockType, BlockIdentifier
           FROM Bookmark
           LEFT JOIN Location ON Bookmark.LocationId = Location.LocationId
-          WHERE Location.BookNumber = ? AND Location.ChapterNumber = ?
-          ''', [bookNumber, chapterNumber]
+          WHERE Location.BookNumber = ? AND Location.ChapterNumber = ? AND Location.KeySymbol = ?
+          ''', [bookNumber, chapterNumber, keySymbol]
       );
 
       return inputFieldsData;
@@ -1056,7 +1091,7 @@ class Userdata {
     }
   }
 
-  Future<List<Note>> getNotes({int? limit, String? query}) async {
+  Future<List<Note>> getNotes({int? limit, int? offset, String? query}) async {
     final params = <dynamic>[];
     String whereClause = '';
     if (query != null && query.trim().isNotEmpty) {
@@ -1066,68 +1101,94 @@ class Userdata {
     }
 
     String limitClause = '';
+    // Assurez-vous d'avoir une limite si vous utilisez le décalage, mais aussi pour le cas général
     if (limit != null) {
       limitClause = 'LIMIT ?';
       params.add(limit);
     }
 
+    String offsetClause = '';
+    if (offset != null) {
+      // La clause OFFSET vient après la clause LIMIT
+      offsetClause = 'OFFSET ?';
+      params.add(offset);
+    }
+
     final sql = '''
-    SELECT 
-      N.NoteId,
-      N.Guid,
-      N.Title,
-      N.Content,
-      N.BlockType,
-      N.BlockIdentifier,
-      N.LastModified,
-      N.Created,
-      UM.UserMarkId,
-      UM.ColorIndex,
-      UM.UserMarkGuid,
-      GROUP_CONCAT(DISTINCT T.TagId) AS TagsId,
-      L.LocationId,
-      L.BookNumber,
-      L.ChapterNumber,
-      L.DocumentId,
-      L.IssueTagNumber,
-      L.KeySymbol,
-      L.MepsLanguage
-    FROM Note N
-    LEFT JOIN Location L ON L.LocationId = N.LocationId
-    LEFT JOIN TagMap TM ON N.NoteId = TM.NoteId
-    LEFT JOIN Tag T ON TM.TagId = T.TagId
-    LEFT JOIN UserMark UM ON N.UserMarkId = UM.UserMarkId
-    $whereClause
-    GROUP BY N.NoteId
-    ORDER BY N.LastModified DESC
-    $limitClause
-  ''';
+      SELECT 
+        N.NoteId,
+        N.Guid,
+        N.Title,
+        N.Content,
+        N.BlockType,
+        N.BlockIdentifier,
+        N.LastModified,
+        N.Created,
+        UM.UserMarkId,
+        UM.ColorIndex,
+        UM.UserMarkGuid,
+        GROUP_CONCAT(DISTINCT T.TagId) AS TagsId,
+        L.LocationId,
+        L.BookNumber,
+        L.ChapterNumber,
+        L.DocumentId,
+        L.IssueTagNumber,
+        L.KeySymbol,
+        L.MepsLanguage
+      FROM Note N
+      LEFT JOIN Location L ON L.LocationId = N.LocationId
+      LEFT JOIN TagMap TM ON N.NoteId = TM.NoteId
+      LEFT JOIN Tag T ON TM.TagId = T.TagId
+      LEFT JOIN UserMark UM ON N.UserMarkId = UM.UserMarkId
+      $whereClause
+      GROUP BY N.NoteId
+      ORDER BY N.LastModified DESC
+      $limitClause
+      $offsetClause
+    ''';
 
     final result = await _database.rawQuery(sql, params);
     return result.map((note) => Note.fromMap(note)).toList();
   }
 
-  Future<List<Map<String, dynamic>>> getNotesFromDocumentId(int documentId, int mepsLanguageId) async {
+  Future<List<Map<String, dynamic>>> getNotesFromDocumentId(int documentId, int mepsLanguageId, {int? startParagraph, int? endParagraph}) async {
     try {
-      // Une seule requête optimisée avec JOIN direct
-      List<Map<String, dynamic>> notesData = await _database.rawQuery('''
-        SELECT 
-          Note.Guid,
-          Note.Title,
-          Note.Content,
-          Note.BlockType,
-          Note.BlockIdentifier,
-          UserMark.ColorIndex,
-          UserMark.UserMarkGuid,
-          GROUP_CONCAT(Tag.TagId) AS TagsId
-        FROM Location
-        INNER JOIN Note ON Location.LocationId = Note.LocationId
-        LEFT JOIN TagMap ON Note.NoteId = TagMap.NoteId
-        LEFT JOIN Tag ON TagMap.TagId = Tag.TagId
-        LEFT JOIN UserMark ON Note.UserMarkId = UserMark.UserMarkId
-        WHERE Location.DocumentId = ? AND Location.MepsLanguage = ?
-        GROUP BY Note.NoteId
-    ''', [documentId, mepsLanguageId]);
+      List<dynamic> arguments = [documentId, mepsLanguageId];
+      String whereClause = 'WHERE Location.DocumentId = ? AND Location.MepsLanguage = ?';
+
+      // 1. Ajouter le filtre de début de paragraphe (Identifier >= startParagraph)
+      if (startParagraph != null) {
+        whereClause += ' AND Note.BlockIdentifier >= ?';
+        arguments.add(startParagraph);
+      }
+
+      // 2. Ajouter le filtre de fin de paragraphe (Identifier <= endParagraph)
+      if (endParagraph != null) {
+        whereClause += ' AND Note.BlockIdentifier <= ?';
+        arguments.add(endParagraph);
+      }
+
+      // La requête SQL complète avec la clause WHERE construite
+      String sqlQuery = '''
+      SELECT 
+        Note.Guid,
+        Note.Title,
+        Note.Content,
+        Note.BlockType,
+        Note.BlockIdentifier,
+        UserMark.ColorIndex,
+        UserMark.UserMarkGuid,
+        GROUP_CONCAT(Tag.TagId) AS TagsId
+      FROM Location
+      INNER JOIN Note ON Location.LocationId = Note.LocationId
+      LEFT JOIN TagMap ON Note.NoteId = TagMap.NoteId
+      LEFT JOIN Tag ON TagMap.TagId = Tag.TagId
+      LEFT JOIN UserMark ON Note.UserMarkId = UserMark.UserMarkId
+      $whereClause
+      GROUP BY Note.NoteId
+    ''';
+
+      List<Map<String, dynamic>> notesData = await _database.rawQuery(sqlQuery, arguments);
 
       return notesData;
 
@@ -1137,27 +1198,43 @@ class Userdata {
     }
   }
 
-  Future<List<Map<String, dynamic>>> getNotesFromChapterNumber(int bookId, int chapterId, int mepsLanguageId) async {
+  Future<List<Map<String, dynamic>>> getNotesFromChapterNumber(int bookId, int chapterId, String keySymbol, int mepsLanguageId, {int? startVerse, int? endVerse}) async {
     try {
-      // Une seule requête optimisée avec JOIN direct
-      List<Map<String, dynamic>> notesData = await _database.rawQuery('''
-        SELECT 
-          Note.Guid,
-          Note.Title,
-          Note.Content,
-          Note.BlockType,
-          Note.BlockIdentifier,
-          UserMark.ColorIndex,
-          UserMark.UserMarkGuid,
-          GROUP_CONCAT(Tag.TagId) AS TagsId
-        FROM Location
-        INNER JOIN Note ON Location.LocationId = Note.LocationId
-        LEFT JOIN TagMap ON Note.NoteId = TagMap.NoteId
-        LEFT JOIN Tag ON TagMap.TagId = Tag.TagId
-        LEFT JOIN UserMark ON Note.UserMarkId = UserMark.UserMarkId
-        WHERE Location.BookNumber = ? AND Location.ChapterNumber = ? AND Location.MepsLanguage = ?
-        GROUP BY Note.NoteId
-    ''', [bookId, chapterId, mepsLanguageId]);
+      List<dynamic> arguments = [bookId, chapterId, keySymbol, mepsLanguageId];
+      String whereClause = 'WHERE Location.BookNumber = ? AND Location.ChapterNumber = ? AND Location.KeySymbol = ? AND Location.MepsLanguage = ?';
+
+      // 1. Ajouter le filtre de début de verset si 'startVerse' est fourni
+      if (startVerse != null) {
+        whereClause += ' AND Note.BlockIdentifier >= ?';
+        arguments.add(startVerse);
+      }
+
+      // 2. Ajouter le filtre de fin de verset si 'endVerse' est fourni
+      if (endVerse != null) {
+        whereClause += ' AND Note.BlockIdentifier <= ?';
+        arguments.add(endVerse);
+      }
+
+      String sqlQuery = '''
+      SELECT 
+        Note.Guid,
+        Note.Title,
+        Note.Content,
+        Note.BlockIdentifier,
+        Note.BlockType,
+        UserMark.ColorIndex,
+        UserMark.UserMarkGuid,
+        GROUP_CONCAT(Tag.TagId) AS TagsId
+      FROM Location
+      INNER JOIN Note ON Location.LocationId = Note.LocationId
+      LEFT JOIN TagMap ON Note.NoteId = TagMap.NoteId
+      LEFT JOIN Tag ON TagMap.TagId = Tag.TagId
+      LEFT JOIN UserMark ON Note.UserMarkId = UserMark.UserMarkId
+      $whereClause
+      GROUP BY Note.NoteId
+    ''';
+
+      List<Map<String, dynamic>> notesData = await _database.rawQuery(sqlQuery, arguments);
 
       return notesData;
 
@@ -1307,15 +1384,12 @@ class Userdata {
   }
 
   Future<void> updateNoteWithGuid(String guid, String title, String content) async {
-    // Get timestamp
-    String datetime = formattedTimestamp;
-
     try {
       await _database.rawUpdate('''
       UPDATE Note 
       SET Title = ?, Content = ?, LastModified = ?
       WHERE Guid = ?
-    ''', [title, content, datetime, guid]);
+    ''', [title, content, formattedTimestamp, guid]);
     }
     catch (e) {
       printTime('Error: $e');
@@ -1324,8 +1398,6 @@ class Userdata {
   }
 
   Future<void> changeNoteUserMark(String noteGuid, String userMarkGuid) async {
-    final String datetime = formattedTimestamp;
-
     try {
       // Récupérer l'ID du UserMark
       List<Map<String, dynamic>> userMarkResult = await _database.rawQuery('''
@@ -1343,7 +1415,7 @@ class Userdata {
         UPDATE Note
         SET UserMarkId = ?, LastModified = ?
         WHERE Guid = ?
-      ''', [userMarkId, datetime, noteGuid]);
+      ''', [userMarkId, formattedTimestamp, noteGuid]);
     }
     catch (e) {
       printTime('Error: $e');
@@ -1352,22 +1424,20 @@ class Userdata {
   }
 
   Future<void> updateNoteColorWithGuid(String guid, int colorIndex) async {
-    String datetime = formattedTimestamp;
-
     try {
       await _database.rawUpdate('''
-      UPDATE UserMark
-      SET ColorIndex = ?
-      WHERE UserMarkId = (
-        SELECT UserMarkId FROM Note WHERE Guid = ?
-      )
-    ''', [colorIndex, guid]);
+        UPDATE UserMark
+        SET ColorIndex = ?
+        WHERE UserMarkId = (
+          SELECT UserMarkId FROM Note WHERE Guid = ?
+        )
+      ''', [colorIndex, guid]);
 
       await _database.rawUpdate('''
-      UPDATE Note
-      SET LastModified = ?
-      WHERE Guid = ?
-    ''', [datetime, guid]);
+        UPDATE Note
+        SET LastModified = ?
+        WHERE Guid = ?
+      ''', [formattedTimestamp, guid]);
     } catch (e) {
       printTime('Error: $e');
       throw Exception('Failed to change color for note with Guid.');
@@ -1375,13 +1445,11 @@ class Userdata {
   }
 
   Future<void> addTagToNoteWithGuid(String guid, int tagId) async {
-    String datetime = formattedTimestamp;
-
     try {
       // Récupérer le NoteId depuis le Guid
       final noteIdResult = await _database.rawQuery('''
-      SELECT NoteId FROM Note WHERE Guid = ?
-    ''', [guid]);
+        SELECT NoteId FROM Note WHERE Guid = ?
+      ''', [guid]);
 
       if (noteIdResult.isEmpty) {
         throw Exception('Note avec le Guid $guid introuvable.');
@@ -1391,24 +1459,24 @@ class Userdata {
 
       // Récupérer la position max actuelle pour ce TagId
       final positionResult = await _database.rawQuery('''
-      SELECT MAX(Position) as maxPosition FROM TagMap WHERE TagId = ?
-    ''', [tagId]);
+        SELECT MAX(Position) as maxPosition FROM TagMap WHERE TagId = ?
+      ''', [tagId]);
 
       final maxPosition = positionResult.first['maxPosition'] as int? ?? -1;
       final newPosition = maxPosition + 1;
 
       // Mettre à jour la date de modification de la note
       await _database.rawUpdate('''
-      UPDATE Note 
-      SET LastModified = ?
-      WHERE NoteId = ?
-    ''', [datetime, noteId]);
+        UPDATE Note 
+        SET LastModified = ?
+        WHERE NoteId = ?
+      ''', [formattedTimestamp, noteId]);
 
       // Insérer le nouveau TagMap avec la position calculée
       await _database.rawInsert('''
-      INSERT INTO TagMap (NoteId, TagId, Position)
-      VALUES (?, ?, ?)
-    ''', [noteId, tagId, newPosition]);
+        INSERT INTO TagMap (NoteId, TagId, Position)
+        VALUES (?, ?, ?)
+      ''', [noteId, tagId, newPosition]);
     }
     catch (e) {
       printTime('Error: $e');
@@ -1417,13 +1485,11 @@ class Userdata {
   }
 
   Future<void> removeTagFromNoteWithGuid(String guid, int tagId) async {
-    String datetime = formattedTimestamp;
-
     try {
       // Récupérer le NoteId depuis le Guid
       final noteIdResult = await _database.rawQuery('''
-      SELECT NoteId FROM Note WHERE Guid = ?
-    ''', [guid]);
+        SELECT NoteId FROM Note WHERE Guid = ?
+      ''', [guid]);
 
       if (noteIdResult.isEmpty) {
         throw Exception('Note avec le Guid $guid introuvable.');
@@ -1433,16 +1499,16 @@ class Userdata {
 
       // Supprimer l'association dans TagMap
       await _database.rawDelete('''
-      DELETE FROM TagMap
-      WHERE NoteId = ? AND TagId = ?
-    ''', [noteId, tagId]);
+        DELETE FROM TagMap
+        WHERE NoteId = ? AND TagId = ?
+      ''', [noteId, tagId]);
 
       // Mettre à jour la date de modification de la note
       await _database.rawUpdate('''
-      UPDATE Note 
-      SET LastModified = ?
-      WHERE NoteId = ?
-    ''', [datetime, noteId]);
+        UPDATE Note 
+        SET LastModified = ?
+        WHERE NoteId = ?
+      ''', [formattedTimestamp, noteId]);
     } catch (e) {
       printTime('Error: $e');
       throw Exception('Failed to remove tag from note with Guid $guid.');
@@ -1520,45 +1586,63 @@ class Userdata {
 
   Future<List<Note>> getNotesByTag(int tagId) async {
     List<Map<String, dynamic>> result = await _database.rawQuery('''
-      SELECT 
-        N.NoteId,
-        N.Guid,
-        N.Title,
-        N.Content,
-        N.BlockType,
-        N.BlockIdentifier,
-        N.LastModified,
-        N.Created,
-        UM.UserMarkId,
-        UM.ColorIndex,
-        UM.UserMarkGuid,
-        GROUP_CONCAT(DISTINCT T.TagId) AS TagsId,
-        L.LocationId,
-        L.BookNumber,
-        L.ChapterNumber,
-        L.DocumentId,
-        L.IssueTagNumber,
-        L.KeySymbol,
-        L.MepsLanguage
-      FROM Note N
-      LEFT JOIN Location L ON L.LocationId = N.LocationId
-      LEFT JOIN TagMap TM ON N.NoteId = TM.NoteId
-      LEFT JOIN Tag T ON TM.TagId = T.TagId
-      LEFT JOIN UserMark UM ON N.UserMarkId = UM.UserMarkId
-      WHERE EXISTS (
-          SELECT 1
-          FROM TagMap tm2
-          WHERE tm2.NoteId = N.NoteId
-            AND tm2.TagId = ?
-      )
-      GROUP BY N.NoteId
-      ORDER BY TM.Position, N.LastModified DESC;
-    ''', [tagId]);
+    SELECT 
+      N.NoteId,
+      N.Guid,
+      N.Title,
+      N.Content,
+      N.BlockType,
+      N.BlockIdentifier,
+      N.LastModified,
+      N.Created,
+      UM.UserMarkId,
+      UM.ColorIndex,
+      UM.UserMarkGuid,
+      GROUP_CONCAT(DISTINCT T.TagId) AS TagsId,
+      L.LocationId,
+      L.BookNumber,
+      L.ChapterNumber,
+      L.DocumentId,
+      L.IssueTagNumber,
+      L.KeySymbol,
+      L.MepsLanguage,
+      TM_Pos.Position -- Colonne Position ajoutée pour le tri
+    FROM Note N
+    
+    -- 1. INNER JOIN : Filtre les notes par tagId et récupère la Position pour le tri
+    INNER JOIN TagMap TM_Pos 
+      ON N.NoteId = TM_Pos.NoteId AND TM_Pos.TagId = ?
+    
+    -- 2. LEFT JOINs : Récupère les autres données (Location, tous les tags, UserMark)
+    LEFT JOIN Location L ON L.LocationId = N.LocationId
+    LEFT JOIN TagMap TM ON N.NoteId = TM.NoteId 
+    LEFT JOIN Tag T ON TM.TagId = T.TagId
+    LEFT JOIN UserMark UM ON N.UserMarkId = UM.UserMarkId
+    
+    -- Toutes les colonnes non agrégées doivent être dans le GROUP BY
+    GROUP BY 
+      N.NoteId, N.Guid, N.Title, N.Content, N.BlockType, N.BlockIdentifier, 
+      N.LastModified, N.Created, UM.UserMarkId, UM.ColorIndex,
+      UM.UserMarkGuid, L.LocationId, L.BookNumber, L.ChapterNumber,
+      L.DocumentId, L.IssueTagNumber, L.KeySymbol, L.MepsLanguage,
+      TM_Pos.Position
+      
+    -- 3. ORDER BY : Utilise la colonne Position maintenant accessible
+    ORDER BY TM_Pos.Position ASC;
+  ''', [tagId]); // Le paramètre est passé à TM_Pos.TagId = ?
 
+    for(Map<String, dynamic> map in result) {
+      print(map["Title"]);
+    }
+
+    // Le reste du code Dart est correct pour le mapping
     return result.map((map) => Note.fromMap(map)).toList();
   }
 
   Future<void> reorderNotesInTag(int tagId, List<int> noteIdsInNewOrder) async {
+    print(tagId);
+    print(noteIdsInNewOrder);
+
     await _database.transaction((txn) async {
       // --- 1. Dégager toutes les positions pour éviter les conflits UNIQUE ---
       for (int i = 0; i < noteIdsInNewOrder.length; i++) {
@@ -2651,28 +2735,12 @@ class Userdata {
     );
   }
 
-  Future<void> updateLastModifiedDate() async {
-    try {
-      await _database.rawUpdate(
-        'UPDATE LastModified SET LastModified = ?',
-        [formattedTimestamp],
-      );
-      printTime('LastMod updated to $formattedTimestamp ✅');
-    }
-    catch (e) {
-      printTime('Error: $e ⚠️');
-    }
-  }
-
   Future<String> getLastModifiedDate() async {
-    DateTime currentTimestamp = DateTime.now().toUtc();
-    String formattedTimestamp = DateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'").format(currentTimestamp);
-
     try {
       List<Map<String, dynamic>> result = await _database.rawQuery(
         'SELECT LastModified FROM LastModified',
       );
-      return result.first['LastModified'] ?? formattedTimestamp;
+      return result.first['LastModified'];
     }
     catch (e) {
       printTime('Error: $e ⚠️');
@@ -2688,10 +2756,10 @@ class Userdata {
     // Chercher les playlists existantes avec un nom similaire
     // On suppose que la base de données _database est initialisée et accessible ici.
     List<Map<String, Object?>> existingNames = await _database.rawQuery('''
-    SELECT Name 
-    FROM Tag 
-    WHERE Type = 2 AND Name LIKE ?
-  ''', ['$baseName%']); // Commence par le nom de base
+      SELECT Name 
+      FROM Tag 
+      WHERE Type = 2 AND Name LIKE ?
+    ''', ['$baseName%']); // Commence par le nom de base
 
     // Stocker tous les noms exacts ou numérotés existants pour la vérification
     Set<String> takenNames = existingNames.map((row) => row['Name'] as String).toSet();
@@ -2829,11 +2897,12 @@ class Userdata {
 
     // 3. Copier la base modèle vers le répertoire
     final dbPath = path.join(tempDir.path, 'userData.db');
-    await CopyAssets.copyFileFromAssetsToDirectory(Assets.userDataUserData, dbPath);
 
     Database? db;
     try {
-      db = await openDatabase(dbPath);
+      db = await openDatabase(dbPath, version: schemaVersion, onCreate: (db, version) async {
+        await createDbUserdata(db);
+      });
 
       // 4. Créer le Tag (Playlist)
       final int tagId = await db.rawInsert(
@@ -3122,13 +3191,363 @@ class Userdata {
       await userDataDir.delete(recursive: true);
     }
 
-    await userDataDir.create(recursive: true);
-
-    String userdataDbPath = '${userDataDir.path}/userData.db';
-    await CopyAssets.copyFileFromAssetsToDirectory(Assets.userDataUserData, userdataDbPath);
     await CopyAssets.copyFileFromAssetsToDirectory(Assets.userDataDefaultThumbnail, '${userDataDir.path}/default_thumbnail.png');
 
     await reload_db();
+  }
+
+  Future<void> createDbUserdata(Database db) async {
+    return await db.transaction((txn) async {
+
+      // --- 1. Création de TOUTES les tables (Un appel par table) ---
+
+      // Table BlockRange
+      await txn.execute("""
+        CREATE TABLE IF NOT EXISTS "BlockRange" (
+          "BlockRangeId"  INTEGER NOT NULL,
+          "BlockType" INTEGER NOT NULL,
+          "Identifier"  INTEGER NOT NULL,
+          "StartToken"  INTEGER,
+          "EndToken"  INTEGER,
+          "UserMarkId"  INTEGER NOT NULL,
+          PRIMARY KEY("BlockRangeId"),
+          FOREIGN KEY("UserMarkId") REFERENCES "UserMark"("UserMarkId"),
+          CHECK("BlockType" BETWEEN 1 AND 2)
+        );
+      """);
+
+      // Table Bookmark
+      await txn.execute("""
+        CREATE TABLE IF NOT EXISTS "Bookmark" (
+          "BookmarkId"  INTEGER NOT NULL,
+          "LocationId"  INTEGER NOT NULL,
+          "PublicationLocationId" INTEGER NOT NULL,
+          "Slot"  INTEGER NOT NULL,
+          "Title" TEXT NOT NULL,
+          "Snippet" TEXT,
+          "BlockType" INTEGER NOT NULL DEFAULT 0,
+          "BlockIdentifier" INTEGER,
+          PRIMARY KEY("BookmarkId"),
+          CONSTRAINT "PublicationLocationId_Slot" UNIQUE("PublicationLocationId","Slot"),
+          FOREIGN KEY("LocationId") REFERENCES "Location"("LocationId"),
+          FOREIGN KEY("PublicationLocationId") REFERENCES "Location"("LocationId"),
+          CHECK(("BlockType" = 0 AND "BlockIdentifier" IS NULL) OR (("BlockType" BETWEEN 1 AND 2) AND "BlockIdentifier" IS NOT NULL))
+        );
+      """);
+
+      // Table Congregation
+      await txn.execute("""
+        CREATE TABLE IF NOT EXISTS "Congregation" (
+          "CongregationId"  INTEGER NOT NULL,
+          "Guid"  TEXT NOT NULL,
+          "Name"  TEXT NOT NULL,
+          "Address" TEXT,
+          "LanguageCode"  TEXT NOT NULL,
+          "Latitude"  REAL NOT NULL,
+          "Longitude" REAL NOT NULL,
+          "WeekendWeekday"  INTEGER,
+          "WeekendTime" TEXT,
+          "MidweekWeekday"  INTEGER,
+          "MidweekTime" TEXT,
+          PRIMARY KEY("CongregationId")
+        );
+      """);
+
+      // Table IndependentMedia
+      await txn.execute("""
+        CREATE TABLE IF NOT EXISTS "IndependentMedia" (
+          "IndependentMediaId"  INTEGER NOT NULL,
+          "OriginalFilename"  TEXT NOT NULL,
+          "FilePath"  TEXT NOT NULL UNIQUE,
+          "MimeType"  TEXT NOT NULL,
+          "Hash"  TEXT NOT NULL,
+          PRIMARY KEY("IndependentMediaId"),
+          CHECK(length("OriginalFilename") > 0),
+          CHECK(length("FilePath") > 0),
+          CHECK(length("MimeType") > 0),
+          CHECK(length("Hash") > 0)
+        );
+      """);
+
+      // Table InputField
+      await txn.execute("""
+        CREATE TABLE IF NOT EXISTS "InputField" (
+          "LocationId"  INTEGER NOT NULL,
+          "TextTag" TEXT NOT NULL,
+          "Value" TEXT NOT NULL,
+          CONSTRAINT "LocationId_TextTag" PRIMARY KEY("LocationId","TextTag"),
+          FOREIGN KEY("LocationId") REFERENCES "Location"("LocationId")
+        );
+      """);
+
+      // Table LastModified (CRITIQUE pour les triggers)
+      await txn.execute("""
+        CREATE TABLE IF NOT EXISTS "LastModified" (
+          "LastModified"  TEXT NOT NULL
+        );
+      """);
+
+      // Table Location
+      await txn.execute("""
+        CREATE TABLE IF NOT EXISTS "Location" (
+          "LocationId"  INTEGER NOT NULL,
+          "BookNumber"  INTEGER,
+          "ChapterNumber" INTEGER,
+          "DocumentId"  INTEGER,
+          "Track" INTEGER,
+          "IssueTagNumber"  INTEGER NOT NULL DEFAULT 0,
+          "KeySymbol" TEXT,
+          "MepsLanguage"  INTEGER,
+          "Type"  INTEGER NOT NULL,
+          "Title" TEXT,
+          UNIQUE("BookNumber","ChapterNumber","KeySymbol","MepsLanguage","Type"),
+          UNIQUE("KeySymbol","IssueTagNumber","MepsLanguage","DocumentId","Track","Type"),
+          PRIMARY KEY("LocationId"),
+          CHECK(("Type" = 0 AND (("DocumentId" IS NOT NULL AND "DocumentId" != 0) OR ("Track" IS NOT NULL AND (("KeySymbol" IS NOT NULL AND (length("KeySymbol") > 0)) OR ("DocumentId" IS NOT NULL AND "DocumentId" != 0))) OR ("BookNumber" IS NOT NULL AND "BookNumber" != 0 AND "KeySymbol" IS NOT NULL AND (length("KeySymbol") > 0) AND ("ChapterNumber" IS NULL OR "ChapterNumber" = 0)) OR ("ChapterNumber" IS NOT NULL AND "ChapterNumber" != 0 AND "BookNumber" IS NOT NULL AND "BookNumber" != 0 AND "KeySymbol" IS NOT NULL AND (length("KeySymbol") > 0)))) OR "Type" != 0),
+          CHECK(("Type" = 1 AND ("BookNumber" IS NULL OR "BookNumber" = 0) AND ("ChapterNumber" IS NULL OR "ChapterNumber" = 0) AND ("DocumentId" IS NULL OR "DocumentId" = 0) AND "KeySymbol" IS NOT NULL AND (length("KeySymbol") > 0) AND "Track" IS NULL) OR "Type" != 1),
+          CHECK(("Type" IN (2, 3) AND ("BookNumber" IS NULL OR "BookNumber" = 0) AND ("ChapterNumber" IS NULL OR "ChapterNumber" = 0)) OR "Type" NOT IN (2, 3))
+        );
+      """);
+
+      // Table Note
+      await txn.execute("""
+        CREATE TABLE IF NOT EXISTS "Note" (
+          "NoteId"  INTEGER NOT NULL,
+          "Guid"  TEXT NOT NULL UNIQUE,
+          "UserMarkId"  INTEGER,
+          "LocationId"  INTEGER,
+          "Title" TEXT,
+          "Content" TEXT,
+          "LastModified"  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+          "Created" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+          "BlockType" INTEGER NOT NULL DEFAULT 0,
+          "BlockIdentifier" INTEGER,
+          PRIMARY KEY("NoteId"),
+          FOREIGN KEY("LocationId") REFERENCES "Location"("LocationId"),
+          FOREIGN KEY("UserMarkId") REFERENCES "UserMark"("UserMarkId"),
+          CHECK(("BlockType" = 0 AND "BlockIdentifier" IS NULL) OR (("BlockType" BETWEEN 1 AND 2) AND "BlockIdentifier" IS NOT NULL))
+        );
+      """);
+
+      // Table PlaylistItemAccuracy
+      await txn.execute("""
+        CREATE TABLE IF NOT EXISTS "PlaylistItemAccuracy" (
+          "PlaylistItemAccuracyId"  INTEGER NOT NULL,
+          "Description" TEXT NOT NULL UNIQUE,
+          PRIMARY KEY("PlaylistItemAccuracyId")
+        );
+      """);
+
+      // Table PlaylistItem
+      await txn.execute("""
+        CREATE TABLE IF NOT EXISTS "PlaylistItem" (
+          "PlaylistItemId"  INTEGER NOT NULL,
+          "Label" TEXT NOT NULL,
+          "StartTrimOffsetTicks"  INTEGER,
+          "EndTrimOffsetTicks"  INTEGER,
+          "Accuracy"  INTEGER NOT NULL,
+          "EndAction" INTEGER NOT NULL,
+          "ThumbnailFilePath" TEXT,
+          PRIMARY KEY("PlaylistItemId"),
+          FOREIGN KEY("Accuracy") REFERENCES "PlaylistItemAccuracy"("PlaylistItemAccuracyId"),
+          FOREIGN KEY("ThumbnailFilePath") REFERENCES "IndependentMedia"("FilePath"),
+          CHECK(length("Label") > 0),
+          CHECK("EndAction" IN (0, 1, 2, 3))
+        );
+      """);
+
+      // Table PlaylistItemIndependentMediaMap
+      await txn.execute("""
+        CREATE TABLE IF NOT EXISTS "PlaylistItemIndependentMediaMap" (
+          "PlaylistItemId"  INTEGER NOT NULL,
+          "IndependentMediaId"  INTEGER NOT NULL,
+          "DurationTicks" INTEGER NOT NULL,
+          PRIMARY KEY("PlaylistItemId","IndependentMediaId"),
+          FOREIGN KEY("IndependentMediaId") REFERENCES "IndependentMedia"("IndependentMediaId"),
+          FOREIGN KEY("PlaylistItemId") REFERENCES "PlaylistItem"("PlaylistItemId")
+        ) WITHOUT ROWID;
+      """);
+
+      // Table PlaylistItemLocationMap
+      await txn.execute("""
+        CREATE TABLE IF NOT EXISTS "PlaylistItemLocationMap" (
+          "PlaylistItemId"  INTEGER NOT NULL,
+          "LocationId"  INTEGER NOT NULL,
+          "MajorMultimediaType" INTEGER NOT NULL,
+          "BaseDurationTicks" INTEGER,
+          PRIMARY KEY("PlaylistItemId","LocationId"),
+          FOREIGN KEY("LocationId") REFERENCES "Location"("LocationId"),
+          FOREIGN KEY("PlaylistItemId") REFERENCES "PlaylistItem"("PlaylistItemId")
+        ) WITHOUT ROWID;
+      """);
+
+      // Table PlaylistItemMarker
+      await txn.execute("""
+        CREATE TABLE IF NOT EXISTS "PlaylistItemMarker" (
+          "PlaylistItemMarkerId"  INTEGER NOT NULL,
+          "PlaylistItemId"  INTEGER NOT NULL,
+          "Label" TEXT NOT NULL,
+          "StartTimeTicks"  INTEGER NOT NULL,
+          "DurationTicks" INTEGER NOT NULL,
+          "EndTransitionDurationTicks"  INTEGER NOT NULL,
+          UNIQUE("PlaylistItemId","StartTimeTicks"),
+          PRIMARY KEY("PlaylistItemMarkerId"),
+          FOREIGN KEY("PlaylistItemId") REFERENCES "PlaylistItem"("PlaylistItemId")
+        );
+      """);
+
+      // Table PlaylistItemMarkerBibleVerseMap
+      await txn.execute("""
+        CREATE TABLE IF NOT EXISTS "PlaylistItemMarkerBibleVerseMap" (
+          "PlaylistItemMarkerId"  INTEGER NOT NULL,
+          "VerseId" INTEGER NOT NULL,
+          PRIMARY KEY("PlaylistItemMarkerId","VerseId"),
+          FOREIGN KEY("PlaylistItemMarkerId") REFERENCES "PlaylistItemMarker"("PlaylistItemMarkerId")
+        ) WITHOUT ROWID;
+      """);
+
+      // Table PlaylistItemMarkerParagraphMap
+      await txn.execute("""
+        CREATE TABLE IF NOT EXISTS "PlaylistItemMarkerParagraphMap" (
+          "PlaylistItemMarkerId"  INTEGER NOT NULL,
+          "MepsDocumentId"  INTEGER NOT NULL,
+          "ParagraphIndex"  INTEGER NOT NULL,
+          "MarkerIndexWithinParagraph"  INTEGER NOT NULL,
+          PRIMARY KEY("PlaylistItemMarkerId","MepsDocumentId","ParagraphIndex","MarkerIndexWithinParagraph"),
+          FOREIGN KEY("PlaylistItemMarkerId") REFERENCES "PlaylistItemMarker"("PlaylistItemMarkerId")
+        ) WITHOUT ROWID;
+      """);
+
+      // Table Tag
+      await txn.execute("""
+        CREATE TABLE IF NOT EXISTS "Tag" (
+          "TagId" INTEGER NOT NULL,
+          "Type"  INTEGER NOT NULL,
+          "Name"  TEXT NOT NULL,
+          PRIMARY KEY("TagId"),
+          UNIQUE("Type","Name"),
+          CHECK(length("Name") > 0),
+          CHECK("Type" IN (0, 1, 2))
+        );
+      """);
+
+      // Table TagMap
+      await txn.execute("""
+        CREATE TABLE IF NOT EXISTS "TagMap" (
+          "TagMapId"  INTEGER NOT NULL,
+          "PlaylistItemId"  INTEGER,
+          "LocationId"  INTEGER,
+          "NoteId"  INTEGER,
+          "TagId" INTEGER NOT NULL,
+          "Position"  INTEGER NOT NULL,
+          CONSTRAINT "TagId_LocationId" UNIQUE("TagId","LocationId"),
+          CONSTRAINT "TagId_NoteId" UNIQUE("TagId","NoteId"),
+          CONSTRAINT "TagId_PlaylistItemId" UNIQUE("TagId","PlaylistItemId"),
+          CONSTRAINT "TagId_Position" UNIQUE("TagId","Position"),
+          PRIMARY KEY("TagMapId"),
+          FOREIGN KEY("LocationId") REFERENCES "Location"("LocationId"),
+          FOREIGN KEY("NoteId") REFERENCES "Note"("NoteId"),
+          FOREIGN KEY("PlaylistItemId") REFERENCES "PlaylistItem"("PlaylistItemId"),
+          FOREIGN KEY("TagId") REFERENCES "Tag"("TagId"),
+          CHECK(("NoteId" IS NULL AND "LocationId" IS NULL AND "PlaylistItemId" IS NOT NULL) OR ("LocationId" IS NULL AND "PlaylistItemId" IS NULL AND "NoteId" IS NOT NULL) OR ("PlaylistItemId" IS NULL AND "NoteId" IS NULL AND "LocationId" IS NOT NULL))
+      );
+      """);
+
+      // Table UserMark
+      await txn.execute("""
+        CREATE TABLE IF NOT EXISTS "UserMark" (
+          "UserMarkId"  INTEGER NOT NULL,
+          "ColorIndex"  INTEGER NOT NULL,
+          "LocationId"  INTEGER NOT NULL,
+          "StyleIndex"  INTEGER NOT NULL,
+          "UserMarkGuid"  TEXT NOT NULL UNIQUE,
+          "Version" INTEGER NOT NULL,
+          PRIMARY KEY("UserMarkId"),
+          FOREIGN KEY("LocationId") REFERENCES "Location"("LocationId")
+        );
+      """);
+
+      // Table android_metadata
+      await txn.execute("""
+        CREATE TABLE IF NOT EXISTS "android_metadata" (
+          "locale"  TEXT
+        );
+      """);
+
+      // --- 2. Insertion des données initiales (Un appel par bloc d'insertions logiques) ---
+      // Insert LastModified
+      await txn.execute("""
+        INSERT INTO "LastModified" ("LastModified") VALUES (?);
+      """, [formattedTimestamp]);
+
+      // Insert PlaylistItemAccuracy, Tag, android_metadata
+      await txn.execute("""
+        INSERT INTO "PlaylistItemAccuracy" ("PlaylistItemAccuracyId", "Description") VALUES (1, 'Accurate'), (2, 'NeedsUserVerification');
+      """);
+
+      await txn.execute("""
+        INSERT INTO "Tag" ("TagId", "Type", "Name") VALUES (1, 0, 'Favorite');
+      """);
+
+      final systemLocale = PlatformDispatcher.instance.locale.toLanguageTag().replaceAll('-', '_');
+      printTime('systeme Locale : ${systemLocale}');
+      await txn.execute("""
+        UPDATE "android_metadata" SET "locale" = ?;
+      """, [systemLocale]);
+
+
+      // --- 3. Création des index (Un appel par index) ---
+
+      await txn.execute(""" CREATE INDEX IF NOT EXISTS "IX_BlockRange_UserMarkId" ON "BlockRange" ("UserMarkId"); """);
+      await txn.execute(""" CREATE INDEX IF NOT EXISTS "IX_Location_KeySymbol_MepsLanguage_BookNumber_ChapterNumber" ON "Location" ("KeySymbol", "MepsLanguage", "BookNumber", "ChapterNumber"); """);
+      await txn.execute(""" CREATE INDEX IF NOT EXISTS "IX_Location_MepsLanguage_DocumentId" ON "Location" ("MepsLanguage", "DocumentId"); """);
+      await txn.execute(""" CREATE INDEX IF NOT EXISTS "IX_Note_LastModified_LocationId" ON "Note" ("LastModified", "LocationId"); """);
+      await txn.execute(""" CREATE INDEX IF NOT EXISTS "IX_Note_LocationId_BlockIdentifier" ON "Note" ("LocationId", "BlockIdentifier"); """);
+      await txn.execute(""" CREATE INDEX IF NOT EXISTS "IX_PlaylistItemIndependentMediaMap_IndependentMediaId" ON "PlaylistItemIndependentMediaMap" ("IndependentMediaId"); """);
+      await txn.execute(""" CREATE INDEX IF NOT EXISTS "IX_PlaylistItemLocationMap_LocationId" ON "PlaylistItemLocationMap" ("LocationId"); """);
+      await txn.execute(""" CREATE INDEX IF NOT EXISTS "IX_PlaylistItem_ThumbnailFilePath" ON "PlaylistItem" ("ThumbnailFilePath"); """);
+      await txn.execute(""" CREATE INDEX IF NOT EXISTS "IX_TagMap_LocationId_TagId_Position" ON "TagMap" ("LocationId", "TagId", "Position"); """);
+      await txn.execute(""" CREATE INDEX IF NOT EXISTS "IX_TagMap_NoteId_TagId_Position" ON "TagMap" ("NoteId", "TagId", "Position"); """);
+      await txn.execute(""" CREATE INDEX IF NOT EXISTS "IX_TagMap_PlaylistItemId_TagId_Position" ON "TagMap" ("PlaylistItemId", "TagId", "Position"); """);
+      await txn.execute(""" CREATE INDEX IF NOT EXISTS "IX_TagMap_TagId" ON "TagMap" ("TagId"); """);
+      await txn.execute(""" CREATE INDEX IF NOT EXISTS "IX_Tag_Name_Type_TagId" ON "Tag" ("Name", "Type", "TagId"); """);
+      await txn.execute(""" CREATE INDEX IF NOT EXISTS "IX_UserMark_LocationId" ON "UserMark" ("LocationId"); """);
+
+      // --- 4. Création des triggers (Un appel par trigger) ---
+
+      await txn.execute(""" CREATE TRIGGER TR_Raise_Error_Before_Delete_LastModified BEFORE DELETE ON LastModified BEGIN SELECT RAISE (FAIL, 'DELETE FROM LastModified not allowed'); END; """);
+      await txn.execute(""" CREATE TRIGGER TR_Raise_Error_Before_Insert_LastModified BEFORE INSERT ON LastModified BEGIN SELECT RAISE (FAIL, 'INSERT INTO LastModified not allowed'); END; """);
+
+      await txn.execute(""" CREATE TRIGGER TR_Update_LastModified_Delete_BlockRange DELETE ON BlockRange BEGIN UPDATE LastModified SET LastModified = strftime('%Y-%m-%dT%H:%M:%SZ', 'now'); END; """);
+      await txn.execute(""" CREATE TRIGGER TR_Update_LastModified_Delete_Bookmark DELETE ON Bookmark BEGIN UPDATE LastModified SET LastModified = strftime('%Y-%m-%dT%H:%M:%SZ', 'now'); END; """);
+      await txn.execute(""" CREATE TRIGGER TR_Update_LastModified_Delete_IndependentMedia DELETE ON IndependentMedia BEGIN UPDATE LastModified SET LastModified = strftime('%Y-%m-%dT%H:%M:%SZ', 'now'); END; """);
+      await txn.execute(""" CREATE TRIGGER TR_Update_LastModified_Delete_InputField DELETE ON InputField BEGIN UPDATE LastModified SET LastModified = strftime('%Y-%m-%dT%H:%M:%SZ', 'now'); END; """);
+      await txn.execute(""" CREATE TRIGGER TR_Update_LastModified_Delete_Note DELETE ON Note BEGIN UPDATE LastModified SET LastModified = strftime('%Y-%m-%dT%H:%M:%SZ', 'now'); END; """);
+      await txn.execute(""" CREATE TRIGGER TR_Update_LastModified_Delete_PlaylistItem DELETE ON PlaylistItem BEGIN UPDATE LastModified SET LastModified = strftime('%Y-%m-%dT%H:%M:%SZ', 'now'); END; """);
+      await txn.execute(""" CREATE TRIGGER TR_Update_LastModified_Delete_Tag DELETE ON Tag BEGIN UPDATE LastModified SET LastModified = strftime('%Y-%m-%dT%H:%M:%SZ', 'now'); END; """);
+      await txn.execute(""" CREATE TRIGGER TR_Update_LastModified_Delete_TagMap DELETE ON TagMap BEGIN UPDATE LastModified SET LastModified = strftime('%Y-%m-%dT%H:%M:%SZ', 'now'); END; """);
+      await txn.execute(""" CREATE TRIGGER TR_Update_LastModified_Delete_UserMark DELETE ON UserMark BEGIN UPDATE LastModified SET LastModified = strftime('%Y-%m-%dT%H:%M:%SZ', 'now'); END; """);
+
+      await txn.execute(""" CREATE TRIGGER TR_Update_LastModified_Insert_BlockRange INSERT ON BlockRange BEGIN UPDATE LastModified SET LastModified = strftime('%Y-%m-%dT%H:%M:%SZ', 'now'); END; """);
+      await txn.execute(""" CREATE TRIGGER TR_Update_LastModified_Insert_Bookmark INSERT ON Bookmark BEGIN UPDATE LastModified SET LastModified = strftime('%Y-%m-%dT%H:%M:%SZ', 'now'); END; """);
+      await txn.execute(""" CREATE TRIGGER TR_Update_LastModified_Insert_IndependentMedia INSERT ON IndependentMedia BEGIN UPDATE LastModified SET LastModified = strftime('%Y-%m-%dT%H:%M:%SZ', 'now'); END; """);
+      await txn.execute(""" CREATE TRIGGER TR_Update_LastModified_Insert_InputField INSERT ON InputField BEGIN UPDATE LastModified SET LastModified = strftime('%Y-%m-%dT%H:%M:%SZ', 'now'); END; """);
+      await txn.execute(""" CREATE TRIGGER TR_Update_LastModified_Insert_Note INSERT ON Note BEGIN UPDATE LastModified SET LastModified = strftime('%Y-%m-%dT%H:%M:%SZ', 'now'); END; """);
+      await txn.execute(""" CREATE TRIGGER TR_Update_LastModified_Insert_PlaylistItem INSERT ON PlaylistItem BEGIN UPDATE LastModified SET LastModified = strftime('%Y-%m-%dT%H:%M:%SZ', 'now'); END; """);
+      await txn.execute(""" CREATE TRIGGER TR_Update_LastModified_Insert_Tag INSERT ON Tag BEGIN UPDATE LastModified SET LastModified = strftime('%Y-%m-%dT%H:%M:%SZ', 'now'); END; """);
+      await txn.execute(""" CREATE TRIGGER TR_Update_LastModified_Insert_TagMap INSERT ON TagMap BEGIN UPDATE LastModified SET LastModified = strftime('%Y-%m-%dT%H:%M:%SZ', 'now'); END; """);
+      await txn.execute(""" CREATE TRIGGER TR_Update_LastModified_Insert_UserMark INSERT ON UserMark BEGIN UPDATE LastModified SET LastModified = strftime('%Y-%m-%dT%H:%M:%SZ', 'now'); END; """);
+
+      await txn.execute(""" CREATE TRIGGER TR_Update_LastModified_Update_BlockRange UPDATE ON BlockRange BEGIN UPDATE LastModified SET LastModified = strftime('%Y-%m-%dT%H:%M:%SZ', 'now'); END; """);
+      await txn.execute(""" CREATE TRIGGER TR_Update_LastModified_Update_Bookmark UPDATE ON Bookmark BEGIN UPDATE LastModified SET LastModified = strftime('%Y-%m-%dT%H:%M:%SZ', 'now'); END; """);
+      await txn.execute(""" CREATE TRIGGER TR_Update_LastModified_Update_IndependentMedia UPDATE ON IndependentMedia BEGIN UPDATE LastModified SET LastModified = strftime('%Y-%m-%dT%H:%M:%SZ', 'now'); END; """);
+      await txn.execute(""" CREATE TRIGGER TR_Update_LastModified_Update_InputField UPDATE ON InputField BEGIN UPDATE LastModified SET LastModified = strftime('%Y-%m-%dT%H:%M:%SZ', 'now'); END; """);
+      await txn.execute(""" CREATE TRIGGER TR_Update_LastModified_Update_Note UPDATE ON Note BEGIN UPDATE LastModified SET LastModified = strftime('%Y-%m-%dT%H:%M:%SZ', 'now'); END; """);
+      await txn.execute(""" CREATE TRIGGER TR_Update_LastModified_Update_PlaylistItem UPDATE ON PlaylistItem BEGIN UPDATE LastModified SET LastModified = strftime('%Y-%m-%dT%H:%M:%SZ', 'now'); END; """);
+      await txn.execute(""" CREATE TRIGGER TR_Update_LastModified_Update_Tag UPDATE ON Tag BEGIN UPDATE LastModified SET LastModified = strftime('%Y-%m-%dT%H:%M:%SZ', 'now'); END; """);
+      await txn.execute(""" CREATE TRIGGER TR_Update_LastModified_Update_TagMap UPDATE ON TagMap BEGIN UPDATE LastModified SET LastModified = strftime('%Y-%m-%dT%H:%M:%SZ', 'now'); END; """);
+      await txn.execute(""" CREATE TRIGGER TR_Update_LastModified_Update_UserMark UPDATE ON UserMark BEGIN UPDATE LastModified SET LastModified = strftime('%Y-%m-%dT%H:%M:%SZ', 'now'); END; """);
+    });
   }
 }
 

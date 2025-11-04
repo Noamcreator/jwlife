@@ -23,31 +23,33 @@ class History {
   static Future<void> createDbHistory(Database db) async {
     return await db.transaction((txn) async {
       await txn.execute("""
-      CREATE TABLE IF NOT EXISTS "History" (
-        "HistoryId" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-        "BookNumber" INTEGER,
-        "ChapterNumber" INTEGER,
-        "DocumentId" INTEGER,
-        "StartBlockIdentifier" INTEGER,
-        "EndBlockIdentifier" INTEGER,
-        "Track" INTEGER,
-        "IssueTagNumber" INTEGER DEFAULT 0,
-        "KeySymbol" TEXT,
-        "MepsLanguageId" INTEGER,
-        "DisplayTitle" TEXT,
-        "Type" TEXT,
-        "NavigationBottomBarIndex" INTEGER DEFAULT 0,
-        "ScrollPosition" INTEGER DEFAULT 0,
-        "VisitCount" INTEGER DEFAULT 1,
-        "LastVisited" TEXT DEFAULT CURRENT_TIMESTAMP
-      );
+        CREATE TABLE IF NOT EXISTS "History" (
+          "HistoryId" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+          "BookNumber" INTEGER,
+          "ChapterNumber" INTEGER,
+          "DocumentId" INTEGER,
+          "StartBlockIdentifier" INTEGER,
+          "EndBlockIdentifier" INTEGER,
+          "Track" INTEGER,
+          "IssueTagNumber" INTEGER DEFAULT 0,
+          "KeySymbol" TEXT,
+          "MepsLanguageId" INTEGER,
+          "DisplayTitle" TEXT,
+          "Type" TEXT,
+          "NavigationBottomBarIndex" INTEGER DEFAULT 0,
+          "ScrollPosition" INTEGER DEFAULT 0,
+          "VisitCount" INTEGER DEFAULT 1,
+          "LastVisited" TEXT DEFAULT CURRENT_TIMESTAMP
+        );
       """);
     });
   }
 
   static Future<Database> getHistoryDb() async {
     File historyFile = await getHistoryDatabaseFile();
-    return await openDatabase(historyFile.path);
+    return await openDatabase(historyFile.path, version: 1, onCreate: (db, version) async {
+      await createDbHistory(db);
+    });
   }
 
   static Future<void> deleteAllHistory() async {

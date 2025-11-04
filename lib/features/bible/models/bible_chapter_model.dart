@@ -1,5 +1,3 @@
-// bible_chapter_controller.dart
-
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -13,15 +11,17 @@ import '../../../core/jworg_uri.dart';
 import '../../../core/utils/common_ui.dart';
 
 // Classe pour encapsuler les données d'un livre
-class BibleBookModel {
+class BibleBook {
   final Map<String, dynamic> bookInfo;
   List<dynamic>? chapters;
   String? overviewHtml;
   String? profileHtml;
+  int? firstVerseId;
+  int? lastVerseId;
   bool isLoading;
   bool isOverview;
 
-  BibleBookModel(this.bookInfo)
+  BibleBook(this.bookInfo)
       : isLoading = true,
         isOverview = false;
 }
@@ -32,14 +32,14 @@ class BibleChapterController {
 
   // Variables d'état
   bool _isInitialLoading = true;
-  List<BibleBookModel> _booksData = [];
+  List<BibleBook> _booksData = [];
   int _currentIndex = 0;
 
   // Getters pour l'accès public
   bool get isInitialLoading => _isInitialLoading;
-  List<BibleBookModel> get booksData => _booksData;
+  List<BibleBook> get booksData => _booksData;
   int get currentIndex => _currentIndex;
-  BibleBookModel? get currentBook => (_booksData.isNotEmpty) ? _booksData[_currentIndex] : null;
+  BibleBook? get currentBook => (_booksData.isNotEmpty) ? _booksData[_currentIndex] : null;
 
   // Callback pour notifier la page
   VoidCallback? onStateChanged;
@@ -83,7 +83,7 @@ class BibleChapterController {
       List<Map<String, dynamic>> results = await database.rawQuery('''
       SELECT 
         BibleBook.*,
-        meps.BibleBookName.StandardBookName,
+        meps.BibleBookName.StandardBookName AS BookName,
         d1.*,
         d2.Content AS OutlineContent,
         d3.Content AS OverviewContent,
@@ -104,7 +104,7 @@ class BibleChapterController {
 
       await database.execute("DETACH DATABASE meps");
 
-      _booksData = results.map((book) => BibleBookModel(book)).toList();
+      _booksData = results.map((book) => BibleBook(book)).toList();
 
       _currentIndex = _booksData.indexWhere((bookData) => bookData.bookInfo['BibleBookId'] == initialBookId);
       if (_currentIndex == -1) _currentIndex = 0;
@@ -119,7 +119,7 @@ class BibleChapterController {
   Future<void> _loadBookData(int bookIndex) async {
     if (bookIndex < 0 || bookIndex >= _booksData.length) return;
 
-    BibleBookModel bookData = _booksData[bookIndex];
+    BibleBook bookData = _booksData[bookIndex];
 
     // Si le livre est déjà chargé, on sort
     if (!bookData.isLoading && bookData.chapters != null) return;
@@ -140,6 +140,8 @@ class BibleChapterController {
       List<Map<String, dynamic>> chaptersResults = await database.rawQuery('''
         SELECT
           BibleChapter.ChapterNumber,
+          BibleChapter.FirstVerseId,
+          BibleChapter.LastVerseId,
           Document.MepsDocumentId
         FROM BibleChapter
         INNER JOIN BibleBook ON BibleChapter.BookNumber = BibleBook.BibleBookId
@@ -161,6 +163,9 @@ class BibleChapterController {
       bookData.chapters = chaptersResults;
       bookData.overviewHtml = overviewHtml;
       bookData.profileHtml = profileHtml;
+
+      bookData.firstVerseId = chaptersResults.first['FirstVerseId'];
+      bookData.lastVerseId = chaptersResults.last['LastVerseId'];
 
     } catch (e) {
       debugPrint('Erreur lors du chargement des données du livre: $e');
@@ -229,7 +234,7 @@ class BibleChapterController {
   }
 
   String getBookTitle() {
-    return currentBook?.bookInfo['StandardBookName'] ?? '';
+    return currentBook?.bookInfo['BookName'] ?? '';
   }
 
   void onTapChapter(int chapterNumber) {

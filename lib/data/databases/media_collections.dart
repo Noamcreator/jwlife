@@ -21,7 +21,9 @@ class MediaCollections {
 
   Future<void> init() async {
     File mediaCollections = await getMediaCollectionsDatabaseFile();
-    _database = await openDatabase(mediaCollections.path, version: 1);
+    _database = await openDatabase(mediaCollections.path, version: 1, onCreate: (db, version) async {
+      await createDbMediaCollection(db);
+    });
     await fetchDownloadMedias();
   }
 

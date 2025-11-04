@@ -17,6 +17,7 @@ import '../../../app/services/settings_service.dart';
 import '../../../core/utils/utils_document.dart';
 import '../../../data/models/userdata/bookmark.dart';
 import '../models/bible_chapter_model.dart';
+import 'bible_book_medias_page.dart';
 
 const double _kMinTwoColumnWidth = 800;
 const double _kHeaderImageHeight = 210.0;
@@ -182,7 +183,7 @@ class _BibleChapterPageState extends State<BibleChapterPage> {
                 onPressed: () {
                   SharePlus.instance.share(
                     ShareParams(
-                      title: currentBook.bookInfo['StandardBookName'],
+                      title: currentBook.bookInfo['BookName'],
                       uri: Uri.tryParse(_controller.getShareUri()),
                     ),
                   );
@@ -209,7 +210,7 @@ class _BibleChapterPageState extends State<BibleChapterPage> {
   }
 
   // --- Layout Grand Écran ---
-  Widget _buildTwoColumnLayout(BibleBookModel bookData) {
+  Widget _buildTwoColumnLayout(BibleBook bookData) {
     final hasCommentary = bookData.bookInfo['HasCommentary'] == 1;
     final double topCompensation = hasCommentary ? _kHeaderImageHeight : 0;
 
@@ -258,7 +259,7 @@ class _BibleChapterPageState extends State<BibleChapterPage> {
   }
 
   // --- Widgets partagés ---
-  Widget _buildBookPageContent(BibleBookModel bookData, {bool isLargeScreen = false}) {
+  Widget _buildBookPageContent(BibleBook bookData, {bool isLargeScreen = false}) {
     final hasCommentary = bookData.bookInfo['HasCommentary'] == 1;
     final double topCompensation = hasCommentary ? _kHeaderImageHeight - 50 : 0;
 
@@ -296,7 +297,7 @@ class _BibleChapterPageState extends State<BibleChapterPage> {
     );
   }
 
-  Widget _buildBookHeader(BibleBookModel bookData, {bool withTextOverlay = false, bool isPositioned = false}) {
+  Widget _buildBookHeader(BibleBook bookData, {bool withTextOverlay = false, bool isPositioned = false}) {
     final imageContent = Stack(
       children: [
         Image.file(
@@ -355,7 +356,7 @@ class _BibleChapterPageState extends State<BibleChapterPage> {
     );
   }
 
-  Widget _buildChapterGridContent(BibleBookModel bookData) {
+  Widget _buildChapterGridContent(BibleBook bookData) {
     if (bookData.chapters == null || bookData.chapters!.isEmpty) {
       return const Center(child: Text('Chapitres non disponibles.'));
     }
@@ -383,7 +384,7 @@ class _BibleChapterPageState extends State<BibleChapterPage> {
     );
   }
 
-  Widget _buildChapterContainer(BibleBookModel bookData, dynamic chapter) {
+  Widget _buildChapterContainer(BibleBook bookData, dynamic chapter) {
     return InkWell(
       onTap: () => _controller.onTapChapter(chapter['ChapterNumber']),
       child: Container(
@@ -398,7 +399,7 @@ class _BibleChapterPageState extends State<BibleChapterPage> {
     );
   }
 
-  Widget _buildBookLinks(BibleBookModel bookData, BuildContext context) {
+  Widget _buildBookLinks(BibleBook bookData, BuildContext context) {
     return Column(
       children: [
         if (bookData.bookInfo['Title'] != null)
@@ -478,7 +479,9 @@ class _BibleChapterPageState extends State<BibleChapterPage> {
                   backgroundColor: const Color(0xFF757575),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(0)),
                 ),
-                onPressed: () {},
+                onPressed: () {
+                  showPage(BibleBookMediasView(bible: widget.bible, bibleBook: bookData));
+                },
                 child: const Padding(
                     padding: EdgeInsets.symmetric(vertical: 16.0),
                     child: Row(

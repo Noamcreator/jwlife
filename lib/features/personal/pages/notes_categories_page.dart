@@ -43,13 +43,48 @@ class _NotesTagsPageState extends State<NotesTagsPage> {
   }
 
   void init() async {
-    List<Note> notes = await JwLifeApp.userdata.getNotes();
+    // Constante pour la taille du lot
+    const batchSize = 2000;
+    int offset = 0;
+    bool moreNotes = true;
+    List<Note> allFetchedNotes = [];
 
-    setState(() {
-      filteredTags = JwLifeApp.userdata.tags;
-      allNotes = notes;
-      filteredNotes = notes;
-    });
+    // Début de la boucle de chargement
+    while (moreNotes) {
+      // 1. Récupération du lot de notes
+      final notesBatch = await JwLifeApp.userdata.getNotes(
+          limit: batchSize,
+          offset: offset
+      );
+
+      if (notesBatch.isEmpty) {
+        // 2. Fin de la récupération si le lot est vide
+        moreNotes = false;
+      } else {
+        // 3. Ajout des notes récupérées à la liste complète
+        allFetchedNotes.addAll(notesBatch);
+
+        // 4. MISE À JOUR DE L'ÉTAT DE L'UI APRÈS CHAQUE LOT
+        // Cela rafraîchit la liste avec les notes nouvellement chargées.
+        setState(() {
+          // Il est souvent préférable de créer une nouvelle liste
+          // pour s'assurer que Flutter détecte le changement.
+          allNotes = List.from(allFetchedNotes);
+          // Si les filtres/tags n'ont pas encore été chargés, faites-le ici
+          if (filteredTags.isEmpty) {
+            filteredTags = JwLifeApp.userdata.tags;
+          }
+          filteredNotes = allNotes;
+        });
+
+        // 5. Préparation pour le prochain lot
+        offset += batchSize;
+      }
+    }
+
+    // NOTE : Un setState final n'est plus strictement nécessaire ici,
+    // car le dernier lot (même s'il est incomplet) aura déclenché un setState.
+    // Cependant, le laisser ne fait pas de mal.
   }
 
   @override

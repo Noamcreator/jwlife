@@ -1,12 +1,10 @@
 import 'dart:async';
-
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:jwlife/app/services/global_key_service.dart';
 import 'package:jwlife/app/services/settings_service.dart';
 import 'package:jwlife/app/startup/auto_update.dart';
-import 'package:jwlife/app/startup/create_database.dart';
 import 'package:jwlife/app/startup/splash_screen.dart';
 import 'package:jwlife/core/bible_clues_info.dart';
 import 'package:jwlife/core/api/api.dart';
@@ -25,7 +23,6 @@ import 'package:jwlife/data/models/publication_attribute.dart';
 import 'package:jwlife/data/models/publication_category.dart';
 import 'package:jwlife/data/databases/catalog.dart';
 import 'package:jwlife/data/databases/userdata.dart';
-import 'package:jwlife/data/realm/catalog.dart';
 import 'package:jwlife/i18n/app_localizations.dart';
 
 import '../core/shared_preferences/shared_preferences_utils.dart';
@@ -33,6 +30,7 @@ import '../core/utils/common_ui.dart';
 import '../data/databases/tiles_cache.dart';
 import '../data/models/audio.dart';
 import '../data/models/video.dart';
+import '../data/realm/catalog.dart';
 import '../features/audio/audio_player_model.dart';
 import '../features/bible/pages/bible_chapter_page.dart';
 import '../features/home/pages/daily_text_page.dart';
@@ -41,19 +39,14 @@ import 'jwlife_page.dart';
 import 'startup/copy_assets.dart';
 
 class JwLifeApp extends StatefulWidget {
-  static late PubCollections pubCollections;
-  static late MediaCollections mediaCollections;
-  static late Userdata userdata;
-  static late JwLifeAudioPlayer audioPlayer;
-  static late BibleCluesInfo bibleCluesInfo;
+  // Utilisation de 'static final' pour initialiser les dépendances
+  static final PubCollections pubCollections = PubCollections();
+  static final MediaCollections mediaCollections = MediaCollections();
+  static final Userdata userdata = Userdata();
+  static final JwLifeAudioPlayer audioPlayer = JwLifeAudioPlayer();
+  static BibleCluesInfo bibleCluesInfo = BibleCluesInfo(bibleBookNames: []);
 
-  JwLifeApp({super.key}) {
-    pubCollections = PubCollections();
-    mediaCollections = MediaCollections();
-    userdata = Userdata();
-    audioPlayer = JwLifeAudioPlayer();
-    bibleCluesInfo = BibleCluesInfo(bibleBookNames: []);
-  }
+  const JwLifeApp({super.key});
 
   @override
   State<JwLifeApp> createState() => JwLifeAppState();
@@ -70,6 +63,7 @@ class JwLifeAppState extends State<JwLifeApp> {
   void initState() {
     super.initState();
 
+    // Lancement de l'initialisation des données
     initializeData().then((_) {
       setState(() {
         initialized = true;
@@ -77,37 +71,69 @@ class JwLifeAppState extends State<JwLifeApp> {
     });
   }
 
+  @override
+  void didChangeDependencies() {
+    // Mettre à jour le webView si ThemeMode.system est actif et que la luminosité effective change.
+    if (_themeMode == ThemeMode.system && initialized) {
+      final currentResolvedBrightness = MediaQuery.of(context).platformBrightness;
+      bool isDark = currentResolvedBrightness == Brightness.dark;
+      String theme = isDark ? 'dark' : 'light';
+
+      if(JwLifeSettings().webViewData.theme != theme) {
+        JwLifeSettings().webViewData.updateTheme(isDark);
+      }
+    }
+
+    super.didChangeDependencies();
+  }
+
+  // --- Gestion du Thème et de la Couleur ---
+
   void toggleTheme(ThemeMode themeMode) {
+
+    JwLifeSettings().themeMode = themeMode;
+
+    // Calculer la Brightness effective pour le web view.
+    final Brightness resolvedBrightness = (themeMode == ThemeMode.system) ? MediaQuery.of(context).platformBrightness : (themeMode == ThemeMode.light ? Brightness.light : Brightness.dark);
+
+    bool isDark = resolvedBrightness == Brightness.dark;
+
+    JwLifeSettings().themeMode = themeMode;
+    JwLifeSettings().webViewData.updateTheme(isDark);
+
+    final theme = themeMode == ThemeMode.dark ? 'dark' : themeMode == ThemeMode.light ? 'light' : 'system';
+    setTheme(theme);
+
     setState(() {
       _themeMode = themeMode;
     });
-    JwLifeSettings().themeMode = themeMode;
-    JwLifeSettings().webViewData.updateTheme(themeMode);
-    final theme = themeMode == ThemeMode.dark ? 'dark' : themeMode == ThemeMode.light ? 'light' : 'system';
-    setTheme(theme);
   }
 
   Future<void> togglePrimaryColor(Color color) async {
+    final newLightTheme = AppTheme.getLightTheme(color);
+    final newDarkTheme = AppTheme.getDarkTheme(color);
+
     setState(() {
-      _lightTheme = AppTheme.getLightTheme(color);
-      _darkTheme = AppTheme.getDarkTheme(color);
+      _lightTheme = newLightTheme;
+      _darkTheme = newDarkTheme;
     });
-    JwLifeSettings().lightData = AppTheme.getLightTheme(color);
-    JwLifeSettings().darkData = AppTheme.getDarkTheme(color);
 
-    JwLifeSettings().lightPrimaryColor = color;
-    JwLifeSettings().darkPrimaryColor = color;
+    // Mise à jour de la persistance et des données de thème en une seule fois
+    JwLifeSettings()
+      ..lightData = newLightTheme
+      ..darkData = newDarkTheme
+      ..lightPrimaryColor = color
+      ..darkPrimaryColor = color;
 
-    setPrimaryColor(JwLifeSettings().themeMode, color);
+    await setPrimaryColor(JwLifeSettings().themeMode, color);
 
+    // Notification des widgets via GlobalKey (à refactoriser idéalement avec Provider/InheritedWidget)
     for (var keys in GlobalKeyService.jwLifePageKey.currentState!.webViewPageKeys) {
       for (var key in keys) {
         final state = key.currentState;
-
         if (state is DocumentPageState) {
           state.changePrimaryColor(color, color);
-        }
-        else if (state is DailyTextPageState) {
+        } else if (state is DailyTextPageState) {
           state.changePrimaryColor(color, color);
         }
       }
@@ -116,11 +142,10 @@ class JwLifeAppState extends State<JwLifeApp> {
 
   Future<void> toggleBibleColor(Color color) async {
     JwLifeSettings().bibleColor = color;
-    setBibleColor(color);
+    await setBibleColor(color);
 
-    if(GlobalKeyService.bibleKey.currentState != null) {
-      GlobalKeyService.bibleKey.currentState!.refreshBiblePage();
-    }
+    // Mise à jour de la page Bible si elle est affichée
+    GlobalKeyService.bibleKey.currentState?.refreshBiblePage();
   }
 
   void changeLocale(Locale locale) {
@@ -130,6 +155,8 @@ class JwLifeAppState extends State<JwLifeApp> {
     JwLifeSettings().locale = locale;
     setLocale(locale.languageCode);
   }
+
+  // --- Construction de l'UI ---
 
   @override
   Widget build(BuildContext context) {
@@ -142,53 +169,46 @@ class JwLifeAppState extends State<JwLifeApp> {
       locale: _locale,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
-      home: initialized ? JwLifePage(key: GlobalKeyService.jwLifePageKey) : const SplashScreen()
+      // Utilisation de 'const' pour SplashScreen
+      home: initialized ? JwLifePage(key: GlobalKeyService.jwLifePageKey) : const SplashScreen(),
     );
   }
 
+  // --- Initialisation des Données ---
+
   Future<void> initializeData() async {
-    printTime('Start: PublicationCategory.initializeCategories');
+    // Étape 1 : Initialisation synchrone (rapide)
     PublicationCategory.initialize();
     PublicationAttribute.initialize();
-    printTime('End: PublicationCategory.initializeCategories');
 
-    printTime('Start: Initializing database...');
+    // Étape 2 : Initialisation asynchrone et parallèle (performance)
     await Future.wait([
-      CreateDatabase.create(),
       CopyAssets.copy(),
-    ]);
-    printTime('End: Initializing database...');
-
-    printTime('Start: Initializing collections...');
-    await Future.wait([
       JwLifeApp.pubCollections.init(),
       JwLifeApp.mediaCollections.init(),
       TilesCache().init(),
     ]);
-    printTime('End: Initializing collections...');
 
+    // Étape 3 : Initialisation séquentielle des données utilisateur et catalogue
     await JwLifeApp.userdata.init();
-    JwLifeSettings().webViewData.init();
+    await PubCatalog.loadPublicationsInHomePage();
 
-    printTime('Start: Copying assets, downloading, loading homepage, and fetching API data...');
-    final futures = <Future>[
-      PubCatalog.loadPublicationsInHomePage()
-    ];
-
-    if (await hasInternetConnection()) {
-      futures.addAll([
-        Api.fetchCurrentVersion(),
-        Api.fetchCurrentJwToken(),
-      ]);
+    // Étape 4 : Vérification de la connexion et mise à jour (performance)
+    final isConnected = await hasInternetConnection();
+    if (isConnected) {
+      Api.fetchCurrentJwToken();
+      JwLifeAutoUpdater.checkAndUpdate();
+      AssetsDownload.download();
     }
 
-    await Future.wait(futures);
+    // Calculer la Brightness effective pour le web view.
+    bool isDark = MediaQuery.of(context).platformBrightness == Brightness.dark;
 
-    JwLifeAutoUpdater.checkAndUpdate();
-
-    printTime('End: Copying assets, downloading, loading homepage, and fetching API data...');
-    AssetsDownload.download();
+    // Étape 5 : Initialisation finale
+    JwLifeSettings().webViewData.init(isDark);
   }
+
+  // --- Gestion des URIs (Deep Linking) ---
 
   Future<void> handleUri(JwOrgUri uri) async {
     final ctx = GlobalKeyService.homeKey.currentState!.context;
@@ -205,18 +225,20 @@ class JwLifeAppState extends State<JwLifeApp> {
         int? mepsLanguageId = await Mepsunit.getMepsLanguageIdFromSymbol(uri.wtlocale);
         if (mepsLanguageId == null) return;
 
-        int startParagraphId;
-        int endParagraphId;
+        int? startParagraphId;
+        int? endParagraphId;
 
-        final parStr = uri.par!; // ex: "4" ou "4-6"
+        String? parStr = uri.par; // ex: "4" ou "4-6"
 
-        if (parStr.contains('-')) {
-          final parts = parStr.split('-');
-          startParagraphId = int.parse(parts[0]);
-          endParagraphId = int.parse(parts[1]);
-        } else {
-          startParagraphId = int.parse(parStr);
-          endParagraphId = startParagraphId;
+        if(parStr != null) {
+          if (parStr.contains('-')) {
+            final parts = parStr.split('-');
+            startParagraphId = int.parse(parts[0]);
+            endParagraphId = int.parse(parts[1]);
+          } else {
+            startParagraphId = int.parse(parStr);
+            endParagraphId = startParagraphId;
+          }
         }
 
         GlobalKeyService.jwLifePageKey.currentState!.changeNavBarIndex(0);
@@ -237,9 +259,9 @@ class JwLifeAppState extends State<JwLifeApp> {
 
         showPage(
             BibleChapterPage(
-            bible: biblePub,
-            book: uri.book!
-        ));
+                bible: biblePub,
+                book: uri.book!
+            ));
       }
       else if (uri.isBibleChapter) {
         String bibleStr = uri.bible!; // ex: "01003015" ou "01003000-01003999"

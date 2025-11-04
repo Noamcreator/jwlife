@@ -2,47 +2,44 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
-import 'package:jwlife/app/services/settings_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app/jwlife_app.dart';
+import 'app/services/settings_service.dart';
 import 'app/services/audio_service/just_audio_background.dart';
 import 'app/services/file_handler_service.dart';
 import 'app/services/global_key_service.dart';
 import 'app/services/notification_service.dart';
 import 'core/jworg_uri.dart';
 
-Future<void> main() async {
-  // Assure l'initialisation correcte des widgets Flutter
+// Constante pour le préfixe SharedPreferences
+const String _kSharedPrefsPrefix = 'jwlife.';
+
+/// Exécute toutes les initialisations asynchrones nécessaires
+Future<void> _initializeServices() async {
+  // 1. Initialisations de bas niveau
   WidgetsFlutterBinding.ensureInitialized();
-
-  InAppWebViewController.setWebContentsDebuggingEnabled(kDebugMode);
-
-  // On met la barre de navigation en mode edgeToEdge
-  SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-
-  SharedPreferences.setPrefix('jwlife.'); // une seule fois ici
-
-  // On initialise les notifications locales
-  await NotificationService().initNotification();
-
-  // Vérifier si l'app a été lancée via une notification
-  final launchDetails = await NotificationService().notificationPlugin.getNotificationAppLaunchDetails();
-
-  if (launchDetails?.didNotificationLaunchApp == true) {
-    final response = launchDetails!.notificationResponse;
-    if (response != null) {
-      // Traiter la notification qui a lancé l'app
-      print('App lancée via notification: ${response.payload}');
-      // Vous pouvez stocker cette info pour la traiter plus tard
-      JwOrgUri.startUri = JwOrgUri.parse(response.payload!);
-    }
+  if (kDebugMode) {
+    // Activation du debug pour InAppWebView uniquement en mode debug
+    InAppWebViewController.setWebContentsDebuggingEnabled(true);
   }
 
-  // Initialiser le service de fichiers
-  await FileHandlerService().initialize();
+  SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
 
-  // Initialise le service de lecture audio avec une notification persistante sur Android
+  // 2. Configuration et Initialisation des Services
+  SharedPreferences.setPrefix(_kSharedPrefsPrefix); // Fait une seule fois
+
+  // Exécutions en parallèle (si possible) pour améliorer le temps de démarrage
+  await Future.wait([
+    // Initialisation des notifications locales
+    NotificationService().initNotification(),
+    // Initialisation du service de fichiers
+    FileHandlerService().initialize(),
+    // Initialisation des configurations de l'application
+    JwLifeSettings().init(),
+  ]);
+
+  // 3. Configuration de Just Audio Background (nécessite d'être après ensureInitialized)
   JustAudioBackground.init(
     androidNotificationChannelId: 'org.noam.jwlife.channel.audio',
     androidNotificationChannelName: 'Lecteur audio',
@@ -53,9 +50,28 @@ Future<void> main() async {
     leftMediaControl: LeftMediaControl.skipToPrevious,
     rightMediaControl: RightMediaControl.skipToNext,
   );
+}
 
-  // Initialise les configurations de l'application
-  await JwLifeSettings().init();
+/// Gère le lancement de l'application via une notification
+Future<void> _handleNotificationLaunch() async {
+  final launchDetails = await NotificationService().notificationPlugin.getNotificationAppLaunchDetails();
+
+  if (launchDetails?.didNotificationLaunchApp == true) {
+    final response = launchDetails!.notificationResponse;
+    if (response != null && response.payload != null) {
+      // Utilisez debugPrint en mode debug pour des messages qui n'apparaissent pas en production
+      debugPrint('App lancée via notification: ${response.payload}');
+      JwOrgUri.startUri = JwOrgUri.parse(response.payload!);
+    }
+  }
+}
+
+Future<void> main() async {
+  // Exécute toutes les initialisations
+  await _initializeServices();
+
+  // Traiter l'éventuel lancement par notification (après l'init du service de notification)
+  await _handleNotificationLaunch();
 
   // Lance l'application Flutter
   runApp(JwLifeApp(key: GlobalKeyService.jwLifeAppKey));

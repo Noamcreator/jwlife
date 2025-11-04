@@ -15,7 +15,9 @@ class PubCollections {
 
   Future<void> init() async {
     final pubCollections = await getPubCollectionsDatabaseFile();
-    _database = await openDatabase(pubCollections.path, version: 1);
+    _database = await openDatabase(pubCollections.path, version: 1, onCreate: (db, version) async {
+      await createDbPubCollection(db);
+    });
     await fetchDownloadPublications();
   }
 
@@ -65,6 +67,26 @@ class PubCollections {
     printTime('fetchDownloadPublications end');
 
     await _database.execute("DETACH DATABASE meps");
+  }
+
+  Future<Publication?> getDocumentFromMepsDocumentId(int mepsDocId, int currentLanguageId) async {
+    await open();
+
+    List<Map<String, dynamic>> result = await _database.rawQuery('''
+      SELECT 
+        p.KeySymbol,
+        p.IssueTagNumber,
+        p.MepsLanguageId
+      FROM Publication p
+      LEFT JOIN Document d ON p.PublicationId = d.PublicationId
+      WHERE d.MepsDocumentId = ? AND p.MepsLanguageId = ?
+      LIMIT 1
+    ''', [mepsDocId, currentLanguageId]);
+
+    if (result.isNotEmpty) {
+      return PublicationRepository().getPublicationWithMepsLanguageId(result.first['KeySymbol'], result.first['IssueTagNumber'], result.first['MepsLanguageId']);
+    }
+    return null;
   }
 
   Future<void> open() async {
@@ -305,7 +327,6 @@ class PubCollections {
     });
   }
 
-
   Future<void> createDbPubCollection(Database db) async {
     return await db.transaction((txn) async {
       // Création de la table Document
@@ -403,25 +424,5 @@ class PubCollections {
       );
     """);
     });
-  }
-
-  Future<Publication?> getDocumentFromMepsDocumentId(int mepsDocId, int currentLanguageId) async {
-    await open();
-
-    List<Map<String, dynamic>> result = await _database.rawQuery('''
-      SELECT 
-        p.KeySymbol,
-        p.IssueTagNumber,
-        p.MepsLanguageId
-      FROM Publication p
-      LEFT JOIN Document d ON p.PublicationId = d.PublicationId
-      WHERE d.MepsDocumentId = ? AND p.MepsLanguageId = ?
-      LIMIT 1
-    ''', [mepsDocId, currentLanguageId]);
-
-    if (result.isNotEmpty) {
-      return PublicationRepository().getPublicationWithMepsLanguageId(result.first['KeySymbol'], result.first['IssueTagNumber'], result.first['MepsLanguageId']);
-    }
-    return null;
   }
 }

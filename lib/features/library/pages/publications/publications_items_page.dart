@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
 
 import 'package:jwlife/core/icons.dart';
+import 'package:jwlife/data/databases/history.dart';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/models/publication_category.dart';
 import 'package:jwlife/features/library/widgets/rectangle_publication_item.dart';
 import 'package:jwlife/core/app_dimens.dart';
 import 'package:jwlife/core/utils/utils_language_dialog.dart';
 import 'package:jwlife/data/models/publication_attribute.dart';
-import 'package:jwlife/widgets/searchfield/searchfield_widget.dart'; // Rendu commenté
-import '../../models/publications/publication_items_model.dart'; // Assurez-vous que l'importation est correcte
+import 'package:jwlife/widgets/responsive_appbar_actions.dart';
+import 'package:jwlife/widgets/searchfield/searchfield_widget.dart';
+import '../../models/publications/publication_items_model.dart';
 
 class PublicationsItemsView extends StatefulWidget {
   final PublicationCategory category;
@@ -120,23 +122,103 @@ class _PublicationsItemsViewState extends State<PublicationsItemsView> {
               ],
             ),
             actions: [
-              IconButton(
-                icon: const Icon(JwIcons.magnifying_glass),
-                onPressed: () {
-                  _model.setIsSearching(true);
-                  _model.filterPublications(_searchController.text);
-                },
-              ),
-              IconButton(
-                icon: const Icon(JwIcons.language),
-                onPressed: () async {
-                  showLanguageDialog(context, selectedLanguageSymbol: _model.selectedLanguageSymbol).then((language) async {
-                    if (language != null) {
-                      _model.loadItems(mepsLanguage: language);
+              ResponsiveAppBarActions(allActions: [
+                IconTextButton(
+                  icon: const Icon(JwIcons.magnifying_glass),
+                  text: 'Rechercher',
+                  onPressed: () {
+                    _model.setIsSearching(true);
+                    _model.filterPublications(_searchController.text);
+                  },
+                ),
+                IconTextButton(
+                  icon: const Icon(JwIcons.language),
+                  text: 'Langues',
+                  onPressed: () async {
+                    showLanguageDialog(context, selectedLanguageSymbol: _model.selectedLanguageSymbol).then((language) async {
+                      if (language != null) {
+                        _model.loadItems(mepsLanguage: language);
+                      }
+                    });
+                  },
+                ),
+                IconTextButton(
+                    icon: const Icon(JwIcons.arrows_up_down),
+                    text: 'Trier par',
+                    onPressed: () {
+                      // 1. Définir les options du menu (les `PopupMenuItem`s)
+                      final List<PopupMenuEntry> menuItems = [
+                        // --- Tri par Titre ---
+                        // Option 1.1 : Tri par Titre (A-Z)
+                        const PopupMenuItem(
+                          value: 'title_asc', // champ: title, ordre: ascendant
+                          child: Text('Titre (A-Z)'),
+                        ),
+                        // Option 1.2 : Tri par Titre (Z-A)
+                        const PopupMenuItem(
+                          value: 'title_desc', // champ: title, ordre: descendant
+                          child: Text('Titre (Z-A)'),
+                        ),
+
+                        // Ajouter un séparateur visuel si vous le souhaitez (non obligatoire)
+                        const PopupMenuDivider(),
+
+                        // --- Tri par Année ---
+                        // Option 2.1 : Tri par Année (Le plus récent d'abord)
+                        const PopupMenuItem(
+                          value: 'year_desc', // champ: year, ordre: descendant (car année > -> plus récent)
+                          child: Text('Année (Plus récent)'),
+                        ),
+                        // Option 2.2 : Tri par Année (Le plus ancien d'abord)
+                        const PopupMenuItem(
+                          value: 'year_asc', // champ: year, ordre: ascendant
+                          child: Text('Année (Plus ancien)'),
+                        ),
+
+                        // Ajouter un séparateur visuel si vous le souhaitez
+                        const PopupMenuDivider(),
+
+                        // --- Tri par Symbole (Exemple) ---
+                        // Option 3.1 : Tri par Symbole (A-Z)
+                        const PopupMenuItem(
+                          value: 'symbol_asc',
+                          child: Text('Symbole (A-Z)'),
+                        ),
+                        // Option 3.2 : Tri par Symbole (Z-A)
+                        const PopupMenuItem(
+                          value: 'symbol_desc',
+                          child: Text('Symbole (Z-A)'),
+                        ),
+                      ];
+
+                      // 2. Afficher le menu avec les options
+                      showMenu(
+                        context: context,
+                        elevation: 8.0,
+                        items: menuItems,
+                        initialValue: null,
+                        position: RelativeRect.fromLTRB(
+                          MediaQuery.of(context).size.width - 210, // left
+                          40, // top
+                          10, // right
+                          0, // bottom
+                        ),
+                      ).then((res) {
+                        if (res != null) {
+                          // 'res' sera maintenant une chaîne comme 'title_asc', 'year_desc', etc.
+                          _model.sortPublications(res);
+                        }
+                      });
                     }
-                  });
-                },
-              ),
+                ),
+                IconTextButton(
+                    icon: const Icon(JwIcons.arrow_circular_left_clock),
+                    text: 'Historique',
+                    onPressed: () {
+                      History.showHistoryDialog(context);
+                    }
+                )
+              ])
             ],
           ),
 
@@ -218,6 +300,7 @@ class _PublicationsItemsBody extends StatelessWidget {
               if (publicationList.isEmpty) return; // Cette ligne est toujours utile pour les groupes vides
 
               // 1. Ajout de l'en-tête (SliverToBoxAdapter)
+              // L'ID 0 est ignoré car il est utilisé comme attribut factice pour le tri par année.
               if (attribute.id != 0) {
                 slivers.add(
                   SliverToBoxAdapter(

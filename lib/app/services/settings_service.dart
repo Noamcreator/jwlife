@@ -27,11 +27,7 @@ class JwLifeSettings {
 
   Future<void> init() async {
     final theme = await getTheme();
-    final themeMod = theme == 'dark'
-        ? ThemeMode.dark
-        : theme == 'light'
-        ? ThemeMode.light
-        : ThemeMode.system;
+    final themeMod = theme == 'dark' ? ThemeMode.dark : theme == 'light' ? ThemeMode.light : ThemeMode.system;
 
     final lightColor = await getPrimaryColor(ThemeMode.light);
     final darkColor = await getPrimaryColor(ThemeMode.dark);

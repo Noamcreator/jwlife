@@ -27,18 +27,7 @@ class WebViewData {
   late List<String> biblesSet;
 
   // Méthode privée pour charger le CSS
-  Future<void> init() async {
-    ThemeMode themeMode = JwLifeSettings().themeMode;
-    bool isDark;
-    if (themeMode == ThemeMode.dark) {
-      isDark = true;
-    } else if (themeMode == ThemeMode.light) {
-      isDark = false;
-    } else {
-      // Mode system: Vérifiez le mode du système
-      isDark = WidgetsBinding.instance.window.platformBrightness == Brightness.dark;
-    }
-
+  Future<void> init(bool isDark) async {
     theme = isDark ? 'cc-theme--dark' : 'cc-theme--light';
     backgroundColor = isDark ? '#121212' : '#ffffff';
     fontSize = await getFontSize();
@@ -55,30 +44,19 @@ class WebViewData {
     headlessWebView.run();
   }
 
-  void updateTheme(ThemeMode themeMode) {
-    bool isDark;
-    if (themeMode == ThemeMode.dark) {
-      isDark = true;
-    } else if (themeMode == ThemeMode.light) {
-      isDark = false;
-    } else {
-      // Mode system: Vérifiez le mode du système
-      isDark = WidgetsBinding.instance.window.platformBrightness == Brightness.dark;
-    }
-
+  void updateTheme(bool isDark) {
     theme = isDark ? 'cc-theme--dark' : 'cc-theme--light';
     backgroundColor = isDark ? '#121212' : '#ffffff';
-    //dialogBackgroundColor = isDark ? '#1d1d1d' : '#f7f7f5';
 
     for (var keys in GlobalKeyService.jwLifePageKey.currentState!.webViewPageKeys) {
       for (var key in keys) {
         final state = key.currentState;
 
         if (state is DocumentPageState) {
-          state.changeTheme(themeMode);
+          state.changeTheme(isDark);
         }
         else if (state is DailyTextPageState) {
-          state.changeTheme(themeMode);
+          state.changeTheme(isDark);
         }
       }
     }

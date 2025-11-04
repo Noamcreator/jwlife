@@ -147,15 +147,13 @@ Future<Map<String, dynamic>> fetchVerses(Publication publication, String link) a
         htmlContent += decodedHtml;
       }
 
-      List<Map<String, dynamic>> blockRanges = await JwLifeApp.userdata.getBlockRangesFromChapterNumber(book1, chapter1, bible.mepsLanguage.id);
-      List<Map<String, dynamic>> notes = await JwLifeApp.userdata.getNotesFromChapterNumber(book1, chapter1, bible.mepsLanguage.id);
+      List<Map<String, dynamic>> blockRanges = await JwLifeApp.userdata.getBlockRangesFromChapterNumber(book1, chapter1, bible.keySymbol, bible.mepsLanguage.id, startVerse: verse1, endVerse: verse2);
+      List<Map<String, dynamic>> notes = await JwLifeApp.userdata.getNotesFromChapterNumber(book1, chapter1, bible.keySymbol, bible.mepsLanguage.id, startVerse: verse1, endVerse: verse2);
 
       if(publication.documentsManager == null) {
-        publication.datedTextManager!.getCurrentDatedText().extractedNotes.clear();
         publication.datedTextManager!.getCurrentDatedText().extractedNotes.addAll(notes.map((item) => Map<String, dynamic>.from(item)).toList());
       }
       else {
-        publication.documentsManager!.getCurrentDocument().extractedNotes.clear();
         publication.documentsManager!.getCurrentDocument().extractedNotes.addAll(notes.map((item) => Map<String, dynamic>.from(item)).toList());
       }
 
@@ -171,6 +169,7 @@ Future<Map<String, dynamic>> fetchVerses(Publication publication, String link) a
         'firstVerseNumber': verse1,
         'lastVerseNumber': verse2,
         'audio': {},
+        'keySymbol': bible.keySymbol,
         'mepsLanguageId': bible.mepsLanguage.id,
         'highlights': blockRanges,
         'notes': notes
@@ -248,8 +247,8 @@ Future<Map<String, dynamic>?> fetchExtractPublication(BuildContext context, Stri
       List<Map<String, dynamic>> highlights = [];
       List<Map<String, dynamic>> notes = [];
       if (extractMepsDocumentId != null) {
-        highlights = await JwLifeApp.userdata.getBlockRangesFromDocumentId(extractMepsDocumentId, extract['MepsLanguageIndex']);
-        notes = await JwLifeApp.userdata.getNotesFromDocumentId(extractMepsDocumentId, extract['MepsLanguageIndex']);
+        highlights = await JwLifeApp.userdata.getBlockRangesFromDocumentId(extractMepsDocumentId, extract['MepsLanguageIndex'], startParagraph: firstParagraphId, endParagraph: lastParagraphId);
+        notes = await JwLifeApp.userdata.getNotesFromDocumentId(extractMepsDocumentId, extract['MepsLanguageIndex'], startParagraph: firstParagraphId, endParagraph: lastParagraphId);
 
         if(publication.documentsManager == null) {
           publication.datedTextManager!.getCurrentDatedText().extractedNotes.clear();
@@ -382,8 +381,8 @@ Future<Map<String, dynamic>?> fetchGuideVerse(BuildContext context, Publication 
       List<Map<String, dynamic>> highlights = [];
       List<Map<String, dynamic>> notes = [];
       if (extractMepsDocumentId != null) {
-        highlights = await JwLifeApp.userdata.getBlockRangesFromDocumentId(extractMepsDocumentId, extract['MepsLanguageIndex']);
-        notes = await JwLifeApp.userdata.getNotesFromDocumentId(extractMepsDocumentId, extract['MepsLanguageIndex']);
+        highlights = await JwLifeApp.userdata.getBlockRangesFromDocumentId(extractMepsDocumentId, extract['MepsLanguageIndex'], startParagraph: firstParagraphId, endParagraph: lastParagraphId);
+        notes = await JwLifeApp.userdata.getNotesFromDocumentId(extractMepsDocumentId, extract['MepsLanguageIndex'], startParagraph: firstParagraphId, endParagraph: lastParagraphId);
 
         if(publication.documentsManager == null) {
           publication.datedTextManager!.getCurrentDatedText().extractedNotes.clear();
@@ -538,6 +537,7 @@ Future<Map<String, dynamic>> fetchVersesReference(BuildContext context, Publicat
         'publicationTitle': verseDisplay,
         'bookNumber': verse['BookNumber'],
         'chapterNumber': verse['ChapterNumber'],
+        'keySymbol': publication.keySymbol,
         'firstVerseNumber': verse['VerseNumber'],
         'lastVerseNumber': verse['VerseNumber'],
         'mepsLanguageId': publication.mepsLanguage.id,

@@ -257,9 +257,9 @@ class Document {
     List<List<Map<String, dynamic>>> results;
     if(isBibleChapter()) {
       results = await Future.wait([
-        JwLifeApp.userdata.getBlockRangesFromChapterNumber(bookNumber!, chapterNumberBible!, mepsLanguageId),
-        JwLifeApp.userdata.getNotesFromChapterNumber(bookNumber!, chapterNumberBible!, mepsLanguageId),
-        JwLifeApp.userdata.getBookmarksFromChapterNumber(bookNumber!, chapterNumberBible!),
+        JwLifeApp.userdata.getBlockRangesFromChapterNumber(bookNumber!, chapterNumberBible!, publication.keySymbol, mepsLanguageId),
+        JwLifeApp.userdata.getNotesFromChapterNumber(bookNumber!, chapterNumberBible!, publication.keySymbol, mepsLanguageId),
+        JwLifeApp.userdata.getBookmarksFromChapterNumber(bookNumber!, chapterNumberBible!, publication.keySymbol),
       ]);
 
       blockRanges = results[0].map((item) => Map<String, dynamic>.from(item)).toList();
@@ -344,7 +344,7 @@ class Document {
       uri = JwOrgUri.document(
           wtlocale: publication.mepsLanguage.symbol,
           docid: mepsDocumentId,
-          par: id.toString()
+          par: id?.toString()
       ).toString();
     }
 

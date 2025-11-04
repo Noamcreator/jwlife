@@ -62,7 +62,7 @@ class DailyTextWidgetState extends State<DailyTextWidget> {
                 ? const Color(0xFF121212)
                 : Colors.white,
             height: 128,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
             alignment: Alignment.center,
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -94,7 +94,6 @@ class DailyTextWidgetState extends State<DailyTextWidget> {
 
     return Column(
       children: [
-        const SizedBox(height: 5),
         GestureDetector(
           onTap: () {
             if (_verseOfTheDayPub == null) return;
@@ -112,7 +111,7 @@ class DailyTextWidgetState extends State<DailyTextWidget> {
                     ? const Color(0xFF121212)
                     : Colors.white,
                 height: 128,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [

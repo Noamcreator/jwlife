@@ -73,6 +73,10 @@ class Api {
 
   /// Récupère la date de création du catalogue pour une version donnée.
   static Future<int> fetchCatalogInfo() async {
+    if(currentVersion.isEmpty) {
+      await fetchCurrentVersion();
+    }
+
     try {
       final url = catalogInfoUrl.replaceFirst('{currentVersion}', currentVersion);
       final response = await httpGetWithHeaders(url);

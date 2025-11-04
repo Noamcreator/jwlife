@@ -152,8 +152,7 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
     return true;
   }
 
-  Future<void> changeTheme(ThemeMode themeMode) async {
-    bool isDark = themeMode == ThemeMode.dark;
+  Future<void> changeTheme(bool isDark) async {
     await _controller.evaluateJavascript(source: "changeTheme($isDark);");
   }
 
@@ -362,6 +361,40 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
                       );
 
                       controller.addJavaScriptHandler(
+                        handlerName: 'getNotes',
+                        callback: (args) {
+                          // 1. Récupération des listes de notes (Notes + Notes extraites)
+                          // On suppose ici que toutes les notes sont des Maps<String, dynamic>.
+                          final List<Map<String, dynamic>> datedTextNotes = widget.publication.datedTextManager!.getCurrentDatedText().notes;
+
+                          // 3. Récupération et formatage de la liste de tags disponibles
+                          final List<Map<String, dynamic>> availableTags =
+                          JwLifeApp.userdata.tags.map((t) => t.toMap()).toList();
+
+                          // Trier en fonction de la valeur de BlockIdentifier
+                          datedTextNotes.sort((a, b) => a['BlockIdentifier'].compareTo(b['BlockIdentifier']));
+
+                          // 4. Mappage des notes pour inclure la liste de tous les tags dans chaque objet.
+                          final List<Map<String, dynamic>> notesWithTags = datedTextNotes.map((note) {
+                            return {
+                              // Champs spécifiques à la note
+                              'guid': note['Guid'],
+                              'title': note['Title'] ?? '',
+                              'content': note['Content'] ?? '',
+                              'tagsId': note['TagsId'] ?? [],
+                              'colorIndex': note['ColorIndex'] ?? 0,
+
+                              // Liste de tous les tags disponibles (la même pour toutes les notes)
+                              'tags': availableTags,
+                            };
+                          }).toList();
+
+                          // 5. Retourne la liste complète des notes formatées
+                          return notesWithTags;
+                        },
+                      );
+
+                      controller.addJavaScriptHandler(
                         handlerName: 'getFilteredTags',
                         callback: (args) {
                           String query = args[0] as String;
@@ -447,6 +480,7 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
 
                                 if(confirmed == true) {
                                   controller.evaluateJavascript(source: 'removeNote("${note['Guid']}", false)');
+                                  widget.publication.datedTextManager!.getCurrentDatedText().removeNote(note['Guid']);
                                 }
                                 else {
                                   controller.evaluateJavascript(source: 'removeNote("${note['Guid']}", false)');
@@ -607,7 +641,7 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
                             else if (document['bookNumber'] != null && document['chapterNumber'] != null) {
                               await showChapterView(
                                 context,
-                                'nwtsty',
+                                document["keySymbol"],
                                 document["mepsLanguageId"],
                                 document["bookNumber"],
                                 document["chapterNumber"],
