@@ -5,7 +5,7 @@ import 'package:jwlife/core/utils/widgets_utils.dart';
 import 'package:jwlife/data/databases/history.dart';
 import 'package:jwlife/features/library/pages/publications/publications_categories_page.dart';
 import 'package:jwlife/features/library/pages/videos/videos_categories_page.dart';
-import 'package:jwlife/i18n/localization.dart';
+import 'package:jwlife/i18n/i18n.dart';
 
 import '../../../app/services/global_key_service.dart' show GlobalKeyService;
 import '../../../core/shared_preferences/shared_preferences_utils.dart';
@@ -114,12 +114,12 @@ class LibraryPageState extends State<LibraryPage> with TickerProviderStateMixin 
 
         // --- Construction des Onglets (basée sur le modèle) ---
         if (_model.catalogCategories.isNotEmpty) {
-          tabs.add(Tab(text: localization(context).navigation_publications.toUpperCase()));
+          tabs.add(Tab(text: i18n().navigation_publications.toUpperCase()));
           views.add(PublicationsCategoriesPage(categories: _model.catalogCategories));
         }
 
         if (_model.isMediaLoading || _model.video != null) {
-          tabs.add(Tab(text: localization(context).navigation_videos.toUpperCase()));
+          tabs.add(Tab(text: i18n().pub_type_videos_uppercase));
           views.add(
             _model.isMediaLoading
                 ? getLoadingWidget(Theme.of(context).primaryColor)
@@ -128,7 +128,7 @@ class LibraryPageState extends State<LibraryPage> with TickerProviderStateMixin 
         }
 
         if (_model.isMediaLoading || _model.audio != null) {
-          tabs.add(Tab(text: localization(context).navigation_audios.toUpperCase()));
+          tabs.add(Tab(text: i18n().pub_type_audio_programs_uppercase));
           views.add(
             _model.isMediaLoading
                 ? getLoadingWidget(Theme.of(context).primaryColor)
@@ -136,10 +136,10 @@ class LibraryPageState extends State<LibraryPage> with TickerProviderStateMixin 
           );
         }
 
-        tabs.add(Tab(text: localization(context).navigation_download.toUpperCase()));
+        tabs.add(Tab(text: i18n().label_downloaded_uppercase));
         views.add(const DownloadPage());
 
-        tabs.add(Tab(text: localization(context).navigation_pending_updates.toUpperCase()));
+        tabs.add(Tab(text: i18n().label_pending_updates_uppercase));
         views.add(const PendingUpdatesPage());
 
         return Scaffold(
@@ -148,7 +148,7 @@ class LibraryPageState extends State<LibraryPage> with TickerProviderStateMixin 
             title: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(localization(context).navigation_library,
+                Text(i18n().navigation_library,
                     style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                 Text(
                   _model.language, // Langue issue du modèle

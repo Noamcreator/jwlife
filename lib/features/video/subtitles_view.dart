@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
@@ -70,10 +71,9 @@ class _SubtitlesPageState extends State<SubtitlesPage> {
   void fetchOnlineSubtitles() async {
     try {
       final link = 'https://b.jw-cdn.org/apis/mediator/v1/media-items/${widget.video.mepsLanguage}/${widget.video.naturalKey}';
-      final response = await Api.httpGetWithHeaders(link);
+      final response = await Api.httpGetWithHeaders(link, responseType: ResponseType.json);
       if (response.statusCode == 200) {
-        final jsonData = json.decode(response.body);
-        await _subtitles.loadSubtitles(jsonData['media'][0]);
+        await _subtitles.loadSubtitles(response.data['media'][0]);
       }
       _loadWebView();
     }
@@ -281,7 +281,6 @@ class _SubtitlesPageState extends State<SubtitlesPage> {
     <meta charset="utf-8">
     <style>
         body {
-          font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
           font-size: ${JwLifeSettings().webViewData.fontSize}px;
           overflow-y: scroll;
         }

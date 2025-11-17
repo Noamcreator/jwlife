@@ -65,7 +65,7 @@ class TilesCache {
 
     final response = await Api.httpGetWithHeaders(imageUrl);
     if (response.statusCode == 200) {
-      await file.writeAsBytes(response.bodyBytes);
+      await file.writeAsBytes(response.data);
 
       if (await file.exists()) {
         await _addImageToDatabase(filename, file);

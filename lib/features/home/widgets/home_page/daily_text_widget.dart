@@ -10,6 +10,7 @@ import '../../../../core/utils/utils.dart';
 import '../../../../core/utils/widgets_utils.dart';
 import '../../../../data/databases/catalog.dart';
 import '../../../../data/models/publication.dart';
+import '../../../../i18n/i18n.dart';
 
 class DailyTextWidget extends StatefulWidget {
   const DailyTextWidget({super.key});
@@ -68,7 +69,7 @@ class DailyTextWidgetState extends State<DailyTextWidget> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
-                  'Bienvenue sur JW Life',
+                  i18n().message_welcome_to_jw_life,
                   style: TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
@@ -77,8 +78,8 @@ class DailyTextWidgetState extends State<DailyTextWidget> {
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 8),
-                const Text(
-                  "Une application pour la vie d'un Témoin de Jéhovah",
+                Text(
+                  i18n().message_app_for_jehovah_witnesses,
                   style: TextStyle(fontSize: 16),
                   textAlign: TextAlign.center,
                 ),
@@ -138,7 +139,7 @@ class DailyTextWidgetState extends State<DailyTextWidget> {
                                 Icon(Directionality.of(context) == TextDirection.rtl ? JwIcons.chevron_left : JwIcons.chevron_right, size: 24),
                               ] : [
                                 Text(
-                                  'Bienvenue sur JW Life',
+                                  i18n().message_welcome_to_jw_life,
                                   style: TextStyle(
                                     fontSize: 20,
                                     fontWeight: FontWeight.bold,
@@ -161,7 +162,7 @@ class DailyTextWidgetState extends State<DailyTextWidget> {
                                 }
                                 else {
                                   return Text(
-                                    "Télécharger le Texte du Jour de l'année ${DateFormat('yyyy').format(now)}",
+                                    i18n().message_download_daily_text(DateFormat('yyyy').format(now)),
                                     textAlign: TextAlign.center,
                                     style: const TextStyle(fontSize: 16, height: 1.2),
                                     maxLines: 4,

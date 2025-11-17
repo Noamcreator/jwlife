@@ -81,25 +81,31 @@ class _MediaItemItemWidgetState extends State<MediaItemItemWidget> {
         m.showPlayer(context, medias: mediaObjects);
       },
       child: Padding(
-        padding: const EdgeInsets.only(right: 2.0),
+        // *** MODIFICATION RTL: Utiliser EdgeInsetsDirectional ***
+        padding: const EdgeInsetsDirectional.only(end: 2.0),
         child: SizedBox(
           width: widget.width,
           child: Column(
+            // CrossAxisAlignment.start est CORRECT
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Stack(
                 children: [
                   _buildMediaImage(),
+                  // Menu contextuel (Positionné en HAUT-FIN)
                   _buildPopupMenu(context),
+                  // Information sur la durée (Positionné en HAUT-DÉBUT)
                   _buildMediaInfoOverlay(),
-                  // icônes / favoris
+
+                  // icônes / favoris (Positionné en BAS-FIN)
                   ValueListenableBuilder<bool>(
                     valueListenable: widget.media.isDownloadingNotifier,
                     builder: (context, isDownloading, _) {
                       if (isDownloading) {
-                        return Positioned(
+                        // Icône Annuler le téléchargement
+                        return PositionedDirectional(
                           bottom: -7,
-                          right: -7,
+                          end: -7, // Utilisé au lieu de 'right'
                           child: IconButton(
                             iconSize: 22,
                             padding: EdgeInsets.zero,
@@ -122,24 +128,34 @@ class _MediaItemItemWidgetState extends State<MediaItemItemWidget> {
                               final hasUpdate = widget.media.hasUpdate();
 
                               if (!isDownloaded) {
-                                return Positioned(
+                                // Icône de téléchargement
+                                return PositionedDirectional(
                                   bottom: -7,
-                                  right: -7,
-                                  child: IconButton(
-                                    iconSize: 22,
-                                    padding: EdgeInsets.zero,
-                                    onPressed: () => widget.media.download(context),
-                                    icon: const Icon(
-                                      JwIcons.cloud_arrow_down,
-                                      color: Colors.white,
-                                      shadows: [Shadow(color: Colors.black, blurRadius: 10)],
-                                    ),
+                                  end: -7, // Utilisé au lieu de 'right'
+                                  child: Builder(
+                                      builder: (BuildContext iconButtonContext) {
+                                        return IconButton(
+                                          iconSize: 22,
+                                          padding: EdgeInsets.zero,
+                                          onPressed: () {
+                                            final RenderBox renderBox = iconButtonContext.findRenderObject() as RenderBox;
+                                            final Offset tapPosition = renderBox.localToGlobal(Offset.zero) + renderBox.size.center(Offset.zero);
+                                            widget.media.download(context, tapPosition: tapPosition);
+                                          },
+                                          icon: const Icon(
+                                            JwIcons.cloud_arrow_down,
+                                            color: Colors.white,
+                                            shadows: [Shadow(color: Colors.black, blurRadius: 10)],
+                                          ),
+                                        );
+                                      }
                                   ),
                                 );
                               } else if (hasUpdate) {
-                                return Positioned(
+                                // Icône de mise à jour
+                                return PositionedDirectional(
                                   bottom: -7,
-                                  right: -7,
+                                  end: -7, // Utilisé au lieu de 'right'
                                   child: IconButton(
                                     iconSize: 22,
                                     padding: EdgeInsets.zero,
@@ -152,10 +168,11 @@ class _MediaItemItemWidgetState extends State<MediaItemItemWidget> {
                                   ),
                                 );
                               } else if (isFavorite) {
-                                return Positioned(
+                                // Icône de Favori
+                                return const PositionedDirectional(
                                   bottom: 4,
-                                  right: 4,
-                                  child: const Icon(
+                                  end: 4, // Utilisé au lieu de 'right'
+                                  child: Icon(
                                     JwIcons.star,
                                     color: Colors.white,
                                     shadows: [Shadow(color: Colors.black, blurRadius: 10)],
@@ -171,12 +188,13 @@ class _MediaItemItemWidgetState extends State<MediaItemItemWidget> {
                     },
                   ),
 
-                  // barre de progression
+                  // barre de progression (Positionnée sur toute la largeur)
                   ValueListenableBuilder<bool>(
                     valueListenable: widget.media.isDownloadingNotifier,
                     builder: (context, isDownloading, _) {
                       if (!isDownloading) return const SizedBox.shrink();
 
+                      // Positioned(left: 0, right: 0) est CORRECT car la barre couvre toute la largeur de la Stack
                       return Positioned(
                         bottom: 0,
                         left: 0,
@@ -251,32 +269,21 @@ class _MediaItemItemWidgetState extends State<MediaItemItemWidget> {
     );
   }
 
-  Widget _buildCachedImage(String? imageUrl) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(2.0),
-      child: ImageCachedWidget(
-        imageUrl: imageUrl,
-        icon: widget.media is Audio ? JwIcons.headphones__simple : JwIcons.video,
-        height: widget.width / 2,
-        width: widget.width,
-        fit: BoxFit.cover,
-      ),
-    );
-  }
-
+  // *** MODIFICATION RTL: Utiliser PositionedDirectional ***
   Widget _buildPopupMenu(BuildContext context) {
-    return Positioned(
-      top: -8,
-      right: -13,
+    return PositionedDirectional(
+      top: -15,
+      end: -10, // Utilisé au lieu de 'right'
       child: PopupMenuButton(
         icon: const Icon(
-          Icons.more_vert,
+          Icons.more_horiz,
           color: Colors.white,
           shadows: [Shadow(color: Colors.black, blurRadius: 5)],
         ),
         shadowColor: Colors.black,
         elevation: 8,
         itemBuilder: (context) {
+          // ... Le contenu du menu reste inchangé
           return widget.media is Audio
               ? [
             getAudioShareItem(widget.media as Audio),
@@ -300,10 +307,11 @@ class _MediaItemItemWidgetState extends State<MediaItemItemWidget> {
     );
   }
 
+  // *** MODIFICATION RTL: Utiliser PositionedDirectional ***
   Widget _buildMediaInfoOverlay() {
-    return Positioned(
+    return PositionedDirectional(
       top: 4,
-      left: 4,
+      start: 4, // Utilisé au lieu de 'left'
       child: Container(
         color: Colors.black.withOpacity(0.8),
         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
@@ -321,25 +329,34 @@ class _MediaItemItemWidgetState extends State<MediaItemItemWidget> {
     );
   }
 
+  Widget _buildCachedImage(String? imageUrl) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(2.0),
+      child: ImageCachedWidget(
+        imageUrl: imageUrl,
+        icon: widget.media is Audio ? JwIcons.headphones__simple : JwIcons.video,
+        height: widget.width / 2,
+        width: widget.width,
+        fit: BoxFit.cover,
+      ),
+    );
+  }
+
   Widget _buildMediaTitle(BuildContext context) {
-    String timeAgo = '';
+    String timeAgoText = '';
     if (widget.timeAgoText) {
       DateTime firstPublished = DateTime.parse(widget.media.firstPublished ?? '');
-      DateTime publishedDate = DateTime(firstPublished.year, firstPublished.month, firstPublished.day);
-      DateTime today = DateTime.now();
-      DateTime currentDate = DateTime(today.year, today.month, today.day);
-      int days = currentDate.difference(publishedDate).inDays;
 
-      timeAgo = (days == 0)
-          ? "Aujourd'hui"
-          : (days == 1)
-          ? "Hier"
-          : "Il y a $days jours";
+      timeAgoText = timeAgo(firstPublished);
     }
 
     return Padding(
-      padding: const EdgeInsets.only(left: 2.0, right: 4.0),
+      // *** MODIFICATION RTL: Utiliser EdgeInsetsDirectional ***
+      // left: 2.0 devient start: 2.0
+      // right: 4.0 devient end: 4.0
+      padding: const EdgeInsetsDirectional.only(start: 2.0, end: 4.0),
       child: Column(
+        // CrossAxisAlignment.start est CORRECT
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
@@ -347,11 +364,12 @@ class _MediaItemItemWidgetState extends State<MediaItemItemWidget> {
             style: TextStyle(fontSize: widget.timeAgoText == true ? 10 : 11.5, height: 1.1),
             maxLines: 3,
             overflow: TextOverflow.ellipsis,
+            // TextAlign.start est CORRECT
             textAlign: TextAlign.start,
           ),
-          if (widget.timeAgoText && timeAgo.isNotEmpty)
+          if (widget.timeAgoText && timeAgoText.isNotEmpty)
             Text(
-              timeAgo,
+              timeAgoText,
               style: TextStyle(
                 fontSize: 10,
                 color: Theme.of(context).brightness == Brightness.dark
@@ -360,6 +378,7 @@ class _MediaItemItemWidgetState extends State<MediaItemItemWidget> {
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
+              // TextAlign.start est CORRECT
               textAlign: TextAlign.start,
             ),
         ],

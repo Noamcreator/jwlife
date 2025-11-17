@@ -1,9 +1,7 @@
-import 'dart:convert';
 import 'dart:io';
 import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/core/api/api.dart';
 import 'package:jwlife/core/api/wikipedia_api.dart';
-import 'package:jwlife/data/models/userdata/inputField.dart';
 import 'package:jwlife/data/models/userdata/note.dart';
 import 'package:jwlife/data/repositories/PublicationRepository.dart';
 import 'package:sqflite/sqflite.dart';
@@ -13,6 +11,7 @@ import '../../../../core/bible_clues_info.dart';
 import '../../../../core/utils/files_helper.dart';
 import '../../../../core/utils/utils.dart';
 import '../../../../data/models/publication.dart';
+import '../../../../data/models/userdata/input_field.dart';
 import '../../../publication/pages/document/local/documents_manager.dart';
 
 class SearchModel {
@@ -64,9 +63,7 @@ class SearchModel {
       final response = await Api.httpGetWithHeadersUri(url, headers: headers);
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-
-        final results = (data['results'] as List).map<Map<String, dynamic>>((item) {
+        final results = (response.data['results'] as List).map<Map<String, dynamic>>((item) {
           return {
             'title': item['title'] ?? '',
             'type': item['type'] ?? '',

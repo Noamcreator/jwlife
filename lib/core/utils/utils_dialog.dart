@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart' show DateFormat;
 
 import '../../app/services/settings_service.dart';
+import '../../i18n/i18n.dart';
 import '../icons.dart';
 
 class JwDialogButton {
@@ -196,11 +197,11 @@ Future<T?> showJwChoiceDialog<T>({
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
                       TextButton(
-                        child: const Text('ANNULER'),
+                        child: Text(i18n().action_cancel_uppercase),
                         onPressed: () => Navigator.pop(context, null),
                       ),
                       TextButton(
-                        child: const Text('OK'),
+                        child: Text(i18n().action_ok),
                         onPressed: () => Navigator.pop(context, selected),
                       ),
                     ],
@@ -219,15 +220,15 @@ Future<T?> showJwChoiceDialog<T>({
 Future<void> showNoConnectionDialog(BuildContext context) async {
   showJwDialog(
     context: context,
-    contentText: 'Connectez-vous à Internet.',
+    contentText: i18n().message_no_internet_connection,
     buttonAxisAlignment: MainAxisAlignment.end,
     buttons: [
       JwDialogButton(
-        label: 'OK',
+        label: i18n().action_ok,
         closeDialog: true,
       ),
       JwDialogButton(
-        label: 'PARAMÈTRES',
+        label: i18n().action_settings_uppercase,
         onPressed: (buildContext) {
           AppSettings.openAppSettings(type: AppSettingsType.wifi);
         },
@@ -237,7 +238,7 @@ Future<void> showNoConnectionDialog(BuildContext context) async {
 }
 
 Future<DateTime?> showMonthCalendarDialog(BuildContext context, DateTime initialDate) async {
-  final locale = JwLifeSettings().currentLanguage.primaryIetfCode;
+  final locale = JwLifeSettings().locale.languageCode;
 
   // Pour afficher le mois et l'année
   String formatMonthYear(DateTime date) {
@@ -273,10 +274,10 @@ Future<DateTime?> showMonthCalendarDialog(BuildContext context, DateTime initial
           List<DateTime> days = getCalendarDays(displayedMonth);
 
           return Dialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            insetPadding: const EdgeInsets.all(20),
             child: Container(
-              width: 380,
-              padding: const EdgeInsets.all(16),
+              width: MediaQuery.of(context).size.width,
+              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -307,7 +308,7 @@ Future<DateTime?> showMonthCalendarDialog(BuildContext context, DateTime initial
                     ],
                   ),
 
-                  const SizedBox(height: 8),
+                  const Divider(),
 
                   // Noms des jours en entête (Lun, Mar, Mer, ...)
                   Row(
@@ -365,7 +366,7 @@ Future<DateTime?> showMonthCalendarDialog(BuildContext context, DateTime initial
                                   : isInMonth
                                   ? Colors.grey.shade200
                                   : Colors.transparent,
-                              borderRadius: BorderRadius.circular(16),
+                              borderRadius: BorderRadius.circular(0),
                             ),
                             alignment: Alignment.center,
                             child: Text(
@@ -395,26 +396,49 @@ Future<DateTime?> showMonthCalendarDialog(BuildContext context, DateTime initial
                         displayedMonth = DateTime.now();
                       });
                     },
-                    child: Text("RÉNITIALISÉ A AUJOURD'HUI"),
+                    style: ElevatedButton.styleFrom(
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    child: Text(i18n().action_reset_today_uppercase)
                   ),
-
-                  const SizedBox(height: 16),
-
-                  // Boutons Annuler / Valider
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(context, null),
-                        child: Text('ANNULER'),
-                      ),
-                      SizedBox(width: 16),
-                      ElevatedButton(
-                        onPressed: () => Navigator.pop(context, selectedDay),
-                        child: Text('VALIDER'),
-                      ),
-                    ],
-                  ),
+                  const Divider(),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        TextButton(
+                          child: Text(
+                            i18n().action_cancel_uppercase,
+                            style: TextStyle(
+                              fontFamily: 'Roboto',
+                              letterSpacing: 1,
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).primaryColor,
+                            ),
+                          ),
+                          onPressed: () {
+                            Navigator.pop(context, null);
+                          },
+                        ),
+                        SizedBox(width: 16),
+                        TextButton(
+                          child: Text(
+                            i18n().action_ok,
+                            style: TextStyle(
+                              fontFamily: 'Roboto',
+                              letterSpacing: 1,
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).primaryColor,
+                            ),
+                          ),
+                          onPressed: () {
+                            Navigator.pop(context, selectedDay);
+                          },
+                        ),
+                      ],
+                    ),
+                  )
                 ],
               ),
             ),

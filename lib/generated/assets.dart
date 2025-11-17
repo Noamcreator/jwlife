@@ -13,17 +13,13 @@ class Assets {
   static const String darkBookmark08 = 'assets/icons/bookmarks/dark/bookmark08.png';
   static const String darkBookmark09 = 'assets/icons/bookmarks/dark/bookmark09.png';
   static const String darkBookmark10 = 'assets/icons/bookmarks/dark/bookmark10.png';
-  static const String dbMepsunit = 'assets/db/mepsunit.zip';
   static const String fontsJwIcons = 'assets/fonts/jw-icons.ttf';
   static const String fontsNotoSansBold = 'assets/fonts/NotoSans-Bold.ttf';
   static const String fontsRobotoBold = 'assets/fonts/Roboto-Bold.ttf';
   static const String fontsRobotoBoldItalic = 'assets/fonts/Roboto-BoldItalic.ttf';
   static const String fontsRobotoItalic = 'assets/fonts/Roboto-Italic.ttf';
   static const String fontsRobotoRegular = 'assets/fonts/Roboto-Regular.ttf';
-  static const String i18nIntlAr = 'assets/i18n/intl_ar.arb';
-  static const String i18nIntlDe = 'assets/i18n/intl_de.arb';
   static const String i18nIntlEn = 'assets/i18n/intl_en.arb';
-  static const String i18nIntlEs = 'assets/i18n/intl_es.arb';
   static const String i18nIntlFr = 'assets/i18n/intl_fr.arb';
   static const String iconsIcHelp = 'assets/icons/ic_help.png';
   static const String iconsIcLauncher = 'assets/icons/ic_launcher.png';
@@ -101,6 +97,8 @@ class Assets {
   static const String lightBookmark08 = 'assets/icons/bookmarks/light/bookmark08.png';
   static const String lightBookmark09 = 'assets/icons/bookmarks/light/bookmark09.png';
   static const String lightBookmark10 = 'assets/icons/bookmarks/light/bookmark10.png';
+  static const String mepsManifest = 'assets/meps/manifest.json';
+  static const String mepsMepsunit = 'assets/meps/mepsunit.zip';
   static const String userDataDefaultThumbnail = 'assets/userData/default_thumbnail.png';
 
 }

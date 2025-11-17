@@ -5,12 +5,13 @@ import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/utils_tag_dialogs.dart';
 
-import 'package:jwlife/data/models/userdata/playlistItem.dart';
 import 'package:jwlife/features/personal/pages/playlist_player.dart';
 import '../../../app/services/global_key_service.dart';
 import '../../../core/utils/utils_dialog.dart';
 import '../../../core/utils/utils_pub.dart';
 import '../../../data/models/userdata/playlist.dart';
+import '../../../data/models/userdata/playlist_item.dart';
+import '../../../i18n/i18n.dart';
 import '../widgets/rectangle_playlistItem_item.dart';
 
 class PlaylistPage extends StatefulWidget {
@@ -137,9 +138,9 @@ class _PlaylistPageState extends State<PlaylistPage> {
 
         showJwDialog(
             context: context,
-            titleText: 'Fichier(s) Non Supporté(s)',
+            titleText: i18n().message_file_not_supported_title,
             contentText: message,
-            buttons: [ JwDialogButton(label: 'OK') ]
+            buttons: [ JwDialogButton(label: i18n().action_close_upper) ]
         );
       }
 
@@ -173,7 +174,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(_playlist.name, style: textStyleTitle),
-            Text('${_filteredPlaylistItem.length} éléments - Durée : ${getPlaylistDuration(_filteredPlaylistItem)}',
+            Text('${i18n().label_playlist_items(_filteredPlaylistItem.length)} · ${i18n().label_duration(getPlaylistDuration(_filteredPlaylistItem))}',
                 style: textStyleSubtitle),
           ],
         ),
@@ -229,9 +230,9 @@ class _PlaylistPageState extends State<PlaylistPage> {
                 scrollDirection: Axis.horizontal,
                 child: Row(
                   children: [
-                    _buildOutlinedButton(JwIcons.play, "TOUT LIRE", _playAll),
+                    _buildOutlinedButton(JwIcons.play, i18n().action_play_all.toUpperCase(), _playAll),
                     const SizedBox(width: 10),
-                    _buildOutlinedButton(JwIcons.arrows_twisted_right, "LECTURE ALÉATOIRE", _playRandom),
+                    _buildOutlinedButton(JwIcons.arrows_twisted_right, i18n().action_shuffle.toUpperCase(), _playRandom),
                   ],
                 ),
               ),
@@ -255,15 +256,14 @@ class _PlaylistPageState extends State<PlaylistPage> {
                         ? Colors.white
                         : Colors.black,
                   ),
-                  child: const SizedBox(
+                  child: SizedBox(
                     width: double.infinity,
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(JwIcons.plus),
-                        SizedBox(width: 6),
-                        Text("Importer un fichier",
-                            style: TextStyle(fontWeight: FontWeight.w500)),
+                        const Icon(JwIcons.plus),
+                        const SizedBox(width: 6),
+                        Text(i18n().action_import_file, style: const TextStyle(fontWeight: FontWeight.w500)),
                       ],
                     ),
                   ),

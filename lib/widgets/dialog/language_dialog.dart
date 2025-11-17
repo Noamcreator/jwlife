@@ -6,6 +6,7 @@ import 'package:jwlife/core/utils/files_helper.dart';
 import 'package:jwlife/data/databases/history.dart';
 import 'package:sqflite/sqflite.dart';
 import '../../app/services/settings_service.dart';
+import '../../i18n/i18n.dart';
 
 class LanguageDialog extends StatefulWidget {
   final Map<String, dynamic> languagesListJson;
@@ -82,7 +83,7 @@ class _LanguageDialogState extends State<LanguageDialog> {
       INNER JOIN Script s ON l.ScriptId = s.ScriptId
       LEFT JOIN LocalizedLanguageName lln_src 
         ON l.LanguageId = lln_src.TargetLanguageId 
-        AND lln_src.SourceLanguageId = (SELECT LanguageId FROM Language WHERE Symbol = ?)
+        AND lln_src.SourceLanguageId = (SELECT LanguageId FROM Language WHERE PrimaryIetfCode = ?)
       LEFT JOIN LanguageName ln_src ON lln_src.LanguageNameId = ln_src.LanguageNameId
       LEFT JOIN LocalizedLanguageName lln_fallback 
         ON l.LanguageId = lln_fallback.TargetLanguageId 
@@ -90,8 +91,8 @@ class _LanguageDialogState extends State<LanguageDialog> {
       LEFT JOIN LanguageName ln_fallback ON lln_fallback.LanguageNameId = ln_fallback.LanguageNameId
       WHERE l.VernacularName IS NOT '' 
         AND (ln_src.Name IS NOT NULL OR (ln_src.Name IS NULL AND ln_fallback.Name IS NOT NULL))
-      ORDER BY Name COLLATE NOCASE; -- Ajout de COLLATE NOCASE pour un tri insensible à la casse dans SQL
-    ''', [languageCode]);
+      ORDER BY Name COLLATE NOCASE;
+    ''', [JwLifeSettings().locale.languageCode]);
 
     // Si widget.languagesListJson est fourni, filtrer et mapper les résultats
     if (widget.languagesListJson.isNotEmpty) {
@@ -103,6 +104,15 @@ class _LanguageDialogState extends State<LanguageDialog> {
           'Name': language['Name'],
           'Symbol': language['Symbol'],
           'Title': widget.languagesListJson[language['Symbol']]['title'],
+          'IsSignLanguage': language['IsSignLanguage'],
+          'ScriptInternalName': language['InternalName'],
+          'ScriptDisplayName': language['DisplayName'],
+          'IsBidirectional': language['IsBidirectional'],
+          'IsRTL': language['IsRTL'],
+          'IsCharacterSpaced': language['IsCharacterSpaced'],
+          'IsCharacterBreakable': language['IsCharacterBreakable'],
+          'SupportsCodeNames': language['SupportsCodeNames'],
+          'HasSystemDigits': language['HasSystemDigits'],
         };
       }).toList();
     }
@@ -220,12 +230,11 @@ class _LanguageDialogState extends State<LanguageDialog> {
   @override
   Widget build(BuildContext context) {
     bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    final Color dividerColor =
-    isDarkMode ? Colors.black : const Color(0xFFf0f0f0);
-    final Color hintColor =
-    isDarkMode ? const Color(0xFFc5c5c5) : const Color(0xFF666666);
-    final Color subtitleColor =
-    isDarkMode ? const Color(0xFFbdbdbd) : const Color(0xFF626262);
+    final Color dividerColor = isDarkMode ? Colors.black : const Color(0xFFf0f0f0);
+    final Color hintColor = isDarkMode ? const Color(0xFFc5c5c5) : const Color(0xFF666666);
+    final Color subtitleColor = isDarkMode ? const Color(0xFFbdbdbd) : const Color(0xFF626262);
+
+    final totalFilteredCount = _filteredLanguagesList.length;
 
     final recommendedSymbols = _recommendedLanguages.map((l) => l['Symbol']).toSet();
 
@@ -238,47 +247,62 @@ class _LanguageDialogState extends State<LanguageDialog> {
     }).toList();
 
     return Dialog(
-      insetPadding: const EdgeInsets.all(20),
+      insetPadding: EdgeInsets.fromLTRB(
+        20,
+        20,
+        20,
+        20 + MediaQuery.of(context).viewInsets.bottom,
+      ),
       child: Container(
         width: MediaQuery.of(context).size.width,
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            const Padding(
+            Padding(
               padding: EdgeInsets.symmetric(vertical: 10, horizontal: 20),
               child: Text(
-                'Langues',
+                i18n().action_languages,
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
             ),
+
             Divider(color: dividerColor),
+
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 15),
-              child: Row(
-                children: [
-                  const Icon(JwIcons.magnifying_glass, color: Color(0xFF9d9d9d)),
-                  const SizedBox(width: 20),
-                  Expanded(
-                    child: TextField(
-                      controller: _searchController,
-                      autocorrect: false,
-                      enableSuggestions: false,
-                      keyboardType: TextInputType.text,
-                      decoration: InputDecoration(
-                        hintText:
-                        'Rechercher une langue (${_filteredLanguagesList.length})',
-                        hintStyle: TextStyle(fontSize: 18, color: hintColor),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                child: Row(
+                  children: [
+                    Icon(JwIcons.magnifying_glass, color: hintColor),
+                    const SizedBox(width: 16),
+                    // **Wrap the TextField in Expanded**
+                    Expanded(
+                      child: TextField( // <-- This is now constrained
+                        controller: _searchController,
+                        autocorrect: false,
+                        enableSuggestions: false,
+                        decoration: InputDecoration(
+                          hintText: i18n().search_prompt_languages(totalFilteredCount),
+                          hintStyle: TextStyle(color: hintColor, fontSize: 16),
+                          isDense: true,
+                          contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                        ),
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Theme.of(context).textTheme.bodyLarge?.color,
+                        ),
                       ),
                     ),
-                  ),
-                ],
-              ),
+                  ],
+                )
             ),
+
             const SizedBox(height: 10),
+
             Expanded(
               child: ListView.separated(
+                padding: EdgeInsets.zero,
                 itemCount: combinedLanguages.length,
                 separatorBuilder: (context, index) => Divider(color: dividerColor, height: 0),
                 itemBuilder: (BuildContext context, int index) {
@@ -299,11 +323,11 @@ class _LanguageDialogState extends State<LanguageDialog> {
                     children: [
                       if (showRecommendedHeader)
                         Padding(
-                          padding: const EdgeInsets.only(left: 20, bottom: 8, top: 10),
+                          padding: const EdgeInsets.only(left: 25, bottom: 8, top: 5),
                           child: Text(
-                            'Recommandé', // Nouveau titre
+                            i18n().label_languages_recommended, // Nouveau titre
                             style: TextStyle(
-                              fontSize: 16,
+                              fontSize: 20,
                               color: Theme.of(context).secondaryHeaderColor,
                               fontWeight: FontWeight.bold,
                             ),
@@ -311,12 +335,11 @@ class _LanguageDialogState extends State<LanguageDialog> {
                         ),
                       if (showOtherLanguagesHeader)
                         Padding(
-                          padding: const EdgeInsets.only(
-                              left: 20, bottom: 8, top: 10),
+                          padding: const EdgeInsets.only(left: 25, bottom: 8, top: 10),
                           child: Text(
-                            'Autres langues',
+                            i18n().label_languages_more,
                             style: TextStyle(
-                              fontSize: 16,
+                              fontSize: 20,
                               color: Theme.of(context).secondaryHeaderColor,
                               fontWeight: FontWeight.bold,
                             ),
@@ -330,23 +353,18 @@ class _LanguageDialogState extends State<LanguageDialog> {
                           });
                         },
                         child: Container(
-                          padding:
-                          const EdgeInsets.only(left: 10, right: 5, top: 5, bottom: 5),
+                          color: selectedLanguage == languageData['Symbol'] ? Theme.of(context).brightness == Brightness.dark ? const Color(0xFF626262) : const Color(0xFFf0f0f0) : null,
+                          padding: const EdgeInsets.only(left: 40, right: 5, top: 5, bottom: 5),
                           child: Row(
                             children: [
-                              Radio(
-                                value: languageData['Symbol'],
-                                activeColor:
-                                Theme.of(context).primaryColor,
-                                groupValue: selectedLanguage,
-                                onChanged: (value) {
-                                  setState(() {
-                                    selectedLanguage = languageData['Symbol'];
-                                    Navigator.of(context).pop(languageData); // Fermer le dialogue au changement
-                                  });
-                                },
-                              ),
-                              const SizedBox(width: 10),
+                              if(selectedLanguage == languageData['Symbol'])
+                              // Montrer quelque chose qui indeic une sorte de bar
+                                Container(
+                                  width: 3,
+                                  height: 20,
+                                  color: Theme.of(context).primaryColor,
+                                ),
+                              const SizedBox(width: 8),
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment:
@@ -379,7 +397,7 @@ class _LanguageDialogState extends State<LanguageDialog> {
               alignment: Alignment.centerRight,
               child: TextButton(
                 child: Text(
-                  'TERMINER',
+                  i18n().action_done_uppercase,
                   style: TextStyle(
                     fontFamily: 'Roboto',
                     letterSpacing: 1,

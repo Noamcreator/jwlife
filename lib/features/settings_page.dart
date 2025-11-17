@@ -15,8 +15,7 @@ import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/core/utils/utils_backup_app.dart';
 import 'package:jwlife/core/utils/utils_language_dialog.dart';
 import 'package:jwlife/data/models/meps_language.dart';
-import 'package:jwlife/i18n/app_localizations.dart';
-import 'package:jwlife/i18n/localization.dart';
+import 'package:jwlife/i18n/i18n.dart';
 import 'package:jwlife/core/utils/utils_dialog.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:realm/realm.dart';
@@ -36,6 +35,7 @@ import '../core/utils/widgets_utils.dart';
 import '../data/realm/catalog.dart';
 import '../data/realm/realm_library.dart';
 import '../data/databases/userdata.dart';
+import '../i18n/localization.dart';
 import '../widgets/settings_widget.dart';
 
 class SettingsPage extends StatefulWidget {
@@ -56,7 +56,7 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
 
   String catalogDate = '';
   String libraryDate = '';
-  String cacheSize = '';
+  int cacheSize = 0;
   double _fontSize = 16;
   int _styleIndex = 0;
   int _colorIndex = 1;
@@ -179,13 +179,14 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
       final appCacheSizeInBytes = await getDirectorySize(appCacheDir);
       if (mounted) {
         setState(() {
-          cacheSize = formatBytes(appCacheSizeInBytes);
+          cacheSize = appCacheSizeInBytes;
         });
       }
-    } catch (e) {
+    }
+    catch (e) {
       if (mounted) {
         setState(() {
-          cacheSize = '0 B';
+          cacheSize = 0;
         });
       }
     }
@@ -306,7 +307,7 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
     showJwDialog(
       context: context,
       title: Text(
-        localization(context).settings_appearance,
+        i18n().settings_appearance,
         style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
       ),
       buttonAxisAlignment: MainAxisAlignment.end,
@@ -329,7 +330,7 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
       ),
       buttons: [
         JwDialogButton(
-          label: localization(context).action_cancel.toUpperCase(),
+          label: i18n().action_cancel.toUpperCase(),
         ),
       ],
     );
@@ -338,11 +339,11 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
   String getThemeLabel(ThemeMode mode) {
     switch (mode) {
       case ThemeMode.system:
-        return localization(context).settings_appearance_system;
+        return i18n().settings_appearance_system;
       case ThemeMode.light:
-        return localization(context).settings_appearance_light;
+        return i18n().settings_appearance_light;
       case ThemeMode.dark:
-        return localization(context).settings_appearance_dark;
+        return i18n().settings_appearance_dark;
     }
   }
 
@@ -352,7 +353,7 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
     showJwDialog(
       context: context,
       title: Text(
-        isPrimaryColor ? 'Couleur Principale' : 'Couleur des livres de la Bible',
+        isPrimaryColor ? i18n().settings_main_color : i18n().settings_main_books_color,
         style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
       ),
       buttonAxisAlignment: MainAxisAlignment.end,
@@ -385,10 +386,10 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
       ),
       buttons: [
         JwDialogButton(
-          label: localization(context).action_cancel.toUpperCase(),
+          label: i18n().action_cancel.toUpperCase(),
         ),
         JwDialogButton(
-          label: localization(context).action_save.toUpperCase(),
+          label: '', // i18n().action_save.toUpperCase(),
           closeDialog: true,
           onPressed: (BuildContext context) {
             isPrimaryColor ? _updatePrimaryColor(tempColor) : _updateBibleColor(tempColor);
@@ -400,64 +401,126 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
 
   Future<void> showLanguageSelectionDialog() async {
     try {
+      // 1. Logique de récupération des données
       final mepsFile = await getMepsUnitDatabaseFile();
       final database = await openDatabase(mepsFile.path);
 
       final languageCodes = AppLocalizations.supportedLocales.map((locale) => locale.languageCode).toList();
+      final codesInClause = languageCodes.map((code) => "'$code'").join(',');
+      final selectedCode = _selectedLocale.languageCode;
 
       final languages = await database.rawQuery('''
-      SELECT 
-        Language.VernacularName,
-        Language.PrimaryIetfCode,
-        LanguageName.Name
-      FROM Language
-      JOIN LocalizedLanguageName ON LocalizedLanguageName.TargetLanguageId = Language.LanguageId
-      JOIN LanguageName ON LocalizedLanguageName.LanguageNameId = LanguageName.LanguageNameId
-      JOIN Language SourceL ON LocalizedLanguageName.SourceLanguageId = SourceL.LanguageId
-      WHERE Language.PrimaryIetfCode IN (${languageCodes.map((code) => "'$code'").join(',')}) AND SourceL.PrimaryIetfCode = '${_selectedLocale.languageCode}';
-    ''');
+    SELECT 
+      Language.VernacularName,
+      Language.PrimaryIetfCode,
+      LanguageName.Name
+    FROM Language
+    JOIN LocalizedLanguageName ON LocalizedLanguageName.TargetLanguageId = Language.LanguageId
+    JOIN LanguageName ON LocalizedLanguageName.LanguageNameId = LanguageName.LanguageNameId
+    JOIN Language SourceL ON LocalizedLanguageName.SourceLanguageId = SourceL.LanguageId
+    WHERE Language.PrimaryIetfCode IN ($codesInClause) AND SourceL.PrimaryIetfCode = '$selectedCode';
+  ''');
 
       await database.close();
 
+      // 2. Affichage du dialogue avec le même UI
       if (mounted) {
-        showJwDialog(
+        await showDialog<void>( // Utilisation de showDialog de base
           context: context,
-          title: Text(
-            localization(context).settings_languages,
-            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-          ),
-          buttonAxisAlignment: MainAxisAlignment.end,
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: languages.map((language) {
-              final vernacularName = language['VernacularName'] as String? ?? '';
-              final name = language['Name'] as String? ?? '';
-              final languageCode = language['PrimaryIetfCode'] as String? ?? '';
-              final locale = Locale(languageCode);
+          builder: (BuildContext context) {
+            // --- Structure du JwDialog reproduite ---
+            return Dialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(3),
+              ),
+              child: Container(
+                decoration: BoxDecoration(
+                  // Reproduit le thème clair/sombre du JwDialog
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? const Color(0xFF353535)
+                      : const Color(0xFFFFFFFF),
+                  borderRadius: BorderRadius.circular(3),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // --- TITRE (Reproduit l'espacement et le style JwDialog) ---
+                    const SizedBox(height: 20),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 25),
+                      child: Text(
+                        i18n().settings_languages, // Votre titre d'origine
+                        style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    const SizedBox(height: 15),
 
-              return RadioListTile<Locale>(
-                title: Text(name),
-                subtitle: Text(vernacularName),
-                value: locale,
-                groupValue: _selectedLocale,
-                onChanged: (Locale? value) {
-                  if (value != null) {
-                    Navigator.of(context, rootNavigator: true).pop();
-                    _updateLocale(value, vernacularName);
-                  }
-                },
-              );
-            }).toList(),
-          ),
-          buttons: [
-            JwDialogButton(
-              label: localization(context).action_cancel.toUpperCase(),
-            ),
-          ],
+                    // --- CONTENU (LA CORRECTION CLÉ) ---
+                    // 1. Utilisation de SizedBox pour fixer une hauteur maximale (ex: 350)
+                    // 2. Utilisation de ListView pour le défilement automatique
+                    SizedBox(
+                      height: 350.0, // <-- HAUTEUR MAXIMALE FIXÉE POUR ÉVITER L'OVERFLOW
+                      child: ListView.builder(
+                        shrinkWrap: true,
+                        itemCount: languages.length,
+                        itemBuilder: (context, index) {
+                          final language = languages[index];
+                          final vernacularName = language['VernacularName'] as String? ?? '';
+                          final name = language['Name'] as String? ?? '';
+                          final languageCode = language['PrimaryIetfCode'] as String? ?? '';
+                          final locale = Locale(languageCode);
+
+                          return RadioListTile<Locale>(
+                            title: Text(name),
+                            subtitle: Text(vernacularName),
+                            value: locale,
+                            groupValue: _selectedLocale,
+                            onChanged: (Locale? value) {
+                              if (value != null) {
+                                // Ferme le dialogue
+                                Navigator.of(context, rootNavigator: true).pop();
+                                _updateLocale(value, vernacularName);
+                              }
+                            },
+                          );
+                        },
+                      ),
+                    ),
+
+                    // --- BOUTONS (Reproduit le style JwDialog) ---
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.end, // buttonAxisAlignment.end
+                        children: [
+                          TextButton(
+                            onPressed: () {
+                              Navigator.of(context).pop(); // Ferme le dialogue
+                            },
+                            child: Text(
+                              i18n().action_cancel.toUpperCase(),
+                              style: TextStyle(
+                                fontFamily: 'Roboto',
+                                letterSpacing: 1,
+                                fontWeight: FontWeight.bold,
+                                color: Theme.of(context).primaryColor,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                  ],
+                ),
+              ),
+            );
+          },
         );
       }
     } catch (e) {
-      // Gestion d'erreur silencieuse ou affichage d'un message d'erreur
+      // Gestion d'erreur
     }
   }
 
@@ -471,11 +534,11 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
       final filePath = file.path ?? '';
 
       // Validation du fichier
-      final allowedExtensions = ['jwlibrary'];
+      final allowedExtensions = ['jwlibrary', 'jwlife'];
       final fileExtension = filePath.split('.').last.toLowerCase();
 
       if (!allowedExtensions.contains(fileExtension)) {
-        await _showErrorDialog('Fichier invalide', 'Le fichier doit avoir une extension .jwlife ou .jwlibrary.');
+        await _showErrorDialog(i18n().message_file_not_supported_title, i18n().message_file_not_supported_2_extensions('.jwlibrary', '.jwlife'));
         return;
       }
 
@@ -487,16 +550,17 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
       // Récupération des infos et confirmation
       final info = await getBackupInfo(File(filePath));
       if (info == null) {
-        await _showErrorDialog('Erreur', 'Le fichier de sauvegarde est invalide ou corrompu. Veuillez choisir un autre fichier.');
+        await _showErrorDialog(i18n().message_restore_failed, i18n().message_restore_failed_explanation);
         return;
       }
 
-      final shouldRestore = await _showRestoreConfirmation('Les données de votre étude individuelle sur cet appareil seront écrasées.', info);
+      final shouldRestore = await _showRestoreConfirmation(info);
       if (shouldRestore != true) return;
 
       await _performRestore(File(filePath));
-    } catch (e) {
-      await _showErrorDialog('Erreur', 'Une erreur est survenue lors de l\'importation.');
+    }
+    catch (e) {
+      await _showErrorDialog(i18n().message_restore_failed, i18n().message_restore_failed);
     }
   }
 
@@ -513,7 +577,7 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
       final fileExtension = filePath.split('.').last.toLowerCase();
 
       if (!allowedExtensions.contains(fileExtension)) {
-        await _showErrorDialog('Fichier invalide', 'Le fichier doit avoir une extension .jwlife ou .jwlibrary.');
+        await _showErrorDialog(i18n().message_file_not_supported_title, i18n().message_file_not_supported_1_extension('.jwlife'));
         return;
       }
 
@@ -522,7 +586,7 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
         return;
       }
 
-      final shouldRestore = await _showRestoreConfirmation('Les données de votre applications seront écrasées par les nouvelles données.', null);
+      final shouldRestore = await _showRestoreConfirmation(null);
       if (shouldRestore != true) return;
 
       await _performAppRestore(File(filePath));
@@ -556,41 +620,34 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
     );
   }
 
-  Future<bool?> _showRestoreConfirmation(String content, dynamic info) async {
+  Future<bool?> _showRestoreConfirmation(BackupInfo? info) async {
     return await showJwDialog<bool>(
       context: context,
-      titleText: 'Importer une sauvegarde',
+      titleText: i18n().action_restore_a_backup,
       content: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 25),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(height: 10),
             Text(
-              content,
-              style: TextStyle(
-                fontSize: 16,
-                color: Color(0xFF676767),
-              ),
+              info == null ? 'Les données de votre applications seront écrasées par les nouvelles données.' : i18n().message_restore_a_backup_explanation,
+              style: TextStyle(fontSize: 16),
             ),
             const SizedBox(height: 15),
-            info == null  ? SizedBox.shrink() : Text(
-              'Appareil : ${info.deviceName}',
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
+            info == null  ? SizedBox.shrink() : Text(info.deviceName, style: const TextStyle(fontWeight: FontWeight.bold)),
             info == null  ? SizedBox.shrink() : const SizedBox(height: 5),
-            info == null  ? SizedBox.shrink() : Text('Dernière modification : ${timeAgo(info.lastModified)}'),
+            info == null  ? SizedBox.shrink() : Text(timeAgo(info.lastModified)),
           ],
         ),
       ),
       buttons: [
         JwDialogButton(
-          label: 'ANNULER',
+          label: i18n().action_cancel_uppercase,
           closeDialog: true,
           result: false,
         ),
         JwDialogButton(
-          label: 'RESTAURER',
+          label: i18n().action_restore_uppercase,
           closeDialog: true,
           result: true,
         ),
@@ -604,14 +661,13 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
 
     showJwDialog(
       context: context,
-      titleText: 'Importation en cours…',
+      titleText: i18n().message_restore_in_progress,
       content: Builder(
         builder: (ctx) {
           dialogContext = ctx;
-          return Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 25),
+          return Center(
             child: SizedBox(
-              height: 50,
+              height: 70,
               child: getLoadingWidget(Theme.of(context).primaryColor),
             ),
           );
@@ -626,11 +682,17 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
 
       await showJwDialog(
         context: context,
-        titleText: 'Sauvegarde importée',
-        contentText: 'La sauvegarde a bien été importée.',
+        titleText: i18n().message_restore_successful,
+        content: Center(
+          child: Icon(
+            JwIcons.check,
+            color: Theme.of(context).primaryColor,
+            size: 70,
+          ),
+        ),
         buttons: [
           JwDialogButton(
-            label: 'OK',
+            label: i18n().action_close_upper,
             closeDialog: true,
           ),
         ],
@@ -639,9 +701,10 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
 
       GlobalKeyService.homeKey.currentState?.refreshFavorites();
       GlobalKeyService.personalKey.currentState?.refreshUserdata();
-    } catch (e) {
+    }
+    catch (e) {
       if (dialogContext != null) Navigator.of(dialogContext!).pop();
-      await _showErrorDialog('Erreur', 'Erreur lors de l\'importation de la sauvegarde.');
+      await _showErrorDialog(i18n().message_restore_failed, i18n().message_restore_failed);
     }
   }
 
@@ -650,7 +713,7 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
 
     showJwDialog(
       context: context,
-      titleText: "Importation des données de l'app en cours…",
+      titleText: i18n().message_import_data,
       content: Builder(
         builder: (ctx) {
           dialogContext = ctx;
@@ -926,7 +989,7 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
       resizeToAvoidBottomInset: false,
       appBar: AppBar(
         title: Text(
-          localization(context).navigation_settings,
+          i18n().navigation_settings,
           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
         ),
       ),
@@ -943,36 +1006,36 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
 
   List<Widget> _buildItems() {
     return [
-      SettingsSectionHeader(localization(context).settings_appearance_display),
+      SettingsSectionHeader(i18n().settings_appearance_display_upper),
       SettingsTile(
-        title: localization(context).settings_appearance,
+        title: i18n().settings_appearance,
         subtitle: _theme == ThemeMode.system
-            ? localization(context).settings_appearance_system
+            ? i18n().settings_appearance_system
             : _theme == ThemeMode.light
-            ? localization(context).settings_appearance_light
-            : localization(context).settings_appearance_dark,
+            ? i18n().settings_appearance_light
+            : i18n().settings_appearance_dark,
         onTap: showThemeSelectionDialog,
       ),
       SettingsColorTile(
-        title: 'Couleur Principale',
+        title: i18n().settings_main_color,
         color: _selectedColor!,
         onTap: () => showColorSelectionDialog(true),
       ),
       SettingsColorTile(
-        title: 'Couleur des livres de la Bible',
+        title: i18n().settings_main_books_color,
         color: _bibleSelectedColor!,
         onTap: () => showColorSelectionDialog(false),
       ),
       const Divider(),
 
-      SettingsSectionHeader(localization(context).settings_languages),
+      SettingsSectionHeader(i18n().settings_languages),
       SettingsTile(
-        title: localization(context).settings_language_app,
+        title: i18n().settings_language_app,
         subtitle: _selectedLocaleVernacular,
         onTap: showLanguageSelectionDialog,
       ),
       SettingsTile(
-        title: localization(context).settings_language_library,
+        title: i18n().settings_language_library,
         subtitle: _selectedLanguage.vernacular,
         onTap: () {
           showLanguageDialog(context).then((value) async {
@@ -985,21 +1048,21 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
       ),
       const Divider(),
 
-      SettingsSectionHeader(localization(context).settings_userdata),
+      SettingsSectionHeader(i18n().settings_userdata_upper),
       SettingsTile(
-        title: localization(context).settings_userdata_import,
+        title: i18n().settings_userdata_import,
         trailing: const Icon(JwIcons.cloud_arrow_down),
         onTap: _handleImport,
       ),
       SettingsTile(
-        title: localization(context).settings_userdata_export,
+        title: i18n().settings_userdata_export,
         trailing: const Icon(JwIcons.cloud_arrow_up),
         onTap: () async {
           BuildContext? dialogContext;
 
           showJwDialog(
             context: context,
-            titleText: 'Exportation…',
+            titleText: i18n().message_exporting_userdata,
             content: Builder(
               builder: (ctx) {
                 dialogContext = ctx;
@@ -1033,22 +1096,22 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
         },
       ),
       SettingsTile(
-        title: 'Réinitialiser cette sauvegarde',
+        title: i18n().settings_userdata_reset,
         trailing: const Icon(JwIcons.trash),
         onTap: () async {
           // ÉTAPE 1: Confirmation
           final confirm = await showJwDialog<bool>(
             context: context,
-            titleText: 'Confirmer la réinitialisation',
-            contentText: 'Voulez-vous vraiment réinitialiser cette sauvegarde ? Vous perdrez toutes vos données de votre étude individuelle. Cette action est irréversible.',
+            titleText: i18n().message_confirm_userdata_reset_title,
+            contentText: i18n().message_confirm_userdata_reset,
             buttons: [
               JwDialogButton(
-                label: 'ANNULER',
+                label: i18n().action_cancel_uppercase,
                 closeDialog: true,
                 result: false,
               ),
               JwDialogButton(
-                label: 'RÉINITIALISER',
+                label: i18n().action_reset_uppercase,
                 closeDialog: true,
                 result: true,
               ),
@@ -1062,15 +1125,14 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
           BuildContext? dialogContext;
           showJwDialog(
             context: context,
-            titleText: 'Suppression de la sauvegarde…',
+            titleText: i18n().message_userdata_reseting,
             content: Builder(
               builder: (ctx) {
                 // L'ASSIGNATION du Context du dialogue se fait ici.
                 dialogContext = ctx;
-                return const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 25),
+                return const Center(
                   child: SizedBox(
-                    height: 50,
+                    height: 70,
                     child: Center(child: CircularProgressIndicator()),
                   ),
                 );
@@ -1090,11 +1152,11 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
               // Dialogue de confirmation.
               await showJwDialog(
                 context: context,
-                titleText: 'Sauvegarde supprimée',
-                contentText: 'La sauvegarde a bien été supprimée.',
+                titleText: i18n().message_delete_userdata_title,
+                contentText: i18n().message_delete_userdata,
                 buttons: [
                   JwDialogButton(
-                    label: 'OK',
+                    label: i18n().action_ok,
                     closeDialog: true,
                   ),
                 ],
@@ -1117,79 +1179,13 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
           }
         },
       ),
-      /*
-      SettingsTile(
-        title: "Importer les données d'application",
-        trailing: const Icon(JwIcons.cloud_arrow_down),
-        onTap: _handleAppImport,
-      ),
-      SettingsTile(
-        title: "Exporter les données d'application",
-        trailing: const Icon(JwIcons.cloud_arrow_up),
-        onTap: () async {
-          BuildContext? dialogContext;
-
-          showJwDialog(
-            context: context,
-            titleText: 'Exportation…',
-            content: Builder(
-              builder: (ctx) {
-                dialogContext = ctx;
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 25),
-                  child: SizedBox(
-                    height: 50,
-                    child: getLoadingWidget(Theme.of(context).primaryColor),
-                  ),
-                );
-              },
-            ),
-          );
-
-          try {
-            final backupFile = await exportAppBackup();
-            if (dialogContext != null) Navigator.of(dialogContext!).pop();
-
-            SharePlus.instance.share(ShareParams(files: [XFile(backupFile.path)]));
-
-            if (mounted) Navigator.pop(context);
-          } catch (e) {
-            if (dialogContext != null) Navigator.of(dialogContext!).pop();
-            await _showErrorDialog('Erreur', 'Erreur lors de l\'exportation.');
-          }
-        },
-      ),
-
-       */
-      const Divider(),
-
-      SettingsSectionHeader('Document'),
-      SettingsTile(
-        title: 'Taille de la police',
-        subtitle: '$_fontSize px',
-        trailing: const Icon(JwIcons.device_text),
-        onTap: () async {
-          final fontSize = await showJwChoiceDialog<double>(
-            context: context,
-            titleText: 'Taille de la police',
-            contentText: 'Choisissez la taille de la police',
-            choices: List.generate(50, (i) => (i + 10).toDouble()),
-            initialSelection: _fontSize,
-          );
-          if (fontSize != null && fontSize != _fontSize) {
-            await setFontSize(fontSize);
-            JwLifeSettings().webViewData.updateFontSize(fontSize);
-            setState(() => _fontSize = fontSize);
-          }
-        },
-      ),
 
       const Divider(),
 
-      SettingsSectionHeader('Notifications & Rappels'),
+      SettingsSectionHeader(i18n().settings_notifications_upper),
       SettingsTile(
-        title: 'Rappels pour le texte du jour',
-        subtitle: 'Heure du rappel: ${_dailyTextNotificationTime.hour}:${_dailyTextNotificationTime.minute.toString().padLeft(2, '0')}',
+        title: i18n().settings_notifications_daily_text,
+        subtitle: i18n().settings_notifications_hour('${_dailyTextNotificationTime.hour}:${_dailyTextNotificationTime.minute.toString().padLeft(2, '0')}'),
         trailing: Switch(
           value: _dailyTextNotification, // Remplacez 'true' par la variable d'état qui contrôle le switch (e.g., _rappelTexteJourActive)
           onChanged: (bool value) async {
@@ -1222,8 +1218,8 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
         }
       ),
       SettingsTile(
-        title: 'Rappels pour la lecture de la bible',
-        subtitle: 'Heure du rappel: ${_bibleReadingNotificationTime.hour}:${_bibleReadingNotificationTime.minute.toString().padLeft(2, '0')}',
+        title: i18n().settings_notifications_bible_reading,
+        subtitle: i18n().settings_notifications_hour('${_bibleReadingNotificationTime.hour}:${_bibleReadingNotificationTime.minute.toString().padLeft(2, '0')}'),
         trailing: Switch(
           value: _bibleReadingNotification, // Remplacez 'false' par la variable d'état qui contrôle le switch (e.g., _rappelLectureBibleActive)
           onChanged: (bool value) async {
@@ -1256,8 +1252,8 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
         }
       ),
       SettingsTile(
-          title: 'Notifications de fichiers téléchargés',
-          subtitle: 'Une notification est envoyée chaque fois qu’un fichier est téléchargé.',
+          title: i18n().settings_notifications_download_file,
+          subtitle: i18n().settings_notifications_download_file_subtitle,
           trailing: Switch(
             value: _downloadNotification, // Remplacez 'false' par la variable d'état qui contrôle le switch (e.g., _rappelLectureBibleActive)
             onChanged: (bool value) async {
@@ -1272,39 +1268,41 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
 
       const Divider(),
 
-      SettingsSectionHeader('Cache'),
+      SettingsSectionHeader(i18n().settings_cache_upper),
       SettingsTile(
-        title: 'Vider le cache',
-        trailing: Text(cacheSize),
+        title: i18n().action_clear_cache,
+        trailing: Text(formatFileSize(cacheSize)),
         onTap: () async {
           BuildContext? dialogContext;
 
-          showJwDialog(
-            context: context,
-            titleText: 'Suppression du cache…',
-            content: Builder(
-              builder: (ctx) {
-                dialogContext = ctx;
-                return const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 25),
-                  child: SizedBox(
-                    height: 50,
-                    child: Center(child: CircularProgressIndicator()),
-                  ),
-                );
-              },
-            ),
-          );
-
           try {
             final appCacheDir = await getAppCacheDirectory();
-            if (await appCacheDir.exists()) {
+            final appCacheSizeInBytes = await getDirectorySize(appCacheDir);
+            if (await appCacheDir.exists() && appCacheSizeInBytes != 0) {
+              showJwDialog(
+                context: context,
+                titleText: i18n().message_clear_cache,
+                content: Builder(
+                  builder: (ctx) {
+                    dialogContext = ctx;
+                    return const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 25),
+                      child: SizedBox(
+                        height: 50,
+                        child: Center(child: CircularProgressIndicator()),
+                      ),
+                    );
+                  },
+                ),
+              );
+
               await appCacheDir.delete(recursive: true);
             }
 
             if (dialogContext != null) Navigator.of(dialogContext!).pop();
             await _loadCacheSize();
-          } catch (e) {
+          }
+          catch (e) {
             if (dialogContext != null) Navigator.of(dialogContext!).pop();
             await _showErrorDialog('Erreur', 'Erreur lors de la suppression du cache.');
           }
@@ -1313,17 +1311,17 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
 
       const Divider(),
 
-      SettingsSectionHeader('Suggestions & Bugs'),
+      SettingsSectionHeader(i18n().settings_suggestions_upper),
       SettingsTile(
-          title: 'Envoyer une suggestion',
-          subtitle: 'Écrivez votre suggestion dans un champ qui sera automatiquement envoyé au développeur.',
+          title: i18n().settings_suggestions_send,
+          subtitle: i18n().settings_suggestions_subtitle,
           onTap: () {
             sendIssuesDialog(context, 'suggestion');
           }
       ),
       SettingsTile(
-          title: 'Décrire un bug rencontré',
-          subtitle: 'Décrivez votre bug dans un champ qui sera automatiquement envoyé au développeur.',
+          title: i18n().settings_bugs_send,
+          subtitle: i18n().settings_bugs_subtitle,
           onTap: () {
             sendIssuesDialog(context, 'bug');
           }
@@ -1331,20 +1329,20 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
 
       const Divider(),
 
-      SettingsSectionHeader(localization(context).settings_about),
+      SettingsSectionHeader(i18n().settings_about),
       SettingsTile(
-        title: localization(context).settings_application_version,
+        title: i18n().settings_application_version,
         subtitle: _currentVersion,
         onTap: () {
          JwLifeAutoUpdater.checkAndUpdate(showBannerNoUpdate: true);
         }
       ),
       SettingsTile(
-        title: localization(context).settings_catalog_date,
+        title: i18n().settings_catalog_date,
         subtitle: catalogDate,
       ),
       SettingsTile(
-        title: 'Date de la bibliothèque',
+        title: i18n().settings_library_date,
         subtitle: libraryDate,
       ),
     ];

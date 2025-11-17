@@ -69,12 +69,14 @@ class _ArticlePageState extends State<ArticlePage> {
           InAppWebView(
             initialSettings: InAppWebViewSettings(
               javaScriptEnabled: true,
-              transparentBackground: true,
               useHybridComposition: true,
+              hardwareAcceleration: true,
               cacheEnabled: false,
               clearCache: true,
               cacheMode: CacheMode.LOAD_NO_CACHE,
               allowUniversalAccessFromFileURLs: true,
+              minimumViewportInset: EdgeInsets.zero,
+              maximumViewportInset: EdgeInsets.zero,
             ),
             initialUrlRequest: URLRequest(
               url: WebUri(widget.link), // Assurez-vous que widget.link est une URL valide

@@ -6,6 +6,7 @@ import 'package:jwlife/core/utils/utils_tag_dialogs.dart';
 import 'package:jwlife/data/models/userdata/tag.dart';
 import 'package:jwlife/data/models/userdata/note.dart';
 import '../../../app/services/global_key_service.dart';
+import '../../../i18n/i18n.dart';
 import '../widgets/note_item_widget.dart';
 import 'note_page.dart';
 
@@ -72,7 +73,7 @@ class _TagPageState extends State<TagPage> {
           children: [
             Text(_tag.name),
             Text(
-              '${_filteredNotes.length} notes',
+              i18n().label_tag_notes(_filteredNotes.length),
               style: TextStyle(
                 fontSize: 12,
               ),

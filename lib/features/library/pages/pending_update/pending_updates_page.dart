@@ -17,6 +17,7 @@ import '../../../../data/models/audio.dart';
 import '../../../../data/models/media.dart';
 import '../../../../data/models/video.dart';
 import '../../../../data/repositories/MediaRepository.dart';
+import '../../../../i18n/i18n.dart';
 import '../../../publication/pages/menu/local/publication_menu_view.dart';
 
 class PendingUpdatesPage extends StatefulWidget {
@@ -337,7 +338,7 @@ class _PendingUpdatesPageState extends State<PendingUpdatesPage> {
               itemBuilder: (BuildContext context) {
                 return [
                   getPubShareMenuItem(publication),
-                  getPubLanguagesItem(context, "Autres langues", publication),
+                  getPubLanguagesItem(context, i18n().label_languages_more, publication),
                   getPubFavoriteItem(publication),
                   getPubDownloadItem(context, publication),
                 ];

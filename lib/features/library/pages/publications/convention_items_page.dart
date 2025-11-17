@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/data/models/publication.dart';
@@ -13,6 +12,7 @@ import '../../../../app/services/settings_service.dart';
 import '../../../../core/utils/utils_language_dialog.dart';
 import '../../../../data/models/audio.dart';
 import '../../../../data/realm/realm_library.dart';
+import '../../../../i18n/i18n.dart';
 import '../../widgets/rectangle_mediaItem_item.dart';
 
 class ConventionItemsView extends StatefulWidget {
@@ -77,7 +77,7 @@ class _ConventionItemsViewState extends State<ConventionItemsView> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Jour ${widget.indexDay}', style: textStyleTitle),
+            Text(i18n().label_convention_day(widget.indexDay), style: textStyleTitle),
             Text(JwLifeSettings().currentLanguage.vernacular, style: textStyleSubtitle),
           ],
         ),

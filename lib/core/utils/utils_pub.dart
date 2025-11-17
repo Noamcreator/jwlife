@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:html/parser.dart' as htmlParser;
 import 'package:jwlife/data/models/audio.dart';
@@ -13,6 +14,7 @@ import 'package:jwlife/data/models/publication.dart';
 
 import '../../app/services/global_key_service.dart';
 import '../../features/publication/widgets/audio_download_content.dart';
+import '../../i18n/i18n.dart';
 import 'utils_dialog.dart';
 import '../api/api.dart';
 
@@ -22,7 +24,7 @@ PopupMenuItem getPubShareMenuItem(Publication publication) {
       children: [
         Icon(JwIcons.share),
         SizedBox(width: 8),
-        Text('Envoyer le lien'),
+        Text(i18n().action_open_in_share),
       ],
     ),
     onTap: () async {
@@ -56,7 +58,7 @@ PopupMenuItem getPubFavoriteItem(Publication pub) {
       children: [
         pub.isFavoriteNotifier.value ? Icon(JwIcons.star__fill) : Icon(JwIcons.star),
         SizedBox(width: 8),
-        pub.isFavoriteNotifier.value ? Text('Supprimer des favoris') : Text('Ajouter aux favoris')
+        pub.isFavoriteNotifier.value ? Text(i18n().action_favorites_remove) : Text(i18n().action_favorites_add)
       ],
     ),
     onTap: () async {
@@ -80,7 +82,7 @@ PopupMenuItem getPubDownloadItem(BuildContext context, Publication publication) 
       children: [
         publication.isDownloadedNotifier.value ? Icon(JwIcons.trash) : Icon(JwIcons.cloud_arrow_down),
         SizedBox(width: 8),
-        publication.isDownloadedNotifier.value ? Text('Supprimer') : Text('Télécharger'),
+        publication.isDownloadedNotifier.value ? Text(i18n().action_delete) : Text(i18n().action_download),
       ],
     ),
     onTap: () async {
@@ -102,12 +104,12 @@ Future<String> extractPublicationDescription(Publication? publication, {String? 
   // La condition d'appel (iTn == 0 && s.isNotEmpty && mL.isNotEmpty) reste la même
   if (s.isNotEmpty && mL.isNotEmpty) {
     String wolLinkJwOrg = issueTagNumber == 0 ? 'https://www.jw.org/finder?wtlocale=$mL&pub=$s' : 'https://www.jw.org/finder?wtlocale=$mL&pub=$s&issue=$iTn';
-    printTime('Fetching publication content: $wolLinkJwOrg');
+    //printTime('Fetching publication content: $wolLinkJwOrg');
 
     try {
-      final response = await Api.httpGetWithHeaders(wolLinkJwOrg);
+      final response = await Api.dio.get<String>(wolLinkJwOrg, options: Options(responseType: ResponseType.plain));
       if (response.statusCode == 200) {
-        var document = htmlParser.parse(response.body);
+        var document = htmlParser.parse(response.data);
 
         // --- NOUVELLE VÉRIFICATION DE LA PAGE D'ACCUEIL ---
         // Vérifie si l'élément <body> a l'ID de la page d'accueil.
@@ -115,7 +117,7 @@ Future<String> extractPublicationDescription(Publication? publication, {String? 
         // et on retourne une chaîne vide ('').
         var bodyElement = document.querySelector('body');
         if (bodyElement?.attributes['id'] == 'mid1011200') {
-          printTime('Redirection vers la page d\'accueil détectée. Retourne une description vide.');
+          //printTime('Redirection vers la page d\'accueil détectée. Retourne une description vide.');
           return '';
         }
         // ----------------------------------------------------
@@ -170,7 +172,7 @@ Future<BuildContext?> showDownloadMediasDialog(BuildContext context, Publication
     buttonAxisAlignment: MainAxisAlignment.end,
     buttons: [
       JwDialogButton(
-        label: 'FERMER',
+        label: i18n().action_close_upper,
         closeDialog: true,
       ),
     ],
@@ -184,7 +186,7 @@ Future<BuildContext?> showJwImport(BuildContext context, String fileName) async 
 
   showJwDialog(
     context: context,
-    titleText: 'Importation du fichier $fileName en cours…',
+    titleText: i18n().message_file_importing_name(fileName),
     content: Builder(
       builder: (ctx) {
         // Le dialogue est construit ici, et le BuildContext est maintenant disponible
@@ -210,13 +212,13 @@ void showJwPubNotGoodFile(String keySymbol) {
 
   showJwDialog(
     context: context,
-    titleText: 'Mauvaise publication', // Plus concis
+    titleText: i18n().message_publication_invalid_title, // Plus concis
     // Meilleure formulation pour l'utilisateur
-    contentText: 'Le fichier .jwpub sélectionné ne correspond pas à la publication requise. Veuillez choisir une publication avec pour symbol "$keySymbol".',
+    contentText: i18n().message_publication_invalid(keySymbol),
     buttonAxisAlignment: MainAxisAlignment.end,
     buttons: [
       JwDialogButton(
-        label: 'OK',
+        label: i18n().action_ok,
         closeDialog: true,
       ),
     ],
@@ -226,12 +228,12 @@ void showJwPubNotGoodFile(String keySymbol) {
 void showImportFileError(BuildContext context, String extension) {
   showJwDialog(
     context: context,
-    titleText: 'Erreur de fichier',
-    contentText: 'Le fichier $extension sélectionné est corrompu ou invalide. Veuillez vérifier le fichier et réessayer.',
+    titleText: i18n().message_file_error_title,
+    contentText: i18n().message_file_error(extension),
     buttonAxisAlignment: MainAxisAlignment.end,
     buttons: [
       JwDialogButton(
-        label: 'OK',
+        label: i18n().action_ok,
         closeDialog: true,
       ),
     ],
@@ -256,7 +258,7 @@ bool showInvalidExtensionDialog(BuildContext context, {required String filePath,
     buttonAxisAlignment: MainAxisAlignment.end,
     buttons: [
       JwDialogButton(
-        label: 'OK',
+        label: i18n().action_ok,
         closeDialog: true,
       ),
     ],

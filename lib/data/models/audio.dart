@@ -1,5 +1,4 @@
-import 'dart:convert';
-
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:jwlife/data/realm/catalog.dart';
 import '../../app/jwlife_app.dart';
@@ -7,7 +6,6 @@ import '../../app/services/settings_service.dart';
 import '../../core/api/api.dart';
 import '../../core/utils/utils.dart';
 import '../../core/utils/utils_video.dart';
-import '../../core/utils/utils_dialog.dart';
 import '../repositories/MediaRepository.dart';
 import 'media.dart';
 
@@ -139,23 +137,17 @@ class Audio extends Media {
   }
 
   @override
-  Future<void> download(BuildContext context, {int? resolution}) async {
+  Future<void> download(BuildContext context, {int? resolution, Offset? tapPosition}) async {
     if(naturalKey == null) {
       super.performDownload(context, null);
     }
     else {
-      if(await hasInternetConnection()) {
+      if(await hasInternetConnection(context: context)) {
         String link = 'https://b.jw-cdn.org/apis/mediator/v1/media-items/$mepsLanguage/$naturalKey';
-        final response = await Api.httpGetWithHeaders(link);
+        final response = await Api.httpGetWithHeaders(link, responseType: ResponseType.json);
         if (response.statusCode == 200) {
-          final jsonFile = response.body;
-          final jsonData = json.decode(jsonFile);
-
-          super.performDownload(context, jsonData['media'][0]);
+          super.performDownload(context, response.data['media'][0]);
         }
-      }
-      else {
-        showNoConnectionDialog(context);
       }
     }
   }
@@ -166,11 +158,8 @@ class Audio extends Media {
       JwLifeApp.audioPlayer.playAudio(this, initialPosition: initialPosition);
     }
     else {
-      if(await hasInternetConnection()) {
+      if(await hasInternetConnection(context: context)) {
         JwLifeApp.audioPlayer.playAudio(this, initialPosition: initialPosition);
-      }
-      else {
-        showNoConnectionDialog(context);
       }
     }
   }

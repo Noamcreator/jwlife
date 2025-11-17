@@ -1,4 +1,3 @@
-
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -28,6 +27,7 @@ import '../../../data/models/userdata/bookmark.dart';
 import '../../../data/models/userdata/tag.dart';
 import '../../../data/models/video.dart';
 import '../../../data/realm/catalog.dart';
+import '../../../i18n/i18n.dart';
 import '../../../widgets/dialog/publication_dialogs.dart';
 import '../../../core/utils/utils_dialog.dart';
 import '../../../widgets/responsive_appbar_actions.dart';
@@ -48,11 +48,11 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
   /* CONTROLLER */
   late InAppWebViewController _controller;
 
+  final GlobalKey<_LoadingWidgetState> loadingKey = GlobalKey<_LoadingWidgetState>();
   final GlobalKey<_ControlsOverlayState> controlsKey = GlobalKey<_ControlsOverlayState>();
 
   /* LOADING */
   bool _isLoadingData = false;
-  bool _isLoadingFonts = false;
 
   /* OTHER VIEW */
   bool _showDialog = false; // Variable pour contrôler la visibilité des contrôles
@@ -164,6 +164,14 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
     await _controller.evaluateJavascript(source: "changeFullScreenMode($isFullScreen);");
   }
 
+  Future<void> changeReadingMode(bool isReading) async {
+    await _controller.evaluateJavascript(source: "changeReadingMode($isReading);");
+  }
+
+  Future<void> changePreparingMode(bool isPreparing) async {
+    await _controller.evaluateJavascript(source: "changePreparingMode($isPreparing);");
+  }
+
   Future<void> changePrimaryColor(Color lightColor, Color darkColor) async {
     final lightPrimaryColor = toHex(lightColor);
     final darkPrimaryColor = toHex(darkColor);
@@ -218,15 +226,6 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
                       controlsKey.currentState?.initInAppWebViewController(controller);
 
                       controller.addJavaScriptHandler(
-                          handlerName: 'fontsLoaded',
-                          callback: (args) {
-                            setState(() {
-                              _isLoadingFonts = true;
-                            });
-                          }
-                      );
-
-                      controller.addJavaScriptHandler(
                         handlerName: 'showDialog',
                         callback: (args) {
                           bool isShowDialog = args[0] as bool;
@@ -249,7 +248,9 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
 
                           return {
                             'isDark': webViewData.theme == 'cc-theme--dark',
-                            'isFullScreen': webViewData.isFullScreenMode,
+                            'isFullScreenMode': webViewData.isFullScreenMode,
+                            'isReadingMode': webViewData.isReadingMode,
+                            'isPreparingMode': webViewData.isPreparingMode,
                           };
                         },
                       );
@@ -314,6 +315,10 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
                             'layout-sidebar',
                             JwLifeSettings().webViewData.theme,
                           ].join(' ');
+
+                          if(loadingKey.currentState!.isLoadingFonts) {
+                            loadingKey.currentState!.loadingFinish();
+                          }
 
                           return {
                             'html': html,
@@ -717,7 +722,6 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
                         handlerName: 'copyText',
                         callback: (args) async {
                           Clipboard.setData(ClipboardData(text: args[0]['text']));
-                          showBottomMessage('Texte copié dans le presse-papier');
                         },
                       );
 
@@ -839,25 +843,10 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
                       // Permet la navigation pour tous les autres liens
                       return NavigationActionPolicy.ALLOW;
                     },
-                    onProgressChanged: (controller, progress) async {
-                      if (progress == 100) {
-                        setState(() {
-                          _isLoadingFonts = true;
-                        });
-                      }
-                    },
                   )
               ) : Container(),
 
-              if (!_isLoadingFonts)
-                Positioned.fill(
-                  child: Container(
-                    color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF111111) : Colors.white,
-                    child: Center(
-                      child: getLoadingWidget(Theme.of(context).primaryColor),
-                    ),
-                  ),
-                ),
+              LoadingWidget(key: loadingKey),
 
               !_isLoadingData ? Container()
                   : ControlsOverlay(key: controlsKey,
@@ -872,6 +861,47 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
   }
 }
 
+class LoadingWidget extends StatefulWidget {
+  const LoadingWidget({super.key});
+
+  @override
+  State<LoadingWidget> createState() => _LoadingWidgetState();
+}
+
+class _LoadingWidgetState extends State<LoadingWidget> {
+  bool isLoadingFonts = true; // L'état qui change et déclenche setState
+
+  void loadingFinish() {
+    // Vérifiez que le widget est encore monté avant d'appeler setState
+    if (mounted) {
+      setState(() {
+        isLoadingFonts = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Le loader doit être enveloppé dans un Positioned.fill pour le Stack
+    if (!isLoadingFonts) {
+      // 3. Ne rien afficher si le chargement est terminé
+      return const SizedBox.shrink();
+    }
+
+    // Affiche la surcouche de chargement
+    return Positioned.fill(
+      child: Container(
+        color: Theme.of(context).brightness == Brightness.dark
+            ? const Color(0xFF111111)
+            : Colors.white,
+        child: Center(
+          // Assurez-vous que getLoadingWidget existe et est accessible
+          child: getLoadingWidget(Theme.of(context).primaryColor),
+        ),
+      ),
+    );
+  }
+}
 
 class ControlsOverlay extends StatefulWidget {
   final Publication publication;
@@ -1007,9 +1037,9 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
 
                          */
                         IconTextButton(
-                          text: "Langues",
+                          text: i18n().action_languages,
                           icon: Icon(JwIcons.language),
-                          onPressed: () async {
+                          onPressed: (anchorContext) async {
                             showLanguagePubDialog(context, widget.publication).then((languagePub) async {
                               if(languagePub != null) {
                                 languagePub.showMenu(context);
@@ -1019,8 +1049,8 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
                         ),
                         IconTextButton(
                           icon: Icon(JwIcons.calendar),
-                          text: 'Sélectionner une semaine',
-                          onPressed: () async {
+                          text: i18n().label_select_a_week,
+                          onPressed: (anchorContext) async {
                             DateTime currentDate = widget.publication.datedTextManager!.getCurrentDatedText().getDate();
 
                             DateTime? selectedDay = await showMonthCalendarDialog(context, currentDate);
@@ -1048,34 +1078,71 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
                           },
                         ),
                         IconTextButton(
-                          text: "Historique",
+                          text: i18n().action_history,
                           icon: const Icon(JwIcons.arrow_circular_left_clock),
-                          onPressed: () {
+                          onPressed: (anchorContext) {
                             History.showHistoryDialog(context);
                           },
                         ),
                         IconTextButton(
-                          text: "Envoyer le lien",
+                          text: i18n().action_open_in_share,
                           icon: Icon(JwIcons.share),
-                          onPressed: () {
+                          onPressed: (anchorContext) {
                             widget.publication.datedTextManager!.getCurrentDatedText().share();
                           },
                         ),
                         IconTextButton(
-                          text: "Taille de police",
+                          text: i18n().action_text_settings,
                           icon: Icon(JwIcons.device_text),
-                          onPressed: () {
+                          onPressed: (anchorContext) {
                             showFontSizeDialog(context, _controller);
                           },
                         ),
                         IconTextButton(
-                          text: "Plein écran",
+                          text: i18n().action_full_screen,
                           icon: Icon(JwIcons.square_stack),
-                          onPressed: () async {
-                            bool isFullscreen = await showFullscreenDialog(context);
-                            await setFullscreen(isFullscreen);
-                            JwLifeSettings().webViewData.updateFullscreen(isFullscreen);
+                          isSwitch: JwLifeSettings().webViewData.isFullScreenMode,
+                          onSwitchChange: (value) async {
+                            if(value != JwLifeSettings().webViewData.isFullScreenMode) {
+                              await setFullscreenMode(value);
+                              JwLifeSettings().webViewData.updateFullscreen(value);
+                              setState(() {
+
+                              });
+                            }
                           },
+                        ),
+                        IconTextButton(
+                            text: i18n().action_reading_mode,
+                            icon: Icon(JwIcons.scroll),
+                            isSwitch: JwLifeSettings().webViewData.isReadingMode,
+                            onSwitchChange: (value) async {
+                              if(value != JwLifeSettings().webViewData.isReadingMode) {
+                                await setReadingMode(value);
+                                if(value) {
+                                  await setPreparingMode(!value);
+                                }
+                                setState(() {
+                                  JwLifeSettings().webViewData.updateReadingMode(value);
+                                });
+                              }
+                            }
+                        ),
+                        IconTextButton(
+                            text: i18n().action_preparing_mode,
+                            icon: Icon(JwIcons.highlighter),
+                            isSwitch: JwLifeSettings().webViewData.isPreparingMode,
+                            onSwitchChange: (value) async {
+                              if(value != JwLifeSettings().webViewData.isPreparingMode) {
+                                await setPreparingMode(value);
+                                if(value) {
+                                  await setReadingMode(!value);
+                                }
+                                setState(() {
+                                  JwLifeSettings().webViewData.updatePreparingMode(value);
+                                });
+                              }
+                            }
                         ),
                       ],
                     ),

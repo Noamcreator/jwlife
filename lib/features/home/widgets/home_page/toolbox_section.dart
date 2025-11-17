@@ -7,7 +7,7 @@ import '../../../../data/databases/catalog.dart';
 import '../../../../data/models/media.dart';
 import '../../../../data/models/publication.dart';
 import '../../../../data/realm/realm_library.dart';
-import '../../../../i18n/localization.dart';
+import '../../../../i18n/i18n.dart';
 
 class ToolboxSection extends StatefulWidget {
   const ToolboxSection({super.key});
@@ -36,7 +36,7 @@ class ToolboxSectionState extends State<ToolboxSection> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          localization(context).navigation_ministry,
+          i18n().navigation_ministry,
           style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 4),

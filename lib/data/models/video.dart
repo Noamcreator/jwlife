@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:jwlife/data/realm/catalog.dart';
 import '../../app/jwlife_app.dart';
@@ -9,7 +10,6 @@ import '../../core/utils/common_ui.dart';
 import '../../core/utils/utils.dart';
 import '../../core/utils/utils_video.dart';
 import '../../features/video/video_player_page.dart';
-import '../../core/utils/utils_dialog.dart';
 import '../repositories/MediaRepository.dart';
 import 'media.dart';
 
@@ -155,25 +155,20 @@ class Video extends Media {
   String get subtitlesFilePath => filePath!.replaceAll('.mp4', '.vtt');
 
   @override
-  Future<void> download(BuildContext context, {int? resolution}) async {
-    if (await hasInternetConnection()) {
+  Future<void> download(BuildContext context, {int? resolution, Offset? tapPosition}) async {
+    if (await hasInternetConnection(context: context)) {
       if (!isDownloadingNotifier.value && !isDownloadedNotifier.value) {
         String link = 'https://b.jw-cdn.org/apis/mediator/v1/media-items/$mepsLanguage/$naturalKey';
-        final response = await Api.httpGetWithHeaders(link);
+        final response = await Api.httpGetWithHeaders(link, responseType: ResponseType.json);
         if (response.statusCode == 200) {
-          final jsonData = json.decode(response.body);
-
           // Si 'file' est null, assigne le résultat de showVideoDownloadDialog à 'file'.
-          resolution ??= await showVideoDownloadDialog(context, jsonData['media'][0]['files']);
+          resolution ??= await showVideoDownloadMenu(context, response.data['media'][0]['files'], tapPosition ?? Offset.zero);
 
           if(resolution == null) return;
 
-          await super.performDownload(context, jsonData['media'][0], resolution: resolution);
+          await super.performDownload(context, response.data['media'][0], resolution: resolution);
         }
       }
-    }
-    else {
-      showNoConnectionDialog(context);
     }
   }
 
@@ -188,15 +183,12 @@ class Video extends Media {
       ));
     }
     else {
-      if(await hasInternetConnection()) {
+      if(await hasInternetConnection(context: context)) {
         showPage(VideoPlayerPage(
             video: this,
             videos: medias.whereType<Video>().toList(),
             initialPosition: initialPosition
         ));
-      }
-      else {
-        showNoConnectionDialog(context);
       }
     }
   }

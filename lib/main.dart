@@ -73,6 +73,9 @@ Future<void> main() async {
   // Traiter l'éventuel lancement par notification (après l'init du service de notification)
   await _handleNotificationLaunch();
 
+  HeadlessInAppWebView headlessWebView = HeadlessInAppWebView();
+  headlessWebView.run();
+
   // Lance l'application Flutter
   runApp(JwLifeApp(key: GlobalKeyService.jwLifeAppKey));
 }

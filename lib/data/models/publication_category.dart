@@ -1,6 +1,8 @@
-import 'package:flutter/material.dart' show BuildContext, IconData;
+import 'package:flutter/material.dart' show BuildContext, IconData, Locale;
 import 'package:jwlife/core/icons.dart';
-import 'package:jwlife/i18n/localization.dart';
+import 'package:jwlife/i18n/i18n.dart';
+
+import '../../i18n/localization.dart';
 
 class PublicationCategory {
   static final List<PublicationCategory> _categories = [];
@@ -50,25 +52,69 @@ class PublicationCategory {
 
   static List<PublicationCategory> get all => _categories;
 
+  // Méthode getName asynchrone (avec await)
+  Future<String> getNameAsync(Locale locale) async {
+    final AppLocalizations appLocalizations = await i18nLocale(locale);
+
+    switch (type) {
+      case 'Bible':
+        return appLocalizations.pub_type_bibles;
+      case 'Book':
+        return appLocalizations.pub_type_books;
+      case 'Brochure':
+        return appLocalizations.pub_type_brochures_booklets;
+      case 'Tract':
+        return appLocalizations.pub_type_tracts;
+      case 'Web':
+        return appLocalizations.pub_type_web;
+      case 'Watchtower':
+        return appLocalizations.pub_type_watchtower;
+      case 'Awake!':
+        return appLocalizations.pub_type_awake;
+      case 'Meeting Workbook':
+        return appLocalizations.pub_type_meeting_workbook;
+      case 'Kingdom Ministry':
+        return appLocalizations.pub_type_kingdom_ministry;
+      case 'Program':
+        return appLocalizations.pub_type_programs;
+      case 'Index':
+        return appLocalizations.pub_type_index;
+      case 'Talk':
+        return appLocalizations.pub_type_talks;
+      case 'Manual/Guidelines':
+        return appLocalizations.pub_type_manuals_guidelines;
+      case 'Information Packet':
+        return appLocalizations.pub_type_information_packets;
+      case 'Form':
+        return appLocalizations.pub_type_forms;
+      case 'Letter':
+        return appLocalizations.pub_type_letters;
+      case 'Convention':
+        return appLocalizations.label_convention_releases;
+      default:
+        return '';
+    }
+  }
+
   String getName(BuildContext context) {
     switch (type) {
-      case 'Bible': return 'Bibles';
-      case 'Book': return localization(context).pub_type_books;
-      case 'Brochure': return localization(context).pub_type_brochures_booklets;
-      case 'Tract': return localization(context).pub_type_tracts;
-      case 'Web': return localization(context).pub_type_web;
-      case 'Watchtower': return localization(context).pub_type_watchtower;
-      case 'Awake!': return localization(context).pub_type_awake;
-      case 'Meeting Workbook': return localization(context).pub_type_meeting_workbook;
-      case 'Kingdom Ministry': return localization(context).pub_type_kingdom_ministry;
-      case 'Program': return localization(context).pub_type_programs;
-      case 'Index': return localization(context).pub_type_index;
-      case 'Talk': return localization(context).pub_type_talks;
-      case 'Manual/Guidelines': return localization(context).pub_type_manuals_guidelines;
-      case 'Information Packet': return localization(context).pub_type_information_packets;
-      case 'Form': return localization(context).pub_type_forms;
-      case 'Letter': return localization(context).pub_type_letters;
-      case 'Convention': return 'Nouveautés (assemblée régionale)';
+      case 'Bible': return i18n().pub_type_bibles;
+      case 'Book': return i18n().pub_type_books;
+      case 'Brochure': return i18n().pub_type_brochures_booklets;
+      case 'Tract': return i18n().pub_type_tracts;
+      case 'Web': return i18n().pub_type_web;
+      case 'Watchtower': return i18n().pub_type_watchtower;
+      case 'Awake!': return i18n().pub_type_awake;
+      case 'Meeting Workbook': return i18n().pub_type_meeting_workbook;
+      case 'Kingdom Ministry': return i18n().pub_type_kingdom_ministry;
+      case 'Program': return i18n().pub_type_programs;
+      case 'Index': return i18n().pub_type_index;
+      case 'Talk': return i18n().pub_type_talks;
+      case 'Manual/Guidelines': return i18n().pub_type_manuals_guidelines;
+      case 'Information Packet': return i18n().pub_type_information_packets;
+      case 'Form': return i18n().pub_type_forms;
+      case 'Letter': return i18n().pub_type_letters;
+      case 'Convention': return i18n().label_convention_releases;
       default: return '';
     }
   }

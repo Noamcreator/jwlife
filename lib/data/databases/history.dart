@@ -16,6 +16,7 @@ import 'package:jwlife/core/utils/files_helper.dart';
 import '../../app/services/global_key_service.dart';
 import '../../app/services/settings_service.dart';
 import '../../core/utils/utils.dart';
+import '../../i18n/i18n.dart';
 import '../models/audio.dart';
 import '../models/publication.dart';
 
@@ -441,10 +442,10 @@ class History {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Titre avec séparation
-                    const Padding(
+                    Padding(
                         padding: const EdgeInsets.symmetric(vertical: 20),
                         child: Text(
-                          "Historique",
+                          i18n().action_history,
                           style: TextStyle(fontFamily: 'Roboto', fontSize: 20, fontWeight: FontWeight.bold),
                         ),
                     ),
@@ -455,7 +456,7 @@ class History {
                     TextField(
                       controller: searchController,
                       decoration: InputDecoration(
-                        labelText: 'Rechercher...',
+                        labelText: i18n().search_hint,
                         border: OutlineInputBorder(),
                         contentPadding: EdgeInsets.symmetric(vertical: 10),
                         prefixIcon: Icon(JwIcons.magnifying_glass),
@@ -588,7 +589,7 @@ class History {
                         TextButton(
                           onPressed: () => deleteAllHistory().then((value) => Navigator.pop(context)),
                           child: Text(
-                            "TOUT EFFACER",
+                            i18n().action_clear.toUpperCase(),
                             style: TextStyle(
                                 fontFamily: 'Roboto',
                                 letterSpacing: 1,
@@ -599,7 +600,7 @@ class History {
                         TextButton(
                           onPressed: () => Navigator.pop(context),
                           child: Text(
-                            "FERMER",
+                            i18n().action_close_upper,
                             style: TextStyle(
                                 fontFamily: 'Roboto',
                                 letterSpacing: 1,

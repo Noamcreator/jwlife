@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:jwlife/data/models/userdata/playlist.dart';
-import 'package:jwlife/i18n/localization.dart';
+import 'package:jwlife/i18n/i18n.dart';
 
 import '../../../app/services/global_key_service.dart';
 import 'study_page.dart';
@@ -41,7 +41,7 @@ class PersonalPageState extends State<PersonalPage> {
       resizeToAvoidBottomInset: false,
       appBar: AppBar(
         title: Text(
-          localization(context).navigation_personal,
+          i18n().navigation_personal,
           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
         ),
       ),

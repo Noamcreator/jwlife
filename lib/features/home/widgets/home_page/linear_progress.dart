@@ -30,6 +30,6 @@ class LinearProgressState extends State<LinearProgress> {
       height: 2.5,
       child: LinearProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).primaryColor), backgroundColor: Colors.grey[300])
     )
-    : const SizedBox(height: 2.5);
+    : const SizedBox(height: 0);
   }
 }

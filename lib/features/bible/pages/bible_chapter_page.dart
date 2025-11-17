@@ -16,6 +16,7 @@ import 'package:share_plus/share_plus.dart';
 import '../../../app/services/settings_service.dart';
 import '../../../core/utils/utils_document.dart';
 import '../../../data/models/userdata/bookmark.dart';
+import '../../../i18n/i18n.dart';
 import '../models/bible_chapter_model.dart';
 import 'bible_book_medias_page.dart';
 
@@ -135,18 +136,18 @@ class _BibleChapterPageState extends State<BibleChapterPage> {
               IconTextButton(
                 text: "Rechercher",
                 icon: Icon(JwIcons.magnifying_glass),
-                onPressed: () {},
+                onPressed: (anchorContext) {},
               ),
               if (!isLargeScreen)
                 IconTextButton(
                   text: "Aperçu",
                   icon: Icon(currentBook.isOverview ? JwIcons.grid_squares : JwIcons.outline),
-                  onPressed: _controller.toggleOverview,
+                  onPressed: (anchorContext) {_controller.toggleOverview(); },
                 ),
               IconTextButton(
-                text: "Marque-pages",
+                text: i18n().action_bookmarks,
                 icon: Icon(JwIcons.bookmark),
-                onPressed: () async {
+                onPressed: (anchorContext) async {
                   Bookmark? bookmark = await showBookmarkDialog(context, widget.bible);
                   if (bookmark != null) {
                     if(bookmark.location.bookNumber!= null && bookmark.location.chapterNumber != null) {
@@ -159,9 +160,9 @@ class _BibleChapterPageState extends State<BibleChapterPage> {
                 },
               ),
               IconTextButton(
-                text: "Langues",
+                text: i18n().action_languages,
                 icon: Icon(JwIcons.language),
-                onPressed: () {
+                onPressed: (anchorContext) {
                   showLanguagePubDialog(context, null).then((bible) async {
                     if (bible != null) {
                       String bibleKey = bible.getKey();
@@ -171,16 +172,16 @@ class _BibleChapterPageState extends State<BibleChapterPage> {
                 },
               ),
               IconTextButton(
-                text: "Historique",
+                text: i18n().action_history,
                 icon: const Icon(JwIcons.arrow_circular_left_clock),
-                onPressed: () {
+                onPressed: (anchorContext) {
                   History.showHistoryDialog(context);
                 },
               ),
               IconTextButton(
-                text: "Envoyer le lien",
+                text: i18n().action_open_in_share,
                 icon: Icon(JwIcons.share),
-                onPressed: () {
+                onPressed: (anchorContext) {
                   SharePlus.instance.share(
                     ShareParams(
                       title: currentBook.bookInfo['BookName'],

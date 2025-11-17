@@ -2,13 +2,13 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; // Pour SystemChrome
 import 'package:jwlife/core/utils/common_ui.dart'; // Pour showPage
 // Audio utilities (non spécifié, donc omis)
 import 'package:jwlife/core/utils/utils_video.dart'; // Video utilities (à adapter si nécessaire)
 import 'package:jwlife/data/models/media.dart';
-import 'package:jwlife/data/models/userdata/playlistItem.dart';
 import 'package:jwlife/data/models/audio.dart';
 import 'package:jwlife/data/models/video.dart';
 import 'package:jwlife/data/repositories/MediaRepository.dart';
@@ -18,8 +18,7 @@ import 'package:jwlife/core/icons.dart';
 import '../../../app/services/global_key_service.dart';
 import '../../../core/api/api.dart';
 import '../../../core/utils/utils.dart';
-// NOTE: `getMediaItem`, `MediaRepository`, et les modèles de données (Audio, Video, PlaylistItem, etc.) sont supposés exister.
-
+import '../../../data/models/userdata/playlist_item.dart';
 // Durée maximale entre deux taps pour détecter un double-tap.
 const Duration _doubleTapTimeout = Duration(milliseconds: 300);
 
@@ -123,10 +122,9 @@ class _PlaylistPlayerPageState extends State<PlaylistPlayerPage> {
       final apiUrl = 'https://b.jw-cdn.org/apis/mediator/v1/media-items/$lang/$lank?clientType=www';
       printTime('apiUrl: $apiUrl'); // Votre log d'origine
       try {
-        final response = await Api.httpGetWithHeaders(apiUrl);
+        final response = await Api.httpGetWithHeaders(apiUrl, responseType: ResponseType.json);
         if (response.statusCode == 200) {
-          final data = json.decode(response.body);
-          return await fetchMedia(data['media'][0]);
+          return await fetchMedia(response.data['media'][0]);
         } else {
           printTime('Loading error: ${response.statusCode}');
         }

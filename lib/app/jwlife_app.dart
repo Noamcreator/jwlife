@@ -23,7 +23,6 @@ import 'package:jwlife/data/models/publication_attribute.dart';
 import 'package:jwlife/data/models/publication_category.dart';
 import 'package:jwlife/data/databases/catalog.dart';
 import 'package:jwlife/data/databases/userdata.dart';
-import 'package:jwlife/i18n/app_localizations.dart';
 
 import '../core/shared_preferences/shared_preferences_utils.dart';
 import '../core/utils/common_ui.dart';
@@ -35,6 +34,7 @@ import '../features/audio/audio_player_model.dart';
 import '../features/bible/pages/bible_chapter_page.dart';
 import '../features/home/pages/daily_text_page.dart';
 import '../features/publication/pages/document/local/document_page.dart';
+import '../i18n/localization.dart';
 import 'jwlife_page.dart';
 import 'startup/copy_assets.dart';
 
@@ -160,17 +160,21 @@ class JwLifeAppState extends State<JwLifeApp> {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: Constants.appName,
-      debugShowCheckedModeBanner: false,
-      themeMode: _themeMode,
-      theme: _lightTheme,
-      darkTheme: _darkTheme,
-      locale: _locale,
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      // Utilisation de 'const' pour SplashScreen
-      home: initialized ? JwLifePage(key: GlobalKeyService.jwLifePageKey) : const SplashScreen(),
+    print('Build JwLifeApp');
+
+    return MediaQuery(
+      data: MediaQuery.of(context).copyWith(viewInsets: EdgeInsets.zero),
+      child: MaterialApp(
+        title: Constants.appName,
+        debugShowCheckedModeBanner: false,
+        themeMode: _themeMode,
+        theme: _lightTheme,
+        darkTheme: _darkTheme,
+        locale: _locale,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: initialized ? JwLifePage(key: GlobalKeyService.jwLifePageKey) : const SplashScreen(),
+      ),
     );
   }
 
@@ -196,13 +200,13 @@ class JwLifeAppState extends State<JwLifeApp> {
     // Étape 4 : Vérification de la connexion et mise à jour (performance)
     final isConnected = await hasInternetConnection();
     if (isConnected) {
-      Api.fetchCurrentJwToken();
+      await Api.fetchCurrentJwToken();
       JwLifeAutoUpdater.checkAndUpdate();
       AssetsDownload.download();
     }
 
     // Calculer la Brightness effective pour le web view.
-    bool isDark = MediaQuery.of(context).platformBrightness == Brightness.dark;
+    final isDark = _themeMode == ThemeMode.system ? MediaQuery.of(context).platformBrightness == Brightness.dark : _themeMode == ThemeMode.dark;
 
     // Étape 5 : Initialisation finale
     JwLifeSettings().webViewData.init(isDark);

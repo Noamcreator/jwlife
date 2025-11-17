@@ -10,7 +10,7 @@ class SettingsSectionHeader extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
       child: Text(
-        title.toUpperCase(),
+        title,
         style: TextStyle(
           fontWeight: FontWeight.bold,
           color: Theme.of(context).primaryColor,

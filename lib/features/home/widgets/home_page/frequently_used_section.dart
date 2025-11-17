@@ -4,6 +4,7 @@ import 'package:jwlife/features/home/widgets/home_page/square_publication_item.d
 
 import '../../../../data/databases/catalog.dart';
 import '../../../../data/models/publication.dart';
+import '../../../../i18n/i18n.dart';
 
 class FrequentlyUsedSection extends StatefulWidget {
   const FrequentlyUsedSection({super.key});
@@ -27,7 +28,7 @@ class FrequentlyUsedSectionState extends State<FrequentlyUsedSection> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Souvent utilisé', // frequently used
+          i18n().navigation_frequently_used,
           style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 4),

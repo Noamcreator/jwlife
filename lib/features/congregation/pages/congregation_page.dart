@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:jwlife/i18n/localization.dart';
 
 import 'congregations_page.dart';
 
@@ -23,7 +22,7 @@ class _CongregationPageState extends State<CongregationPage> {
         child: Scaffold(
           appBar: AppBar(
             title: Text(
-              localization(context).navigation_congregations,
+              "",//localization(context).navigation_congregations,
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
             ),
           ),

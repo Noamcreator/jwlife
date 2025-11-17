@@ -43,6 +43,14 @@ class PubCatalog {
     meps.Language.VernacularName AS LanguageVernacularName, 
     meps.Language.PrimaryIetfCode AS LanguagePrimaryIetfCode,
     meps.Language.IsSignLanguage AS IsSignLanguage,
+    meps.Script.InternalName AS ScriptInternalName,
+    meps.Script.DisplayName AS ScriptDisplayName,
+    meps.Script.IsBidirectional AS IsBidirectional,
+    meps.Script.IsRTL AS IsRTL,
+    meps.Script.IsCharacterSpaced AS IsCharacterSpaced,
+    meps.Script.IsCharacterBreakable AS IsCharacterBreakable,
+    meps.Script.SupportsCodeNames AS SupportsCodeNames,
+    meps.Script.HasSystemDigits AS HasSystemDigits,
     pa.LastModified, 
     pa.CatalogedOn,
     pa.Size,
@@ -61,6 +69,7 @@ class PubCatalog {
     FROM Publication p
     INNER JOIN PublicationAsset pa ON p.Id = pa.PublicationId
     INNER JOIN meps.Language ON p.MepsLanguageId = meps.Language.LanguageId
+    INNER JOIN meps.Script ON meps.Language.ScriptId = meps.Script.ScriptId
     LEFT JOIN PublicationAttributeMap pam ON p.Id = pam.PublicationId
   ''';
 
@@ -174,6 +183,7 @@ class PubCatalog {
               INNER JOIN Publication p ON dt.PublicationId = p.Id
               INNER JOIN PublicationAsset pa ON p.Id = pa.PublicationId
               INNER JOIN meps.Language ON p.MepsLanguageId = meps.Language.LanguageId
+              INNER JOIN meps.Script ON meps.Language.ScriptId = meps.Script.ScriptId
               LEFT JOIN PublicationAttributeMap pam ON p.Id = pam.PublicationId
               WHERE ? BETWEEN dt.Start AND dt.End AND p.MepsLanguageId = ?
             ''', [formattedDate, languageId]);
@@ -191,6 +201,7 @@ class PubCatalog {
               INNER JOIN Publication p ON p.KeySymbol = hp.KeySymbol AND p.IssueTagNumber = hp.IssueTagNumber AND p.MepsLanguageId = hp.MepsLanguageId
               INNER JOIN PublicationAsset pa ON p.Id = pa.PublicationId
               INNER JOIN meps.Language ON p.MepsLanguageId = meps.Language.LanguageId
+              INNER JOIN meps.Script ON meps.Language.ScriptId = meps.Script.ScriptId
               LEFT JOIN PublicationAttributeMap pam ON p.Id = pam.PublicationId
               GROUP BY p.KeySymbol, p.IssueTagNumber, p.MepsLanguageId
               ORDER BY TotalVisits DESC
@@ -221,6 +232,7 @@ class PubCatalog {
               INNER JOIN PublicationAsset pa ON ca.PublicationAssetId = pa.Id
               INNER JOIN Publication p ON pa.PublicationId = p.Id
               INNER JOIN meps.Language ON p.MepsLanguageId = meps.Language.LanguageId
+              INNER JOIN meps.Script ON meps.Language.ScriptId = meps.Script.ScriptId
               LEFT JOIN PublicationAttributeMap pam ON p.Id = pam.PublicationId
               WHERE pa.MepsLanguageId = ? AND ca.ListType = ?
               ORDER BY ca.SortOrder;
@@ -295,6 +307,7 @@ class PubCatalog {
           INNER JOIN Publication p ON dt.PublicationId = p.Id
           INNER JOIN PublicationAsset pa ON p.Id = pa.PublicationId
           INNER JOIN meps.Language ON p.MepsLanguageId = meps.Language.LanguageId
+          INNER JOIN meps.Script ON meps.Language.ScriptId = meps.Script.ScriptId
           LEFT JOIN PublicationAttributeMap pam ON p.Id = pam.PublicationId
           WHERE ? BETWEEN dt.Start AND dt.End AND p.MepsLanguageId = ?
         ''', [formattedDate, JwLifeSettings().currentLanguage.id]);
@@ -381,6 +394,99 @@ class PubCatalog {
     return null;
   }
 
+  static Future<List<Publication>> searchPubs(List<String> keySymbols, List<int> issueTagNumbers, dynamic language) async {
+    // --- Étape 1: Recherche initiale dans le repository (cache ou base de données locale rapide) ---
+
+    List<Publication> foundPubs = [];
+    List<String> missingKeySymbols = [];
+    List<int> missingIssueTagNumbers = [];
+
+    // On s'assure que les listes de recherche sont de même taille pour itérer en parallèle
+    int count = keySymbols.length < issueTagNumbers.length ? keySymbols.length : issueTagNumbers.length;
+
+    // 1.1 Tente de récupérer chaque publication individuellement dans le Repository
+    for (int i = 0; i < count; i++) {
+      final keySymbol = keySymbols[i];
+      final issueTagNumber = issueTagNumbers[i];
+
+      Publication? pub;
+
+      // Logique de langue similaire à votre fonction originale
+      if (language is String) {
+        pub = PublicationRepository().getPublicationWithSymbol(keySymbol, issueTagNumber, language);
+      } else {
+        pub = PublicationRepository().getPublicationWithMepsLanguageId(keySymbol, issueTagNumber, language);
+      }
+
+      if (pub != null) {
+        foundPubs.add(pub);
+      } else {
+        // Si la publication n'est pas trouvée, on l'ajoute à la liste des manquantes
+        missingKeySymbols.add(keySymbol);
+        missingIssueTagNumbers.add(issueTagNumber);
+      }
+    }
+
+    // Si toutes les publications ont été trouvées, on peut s'arrêter ici
+    if (missingKeySymbols.isEmpty) {
+      return foundPubs;
+    }
+
+    // --- Étape 2: Recherche en base de données pour les publications manquantes ---
+
+    final catalogFile = await getCatalogDatabaseFile();
+    final mepsFile = await getMepsUnitDatabaseFile();
+
+    if (allFilesExist([catalogFile, mepsFile]) && missingKeySymbols.isNotEmpty) {
+      final catalog = await openReadOnlyDatabase(catalogFile.path);
+
+      // Crée les chaînes de placeholders '?, ?, ?' pour la clause IN de SQL
+      final keySymbolPlaceholders = List.filled(missingKeySymbols.length, '?').join(', ');
+      final issueTagNumberPlaceholders = List.filled(missingIssueTagNumbers.length, '?').join(', ');
+
+      String languageRequest = '';
+      if (language is String) {
+        languageRequest = 'WHERE meps.Language.Symbol = ?';
+      } else {
+        languageRequest = 'WHERE pa.MepsLanguageId = ?';
+      }
+
+      // Prépare la liste complète des arguments pour la requête SQL
+      // Ordre : [language, ...missingKeySymbols, ...missingIssueTagNumbers]
+      final List<dynamic> sqlArguments = [
+        language,
+        ...missingKeySymbols.map((s) => s.toLowerCase()),
+        ...missingIssueTagNumbers
+      ];
+
+      try {
+        await attachDatabases(catalog, {'meps': mepsFile.path});
+
+        printTime('Searching DB for missing pubs: ${missingKeySymbols.length}');
+
+        // Exécute la requête sur la base de données
+        final publications = await catalog.rawQuery('''
+        SELECT
+          $publicationQuery
+        $languageRequest 
+        AND LOWER(p.KeySymbol) IN ($keySymbolPlaceholders) 
+        AND p.IssueTagNumber IN ($issueTagNumberPlaceholders)
+      ''', sqlArguments);
+
+        // Ajoute les publications trouvées en base de données à la liste des résultats
+        foundPubs.addAll(publications.map((json) => Publication.fromJson(json)).toList());
+
+      } finally {
+        await detachDatabases(catalog, ['meps']);
+        await catalog.close();
+      }
+    }
+
+    // Retourne la liste complète (trouvées dans le Repository + trouvées en DB)
+    return foundPubs;
+  }
+
+
   static Future<String?> getKeySymbolFromCatalogue(String symbol, int issueTagNumber, int mepsLanguageId) async {
     final catalogFile = await getCatalogDatabaseFile();
 
@@ -463,6 +569,7 @@ class PubCatalog {
           INNER JOIN Publication p ON pd.PublicationId = p.Id
           INNER JOIN PublicationAsset pa ON p.Id = pa.PublicationId
           INNER JOIN meps.Language ON p.MepsLanguageId = meps.Language.LanguageId
+          INNER JOIN meps.Script ON meps.Language.ScriptId = meps.Script.ScriptId
           LEFT JOIN PublicationAttributeMap pam ON p.Id = pam.PublicationId
           WHERE pd.DocumentId = ? AND p.MepsLanguageId = ?
           LIMIT 1
@@ -479,7 +586,7 @@ class PubCatalog {
   }
 
   /// Charge les publications d'une catégorie
-  static Future<Map<PublicationAttribute, List<Publication>>> getPublicationsFromCategory(int category, {int? year, int? mepsLanguageId}) async {
+  static Future<Map<List<PublicationAttribute>, List<Publication>>> getPublicationsFromCategory(int category, {int? year, int? mepsLanguageId}) async {
     final catalogFile = await getCatalogDatabaseFile();
     final mepsFile = await getMepsUnitDatabaseFile();
 
@@ -514,11 +621,19 @@ class PubCatalog {
         pa.Size,
         pa.ExpandedSize,
         pa.SchemaVersion,
-        pam.PublicationAttributeId,
+        GROUP_CONCAT(DISTINCT pam.PublicationAttributeId) AS PublicationAttributeIds,
         meps.Language.Symbol AS LanguageSymbol, 
         meps.Language.VernacularName AS LanguageVernacularName, 
         meps.Language.PrimaryIetfCode AS LanguagePrimaryIetfCode,
         meps.Language.IsSignLanguage AS IsSignLanguage,
+        meps.Script.InternalName AS ScriptInternalName,
+        meps.Script.DisplayName AS ScriptDisplayName,
+        meps.Script.IsBidirectional AS IsBidirectional,
+        meps.Script.IsRTL AS IsRTL,
+        meps.Script.IsCharacterSpaced AS IsCharacterSpaced,
+        meps.Script.IsCharacterBreakable AS IsCharacterBreakable,
+        meps.Script.SupportsCodeNames AS SupportsCodeNames,
+        meps.Script.HasSystemDigits AS HasSystemDigits,
         (
           SELECT ia.NameFragment 
           FROM PublicationAssetImageMap paim 
@@ -530,18 +645,20 @@ class PubCatalog {
       FROM Publication p
       INNER JOIN PublicationAsset pa ON p.Id = pa.PublicationId
       LEFT JOIN PublicationAttributeMap pam ON p.Id = pam.PublicationId
-      LEFT JOIN meps.Language ON p.MepsLanguageId = meps.Language.LanguageId
-      WHERE p.MepsLanguageId = ? 
-        AND p.PublicationTypeId = ?
+      INNER JOIN meps.Language ON p.MepsLanguageId = meps.Language.LanguageId
+      INNER JOIN meps.Script ON meps.Language.ScriptId = meps.Script.ScriptId
+      WHERE p.MepsLanguageId = ? AND p.PublicationTypeId = ?
         $yearCondition
+      GROUP BY
+        p.Id
       ORDER BY p.Id;
     ''', queryParams);
 
       // Groupement par attribut
-      final Map<PublicationAttribute, List<Publication>> groupedByCategory = {};
+      final Map<List<PublicationAttribute>, List<Publication>> groupedByCategory = {};
       for (final publication in result) {
         final pub = Publication.fromJson(publication);
-        groupedByCategory.putIfAbsent(pub.attribute, () => []).add(pub);
+        groupedByCategory.putIfAbsent(pub.attributes, () => []).add(pub);
       }
 
       return groupedByCategory;
@@ -574,6 +691,7 @@ class PubCatalog {
               INNER JOIN PublicationAsset pa ON ca.PublicationAssetId = pa.Id
               INNER JOIN Publication p ON pa.PublicationId = p.Id
               INNER JOIN meps.Language ON p.MepsLanguageId = meps.Language.LanguageId
+              INNER JOIN meps.Script ON meps.Language.ScriptId = meps.Script.ScriptId
               LEFT JOIN PublicationAttributeMap pam ON p.Id = pam.PublicationId
               WHERE pa.MepsLanguageId = ? AND ca.ListType = ?
               ORDER BY ca.SortOrder;
@@ -609,6 +727,7 @@ class PubCatalog {
           FROM Publication p
           INNER JOIN PublicationAsset pa ON p.Id = pa.PublicationId
           INNER JOIN meps.Language ON p.MepsLanguageId = meps.Language.LanguageId
+          INNER JOIN meps.Script ON meps.Language.ScriptId = meps.Script.ScriptId
           LEFT JOIN PublicationAttributeMap pam ON p.Id = pam.PublicationId
           WHERE p.MepsLanguageId = ? AND (p.KeySymbol LIKE 'CA-copgm%' OR p.KeySymbol LIKE 'CA-brpgm%')
       ''', [langId]);
@@ -671,6 +790,7 @@ class PubCatalog {
           FROM PublicationAsset pa
           INNER JOIN Publication p ON pa.PublicationId = p.Id
           INNER JOIN meps.Language ON pa.MepsLanguageId = meps.Language.LanguageId
+          INNER JOIN meps.Script ON meps.Language.ScriptId = meps.Script.ScriptId
           LEFT JOIN PublicationAttributeMap pam ON p.Id = pam.PublicationId
           WHERE pa.MepsLanguageId = ? AND pa.ConventionReleaseDayNumber IS NOT NULL;
         ''', [JwLifeSettings().currentLanguage.id]);

@@ -9,6 +9,7 @@ import 'package:jwlife/data/databases/history.dart';
 import 'package:jwlife/data/models/userdata/tag.dart';
 import 'package:jwlife/data/models/userdata/note.dart';
 import 'package:jwlife/features/personal/pages/tag_page.dart';
+import '../../../i18n/i18n.dart';
 import '../widgets/note_item_widget.dart';
 import 'note_page.dart';
 
@@ -101,9 +102,9 @@ class _NotesTagsPageState extends State<NotesTagsPage> {
           title: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text("Notes et Catégories"),
+              Text(i18n().navigation_notes_and_tag),
               Text(
-                '${filteredNotes.length} notes et ${filteredTags.length} catégories',
+                i18n().label_tags_and_notes(filteredTags.length, filteredNotes.length),
                 style: TextStyle(fontSize: 12),
                 maxLines: 2,
               ),
@@ -185,7 +186,7 @@ class _NotesTagsPageState extends State<NotesTagsPage> {
                       });
                     },
                     decoration: InputDecoration(
-                      hintText: 'Rechercher',
+                      hintText: i18n().search_bar_search,
                       prefixIcon: Icon(Icons.search),
                     ),
                   ),
@@ -253,8 +254,8 @@ class _NotesTagsPageState extends State<NotesTagsPage> {
                             children: [
                               Text(
                                 showAllCategories
-                                    ? 'Réduire'
-                                    : 'Mes ${filteredTags.length} catégories',
+                                    ? i18n().action_collapse
+                                    : i18n().label_all_tags(filteredTags.length),
                                 style: TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.bold,

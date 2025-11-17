@@ -8,7 +8,7 @@ import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/databases/history.dart';
 import 'package:share_plus/share_plus.dart';
 
-import '../../../../../core/utils/utils.dart';
+import '../../../../../i18n/i18n.dart';
 import '../../../../../widgets/searchfield/searchfield_widget.dart';
 import '../../../models/menu/local/publication_search_model.dart';
 
@@ -186,7 +186,7 @@ class _PublicationSearchViewState extends State<PublicationSearchView> {
                           padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 10),
                         ),
                         child: Text(
-                          isExpanded ? 'VOIR MOINS' : 'VOIR PLUS',
+                          isExpanded ? i18n().search_show_less : i18n().search_show_more,
                           style: const TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.bold,
@@ -250,7 +250,7 @@ class _PublicationSearchViewState extends State<PublicationSearchView> {
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: linkColor),
                   ),
                   Text(
-                    "${verse['occurrences']} résultats",
+                    verse['occurences'] == 0 ? i18n().search_results_none : verse['occurences'] == 1 ? i18n().search_results_occurence : i18n().search_results_occurences(verse['occurences']),
                     style: const TextStyle(fontSize: 16),
                   ),
                 ],
@@ -335,9 +335,9 @@ class _PublicationSearchViewState extends State<PublicationSearchView> {
         );
         }
       },
-      itemBuilder: (BuildContext context) => const [
-        PopupMenuItem(value: "bookmark", child: Text("Marque-pages")),
-        PopupMenuItem(value: "link", child: Text("Envoyer le lien")),
+      itemBuilder: (BuildContext context) => [
+        PopupMenuItem(value: "bookmark", child: Text(i18n().action_bookmarks)),
+        PopupMenuItem(value: "link", child: Text(i18n().action_open_in_share)),
       ],
     );
   }
@@ -364,7 +364,7 @@ class _PublicationSearchViewState extends State<PublicationSearchView> {
 
             const SizedBox(height: 20),
             Text(
-              "Aucun résultat trouvé pour '$_query'.",
+              i18n().message_no_topics_found,
               style: TextStyle(fontSize: 18, color: Theme.of(context).hintColor),
               textAlign: TextAlign.center,
             ),
@@ -387,7 +387,7 @@ class _PublicationSearchViewState extends State<PublicationSearchView> {
                 Padding(
                   padding: const EdgeInsets.only(top: 10),
                   child: Text(
-                    "$totalResults résultats",
+                    totalResults == 0 ? i18n().search_results_none : totalResults == 1 ? i18n().search_results_occurence : i18n().search_results_occurences(totalResults),
                     style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                 ),
@@ -402,7 +402,7 @@ class _PublicationSearchViewState extends State<PublicationSearchView> {
                             searchQuery(_query, newSearch: false, isExactMatch: value ?? false, sortMode: _sortMode);
                           },
                         ),
-                        const Text("Expression exacte"),
+                        Text(i18n().search_match_exact_phrase),
                       ],
                     ),
                     if (isBible)
@@ -429,10 +429,10 @@ class _PublicationSearchViewState extends State<PublicationSearchView> {
                                 });
                               }
                             },
-                            items: const [
-                              DropdownMenuItem<int>(value: 0, child: Text("CHRONOLOGIQUE", style: TextStyle(fontSize: 14))),
-                              DropdownMenuItem<int>(value: 1, child: Text("LES PLUS CITÉS", style: TextStyle(fontSize: 14))),
-                              DropdownMenuItem<int>(value: 2, child: Text("OCCURRENCES", style: TextStyle(fontSize: 14))),
+                            items: [
+                              DropdownMenuItem<int>(value: 0, child: Text(i18n().search_results_per_chronological, style: TextStyle(fontSize: 14))),
+                              DropdownMenuItem<int>(value: 1, child: Text(i18n().search_results_per_top_verses, style: TextStyle(fontSize: 14))),
+                              DropdownMenuItem<int>(value: 2, child: Text(i18n().search_results_per_occurences, style: TextStyle(fontSize: 14))),
                             ],
                           ),
                         ),

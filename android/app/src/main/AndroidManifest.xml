@@ -48,12 +48,10 @@
             android:launchMode="singleTask"
             android:taskAffinity=""
             android:theme="@style/LaunchTheme"
-            android:configChanges="orientation|smallestScreenSize|keyboardHidden|keyboard|screenSize|locale|layoutDirection"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
             android:hardwareAccelerated="true"
-            android:windowSoftInputMode="adjustPan"
-            android:showWhenLocked="false"
-            android:resizeableActivity="true"
-            android:turnScreenOn="false">
+            android:windowSoftInputMode="adjustResize"
+            android:showWhenLocked="false">
 
             <meta-data
                 android:name="io.flutter.embedding.android.NormalTheme"

@@ -10,6 +10,7 @@ import 'package:jwlife/widgets/image_cached_widget.dart';
 
 import '../../../../../app/services/global_key_service.dart';
 import '../../../../../data/models/video.dart';
+import '../../../../../i18n/i18n.dart';
 import '../../../../../widgets/mediaitem_item_widget.dart';
 import '../data/models/document.dart';
 import '../data/models/multimedia.dart';
@@ -101,7 +102,7 @@ class _DocumentMediasViewState extends State<DocumentMediasView> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Voir les médias',
+              i18n().navigation_meetings_show_media,
               style: textStyleTitle,
             ),
             Text(
@@ -137,7 +138,7 @@ class _DocumentMediasViewState extends State<DocumentMediasView> {
               Padding(
                 padding: EdgeInsets.only(bottom: spacing),
                 child: Text(
-                  "Vidéos",
+                  i18n().label_videos,
                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                 ),
               ),
@@ -172,7 +173,7 @@ class _DocumentMediasViewState extends State<DocumentMediasView> {
               Padding(
                 padding: EdgeInsets.only(bottom: spacing),
                 child: Text(
-                  "Images",
+                  i18n().label_pictures,
                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                 ),
               ),

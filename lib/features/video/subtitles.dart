@@ -15,7 +15,7 @@ class Subtitles {
     try {
       final response = await Api.httpGetWithHeaders(subtitlesUrl);
       if (response.statusCode == 200) {
-        String decodedBody = utf8.decode(response.bodyBytes);
+        String decodedBody = utf8.decode(response.data);
         final vttContent = _removeWebvttHeader(decodedBody);
         subtitles = _extractSegments(vttContent);
       } else {

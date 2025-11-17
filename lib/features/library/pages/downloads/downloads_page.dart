@@ -5,7 +5,7 @@ import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/data/models/media.dart';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/features/library/widgets/rectangle_mediaItem_item.dart';
-import 'package:jwlife/i18n/localization.dart';
+import 'package:jwlife/i18n/i18n.dart';
 
 import '../../../publication/pages/menu/local/publication_menu_view.dart';
 import '../../models/downloads/download_model.dart';
@@ -51,9 +51,9 @@ class _DownloadPageState extends State<DownloadPage> {
     }
     else {
       if (titleKey == 'Audios') {
-        displayTitle = localization(context).navigation_audios;
+        displayTitle = i18n().pub_type_audio_programs;
       } else if (titleKey == 'Videos') {
-        displayTitle = localization(context).navigation_videos;
+        displayTitle = i18n().label_videos;
       }
     }
 
@@ -164,7 +164,7 @@ class _DownloadPageState extends State<DownloadPage> {
               child: OutlinedButton.icon(
                 onPressed: () => _model.importJwpub(context),
                 icon: const Icon(JwIcons.document),
-                label: Text(localization(context).import_jwpub),
+                label: Text(i18n().label_import_jwpub),
                 style: OutlinedButton.styleFrom(shape: const RoundedRectangleBorder()),
               ),
             ),

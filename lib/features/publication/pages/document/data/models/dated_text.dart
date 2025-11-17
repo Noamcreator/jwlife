@@ -108,7 +108,7 @@ class DatedText {
     DateTime parsedDate = DateTime.parse(dateString);
 
     // Formatte au format souhaité : "1 janvier 2025"
-    String formattedDate = DateFormat("d MMMM y", JwLifeSettings().locale.toString()).format(parsedDate);
+    String formattedDate = DateFormat("d MMMM y", JwLifeSettings().locale.languageCode).format(parsedDate);
 
     return formattedDate;
   }

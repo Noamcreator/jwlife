@@ -17,7 +17,7 @@ import 'package:jwlife/features/library/pages/library_page.dart';
 import 'package:jwlife/features/personal/pages/personal_page.dart';
 
 import '../core/icons.dart';
-import 'package:jwlife/i18n/localization.dart';
+import 'package:jwlife/i18n/i18n.dart';
 
 import '../features/audio/audio_player_widget.dart';
 import '../widgets/long_press_bottom_navigation_bar.dart';
@@ -330,27 +330,27 @@ class JwLifePageState extends State<JwLifePage> {
       items: [
         BottomNavigationBarItem(
           icon: const Icon(JwIcons.home),
-          label: localization(context).navigation_home,
+          label: i18n().navigation_home,
         ),
         BottomNavigationBarItem(
           icon: const Icon(JwIcons.bible),
-          label: localization(context).navigation_bible,
+          label: i18n().navigation_bible,
         ),
         BottomNavigationBarItem(
           icon: const Icon(JwIcons.publication_video_music),
-          label: localization(context).navigation_library,
+          label: i18n().navigation_library,
         ),
         BottomNavigationBarItem(
           icon: const Icon(JwIcons.speaker_audience),
-          label: localization(context).navigation_workship,
+          label: i18n().navigation_workship,
         ),
         BottomNavigationBarItem(
           icon: const Icon(JwIcons.persons_doorstep),
-          label: localization(context).navigation_predication,
+          label: i18n().navigation_predication,
         ),
         BottomNavigationBarItem(
           icon: const Icon(JwIcons.person_studying),
-          label: localization(context).navigation_personal,
+          label: i18n().navigation_personal,
         ),
       ],
     );
@@ -362,6 +362,8 @@ class JwLifePageState extends State<JwLifePage> {
 
   @override
   Widget build(BuildContext context) {
+    print('build JwLifePage');
+
     final bool isDisabled = navBarIsDisable[currentNavigationBottomBarIndex] || navBarIsTransparent[currentNavigationBottomBarIndex];
     final bool isTransparent = navBarIsTransparent[currentNavigationBottomBarIndex];
 

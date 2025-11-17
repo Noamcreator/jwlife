@@ -4,6 +4,7 @@ import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/data/realm/catalog.dart';
 import 'package:jwlife/widgets/mediaitem_item_widget.dart';
 import 'package:jwlife/widgets/searchfield/searchfield_widget.dart';
+import '../../../../i18n/i18n.dart';
 import '../../models/videos/videos_items_model.dart';
 
 class VideoItemsPage extends StatelessWidget {
@@ -33,7 +34,7 @@ class VideoItemsPage extends StatelessWidget {
           if (model.filteredVideos.isEmpty && !model.isSearching) {
             bodyContent = _buildEmptyState(context);
           } else {
-            bodyContent = _buildContentList(context, model);
+            bodyContent = Directionality(textDirection: model.language.isRtl! ? TextDirection.rtl : TextDirection.ltr, child: _buildContentList(context, model));
           }
 
           return Scaffold(
@@ -70,8 +71,8 @@ class VideoItemsPage extends StatelessWidget {
       title: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(model.categoryName, style: titleStyle),
-          Text(model.language, style: subtitleStyle),
+          Text(model.category?.localizedName ?? '', style: titleStyle),
+          Text(model.language.vernacular ?? '', style: subtitleStyle),
         ],
       ),
       actions: [
@@ -92,7 +93,7 @@ class VideoItemsPage extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(24.0),
         child: Text(
-          'Il n\'y a pas de vidéos disponibles pour le moment dans cette langue.',
+          i18n().message_no_items_videos,
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 18,
@@ -114,7 +115,7 @@ class VideoItemsPage extends StatelessWidget {
               // Lance la lecture aléatoire de TOUS les médias
               onPressed: () => model.playAllMediaRandomly(context),
               icon: const Icon(JwIcons.arrows_twisted_right, size: 20),
-              label: const Text('Lecture aléatoire', style: TextStyle(fontSize: 16)),
+              label: Text(i18n().action_shuffle, style: TextStyle(fontSize: 16)),
             ),
           );
         }

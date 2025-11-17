@@ -7,7 +7,7 @@ import 'package:archive/archive.dart';
 /// Classe utilitaire simple pour décompresser des fichiers ou des réponses GZip.
 class GZipHelper {
   /// Décompresse un fichier GZip et écrit le contenu dans [outputFile].
-  static Future<void> decompressToFile(List<int> gzipBytes, File outputFile) async {
+  static Future<void> decompressToFile(Uint8List gzipBytes, File outputFile) async {
     try {
       final decompressedData = GZipDecoder().decodeBytes(gzipBytes);
       await outputFile.writeAsBytes(decompressedData, flush: true);

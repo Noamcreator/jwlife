@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-
-// Supposons que ces imports sont corrects
 import '../../../core/icons.dart';
 import '../../../core/utils/utils.dart'; // Contient formatFileSize
-import '../../../data/models/audio.dart'; // Audio contient maintenant les ValueNotifier
+import '../../../data/models/audio.dart';
+import '../../../i18n/i18n.dart'; // Audio contient maintenant les ValueNotifier
 
 class AudioDownloadContent extends StatefulWidget {
   final List<Audio> audios;
@@ -130,6 +129,7 @@ class _AudioDownloadContentState extends State<AudioDownloadContent> {
   @override
   Widget build(BuildContext context) {
     String downloadedSizeFormatted = formatFileSize((widget.totalSize * _globalProgress).toInt());
+    String filesLengthFormatted = formatFilesLength(widget.audios.length);
     String totalSizeFormatted = formatFileSize(widget.totalSize);
 
     // --- LOGIQUE POUR LA SECTION TÉLÉCHARGER (AUDIOS) ---
@@ -158,7 +158,7 @@ class _AudioDownloadContentState extends State<AudioDownloadContent> {
           Padding(
             padding: const EdgeInsets.only(bottom: 10.0, top: 0.0),
             child: Text(
-              'Télécharger',
+              i18n().action_download,
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
             ),
           ),
@@ -168,11 +168,11 @@ class _AudioDownloadContentState extends State<AudioDownloadContent> {
           if (!_isFullyDownloaded)
             ListTile(
               leading: Icon(JwIcons.headphones__simple, size: 25),
-              title: Text('Enregistrements audio'),
+              title: Text(i18n().pub_type_audio_programs),
               subtitle: Text(
                 _isDownloading
                     ? 'Téléchargement en cours : $downloadedSizeFormatted / $totalSizeFormatted'
-                    : '${widget.audios.length} fichiers • $totalSizeFormatted',
+                    : '$filesLengthFormatted • $totalSizeFormatted',
                 style: TextStyle(fontWeight: FontWeight.bold),
               ),
               trailing: _isDownloading
@@ -209,8 +209,8 @@ class _AudioDownloadContentState extends State<AudioDownloadContent> {
           // --- Section Vidéos supplémentaires (Télécharger) ---
           ListTile(
             leading: Icon(JwIcons.video, size: 25),
-            title: Text('Vidéos supplémentaires'),
-            subtitle: Text('28 fichiers', style: TextStyle(fontWeight: FontWeight.bold)),
+            title: Text(i18n().label_supplemental_videos),
+            subtitle: Text(i18n().label_download_all_files(28), style: TextStyle(fontWeight: FontWeight.bold)),
             trailing: Icon(
               JwIcons.cloud_arrow_down,
               color: Theme.of(context).primaryColor,
@@ -228,7 +228,7 @@ class _AudioDownloadContentState extends State<AudioDownloadContent> {
               Padding(
                 padding: const EdgeInsets.only(bottom: 10.0),
                 child: Text(
-                  'Supprimer',
+                  i18n().action_delete,
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
                 ),
               ),
@@ -236,9 +236,9 @@ class _AudioDownloadContentState extends State<AudioDownloadContent> {
               // Section Supprimer les médias audio
               ListTile(
                 leading: Icon(JwIcons.headphones__simple, size: 25),
-                title: Text('Enregistrements audio'),
+                title: Text(i18n().pub_type_audio_programs),
                 subtitle: Text(
-                  '${widget.audios.length} fichiers • $totalSizeFormatted',
+                  "$filesLengthFormatted • $totalSizeFormatted",
                   style: TextStyle(fontWeight: FontWeight.bold),
                 ),
                 trailing: IconButton(

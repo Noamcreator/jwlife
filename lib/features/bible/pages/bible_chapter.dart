@@ -29,7 +29,7 @@ class _ChapterBiblePageState extends State<ChapterBiblePage> {
     try {
       final response = await Api.httpGetWithHeaders(publicationLink);
       if (response.statusCode == 200) {
-        _parseHtml(response.body);
+        _parseHtml(response.data);
       }
     }
     catch (e) {

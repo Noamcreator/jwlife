@@ -13,6 +13,7 @@ import 'package:sqflite/sqflite.dart';
 import '../../app/services/settings_service.dart';
 import '../../core/utils/utils.dart';
 import '../../data/databases/history.dart';
+import '../../i18n/i18n.dart';
 
 class LanguagesPubDialog extends StatefulWidget {
   final Publication? publication;
@@ -85,113 +86,154 @@ class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
     await database!.execute('ATTACH DATABASE ? AS meps', [mepsUnitFile.path]);
     printTime('Database meps attached');
 
+    // PrimaryIetfCode de la langue source
+    String sourceLanguageLocale = JwLifeSettings().locale.languageCode;
+
     List<dynamic> arguments = [];
     String baseQuery;
-    int sourceLanguageId = widget.publication?.mepsLanguage.id ?? JwLifeSettings().currentLanguage.id;
 
-    if (widget.publication != null) {
-      if (widget.publication!.issueTagNumber == 0) {
-        baseQuery = '''
-          SELECT 
-            Publication.*,
-            PublicationAsset.ExpandedSize,
-            mepsLang.Symbol as LanguageSymbol,
-            COALESCE(meps.LanguageName.Name, mepsLangFallback.Name) AS LanguageName,
-            mepsLang.VernacularName
-          FROM 
-            Publication
-          INNER JOIN
-            PublicationAsset ON Publication.Id = PublicationAsset.PublicationId  
-          JOIN 
-            meps.Language AS mepsLang ON Publication.MepsLanguageId = mepsLang.LanguageId
-          LEFT JOIN 
-            meps.LocalizedLanguageName AS lln_src ON mepsLang.LanguageId = lln_src.TargetLanguageId AND lln_src.SourceLanguageId = ?
-          LEFT JOIN 
-            meps.LanguageName ON lln_src.LanguageNameId = meps.LanguageName.LanguageNameId
-          LEFT JOIN 
-            meps.LocalizedLanguageName AS lln_fallback ON mepsLang.LanguageId = lln_fallback.TargetLanguageId AND lln_fallback.SourceLanguageId = mepsLang.PrimaryFallbackLanguageId
-          LEFT JOIN 
-            meps.LanguageName AS mepsLangFallback ON lln_fallback.LanguageNameId = mepsLangFallback.LanguageNameId
-          WHERE 
-            Publication.KeySymbol = ?
-          ORDER BY 
-            LanguageName COLLATE NOCASE
-        ''';
-        arguments = [sourceLanguageId, widget.publication!.keySymbol];
-      }
-      else {
-        baseQuery = '''
-          SELECT 
-            Publication.*,
-            PublicationAsset.ExpandedSize,
-            mepsLang.Symbol as LanguageSymbol,
-            COALESCE(meps.LanguageName.Name, mepsLangFallback.Name) AS LanguageName,
-            mepsLang.VernacularName
-          FROM 
-            Publication
-          INNER JOIN
-            PublicationAsset ON Publication.Id = PublicationAsset.PublicationId  
-          JOIN 
-            meps.Language AS mepsLang ON Publication.MepsLanguageId = mepsLang.LanguageId
-          LEFT JOIN 
-            meps.LocalizedLanguageName AS lln_src ON mepsLang.LanguageId = lln_src.TargetLanguageId AND lln_src.SourceLanguageId = ?
-          LEFT JOIN 
-            meps.LanguageName ON lln_src.LanguageNameId = meps.LanguageName.LanguageNameId
-          LEFT JOIN 
-            meps.LocalizedLanguageName AS lln_fallback ON mepsLang.LanguageId = lln_fallback.TargetLanguageId AND lln_fallback.SourceLanguageId = mepsLang.PrimaryFallbackLanguageId
-          LEFT JOIN 
-            meps.LanguageName AS mepsLangFallback ON lln_fallback.LanguageNameId = mepsLangFallback.LanguageNameId
-          WHERE 
-            Publication.KeySymbol = ? 
-            AND Publication.IssueTagNumber = ?
-          ORDER BY 
-            LanguageName COLLATE NOCASE
-        ''';
-        arguments = [sourceLanguageId, widget.publication!.keySymbol, widget.publication!.issueTagNumber];
-      }
+    // ==========================================================
+    // CAS 1 : Publication avec issueTagNumber == 0
+    // ==========================================================
+    if (widget.publication != null && widget.publication!.issueTagNumber == 0) {
+      baseQuery = '''
+      SELECT 
+        Publication.*,
+        PublicationAsset.ExpandedSize,
+        mepsLang.Symbol AS LanguageSymbol,
+        COALESCE(translatedName.Name, mepsLang.EnglishName) AS LanguageName,
+        mepsLang.VernacularName
+      FROM Publication
+      INNER JOIN PublicationAsset 
+        ON Publication.Id = PublicationAsset.PublicationId  
+      JOIN meps.Language AS mepsLang
+        ON Publication.MepsLanguageId = mepsLang.LanguageId
+      
+      -- Langue source basée sur PrimaryIetfCode
+      LEFT JOIN meps.Language AS sourceLang
+        ON sourceLang.PrimaryIetfCode = ?
+      
+      -- Traduction du nom de la langue de Publication
+      LEFT JOIN meps.LocalizedLanguageName AS lln
+        ON lln.TargetLanguageId = mepsLang.LanguageId
+        AND lln.SourceLanguageId = sourceLang.LanguageId
+      
+      LEFT JOIN meps.LanguageName AS translatedName
+        ON translatedName.LanguageNameId = lln.LanguageNameId
+      
+      WHERE 
+        Publication.KeySymbol = ?
+      
+      ORDER BY LanguageName COLLATE NOCASE
+      ''';
+
+      arguments = [
+        sourceLanguageLocale,
+        widget.publication!.keySymbol,
+      ];
     }
+
+    // ==========================================================
+    // CAS 2 : Publication avec issueTagNumber != 0
+    // ==========================================================
+    else if (widget.publication != null &&
+        widget.publication!.issueTagNumber != 0) {
+      baseQuery = '''
+      SELECT 
+        Publication.*,
+        PublicationAsset.ExpandedSize,
+        mepsLang.Symbol AS LanguageSymbol,
+        COALESCE(translatedName.Name, mepsLang.EnglishName) AS LanguageName,
+        mepsLang.VernacularName
+      FROM Publication
+      INNER JOIN PublicationAsset 
+        ON Publication.Id = PublicationAsset.PublicationId  
+      JOIN meps.Language AS mepsLang
+        ON Publication.MepsLanguageId = mepsLang.LanguageId
+      
+      LEFT JOIN meps.Language AS sourceLang
+        ON sourceLang.PrimaryIetfCode = ?
+      
+      LEFT JOIN meps.LocalizedLanguageName AS lln
+        ON lln.TargetLanguageId = mepsLang.LanguageId
+        AND lln.SourceLanguageId = sourceLang.LanguageId
+      
+      LEFT JOIN meps.LanguageName AS translatedName
+        ON translatedName.LanguageNameId = lln.LanguageNameId
+      
+      WHERE 
+        Publication.KeySymbol = ?
+        AND Publication.IssueTagNumber = ?
+      
+      ORDER BY LanguageName COLLATE NOCASE
+      ''';
+
+      arguments = [
+        sourceLanguageLocale,
+        widget.publication!.keySymbol,
+        widget.publication!.issueTagNumber,
+      ];
+    }
+
+    // ==========================================================
+    // CAS 3 : Pas de publication → PublicationTypeId = 1
+    // ==========================================================
     else {
       baseQuery = '''
-        SELECT 
-          Publication.*,
-          PublicationAsset.ExpandedSize,
-          mepsLang.Symbol as LanguageSymbol,
-          COALESCE(meps.LanguageName.Name, mepsLangFallback.Name) AS LanguageName,
-          mepsLang.VernacularName
-        FROM 
-          Publication
-        INNER JOIN
-          PublicationAsset ON Publication.Id = PublicationAsset.PublicationId  
-        JOIN
-          meps.Language AS mepsLang ON Publication.MepsLanguageId = mepsLang.LanguageId
-        LEFT JOIN 
-          meps.LocalizedLanguageName AS lln_src ON mepsLang.LanguageId = lln_src.TargetLanguageId AND lln_src.SourceLanguageId = ?
-        LEFT JOIN 
-          meps.LanguageName ON lln_src.LanguageNameId = meps.LanguageName.LanguageNameId
-        LEFT JOIN 
-          meps.LocalizedLanguageName AS lln_fallback ON mepsLang.LanguageId = lln_fallback.TargetLanguageId AND lln_fallback.SourceLanguageId = mepsLang.PrimaryFallbackLanguageId
-        LEFT JOIN 
-          meps.LanguageName AS mepsLangFallback ON lln_fallback.LanguageNameId = mepsLangFallback.LanguageNameId
-        WHERE 
-          Publication.PublicationTypeId = 1
-        ORDER BY 
-          LanguageName COLLATE NOCASE
+      SELECT 
+        Publication.*,
+        PublicationAsset.ExpandedSize,
+        mepsLang.Symbol AS LanguageSymbol,
+        COALESCE(translatedName.Name, mepsLang.EnglishName) AS LanguageName,
+        mepsLang.VernacularName
+      FROM Publication
+      INNER JOIN PublicationAsset 
+        ON Publication.Id = PublicationAsset.PublicationId  
+      JOIN meps.Language AS mepsLang
+        ON Publication.MepsLanguageId = mepsLang.LanguageId
+      
+      LEFT JOIN meps.Language AS sourceLang
+        ON sourceLang.PrimaryIetfCode = ?
+      
+      LEFT JOIN meps.LocalizedLanguageName AS lln
+        ON lln.TargetLanguageId = mepsLang.LanguageId
+        AND lln.SourceLanguageId = sourceLang.LanguageId
+      
+      LEFT JOIN meps.LanguageName AS translatedName
+        ON translatedName.LanguageNameId = lln.LanguageNameId
+      
+      WHERE 
+        Publication.PublicationTypeId = 1
+      
+      ORDER BY LanguageName COLLATE NOCASE
       ''';
-      arguments = [sourceLanguageId];
+
+      arguments = [
+        sourceLanguageLocale,
+      ];
     }
 
-    List<Map<String, dynamic>> response = await database!.rawQuery(baseQuery, arguments);
+    // ==========================================================
+    // EXECUTION
+    // ==========================================================
+
+    List<Map<String, dynamic>> response =
+    await database!.rawQuery(baseQuery, arguments);
+
     await database!.execute('DETACH DATABASE meps');
 
     List<Map<String, dynamic>> languagesModifiable = List.from(response);
 
-    List<Map<String, dynamic>> mostUsedLanguages = await getUpdatedMostUsedLanguages(selectedLanguage, languagesModifiable);
+    List<Map<String, dynamic>> mostUsedLanguages =
+    await getUpdatedMostUsedLanguages(
+        selectedLanguage, languagesModifiable);
 
     _recommendedLanguages = languagesModifiable.where((lang) {
       return isRecommended(lang, mostUsedLanguages);
     }).toList();
 
-    _recommendedLanguageMepsIds = _recommendedLanguages.map((l) => l['MepsLanguageId'] as int).toSet();
+    _recommendedLanguageMepsIds =
+        _recommendedLanguages.map((l) => l['MepsLanguageId'] as int).toSet();
 
     setState(() {
       _allLanguagesList = languagesModifiable;
@@ -298,10 +340,15 @@ class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
     }).toList();
 
     return Dialog(
-      insetPadding: const EdgeInsets.all(20),
+      insetPadding: EdgeInsets.fromLTRB(
+        20,
+        20,
+        20,
+        20 + MediaQuery.of(context).viewInsets.bottom,
+      ),
       child: Container(
         width: MediaQuery.of(context).size.width,
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
@@ -310,7 +357,7 @@ class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 20),
               child: Text(
-                'Langues',
+                i18n().action_languages,
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
                   color: Theme.of(context).secondaryHeaderColor,
@@ -323,22 +370,31 @@ class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
 
             // Barre de recherche
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-              child: TextField(
-                controller: _searchController,
-                autocorrect: false,
-                enableSuggestions: false,
-                decoration: InputDecoration(
-                  hintText: 'Rechercher une langue ($totalFilteredCount)',
-                  hintStyle: TextStyle(color: hintColor),
-                  isDense: true,
-                  contentPadding: const EdgeInsets.symmetric(vertical: 4),
-                ),
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Theme.of(context).textTheme.bodyLarge?.color,
-                ),
-              ),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                child: Row(
+                  children: [
+                    Icon(JwIcons.magnifying_glass, color: hintColor),
+                    const SizedBox(width: 16),
+                    // **Wrap the TextField in Expanded**
+                    Expanded(
+                      child: TextField( // <-- This is now constrained
+                        controller: _searchController,
+                        autocorrect: false,
+                        enableSuggestions: false,
+                        decoration: InputDecoration(
+                          hintText: i18n().search_prompt_languages(totalFilteredCount),
+                          hintStyle: TextStyle(color: hintColor, fontSize: 16),
+                          isDense: true,
+                          contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                        ),
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Theme.of(context).textTheme.bodyLarge?.color,
+                        ),
+                      ),
+                    ),
+                  ],
+                )
             ),
 
             const SizedBox(height: 10),
@@ -365,11 +421,11 @@ class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
                     children: [
                       if (showRecommendedHeader)
                         Padding(
-                          padding: const EdgeInsets.only(left: 20, bottom: 5, top: 5),
+                          padding: const EdgeInsets.only(left: 25, bottom: 5, top: 5),
                           child: Text(
-                            'Recommandé',
+                            i18n().label_languages_recommended,
                             style: TextStyle(
-                              fontSize: 16,
+                              fontSize: 20,
                               color: Theme.of(context).secondaryHeaderColor,
                               fontWeight: FontWeight.bold,
                             ),
@@ -377,11 +433,11 @@ class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
                         ),
                       if (showOtherLanguagesHeader)
                         Padding(
-                          padding: const EdgeInsets.only(left: 20, bottom: 8, top: 10),
+                          padding: const EdgeInsets.only(left: 25, bottom: 8, top: 10),
                           child: Text(
-                            'Autres langues',
+                            i18n().label_languages_more,
                             style: TextStyle(
-                              fontSize: 16,
+                              fontSize: 20,
                               color: Theme.of(context).secondaryHeaderColor,
                               fontWeight: FontWeight.bold,
                             ),
@@ -401,7 +457,7 @@ class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
               alignment: Alignment.centerRight,
               child: TextButton(
                 child: Text(
-                  'TERMINER',
+                  i18n().action_done_uppercase,
                   style: TextStyle(
                     fontFamily: 'Roboto',
                     letterSpacing: 1,
@@ -426,10 +482,6 @@ class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
     final String keySymbol = languageData['KeySymbol'];
     final int issueTagNumber = languageData['IssueTagNumber'] ?? 0;
 
-    // Clé unique pour l'état sélectionné (pour le Radio)
-    final String uniquePubKey = '$languageSymbol\_$keySymbol\_$issueTagNumber';
-    final String selectedKey = '$selectedLanguage\_$selectedSymbol\_$selectedIssueTagNumber';
-
     Publication? publication = PublicationRepository().getAllPublications().firstWhereOrNull((p) => p.mepsLanguage.symbol == languageSymbol && p.keySymbol == keySymbol && p.issueTagNumber == issueTagNumber);
 
     // Détermine si le téléchargement est en cours pour CET élément
@@ -450,37 +502,22 @@ class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
           await _handlePublicationSelection(context, publication);
         },
         child: Container(
-          padding: const EdgeInsets.only(left: 10, right: 5, top: 5, bottom: 5),
+          color: languageSymbol == selectedLanguage && keySymbol == selectedSymbol && issueTagNumber == selectedIssueTagNumber ? Theme.of(context).brightness == Brightness.dark ? const Color(0xFF626262) : const Color(0xFFf0f0f0) : null,
+          padding: const EdgeInsets.only(left: 35, right: 5, top: 5, bottom: 5),
           child: Stack(
             children: [
               // Contenu principal (Row avec Radio + Textes)
               Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Radio<String>( // Spécifie le type pour le Radio
-                    value: uniquePubKey,
-                    activeColor: Theme.of(context).primaryColor,
-                    groupValue: selectedKey,
-                    onChanged: (value) async {
-                      if (value != null) {
-                        final parts = value.split('_');
-                        final langSym = parts[0];
-                        final kSym = parts[1];
-                        final issueTag = int.tryParse(parts[2]) ?? 0;
-
-                        setState(() {
-                          selectedLanguage = langSym;
-                          selectedSymbol = kSym;
-                          selectedIssueTagNumber = issueTag;
-                        });
-
-                        Publication? publication = PublicationRepository().getAllPublications().firstWhereOrNull((p) => p.mepsLanguage.symbol == langSym && p.keySymbol == kSym && p.issueTagNumber == issueTag);
-                        publication ??= await PubCatalog.searchPub(kSym, issueTag, langSym);
-                        _handlePublicationSelection(context, publication);
-                      }
-                    },
-                  ),
-                  const SizedBox(width: 20),
+                  if(languageSymbol == selectedLanguage && keySymbol == selectedSymbol && issueTagNumber == selectedIssueTagNumber)
+                    // Montrer quelque chose qui indeic une sorte de bar
+                    Container(
+                      width: 3,
+                      height: 20,
+                      color: Theme.of(context).primaryColor,
+                    ),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -489,18 +526,17 @@ class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
                           languageData['LanguageName'] ?? '',
                           style: const TextStyle(fontSize: 16),
                         ),
-                        const SizedBox(height: 2),
                         Text(
-                          languageData['ShortTitle'],
+                          languageData['IssueTitle'] ?? languageData['ShortTitle'],
                           style: TextStyle(
                             fontSize: 14,
                             color: Theme.of(context).brightness == Brightness.dark
                                 ? const Color(0xFFc3c3c3)
                                 : const Color(0xFF626262),
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        if(widget.publication == null)
-                          const SizedBox(height: 2),
                         if(widget.publication == null)
                           Text(
                             '${languageData['Year']} - ${languageData['KeySymbol']}',
@@ -515,7 +551,7 @@ class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
                       ],
                     ),
                   ),
-                  const SizedBox(width: 35), // pour laisser la place au bouton
+                  const SizedBox(width: 40), // pour laisser la place au bouton
                 ],
               ),
 
@@ -527,7 +563,7 @@ class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
                   bottom: 0,
                   child: PopupMenuButton(
                     icon: const Icon(
-                      Icons.more_vert,
+                      Icons.more_horiz,
                       color: Color(0xFF9d9d9d),
                     ),
                     itemBuilder: (context) {
@@ -543,7 +579,7 @@ class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
                             children: [
                               Icon(JwIcons.share),
                               SizedBox(width: 8),
-                              Text('Envoyer le lien'),
+                              Text(i18n().action_open_in_share),
                             ],
                           ),
                         ),
@@ -574,7 +610,7 @@ class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
                             children: [
                               publication != null && publication?.isDownloadedNotifier.value == true ? Icon(JwIcons.trash) : Icon(JwIcons.cloud_arrow_down),
                               SizedBox(width: 8),
-                              publication != null && publication?.isDownloadedNotifier.value == true ? Text('Supprimer') : Text('Télécharger'),
+                              publication != null && publication?.isDownloadedNotifier.value == true ? Text(i18n().action_delete) : Text(i18n().action_download),
                             ],
                           ),
                         ),
@@ -634,7 +670,7 @@ class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
               // ProgressBar (positionné en bas à gauche, sous les textes)
               if (isDownloading)
                 Positioned(
-                  left: 65,
+                  left: 10,
                   right: 35,
                   bottom: 0,
                   child: _buildProgressBar(context),

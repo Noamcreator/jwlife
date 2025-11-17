@@ -383,3 +383,180 @@ Solution : Ce problème sera réglé en retéléchargeant les documents concern�
 
 ### 📦 **Mises à jour techniques**
 - Mise à jour de la bibliothèque **flutter_local_notifications** : `19.4.2` → `19.5.0`.
+
+
+📢 Mise à jour – 1.0.6 (31/10/2025)
+
+🚀 Nouvelles fonctionnalités
+Téléchargement de médias par publication : Ajout du dialogue "Télécharger les médias" dans les menus des publications pour permettre le téléchargement de toutes les vidéos et de tous les audios associés. (Note : Actuellement, le téléchargement des audios est fonctionnel, les vidéos seront disponibles prochainement.)
+
+Téléchargement de séries de vidéos : Ajout d'un bouton de téléchargement rapide permettant de télécharger une série complète de vidéos d'une catégorie en une seule fois. Un dialogue demande la résolution souhaitée pour l'ensemble des vidéos.
+
+Navigation vidéo facilitée : Lors de l'ouverture d'une vidéo dans une catégorie, il est désormais possible de passer d'une vidéo à l'autre en utilisant les flèches de navigation situées en bas de l'écran dans le player audio.
+
+Réorganisation des éléments : Il est maintenant possible de repositionner les notes dans une catégorie ou de réorganiser les éléments dans les listes de lecture (playlists), de manière similaire à JW Library.
+
+🧩 Améliorations
+Option de couleur de la Bible : Ajout d'une option dans la section "Apparence" des paramètres pour choisir une couleur de fond spécifique pour la Bible, indépendamment des autres réglages.
+
+Sélection de texte précise : La fonctionnalité de sélection s'applique désormais uniquement aux mots ou à la ponctuation, améliorant la précision de la sélection.
+
+Navigation Webview (temporaire) : Pour passer d'un document à l'autre sur la vue web (webview), il est nécessaire de faire glisser avec deux doigts. (Note : Une option pour personnaliser ce comportement sera ajoutée dans les paramètres prochainement.)
+
+🐞 Corrections
+Vidéo et Image : Correction du bug de clignotement de l'écran après la fermeture d'une vidéo ou d'une image.
+
+Lecture de vidéos externes : Réparation d'un bug qui empêchait l'ouverture de certaines vidéos provenant de publications externes (par exemple, celles utilisées pour les semaines spéciales). Elles peuvent maintenant être lues sans problème.
+
+Changement de langue (Bibliothèque) : Correction du bug qui empêchait la bibliothèque de s'ouvrir après un changement de langue.
+
+Langue affichée : Lorsque l'on change la langue sur la page des éléments audio ou vidéo et que l'on retourne au dialogue de sélection de langue, la bonne langue est maintenant correctement indiquée.
+
+🎨 Interface
+Player Audio : Le bouton central du lecteur audio a été réduit et les sous-titres en mode paysage sont mieux positionnés.
+
+Barre de navigation Android : La barre de navigation est désormais positionnée correctement sur les appareils disposant des boutons Android physiques.
+
+Padding des en-têtes : Le padding (marge intérieure) des en-têtes des catégories de publications a été revu pour une meilleure présentation.
+
+📦 Mises à jour techniques
+Mise à jour Flutter : Mise à jour vers la dernière version de Flutter (passage de la 3.35.6 à la 3.35.7).
+
+Bonne aseemblée à vous
+
+📢 Mise à jour – 1.0.7 (04/11/2025)
+
+- Démarrage de l'application opitmisé car on fait la recherche de la clé de la version après que l'app est démarré est plus avant
+
+- Le fichier manifest.json n'est plus dans le zip donc on évite une décompression en plus au démarage
+
+- Ajout de la page Galerie multimédia pour les livres de la Bible ayant des images quand on clique sur livre (les notes d'études)
+
+- Transition qui vient vers la bas pour les notes et le lectuer Audio en plein écran donc plus sur le côté
+
+- La base de donnée Userdata n'est plus copié depuis un fichier .db mais est directement créer par code donc plus de fichier à copier
+
+- Correction du bug quand je change de thème et que je suis en 'Clair' forcé et que je passe en 'Par défaut' et que le téléphone est en sombre le webview reste clair mais inversement non. Quand on est en 'Par défaut' et que je change le theme sur le téléphone le Webview s'actualise au bon theme.
+
+- Quand on clique sur un verset et qu'on a plusieurs traductions de la Bible, avant peut importe la bible qu'on cliquait il nous mettait toujours la bible d'étude maintenant il va sur la bonne traduction
+
+- Bug quand on partagait un document il rajoutait par=null quand aucun paragraphe était selectionné
+
+- Bug quand on ouvrait un lien document et que le paragraphe était à null
+
+- Optimisations des notes quand on a beaucoup et qu'on clique sur Notes et catégories on cherche maintenant par paquet de 2000
+
+- On peut maintenant trier les publication par : (Titre (A-Z), Titre (Z-A), Année (Plus récent), Année (Plus ancien), Symbole (A-Z), Symbole (Z-A))
+
+- Quand on fait une recherche d'un mot sur une publication le scroll est plus fluide et tous les éléments sont sur le même scroll
+
+- Le logo au démarage est de la même couleur que la Couleur Principale
+
+- Les requêtes SQL pour récupérer le surlignage, les notes sont maintenant ciblé sur le paragraphe. Par exemple quand je cherche Genèse 3:15 avant il faisait une requete pour récupérer tout le chapitre 3, donc plus rapide.
+
+- Les surlignages, les notes et le marques-pages sont maintenant bien récupéré sur la bonne traduction de la bible !
+
+- On peut maintenant déplacer les notes dans une catégorie comme on veut sans aucun problème
+
+- Quand on faisait une recheche de mot sur une page, le mot n'était plus en orange dans le fond sur le webview
+
+- Repositionnement de la toolbar pour les actions sur un paragraphe ou un verset
+
+- On peut maintenant écouter la lecture audio depuis un paragraphe directement
+
+- On peut maintenant regarder toutes les notes d'un document ou d'un chapitre en appuyant sur le diamant. Quand on a ouvert par exemple un verset il suffit de faire la flèche arrière pour retourner sur toutes les notes comme sur JW Library
+
+- Le dialog pour la écrire une note a été totalement repensé. Le texte est denouveau aligné à gauche. La suggestions des catégories se fait toujours par en bas. La note s'adapte à la taille du texte
+
+- Quand on cliquait sur un verset il rajoutait aussi le surlignage sur le document principale: bug corrigait
+
+- On repasse denouveau à 1 doight pour changer la page des documents
+
+- On ne pouvait pas cliquer sur les notes de versets quand on avait plusieurs traductions
+
+- Mise à jour des libraries : crypto: 3.0.6 => 3.0.7, de uuid: 4.5.1 => 4.5.2 et de flutter_svg: 2.2.1 => 2.2.2
+
+
+📢 Mise à jour – 1.1.0 (17/11/2025)
+
+- Réparation des bannière pour les points d'actualité !
+
+- Correction du bug quand on télécharge une publication, il ne la téléchargeait plus les headers de la requête ont été mis à jour
+
+- Requêtes réseaux améliorer et fonctionne sur la même instance
+
+- Dès qu'on veut effectuer une tache qui nécessite le réseau mais qu'on en a pas un dialog Aucune connexion s'affiche
+
+- Les publications dans le player audio affiche le titre avec les issue quand y'a besoin
+
+- Les langues qui ont un affichage RTL sont pris en compte (l'arabe, l'hébreux, etc.)
+
+- 90 % des textes de l'application ont été internationalisée en plus de 14 langues (af, ar, de, en, es, gl, hu, it, ja, ko, ne, nl, pt, ru)
+
+- Le RTL de l'application n'est pas le même que celui de la Bibliothèque par exemple si on choisis des publication/vidéos/audio en arabe dans la bibliothèque même si je suis sur la langue fr dans l'app les publication/vidéos/audio s'afficheront en RTL
+
+- Affichage plus rapide des pages webview au démarrage de celle-ci
+
+- Ajout d'un 'Mode Lecture' et d'un 'Mode Préparaion' dans un les webview. Le Mode Préparation nous empêche de changer de page ceux qui évitent quand on surligne de changer de page par erreur. Le mode lecture nous permet de ne pas pouvoir surligner pendant les réunins pour éviter de surligner par erreur du texte
+
+- Pour la date sur le texte du jour, pour la date sur la vue WorshipPage et sur les dialog pour choisir une langue on ne prend plus la langue de la bibliothèque mais la langue de l'application comme sur JW Library
+
+- Possibilité de télécharger une image ou de la partager quand on reste appuyé longtemps dessus dans un webview ou sur le menu d'une publication
+
+- Quand on clique sur le casque quand on est sur un webview il nous propose de soit télécharger l'audio (ou le supprimer si on la déjà) ou de l'écouter
+
+- En mode RTL les document ne se lisent pas de 0, 1, 2, 3... mais dans le sens opposé pour avoir l'impression immersif d'un livre en arabe, hébreux etc.
+
+- Les images n'ont plus de fade quand elles s'affichent elle ont directe l'image quand elle est chargé
+
+- Bug sur les Xiaomi qui ont HyperOs le clavier ramé. Ce problème est partiellement corrigé
+
+- Amélioration des dialogues pour choisir une langues. Ils sont plus sympa et ressemble à ceux de l'app JW Library sur PC
+
+- Amélioration de la vue Voir les paroles sur les audios
+
+- Le démarrage de l'app a été optimisé
+
+- Pour télécharger une vidéo le menu d'affiche sous le nuage et plus dans un dialog
+
+- L'icon pour les boutons menu ne sont plus en vertical mais en horizonal pour qu'ils prennent moins de place
+
+- Les icons gitub ont été réduit en taille pour moins prendre de mémoire
+
+- Le Il y a … jour/heure etc. a été amélioré et tous les cas sont prévus dans toutes les langues
+
+- Sur la page des playlists le bouton créer une liste de lecture et importé une liste de lecture ont été rajouté. Pour chaque playlist quand on appuye sur le menu on peut soit renommer/supprimer/partager
+
+- Les publications qui ont plusieurs attributs sont maintenant gérés 
+
+- Pour les attributs et les catégories ça se met dans la langue de la bibliotheque et plus de l'app
+
+- Les audios s'affiche dans les menus sur une pub des qu'on l'ouvre pour la première fois
+
+- Les images sur les menus sont ouvert dans le bon vissionneur d'image
+
+- Mise à jour flutter de la 3.35.1 à la vers la 3.38.1
+
+- Mise à jour de filePicker de 10.3.3 à 10.3.6
+
+- Mise à jour de video_player de 2.10.0 à 2.10.1
+
+- Mise à jour de image_picker de 1.2.0 à 1.2.1
+
+- Sur les menus on peut maintenant directe mettre le switch activer/désactivé. C'est ce qui a été fait pour Plein Écran, le Mode Lecture et le Mode Préparation. ça évité un clique
+
+- Tant que la lecture de la bible n'est pas fonctionnel elle a été retiré de l'onglet 'Personnel'
+
+- Ajout des tables dans la database pour gérer: les cours bibliques, les nouvelles visites, les personnes etc. (Reste encore à gérer l'enregistrement des donnée et l'affichage)
+
+- Les heure et les temps s'adapte à la langue par exemple si on est en arabe les chiffres s'afficheront comme ça : '٠','١','٢','٣','٤','٥','٦','٧','٨','٩'
+
+- La taille des fichiers est traduits en fr ça donne 1 Mo, 1 Go en en : 1 Mb, 1 Gb etc.
+
+- Amélioration du dialog pour choisir une date
+
+- Le webview prend en compte le RTL également !
+
+- Le surlignage pour les autres lanagues que le fr focntionnent également sur le webview
+
+- Le design de 

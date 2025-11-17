@@ -6,7 +6,7 @@ import '../../../../app/services/settings_service.dart';
 import '../../../../core/icons.dart';
 import '../../../../core/shared_preferences/shared_preferences_utils.dart';
 import '../../../../data/databases/history.dart';
-import '../../../../i18n/localization.dart';
+import '../../../../i18n/i18n.dart';
 import '../../../../widgets/searchfield/searchfield_all_widget.dart';
 
 class HomeAppBar extends StatefulWidget implements PreferredSizeWidget {
@@ -24,7 +24,7 @@ class HomeAppBar extends StatefulWidget implements PreferredSizeWidget {
 class _HomeAppBarState extends State<HomeAppBar> {
   bool isSearching = false;
 
-  void onOpenSearch() {
+  Future<void> onOpenSearch() async {
     setState(() {
       isSearching = true;
     });
@@ -75,7 +75,7 @@ class _HomeAppBarState extends State<HomeAppBar> {
       title: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(localization(context).navigation_home, style: textStyleTitle),
+          Text(i18n().navigation_home, style: textStyleTitle),
           Text(JwLifeSettings().currentLanguage.vernacular, style: textStyleSubtitle),
         ],
       ),

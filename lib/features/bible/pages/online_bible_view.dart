@@ -30,7 +30,7 @@ class _BiblePageState extends State<BiblePage> {
   Future<void> _fetchHtmlContent() async {
     final response = await Api.httpGetWithHeaders(publicationLink);
     if (response.statusCode == 200) {
-      _parseHtml(response.body);
+      _parseHtml(response.data);
     } else {
       // Handle error
     }

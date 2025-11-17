@@ -6,8 +6,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:jwlife/app/services/file_handler_service.dart';
+import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/core/utils/utils.dart';
+import 'package:jwlife/core/utils/utils_audio.dart';
 import 'package:jwlife/core/utils/webview_data.dart';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/repositories/PublicationRepository.dart';
@@ -20,26 +22,27 @@ import '../../app/services/settings_service.dart';
 import '../../features/publication/pages/document/data/models/document.dart';
 
 import '../../features/publication/pages/menu/local/publication_menu_view.dart';
+import '../../i18n/i18n.dart';
 import '../shared_preferences/shared_preferences_utils.dart';
 
 bool hideDialog = false;
 
 Future<void> showDownloadPublicationDialog(BuildContext context, Publication publication, {int? mepsDocId, int? bookNumber, int? chapterNumber, DateTime? date, int? startParagraphId, int? endParagraphId, String? textTag, List<String>? wordsSelected}) async {
-  String publicationTitle = publication.getTitle();
+  String title = publication.getTitle();
 
   hideDialog = false;
 
   await showJwDialog<void>(
     context: context,
-    titleText: "« $publicationTitle » n'est pas téléchargé",
-    contentText: "Souhaitez-vous télécharger « $publicationTitle » ?",
+    titleText: i18n().message_item_download_title(title),
+    contentText: i18n().message_item_download(title),
     buttons: [
       JwDialogButton(
-        label: 'ANNULER',
+        label: i18n().action_cancel_uppercase,
         closeDialog: true,
       ),
       JwDialogButton(
-        label: 'TÉLÉCHARGER',
+        label: i18n().action_download_uppercase,
         closeDialog: false,
         onPressed: (buildContext) async {
           Navigator.of(buildContext).pop(); // Ferme le 1er dialog
@@ -54,7 +57,7 @@ Future<void> showDownloadPublicationDialog(BuildContext context, Publication pub
 Future<void> showDownloadProgressDialog(BuildContext context, Publication publication, {bool openOnSuccess = false, int? mepsDocId, int? bookNumber, int? chapterNumber, DateTime? date, int? startParagraphId, int? endParagraphId, String? textTag, List<String>? wordsSelected}) async {
   await showJwDialog<void>(
     context: context,
-    titleText: "Téléchargement de « ${publication.getTitle()} »",
+    titleText: i18n().message_item_downloading(publication.getTitle()),
     // Passage du nouveau paramètre à _DownloadDialogContent
     content: _DownloadDialogContent(
         publication: publication,
@@ -70,7 +73,7 @@ Future<void> showDownloadProgressDialog(BuildContext context, Publication public
     ),
     buttons: [
       JwDialogButton(
-        label: 'ANNULER',
+        label: i18n().action_cancel_uppercase,
         closeDialog: false,
         onPressed: (buildContext) async {
           await publication.cancelDownload(context);
@@ -78,7 +81,7 @@ Future<void> showDownloadProgressDialog(BuildContext context, Publication public
       ),
       // ⭐ AJOUT DU BOUTON MASQUER
       JwDialogButton(
-        label: 'MASQUER',
+        label: i18n().action_hide.toUpperCase(),
         closeDialog: false,
         onPressed: (buildContext) {
           hideDialog = true;
@@ -189,15 +192,15 @@ class __DownloadDialogContentState extends State<_DownloadDialogContent> {
 Future<void> showImportPublication(BuildContext context, String keySymbol, int issueTagNumber, int mepsLanguageId) async {
   await showJwDialog<void>(
     context: context,
-    titleText: "Publication non disponible",
-    contentText: "Importer une publication",
+    titleText: i18n().message_publication_unavailable_title,
+    contentText: i18n().message_publication_unavailable,
     buttons: [
       JwDialogButton(
-        label: 'ANNULER',
+        label: i18n().action_cancel_uppercase,
         closeDialog: true,
       ),
       JwDialogButton(
-        label: 'IMPORTER',
+        label: i18n().label_import_uppercase,
         closeDialog: false,
         onPressed: (buildContext) async {
           Navigator.of(buildContext).pop(); // Ferme le 1er dialog
@@ -230,14 +233,11 @@ Future<void> showDocumentView(BuildContext context, int mepsDocId, int currentLa
     }
   }
   else {
-    if(await hasInternetConnection()) {
+    if(await hasInternetConnection(context: context)) {
       publication = await PubCatalog.searchPubFromMepsDocumentId(mepsDocId, currentLanguageId);
       if (publication != null) {
         await showDownloadPublicationDialog(context, publication, mepsDocId: mepsDocId, startParagraphId: startParagraphId, endParagraphId: endParagraphId, textTag: textTag, wordsSelected: wordsSelected);
       }
-    }
-    else {
-      await showNoConnectionDialog(context);
     }
   }
 }
@@ -254,14 +254,11 @@ Future<void> showChapterView(BuildContext context, String keySymbol, int current
     }
   }
   else {
-    if(await hasInternetConnection()) {
+    if(await hasInternetConnection(context: context)) {
       bible = await PubCatalog.searchPub(keySymbol, 0, currentLanguageId);
       if (bible != null) {
         await showDownloadPublicationDialog(context, bible, bookNumber: bookNumber, chapterNumber: chapterNumber, startParagraphId: firstVerseNumber, endParagraphId: lastVerseNumber, wordsSelected: wordsSelected);
       }
-    }
-    else {
-      await showNoConnectionDialog(context);
     }
   }
 }
@@ -271,11 +268,8 @@ Future<void> showDailyText(BuildContext context, Publication publication, {DateT
     await showPageDailyText(publication, date: date);
   }
   else {
-    if(await hasInternetConnection()) {
+    if(await hasInternetConnection(context: context)) {
       await showDownloadPublicationDialog(context, publication, date: date);
-    }
-    else {
-      await showNoConnectionDialog(context);
     }
   }
 }
@@ -326,18 +320,18 @@ String createHtmlContent(String html, String articleClasses, String javascript) 
   return htmlContent;
 }
 
-String getArticleClass(Document document) {
+String getArticleClass(Publication publication, Document document) {
   final isBible = document.isBibleChapter();
-  final publication = isBible ? 'bible' : 'document';
-  final keySymbol = document.publication.keySymbol;
+  final type = isBible ? 'bible' : 'document';
+  final keySymbol = publication.keySymbol;
   final docClass = document.classType;
   final docId = document.documentId;
-  final scriptName = document.publication.mepsLanguage.internalScriptName;
-  final languageSymbol = document.publication.mepsLanguage.symbol;
-  final direction = document.publication.mepsLanguage.isRtl ? 'rtl' : 'ltr';
+  final scriptName = publication.mepsLanguage.internalScriptName;
+  final languageSymbol = publication.mepsLanguage.symbol;
+  final direction = publication.mepsLanguage.isRtl ? 'rtl' : 'ltr';
 
-  return [
-    publication,
+  String classString = [
+    type,
     'jwac',
     'pub-$keySymbol',
     'docClass-$docClass',
@@ -348,6 +342,8 @@ String getArticleClass(Document document) {
     'layout-reading',
     'layout-sidebar'
   ].join(' ');
+
+  return classString;
 }
 
 Future<void> showFontSizeDialog(BuildContext context, InAppWebViewController? controller) async {
@@ -402,7 +398,7 @@ Future<void> showFontSizeDialog(BuildContext context, InAppWebViewController? co
                   children: [
                     TextButton(
                       child: Text(
-                        'FERMER',
+                        i18n().action_done_uppercase,
                         style: TextStyle(
                           fontFamily: 'Roboto',
                           letterSpacing: 1,
@@ -425,8 +421,9 @@ Future<void> showFontSizeDialog(BuildContext context, InAppWebViewController? co
   );
 }
 
+/*
 Future<bool> showFullscreenDialog(BuildContext context) async {
-  bool isFullscreen = await getFullscreen();
+  bool isFullscreen = await getFullscreenMode();
   bool? result = await showDialog<bool>(
     context: context,
     barrierDismissible: false, // Empêche la fermeture en cliquant en dehors
@@ -480,6 +477,8 @@ Future<bool> showFullscreenDialog(BuildContext context) async {
 
   return result ?? isFullscreen; // Retourne la dernière valeur connue si l'utilisateur ferme sans appuyer sur "FERMER"
 }
+
+ */
 
 Future<void> showHtmlDialog(BuildContext context, String html) async {
   TextEditingController htmlController = TextEditingController(text: html);
@@ -537,7 +536,7 @@ Future<void> showHtmlDialog(BuildContext context, String html) async {
                         ),
                         TextButton(
                           child: Text(
-                            'FERMER',
+                            i18n().action_close_upper,
                             style: TextStyle(
                               fontFamily: 'Roboto',
                               letterSpacing: 1,
@@ -560,6 +559,77 @@ Future<void> showHtmlDialog(BuildContext context, String html) async {
       );
     },
   );
+}
+
+void showAudioPopupMenu(BuildContext context, Publication publication, int audioIndex) async {
+  // Définition d'un décalage vertical
+  const double verticalOffset = 50.0;
+
+  // 1. Calcul de la position du menu
+  final RenderBox button = context.findRenderObject() as RenderBox;
+
+  // Point supérieur gauche décalé de 50 pixels vers le bas
+  final Offset topLeft = button.localToGlobal(Offset.zero).translate(0.0, verticalOffset);
+
+  // Point inférieur droit décalé de 50 pixels vers le bas
+  final Offset bottomRight = button.localToGlobal(button.size.bottomRight(Offset.zero)).translate(0.0, verticalOffset);
+
+  // Création du RelativeRect avec les points décalés
+  final RelativeRect position = RelativeRect.fromRect(
+    Rect.fromPoints(
+      topLeft,
+      bottomRight,
+    ),
+    Offset.zero & MediaQuery.of(context).size,
+  );
+
+  // 2. Affichage du menu et attente du choix de l'utilisateur
+  // Nous utilisons String comme type de retour pour le showMenu.
+  final String? result = await showMenu<String>(
+    context: context,
+    position: position,
+    items: <PopupMenuEntry<String>>[
+      // Écouter l'audio
+      PopupMenuItem<String>(
+        value: 'listen', // Utilisation de la constante String
+        child: ListTile(
+          dense: true,
+          leading: Icon(JwIcons.play, color: Theme.of(context).primaryColor),
+          title: Text(i18n().action_play_audio),
+        ),
+      ),
+      // Télécharger l'audio
+      PopupMenuItem<String>(
+        value: 'download', // Utilisation de la constante String
+        child: ListTile(
+          dense: true,
+          leading: Icon(publication.audios.elementAt(audioIndex).isDownloadedNotifier.value ? JwIcons.trash : JwIcons.cloud_arrow_down, color: Theme.of(context).primaryColor),
+          title: Text(publication.audios.elementAt(audioIndex).isDownloadedNotifier.value ? i18n().action_delete_audio : i18n().action_download_audio),
+        ),
+      ),
+    ],
+  );
+
+  // 3. Gestion du résultat
+  if (result != null) {
+    switch (result) {
+      case 'listen':
+        showAudioPlayerPublicationLink(context, publication, audioIndex);
+        break;
+
+      case 'download':
+        if(publication.audios.elementAt(audioIndex).isDownloadedNotifier.value) {
+          publication.audios.elementAt(audioIndex).remove(context);
+        }
+        else {
+          publication.audios.elementAt(audioIndex).download(context);
+        }
+        break;
+
+      default:
+        return;
+    }
+  }
 }
 
 Future<Bookmark?> showBookmarkDialog(BuildContext context, Publication publication, {InAppWebViewController? webViewController, int? mepsDocumentId, int? bookNumber, int? chapterNumber, String? title, String? snippet, int? blockType, int? blockIdentifier}) async {
@@ -585,7 +655,7 @@ Future<Bookmark?> showBookmarkDialog(BuildContext context, Publication publicati
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 20),
                     child: Text(
-                      'Marque-pages - ${publication.getShortTitle()}',
+                      '${i18n().action_bookmarks} - ${publication.getShortTitle()}',
                       style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                     ),
                   ),
@@ -707,7 +777,7 @@ Future<Bookmark?> showBookmarkDialog(BuildContext context, Publication publicati
                                                       }
                                                     }
                                                   },
-                                                  child: Text('Supprimer'),
+                                                  child: Text(i18n().action_delete),
                                                 ),
                                                 PopupMenuItem(
                                                   onTap: () async {
@@ -746,7 +816,7 @@ Future<Bookmark?> showBookmarkDialog(BuildContext context, Publication publicati
                                                       }
                                                     }
                                                   },
-                                                  child: Text('Remplacer'),
+                                                  child: Text(i18n().action_replace),
                                                 ),
                                               ];
                                             },
@@ -770,7 +840,7 @@ Future<Bookmark?> showBookmarkDialog(BuildContext context, Publication publicati
                       padding: const EdgeInsets.only(bottom: 10, right: 10),
                       child: TextButton(
                         child: Text(
-                          'FERMER',
+                          i18n().action_done_uppercase,
                           style: TextStyle(
                               fontFamily: 'Roboto',
                               letterSpacing: 1,
@@ -796,15 +866,15 @@ Future<Bookmark?> showBookmarkDialog(BuildContext context, Publication publicati
 Future<void> showImportVideo(BuildContext context, String keySymbol, int issueTagNumber, int mepsLanguageId) async {
   await showJwDialog<void>(
     context: context,
-    titleText: "Publication non disponible",
-    contentText: "Importer une publication",
+    titleText: i18n().message_publication_unavailable_title,
+    contentText: i18n().action_import_file,
     buttons: [
       JwDialogButton(
-        label: 'ANNULER',
+        label: i18n().action_close_upper,
         closeDialog: true,
       ),
       JwDialogButton(
-        label: 'IMPORTER',
+        label: i18n().label_import.toUpperCase(),
         closeDialog: false,
         onPressed: (buildContext) async {
           Navigator.of(buildContext).pop(); // Ferme le 1er dialog

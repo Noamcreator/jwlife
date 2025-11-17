@@ -3,7 +3,7 @@ import 'dart:typed_data';
 import 'package:jwlife/data/models/publication.dart';
 
 class Multimedia {
-  final int id;
+  int? id;
   int? linkMultimediaId;
   int dataType;
   int majorType;
@@ -32,7 +32,7 @@ class Multimedia {
   int? endParagraphOrdinal;
 
   Multimedia({
-    required this.id,
+    this.id,
     this.linkMultimediaId,
     this.dataType = 0,
     this.majorType = 0,
@@ -57,8 +57,8 @@ class Multimedia {
     this.issueTagNumber = 0,
     this.hasSuppressZoom = false,
     this.sizeConstraint,
-    required this.beginParagraphOrdinal,
-    required this.endParagraphOrdinal,
+    this.beginParagraphOrdinal,
+    this.endParagraphOrdinal,
   });
 
   factory Multimedia.fromMap(Map<String, dynamic> map) {

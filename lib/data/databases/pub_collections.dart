@@ -30,35 +30,45 @@ class PubCollections {
       await txn.execute("ATTACH DATABASE '${mepsFile.path}' AS meps");
 
       final result = await txn.rawQuery('''
-      WITH ImageData AS (
-         SELECT 
-             PublicationId,
-             MAX(CASE WHEN Type = 't' AND Width = 270 AND Height = 270 THEN Path WHEN Type = 't' AND Width = 100 AND Height = 100 THEN Path ELSE NULL END) AS ImageSqr,
-             MAX(CASE  WHEN Type = 'lsr' AND Width = 1200 AND Height = 600 THEN Path END) AS ImageLsr
-         FROM Image
-         WHERE 
-             (Type = 't' AND ( (Width = 270 AND Height = 270) OR (Width = 100 AND Height = 100) ))
-             OR (Type = 'lsr' AND Width = 1200 AND Height = 600)
-         GROUP BY PublicationId
-      )
-      SELECT DISTINCT 
-          p.*,
-          pa.Attribute,
-          pip.Title AS IssueTitle,
-          pip.CoverTitle,
-          pip.UndatedSymbol,
-          img.ImageSqr,
-          img.ImageLsr,
-          l.Symbol AS LanguageSymbol,
-          l.VernacularName AS LanguageVernacularName,
-          l.PrimaryIetfCode AS LanguagePrimaryIetfCode,
-          l.IsSignLanguage AS IsSignLanguage
-      FROM Publication p
-      LEFT JOIN PublicationAttribute pa ON pa.PublicationId = p.PublicationId
-      LEFT JOIN PublicationIssueProperty pip ON pip.PublicationId = p.PublicationId
-      INNER JOIN meps.Language l ON p.MepsLanguageId = l.LanguageId
-      LEFT JOIN ImageData img ON img.PublicationId = p.PublicationId;
-    ''');
+        WITH ImageData AS (
+           SELECT 
+               PublicationId,
+               MAX(CASE WHEN Type = 't' AND Width = 270 AND Height = 270 THEN Path WHEN Type = 't' AND Width = 100 AND Height = 100 THEN Path ELSE NULL END) AS ImageSqr,
+               MAX(CASE  WHEN Type = 'lsr' AND Width = 1200 AND Height = 600 THEN Path END) AS ImageLsr
+           FROM Image
+           WHERE 
+               (Type = 't' AND ( (Width = 270 AND Height = 270) OR (Width = 100 AND Height = 100) ))
+               OR (Type = 'lsr' AND Width = 1200 AND Height = 600)
+           GROUP BY PublicationId
+        )
+        SELECT DISTINCT 
+            p.*,
+            GROUP_CONCAT(DISTINCT pa.Attribute) AS AttributeTypes,
+            pip.Title AS IssueTitle,
+            pip.CoverTitle,
+            pip.UndatedSymbol,
+            img.ImageSqr,
+            img.ImageLsr,
+            l.Symbol AS LanguageSymbol,
+            l.VernacularName AS LanguageVernacularName,
+            l.PrimaryIetfCode AS LanguagePrimaryIetfCode,
+            l.IsSignLanguage AS IsSignLanguage,
+            s.InternalName AS ScriptInternalName,
+            s.DisplayName AS ScriptDisplayName,
+            s.IsBidirectional AS IsBidirectional,
+            s.IsRTL AS IsRTL,
+            s.IsCharacterSpaced AS IsCharacterSpaced,
+            s.IsCharacterBreakable AS IsCharacterBreakable,
+            s.SupportsCodeNames AS SupportsCodeNames,
+            s.HasSystemDigits AS HasSystemDigits
+        FROM Publication p
+        LEFT JOIN PublicationAttribute pa ON pa.PublicationId = p.PublicationId
+        LEFT JOIN PublicationIssueProperty pip ON pip.PublicationId = p.PublicationId
+        INNER JOIN meps.Language l ON p.MepsLanguageId = l.LanguageId
+        INNER JOIN meps.Script s ON l.ScriptId = s.ScriptId
+        LEFT JOIN ImageData img ON img.PublicationId = p.PublicationId
+        GROUP BY p.PublicationId;
+      ''');
 
       // On consomme pleinement les résultats avant de détacher
       result.map((row) => Publication.fromJson(row)).toList();

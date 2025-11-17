@@ -39,7 +39,6 @@ class Document {
   String? featureSubtitle;
   String? featureSubtitleRich;
   Uint8List? content;
-  String htmlContent;
   int? firstFootnoteId;
   int? lastFootnoteId;
   int? firstBibleCitationId;
@@ -98,7 +97,6 @@ class Document {
     this.featureSubtitle,
     this.featureSubtitleRich,
     this.content,
-    this.htmlContent = '',
     this.firstFootnoteId,
     this.lastFootnoteId,
     this.firstBibleCitationId,
@@ -220,7 +218,7 @@ class Document {
         // 2. Si les deux sont null, trier par MultimediaId
         if (aBegin == null && bBegin == null) {
           // Supposant que MultimediaId est une propriété de type int ou comparable
-          return a.id.compareTo(b.id);
+          return a.id!.compareTo(b.id!);
         }
 
         // 3. Sinon (si les deux sont non-null), trier par BeginParagraphOrdinal
@@ -281,7 +279,7 @@ class Document {
     }
   }
 
-  Future<WebResourceResponse?> getImagePathFromDatabase(String url) async {
+  Future<dynamic> getImagePathFromDatabase(String url, {bool returnFile = false}) async {
     // Mettre l'URL en minuscule
     List<Map<String, dynamic>> result = await database.rawQuery(
         'SELECT FilePath, MimeType FROM Multimedia WHERE LOWER(FilePath) = ?', [url]
@@ -289,7 +287,13 @@ class Document {
 
     // Si une correspondance est trouvée, retourne le chemin
     if (result.isNotEmpty) {
-      final imageData = await File('${publication.path}/${result.first['FilePath']}').readAsBytes();
+      File file = File('${publication.path}/${result.first['FilePath']}');
+
+      if(returnFile) {
+        return file;
+      }
+
+      final imageData = await file.readAsBytes();
       final mimeType = result.first['MimeType'];
       return WebResourceResponse(
         contentType: mimeType,

@@ -6,7 +6,7 @@ import 'package:diacritic/diacritic.dart';
 import '../../../core/utils/utils_document.dart';
 import '../../../data/models/publication.dart';
 import '../../../data/databases/catalog.dart';
-import '../../../data/models/userdata/inputField.dart';
+import '../../../data/models/userdata/input_field.dart';
 import '../../../data/repositories/PublicationRepository.dart';
 import '../../../widgets/image_cached_widget.dart';
 

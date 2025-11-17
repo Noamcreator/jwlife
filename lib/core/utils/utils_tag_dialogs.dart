@@ -2,15 +2,15 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:jwlife/app/jwlife_app.dart';
-import 'package:jwlife/app/services/global_key_service.dart';
 import 'package:jwlife/data/models/userdata/playlist.dart';
 import 'package:jwlife/features/personal/pages/playlist_page.dart';
 import 'package:jwlife/core/utils/utils_dialog.dart';
 import 'package:share_plus/share_plus.dart';
 
-import '../../data/models/userdata/playlistItem.dart';
+import '../../data/models/userdata/playlist_item.dart';
 import '../../data/models/userdata/tag.dart';
 import '../../features/personal/pages/tag_page.dart';
+import '../../i18n/i18n.dart';
 import 'common_ui.dart';
 
 Future<Tag?> showAddTagDialog(BuildContext context, bool isPlaylist, {bool showTagPage = true}) async {
@@ -20,29 +20,24 @@ Future<Tag?> showAddTagDialog(BuildContext context, bool isPlaylist, {bool showT
   final Tag? result = await showJwDialog<Tag?>(
     context: context,
     titleText: isPlaylist
-        ? "Créer une liste de lecture"
-        : "Ajouter une catégorie",
+        ? i18n().action_create_a_playlist
+        : i18n().action_add_a_tag,
     content: Padding(
       padding: const EdgeInsets.symmetric(horizontal: 25),
       child: TextField(
         controller: textController,
         autofocus: true,
         textInputAction: TextInputAction.done,
-        decoration: InputDecoration(
-          hintText: isPlaylist
-              ? "Nom de la liste de lecture"
-              : "Nom de la catégorie",
-        ),
         onSubmitted: (_) => FocusScope.of(context).unfocus(),
       ),
     ),
     buttons: [
       JwDialogButton(
-        label: "ANNULER",
+        label: i18n().action_cancel_uppercase,
         closeDialog: true,
       ),
       JwDialogButton(
-        label: "OK",
+        label: i18n().action_ok,
         closeDialog: false, // Ne ferme pas automatiquement
         onPressed: (dialogContext) async {
           final name = textController.text.trim();
@@ -82,22 +77,19 @@ Future<Tag?> showEditTagDialog(BuildContext context, Tag tag) async {
   // Affichage du dialogue avec la structure showJwDialog
   Tag? result = await showJwDialog<Tag>(
     context: context,
-    titleText: "Renommer",
+    titleText: i18n().action_rename,
     content: Padding(
       padding: const EdgeInsets.symmetric(horizontal: 25),
       child: TextField(
         controller: textController,
-        decoration: InputDecoration(
-          hintText: tag.type == 2 ? "Nom de la liste de lecture" : "Nom de la catégorie",
-        ),
       ),
     ),
     buttons: [
       JwDialogButton(
-        label: "ANNULER",
+        label: i18n().action_cancel_uppercase,
       ),
       JwDialogButton(
-        label: "RENOMMER",
+        label: i18n().action_rename_uppercase,
         closeDialog: false,
         onPressed: (buildContext) async {
           String categoryName = textController.text.trim();
@@ -125,21 +117,21 @@ Future<bool?> showDeleteTagDialog(BuildContext context, Tag tag, {List<PlaylistI
   return await showJwDialog<bool?>(
     context: context,
     titleText: isPlaylist
-        ? "Supprimer la liste de lecture"
-        : "Supprimer la catégorie",
+        ? i18n().message_delete_playlist_title
+        : i18n().action_remove_tag,
     contentText: isPlaylist
-        ? "Cette action supprimera la liste de lecture « ${tag.name} »."
-        : "Cette action supprimera la catégorie « ${tag.name} » mais les notes ne seront pas supprimées.",
+        ? i18n().message_delete_playlist(tag.name)
+        : i18n().message_remove_tag(tag.name),
     buttons: [
       // Bouton ANNULER -> ferme juste le dialog
       JwDialogButton(
-        label: "ANNULER",
+        label: i18n().action_cancel_uppercase,
         closeDialog: true,
       ),
 
       // Bouton SUPPRIMER -> supprime puis renvoie 'true'
       JwDialogButton(
-        label: "SUPPRIMER",
+        label: i18n().action_delete_uppercase,
         closeDialog: false,
         onPressed: (BuildContext dialogContext) async {
           await JwLifeApp.userdata.deleteTag(tag, items: items);
@@ -169,7 +161,7 @@ Future<bool?> showSharePlaylist(BuildContext context, Playlist playlist, {List<P
         titleText: 'Erreur',
         contentText: 'Impossible d’exporter la playlist "${playlist.name}".',
         buttons: [
-          JwDialogButton(label: 'OK')
+          JwDialogButton(label: i18n().action_ok)
         ]
       );
       return false;

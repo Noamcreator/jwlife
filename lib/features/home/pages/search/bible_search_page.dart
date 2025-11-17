@@ -1,6 +1,6 @@
 import 'dart:convert';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 
 import '../../../../core/api/api.dart';
 import '../../../../core/utils/utils.dart';
@@ -34,10 +34,10 @@ class _SearchBiblePageState extends State<SearchBiblePage> {
 
   Future<void> fetchApiBible(String query) async {
     try {
-      http.Response response = await Api.httpGetWithHeaders("https://wol.jw.org/wol/l/r30/lp-f?q=$query");
+      Response response = await Api.httpGetWithHeaders("https://wol.jw.org/wol/l/r30/lp-f?q=$query");
 
       if (response.statusCode == 200) {
-        Map<String, dynamic> data = jsonDecode(response.body);
+        Map<String, dynamic> data = jsonDecode(response.data);
         setState(() {
           bibleResults = (data['items'] as List).expand((item) {
             // Chaque item de 'items' contient 'results' qui est une liste de listes
@@ -76,7 +76,7 @@ class _SearchBiblePageState extends State<SearchBiblePage> {
     final response = await Api.httpGetWithHeaders(url);
 
     if (response.statusCode == 200) {
-      var jsonResponse = json.decode(response.body);
+      var jsonResponse = json.decode(response.data);
       if (jsonResponse['items'] is List) {
         setState(() {
           suggestions = (jsonResponse['items'] as List).map((item) {

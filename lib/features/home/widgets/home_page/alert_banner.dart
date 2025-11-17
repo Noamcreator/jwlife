@@ -5,7 +5,7 @@ import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/core/utils/html_styles.dart';
 import 'package:jwlife/features/home/pages/alert_info_page.dart';
-import 'package:html/dom.dart' as html_dom;
+import 'package:jwlife/i18n/i18n.dart';
 
 class AlertBanner extends StatefulWidget {
   const AlertBanner({super.key});
@@ -79,17 +79,19 @@ class AlertBannerState extends State<AlertBanner> {
               return Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  TextHtmlWidget(
-                    text: alert['title'],
-                    style: TextStyle(color: Colors.white),
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 2,
-                    isSearch: false,
+                  Expanded( // <-- C'est le changement clé !
+                    child: TextHtmlWidget(
+                      text: alert['title'],
+                      style: TextStyle(color: Colors.white),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 2,
+                      isSearch: false,
+                    ),
                   ),
                   const SizedBox(width: 8),
                   if (_alerts.length > 1)
                     Text(
-                      '${index + 1} sur ${_alerts.length}',
+                      i18n().label_breaking_news_count(index + 1, _alerts.length),
                       style: TextStyle(color: Colors.white),
                     ),
                   const SizedBox(width: 8),

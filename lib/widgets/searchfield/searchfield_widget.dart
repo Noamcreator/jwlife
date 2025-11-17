@@ -6,7 +6,7 @@ import 'package:jwlife/widgets/searchfield/searchfield_with_suggestions/searchfi
 import 'package:jwlife/widgets/searchfield/searchfield_with_suggestions/searchfield_list_item.dart';
 
 import '../../features/home/pages/search/suggestion.dart';
-import '../../i18n/localization.dart';
+import '../../i18n/i18n.dart';
 
 class SearchFieldWidget extends StatefulWidget {
   final String query;
@@ -53,7 +53,7 @@ class _SearchFieldWidgetState extends State<SearchFieldWidget> {
   // -------------------------------------------------------------------
   static SearchInputDecoration buildSearchInputDecoration(BuildContext context) {
     return SearchInputDecoration(
-      hintText: localization(context).search_hint,
+      hintText: i18n().search_hint,
       searchStyle: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black),
       fillColor: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF1f1f1f) : const Color(0xFFf1f1f1),
       filled: true,

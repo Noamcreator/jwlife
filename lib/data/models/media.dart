@@ -8,6 +8,7 @@ import '../../app/services/notification_service.dart';
 import '../../core/jworg_uri.dart';
 import '../../core/utils/common_ui.dart';
 import '../../core/utils/utils_media.dart';
+import '../../i18n/i18n.dart';
 
 abstract class Media {
   int? mediaId;
@@ -81,7 +82,7 @@ abstract class Media {
         isDownloadedNotifier = isDownloadedNotifier ?? ValueNotifier(false),
         isFavoriteNotifier = isFavoriteNotifier ?? ValueNotifier(false);
 
-  Future<void> download(BuildContext context, {int? resolution});
+  Future<void> download(BuildContext context, {int? resolution, Offset? tapPosition});
 
   Future<void> notifyDownload(String title) async {
     if(JwLifeSettings().notificationDownload) {
@@ -98,7 +99,7 @@ abstract class Media {
     }
     else {
       BuildContext context = GlobalKeyService.jwLifePageKey.currentState!.getCurrentState().context;
-      showBottomMessageWithAction(this.title, SnackBarAction(label: 'Lire', onPressed: () {
+      showBottomMessageWithAction(this.title, SnackBarAction(label: i18n().action_play, onPressed: () {
         showPlayer(context);
       }));
     }
@@ -128,7 +129,7 @@ abstract class Media {
       isDownloadedNotifier.value = true;
       progressNotifier.value = 1.0;
 
-      notifyDownload('Téléchargement terminé');
+      notifyDownload(i18n().message_download_complete);
     }
     else {
       // Téléchargement annulé ou échoué
@@ -191,7 +192,7 @@ abstract class Media {
       _updateOperation!.cancel();
       _cancelToken = null;
       _updateOperation = null;
-      showBottomMessage('Mis à jour annulée');
+      showBottomMessage(i18n().message_update_cancel);
     }
   }
 
@@ -205,7 +206,7 @@ abstract class Media {
     isDownloadedNotifier.value = false;
     progressNotifier.value = 0;
 
-    showBottomMessage('Media supprimé');
+    showBottomMessage(i18n().message_delete_item(title));
   }
 
   Future<void> showPlayer(BuildContext context, {Duration initialPosition = Duration.zero, List<Media> medias});

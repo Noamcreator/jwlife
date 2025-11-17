@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/core/utils/html_styles.dart';
@@ -13,7 +14,10 @@ import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/databases/history.dart';
 import 'package:jwlife/data/models/userdata/bookmark.dart';
 import 'package:jwlife/features/publication/models/menu/local/bible_color_group.dart';
+import 'package:jwlife/features/publication/pages/document/data/models/multimedia.dart';
+import 'package:jwlife/features/publication/pages/document/local/full_screen_image_page.dart';
 import 'package:jwlife/features/publication/pages/menu/local/publication_search_view.dart';
+import 'package:jwlife/widgets/dialog/publication_dialogs.dart';
 import 'package:jwlife/widgets/responsive_appbar_actions.dart';
 import 'package:jwlife/widgets/searchfield/searchfield_widget.dart';
 
@@ -23,6 +27,7 @@ import '../../../../../core/app_dimens.dart';
 import '../../../../../core/shared_preferences/shared_preferences_utils.dart';
 import '../../../../../core/utils/utils_language_dialog.dart';
 import '../../../../../core/utils/utils_pub.dart';
+import '../../../../../i18n/i18n.dart';
 import '../../../../bible/pages/bible_chapter_page.dart';
 import '../../../../image/image_page.dart';
 import '../../../models/menu/local/menu_list_item.dart';
@@ -84,7 +89,8 @@ class PublicationMenuViewState extends State<PublicationMenuView> with SingleTic
       });
     }
 
-    _model.initAudio();
+    await _model.initAudio();
+    setState(() {});
   }
 
   @override
@@ -112,6 +118,7 @@ class PublicationMenuViewState extends State<PublicationMenuView> with SingleTic
   // -----------------------------------------------------------------------------
 
   Widget _buildNameItem(BuildContext context, bool showImage, ListItem item) {
+    final isRTL = widget.publication.mepsLanguage.isRtl;
     String subtitle = item.subTitle.replaceAll('​', '');
     bool showSubTitle = item.subTitle.isNotEmpty && subtitle != item.title;
     // Utilise firstWhereOrNull pour gérer le cas où audios est introuvable
@@ -129,69 +136,118 @@ class PublicationMenuViewState extends State<PublicationMenuView> with SingleTic
       padding: const EdgeInsets.symmetric(vertical: 4.0),
       child: InkWell(
         onTap: () { showPageDocument(widget.publication, item.mepsDocumentId); },
+        // Le Stack est le parent que nous allons utiliser pour le Positioned
         child: Stack(
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                showImage ? SizedBox( /* ... Image ... */
-                  width: 60.0, height: 60.0,
-                  // CORRECTION: Utilisation du chemin sécurisé
-                  child: hasValidImagePath
-                      ? ClipRRect(
-                      borderRadius: BorderRadius.circular(4.0),
-                      child: Image.file(
+            // 1. Déterminer la direction du texte pour ajuster les paddings/positions
+            Builder(
+              builder: (context) {
+                final imageSpacing = showImage ? 8.0 : 0.0;
+
+                // La Row inversera automatiquement l'ordre en RTL (Image à droite, Texte à gauche)
+                return Row(
+                  // On retire MainAxisAlignment.spaceBetween pour éviter les espaces vides excessifs
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // 1A. Image (sera à gauche en LTR, à droite en RTL)
+                    showImage ? SizedBox(
+                      width: 60.0,
+                      height: 60.0,
+                      child: hasValidImagePath
+                          ? ClipRRect(
+                        borderRadius: BorderRadius.circular(4.0),
+                        child: Image.file(
                           File(imageFullPath),
-                          fit: BoxFit.cover
+                          frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+                            // 1. Vérifie si l'image est encore en cours de chargement (frame est null)
+                            if (frame == null) {
+                              // Remplacement par le Container gris pendant le chargement
+                              return Container(color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF4f4f4f) : const Color(0xFF8e8e8e));
+                            }
+
+                            // 2. Si l'image est chargée (frame n'est pas null), affiche l'image elle-même (child)
+                            return child;
+                          },
+                          fit: BoxFit.cover,
+                        ),
                       )
-                  )
-                      : Container(color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF4f4f4f) : const Color(0xFF8e8e8e)),
-                ) : Container(),
-                Expanded(
-                  child: Padding(
-                    padding: EdgeInsets.only(left: showImage ? 8.0 : 0.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if(showSubTitle) Text(item.subTitle, style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFFc0c0c0) : const Color(0xFF626262), fontSize: 14), maxLines: 1, overflow: TextOverflow.ellipsis),
-                        const SizedBox(height: 2.0),
-                        Text(item.title, style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF9fb9e3) : const Color(0xFF4a6da7), fontSize: showSubTitle ? 15.0 : 16.0, height: 1.2), maxLines: 2, overflow: TextOverflow.ellipsis),
-                      ],
+                          :
+                      // Si le chemin n'est PAS valide (hasValidImagePath est false), on affiche le Container gris par défaut
+                      Container(color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF4f4f4f) : const Color(0xFF8e8e8e)),
+                    ) : const SizedBox.shrink(),
+
+                    // 1B. Texte Expansé (il prendra tout l'espace restant)
+                    Expanded(
+                      child: Padding(
+                        // Ajuster le padding : si LTR, padding à gauche. Si RTL, padding à droite.
+                        // On retire aussi l'espace pour le PopupMenuButton
+                        padding: EdgeInsets.only(
+                          left: isRTL ? 30.0 : imageSpacing,
+                          right: isRTL ? imageSpacing : 30.0,
+                          top: 4.0, // Petit ajustement vertical pour le texte
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if(showSubTitle) Text(item.subTitle, style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFFc0c0c0) : const Color(0xFF626262), fontSize: 14), maxLines: 1, overflow: TextOverflow.ellipsis),
+                            const SizedBox(height: 2.0),
+                            Text(item.title, style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF9fb9e3) : const Color(0xFF4a6da7), fontSize: showSubTitle ? 15.0 : 16.0, height: 1.2), maxLines: 2, overflow: TextOverflow.ellipsis),
+                          ],
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-                PopupMenuButton(
-                  icon: Icon(Icons.more_vert, color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF8e8e8e) : const Color(0xFF757575)),
-                  itemBuilder: (context) {
-                    List<PopupMenuEntry> items = [
-                      PopupMenuItem(child: Row(children: [Icon(JwIcons.share, color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black), const SizedBox(width: 8.0), Text('Envoyer le lien', style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black))]), onTap: () { widget.publication.documentsManager?.getDocumentFromMepsDocumentId(item.mepsDocumentId).share(false); }),
-                    ];
-                    if (audio != null && audio.fileSize != null) { // Ajout de la vérification audio.fileSize != null
-                      items.add(PopupMenuItem(child: Row(children: [Icon(JwIcons.cloud_arrow_down, color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black), const SizedBox(width: 8.0), ValueListenableBuilder<bool>(valueListenable: audio.isDownloadingNotifier, builder: (context, isDownloading, child) { return Text(isDownloading ? "Téléchargement en cours..." : audio.isDownloadedNotifier.value ? "Supprimer l'audio (${formatFileSize(audio.fileSize!)})" : "Télécharger l'audio (${formatFileSize(audio.fileSize!)})", style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black)); }),]), onTap: () { if (audio.isDownloadedNotifier.value) { audio.remove(context); } else { audio.download(context); } }),
-                      );
-                      items.add(PopupMenuItem(child: Row(children: [Icon(JwIcons.headphones__simple, color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black), const SizedBox(width: 8.0), Text("Écouter l'audios", style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black))]), onTap: () { int index = widget.publication.audios.indexWhere((audio) => audio.documentId == item.mepsDocumentId); if (index != -1) { showAudioPlayerPublicationLink(context, widget.publication, index); } }),
-                      );
-                    }
-                    return items;
-                  },
-                ),
-              ],
+                  ],
+                );
+              },
             ),
+
+            // 2. PopupMenuButton Positioned :
+            // Il sera positionné dans le coin supérieur Droit (LTR) ou Gauche (RTL) du Stack.
+            // Le `top: -4.0` ou une valeur similaire permet de compenser le Padding interne par défaut.
+            Positioned(
+              top: -10.0, // Ajuste vers le haut pour compenser le Padding vertical de 4.0
+              // Positionnement absolu : Right pour LTR, Left pour RTL.
+              right: isRTL ? null : -8,
+              left: isRTL ? -8 : null,
+              child: PopupMenuButton(
+                // On utilise padding: EdgeInsets.zero pour annuler l'espace par défaut autour de l'icône
+                padding: EdgeInsets.zero,
+                icon: Icon(Icons.more_horiz, color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF8e8e8e) : const Color(0xFF757575)),
+                itemBuilder: (context) {
+                  List<PopupMenuEntry> items = [
+                    PopupMenuItem(child: Row(children: [Icon(JwIcons.share, color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black), const SizedBox(width: 8.0), Text(i18n().action_open_in_share, style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black))]), onTap: () { widget.publication.documentsManager?.getDocumentFromMepsDocumentId(item.mepsDocumentId).share(false); }),
+                  ];
+                  if (audio != null && audio.fileSize != null) { // Ajout de la vérification audio.fileSize != null
+                    items.add(PopupMenuItem(child: Row(children: [Icon(JwIcons.cloud_arrow_down, color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black), const SizedBox(width: 8.0), ValueListenableBuilder<bool>(valueListenable: audio.isDownloadingNotifier, builder: (context, isDownloading, child) { return Text(isDownloading ? i18n().message_download_in_progress : audio.isDownloadedNotifier.value ? i18n().action_remove_audio_size(formatFileSize(audio.fileSize!)) : i18n().action_download_audio_size(formatFileSize(audio.fileSize!)), style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black)); }),]), onTap: () { if (audio.isDownloadedNotifier.value) { audio.remove(context); } else { audio.download(context); } }),
+                    );
+                    items.add(PopupMenuItem(child: Row(children: [Icon(JwIcons.headphones__simple, color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black), const SizedBox(width: 8.0), Text(i18n().action_play_audio, style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black))]), onTap: () { int index = widget.publication.audios.indexWhere((audio) => audio.documentId == item.mepsDocumentId); if (index != -1) { showAudioPlayerPublicationLink(context, widget.publication, index); } }),
+                    );
+                  }
+                  return items;
+                },
+              ),
+            ),
+
+            // 3. LinearProgressIndicator (doit être positionnée correctement en RTL)
             if (audio != null)
               ValueListenableBuilder<bool>(
                 valueListenable: audio.isDownloadingNotifier,
                 builder: (context, isDownloading, child) {
                   if (isDownloading) {
+                    const positionOffset = 65.0; // Largeur de l'image (60.0) + un petit espace
+
                     return Positioned(
                       bottom: 0,
-                      left: showImage ? 65 : 0,
-                      right: 20,
+                      left: isRTL ? null : showImage ? positionOffset : 0,
+                      right: isRTL ? (showImage ? positionOffset : 0) : 40.0,
                       child: ValueListenableBuilder<double>(
                         valueListenable: audio.progressNotifier,
                         builder: (context, progress, child) {
-                          return LinearProgressIndicator(
-                            value: progress, minHeight: 2.0, backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.2), valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).colorScheme.primary),
+                          return SizedBox(
+                            width: MediaQuery.of(context).size.width - (showImage ? positionOffset + 40.0 : 40.0),
+                            child: LinearProgressIndicator(
+                              value: progress, minHeight: 2.0, backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.2), valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).colorScheme.primary),
+                            ),
                           );
                         },
                       ),
@@ -630,7 +686,7 @@ class PublicationMenuViewState extends State<PublicationMenuView> with SingleTic
     }
 
     if (_model.tabsWithItems.isEmpty) {
-      return const Center(child: Text("Aucun contenu disponible ou la publications a un problème."));
+      return Center(child: Text(i18n().message_no_content));
     }
 
     // VRAI: Catégorie Bible (ID 1), VRAI: si la publications est ouverte comme page Bible
@@ -656,7 +712,21 @@ class PublicationMenuViewState extends State<PublicationMenuView> with SingleTic
 
           items.add(
               GestureDetector(
-                  onTap: () { showPage(ImagePage(filePath: imagePath)); },
+                  onTap: () {
+                    Multimedia multimedia = Multimedia(filePath: imageLsrValue.split('/').last);
+                    showPage(FullScreenImagePage(publication: widget.publication, multimedias: [multimedia], multimedia: multimedia));
+                  },
+                  onLongPressStart: (details) {
+                    // Les coordonnées du pointeur sont ici dans details.globalPosition
+                    final double clientX = details.globalPosition.dx;
+                    final double clientY = details.globalPosition.dy;
+
+                    // Nous appelons la fonction avec les coordonnées calculées
+                    // Faire vibrer le téléphone
+                    HapticFeedback.mediumImpact();
+
+                    showFloatingMenuAtPosition(context, imagePath, clientX, clientY);
+                  },
                   child: Image.file(
                       File(imagePath),
                       fit: BoxFit.fill,
@@ -698,8 +768,9 @@ class PublicationMenuViewState extends State<PublicationMenuView> with SingleTic
                       GestureDetector(
                         onTap: () {
                           final String imageLsr = widget.publication.imageLsr as String;
-                          final String imagePath = '${widget.publication.path}/${imageLsr.split('/').last}';
-                          showPage(ImagePage(filePath: imagePath));
+
+                          Multimedia multimedia = Multimedia(filePath: imageLsr.split('/').last);
+                          showPage(FullScreenImagePage(publication: widget.publication, multimedias: [multimedia], multimedia: multimedia));
                         },
                         child: Image.file(
                           File('${widget.publication.path}/${(widget.publication.imageLsr as String).split('/').last}'),
@@ -873,6 +944,9 @@ class PublicationMenuViewState extends State<PublicationMenuView> with SingleTic
       color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFFc3c3c3) : const Color(0xFF626262),
     );
 
+    final bool isRtl = widget.publication.mepsLanguage.isRtl;
+    final TextDirection textDirection = isRtl ? TextDirection.rtl : TextDirection.ltr;
+
     return !widget.showAppBar
         ? _buildCircuitMenu()
         : Scaffold(
@@ -924,12 +998,12 @@ class PublicationMenuViewState extends State<PublicationMenuView> with SingleTic
         actions: [
           ResponsiveAppBarActions(
             allActions: [
-              IconTextButton(text: "Rechercher", icon: const Icon(JwIcons.magnifying_glass), onPressed: () async {
+              IconTextButton(text: i18n().action_search, icon: const Icon(JwIcons.magnifying_glass), onPressed: (anchorContext) async {
                 // Initialisation du modèle lors du clic sur rechercher
                 widget.publication.wordsSuggestionsModel ??= WordsSuggestionsModel(widget.publication);
                 setState(() { _isSearching = true; });
               }),
-              IconTextButton(text: "Marque-pages", icon: const Icon(JwIcons.bookmark), onPressed: () async {
+              IconTextButton(text: i18n().action_bookmarks, icon: const Icon(JwIcons.bookmark), onPressed: (anchorContext) async {
                 Bookmark? bookmark = await showBookmarkDialog(context, widget.publication);
                 if (bookmark != null) {
                   // Utilisation de ?? 0 pour éviter le '!'
@@ -937,19 +1011,19 @@ class PublicationMenuViewState extends State<PublicationMenuView> with SingleTic
                   else if (bookmark.location.mepsDocumentId != null) { showPageDocument(widget.publication, bookmark.location.mepsDocumentId ?? 0, startParagraphId: bookmark.blockIdentifier, endParagraphId: bookmark.blockIdentifier); }
                 }
               }),
-              IconTextButton(text: "Langues", icon: const Icon(JwIcons.language), onPressed: () async {
+              IconTextButton(text: i18n().action_languages, icon: const Icon(JwIcons.language), onPressed: (anchorContext) async {
                 if(widget.biblePage) { showLanguagePubDialog(context, null).then((languageBible) async { if (languageBible != null) { String bibleKey = languageBible.getKey(); JwLifeSettings().lookupBible = bibleKey; setLookUpBible(bibleKey); GlobalKeyService.bibleKey.currentState?.refreshBiblePage(); } }); }
                 else { showLanguagePubDialog(context, widget.publication).then((languagePub) async { if(languagePub != null) { languagePub.showMenu(context); } }); }
               }),
-              IconTextButton(text: "Ajouter un widget sur l'écran d'accueil", icon: const Icon(JwIcons.article), onPressed: () async { /* ... */ }),
-              IconTextButton(text: "Télécharger les médias", icon: const Icon(JwIcons.cloud_arrow_down), onPressed: () { showDownloadMediasDialog(context, widget.publication); }),
-              IconTextButton(text: "Historique", icon: const Icon(JwIcons.arrow_circular_left_clock), onPressed: () { History.showHistoryDialog(context); }),
-              IconTextButton(text: "Envoyer le lien", icon: const Icon(JwIcons.share), onPressed: () { widget.publication.shareLink(); }),
+              IconTextButton(text: "Ajouter un widget sur l'écran d'accueil", icon: const Icon(JwIcons.article), onPressed: (anchorContext) async { /* ... */ }),
+              IconTextButton(text: i18n().action_download_media, icon: const Icon(JwIcons.cloud_arrow_down), onPressed: (anchorContext) { showDownloadMediasDialog(context, widget.publication); }),
+              IconTextButton(text: i18n().action_history, icon: const Icon(JwIcons.arrow_circular_left_clock), onPressed: (anchorContext) { History.showHistoryDialog(context); }),
+              IconTextButton(text: i18n().action_open_in_share, icon: const Icon(JwIcons.share), onPressed: (anchorContext) { widget.publication.shareLink(); }),
             ],
           ),
         ],
       ),
-      body: _buildPublication(),
+      body: Directionality(textDirection: textDirection, child: _buildPublication()),
     );
   }
 }

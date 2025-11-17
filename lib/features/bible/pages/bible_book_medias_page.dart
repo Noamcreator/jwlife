@@ -5,6 +5,7 @@ import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/widgets/image_cached_widget.dart';
 
 import '../../../core/utils/common_ui.dart';
+import '../../../i18n/i18n.dart';
 import '../../publication/pages/document/data/models/multimedia.dart';
 import '../../publication/pages/document/local/full_screen_image_page.dart';
 import '../models/bible_chapter_model.dart';
@@ -219,7 +220,7 @@ class _BibleBookMediasViewState extends State<BibleBookMediasView> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Galerie multimédia',
+              i18n().label_media_gallery,
               style: textStyleTitle,
             ),
             Text(
@@ -240,7 +241,7 @@ class _BibleBookMediasViewState extends State<BibleBookMediasView> {
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
           : groupedMedias.isEmpty
-          ? const Center(child: Text("Aucun média trouvé pour ce passage."))
+          ? Center(child: Text(i18n().message_no_media_title))
           : ListView.builder(
         padding: EdgeInsets.all(spacing),
         itemCount: sortedChapterIds.length,

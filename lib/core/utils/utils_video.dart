@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:jwlife/app/jwlife_app.dart';
@@ -10,7 +11,6 @@ import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/core/utils/utils_language_dialog.dart';
 import 'package:jwlife/core/utils/utils_playlist.dart';
 import 'package:jwlife/data/models/video.dart' hide Subtitles;
-import 'package:jwlife/core/utils/utils_dialog.dart';
 import 'package:realm/realm.dart';
 
 import 'package:share_plus/share_plus.dart';
@@ -21,6 +21,7 @@ import '../../data/realm/catalog.dart';
 import '../../data/realm/realm_library.dart';
 import '../../features/video/subtitles.dart';
 import '../../features/video/subtitles_view.dart';
+import '../../i18n/i18n.dart';
 import '../api/api.dart';
 import 'common_ui.dart';
 
@@ -59,10 +60,10 @@ MediaItem? getMediaItem(String? keySymbol, int? track, int? documentId, int? iss
 PopupMenuItem getVideoShareItem(Video video) {
   return PopupMenuItem(
     child: Row(
-      children: const [
+      children: [
         Icon(JwIcons.share),
         SizedBox(width: 8),
-        Text('Envoyer le lien'),
+        Text(i18n().action_open_in_share),
       ],
     ),
     onTap: () {
@@ -87,7 +88,7 @@ PopupMenuItem getVideoAddPlaylistItem(BuildContext context, Video video) {
       children: [
         Icon(JwIcons.list_plus),
         SizedBox(width: 8),
-        Text('Ajouter à la liste de lecture'),
+        Text(i18n().action_add_to_playlist),
       ],
     ),
     onTap: () {
@@ -102,23 +103,21 @@ PopupMenuItem getVideoLanguagesItem(BuildContext context, Video video) {
       children: [
         Icon(JwIcons.language),
         SizedBox(width: 8),
-        Text('Autres langues'),
+        Text(i18n().label_languages_more),
       ],
     ),
     onTap: () async {
-      if(await hasInternetConnection()) {
+      if(await hasInternetConnection(context: context)) {
         String link = 'https://b.jw-cdn.org/apis/mediator/v1/media-item-availability/${video.naturalKey}';
-        final response = await Api.httpGetWithHeaders(link);
-        if (response.statusCode == 200) {
-          final jsonFile = response.body;
-          final jsonData = json.decode(jsonFile);
+        final response = await Api.httpGetWithHeaders(link, responseType: ResponseType.json);
+        if (response.statusCode == 200) {;
 
-          showLanguageDialog(context, languagesListJson: jsonData['languages']).then((language) async {
+          showLanguageDialog(context, languagesListJson: response.data['languages']).then((language) async {
             if (language != null) {
               String link = 'https://b.jw-cdn.org/apis/mediator/v1/media-items/${language['Symbol']}/${video.naturalKey}';
               final response = await Api.httpGetWithHeaders(link);
               if (response.statusCode == 200) {
-                final jsonFile = response.body;
+                final jsonFile = response.data;
                 final jsonData = json.decode(jsonFile);
 
                 final videoMap = {
@@ -141,9 +140,6 @@ PopupMenuItem getVideoLanguagesItem(BuildContext context, Video video) {
           });
         }
       }
-      else {
-        showNoConnectionDialog(context);
-      }
     },
   );
 }
@@ -154,7 +150,7 @@ PopupMenuItem getVideoFavoriteItem(Video video) {
       children: [
         Icon(video.isFavoriteNotifier.value ? JwIcons.star__fill : JwIcons.star),
         SizedBox(width: 8),
-        Text(video.isFavoriteNotifier.value ? 'Supprimer des favoris' : 'Ajouter aux favoris'),
+        Text(video.isFavoriteNotifier.value ? i18n().action_favorites_remove : i18n().action_favorites_add),
       ],
     ),
     onTap: () async {
@@ -178,7 +174,7 @@ PopupMenuItem getVideoDownloadItem(BuildContext context, Video video) {
       children: [
         Icon(video.isDownloadedNotifier.value ? JwIcons.trash : JwIcons.cloud_arrow_down),
         SizedBox(width: 8),
-        Text(video.isDownloadedNotifier.value ? 'Supprimer' : 'Télécharger'),
+        Text(video.isDownloadedNotifier.value ? i18n().action_remove : i18n().action_download),
       ],
     ),
     onTap: () async {
@@ -198,7 +194,7 @@ PopupMenuItem getShowSubtitlesItem(BuildContext context, Video video, {String qu
       children: [
         Icon(JwIcons.caption),
         SizedBox(width: 8),
-        Text('Voir les sous-titres'),
+        Text(i18n().action_show_subtitles),
       ],
     ),
     onTap: () async {
@@ -209,14 +205,11 @@ PopupMenuItem getShowSubtitlesItem(BuildContext context, Video video, {String qu
         ));
       }
       else {
-        if(await hasInternetConnection()) {
+        if(await hasInternetConnection(context: context)) {
           showPage(SubtitlesPage(
               video: video,
               query: query
           ));
-        }
-        else {
-          showNoConnectionDialog(context);
         }
       }
     },
@@ -229,7 +222,7 @@ PopupMenuItem getCopySubtitlesItem(BuildContext context, Video video) {
       children: [
         Icon(JwIcons.document_stack),
         SizedBox(width: 8),
-        Text('Copier les sous-titres'),
+        Text(i18n().action_copy_subtitles),
       ],
     ),
     onTap: () async {
@@ -239,35 +232,24 @@ PopupMenuItem getCopySubtitlesItem(BuildContext context, Video video) {
         await subtitles.loadSubtitlesFromFile(file);
       }
       else {
-        if(await hasInternetConnection()) {
+        if(await hasInternetConnection(context: context)) {
           String link = 'https://b.jw-cdn.org/apis/mediator/v1/media-items/${video.mepsLanguage}/${video.naturalKey}';
-          final response = await Api.httpGetWithHeaders(link);
+          final response = await Api.httpGetWithHeaders(link, responseType: ResponseType.json);
 
           if (response.statusCode == 200) {
-            final jsonFile = response.body;
-            final jsonData = json.decode(jsonFile);
-            await subtitles.loadSubtitles(jsonData['media'][0]);
+            await subtitles.loadSubtitles(response.data['media'][0]);
+            Clipboard.setData(ClipboardData(text: subtitles.toString())).then((value) => showBottomMessage("Sous-titres copiés dans le presse-papier"));
           }
         }
-        else {
-          showNoConnectionDialog(context);
-          return;
-        }
       }
-      printTime(subtitles.toString());
-      Clipboard.setData(ClipboardData(text: subtitles.toString())).then((value) => showBottomMessage("Sous-titres copiés dans le presse-papier"));
     },
   );
 }
 
 // Fonction pour afficher le dialogue de téléchargement
 Future<int?> showVideoDownloadDialog(BuildContext context, List<dynamic> files) async {
-
-  // Fonction utilitaire pour obtenir la taille de fichier en toute sécurité.
   // Retourne la taille réelle ou 0 si la clé est manquante ou nulle.
   int getFileSize(dynamic file) {
-    // Utiliser l'opérateur 'as' pour s'assurer que 'filesize' est traité comme un entier,
-    // ou retourner 0 s'il est null ou manquant.
     return (file['filesize'] as int?) ?? 0;
   }
 
@@ -316,7 +298,7 @@ Future<int?> showVideoDownloadDialog(BuildContext context, List<dynamic> files) 
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                "Résolution",
+                i18n().message_select_video_size_title,
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               SizedBox(height: 10),
@@ -329,22 +311,11 @@ Future<int?> showVideoDownloadDialog(BuildContext context, List<dynamic> files) 
                   // L'option 'label' est toujours supposée exister pour l'affichage
                   final String label = file['label'] ?? 'Qualité inconnue';
 
-                  String sizeText;
-                  if (rawFilesize == 0) {
-                    sizeText = "Taille inconnue";
-                  } else {
-                    // Calcul de la taille en Mo ou Go
-                    double fileSize = rawFilesize / (1024 * 1024); // Taille en Mo
-                    sizeText = fileSize < 1024
-                        ? "${fileSize.toStringAsFixed(2)} Mo"
-                        : "${(fileSize / 1024).toStringAsFixed(2)} Go";
-                  }
-
                   // Affichage conditionnel basé sur la présence de la taille
                   return ListTile(
                     title: rawFilesize == 0
                         ? Text("Télécharger les vidéos en $label")
-                        : Text("Télécharger $label ($sizeText)"),
+                        : Text(i18n().action_download_video(label, formatFileSize(rawFilesize))),
                     onTap: () {
                       // Retourner l'index du fichier sélectionné
                       Navigator.of(context).pop(files.indexOf(file));
@@ -360,7 +331,7 @@ Future<int?> showVideoDownloadDialog(BuildContext context, List<dynamic> files) 
                     // Fermer le dialogue et retourner null
                     Navigator.of(context).pop(null);
                   },
-                  child: Text('ANNULER'),
+                  child: Text(i18n().action_cancel_uppercase),
                 ),
               ),
             ],
@@ -368,5 +339,33 @@ Future<int?> showVideoDownloadDialog(BuildContext context, List<dynamic> files) 
         ),
       );
     },
+  );
+}
+
+// Exemple de signature modifiée si vous utilisez showMenu :
+Future<int?> showVideoDownloadMenu(BuildContext context, List<dynamic> files, Offset tapPosition) async {
+  // Prépare les éléments de menu à partir de la liste 'files'
+  final List<PopupMenuEntry<int>> items = files.map((file) {
+    final int rawFilesize = (file['filesize'] as int?) ?? 0;
+    final String label = file['label'] ?? 'Qualité inconnue';
+
+    final int fileIndex = files.indexOf(file);
+
+    return PopupMenuItem<int>(
+      value: fileIndex, // La valeur à retourner
+      child: rawFilesize == 0
+          ? Text("Télécharger les vidéos en $label")
+          : Text(i18n().action_download_video(label, formatFileSize(rawFilesize))),
+    );
+  }).toList();
+
+  return await showMenu<int>(
+    context: context,
+    position: RelativeRect.fromRect(
+      tapPosition & const Size(40, 40), // Rectangle d'ancrage
+      Offset.zero & MediaQuery.of(context).size, // Taille de l'écran
+    ),
+    items: items,
+    elevation: 8.0,
   );
 }

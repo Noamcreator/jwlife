@@ -46,17 +46,13 @@ class _FullScreenImagePageState extends State<FullScreenImagePage> {
     super.initState();
 
     // Filtre des médias valides (exclut doublons vidéo)
-    _multimedias = widget.multimedias.where((m) {
-      return !widget.multimedias.any(
-              (img) => img.linkMultimediaId == m.id && img.mimeType == 'video/mp4');
+    _multimedias = widget.multimedias.length == 1 ? widget.multimedias : widget.multimedias.where((m) {
+      return !widget.multimedias.any((img) => img.linkMultimediaId == m.id && img.mimeType == 'video/mp4');
     }).toList();
 
-    _currentIndex = _multimedias.indexWhere((img) => img.id == widget.multimedia.id);
+    _currentIndex = _multimedias.length == 1 ? 0 : _multimedias.indexWhere((img) => img.id == widget.multimedia.id);
 
     _pageController = PageController(initialPage: _currentIndex);
-
-    // Suppression de l'initialisation du PhotoViewController
-    // _photoViewController = PhotoViewController();
 
     // Initialiser l'état initial de la NavBar après la première frame
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -70,8 +66,6 @@ class _FullScreenImagePageState extends State<FullScreenImagePage> {
     _controlsVisible.dispose();
     _pageController.dispose();
     _scrollController.dispose();
-    // Suppression du dispose du PhotoViewController
-    // _photoViewController?.dispose();
     super.dispose();
   }
 
@@ -158,7 +152,7 @@ class _FullScreenImagePageState extends State<FullScreenImagePage> {
               // la solution standard PhotoViewGalleryPageOptions avec onTapUp.
               return PhotoViewGalleryPageOptions(
                 imageProvider: imageProvider,
-                heroAttributes: PhotoViewHeroAttributes(tag: media.id),
+                heroAttributes: PhotoViewHeroAttributes(tag: media.id ?? 0),
                 minScale: PhotoViewComputedScale.contained,
                 maxScale: PhotoViewComputedScale.covered * 4,
                 // Utilisation de onTapUp qui est le moyen le plus rapide de détecter un tap
@@ -225,8 +219,7 @@ class _FullScreenImagePageState extends State<FullScreenImagePage> {
         IconButton(
           icon: const Icon(JwIcons.list_plus, color: Colors.white),
           onPressed: () {
-            final fullFilePath =
-                '${widget.publication.path}/${_multimedias[_currentIndex].filePath}';
+            final fullFilePath = '${widget.publication.path}/${_multimedias[_currentIndex].filePath}';
             showAddItemToPlaylistDialog(context, fullFilePath);
           },
         ),

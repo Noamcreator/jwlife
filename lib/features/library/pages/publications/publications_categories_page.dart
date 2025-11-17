@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:jwlife/app/services/settings_service.dart';
 import 'package:jwlife/data/models/publication_category.dart';
 import 'package:jwlife/features/library/pages/publications/publications_items_page.dart';
 import 'package:jwlife/features/library/pages/publications/publications_subcategories_page.dart';
@@ -37,33 +38,103 @@ class PublicationsCategoriesPage extends StatelessWidget {
 
           showPage(destinationPage);
         },
-        // Utiliser Material pour l'apparence et les effets de l'InkWell
-        child: _buildCategoryButton(context, category, backgroundColor, textColor),
+        // Utiliser FutureBuilder pour gérer l'appel asynchrone
+        child: FutureBuilder<Widget>(
+          future: _buildCategoryButton(context, category, backgroundColor, textColor),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              // Afficher un placeholder pendant le chargement
+              return _buildPlaceholder(context, category, backgroundColor, textColor);
+            }
+
+            if (snapshot.hasError) {
+              // En cas d'erreur, afficher le nom par défaut
+              return _buildCategoryButtonSync(context, category, backgroundColor, textColor);
+            }
+
+            // Afficher le widget chargé
+            return snapshot.data ?? _buildCategoryButtonSync(context, category, backgroundColor, textColor);
+          },
+        ),
       );
     }).toList();
 
     // 2. Passer la liste de Widgets au layout réactif
     return ResponsiveCategoriesWrapLayout(
+      textDirection: JwLifeSettings().currentLanguage.isRtl ? TextDirection.rtl : TextDirection.ltr,
       children: categoryWidgets,
     );
   }
 
-  /// Construit le contenu interne d'un bouton de catégorie (icône et texte).
-  Widget _buildCategoryButton(BuildContext context, PublicationCategory category, Color backgroundColor, Color textColor) {
+  /// Construit le contenu interne d'un bouton de catégorie (version async).
+  Future<Widget> _buildCategoryButton(BuildContext context, PublicationCategory category,
+      Color backgroundColor, Color textColor) async {
+    final String categoryName = await category.getNameAsync(
+        Locale(JwLifeSettings().currentLanguage.primaryIetfCode)
+    );
+
     return Container(
       color: backgroundColor,
       child: Padding(
-        // Padding latéral pour harmoniser l'espace
         padding: const EdgeInsets.symmetric(horizontal: 20.0),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // Icône (Leading)
             Icon(category.icon, size: 38.0, color: textColor),
-
             const SizedBox(width: 20.0),
+            Expanded(
+              child: Text(
+                categoryName,
+                style: TextStyle(color: textColor, fontSize: kFontBase),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
-            // Texte (Title)
+  /// Construit un placeholder pendant le chargement.
+  Widget _buildPlaceholder(BuildContext context, PublicationCategory category,
+      Color backgroundColor, Color textColor) {
+    return Container(
+      color: backgroundColor,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20.0),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Icon(category.icon, size: 38.0, color: textColor),
+            const SizedBox(width: 20.0),
+            Expanded(
+              child: SizedBox(
+                height: 16.0,
+                child: LinearProgressIndicator(
+                  backgroundColor: textColor.withOpacity(0.1),
+                  valueColor: AlwaysStoppedAnimation<Color>(textColor.withOpacity(0.3)),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Construit le bouton avec le nom synchrone (fallback).
+  Widget _buildCategoryButtonSync(BuildContext context, PublicationCategory category,
+      Color backgroundColor, Color textColor) {
+    return Container(
+      color: backgroundColor,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20.0),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Icon(category.icon, size: 38.0, color: textColor),
+            const SizedBox(width: 20.0),
             Expanded(
               child: Text(
                 category.getName(context),
@@ -74,7 +145,7 @@ class PublicationsCategoriesPage extends StatelessWidget {
             ),
           ],
         ),
-      )
+      ),
     );
   }
 }

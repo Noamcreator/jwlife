@@ -20,7 +20,9 @@ class SharedPreferencesKeys {
 
   // Document
   static const fontSize = _PrefKey('font_size', 20.0);
-  static const fullscreen = _PrefKey('fullscreen', true);
+  static const fullscreenMode = _PrefKey('fullscreen', true);
+  static const readingMode = _PrefKey('reading', false);
+  static const preparingMode = _PrefKey('preparing', false);
 
   // Style dans le webview
   static const styleIndex = _PrefKey('style_index', 0);

@@ -9,7 +9,7 @@ import '../../../../core/icons.dart';
 import '../../../../core/utils/utils_document.dart';
 import '../../../../data/models/media.dart';
 import '../../../../data/models/publication.dart';
-import '../../../../i18n/localization.dart';
+import '../../../../i18n/i18n.dart';
 
 class FavoritesSection extends StatefulWidget {
   final void Function(int oldIndex, int newIndex) onReorder;
@@ -35,7 +35,7 @@ class FavoritesSectionState extends State<FavoritesSection> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          localization(context).navigation_favorites,
+          i18n().navigation_favorites,
           style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 4),
@@ -127,10 +127,10 @@ class FavoritesSectionState extends State<FavoritesSection> {
                     itemBuilder: (context) => [
                       PopupMenuItem(
                         child: Row(
-                          children: const [
+                          children: [
                             Icon(JwIcons.star__fill),
                             SizedBox(width: 8),
-                            Text('Supprimer des favoris'),
+                            Text(i18n().action_favorites_remove),
                           ],
                         ),
                         onTap: () async {

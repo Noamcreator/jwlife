@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:jwlife/app/services/global_key_service.dart';
+import 'package:jwlife/core/icons.dart';
 
 class ResponsiveAppBarActions extends StatelessWidget {
   final List<IconTextButton> allActions;
@@ -16,7 +17,7 @@ class ResponsiveAppBarActions extends StatelessWidget {
     return Icon(
       icon.icon,
       size: icon.size,
-      color: color, // ⬅️ On injecte la couleur ici
+      color: color,
       semanticLabel: icon.semanticLabel,
       textDirection: icon.textDirection,
       key: icon.key,
@@ -45,11 +46,14 @@ class ResponsiveAppBarActions extends StatelessWidget {
     if (finalVisibleCount >= allActions.length) {
       return Row(
         mainAxisSize: MainAxisSize.min,
-        children: allActions.map((action) => IconButton(
-          onPressed: action.onPressed,
-          // ⬅️ CORRECTION : Cloner l'icône avec la nouvelle couleur
-          icon: _cloneIconWithColor(action.icon, colorIcon),
-          // La couleur de l'IconButton lui-même n'est plus nécessaire pour la couleur de l'icône.
+        children: allActions.map((action) => Builder(
+            builder: (anchorContext) { // Crée le context spécifique de l'IconButton
+              return IconButton(
+                // L'onPressed appelle la fonction stockée en lui passant l'anchorContext
+                onPressed: () => action.onPressed?.call(anchorContext),
+                icon: _cloneIconWithColor(action.icon, colorIcon),
+              );
+            }
         )).toList(),
       );
     }
@@ -63,10 +67,15 @@ class ResponsiveAppBarActions extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         // Icônes visibles
-        ...visibleIcons.map((action) => IconButton(
-          onPressed: action.onPressed,
-          // ⬅️ CORRECTION : Cloner l'icône avec la nouvelle couleur
-          icon: _cloneIconWithColor(action.icon, colorIcon),
+        // --- MODIFICATION ICI : Envelopper l'IconButton dans un Builder ---
+        ...visibleIcons.map((action) => Builder(
+            builder: (anchorContext) { // Crée le context spécifique de l'IconButton
+              return IconButton(
+                // L'onPressed appelle la fonction stockée en lui passant l'anchorContext
+                onPressed: () => action.onPressed?.call(anchorContext),
+                icon: _cloneIconWithColor(action.icon, colorIcon),
+              );
+            }
         )),
 
         // Bouton "Plus" (trois points) et menu
@@ -75,7 +84,7 @@ class ResponsiveAppBarActions extends StatelessWidget {
             popUpAnimationStyle: AnimationStyle(curve: Curves.easeInExpo, duration: const Duration(milliseconds: 200)),
 
             // Bouton 'plus' affiché (sa couleur est définie ici)
-            icon: Icon(Icons.more_vert, color: colorIcon),
+            icon: Icon(JwIcons.three_dots_horizontal, color: colorIcon),
 
             itemBuilder: (context) => menuItems.map((action) =>
                 PopupMenuItem(
@@ -90,9 +99,19 @@ class ResponsiveAppBarActions extends StatelessWidget {
                     leading: _cloneIconWithColor(action.icon, colorIcon ?? Theme.of(context).primaryColor),
                     title: Text(action.text),
 
+                    trailing: action.onSwitchChange != null && action.isSwitch != null ? Switch(
+                        value: action.isSwitch!,
+                        padding: EdgeInsets.zero,
+                        activeColor: Theme.of(context).primaryColor,
+                        onChanged: (value) {
+                          action.onSwitchChange?.call(value);
+                          Navigator.pop(context);
+                        }) : null,
+
                     onTap: () {
                       Navigator.pop(context);
-                      action.onPressed?.call();
+                      // Ici on peut utiliser le 'context' de l'item du menu (qui est suffisant pour le onPressed)
+                      action.onPressed?.call(context);
                     },
                   ),
                 ),
@@ -111,11 +130,16 @@ class ResponsiveAppBarActions extends StatelessWidget {
 class IconTextButton {
   final String text;
   final Icon icon;
-  final VoidCallback? onPressed;
+  // Définition correcte de la fonction qui accepte un BuildContext
+  final void Function(BuildContext context)? onPressed;
+  final bool? isSwitch;
+  final ValueChanged<bool>? onSwitchChange;
 
   const IconTextButton({
     required this.text,
     required this.icon,
     this.onPressed,
+    this.isSwitch,
+    this.onSwitchChange,
   });
 }

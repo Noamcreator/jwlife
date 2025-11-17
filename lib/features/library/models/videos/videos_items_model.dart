@@ -14,15 +14,11 @@ import '../../../../core/utils/utils_video.dart';
 class VideoItemsModel extends ChangeNotifier {
   final Category initialCategory;
 
-  // --- Propriétés (État de la Vue) ---
-  String _categoryName = '';
-  String get categoryName => _categoryName;
+  late Category? _category;
+  Category? get category => _category;
 
-  String _language = '';
-  String get language => _language;
-
-  String? _selectedLanguageSymbol = '';
-  String get selectedLanguageSymbol => _selectedLanguageSymbol ?? initialCategory.language!;
+  late Language _language;
+  Language get language => _language;
 
   List<Category> _subcategories = [];
   // Contient la liste complète non filtrée
@@ -72,7 +68,6 @@ class VideoItemsModel extends ChangeNotifier {
 
   void loadItems({String? symbol}) async {
     symbol ??= initialCategory.language;
-    _selectedLanguageSymbol = symbol;
 
     RealmLibrary.realm.refresh();
     // Récupère les informations sur la langue
@@ -80,15 +75,12 @@ class VideoItemsModel extends ChangeNotifier {
     if(lang == null) return;
 
     // Récupère la catégorie spécifique à la langue
-    Category? category = RealmLibrary.realm
-        .all<Category>()
-        .query("key == '${initialCategory.key}' AND language == '$symbol'")
-        .firstOrNull;
+    _category = RealmLibrary.realm.all<Category>().query("key == '${initialCategory.key}' AND language == '$symbol'").firstOrNull;
 
-    _categoryName = category?.localizedName ?? initialCategory.localizedName!;
-    _language = lang.vernacular!;
+    _language = lang;
+
     // Utilisation de .toList() pour la liste des sous-catégories
-    _subcategories = category?.subcategories.toList() ?? [];
+    _subcategories = _category?.subcategories.toList() ?? [];
     _filteredVideos = _subcategories;
 
     notifyListeners();
@@ -203,7 +195,7 @@ class VideoItemsModel extends ChangeNotifier {
   // --- Logique de service (Changement de Langue) ---
   void showLanguageSelection(BuildContext context) async {
     // Affiche la boîte de dialogue de sélection de langue
-    final language = await showLanguageDialog(context, selectedLanguageSymbol: _selectedLanguageSymbol);
+    final language = await showLanguageDialog(context, selectedLanguageSymbol: _language.symbol);
     if (language != null) {
       final newSymbol = language['Symbol'] as String;
       loadItems(symbol: newSymbol); // Recharge les données dans la nouvelle langue

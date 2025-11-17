@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/data/models/userdata/location.dart';
 
 class Note {
@@ -99,31 +100,7 @@ class Note {
       return lastModified ?? ''; // date invalide
     }
 
-    Duration diff = DateTime.now().difference(date);
-    if (diff.isNegative) {
-      return 'à l\'instant · ${_formatDate(date)}';
-    }
-
-    String relative;
-    if (diff.inSeconds < 60) {
-      int s = diff.inSeconds;
-      relative = 'il y a $s seconde${s > 1 ? 's' : ''}';
-    } else if (diff.inMinutes < 60) {
-      int m = diff.inMinutes;
-      relative = 'il y a $m minute${m > 1 ? 's' : ''}';
-    } else if (diff.inHours < 24) {
-      int h = diff.inHours;
-      relative = 'il y a $h heure${h > 1 ? 's' : ''}';
-    } else if (diff.inDays < 30) {
-      int j = diff.inDays;
-      relative = 'il y a $j jour${j > 1 ? 's' : ''}';
-    } else if (diff.inDays < 365) {
-      int mois = (diff.inDays / 30).floor();
-      relative = 'il y a $mois mois';
-    } else {
-      int annee = (diff.inDays / 365).floor();
-      relative = 'il y a $annee an${annee > 1 ? 's' : ''}';
-    }
+    String relative = timeAgo(date);
 
     return '$relative · ${_formatDate(date)}';
   }

@@ -41,11 +41,12 @@ class AppTheme {
         trackColor: WidgetStateProperty.all(const Color(0xFFF1F1F1)),
         trackOutlineColor: WidgetStateProperty.all(primaryColor),
       ),
-      popupMenuTheme: const PopupMenuThemeData(
-        color: Color(0xffffffff),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(0.0))),
-        labelTextStyle: WidgetStatePropertyAll(TextStyle(color: Color(0xFF212121), fontSize: 15)),
-        menuPadding: EdgeInsets.only(top: 4, bottom: 4, left: 4, right: 4),
+      popupMenuTheme: PopupMenuThemeData(
+        iconColor: primaryColor,
+        color: const Color(0xffffffff),
+        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(0.0))),
+        labelTextStyle: const WidgetStatePropertyAll(TextStyle(color: Color(0xFF212121), fontSize: 15)),
+        menuPadding: const EdgeInsets.only(top: 4, bottom: 4, left: 4, right: 4),
       ),
       dialogTheme: DialogThemeData(
         backgroundColor: const Color(0xffffffff),
@@ -149,11 +150,12 @@ class AppTheme {
           trackColor: WidgetStateProperty.all(Colors.black),
           trackOutlineColor: WidgetStateProperty.all(primaryColor),
         ),
-        popupMenuTheme: const PopupMenuThemeData(
-          color: Color(0xff3c3c3c),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(0.0))),
-          labelTextStyle: WidgetStatePropertyAll(TextStyle(color: Color(0xFFffffff), fontSize: 15)),
-          menuPadding: EdgeInsets.only(top: 8, bottom: 8, left: 4, right: 4),
+        popupMenuTheme: PopupMenuThemeData(
+          iconColor: primaryColor,
+          color: const Color(0xff3c3c3c),
+          shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(0.0))),
+          labelTextStyle: const WidgetStatePropertyAll(TextStyle(color: Color(0xFFffffff), fontSize: 15)),
+          menuPadding: const EdgeInsets.only(top: 8, bottom: 8, left: 4, right: 4),
         ),
         dialogTheme: const DialogThemeData(
           backgroundColor: Color(0xff3c3c3c),

@@ -7,6 +7,7 @@ import 'package:jwlife/app/services/global_key_service.dart';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:path/path.dart' as path;
 
+import '../../core/icons.dart';
 import '../../core/utils/common_ui.dart';
 import '../../core/utils/utils.dart';
 import '../../core/utils/utils_jwpub.dart';
@@ -18,6 +19,7 @@ import '../../data/databases/userdata.dart';
 import '../../data/models/userdata/playlist.dart';
 import '../../features/publication/pages/menu/local/publication_menu_view.dart';
 import '../../core/utils/utils_dialog.dart';
+import '../../i18n/i18n.dart';
 
 class FileHandlerService {
   static final FileHandlerService _instance = FileHandlerService._internal();
@@ -274,11 +276,11 @@ class FileHandlerService {
     if (!isValidZip) {
       await showJwDialog(
         context: context,
-        titleText: 'Fichier invalide',
-        contentText: "Le fichier sélectionné n'est pas une archive valide.",
+        titleText: i18n().message_restore_failed,
+        contentText: i18n().message_restore_failed_explanation,
         buttons: [
           JwDialogButton(
-            label: 'OK',
+            label: i18n().action_ok,
             closeDialog: true,
           ),
         ],
@@ -294,11 +296,11 @@ class FileHandlerService {
     if (info == null) {
       await showJwDialog(
         context: context,
-        titleText: 'Erreur',
-        contentText: 'Le fichier de sauvegarde est invalide ou corrompu. Veuillez choisir un autre fichier.',
+        titleText: i18n().message_restore_failed,
+        contentText: i18n().message_restore_failed_explanation,
         buttons: [
           JwDialogButton(
-            label: 'OK',
+            label: i18n().action_ok,
             closeDialog: true,
           ),
         ],
@@ -312,38 +314,34 @@ class FileHandlerService {
     // Confirmation avant restauration
     final shouldRestore = await showJwDialog<bool>(
       context: context,
-      titleText: 'Importer une sauvegarde',
+      titleText: i18n().action_restore_a_backup,
       content: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 25),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 10),
-            const Text(
-              'Les données de votre étude individuelle sur cet appareil seront écrasées.',
-              style: TextStyle(
-                fontSize: 16,
-                color: Color(0xFF676767),
-              ),
+            Text(
+              i18n().message_restore_a_backup_explanation,
             ),
             const SizedBox(height: 15),
             Text(
-              'Appareil : ${info.deviceName}',
+              info.deviceName,
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 5),
-            Text('Dernière modification : ${timeAgo(info.lastModified)}'),
+            Text(timeAgo(info.lastModified)),
           ],
         ),
       ),
       buttons: [
         JwDialogButton(
-          label: 'ANNULER',
+          label: i18n().action_cancel_uppercase,
           closeDialog: true,
           result: false,
         ),
         JwDialogButton(
-          label: 'RESTAURER',
+          label: i18n().action_restore_uppercase,
           closeDialog: true,
           result: true,
         ),
@@ -356,14 +354,13 @@ class FileHandlerService {
 
       showJwDialog(
         context: context,
-        titleText: 'Importation en cours…',
+        titleText: i18n().message_restore_in_progress,
         content: Builder(
           builder: (ctx) {
             dialogContext = ctx;
-            return Padding(
-              padding: EdgeInsets.symmetric(horizontal: 25),
+            return Center(
               child: SizedBox(
-                height: 50,
+                height: 70,
                 child: getLoadingWidget(Theme.of(context).primaryColor),
               ),
             );
@@ -375,11 +372,17 @@ class FileHandlerService {
 
       await showJwDialog(
         context: context,
-        titleText: 'Sauvegarde importée',
-        contentText: 'La sauvegarde a bien été importée.',
+        titleText: i18n().message_restore_successful,
+        content: Center(
+          child: Icon(
+            JwIcons.check,
+            color: Theme.of(context).primaryColor,
+            size: 70,
+          ),
+        ),
         buttons: [
           JwDialogButton(
-            label: 'OK',
+            label: i18n().action_ok,
             closeDialog: true,
           ),
         ],
@@ -426,7 +429,7 @@ class FileHandlerService {
       GlobalKeyService.personalKey.currentState?.openPlaylist(playlist);
 
       if (context.mounted) {
-        showBottomMessage('Import de la liste de lecture réussi.');
+        showBottomMessage(i18n().message_import_playlist_successful);
       }
 
       // N'oublie pas de réinitialiser aussi ici

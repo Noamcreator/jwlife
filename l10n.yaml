@@ -1,5 +1,5 @@
-arb-dir: assets/i18n
+arb-dir: i18n
 output-dir: lib/i18n
 template-arb-file: intl_fr.arb
-output-localization-file: app_localizations.dart
+output-localization-file: localization.dart
 untranslated-messages-file: desiredFileName.txt

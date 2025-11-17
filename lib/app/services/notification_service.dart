@@ -5,6 +5,7 @@ import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz;
 
 import '../../core/jworg_uri.dart';
+import '../../i18n/i18n.dart';
 import 'global_key_service.dart';
 
 @pragma('vm:entry-point')
@@ -83,7 +84,7 @@ class NotificationService {
   }
 
   NotificationDetails notificationDetails() {
-    return const NotificationDetails(
+    return NotificationDetails(
       android: AndroidNotificationDetails(
           'jwlife_channel_id',
           'JW Life Notifications',
@@ -95,11 +96,11 @@ class NotificationService {
           actions: [
             AndroidNotificationAction(
               'id_open',
-              'Ouvrir',
+              i18n().action_open,
             ),
           ]
       ),
-      iOS: DarwinNotificationDetails(),
+      iOS: const DarwinNotificationDetails(),
     );
   }
 
@@ -190,10 +191,10 @@ class NotificationService {
         playSound: true,
         ongoing: false,
         autoCancel: true,
-        actions: const [
+        actions: [
           AndroidNotificationAction(
             'id_open',
-            'Ouvrir',
+            i18n().action_open,
             showsUserInterface: true,
           ),
         ],

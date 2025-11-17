@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:async';
 import 'dart:io';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:jwlife/core/icons.dart';
@@ -15,6 +16,7 @@ import 'package:video_player/video_player.dart';
 import '../../app/services/global_key_service.dart';
 import '../../core/api/api.dart';
 import '../../core/utils/utils_playlist.dart';
+import '../../i18n/i18n.dart';
 import 'subtitles.dart';
 
 class VideoPlayerPage extends StatefulWidget {
@@ -341,11 +343,10 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
       final apiUrl = 'https://b.jw-cdn.org/apis/mediator/v1/media-items/$lang/$lank?clientType=www';
       printTime('apiUrl: $apiUrl');
       try {
-        final response = await Api.httpGetWithHeaders(apiUrl);
+        final response = await Api.httpGetWithHeaders(apiUrl, responseType: ResponseType.json);
 
         if (response.statusCode == 200) {
-          final data = json.decode(response.body);
-          _onlineMediaData = data['media'][0];
+          _onlineMediaData = response.data['media'][0];
           _updateAvailableResolutions(_onlineMediaData);
           fetchMedia(_onlineMediaData);
         }
@@ -398,7 +399,7 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
         final response = await Api.httpGetWithHeaders(apiUrl);
 
         if (response.statusCode == 200) {
-          final data = json.decode(response.body);
+          final data = json.decode(response.data);
           _onlineMediaData = data['files'][langwritten];
           _updateAvailableResolutions(_onlineMediaData, isGetPubMedia: true);
           fetchMedia(_onlineMediaData, isGetPubMedia: true);
@@ -612,7 +613,7 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
     }
   }
 
-  PopupMenuItem<double> _speedItem(double speed, [String? label]) {
+  PopupMenuItem<double> _speedItem(double speed) {
     return PopupMenuItem<double>(
       value: speed,
       child: ValueListenableBuilder<double>(
@@ -620,8 +621,7 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
         builder: (context, currentSpeed, _) {
           final bool isSelected = speed == currentSpeed;
           return Text(
-            '${speed.toStringAsFixed(1).replaceAll('.', ',')}x'
-                '${label != null ? ' · $label' : ''}',
+            speed == 1.0 ? i18n().label_playback_speed_normal(1.0) : '${speed.toStringAsFixed(1).replaceAll('.', ',')}x',
             style: TextStyle(
               color: isSelected ? Theme.of(context).primaryColor : Colors.white,
               fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
@@ -634,15 +634,8 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
 
   String buildSpeedLabel() {
     final double speed = _speedNotifier.value;
-    String labelForSpeed(double speed) {
-      if (speed == 2.0) return 'Rapide';
-      if (speed == 1.0) return 'Normale';
-      if (speed == 0.5) return 'Lente';
-      return '';
-    }
-    final speedStr = '${speed.toStringAsFixed(1).replaceAll('.', ',')}x';
-    final label = labelForSpeed(speed);
-    return 'Vitesse de lecture · $speedStr${label.isNotEmpty ? ' · $label' : ''}';
+    final speedStr = speed == 1.0 ? i18n().label_playback_speed_normal('${speed.toStringAsFixed(1).replaceAll('.', ',')}x') : '${speed.toStringAsFixed(1).replaceAll('.', ',')}x';
+    return i18n().label_playback_speed_colon(speedStr);
   }
 
   PopupMenuItem<String> _resolutionItem(String resolution) {
@@ -659,7 +652,7 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
   }
 
   String _buildResolutionLabel() {
-    return 'Résolution · $_currentResolution';
+    return '${i18n().message_select_video_size_title} · $_currentResolution';
   }
 
   Future<void> _showResolutionMenu() async {
@@ -709,13 +702,13 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
 
   String _getLoopText(int loopMode) {
     if(loopMode == 0) {
-      return 'Inactif';
+      return i18n().label_off;
     }
     else if(loopMode == 1) {
-      return 'La piste';
+      return i18n().label_repeat_one_short;
     }
     else if(loopMode == 2) {
-      return 'Toutes les pistes';
+      return i18n().label_repeat_all_short;
     }
     return '';
   }
@@ -735,7 +728,7 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
 
   String _buildLoopLabel() {
     String loopText = _getLoopText(_currentLoopMode);
-    return 'Répéter · $loopText';
+    return '${i18n().label_repeat} · $loopText';
   }
 
   Future<void> _showLoopMenu() async {
@@ -1387,11 +1380,11 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
                     );
                   });
                 },
-                child: const Row(
+                child: Row(
                   children: [
-                    Icon(JwIcons.share),
-                    SizedBox(width: 10),
-                    Text('Partager'),
+                    const Icon(JwIcons.share),
+                    const SizedBox(width: 10),
+                    Text(i18n().action_open_in_share),
                   ],
                 ),
               ),
@@ -1399,11 +1392,11 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
                 onTap: () => {
                   showAddItemToPlaylistDialog(context, widget.video)
                 },
-                child: const Row(
+                child: Row(
                   children: [
-                    Icon(JwIcons.list_plus),
-                    SizedBox(width: 10),
-                    Text('Ajouter à la liste de lecture'),
+                    const Icon(JwIcons.list_plus),
+                    const SizedBox(width: 10),
+                    Text(i18n().action_add_to_playlist),
                   ],
                 ),
               ),
@@ -1419,18 +1412,18 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
                     ),
                     position: RelativeRect.fromLTRB(MediaQuery.of(context).size.width / 2, 100, 0, 0),
                     items: <PopupMenuEntry<double>>[
-                      _speedItem(2.0, 'Rapide'),
+                      _speedItem(2.0),
                       _speedItem(1.8),
                       _speedItem(1.6),
                       _speedItem(1.4),
                       _speedItem(1.2),
                       _speedItem(1.1),
-                      _speedItem(1.0, 'Normale'),
+                      _speedItem(1.0),
                       _speedItem(0.9),
                       _speedItem(0.8),
                       _speedItem(0.7),
                       _speedItem(0.6),
-                      _speedItem(0.5, 'Lente'),
+                      _speedItem(0.5),
                     ],
                   );
 
@@ -1511,10 +1504,9 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
         }
         else {
           String link = 'https://b.jw-cdn.org/apis/mediator/v1/media-items/${widget.video.mepsLanguage}/${widget.video.naturalKey}';
-          final response = await Api.httpGetWithHeaders(link);
+          final response = await Api.httpGetWithHeaders(link, responseType: ResponseType.json);
           if (response.statusCode == 200) {
-            final jsonFile = response.body;
-            jsonData = json.decode(jsonFile)['media'][0];
+            jsonData = response.data['media'][0];
           } else {
             jsonData = {};
           }

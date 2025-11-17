@@ -1,7 +1,5 @@
-import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:jwlife/core/shared_preferences/shared_preferences_utils.dart';
 import 'package:jwlife/core/utils/utils.dart';
 import 'package:realm/realm.dart';
@@ -38,23 +36,22 @@ class Api {
           connectTimeout: const Duration(seconds: 10),
           receiveTimeout: const Duration(seconds: 0),
           headers: {
-            'User-Agent': "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36",
+            'User-Agent': "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36",
             'Accept': "*/*",
             'Accept-Encoding': "gzip, deflate, br, zstd",
             'Connection': 'keep-alive',
             'Content-Length': null,
             'Host': null
           },
-          persistentConnection: false
+          persistentConnection: false,
       ),
   );
 
   /// Récupère la version actuelle de l'API.
   static Future<void> fetchCurrentVersion() async {
     try {
-      final response = await httpGetWithHeaders(apiVersionUrl);
-      final jsonBody = json.decode(response.body);
-      currentVersion = jsonBody['current'];
+      Response<Map<String, dynamic>> response = await Api.dio.get<Map<String, dynamic>>(apiVersionUrl, options: Options(responseType: ResponseType.json));
+      currentVersion = response.data!['current'];
     }
     catch (e) {
       debugPrint('Erreur lors de la récupération de la version actuelle : $e');
@@ -64,8 +61,8 @@ class Api {
   /// Récupère le token JWT actuel.
   static Future<void> fetchCurrentJwToken() async {
     try {
-      final response = await httpGetWithHeaders(jwTokenUrl);
-      currentJwToken = response.body;
+      final response = await Api.dio.getUri(Uri.parse(jwTokenUrl));
+      currentJwToken = response.data as String;
     } catch (e) {
       debugPrint('Erreur lors de la récupération du token JWT : $e');
     }
@@ -82,7 +79,7 @@ class Api {
       final response = await httpGetWithHeaders(url);
 
       if (response.statusCode == 200) {
-        final json = await GZipHelper.decompressJson(response.bodyBytes);
+        final json = await GZipHelper.decompressJson(response.data);
         return json['revision'];
       }
     }
@@ -112,6 +109,10 @@ class Api {
 
   /// Met à jour le fichier catalog.db en local.
   static Future<void> updateCatalog() async {
+    if(currentVersion.isEmpty) {
+      await fetchCurrentVersion();
+    }
+
     try {
       final catalogFile = await getCatalogDatabaseFile();
       final url = catalogUrl.replaceFirst('{currentVersion}', currentVersion);
@@ -122,7 +123,7 @@ class Api {
         printTime('Le fichier "catalog.db" a été téléchargé');
 
         printTime('Decompression de catalog.db en cours...');
-        await GZipHelper.decompressToFile(response.bodyBytes, catalogFile);
+        await GZipHelper.decompressToFile(response.data, catalogFile);
         printTime('Le fichier "catalog.db" a été décompressé avec succés dans : $catalogFile');
 
         printTime('On met à jour ala dernière revision ($lastRevisionAvailable) du catalogue dans les préférences');
@@ -144,13 +145,13 @@ class Api {
     try {
       final url = langCatalogUrl.replaceFirst('{language_code}', languageSymbol);
       final response = await httpGetWithHeaders(url);
-      final serverETag = response.headers['etag'] ?? '';
-      final serverDate = response.headers['last-modified'] ?? '';
+      final serverETag = response.headers['etag'] as List<String>;
+      final serverDate = response.headers['last-modified'] as List<String>;
 
       final results = RealmLibrary.realm.all<Language>().query("symbol == '$languageSymbol'");
       final language = results.isNotEmpty ? results.first : null;
 
-      if (language == null || language.eTag != serverETag || language.lastModified != serverDate) {
+      if (language == null || language.eTag != serverETag.first || language.lastModified != serverDate.first) {
         printTime('Une mise à jour de la bibliothèque pour la langue $languageSymbol est disponible.');
         return true;
       }
@@ -171,10 +172,9 @@ class Api {
       if (response.statusCode == 200) {
         debugPrint('Chargement du catalogue pour la langue $languageSymbol...');
         // Mettre à jour la date de modification
-        final serverEtag = response.headers['etag'] ?? '';
-        final serverDate = response.headers['last-modified'] ?? '';
-
-        await RealmLibrary.convertMediaJsonToRealm(response.bodyBytes, serverEtag, serverDate);
+        final serverEtag = response.headers['etag'] as List<String>;
+        final serverDate = response.headers['last-modified'] as List<String>;
+        await RealmLibrary.convertMediaJsonToRealm(response.data, serverEtag.first, serverDate.first);
 
         debugPrint('Catalogue de la langue $languageSymbol mis à jour.');
         return true;
@@ -260,40 +260,44 @@ class Api {
     }
   }
 
-  static Future<http.Response> httpGetWithHeadersUri(Uri url, {Map<String, String>? headers}) async {
+  static Future<Response> httpGetWithHeadersUri(Uri url, {Map<String, String>? headers, ResponseType responseType = ResponseType.json}) async {
     try {
-      final h = getHeaders();
+      Options options = Options(
+        headers: headers ?? getHeaders(),
+        validateStatus: (status) => status != null && status < 500,
+        responseType: responseType,
+      );
 
-      if (headers != null) {
-        h.addAll(headers);
-      }
-
-      final response = await http.get(url, headers: h);
+      final response = await Api.dio.getUri(url, options: options);
       return response;
     }
     catch (e) {
       printTime('Erreur HTTP GET : $e');
-      return http.Response('', 500);
+      return Response(data: '', requestOptions: RequestOptions(), statusCode: 500);
     }
   }
 
-  static Future<http.Response> httpGetWithHeaders(String url) async {
+  static Future<Response> httpGetWithHeaders(String url, {ResponseType responseType = ResponseType.bytes}) async {
     try {
-      final headers = getHeaders();
+      Options options = Options(
+        headers: getHeaders(),
+        validateStatus: (status) => status != null && status < 500,
+        responseType: responseType,
+      );
 
-      final response = await http.get(Uri.parse(url), headers: headers);
+      final response = await Api.dio.getUri(Uri.parse(url), options: options);
       return response;
     }
     catch (e) {
       printTime('Erreur HTTP GET : $e');
-      return http.Response('', 500);
+      return Response(data: '', requestOptions: RequestOptions(), statusCode: 500);
     }
   }
 
   static Map<String, String> getHeaders() {
     return {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
-      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36',
+      'Accept': '*/*',
       'sec-ch-ua': '"Google Chrome";v="137", "Chromium";v="137", "Not/A)Brand";v="24"',
       'sec-ch-ua-mobile': '?0',
       'sec-ch-ua-platform': '"Android"',

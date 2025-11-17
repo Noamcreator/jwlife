@@ -31,6 +31,7 @@ import 'package:html/parser.dart' as html_parser;
 import '../../../app/services/file_handler_service.dart';
 import '../../../app/services/global_key_service.dart';
 import '../../../app/services/settings_service.dart';
+import '../../../i18n/i18n.dart';
 import '../widgets/home_page/article_widget.dart';
 import '../widgets/home_page/daily_text_widget.dart';
 import '../widgets/home_page/frequently_used_section.dart';
@@ -199,8 +200,12 @@ class HomePageState extends State<HomePage> {
   Future<void> _refresh({bool first = false}) async {
     printTime("Refresh start");
     if (!await hasInternetConnection()) {
-      showBottomMessage('Aucune connexion Internet');
+      showBottomMessage(i18n().message_no_internet_connection_title);
       return;
+    }
+
+    if (!first) {
+      showBottomMessage(i18n().message_catalog_downloading);
     }
 
     // Lancer les vérifications en parallèle
@@ -214,12 +219,12 @@ class HomePageState extends State<HomePage> {
 
     if (!catalogUpdate && !libraryUpdate) {
       if (!first) {
-        showBottomMessage('Aucune mise à jour disponible');
+        showBottomMessage(i18n().message_catalog_up_to_date);
       }
       return;
     }
 
-    showBottomMessage('Mise à jour disponible');
+    showBottomMessage(i18n().label_update_available);
 
     _linearProgressKey.currentState?.startRefreshing();
 
@@ -262,13 +267,14 @@ class HomePageState extends State<HomePage> {
     // Exécuter toutes les tâches en parallèle
     await Future.wait(updateTasks);
 
-    showBottomMessage('Mise à jour terminée');
+    showBottomMessage(i18n().message_catalog_success);
 
     _linearProgressKey.currentState?.stopRefreshing();
   }
 
   Future<void> fetchAlertInfo() async {
     printTime("fetchAlertInfo");
+
     // Préparer les paramètres de requête pour l'URL
     final queryParams = {
       'type': 'news',
@@ -416,7 +422,7 @@ class HomePageState extends State<HomePage> {
 
     printTime("fetchArticleInHomePage document start");
 
-    final document = html_parser.parse(response.body);
+    final document = html_parser.parse(response.data);
 
     final html.Element? firstBillboard = document.querySelector('.billboard');
 
@@ -586,7 +592,7 @@ class HomePageState extends State<HomePage> {
       if (response.statusCode == 200) {
         final filename = Uri.parse(imageUrl).pathSegments.last;
         final file = File('${appTileDirectory.path}/$filename');
-        await file.writeAsBytes(response.bodyBytes);
+        await file.writeAsBytes(response.data);
         return file.path;
       }
     } catch (e) {
@@ -619,11 +625,8 @@ class HomePageState extends State<HomePage> {
           color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black,
           backgroundColor: Theme.of(context).brightness == Brightness.dark ? Colors.black : Colors.white,
           onRefresh: () async {
-            if (await hasInternetConnection() && !_linearProgressKey.currentState!.isRefreshing) {
+            if (await hasInternetConnection(context: context) && !_linearProgressKey.currentState!.isRefreshing) {
               await _refresh();
-            }
-            else if (!_linearProgressKey.currentState!.isRefreshing) {
-              showNoConnectionDialog(context);
             }
           },
           child: SingleChildScrollView(

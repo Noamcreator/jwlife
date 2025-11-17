@@ -11,6 +11,7 @@ import '../../../core/icons.dart';
 import '../../../core/utils/utils_search.dart';
 import '../../../data/models/publication.dart';
 import '../../../data/models/userdata/tag.dart';
+import '../../../i18n/i18n.dart';
 
 // --------------------------------------------------------------------------
 // 🌟 FONCTION UTILITAIRE POUR CRÉER LES TEXTSPANS SURLIGNÉS
@@ -381,7 +382,7 @@ class _NotePageState extends State<NotePage> {
             itemBuilder: (context) => [
               PopupMenuItem(
                 child: ListTile(
-                  title: Text('Supprimer'),
+                  title: Text(i18n().action_delete),
                   onTap: () async {
                     await JwLifeApp.userdata.deleteNote(_note);
                     _note.noteId = -1;
@@ -392,7 +393,7 @@ class _NotePageState extends State<NotePage> {
               ),
               PopupMenuItem(
                 child: ListTile(
-                  title: Text('Changer la couleur'),
+                  title: Text(i18n().action_change_color),
                   onTap: () {},
                   trailing: DropdownButton<int>(
                     dropdownColor:
@@ -459,7 +460,7 @@ class _NotePageState extends State<NotePage> {
                       TextStyle(fontWeight: FontWeight.bold, fontSize: 22),
                       decoration: InputDecoration(
                         border: InputBorder.none,
-                        hintText: 'Titre',
+                        hintText: i18n().label_note_title,
                         hintStyle: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 22,
@@ -475,7 +476,7 @@ class _NotePageState extends State<NotePage> {
                       style: TextStyle(fontSize: 20),
                       decoration: InputDecoration(
                         border: InputBorder.none,
-                        hintText: 'Note',
+                        hintText: i18n().label_note,
                         hintStyle:
                         TextStyle(fontSize: 22, color: Color(0xFF757575)),
                       ),

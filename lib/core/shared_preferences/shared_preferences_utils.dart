@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:jwlife/core/shared_preferences/shared_preferences_keys.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../../i18n/app_localizations.dart';
 import '../../app/services/settings_service.dart';
 import '../../data/models/meps_language.dart';
+import '../../i18n/localization.dart';
 import '../constants.dart';
 
 /// Récupère l’instance SharedPreferences (singleton)
@@ -187,14 +187,36 @@ Future<void> setFontSize(double fontSize) async {
 }
 
 /* FULLSCREEN PUBLICATION */
-Future<bool> getFullscreen() async {
+Future<bool> getFullscreenMode() async {
   final sp = await _getSP();
-  return sp.getBool(SharedPreferencesKeys.fullscreen.key) ?? SharedPreferencesKeys.fullscreen.defaultValue;
+  return sp.getBool(SharedPreferencesKeys.fullscreenMode.key) ?? SharedPreferencesKeys.fullscreenMode.defaultValue;
 }
 
-Future<void> setFullscreen(bool fullscreen) async {
+Future<void> setFullscreenMode(bool fullscreen) async {
   final sp = await _getSP();
-  await sp.setBool(SharedPreferencesKeys.fullscreen.key, fullscreen);
+  await sp.setBool(SharedPreferencesKeys.fullscreenMode.key, fullscreen);
+}
+
+/* READING MODE PUBLICATION */
+Future<bool> getReadingMode() async {
+  final sp = await _getSP();
+  return sp.getBool(SharedPreferencesKeys.readingMode.key) ?? SharedPreferencesKeys.readingMode.defaultValue;
+}
+
+Future<void> setReadingMode(bool fullscreen) async {
+  final sp = await _getSP();
+  await sp.setBool(SharedPreferencesKeys.readingMode.key, fullscreen);
+}
+
+/* PREPARING MODE PUBLICATION */
+Future<bool> getPreparingMode() async {
+  final sp = await _getSP();
+  return sp.getBool(SharedPreferencesKeys.preparingMode.key) ?? SharedPreferencesKeys.preparingMode.defaultValue;
+}
+
+Future<void> setPreparingMode(bool preparing) async {
+  final sp = await _getSP();
+  await sp.setBool(SharedPreferencesKeys.preparingMode.key, preparing);
 }
 
 /* WEBVIEW STYLE */

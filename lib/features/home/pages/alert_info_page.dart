@@ -19,7 +19,7 @@ import '../../../core/utils/utils_language_dialog.dart';
 import '../../../data/databases/catalog.dart';
 import '../../../data/models/publication.dart';
 import '../../../data/models/video.dart';
-import '../../../widgets/dialog/language_dialog.dart';
+import '../../../i18n/i18n.dart';
 import '../../../widgets/dialog/publication_dialogs.dart';
 
 class AlertInfoPage extends StatefulWidget {
@@ -147,8 +147,8 @@ class _AlertInfoPageState extends State<AlertInfoPage> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Alerte Info',
+            Text(
+              i18n().label_breaking_news,
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             Text(

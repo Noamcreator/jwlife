@@ -2,20 +2,26 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:gal/gal.dart';
 import 'package:intl/intl.dart';
 import 'package:jwlife/app/services/settings_service.dart';
 import 'package:jwlife/core/icons.dart';
+import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/core/utils/utils_dialog.dart';
+import 'package:jwlife/core/utils/utils_playlist.dart';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/repositories/PublicationRepository.dart';
 import 'package:jwlife/widgets/image_cached_widget.dart';
 import 'package:open_file/open_file.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../core/api/api.dart';
 import '../../data/models/video.dart';
+import '../../i18n/i18n.dart';
 
 Future<String?> _showLocalVideoDialog(BuildContext context, Video video, List<ConnectivityResult> connectivityResult) {
   return showDialog<String>(
@@ -211,14 +217,11 @@ Future<String?> showDocumentDialog(BuildContext context, String? pub, String? do
 
   try {
     // Effectuer la requête HTTP
-    final response = await Api.httpGetWithHeadersUri(url);
+    final response = await Api.httpGetWithHeadersUri(url, responseType: ResponseType.json);
 
     // Vérifier si la requête a réussi (code 200)
     if (response.statusCode == 200) {
-      // Si la requête est réussie, analyser le JSON
-      final jsonData = jsonDecode(response.body);
-
-      _showPdfDialog(context, connectivityResult, jsonData, langwritten);
+      _showPdfDialog(context, connectivityResult, response.data, langwritten);
     }
     else {
       // Si la requête échoue, afficher un message d'erreur
@@ -253,9 +256,9 @@ Future<String?> _showPdfDialog(BuildContext context, List<ConnectivityResult> co
       ),
     ),
     buttons: [
-      JwDialogButton(label: 'ANNULER'),
+      JwDialogButton(label: i18n().action_cancel_uppercase),
       JwDialogButton(
-          label: 'TÉLÉCHARGER',
+          label: i18n().label_downloaded_uppercase,
           closeDialog: false,
           onPressed: (context) async {
             await _downloadAndOpenPdf(file['file']['url']);
@@ -366,10 +369,10 @@ Future<bool> showCustomizeVersesDialog(BuildContext context) async {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Titre
-                  const Padding(
+                  Padding(
                     padding: EdgeInsets.symmetric(vertical: 20),
                     child: Text(
-                      "Différentes versions",
+                      i18n().label_icon_parallel_translations,
                       style: TextStyle(fontFamily: 'Roboto', fontSize: 20, fontWeight: FontWeight.bold),
                     ),
                   ),
@@ -379,7 +382,7 @@ Future<bool> showCustomizeVersesDialog(BuildContext context) async {
                   const SizedBox(height: 30),
 
                   Text(
-                    "Pour télécharger d'autres traductions, allez dans la section Bible et touchez le bouton « Langues ».",
+                    i18n().messages_help_download_bibles,
                     style: TextStyle(fontSize: 16, color: Colors.grey),
                     textAlign: TextAlign.center,
                   ),
@@ -449,10 +452,10 @@ Future<bool> showCustomizeVersesDialog(BuildContext context) async {
                   // 2. Séparateur et titre "Autres"
                   if (otherBibles.isNotEmpty) ...[
                     Divider(color: isDarkMode ? Colors.black : const Color(0xFFf1f1f1)),
-                    const Padding(
+                    Padding(
                       padding: EdgeInsets.symmetric(horizontal: 20, vertical: 5),
                       child: Text(
-                        "AUTRES",
+                        i18n().label_not_included_uppercase,
                         style: TextStyle(fontFamily: 'Roboto', fontWeight: FontWeight.bold, color: Colors.grey),
                       ),
                     ),
@@ -478,7 +481,7 @@ Future<bool> showCustomizeVersesDialog(BuildContext context) async {
                       TextButton(
                         onPressed: () => Navigator.pop(context), // Ferme sans renvoyer de résultat (annuler -> null)
                         child: Text(
-                          "ANNULER",
+                          i18n().action_cancel_uppercase,
                           style: TextStyle(
                             fontFamily: 'Roboto',
                             letterSpacing: 1,
@@ -491,7 +494,7 @@ Future<bool> showCustomizeVersesDialog(BuildContext context) async {
                       TextButton(
                         onPressed: () => Navigator.pop(context, currentOrderedBibles),
                         child: Text(
-                          "TERMINÉ",
+                          i18n().action_done_uppercase,
                           style: TextStyle(
                             fontFamily: 'Roboto',
                             letterSpacing: 1,
@@ -543,5 +546,98 @@ Future<bool> showCustomizeVersesDialog(BuildContext context) async {
   } else {
     // L'utilisateur a annulé (résultat est null)
     return false;
+  }
+}
+
+// Remplacez votre fonction _showActionSheet par celle-ci
+void showFloatingMenuAtPosition(BuildContext context, String imagePath, double clientX, double clientY) {
+
+  // 1. Récupérer la taille de l'écran et la position du WebView
+  final RenderBox renderBox = context.findRenderObject() as RenderBox;
+  final Offset webViewPosition = renderBox.localToGlobal(Offset.zero);
+
+  // 2. Calculer la position globale du clic
+  // Coordonnée X globale : Position du WebView + X dans le WebView
+  final double globalX = webViewPosition.dx + clientX;
+  // Coordonnée Y globale : Position du WebView + Y dans le WebView
+  final double globalY = webViewPosition.dy + clientY;
+
+  // 3. Définir la zone du PopUp Menu (RelativeRect)
+  // Nous définissons la position de départ (top-left corner) du menu.
+  final RelativeRect position = RelativeRect.fromLTRB(
+    globalX, // Position de départ X
+    globalY, // Position de départ Y
+    MediaQuery.of(context).size.width - globalX, // Marge droite (le reste de l'écran)
+    MediaQuery.of(context).size.height - globalY, // Marge bas (le reste de l'écran)
+  );
+
+  // 4. Créer les éléments de menu (comme dans l'exemple précédent)
+  final List<PopupMenuEntry<String>> items = <PopupMenuEntry<String>>[
+    PopupMenuItem<String>(
+      value: 'save',
+      child: ListTile(
+        dense: true,
+        leading: Icon(JwIcons.cloud_arrow_down, color: Theme.of(context).primaryColor),
+        title: Text(i18n().action_save_image),
+      ),
+    ),
+    PopupMenuItem<String>(
+      value: 'share',
+      child: ListTile(
+        dense: true,
+        leading: Icon(JwIcons.share, color: Theme.of(context).primaryColor),
+        title: Text(i18n().action_share_image),
+      ),
+    ),
+    PopupMenuItem<String>(
+      value: 'playlist',
+      child: ListTile(
+        dense: true,
+        leading: Icon(JwIcons.list_play, color: Theme.of(context).primaryColor),
+        title: Text(i18n().action_add_to_playlist),
+      ),
+    ),
+  ];
+
+  // 5. Afficher le menu
+  showMenu<String>(
+    context: context,
+    position: position,
+    items: items,
+    elevation: 8.0,
+  ).then((String? value) {
+    if (value != null) {
+      if (value == 'save') {
+        _saveImage(imagePath);
+      }
+      else if (value == 'share') {
+        _shareImage(imagePath);
+      }
+      else if (value == 'playlist') {
+        showAddItemToPlaylistDialog(context, imagePath);
+      }
+    }
+  });
+}
+
+// NOTE: L'enregistrement nécessite des packages comme `http` et `image_downloader`
+Future<void> _saveImage(String imagePath) async {
+  await Gal.putImage(imagePath, album: 'JW Life Images');
+  showBottomMessage('Image enregistrée dans l\'album JW Life Images.');
+}
+
+// Le partage de l'URL est simple avec `share_plus`
+void _shareImage(String imagePath) async {
+  try {
+    // Partage directement l'URL de l'image.
+    await SharePlus.instance.share(
+        ShareParams(
+          title: "Partage de l'image",
+          previewThumbnail: XFile(imagePath),
+          files: [XFile(imagePath)],
+        )
+    );
+  } catch (e) {
+    print('Erreur lors du partage : $e');
   }
 }

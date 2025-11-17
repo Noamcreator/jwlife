@@ -88,8 +88,8 @@ class RectangleMediaItemItem extends StatelessWidget {
                 children: [
                   // Icône de téléchargement ou de mise à jour
                   Positioned(
-                    bottom: 0,
-                    right: -5,
+                    bottom: 3,
+                    right: -8,
                     height: 40,
                     child: IconButton(
                       padding: EdgeInsets.zero,
@@ -139,7 +139,7 @@ class RectangleMediaItemItem extends StatelessWidget {
   // Extrait le menu contextuel (const)
   Widget _buildPopupMenu(BuildContext context) {
     return Positioned(
-      top: -5,
+      top: -15,
       right: -10,
       child: RepaintBoundary(
         child: PopupMenuButton(
@@ -148,7 +148,7 @@ class RectangleMediaItemItem extends StatelessWidget {
             const AnimationStyle(curve: Curves.ease),
             0.5,
           ),
-          icon: const Icon(Icons.more_vert, color: Color(0xFF9d9d9d)),
+          icon: const Icon(Icons.more_horiz, color: Color(0xFF9d9d9d)),
           itemBuilder: (context) => _m is Audio
               ? [
             getAudioShareItem(_m as Audio),

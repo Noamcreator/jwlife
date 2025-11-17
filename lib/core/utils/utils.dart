@@ -7,9 +7,13 @@ import 'package:crypto/crypto.dart';
 import 'package:diacritic/diacritic.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:jwlife/app/services/global_key_service.dart';
+import 'package:jwlife/core/utils/utils_dialog.dart';
 import 'package:sqflite/sqflite.dart';
 
 import 'package:image/image.dart' as img;
+
+import '../../i18n/i18n.dart';
 
 String capitalize(String s) => s[0].toUpperCase() + s.substring(1);
 
@@ -46,25 +50,43 @@ String formatTick(int ticks) {
 }
 
 String formatDuration(double duration) {
-  // Convertir la durée en secondes
-  int totalSeconds = duration.toInt(); // Supposons que 'duration' est en secondes
+  BuildContext context = GlobalKeyService.jwLifePageKey.currentState!.context;
+  String locale = Localizations.localeOf(context).languageCode;
 
-  // Calculer les heures, minutes et secondes
+  // Convertir la durée en secondes
+  int totalSeconds = duration.toInt();
   int hours = totalSeconds ~/ 3600;
   int minutes = (totalSeconds % 3600) ~/ 60;
   int seconds = totalSeconds % 60;
 
-  // Formater les secondes pour avoir deux chiffres
-  String formattedSeconds = seconds.toString().padLeft(2, '0');
-  String formattedMinutes = minutes.toString().padLeft(2, '0');
+  // Formatter normal
+  final numberFormatter = NumberFormat('00', locale);
 
-  // Retourner la durée formatée avec ou sans les heures
-  if (hours > 0) {
-    return '$hours:$formattedMinutes:$formattedSeconds';
-  } else {
-    return '$minutes:$formattedSeconds';
+  String formattedSeconds = numberFormatter.format(seconds);
+  String formattedMinutes = numberFormatter.format(minutes);
+  String formattedHours = numberFormatter.format(hours);
+
+  String result = (hours > 0)
+      ? '$formattedHours:$formattedMinutes:$formattedSeconds'
+      : '$formattedMinutes:$formattedSeconds';
+
+  // Si locale arabe → convertir les chiffres en "Arabic-Indic"
+  if (locale == 'ar') {
+    result = _convertToArabicDigits(result);
   }
+
+  return result;
 }
+
+/// Convertit 0-9 vers ٠-٩ (Arabic-Indic)
+String _convertToArabicDigits(String input) {
+  const arabicDigits = ['٠','١','٢','٣','٤','٥','٦','٧','٨','٩'];
+  return input.replaceAllMapped(RegExp(r'[0-9]'), (match) {
+    final digit = int.parse(match.group(0)!);
+    return arabicDigits[digit];
+  });
+}
+
 
 DateTime formatDateTime(String isoString) {
   // Convertir la chaîne ISO 8601 en objet DateTime
@@ -93,31 +115,68 @@ Duration parseDuration(String startTime) {
   return Duration.zero;
 }
 
-
 String formatFileSize(int bytes) {
   if (bytes < 1024) {
-    return '${bytes}B'; // Retourne la taille en octets
+    return i18n().label_units_storage_bytes(bytes); // Retourne la taille en octets
   } else if (bytes < 1024 * 1024) {
     double kb = bytes / 1024;
     int roundedKb = kb.ceil(); // Arrondir à l'entier supérieur
-    return '$roundedKb Ko'; // Retourne la taille en kilo-octets
+    return i18n().label_units_storage_kb(roundedKb); // Retourne la taille en kilo-octets
   } else if (bytes < 1024 * 1024 * 1024) {
     double mb = bytes / (1024 * 1024);
     int roundedMb = mb.ceil(); // Arrondir à l'entier supérieur
-    return '$roundedMb Mo'; // Retourne la taille en mégaoctets
-  } else {
+    return i18n().label_units_storage_mb(roundedMb); // Retourne la taille en mégaoctets
+  } else if (bytes < 1024 * 1024 * 1024 * 1024) { // Ajout du Gigaoctet
     double gb = bytes / (1024 * 1024 * 1024);
     int roundedGb = gb.ceil(); // Arrondir à l'entier supérieur
-    return '$roundedGb Go'; // Retourne la taille en gigaoctets
+    return i18n().label_units_storage_gb(roundedGb); // Retourne la taille en gigaoctets
+  } else { // Reste, c'est-à-dire le Teraoctet (To) et plus
+    double tb = bytes / (1024 * 1024 * 1024 * 1024);
+    int roundedTb = tb.ceil(); // Arrondir à l'entier supérieur
+    return i18n().label_units_storage_tb(roundedTb); // Retourne la taille en téraoctets
   }
 }
 
-String timeAgo(DateTime dateTime) {
-  final Duration diff = DateTime.now().difference(dateTime);
-  if (diff.inMinutes < 1) return 'il y a quelques secondes';
-  if (diff.inMinutes < 60) return 'il y a ${diff.inMinutes} minutes';
-  if (diff.inHours < 24) return 'il y a ${diff.inHours} heures';
-  return 'il y a ${diff.inDays} jours';
+String formatFilesLength(int count) {
+  if (count == 1) {
+    return i18n().label_download_all_one_file;
+  }
+  else {
+    return i18n().label_download_all_files(count);
+  }
+}
+
+String timeAgo(DateTime dateTime, {DateTime? dateTimeCompare}) {
+  final DateTime nowDateTime = dateTimeCompare ?? DateTime.now();
+  final Duration diff = nowDateTime.difference(dateTime);
+
+  // Si futur
+  if (diff.isNegative) return i18n().label_whats_new_multiple_seconds_ago;
+
+  if (diff.inSeconds < 60) {
+    return i18n().label_whats_new_multiple_seconds_ago;
+  } else if (diff.inMinutes < 60) {
+    final minutes = diff.inMinutes;
+    if (minutes == 1) return i18n().label_whats_new_1_minute_ago;
+    return i18n().label_whats_new_multiple_minutes_ago(minutes);
+  } else if (diff.inHours < 24) {
+    final hours = diff.inHours;
+    if (hours == 1) return i18n().label_whats_new_1_hour_ago;
+    return i18n().label_whats_new_multiple_hours_ago(hours);
+  } else if (diff.inDays < 30) {
+    final days = diff.inDays;
+    if (days == 0) return i18n().label_whats_new_today;
+    if (days == 1) return i18n().label_whats_new_1_day_ago;
+    return i18n().label_whats_new_multiple_days_ago(days);
+  } else if (diff.inDays < 365) {
+    final months = (diff.inDays / 30).floor();
+    if (months == 1) return i18n().label_whats_new_1_month_ago;
+    return i18n().label_whats_new_multiple_months_ago(months);
+  } else {
+    final years = (diff.inDays / 365).floor();
+    if (years == 1) return i18n().label_whats_new_1_year_ago;
+    return i18n().label_whats_new_multiple_year_ago(years);
+  }
 }
 
 Future<int> getDirectorySize(Directory dir) async {
@@ -190,10 +249,6 @@ Future<Color> getDominantColorFromFile(File file) async {
   }
 }
 
-String convertHtmlToText(String html) {
-  return html == '' ? '' : html.replaceAll(RegExp(r"<[^>]*>"), '').trim();
-}
-
 bool isPortrait(BuildContext context) {
   return MediaQuery.of(context).orientation == Orientation.portrait;
 }
@@ -222,10 +277,13 @@ bool isWindows(BuildContext context) {
   return Theme.of(context).platform == TargetPlatform.windows;
 }
 
-Future<bool> hasInternetConnection() async {
+Future<bool> hasInternetConnection({BuildContext? context}) async {
   final List<ConnectivityResult> connectivityResult = await (Connectivity().checkConnectivity());
   if (connectivityResult.contains(ConnectivityResult.none)) {
     printTime("Aucune connexion Internet !");
+    if(context != null) {
+      showNoConnectionDialog(context);
+    }
     return false;
   }
   else {

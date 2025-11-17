@@ -19,10 +19,10 @@ class WebViewData {
   late int colorIndex;
   late int styleIndex;
   late bool isFullScreenMode;
+  late bool isReadingMode;
+  late bool isPreparingMode;
 
   late String webappPath;
-
-  late HeadlessInAppWebView headlessWebView;
 
   late List<String> biblesSet;
 
@@ -33,15 +33,14 @@ class WebViewData {
     fontSize = await getFontSize();
     styleIndex = await getStyleIndex();
     colorIndex = await getColorIndex();
-    isFullScreenMode = await getFullscreen();
+    isFullScreenMode = await getFullscreenMode();
+    isReadingMode = await getReadingMode();
+    isPreparingMode = await getPreparingMode();
 
     Directory filesDirectory = await getAppFilesDirectory();
     webappPath = '${filesDirectory.path}/webapp_assets';
 
     biblesSet = await getBiblesSet();
-
-    headlessWebView = HeadlessInAppWebView();
-    headlessWebView.run();
   }
 
   void updateTheme(bool isDark) {
@@ -96,6 +95,64 @@ class WebViewData {
         }
         else if (state is DailyTextPageState) {
           state.changeFullScreenMode(value);
+        }
+      }
+    }
+  }
+
+  void updateReadingMode(bool value) {
+    isReadingMode = value;
+
+    if(value) {
+      isPreparingMode = !value;
+    }
+
+    for (var keys in GlobalKeyService.jwLifePageKey.currentState!.webViewPageKeys) {
+      for (var key in keys) {
+        final state = key.currentState;
+
+        if (state is DocumentPageState) {
+          state.changeReadingMode(value);
+
+          if(value) {
+            state.changePreparingMode(!value);
+          }
+        }
+        else if (state is DailyTextPageState) {
+          state.changeReadingMode(value);
+
+          if(value) {
+            state.changePreparingMode(!value);
+          }
+        }
+      }
+    }
+  }
+
+  void updatePreparingMode(bool value) {
+    isPreparingMode = value;
+
+    if(value) {
+      isReadingMode = !value;
+    }
+
+    for (var keys in GlobalKeyService.jwLifePageKey.currentState!.webViewPageKeys) {
+      for (var key in keys) {
+        final state = key.currentState;
+
+        if (state is DocumentPageState) {
+          state.changePreparingMode(value);
+
+          if(value) {
+            state.changeReadingMode(!value);
+          }
+        }
+        else if (state is DailyTextPageState) {
+          state.changePreparingMode(value);
+
+          if(value) {
+            state.changeReadingMode(!value);
+          }
         }
       }
     }

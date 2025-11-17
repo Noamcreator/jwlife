@@ -34,7 +34,7 @@ class _BibleViewState extends State<BibleView> {
     try {
       final response = await Api.httpGetWithHeaders('https://wol.jw.org/${widget.link}');
       if (response.statusCode == 200) {
-        final document = html_parser.parse(response.body);
+        final document = html_parser.parse(response.data);
 
         // Extract header and title
         final headerElement = document.querySelector('header h1');

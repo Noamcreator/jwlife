@@ -9,7 +9,6 @@ import 'package:flutter/services.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:jwlife/app/services/global_key_service.dart';
 import 'package:jwlife/core/utils/utils_audio.dart';
-import 'package:jwlife/core/utils/utils_playlist.dart';
 import 'package:jwlife/data/models/audio.dart';
 import 'package:jwlife/data/realm/catalog.dart' as realm;
 import 'package:path_provider/path_provider.dart';
@@ -18,6 +17,7 @@ import '../../core/icons.dart';
 import '../../core/utils/common_ui.dart';
 import '../../core/utils/utils.dart';
 import '../../core/utils/utils_video.dart';
+import '../../i18n/i18n.dart';
 import '../../widgets/image_cached_widget.dart';
 import 'audio_player_model.dart';
 
@@ -138,28 +138,19 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
   }
 
   // Fonction utilitaire à mettre en dehors
-  PopupMenuItem<double> _speedItem(double speed, [String? label]) {
+  PopupMenuItem<double> _speedItem(double speed) {
     return PopupMenuItem<double>(
       value: speed,
       child: Text(
-        '${speed.toStringAsFixed(1).replaceAll('.', ',')}x'
-            '${label != null ? ' · $label' : ''}',
+        speed == 1.0 ? i18n().label_playback_speed_normal(1.0) : '${speed.toStringAsFixed(1).replaceAll('.', ',')}x',
       ),
     );
   }
 
   String buildSpeedLabel() {
-    String labelForSpeed(double speed) {
-      if (speed == 2.0) return 'Rapide';
-      if (speed == 1.0) return 'Normale';
-      if (speed == 0.5) return 'Lente';
-      return '';
-    }
-
-    final speedStr = '${_speed.toStringAsFixed(1).replaceAll('.', ',')}x';
-    final label = labelForSpeed(_speed);
-
-    return 'Vitesse de lecture · $speedStr${label.isNotEmpty ? ' · $label' : ''}';
+    final double speed = _speed;
+    final speedStr = speed == 1.0 ? i18n().label_playback_speed_normal('${speed.toStringAsFixed(1).replaceAll('.', ',')}x') : '${speed.toStringAsFixed(1).replaceAll('.', ',')}x';
+    return i18n().label_playback_speed_colon(speedStr);
   }
 
   String buildPitchLabel() {
@@ -426,18 +417,18 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
                                             ),
                                             position: RelativeRect.fromLTRB(30, 150, 0, 0),
                                             items: <PopupMenuEntry<double>>[
-                                              _speedItem(2.0, 'Rapide'),
+                                              _speedItem(2.0),
                                               _speedItem(1.8),
                                               _speedItem(1.6),
                                               _speedItem(1.4),
                                               _speedItem(1.2),
                                               _speedItem(1.1),
-                                              _speedItem(1.0, 'Normale'),
+                                              _speedItem(1.0),
                                               _speedItem(0.9),
                                               _speedItem(0.8),
                                               _speedItem(0.7),
                                               _speedItem(0.6),
-                                              _speedItem(0.5, 'Lente'),
+                                              _speedItem(0.5),
                                             ],
                                           );
                                           if (value != null) {
@@ -473,14 +464,14 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
                                               reverseCurve: Curves.fastLinearToSlowEaseIn,
                                               reverseDuration: const Duration(milliseconds: 200),
                                             ),
-                                            items: const [
+                                            items: [
                                               PopupMenuItem<String>(
                                                 value: 'off',
-                                                child: Text('Inactif'),
+                                                child: Text(i18n().label_off),
                                               ),
                                               PopupMenuItem<String>(
                                                 value: 'on',
-                                                child: Text('Activé'),
+                                                child: Text(i18n().label_on),
                                               ),
                                             ],
                                           );
@@ -495,7 +486,7 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
                                               children: [
                                                 Icon(JwIcons.arrows_twisted_right),
                                                 const SizedBox(width: 8),
-                                                Text('Lecture aléatoire · ${_shuffleMode ? 'Activé' : 'Inactif'}'),
+                                                Text('${i18n().action_shuffle} · ${_shuffleMode ? i18n().label_on : i18n().label_off}'),
                                               ],
                                             ),
                                             const Icon(JwIcons.chevron_right),
@@ -517,18 +508,18 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
                                               reverseDuration: const Duration(milliseconds: 200),
                                             ),
                                             position: RelativeRect.fromLTRB(30, 580, 0, 0),
-                                            items: const [
+                                            items: [
                                               PopupMenuItem<String>(
                                                 value: 'off',
-                                                child: Text('Inactif'),
+                                                child: Text(i18n().label_off),
                                               ),
                                               PopupMenuItem<String>(
                                                 value: 'all',
-                                                child: Text('Toutes les pistes'),
+                                                child: Text(i18n().label_repeat_all_short),
                                               ),
                                               PopupMenuItem<String>(
                                                 value: 'one',
-                                                child: Text('La piste'),
+                                                child: Text(i18n().label_repeat_one_short),
                                               ),
                                             ],
                                           );
@@ -560,7 +551,7 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
                                                     ? JwIcons.arrows_loop
                                                     : JwIcons.arrows_loop_1),
                                                 const SizedBox(width: 8),
-                                                Text('Répéter · ${_loopMode == LoopMode.off ? 'Inactif' : _loopMode == LoopMode.all ? 'Toutes les pistes' : 'La piste'}'),
+                                                Text('${i18n().label_repeat} · ${_loopMode == LoopMode.off ? i18n().label_off : _loopMode == LoopMode.all ? i18n().label_repeat_all_short : i18n().label_repeat_one_short}'),
                                               ],
                                             ),
                                             const Icon(JwIcons.chevron_right),

@@ -1,10 +1,10 @@
-import 'dart:io';
 import 'dart:convert';
+import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/core/utils/directory_helper.dart';
+import 'package:jwlife/core/utils/utils.dart';
 import 'package:open_file/open_file.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -12,6 +12,7 @@ import 'package:gpt_markdown/gpt_markdown.dart';
 
 import '../../core/api/api.dart';
 import '../../core/utils/utils_dialog.dart';
+import '../../i18n/i18n.dart';
 import '../services/global_key_service.dart';
 
 class JwLifeAutoUpdater {
@@ -24,24 +25,27 @@ class JwLifeAutoUpdater {
       String appInfoApi = '${Api.gitubApi}app/app_version.json?$antiCacheQuery';
       print(appInfoApi);
 
-      final response = await http.get(Uri.parse(appInfoApi));
-      if (response.statusCode != 200) return;
+      if(await hasInternetConnection(context: showBannerNoUpdate ? GlobalKeyService.jwLifePageKey.currentContext! : null)) {
+        final response = await Api.httpGetWithHeaders(appInfoApi, responseType: ResponseType.plain);
+        if (response.statusCode != 200) return;
 
-      final data = json.decode(response.body);
-      final latestVersion = data['version'];
-      final apkUrl = '${Api.gitubApi}app/${data['name']}?$antiCacheQuery';
-      final changelog = data['changelog']?.toString() ?? "Aucune note de version disponible.";
+        final jsonData = json.decode(response.data);
 
-      // Remplace les \n\n échappés par de vrais sauts de paragraphe
-      String formattedChangelog = changelog.replaceAll(r'\n', '\n');
+        final String latestVersion = jsonData['version'];
+        final String apkUrl = '${Api.gitubApi}app/${jsonData['name']}?$antiCacheQuery';
+        final String changelog = jsonData['changelog'];
 
-      if (_isNewerVersion(latestVersion, currentVersion)) {
-        _showUpdateDialog(latestVersion, formattedChangelog, apkUrl);
-      }
-      else {
-        debugPrint("✅ Aucune mise à jour disponible (version actuelle: $currentVersion)");
-        if(showBannerNoUpdate) {
-          showBottomMessage("✅ Aucune mise à jour disponible (version actuelle: $currentVersion)");
+        // Remplace les \n\n échappés par de vrais sauts de paragraphe
+        String formattedChangelog = changelog.replaceAll(r'\n', '\n');
+
+        if (_isNewerVersion(latestVersion, currentVersion)) {
+          _showUpdateDialog(latestVersion, formattedChangelog, apkUrl);
+        }
+        else {
+          debugPrint("✅ Aucune mise à jour disponible (version actuelle: $currentVersion)");
+          if(showBannerNoUpdate) {
+            showBottomMessage(i18n().message_app_up_to_date(currentVersion));
+          }
         }
       }
     } catch (e) {
@@ -64,7 +68,7 @@ class JwLifeAutoUpdater {
 
     showJwDialog(
       context: context,
-      titleText: "Nouvelle version disponible",
+      titleText: i18n().message_app_update_available,
       content: Padding(
           padding: EdgeInsetsGeometry.all(16),
           child: SizedBox(
@@ -80,11 +84,11 @@ class JwLifeAutoUpdater {
       ),
       buttons: [
         JwDialogButton(
-          label: "PLUS TARD",
+          label: i18n().action_ask_me_again_later_uppercase,
           closeDialog: true,
         ),
         JwDialogButton(
-          label: "METTRE A JOUR",
+          label: i18n().action_update.toUpperCase(),
           closeDialog: true,
           onPressed: (_) {
             _downloadAndInstall(context, apkUrl, version, changelog);
@@ -155,7 +159,7 @@ class JwProgressDialog {
 
     await showJwDialog<void>(
       context: context,
-      titleText: "Téléchargement de la mise à jour",
+      titleText: i18n().message_download_in_progress,
       content: ValueListenableBuilder<int>(
         valueListenable: _progressNotifier,
         builder: (context, value, _) {

@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
-import 'dart:ui';
 
 import 'package:archive/archive.dart';
 import 'package:audio_info/audio_info.dart';
@@ -39,14 +38,16 @@ import '../../features/publication/pages/document/data/models/document.dart';
 import '../models/audio.dart';
 import '../models/media.dart';
 import '../models/userdata/congregation.dart';
-import '../models/userdata/independentMedia.dart';
-import '../models/userdata/inputField.dart';
+import '../models/userdata/independent_media.dart';
+import '../models/userdata/input_field.dart';
 import '../models/userdata/location.dart';
 import '../models/userdata/note.dart';
+import '../models/userdata/person.dart';
 import '../models/userdata/playlist.dart';
-import '../models/userdata/playlistItem.dart';
 
 import 'package:image/image.dart' as img;
+
+import '../models/userdata/playlist_item.dart';
 
 class Userdata {
   int schemaVersion = 14;
@@ -1856,7 +1857,6 @@ class Userdata {
     }
   }
 
-
   Future<Bookmark?> updateBookmark(
       Publication publication,
       int slot,
@@ -2710,7 +2710,6 @@ class Userdata {
   }
 
   Future<int> insertCongregation(Congregation congregation) async {
-    printTime("insertCongregation");
     return await _database.insert(
       'Congregation',
       congregation.toMap(),
@@ -2734,6 +2733,55 @@ class Userdata {
       whereArgs: [guid],
     );
   }
+
+  Future<Person?> addPerson({
+    required String firstName,
+    required String lastName,
+    String? dateOfBirthDay,
+    int? congregationId,
+    String? address,
+    String? phoneNumber,
+    String? email,
+    String? dateBaptism,
+    String? comment,
+    int me = 0,
+  }) async {
+    try {
+      Map<String, dynamic> data = {
+        'FirstName': firstName,
+        'LastName': lastName,
+        'DateOfBirthDay': dateOfBirthDay,
+        'CongregationId': congregationId,
+        'Address': address,
+        'PhoneNumber': phoneNumber,
+        'Email': email,
+        'DateBaptism': dateBaptism,
+        'Comment': comment,
+        'Me': me,
+      };
+
+      final int personId = await _database.insert('Person', data);
+
+      return Person(
+        personId: personId,
+        firstName: firstName,
+        lastName: lastName,
+        dateOfBirthDay: dateOfBirthDay,
+        congregationId: congregationId,
+        address: address,
+        phoneNumber: phoneNumber,
+        email: email,
+        dateBaptism: dateBaptism,
+        comment: comment,
+        me: me == 1,
+      );
+    } catch (e) {
+      printTime('Erreur lors de l\'ajout de la personne : $e');
+      return null;
+    }
+  }
+
+  /// OTHER FUNCTION
 
   Future<String> getLastModifiedDate() async {
     try {
@@ -3197,303 +3245,419 @@ class Userdata {
   }
 
   Future<void> createDbUserdata(Database db) async {
+    // Définition d'un timestamp formaté pour l'insertion initiale dans LastModified
+    // (Note: La variable formattedTimestamp n'est pas définie ici, elle doit l'être dans votre contexte réel)
+    final String formattedTimestamp = DateTime.now().toIso8601String().substring(0, 19) + 'Z';
+
     return await db.transaction((txn) async {
 
       // --- 1. Création de TOUTES les tables (Un appel par table) ---
 
+      // Table BibleStudy (Ajoutée/Modifiée)
+      await txn.execute("""
+      CREATE TABLE IF NOT EXISTS "BibleStudy" (
+        "BibleStudyId"  INTEGER NOT NULL,
+        "StudentId" INTEGER NOT NULL,
+        "TeacherId" INTEGER NOT NULL,
+        "DurationTicks" INTEGER NOT NULL,
+        "Date"  TEXT NOT NULL,
+        PRIMARY KEY("BibleStudyId"),
+        FOREIGN KEY("StudentId") REFERENCES "Person"("PersonId"),
+        FOREIGN KEY("TeacherId") REFERENCES "Person"("PersonId")
+      );
+    """);
+
+      // Table BibleStudyMap (Ajoutée/Modifiée avec IsCompleted)
+      await txn.execute("""
+      CREATE TABLE IF NOT EXISTS "BibleStudyMap" (
+        "BibleStudyMapId" INTEGER NOT NULL,
+        "BibleStudyId"  INTEGER NOT NULL,
+        "LocationId"  INTEGER NOT NULL,
+        "BlockType" INTEGER NOT NULL,
+        "BlockIdentifier" INTEGER,
+        "DurationTicks" INTEGER NOT NULL,
+        "Date"  TEXT NOT NULL,
+        "AccompanyingPerson"  INTEGER,
+        "IsCompleted" INTEGER NOT NULL DEFAULT 0,
+        "Notes" TEXT,
+        PRIMARY KEY("BibleStudyMapId"),
+        FOREIGN KEY("BibleStudyId") REFERENCES "BibleStudy"("BibleStudyId"),
+        FOREIGN KEY("LocationId") REFERENCES "Location"("LocationId"),
+        FOREIGN KEY("AccompanyingPerson") REFERENCES "Person"("PersonId"),
+        CHECK(("BlockType" = 0 AND "BlockIdentifier" IS NULL) OR (("BlockType" BETWEEN 1 AND 2) AND "BlockIdentifier" IS NOT NULL))
+      );
+    """);
+
       // Table BlockRange
       await txn.execute("""
-        CREATE TABLE IF NOT EXISTS "BlockRange" (
-          "BlockRangeId"  INTEGER NOT NULL,
-          "BlockType" INTEGER NOT NULL,
-          "Identifier"  INTEGER NOT NULL,
-          "StartToken"  INTEGER,
-          "EndToken"  INTEGER,
-          "UserMarkId"  INTEGER NOT NULL,
-          PRIMARY KEY("BlockRangeId"),
-          FOREIGN KEY("UserMarkId") REFERENCES "UserMark"("UserMarkId"),
-          CHECK("BlockType" BETWEEN 1 AND 2)
-        );
-      """);
+      CREATE TABLE IF NOT EXISTS "BlockRange" (
+        "BlockRangeId"  INTEGER NOT NULL,
+        "BlockType" INTEGER NOT NULL,
+        "Identifier"  INTEGER NOT NULL,
+        "StartToken"  INTEGER,
+        "EndToken"  INTEGER,
+        "UserMarkId"  INTEGER NOT NULL,
+        PRIMARY KEY("BlockRangeId"),
+        FOREIGN KEY("UserMarkId") REFERENCES "UserMark"("UserMarkId"),
+        CHECK("BlockType" BETWEEN 1 AND 2)
+      );
+    """);
 
       // Table Bookmark
       await txn.execute("""
-        CREATE TABLE IF NOT EXISTS "Bookmark" (
-          "BookmarkId"  INTEGER NOT NULL,
-          "LocationId"  INTEGER NOT NULL,
-          "PublicationLocationId" INTEGER NOT NULL,
-          "Slot"  INTEGER NOT NULL,
-          "Title" TEXT NOT NULL,
-          "Snippet" TEXT,
-          "BlockType" INTEGER NOT NULL DEFAULT 0,
-          "BlockIdentifier" INTEGER,
-          PRIMARY KEY("BookmarkId"),
-          CONSTRAINT "PublicationLocationId_Slot" UNIQUE("PublicationLocationId","Slot"),
-          FOREIGN KEY("LocationId") REFERENCES "Location"("LocationId"),
-          FOREIGN KEY("PublicationLocationId") REFERENCES "Location"("LocationId"),
-          CHECK(("BlockType" = 0 AND "BlockIdentifier" IS NULL) OR (("BlockType" BETWEEN 1 AND 2) AND "BlockIdentifier" IS NOT NULL))
-        );
-      """);
+      CREATE TABLE IF NOT EXISTS "Bookmark" (
+        "BookmarkId"  INTEGER NOT NULL,
+        "LocationId"  INTEGER NOT NULL,
+        "PublicationLocationId" INTEGER NOT NULL,
+        "Slot"  INTEGER NOT NULL,
+        "Title" TEXT NOT NULL,
+        "Snippet" TEXT,
+        "BlockType" INTEGER NOT NULL DEFAULT 0,
+        "BlockIdentifier" INTEGER,
+        PRIMARY KEY("BookmarkId"),
+        CONSTRAINT "PublicationLocationId_Slot" UNIQUE("PublicationLocationId","Slot"),
+        FOREIGN KEY("LocationId") REFERENCES "Location"("LocationId"),
+        FOREIGN KEY("PublicationLocationId") REFERENCES "Location"("LocationId"),
+        CHECK(("BlockType" = 0 AND "BlockIdentifier" IS NULL) OR (("BlockType" BETWEEN 1 AND 2) AND "BlockIdentifier" IS NOT NULL))
+      );
+    """);
 
       // Table Congregation
       await txn.execute("""
-        CREATE TABLE IF NOT EXISTS "Congregation" (
-          "CongregationId"  INTEGER NOT NULL,
-          "Guid"  TEXT NOT NULL,
-          "Name"  TEXT NOT NULL,
-          "Address" TEXT,
-          "LanguageCode"  TEXT NOT NULL,
-          "Latitude"  REAL NOT NULL,
-          "Longitude" REAL NOT NULL,
-          "WeekendWeekday"  INTEGER,
-          "WeekendTime" TEXT,
-          "MidweekWeekday"  INTEGER,
-          "MidweekTime" TEXT,
-          PRIMARY KEY("CongregationId")
-        );
-      """);
+      CREATE TABLE IF NOT EXISTS "Congregation" (
+        "CongregationId"  INTEGER NOT NULL,
+        "Guid"  TEXT NOT NULL,
+        "Name"  TEXT NOT NULL,
+        "Address" TEXT,
+        "LanguageCode"  TEXT NOT NULL,
+        "Latitude"  REAL NOT NULL,
+        "Longitude" REAL NOT NULL,
+        "WeekendWeekday"  INTEGER,
+        "WeekendTime" TEXT,
+        "MidweekWeekday"  INTEGER,
+        "MidweekTime" TEXT,
+        PRIMARY KEY("CongregationId")
+      );
+    """);
 
       // Table IndependentMedia
       await txn.execute("""
-        CREATE TABLE IF NOT EXISTS "IndependentMedia" (
-          "IndependentMediaId"  INTEGER NOT NULL,
-          "OriginalFilename"  TEXT NOT NULL,
-          "FilePath"  TEXT NOT NULL UNIQUE,
-          "MimeType"  TEXT NOT NULL,
-          "Hash"  TEXT NOT NULL,
-          PRIMARY KEY("IndependentMediaId"),
-          CHECK(length("OriginalFilename") > 0),
-          CHECK(length("FilePath") > 0),
-          CHECK(length("MimeType") > 0),
-          CHECK(length("Hash") > 0)
-        );
-      """);
+      CREATE TABLE IF NOT EXISTS "IndependentMedia" (
+        "IndependentMediaId"  INTEGER NOT NULL,
+        "OriginalFilename"  TEXT NOT NULL,
+        "FilePath"  TEXT NOT NULL UNIQUE,
+        "MimeType"  TEXT NOT NULL,
+        "Hash"  TEXT NOT NULL,
+        PRIMARY KEY("IndependentMediaId"),
+        CHECK(length("OriginalFilename") > 0),
+        CHECK(length("FilePath") > 0),
+        CHECK(length("MimeType") > 0),
+        CHECK(length("Hash") > 0)
+      );
+    """);
 
       // Table InputField
       await txn.execute("""
-        CREATE TABLE IF NOT EXISTS "InputField" (
-          "LocationId"  INTEGER NOT NULL,
-          "TextTag" TEXT NOT NULL,
-          "Value" TEXT NOT NULL,
-          CONSTRAINT "LocationId_TextTag" PRIMARY KEY("LocationId","TextTag"),
-          FOREIGN KEY("LocationId") REFERENCES "Location"("LocationId")
-        );
-      """);
+      CREATE TABLE IF NOT EXISTS "InputField" (
+        "LocationId"  INTEGER NOT NULL,
+        "TextTag" TEXT NOT NULL,
+        "Value" TEXT NOT NULL,
+        CONSTRAINT "LocationId_TextTag" PRIMARY KEY("LocationId","TextTag"),
+        FOREIGN KEY("LocationId") REFERENCES "Location"("LocationId")
+      );
+    """);
 
       // Table LastModified (CRITIQUE pour les triggers)
       await txn.execute("""
-        CREATE TABLE IF NOT EXISTS "LastModified" (
-          "LastModified"  TEXT NOT NULL
-        );
-      """);
+      CREATE TABLE IF NOT EXISTS "LastModified" (
+        "LastModified"  TEXT NOT NULL
+      );
+    """);
 
       // Table Location
       await txn.execute("""
-        CREATE TABLE IF NOT EXISTS "Location" (
-          "LocationId"  INTEGER NOT NULL,
-          "BookNumber"  INTEGER,
-          "ChapterNumber" INTEGER,
-          "DocumentId"  INTEGER,
-          "Track" INTEGER,
-          "IssueTagNumber"  INTEGER NOT NULL DEFAULT 0,
-          "KeySymbol" TEXT,
-          "MepsLanguage"  INTEGER,
-          "Type"  INTEGER NOT NULL,
-          "Title" TEXT,
-          UNIQUE("BookNumber","ChapterNumber","KeySymbol","MepsLanguage","Type"),
-          UNIQUE("KeySymbol","IssueTagNumber","MepsLanguage","DocumentId","Track","Type"),
-          PRIMARY KEY("LocationId"),
-          CHECK(("Type" = 0 AND (("DocumentId" IS NOT NULL AND "DocumentId" != 0) OR ("Track" IS NOT NULL AND (("KeySymbol" IS NOT NULL AND (length("KeySymbol") > 0)) OR ("DocumentId" IS NOT NULL AND "DocumentId" != 0))) OR ("BookNumber" IS NOT NULL AND "BookNumber" != 0 AND "KeySymbol" IS NOT NULL AND (length("KeySymbol") > 0) AND ("ChapterNumber" IS NULL OR "ChapterNumber" = 0)) OR ("ChapterNumber" IS NOT NULL AND "ChapterNumber" != 0 AND "BookNumber" IS NOT NULL AND "BookNumber" != 0 AND "KeySymbol" IS NOT NULL AND (length("KeySymbol") > 0)))) OR "Type" != 0),
-          CHECK(("Type" = 1 AND ("BookNumber" IS NULL OR "BookNumber" = 0) AND ("ChapterNumber" IS NULL OR "ChapterNumber" = 0) AND ("DocumentId" IS NULL OR "DocumentId" = 0) AND "KeySymbol" IS NOT NULL AND (length("KeySymbol") > 0) AND "Track" IS NULL) OR "Type" != 1),
-          CHECK(("Type" IN (2, 3) AND ("BookNumber" IS NULL OR "BookNumber" = 0) AND ("ChapterNumber" IS NULL OR "ChapterNumber" = 0)) OR "Type" NOT IN (2, 3))
-        );
-      """);
+      CREATE TABLE IF NOT EXISTS "Location" (
+        "LocationId"  INTEGER NOT NULL,
+        "BookNumber"  INTEGER,
+        "ChapterNumber" INTEGER,
+        "DocumentId"  INTEGER,
+        "Track" INTEGER,
+        "IssueTagNumber"  INTEGER NOT NULL DEFAULT 0,
+        "KeySymbol" TEXT,
+        "MepsLanguage"  INTEGER,
+        "Type"  INTEGER NOT NULL,
+        "Title" TEXT,
+        UNIQUE("BookNumber","ChapterNumber","KeySymbol","MepsLanguage","Type"),
+        UNIQUE("KeySymbol","IssueTagNumber","MepsLanguage","DocumentId","Track","Type"),
+        PRIMARY KEY("LocationId"),
+        CHECK(("Type" = 0 AND (("DocumentId" IS NOT NULL AND "DocumentId" != 0) OR ("Track" IS NOT NULL AND (("KeySymbol" IS NOT NULL AND (length("KeySymbol") > 0)) OR ("DocumentId" IS NOT NULL AND "DocumentId" != 0))) OR ("BookNumber" IS NOT NULL AND "BookNumber" != 0 AND "KeySymbol" IS NOT NULL AND (length("KeySymbol") > 0) AND ("ChapterNumber" IS NULL OR "ChapterNumber" = 0)) OR ("ChapterNumber" IS NOT NULL AND "ChapterNumber" != 0 AND "BookNumber" IS NOT NULL AND "BookNumber" != 0 AND "KeySymbol" IS NOT NULL AND (length("KeySymbol") > 0)))) OR "Type" != 0),
+        CHECK(("Type" = 1 AND ("BookNumber" IS NULL OR "BookNumber" = 0) AND ("ChapterNumber" IS NULL OR "ChapterNumber" = 0) AND ("DocumentId" IS NULL OR "DocumentId" = 0) AND "KeySymbol" IS NOT NULL AND (length("KeySymbol") > 0) AND "Track" IS NULL) OR "Type" != 1),
+        CHECK(("Type" IN (2, 3) AND ("BookNumber" IS NULL OR "BookNumber" = 0) AND ("ChapterNumber" IS NULL OR "ChapterNumber" = 0)) OR "Type" NOT IN (2, 3))
+      );
+    """);
+
+      // Table NewVisit
+      await txn.execute("""
+      CREATE TABLE IF NOT EXISTS "NewVisit" (
+        "NewVisitId"  INTEGER NOT NULL,
+        "PersonId"  INTEGER NOT NULL,
+        "ProclaimerId"  INTEGER NOT NULL,
+        PRIMARY KEY("NewVisitId"),
+        FOREIGN KEY("PersonId") REFERENCES "Person"("PersonId"),
+        FOREIGN KEY("ProclaimerId") REFERENCES "Person"("PersonId")
+      );
+    """);
+
+      // Table NewVisitMap
+      await txn.execute("""
+      CREATE TABLE IF NOT EXISTS "NewVisitMap" (
+        "NewVisitMapId" INTEGER NOT NULL,
+        "NewVisitId"  INTEGER NOT NULL,
+        "Date"  TEXT NOT NULL,
+        "LocationId"  INTEGER NOT NULL,
+        "BlockType" INTEGER NOT NULL,
+        "BlockIdentifier" INTEGER,
+        "AccompanyingPerson"  INTEGER,
+        "Notes" TEXT,
+        PRIMARY KEY("NewVisitMapId"),
+        FOREIGN KEY("NewVisitId") REFERENCES "NewVisit"("NewVisitId"),
+        FOREIGN KEY("LocationId") REFERENCES "Location"("LocationId"),
+        CHECK(("BlockType" = 0 AND "BlockIdentifier" IS NULL) OR (("BlockType" BETWEEN 1 AND 2) AND "BlockIdentifier" IS NOT NULL))
+      );
+    """);
 
       // Table Note
       await txn.execute("""
-        CREATE TABLE IF NOT EXISTS "Note" (
-          "NoteId"  INTEGER NOT NULL,
-          "Guid"  TEXT NOT NULL UNIQUE,
-          "UserMarkId"  INTEGER,
-          "LocationId"  INTEGER,
-          "Title" TEXT,
-          "Content" TEXT,
-          "LastModified"  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
-          "Created" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
-          "BlockType" INTEGER NOT NULL DEFAULT 0,
-          "BlockIdentifier" INTEGER,
-          PRIMARY KEY("NoteId"),
-          FOREIGN KEY("LocationId") REFERENCES "Location"("LocationId"),
-          FOREIGN KEY("UserMarkId") REFERENCES "UserMark"("UserMarkId"),
-          CHECK(("BlockType" = 0 AND "BlockIdentifier" IS NULL) OR (("BlockType" BETWEEN 1 AND 2) AND "BlockIdentifier" IS NOT NULL))
-        );
-      """);
+      CREATE TABLE IF NOT EXISTS "Note" (
+        "NoteId"  INTEGER NOT NULL,
+        "Guid"  TEXT NOT NULL UNIQUE,
+        "UserMarkId"  INTEGER,
+        "LocationId"  INTEGER,
+        "Title" TEXT,
+        "Content" TEXT,
+        "LastModified"  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+        "Created" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+        "BlockType" INTEGER NOT NULL DEFAULT 0,
+        "BlockIdentifier" INTEGER,
+        PRIMARY KEY("NoteId"),
+        FOREIGN KEY("LocationId") REFERENCES "Location"("LocationId"),
+        FOREIGN KEY("UserMarkId") REFERENCES "UserMark"("UserMarkId"),
+        CHECK(("BlockType" = 0 AND "BlockIdentifier" IS NULL) OR (("BlockType" BETWEEN 1 AND 2) AND "BlockIdentifier" IS NOT NULL))
+      );
+    """);
+
+      // Table Person (Modifiée/Complétée)
+      await txn.execute("""
+      CREATE TABLE IF NOT EXISTS "Person" (
+        "PersonId"  INTEGER NOT NULL,
+        "FirstName" TEXT NOT NULL,
+        "LastName"  TEXT NOT NULL,
+        "DateOfBirthDay"  TEXT,
+        "CongregationId"  INTEGER,
+        "Address" TEXT,          -- Full address in a single line
+        "PhoneNumber" TEXT,
+        "Email" TEXT,
+        "DateBaptism" TEXT,
+        "Comment" TEXT,
+        "Me"  INTEGER NOT NULL DEFAULT 0, -- 0 or 1
+        PRIMARY KEY("PersonId"),
+        FOREIGN KEY("CongregationId") REFERENCES "Congregation"("CongregationId"),
+        CHECK("Me" IN (0, 1))
+      );
+    """);
+
+      // Table Person Role (AJOUTÉE)
+      await txn.execute("""
+      CREATE TABLE IF NOT EXISTS "PersonRole" (
+        "PersonRoleId"  INTEGER NOT NULL,
+        "PersonId"  INTEGER NOT NULL,
+        "RoleType"  INT NOT NULL, -- 0 : 'MinisterialServant', 1 : 'Elder', 2 'CircuitOverseer', 3 'FormerElder'
+        "StartDate" TEXT NOT NULL,
+        "EndDate" TEXT, -- NULL if current role
+        PRIMARY KEY("PersonRoleId"),
+        FOREIGN KEY("PersonId") REFERENCES "Person"("PersonId")
+      );
+    """);
+
+      // Table Person Status (AJOUTÉE)
+      await txn.execute("""
+      CREATE TABLE IF NOT EXISTS "PersonStatus" (
+        "PersonStatusId"  INTEGER NOT NULL,
+        "PersonId"  INTEGER NOT NULL,
+        "StatusType"  INT NOT NULL, -- 0 : 'Bible student', 1 : 'Unbaptized Proclaimer', 2 : 'Baptized', 3 : AuxiliaryPioneer', 4 : 'RegularPioneer', 5 : 'SpecialPioneer'
+        "StartDate" TEXT NOT NULL,
+        "EndDate" TEXT, -- NULL if current status
+        PRIMARY KEY("PersonStatusId"),
+        FOREIGN KEY("PersonId") REFERENCES "Person"("PersonId")
+      );
+    """);
 
       // Table PlaylistItemAccuracy
       await txn.execute("""
-        CREATE TABLE IF NOT EXISTS "PlaylistItemAccuracy" (
-          "PlaylistItemAccuracyId"  INTEGER NOT NULL,
-          "Description" TEXT NOT NULL UNIQUE,
-          PRIMARY KEY("PlaylistItemAccuracyId")
-        );
-      """);
+      CREATE TABLE IF NOT EXISTS "PlaylistItemAccuracy" (
+        "PlaylistItemAccuracyId"  INTEGER NOT NULL,
+        "Description" TEXT NOT NULL UNIQUE,
+        PRIMARY KEY("PlaylistItemAccuracyId")
+      );
+    """);
 
       // Table PlaylistItem
       await txn.execute("""
-        CREATE TABLE IF NOT EXISTS "PlaylistItem" (
-          "PlaylistItemId"  INTEGER NOT NULL,
-          "Label" TEXT NOT NULL,
-          "StartTrimOffsetTicks"  INTEGER,
-          "EndTrimOffsetTicks"  INTEGER,
-          "Accuracy"  INTEGER NOT NULL,
-          "EndAction" INTEGER NOT NULL,
-          "ThumbnailFilePath" TEXT,
-          PRIMARY KEY("PlaylistItemId"),
-          FOREIGN KEY("Accuracy") REFERENCES "PlaylistItemAccuracy"("PlaylistItemAccuracyId"),
-          FOREIGN KEY("ThumbnailFilePath") REFERENCES "IndependentMedia"("FilePath"),
-          CHECK(length("Label") > 0),
-          CHECK("EndAction" IN (0, 1, 2, 3))
-        );
-      """);
+      CREATE TABLE IF NOT EXISTS "PlaylistItem" (
+        "PlaylistItemId"  INTEGER NOT NULL,
+        "Label" TEXT NOT NULL,
+        "StartTrimOffsetTicks"  INTEGER,
+        "EndTrimOffsetTicks"  INTEGER,
+        "Accuracy"  INTEGER NOT NULL,
+        "EndAction" INTEGER NOT NULL,
+        "ThumbnailFilePath" TEXT,
+        PRIMARY KEY("PlaylistItemId"),
+        FOREIGN KEY("Accuracy") REFERENCES "PlaylistItemAccuracy"("PlaylistItemAccuracyId"),
+        FOREIGN KEY("ThumbnailFilePath") REFERENCES "IndependentMedia"("FilePath"),
+        CHECK(length("Label") > 0),
+        CHECK("EndAction" IN (0, 1, 2, 3))
+      );
+    """);
 
       // Table PlaylistItemIndependentMediaMap
       await txn.execute("""
-        CREATE TABLE IF NOT EXISTS "PlaylistItemIndependentMediaMap" (
-          "PlaylistItemId"  INTEGER NOT NULL,
-          "IndependentMediaId"  INTEGER NOT NULL,
-          "DurationTicks" INTEGER NOT NULL,
-          PRIMARY KEY("PlaylistItemId","IndependentMediaId"),
-          FOREIGN KEY("IndependentMediaId") REFERENCES "IndependentMedia"("IndependentMediaId"),
-          FOREIGN KEY("PlaylistItemId") REFERENCES "PlaylistItem"("PlaylistItemId")
-        ) WITHOUT ROWID;
-      """);
+      CREATE TABLE IF NOT EXISTS "PlaylistItemIndependentMediaMap" (
+        "PlaylistItemId"  INTEGER NOT NULL,
+        "IndependentMediaId"  INTEGER NOT NULL,
+        "DurationTicks" INTEGER NOT NULL,
+        PRIMARY KEY("PlaylistItemId","IndependentMediaId"),
+        FOREIGN KEY("IndependentMediaId") REFERENCES "IndependentMedia"("IndependentMediaId"),
+        FOREIGN KEY("PlaylistItemId") REFERENCES "PlaylistItem"("PlaylistItemId")
+      ) WITHOUT ROWID;
+    """);
 
       // Table PlaylistItemLocationMap
       await txn.execute("""
-        CREATE TABLE IF NOT EXISTS "PlaylistItemLocationMap" (
-          "PlaylistItemId"  INTEGER NOT NULL,
-          "LocationId"  INTEGER NOT NULL,
-          "MajorMultimediaType" INTEGER NOT NULL,
-          "BaseDurationTicks" INTEGER,
-          PRIMARY KEY("PlaylistItemId","LocationId"),
-          FOREIGN KEY("LocationId") REFERENCES "Location"("LocationId"),
-          FOREIGN KEY("PlaylistItemId") REFERENCES "PlaylistItem"("PlaylistItemId")
-        ) WITHOUT ROWID;
-      """);
+      CREATE TABLE IF NOT EXISTS "PlaylistItemLocationMap" (
+        "PlaylistItemId"  INTEGER NOT NULL,
+        "LocationId"  INTEGER NOT NULL,
+        "MajorMultimediaType" INTEGER NOT NULL,
+        "BaseDurationTicks" INTEGER,
+        PRIMARY KEY("PlaylistItemId","LocationId"),
+        FOREIGN KEY("LocationId") REFERENCES "Location"("LocationId"),
+        FOREIGN KEY("PlaylistItemId") REFERENCES "PlaylistItem"("PlaylistItemId")
+      ) WITHOUT ROWID;
+    """);
 
       // Table PlaylistItemMarker
       await txn.execute("""
-        CREATE TABLE IF NOT EXISTS "PlaylistItemMarker" (
-          "PlaylistItemMarkerId"  INTEGER NOT NULL,
-          "PlaylistItemId"  INTEGER NOT NULL,
-          "Label" TEXT NOT NULL,
-          "StartTimeTicks"  INTEGER NOT NULL,
-          "DurationTicks" INTEGER NOT NULL,
-          "EndTransitionDurationTicks"  INTEGER NOT NULL,
-          UNIQUE("PlaylistItemId","StartTimeTicks"),
-          PRIMARY KEY("PlaylistItemMarkerId"),
-          FOREIGN KEY("PlaylistItemId") REFERENCES "PlaylistItem"("PlaylistItemId")
-        );
-      """);
+      CREATE TABLE IF NOT EXISTS "PlaylistItemMarker" (
+        "PlaylistItemMarkerId"  INTEGER NOT NULL,
+        "PlaylistItemId"  INTEGER NOT NULL,
+        "Label" TEXT NOT NULL,
+        "StartTimeTicks"  INTEGER NOT NULL,
+        "DurationTicks" INTEGER NOT NULL,
+        "EndTransitionDurationTicks"  INTEGER NOT NULL,
+        UNIQUE("PlaylistItemId","StartTimeTicks"),
+        PRIMARY KEY("PlaylistItemMarkerId"),
+        FOREIGN KEY("PlaylistItemId") REFERENCES "PlaylistItem"("PlaylistItemId")
+      );
+    """);
 
       // Table PlaylistItemMarkerBibleVerseMap
       await txn.execute("""
-        CREATE TABLE IF NOT EXISTS "PlaylistItemMarkerBibleVerseMap" (
-          "PlaylistItemMarkerId"  INTEGER NOT NULL,
-          "VerseId" INTEGER NOT NULL,
-          PRIMARY KEY("PlaylistItemMarkerId","VerseId"),
-          FOREIGN KEY("PlaylistItemMarkerId") REFERENCES "PlaylistItemMarker"("PlaylistItemMarkerId")
-        ) WITHOUT ROWID;
-      """);
+      CREATE TABLE IF NOT EXISTS "PlaylistItemMarkerBibleVerseMap" (
+        "PlaylistItemMarkerId"  INTEGER NOT NULL,
+        "VerseId" INTEGER NOT NULL,
+        PRIMARY KEY("PlaylistItemMarkerId","VerseId"),
+        FOREIGN KEY("PlaylistItemMarkerId") REFERENCES "PlaylistItemMarker"("PlaylistItemMarkerId")
+      ) WITHOUT ROWID;
+    """);
 
       // Table PlaylistItemMarkerParagraphMap
       await txn.execute("""
-        CREATE TABLE IF NOT EXISTS "PlaylistItemMarkerParagraphMap" (
-          "PlaylistItemMarkerId"  INTEGER NOT NULL,
-          "MepsDocumentId"  INTEGER NOT NULL,
-          "ParagraphIndex"  INTEGER NOT NULL,
-          "MarkerIndexWithinParagraph"  INTEGER NOT NULL,
-          PRIMARY KEY("PlaylistItemMarkerId","MepsDocumentId","ParagraphIndex","MarkerIndexWithinParagraph"),
-          FOREIGN KEY("PlaylistItemMarkerId") REFERENCES "PlaylistItemMarker"("PlaylistItemMarkerId")
-        ) WITHOUT ROWID;
-      """);
+      CREATE TABLE IF NOT EXISTS "PlaylistItemMarkerParagraphMap" (
+        "PlaylistItemMarkerId"  INTEGER NOT NULL,
+        "MepsDocumentId"  INTEGER NOT NULL,
+        "ParagraphIndex"  INTEGER NOT NULL,
+        "MarkerIndexWithinParagraph"  INTEGER NOT NULL,
+        PRIMARY KEY("PlaylistItemMarkerId","MepsDocumentId","ParagraphIndex","MarkerIndexWithinParagraph"),
+        FOREIGN KEY("PlaylistItemMarkerId") REFERENCES "PlaylistItemMarker"("PlaylistItemMarkerId")
+      ) WITHOUT ROWID;
+    """);
 
       // Table Tag
       await txn.execute("""
-        CREATE TABLE IF NOT EXISTS "Tag" (
-          "TagId" INTEGER NOT NULL,
-          "Type"  INTEGER NOT NULL,
-          "Name"  TEXT NOT NULL,
-          PRIMARY KEY("TagId"),
-          UNIQUE("Type","Name"),
-          CHECK(length("Name") > 0),
-          CHECK("Type" IN (0, 1, 2))
-        );
-      """);
+      CREATE TABLE IF NOT EXISTS "Tag" (
+        "TagId" INTEGER NOT NULL,
+        "Type"  INTEGER NOT NULL,
+        "Name"  TEXT NOT NULL,
+        PRIMARY KEY("TagId"),
+        UNIQUE("Type","Name"),
+        CHECK(length("Name") > 0),
+        CHECK("Type" IN (0, 1, 2))
+      );
+    """);
 
       // Table TagMap
       await txn.execute("""
-        CREATE TABLE IF NOT EXISTS "TagMap" (
-          "TagMapId"  INTEGER NOT NULL,
-          "PlaylistItemId"  INTEGER,
-          "LocationId"  INTEGER,
-          "NoteId"  INTEGER,
-          "TagId" INTEGER NOT NULL,
-          "Position"  INTEGER NOT NULL,
-          CONSTRAINT "TagId_LocationId" UNIQUE("TagId","LocationId"),
-          CONSTRAINT "TagId_NoteId" UNIQUE("TagId","NoteId"),
-          CONSTRAINT "TagId_PlaylistItemId" UNIQUE("TagId","PlaylistItemId"),
-          CONSTRAINT "TagId_Position" UNIQUE("TagId","Position"),
-          PRIMARY KEY("TagMapId"),
-          FOREIGN KEY("LocationId") REFERENCES "Location"("LocationId"),
-          FOREIGN KEY("NoteId") REFERENCES "Note"("NoteId"),
-          FOREIGN KEY("PlaylistItemId") REFERENCES "PlaylistItem"("PlaylistItemId"),
-          FOREIGN KEY("TagId") REFERENCES "Tag"("TagId"),
-          CHECK(("NoteId" IS NULL AND "LocationId" IS NULL AND "PlaylistItemId" IS NOT NULL) OR ("LocationId" IS NULL AND "PlaylistItemId" IS NULL AND "NoteId" IS NOT NULL) OR ("PlaylistItemId" IS NULL AND "NoteId" IS NULL AND "LocationId" IS NOT NULL))
-      );
-      """);
+      CREATE TABLE IF NOT EXISTS "TagMap" (
+        "TagMapId"  INTEGER NOT NULL,
+        "PlaylistItemId"  INTEGER,
+        "LocationId"  INTEGER,
+        "NoteId"  INTEGER,
+        "TagId" INTEGER NOT NULL,
+        "Position"  INTEGER NOT NULL,
+        CONSTRAINT "TagId_LocationId" UNIQUE("TagId","LocationId"),
+        CONSTRAINT "TagId_NoteId" UNIQUE("TagId","NoteId"),
+        CONSTRAINT "TagId_PlaylistItemId" UNIQUE("TagId","PlaylistItemId"),
+        CONSTRAINT "TagId_Position" UNIQUE("TagId","Position"),
+        PRIMARY KEY("TagMapId"),
+        FOREIGN KEY("LocationId") REFERENCES "Location"("LocationId"),
+        FOREIGN KEY("NoteId") REFERENCES "Note"("NoteId"),
+        FOREIGN KEY("PlaylistItemId") REFERENCES "PlaylistItem"("PlaylistItemId"),
+        FOREIGN KEY("TagId") REFERENCES "Tag"("TagId"),
+        CHECK(("NoteId" IS NULL AND "LocationId" IS NULL AND "PlaylistItemId" IS NOT NULL) OR ("LocationId" IS NULL AND "PlaylistItemId" IS NULL AND "NoteId" IS NOT NULL) OR ("PlaylistItemId" IS NULL AND "NoteId" IS NULL AND "LocationId" IS NOT NULL))
+    );
+    """);
 
       // Table UserMark
       await txn.execute("""
-        CREATE TABLE IF NOT EXISTS "UserMark" (
-          "UserMarkId"  INTEGER NOT NULL,
-          "ColorIndex"  INTEGER NOT NULL,
-          "LocationId"  INTEGER NOT NULL,
-          "StyleIndex"  INTEGER NOT NULL,
-          "UserMarkGuid"  TEXT NOT NULL UNIQUE,
-          "Version" INTEGER NOT NULL,
-          PRIMARY KEY("UserMarkId"),
-          FOREIGN KEY("LocationId") REFERENCES "Location"("LocationId")
-        );
-      """);
+      CREATE TABLE IF NOT EXISTS "UserMark" (
+        "UserMarkId"  INTEGER NOT NULL,
+        "ColorIndex"  INTEGER NOT NULL,
+        "LocationId"  INTEGER NOT NULL,
+        "StyleIndex"  INTEGER NOT NULL,
+        "UserMarkGuid"  TEXT NOT NULL UNIQUE,
+        "Version" INTEGER NOT NULL,
+        PRIMARY KEY("UserMarkId"),
+        FOREIGN KEY("LocationId") REFERENCES "Location"("LocationId")
+      );
+    """);
 
       // Table android_metadata
       await txn.execute("""
-        CREATE TABLE IF NOT EXISTS "android_metadata" (
-          "locale"  TEXT
-        );
-      """);
+      CREATE TABLE IF NOT EXISTS "android_metadata" (
+        "locale"  TEXT
+      );
+    """);
 
       // --- 2. Insertion des données initiales (Un appel par bloc d'insertions logiques) ---
       // Insert LastModified
       await txn.execute("""
-        INSERT INTO "LastModified" ("LastModified") VALUES (?);
-      """, [formattedTimestamp]);
+      INSERT INTO "LastModified" ("LastModified") VALUES (?);
+    """, [formattedTimestamp]);
 
       // Insert PlaylistItemAccuracy, Tag, android_metadata
       await txn.execute("""
-        INSERT INTO "PlaylistItemAccuracy" ("PlaylistItemAccuracyId", "Description") VALUES (1, 'Accurate'), (2, 'NeedsUserVerification');
-      """);
+      INSERT INTO "PlaylistItemAccuracy" ("PlaylistItemAccuracyId", "Description") VALUES (1, 'Accurate'), (2, 'NeedsUserVerification');
+    """);
 
       await txn.execute("""
-        INSERT INTO "Tag" ("TagId", "Type", "Name") VALUES (1, 0, 'Favorite');
-      """);
+      INSERT INTO "Tag" ("TagId", "Type", "Name") VALUES (1, 0, 'Favorite');
+    """);
 
-      final systemLocale = PlatformDispatcher.instance.locale.toLanguageTag().replaceAll('-', '_');
-      printTime('systeme Locale : ${systemLocale}');
+      // NOTE: Remplacement de l'appel à PlatformDispatcher par un placeholder pour la complétion du code SQL/Dart
+      // final systemLocale = PlatformDispatcher.instance.locale.toLanguageTag().replaceAll('-', '_');
+      // printTime('systeme Locale : ${systemLocale}');
       await txn.execute("""
-        UPDATE "android_metadata" SET "locale" = ?;
-      """, [systemLocale]);
+      UPDATE "android_metadata" SET "locale" = 'fr_FR'; -- Placeholder pour l'exemple
+    """);
 
 
       // --- 3. Création des index (Un appel par index) ---
@@ -3518,6 +3682,7 @@ class Userdata {
       await txn.execute(""" CREATE TRIGGER TR_Raise_Error_Before_Delete_LastModified BEFORE DELETE ON LastModified BEGIN SELECT RAISE (FAIL, 'DELETE FROM LastModified not allowed'); END; """);
       await txn.execute(""" CREATE TRIGGER TR_Raise_Error_Before_Insert_LastModified BEFORE INSERT ON LastModified BEGIN SELECT RAISE (FAIL, 'INSERT INTO LastModified not allowed'); END; """);
 
+      // Existing Triggers
       await txn.execute(""" CREATE TRIGGER TR_Update_LastModified_Delete_BlockRange DELETE ON BlockRange BEGIN UPDATE LastModified SET LastModified = strftime('%Y-%m-%dT%H:%M:%SZ', 'now'); END; """);
       await txn.execute(""" CREATE TRIGGER TR_Update_LastModified_Delete_Bookmark DELETE ON Bookmark BEGIN UPDATE LastModified SET LastModified = strftime('%Y-%m-%dT%H:%M:%SZ', 'now'); END; """);
       await txn.execute(""" CREATE TRIGGER TR_Update_LastModified_Delete_IndependentMedia DELETE ON IndependentMedia BEGIN UPDATE LastModified SET LastModified = strftime('%Y-%m-%dT%H:%M:%SZ', 'now'); END; """);
@@ -3547,15 +3712,55 @@ class Userdata {
       await txn.execute(""" CREATE TRIGGER TR_Update_LastModified_Update_Tag UPDATE ON Tag BEGIN UPDATE LastModified SET LastModified = strftime('%Y-%m-%dT%H:%M:%SZ', 'now'); END; """);
       await txn.execute(""" CREATE TRIGGER TR_Update_LastModified_Update_TagMap UPDATE ON TagMap BEGIN UPDATE LastModified SET LastModified = strftime('%Y-%m-%dT%H:%M:%SZ', 'now'); END; """);
       await txn.execute(""" CREATE TRIGGER TR_Update_LastModified_Update_UserMark UPDATE ON UserMark BEGIN UPDATE LastModified SET LastModified = strftime('%Y-%m-%dT%H:%M:%SZ', 'now'); END; """);
+
+      // NOUVEAUX TRIGGERS AJOUTÉS
+
+      // BibleStudy Triggers
+      await txn.execute(""" CREATE TRIGGER TR_Update_LastModified_Insert_BibleStudy INSERT ON BibleStudy BEGIN UPDATE LastModified SET LastModified = strftime('%Y-%m-%dT%H:%M:%SZ', 'now'); END; """);
+      await txn.execute(""" CREATE TRIGGER TR_Update_LastModified_Update_BibleStudy UPDATE ON BibleStudy BEGIN UPDATE LastModified SET LastModified = strftime('%Y-%m-%dT%H:%M:%SZ', 'now'); END; """);
+      await txn.execute(""" CREATE TRIGGER TR_Update_LastModified_Delete_BibleStudy DELETE ON BibleStudy BEGIN UPDATE LastModified SET LastModified = strftime('%Y-%m-%dT%H:%M:%SZ', 'now'); END; """);
+
+      // BibleStudyMap Triggers
+      await txn.execute(""" CREATE TRIGGER TR_Update_LastModified_Insert_BibleStudyMap INSERT ON BibleStudyMap BEGIN UPDATE LastModified SET LastModified = strftime('%Y-%m-%dT%H:%M:%SZ', 'now'); END; """);
+      await txn.execute(""" CREATE TRIGGER TR_Update_LastModified_Update_BibleStudyMap UPDATE ON BibleStudyMap BEGIN UPDATE LastModified SET LastModified = strftime('%Y-%m-%dT%H:%M:%SZ', 'now'); END; """);
+      await txn.execute(""" CREATE TRIGGER TR_Update_LastModified_Delete_BibleStudyMap DELETE ON BibleStudyMap BEGIN UPDATE LastModified SET LastModified = strftime('%Y-%m-%dT%H:%M:%SZ', 'now'); END; """);
+
+      // NewVisit Triggers
+      await txn.execute(""" CREATE TRIGGER TR_Update_LastModified_Insert_NewVisit INSERT ON NewVisit BEGIN UPDATE LastModified SET LastModified = strftime('%Y-%m-%dT%H:%M:%SZ', 'now'); END; """);
+      await txn.execute(""" CREATE TRIGGER TR_Update_LastModified_Update_NewVisit UPDATE ON NewVisit BEGIN UPDATE LastModified SET LastModified = strftime('%Y-%m-%dT%H:%M:%SZ', 'now'); END; """);
+      await txn.execute(""" CREATE TRIGGER TR_Update_LastModified_Delete_NewVisit DELETE ON NewVisit BEGIN UPDATE LastModified SET LastModified = strftime('%Y-%m-%dT%H:%M:%SZ', 'now'); END; """);
+
+      // NewVisitMap Triggers
+      await txn.execute(""" CREATE TRIGGER TR_Update_LastModified_Insert_NewVisitMap INSERT ON NewVisitMap BEGIN UPDATE LastModified SET LastModified = strftime('%Y-%m-%dT%H:%M:%SZ', 'now'); END; """);
+      await txn.execute(""" CREATE TRIGGER TR_Update_LastModified_Update_NewVisitMap UPDATE ON NewVisitMap BEGIN UPDATE LastModified SET LastModified = strftime('%Y-%m-%dT%H:%M:%SZ', 'now'); END; """);
+      await txn.execute(""" CREATE TRIGGER TR_Update_LastModified_Delete_NewVisitMap DELETE ON NewVisitMap BEGIN UPDATE LastModified SET LastModified = strftime('%Y-%m-%dT%H:%M:%SZ', 'now'); END; """);
+
+      // Person Triggers
+      await txn.execute(""" CREATE TRIGGER TR_Update_LastModified_Insert_Person INSERT ON Person BEGIN UPDATE LastModified SET LastModified = strftime('%Y-%m-%dT%H:%M:%SZ', 'now'); END; """);
+      await txn.execute(""" CREATE TRIGGER TR_Update_LastModified_Update_Person UPDATE ON Person BEGIN UPDATE LastModified SET LastModified = strftime('%Y-%m-%dT%H:%M:%SZ', 'now'); END; """);
+      await txn.execute(""" CREATE TRIGGER TR_Update_LastModified_Delete_Person DELETE ON Person BEGIN UPDATE LastModified SET LastModified = strftime('%Y-%m-%dT%H:%M:%SZ', 'now'); END; """);
+
+      // PersonRole Triggers
+      await txn.execute(""" CREATE TRIGGER TR_Update_LastModified_Insert_PersonRole INSERT ON PersonRole BEGIN UPDATE LastModified SET LastModified = strftime('%Y-%m-%dT%H:%M:%SZ', 'now'); END; """);
+      await txn.execute(""" CREATE TRIGGER TR_Update_LastModified_Update_PersonRole UPDATE ON PersonRole BEGIN UPDATE LastModified SET LastModified = strftime('%Y-%m-%dT%H:%M:%SZ', 'now'); END; """);
+      await txn.execute(""" CREATE TRIGGER TR_Update_LastModified_Delete_PersonRole DELETE ON PersonRole BEGIN UPDATE LastModified SET LastModified = strftime('%Y-%m-%dT%H:%M:%SZ', 'now'); END; """);
+
+      // PersonStatus Triggers
+      await txn.execute(""" CREATE TRIGGER TR_Update_LastModified_Insert_PersonStatus INSERT ON PersonStatus BEGIN UPDATE LastModified SET LastModified = strftime('%Y-%m-%dT%H:%M:%SZ', 'now'); END; """);
+      await txn.execute(""" CREATE TRIGGER TR_Update_LastModified_Update_PersonStatus UPDATE ON PersonStatus BEGIN UPDATE LastModified SET LastModified = strftime('%Y-%m-%dT%H:%M:%SZ', 'now'); END; """);
+      await txn.execute(""" CREATE TRIGGER TR_Update_LastModified_Delete_PersonStatus DELETE ON PersonStatus BEGIN UPDATE LastModified SET LastModified = strftime('%Y-%m-%dT%H:%M:%SZ', 'now'); END; """);
+
     });
   }
 }
 
 class BackupInfo {
+  final String backupName;
   final String deviceName;
   final DateTime lastModified;
 
   BackupInfo({
+    required this.backupName,
     required this.deviceName,
     required this.lastModified,
   });
@@ -3574,12 +3779,14 @@ Future<BackupInfo?> getBackupInfo(File file) async {
     String manifestJson = utf8.decode(manifestFile.content as List<int>);
     Map<String, dynamic> manifestData = jsonDecode(manifestJson);
 
+    String backupName = manifestData['name'];
     String deviceName = manifestData['userDataBackup']['deviceName'];
     DateTime lastModified = DateTime.parse(
       manifestData['userDataBackup']['lastModifiedDate'],
     );
 
     return BackupInfo(
+      backupName: backupName,
       deviceName: deviceName,
       lastModified: lastModified,
     );

@@ -15,6 +15,7 @@ import 'package:realm/realm.dart';
 
 import '../../../../core/api/api.dart';
 import '../../../../core/utils/utils_language_dialog.dart';
+import '../../../../i18n/i18n.dart';
 import '../../../../widgets/searchfield/searchfield_widget.dart';
 
 class AudioItemsPage extends StatefulWidget {
@@ -28,10 +29,7 @@ class AudioItemsPage extends StatefulWidget {
 
 class _AudioItemsPageState extends State<AudioItemsPage> {
   Category? _category;
-  String _categoryName = '';
-  String _language = '';
-
-  String? _selectedLanguageSymbol;
+  late Language _language;
 
   // Liste complète des médias
   List<Audio> _allAudios = [];
@@ -78,8 +76,7 @@ class _AudioItemsPageState extends State<AudioItemsPage> {
     _category = RealmLibrary.realm.all<Category>().query("key == '${widget.category.key}' AND language == '$symbol'").firstOrNull ?? _category;
 
     setState(() {
-      _categoryName = _category?.localizedName ?? widget.category.localizedName!;
-      _language = lang.vernacular!;
+      _language = lang;
       // On charge la liste complète uniquement ici
       _allAudios = _category!.media.map((key) {
         return Audio.fromJson(mediaItem: RealmLibrary.realm.all<MediaItem>().query("naturalKey == '$key'").first);
@@ -146,7 +143,7 @@ class _AudioItemsPageState extends State<AudioItemsPage> {
         child: Padding(
           padding: const EdgeInsets.all(24.0),
           child: Text(
-            'Il n\'y a pas d\'audios disponibles pour le moment dans cette langue.',
+            i18n().message_no_items_audios,
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 18,
@@ -163,19 +160,22 @@ class _AudioItemsPageState extends State<AudioItemsPage> {
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             child: Row(
               children: [
-                _buildOutlinedButton(JwIcons.play, "TOUT LIRE", _playAll),
+                _buildOutlinedButton(JwIcons.play, i18n().action_play_all.toUpperCase(), _playAll),
                 const SizedBox(width: 10),
-                _buildOutlinedButton(JwIcons.arrows_twisted_right, "LECTURE ALÉATOIRE", _playRandom),
+                _buildOutlinedButton(JwIcons.arrows_twisted_right, i18n().action_shuffle.toUpperCase(), _playRandom),
                 //const SizedBox(width: 10),
                 //_buildOutlinedButton(JwIcons.language, "LANGUE ALÉATOIRE", _playRandomLanguage),
               ],
             ),
           ),
-          Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.all(5.0),
-              itemCount: _filteredAudios.length,
-              itemBuilder: (context, index) => buildAudioItem(index),
+          Directionality(
+            textDirection: _language.isRtl! ? TextDirection.rtl : TextDirection.ltr,
+            child: Expanded(
+              child: ListView.builder(
+                padding: const EdgeInsets.all(5.0),
+                itemCount: _filteredAudios.length,
+                itemBuilder: (context, index) => buildAudioItem(index),
+              ),
             ),
           ),
         ],
@@ -183,76 +183,75 @@ class _AudioItemsPageState extends State<AudioItemsPage> {
     }
 
     return Scaffold(
-      resizeToAvoidBottomInset: false,
-      appBar: _isSearching
-          ? AppBar(
-        title: SearchFieldWidget(
-          query: '',
-          onSearchTextChanged: (text) {
-            _filterAudios(text);
-            return;
-          },
-          onSuggestionTap: (item) {},
-          onSubmit: (item) {
-            setState(() {
-              _isSearching = false;
-            });
-          },
-          onTapOutside: (event) {
-            setState(() {
-              _isSearching = false;
-            });
-          },
-          suggestionsNotifier: ValueNotifier([]),
-        ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            setState(() {
-              _isSearching = false;
-              _filterAudios('');
-            });
-          },
-        ),
-      )
-          : AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(_categoryName, style: textStyleTitle),
-            Text(_language, style: textStyleSubtitle),
-          ],
-        ),
-        actions: [
-          IconButton(
-            icon: Icon(JwIcons.magnifying_glass),
+        resizeToAvoidBottomInset: false,
+        appBar: _isSearching
+            ? AppBar(
+          title: SearchFieldWidget(
+            query: '',
+            onSearchTextChanged: (text) {
+              _filterAudios(text);
+              return;
+            },
+            onSuggestionTap: (item) {},
+            onSubmit: (item) {
+              setState(() {
+                _isSearching = false;
+              });
+            },
+            onTapOutside: (event) {
+              setState(() {
+                _isSearching = false;
+              });
+            },
+            suggestionsNotifier: ValueNotifier([]),
+          ),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
             onPressed: () {
               setState(() {
-                _isSearching = true;
+                _isSearching = false;
                 _filterAudios('');
               });
             },
           ),
-          IconButton(
-            icon: const Icon(JwIcons.language),
-            onPressed: () async {
-              showLanguageDialog(context).then((language) async {
-                if (language != null) {
-                  _selectedLanguageSymbol = language['Symbol'] as String;
-                  loadItems(symbol: _selectedLanguageSymbol);
-
-                  if(await Api.isLibraryUpdateAvailable(symbol: _selectedLanguageSymbol)) {
-                    Api.updateLibrary(_selectedLanguageSymbol!).then((_) {
-                      loadItems(symbol: _selectedLanguageSymbol);
-                    });
-                  }
-                }
-              });
-            },
+        )
+            : AppBar(
+          title: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(_category?.localizedName ?? '', style: textStyleTitle),
+              Text(_language.vernacular ?? '', style: textStyleSubtitle),
+            ],
           ),
-        ],
-      ),
-      body: bodyContent,
+          actions: [
+            IconButton(
+              icon: Icon(JwIcons.magnifying_glass),
+              onPressed: () {
+                setState(() {
+                  _isSearching = true;
+                  _filterAudios('');
+                });
+              },
+            ),
+            IconButton(
+              icon: const Icon(JwIcons.language),
+              onPressed: () async {
+                showLanguageDialog(context, selectedLanguageSymbol: _language.symbol).then((language) async {
+                  if (language != null) {
+                    loadItems(symbol: language['Symbol']);
+
+                    if(await Api.isLibraryUpdateAvailable(symbol: language['Symbol'])) {
+                      Api.updateLibrary(language['Symbol']!).then((_) {
+                        loadItems(symbol: language['Symbol']);
+                      });
+                    }
+                  }
+                });
+              },
+            ),
+          ],
+        ),
+        body: bodyContent
     );
   }
 
@@ -268,197 +267,206 @@ class _AudioItemsPageState extends State<AudioItemsPage> {
     Audio audio = _filteredAudios[index];
     int id = _allAudios.indexOf(audio);
 
-    return Stack(
-      children: [
-        SizedBox(
-          height: 60,
-          child: InkWell(
-            onTap: () => _play(id),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 15),
-              child: Row(
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(5),
-                    child: ImageCachedWidget(
-                      imageUrl: audio.networkImageSqr,
-                      icon: JwIcons.headphones__simple,
-                      height: 55,
-                      width: 55,
+    return SizedBox(
+      height: 60,
+      child: InkWell(
+        onTap: () => _play(id),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Expanded(
+              child: Padding(
+                // Réduction du Padding horizontal pour les bords à 10 au lieu de 15.
+                // Le Padding.zero sur les actions sera plus efficace avec cette réduction.
+                padding: EdgeInsets.only(left: _language.isRtl! ? 0 : 10, right: _language.isRtl! ? 10 : 0),
+                child: Row(
+                  children: [
+                    // --- Image ---
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(5),
+                      child: ImageCachedWidget(
+                        imageUrl: audio.networkImageSqr,
+                        icon: JwIcons.headphones__simple,
+                        height: 55,
+                        width: 55,
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          audio.title,
-                          style: TextStyle(
-                            fontSize: 15.5,
-                            fontWeight: FontWeight.bold,
-                            overflow: TextOverflow.ellipsis,
-                            color: JwLifeApp.audioPlayer.currentId == id &&
-                                JwLifeApp.audioPlayer.album?.localizedName == (_category?.localizedName ?? widget.category.localizedName) ? Theme.of(context).primaryColor : Theme.of(context).secondaryHeaderColor,
+                    const SizedBox(width: 14),
+
+                    // --- Titre / Durée (Expanded pour prendre l'espace restant) ---
+                    Expanded(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            audio.title,
+                            style: TextStyle(
+                              fontSize: 15.5,
+                              fontWeight: FontWeight.bold,
+                              overflow: TextOverflow.ellipsis,
+                              color: JwLifeApp.audioPlayer.currentId == id &&
+                                  JwLifeApp.audioPlayer.album?.localizedName == (_category?.localizedName ?? widget.category.localizedName) ? Theme.of(context).primaryColor : Theme.of(context).secondaryHeaderColor,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          formatDuration(audio.duration),
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Theme.of(context).brightness == Brightness.dark
-                                ? const Color(0xFF8e8e8e)
-                                : const Color(0xFF757575),
+                          const SizedBox(height: 2),
+                          Text(
+                            formatDuration(audio.duration),
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Theme.of(context).brightness == Brightness.dark
+                                  ? const Color(0xFF8e8e8e)
+                                  : const Color(0xFF757575),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // --- Actions (Icônes + Menu) ---
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Icône/Actions Téléchargement/Favoris
+                        _buildActionIcon(context, audio),
+
+                        // Bouton Menu
+                        // On ajoute un Container avec un padding négatif pour compenser
+                        // le padding interne par défaut du PopupMenuButton et le tirer
+                        // plus près du bord. (ou envelopper dans un Padding.fromLTRB)
+                        Padding(
+                          padding: EdgeInsets.only(
+                            // Ajustez cette valeur pour rapprocher le bouton du bord
+                            left: _language.isRtl! ? 0 : 0,
+                            right: _language.isRtl! ? 0 : 0,
+                          ),
+                          child: PopupMenuButton(
+                            // La clé ici est le `padding: EdgeInsets.zero` si vous utilisez l'icône
+                            // directement dans un IconButton. Pour un PopupMenuButton,
+                            // nous allons ajuster le `icon` à l'intérieur.
+                            icon: Icon(
+                              Icons.more_vert,
+                              color: Theme.of(context).brightness == Brightness.dark
+                                  ? const Color(0xFF8e8e8e)
+                                  : const Color(0xFF757575),
+                              size: 25,
+                            ),
+                            padding: EdgeInsets.zero, // Retire le padding interne du PopupMenuButton
+                            itemBuilder: (context) => [
+                              getAudioShareItem(audio),
+                              getAudioAddPlaylistItem(context, audio),
+                              getAudioLanguagesItem(context, audio),
+                              getAudioFavoriteItem(audio),
+                              getAudioDownloadItem(context, audio),
+                              getAudioLyricsItem(context, audio),
+                              getCopyLyricsItem(audio),
+                            ],
                           ),
                         ),
                       ],
                     ),
-                  ),
-                  const SizedBox(width: 60), // espace réservé pour les icônes à droite
-                ],
+                  ],
+                ),
               ),
             ),
-          ),
-        ),
 
-        /// --- Bouton menu ---
-        Positioned(
-          right: 0,
-          top: 0,
-          bottom: 0,
-          child: PopupMenuButton(
-            icon: Icon(
-              Icons.more_vert,
-              color: Theme.of(context).brightness == Brightness.dark
-                  ? const Color(0xFF8e8e8e)
-                  : const Color(0xFF757575),
-              size: 25,
-            ),
-            itemBuilder: (context) => [
-              getAudioShareItem(audio),
-              getAudioAddPlaylistItem(context, audio),
-              getAudioLanguagesItem(context, audio),
-              getAudioFavoriteItem(audio),
-              getAudioDownloadItem(context, audio),
-              getAudioLyricsItem(context, audio),
-              getCopyLyricsItem(audio),
-            ],
-          ),
-        ),
+            // --- Barre de progression ---
+            ValueListenableBuilder<bool>(
+              valueListenable: audio.isDownloadingNotifier,
+              builder: (context, isDownloading, _) {
+                if (!isDownloading) return const SizedBox.shrink();
 
-        /// --- Icône / Actions téléchargement + favoris ---
-        ValueListenableBuilder<bool>(
-          valueListenable: audio.isDownloadingNotifier,
-          builder: (context, isDownloading, _) {
-            if (isDownloading) {
-              // --- Icône pour annuler le téléchargement ---
-              return Positioned(
-                right: 30,
-                top: 0,
-                bottom: 0,
-                child: IconButton(
-                  padding: EdgeInsets.zero,
-                  iconSize: 20,
-                  onPressed: () => audio.cancelDownload(context),
-                  icon: const Icon(
-                    JwIcons.x,
-                    color: Colors.grey,
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 10.0), // Ajusté à 10.0
+                  child: ValueListenableBuilder<double>(
+                    valueListenable: audio.progressNotifier,
+                    builder: (context, progress, _) {
+                      return LinearProgressIndicator(
+                        value: progress == -1 ? null : progress,
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          Theme.of(context).primaryColor,
+                        ),
+                        backgroundColor: Colors.black.withOpacity(0.2),
+                        minHeight: 2,
+                      );
+                    },
                   ),
-                ),
-              );
-            }
-
-            return ValueListenableBuilder<bool>(
-              valueListenable: audio.isDownloadedNotifier,
-              builder: (context, isDownloaded, _) {
-                return ValueListenableBuilder<bool>(
-                  valueListenable: audio.isFavoriteNotifier,
-                  builder: (context, isFavorite, _) {
-                    final hasUpdate = audio.hasUpdate();
-
-                    if (!isDownloaded) {
-                      // --- Icône nuage (pas téléchargé) ---
-                      return Positioned(
-                        right: 30,
-                        top: 0,
-                        bottom: 0,
-                        child: IconButton(
-                          padding: EdgeInsets.zero,
-                          iconSize: 20,
-                          onPressed: () => audio.download(context),
-                          icon: const Icon(
-                            JwIcons.cloud_arrow_down,
-                            color: Colors.grey,
-                          ),
-                        ),
-                      );
-                    } else if (hasUpdate) {
-                      // --- Icône mise à jour ---
-                      return Positioned(
-                        right: 30,
-                        top: 0,
-                        bottom: 0,
-                        child: IconButton(
-                          padding: EdgeInsets.zero,
-                          iconSize: 20,
-                          onPressed: () => audio.download(context),
-                          icon: const Icon(
-                            JwIcons.arrows_circular,
-                            color: Colors.grey,
-                          ),
-                        ),
-                      );
-                    } else if (isFavorite) {
-                      // --- Icône favoris ---
-                      return const Positioned(
-                        right: 45,
-                        top: 0,
-                        bottom: 0,
-                        child: Icon(
-                          JwIcons.star,
-                          color: Colors.amber,
-                          size: 20,
-                        ),
-                      );
-                    }
-
-                    return const SizedBox.shrink();
-                  },
                 );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Fonction utilitaire pour construire l'icône d'action (téléchargement/mise à jour/favori)
+  Widget _buildActionIcon(BuildContext context, Audio audio) {
+    return ValueListenableBuilder<bool>(
+      valueListenable: audio.isDownloadingNotifier,
+      builder: (context, isDownloading, _) {
+        if (isDownloading) {
+          // --- Icône pour annuler le téléchargement ---
+          return IconButton(
+            padding: EdgeInsets.zero,
+            iconSize: 20,
+            onPressed: () => audio.cancelDownload(context),
+            icon: const Icon(
+              JwIcons.x,
+              color: Colors.grey,
+            ),
+          );
+        }
+
+        return ValueListenableBuilder<bool>(
+          valueListenable: audio.isDownloadedNotifier,
+          builder: (context, isDownloaded, _) {
+            return ValueListenableBuilder<bool>(
+              valueListenable: audio.isFavoriteNotifier,
+              builder: (context, isFavorite, _) {
+                final hasUpdate = audio.hasUpdate();
+
+                if (!isDownloaded) {
+                  // --- Icône nuage (pas téléchargé) ---
+                  return IconButton(
+                    padding: EdgeInsets.zero,
+                    iconSize: 20,
+                    onPressed: () => audio.download(context),
+                    icon: const Icon(
+                      JwIcons.cloud_arrow_down,
+                      color: Colors.grey,
+                    ),
+                  );
+                } else if (hasUpdate) {
+                  // --- Icône mise à jour ---
+                  return IconButton(
+                    padding: EdgeInsets.zero,
+                    iconSize: 20,
+                    onPressed: () => audio.download(context),
+                    icon: const Icon(
+                      JwIcons.arrows_circular,
+                      color: Colors.grey,
+                    ),
+                  );
+                } else if (isFavorite) {
+                  // --- Icône favoris (juste un Icon, pas un IconButton) ---
+                  // On garde un petit Padding horizontal pour l'esthétique
+                  return const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 5.0),
+                    child: Icon(
+                      JwIcons.star,
+                      color: Colors.amber,
+                      size: 20,
+                    ),
+                  );
+                }
+
+                return const SizedBox.shrink();
               },
             );
           },
-        ),
-
-        /// --- Barre de progression ---
-        ValueListenableBuilder<bool>(
-          valueListenable: audio.isDownloadingNotifier,
-          builder: (context, isDownloading, _) {
-            if (!isDownloading) return const SizedBox.shrink();
-
-            return Positioned(
-              left: 80,
-              right: 20,
-              bottom: 3,
-              child: ValueListenableBuilder<double>(
-                valueListenable: audio.progressNotifier,
-                builder: (context, progress, _) {
-                  return LinearProgressIndicator(
-                    value: progress == -1 ? null : progress,
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      Theme.of(context).primaryColor,
-                    ),
-                    backgroundColor: Colors.black.withOpacity(0.2),
-                    minHeight: 2,
-                  );
-                },
-              ),
-            );
-          },
-        ),
-      ],
+        );
+      },
     );
   }
 }

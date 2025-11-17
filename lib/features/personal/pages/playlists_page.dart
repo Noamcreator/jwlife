@@ -5,7 +5,10 @@ import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/features/personal/pages/playlist_page.dart';
+import '../../../core/utils/utils_playlist.dart';
+import '../../../core/utils/utils_tag_dialogs.dart';
 import '../../../data/models/userdata/playlist.dart';
+import '../../../i18n/i18n.dart';
 import '../widgets/empty_message.dart';
 
 class PlaylistsPage extends StatefulWidget {
@@ -50,30 +53,37 @@ class _PlaylistsPageState extends State<PlaylistsPage> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text("Listes de lectures"),
+            Text(i18n().navigation_playlists),
             Text(
-              '${filteredPlaylists.length} listes de lectures',
+              i18n().label_playlist_items(filteredPlaylists.length),
               style: TextStyle(fontSize: 12),
               maxLines: 2,
             ),
           ],
         ),
         actions: <Widget>[
-          IconButton(
-            icon: Icon(JwIcons.plus),
-            onPressed: () async {
-              /*
-              Note? note = await JwLifeApp.userdata.addNote("", "", 0, [], null, null, null, null, null, null);
-              if (note != null) {
-                await showPage(NotePage(note: note));
-                setState(() {
-                  filteredNotes.insert(0, note);
-                });
-              }
-
-               */
-            },
-          ),
+          PopupMenuButton<void>(
+            icon: Icon(
+              JwIcons.plus,
+              color: Theme.of(context).primaryColor,
+              size: 25,
+            ),
+            itemBuilder: (ctx) => [
+              PopupMenuItem<void>(
+                child: Text(i18n().action_create_a_playlist),
+                onTap: () async {
+                  await showAddTagDialog(context, true);
+                  init();
+                },
+              ),
+              PopupMenuItem<void>(
+                child: Text(i18n().action_import_playlist),
+                onTap: () async {
+                  await importPlaylist(context);
+                },
+              ),
+            ],
+          )
         ],
       ),
       body: Scrollbar(
@@ -90,7 +100,7 @@ class _PlaylistsPageState extends State<PlaylistsPage> {
                     });
                   },
                   decoration: InputDecoration(
-                    hintText: 'Rechercher',
+                    hintText: i18n().search_bar_search,
                     prefixIcon: Icon(Icons.search),
                   ),
                 ),
@@ -101,7 +111,7 @@ class _PlaylistsPageState extends State<PlaylistsPage> {
               filteredPlaylists.isEmpty
                   ? buildEmptyMessage(
                 JwIcons.plus,
-                'Aucune liste de lecture disponible.',
+                i18n().message_no_playlists,
               ) : Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: ListView.builder(
@@ -198,7 +208,44 @@ class _PlaylistsPageState extends State<PlaylistsPage> {
                                         ),
                                         icon: const Icon(Icons.more_vert, color: Color(0xFF9d9d9d)),
                                         itemBuilder: (context) => [
-
+                                          PopupMenuItem(
+                                            child: Row(
+                                              children: [
+                                                Icon(JwIcons.pencil),
+                                                SizedBox(width: 8),
+                                                Text(i18n().action_rename),
+                                              ],
+                                            ),
+                                            onTap: () async {
+                                              await showEditTagDialog(context, playlist);
+                                              init();
+                                            },
+                                          ),
+                                          PopupMenuItem(
+                                            child: Row(
+                                              children: [
+                                                Icon(JwIcons.trash),
+                                                SizedBox(width: 8),
+                                                Text(i18n().action_delete),
+                                              ],
+                                            ),
+                                            onTap: () async {
+                                              await showDeleteTagDialog(context, playlist);
+                                              init();
+                                            },
+                                          ),
+                                          PopupMenuItem(
+                                            child: Row(
+                                              children: [
+                                                Icon(JwIcons.share),
+                                                SizedBox(width: 8),
+                                                Text(i18n().action_share),
+                                              ],
+                                            ),
+                                            onTap: () {
+                                              showSharePlaylist(context, playlist);
+                                            },
+                                          ),
                                         ],
                                       ),
                                     ),

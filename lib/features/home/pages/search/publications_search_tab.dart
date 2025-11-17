@@ -10,6 +10,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../../app/services/settings_service.dart';
 import '../../../../core/jworg_uri.dart';
 import '../../../../core/utils/utils_language_dialog.dart';
+import '../../../../i18n/i18n.dart';
 
 class PublicationsSearchTab extends StatefulWidget {
   final SearchModel model;
@@ -148,7 +149,7 @@ class _PublicationsSearchTabState extends State<PublicationsSearchTab> {
                                   icon: const Icon(Icons.more_vert, size: 25),
                                   itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
                                     PopupMenuItem(
-                                      child: const Text('Envoyer le lien'),
+                                      child: Text(i18n().action_open_in_share),
                                         onTap: () {
                                           final lank = item['lank'].toString();
 
@@ -184,7 +185,7 @@ class _PublicationsSearchTabState extends State<PublicationsSearchTab> {
                                         }
                                     ),
                                     PopupMenuItem(
-                                      child: const Text('Autres langues'),
+                                      child: Text(i18n().label_languages_more),
                                       onTap: () async {
                                         Publication? publication = await PubCatalog.searchPub(
                                           keySymbol,

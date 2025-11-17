@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:jwlife/app/services/global_key_service.dart';
 import 'package:jwlife/widgets/searchfield/searchfield_with_suggestions/decoration.dart';
@@ -25,7 +26,7 @@ import '../../data/repositories/PublicationRepository.dart';
 import '../../features/home/pages/search/bible_search_page.dart';
 import '../../features/home/pages/search/search_page.dart';
 import '../../features/home/pages/search/suggestion.dart';
-import '../../i18n/localization.dart';
+import '../../i18n/i18n.dart';
 import '../image_cached_widget.dart';
 
 class SearchFieldAll extends StatefulWidget {
@@ -63,7 +64,7 @@ class _SearchFieldAllState extends State<SearchFieldAll> {
       maxSuggestionBoxHeight: 200,
       suggestionState: Suggestion.expand,
       searchInputDecoration: SearchInputDecoration(
-        hintText: localization(context).search_hint,
+        hintText: i18n().search_hint,
         searchStyle: TextStyle(color: isDark ? Colors.white : Colors.black),
         fillColor: isDark ? const Color(0xFF1f1f1f) : const Color(0xFFf1f1f1),
         filled: true,
@@ -163,9 +164,8 @@ class _SearchFieldAllState extends State<SearchFieldAll> {
 
     String apiWol = 'https://wol.jw.org/wol/sg/${JwLifeSettings().currentLanguage.rsConf}/${JwLifeSettings().currentLanguage.lib}?q=$query';
     printTime(apiWol);
-    final response = await Api.httpGetWithHeaders(apiWol);
-    final data = json.decode(response.body);
-    final items = (data['items'] as List).take(2); // prend seulement les 2 premiers
+    final response = await Api.httpGetWithHeaders(apiWol, responseType: ResponseType.json);
+    final items = (response.data['items'] as List).take(2); // prend seulement les 2 premiers
 
     List<SuggestionItem> newSuggestions = [];
 
@@ -221,7 +221,7 @@ class _SearchFieldAllState extends State<SearchFieldAll> {
           title: topicsList.first['DisplayTopic'] as String,
           image: pub.imageSqr,
           subtitle: pub.title,
-          label: 'Ouvrage de référence',
+          label: i18n().search_suggestions_topics,
         ));
       }
 

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:audio_service/audio_service.dart';
+import 'package:dio/dio.dart';
 import 'package:just_audio/just_audio.dart';
 
 import 'package:jwlife/core/utils/utils.dart';
@@ -15,7 +16,6 @@ import '../../app/services/global_key_service.dart';
 import '../../app/services/settings_service.dart';
 import '../../core/api/api.dart';
 import '../../data/models/audio.dart';
-import '../../data/realm/catalog.dart' hide MediaItem;
 import '../../data/realm/catalog.dart' as realm_catalog;
 
 class JwLifeAudioPlayer {
@@ -39,12 +39,12 @@ class JwLifeAudioPlayer {
       album = null;
       final apiUrl = 'https://b.jw-cdn.org/apis/mediator/v1/media-items/$lang/$lank';
       try {
-        final response = await Api.httpGetWithHeaders(apiUrl);
+        final response = await Api.httpGetWithHeaders(apiUrl, responseType: ResponseType.json);
 
         if (response.statusCode == 200) {
           album = RealmLibrary.realm.all<realm_catalog.Category>().query("key == '${audio.categoryKey}' AND language == '$lang'").firstOrNull;
 
-          final apiMedia = json.decode(response.body)['media'][0];
+          final apiMedia = response.data['media'][0];
           audio.imagePath = audio.networkImageSqr;
           audio.fileUrl = apiMedia['files'][0]['progressiveDownloadURL'];
           audio.lastModified = apiMedia['files'][0]['modifiedDatetime'];
@@ -80,12 +80,11 @@ class JwLifeAudioPlayer {
         printTime('URL: $url');
 
         // Requête HTTP pour récupérer le JSON
-        final response = await Api.httpGetWithHeaders(url);
+        final response = await Api.httpGetWithHeaders(url, responseType: ResponseType.json);
 
         if (response.statusCode == 200) {
           // Conversion de la réponse en JSON
-          final jsonData = json.decode(response.body);
-          bool onlineIsNotEmpty = jsonData['category'] != null && jsonData['category']['media'] != null;
+          bool onlineIsNotEmpty = response.data['category'] != null && response.data['category']['media'] != null;
 
           for (int i = 0; i < filteredAudios.length; i++) {
             Audio audio = filteredAudios[i];
@@ -94,7 +93,7 @@ class JwLifeAudioPlayer {
               audios.add(audio);
             }
             else {
-              final apiMedia = jsonData['category']['media'][i];
+              final apiMedia = response.data['category']['media'][i];
               if (onlineIsNotEmpty) {
                 if (apiMedia['naturalKey'] != null) {
                   audio.imagePath = audio.networkImageSqr;
@@ -160,7 +159,7 @@ class JwLifeAudioPlayer {
 
         // 1. Déterminer la valeur de l'album une seule fois.
         // Cette logique complexe est maintenant factorisée.
-        final String albumTitle = pub?.title ??
+        final String albumTitle = pub?.getTitle() ??
             (album?.localizedName?.isNotEmpty == true
                 ? album!.localizedName!
                 : RealmLibrary.realm

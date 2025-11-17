@@ -1,8 +1,7 @@
 import 'dart:io';
 
-import 'package:jwlife/data/models/userdata/independentMedia.dart';
-
 import '../../../core/utils/directory_helper.dart';
+import 'independent_media.dart';
 import 'location.dart';
 
 class PlaylistItem {

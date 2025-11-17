@@ -3,8 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/app/services/global_key_service.dart';
 import 'package:jwlife/core/icons.dart';
-import 'package:jwlife/i18n/localization.dart';
-import 'dart:convert';
+import 'package:jwlife/i18n/i18n.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../app/services/settings_service.dart';
@@ -81,9 +80,8 @@ class _CongregationsPageState extends State<CongregationsPage> {
 
     final response = await Api.httpGetWithHeadersUri(url);
     if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      if(data['geoLocationList'] is List) {
-        List<Congregation> congregations = data['geoLocationList']
+      if(response.data['geoLocationList'] is List) {
+        List<Congregation> congregations = response.data['geoLocationList']
             .map((item) => _convertSuggestionToCongregation(item))
             .toList()
             .cast<Congregation>();
@@ -268,7 +266,7 @@ class _CongregationsPageState extends State<CongregationsPage> {
     return Scaffold(
       resizeToAvoidBottomInset: false,
       appBar: AppBar(
-        title: Text(localization(context).navigation_congregations,
+        title: Text(i18n().action_congregations,
           style: const TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,
@@ -290,7 +288,7 @@ class _CongregationsPageState extends State<CongregationsPage> {
                 maxSuggestionBoxHeight: 200,
                 suggestionState: Suggestion.expand,
                 searchInputDecoration: SearchInputDecoration(
-                    hintText: localization(context).search_hint,
+                    hintText: i18n().search_hint,
                     searchStyle: TextStyle(
                       color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black,
                     ),

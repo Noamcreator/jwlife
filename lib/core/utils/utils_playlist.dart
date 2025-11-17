@@ -1,16 +1,20 @@
 import 'dart:io';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/app/services/global_key_service.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
+import 'package:jwlife/core/utils/utils_pub.dart';
 import 'package:jwlife/core/utils/utils_tag_dialogs.dart';
 import 'package:jwlife/data/models/audio.dart';
 import 'package:jwlife/data/models/userdata/playlist.dart';
 import 'package:jwlife/core/utils/utils_dialog.dart';
-import 'package:jwlife/data/models/userdata/playlistItem.dart';
+import '../../data/models/userdata/playlist_item.dart';
 import '../../data/models/userdata/tag.dart';
 import '../../data/models/video.dart';
+import '../../i18n/i18n.dart';
+import 'package:path/path.dart' as path;
 
 Future<void> showAddItemToPlaylistDialog(BuildContext context, dynamic item) async {
   // 🔧 On stocke la liste initiale dans un état réactif
@@ -19,7 +23,7 @@ Future<void> showAddItemToPlaylistDialog(BuildContext context, dynamic item) asy
 
   await showJwDialog<void>(
     context: context,
-    titleText: "Ajouter à la liste de lecture",
+    titleText: i18n().action_add_to_playlist,
     content: SizedBox(
       width: double.maxFinite,
       height: 430,
@@ -39,9 +43,9 @@ Future<void> showAddItemToPlaylistDialog(BuildContext context, dynamic item) asy
 
             BuildContext ctx = GlobalKeyService.jwLifePageKey.currentState!.getCurrentState().context;
             showBottomMessageWithAction(
-              "Ajouté à la liste de lecture « ${playlist.name} »",
+              i18n().message_added_to_playlist_name(playlist.name),
               SnackBarAction(
-                label: 'Ouvrir',
+                label: i18n().action_open,
                 textColor: Theme.of(ctx).primaryColor,
                 onPressed: () {
                   GlobalKeyService.personalKey.currentState!.openPlaylist(playlist);
@@ -94,7 +98,7 @@ Future<void> showAddItemToPlaylistDialog(BuildContext context, dynamic item) asy
                             color: Theme.of(context).primaryColor),
                         const SizedBox(width: 8),
                         Text(
-                          "CRÉER UNE PLAYLIST",
+                          i18n().action_create_a_playlist_uppercase,
                           style: TextStyle(
                             color: Theme.of(context).primaryColor,
                             fontWeight: FontWeight.bold,
@@ -111,8 +115,8 @@ Future<void> showAddItemToPlaylistDialog(BuildContext context, dynamic item) asy
                 padding: const EdgeInsets.symmetric(horizontal: 25),
                 child: TextField(
                   controller: textController,
-                  decoration: const InputDecoration(
-                    hintText: "Rechercher",
+                  decoration: InputDecoration(
+                    hintText: i18n().search_hint,
                     prefixIcon: Icon(JwIcons.magnifying_glass),
                   ),
                   onChanged: (_) => setDialogState(() {}),
@@ -178,7 +182,48 @@ Future<void> showAddItemToPlaylistDialog(BuildContext context, dynamic item) asy
     ),
     buttonAxisAlignment: MainAxisAlignment.end,
     buttons: [
-      JwDialogButton(label: "ANNULER"),
+      JwDialogButton(label: i18n().action_cancel_uppercase),
     ],
   );
+}
+
+Future<void> importPlaylist(BuildContext context) async {
+  final result = await FilePicker.platform.pickFiles(type: FileType.any);
+  if (result != null && result.files.isNotEmpty) {
+    final filePath = result.files.single.path;
+    if (filePath != null) {
+      String fileName = path.basename(filePath);
+      try {
+        if (!showInvalidExtensionDialog(context, filePath: filePath, expectedExtension: '.jwlplaylist')) return;
+
+        // Affiche le dialogue d'importation et attend son BuildContext.
+        BuildContext? dialogContext = await showJwImport(context, fileName);
+
+        Playlist? playlist = await JwLifeApp.userdata.importPlaylistFromFile(File(filePath));
+
+        // Ferme le dialogue de chargement une fois l'importation terminée.
+        if (dialogContext != null) {
+          Navigator.of(dialogContext).pop();
+        }
+
+        // Gère le résultat de l'importation.
+        if (playlist == null) {
+          showImportFileError(context, '.jwplaylist');
+        }
+        else {
+          // on refresh les playlist
+          GlobalKeyService.personalKey.currentState?.openPlaylist(playlist);
+
+          if (context.mounted) {
+            showBottomMessage('Import de la liste de lecture réussi.');
+          }
+        }
+      }
+      catch (e) {
+        if (context.mounted) {
+          showBottomMessage('Échec de l’import de la liste de lecture : $e');
+        }
+      }
+    }
+  }
 }

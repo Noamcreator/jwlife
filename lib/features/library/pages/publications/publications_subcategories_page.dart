@@ -14,6 +14,7 @@ import '../../../../core/utils/utils_language_dialog.dart';
 import '../../../../data/models/publication.dart';
 import '../../../../data/realm/catalog.dart';
 import '../../../../data/realm/realm_library.dart';
+import '../../../../i18n/i18n.dart';
 import 'convention_items_page.dart';
 import 'publications_items_page.dart';
 
@@ -178,7 +179,7 @@ class _PublicationSubcategoriesViewState extends State<PublicationSubcategoriesV
       title: Row(
         children: [
           SizedBox(width: 15.0), // Ajouter plus d'espace entre leading et title
-          Text(widget.category.type == 'Convention' ? 'Jour $number' : number.toString(), style: TextStyle(color: textColor)),
+          Text(widget.category.type == 'Convention' ? i18n().label_convention_day(number) : number.toString(), style: TextStyle(color: textColor)),
         ],
       ),
     );

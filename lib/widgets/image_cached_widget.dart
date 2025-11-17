@@ -9,7 +9,7 @@ class ImageCachedWidget extends StatefulWidget {
   final double? width;
   final double? height;
   final BoxFit fit;
-  final Alignment alignment; // <-- La propriété d'alignement est ici
+  final Alignment alignment;
   final bool animation;
 
   const ImageCachedWidget({
@@ -19,7 +19,7 @@ class ImageCachedWidget extends StatefulWidget {
     this.height,
     this.width,
     this.fit = BoxFit.cover,
-    this.alignment = Alignment.center, // Valeur par défaut
+    this.alignment = Alignment.center,
     this.animation = true,
   });
 
@@ -50,7 +50,7 @@ class _ImageCachedWidgetState extends State<ImageCachedWidget> {
     } else {
       _imageFuture = TilesCache().getOrDownloadImage(widget.imageUrl).then((tile) {
         if (tile != null && mounted) {
-          // Utiliser la bonne méthode pour la prévisualisation d'une image locale
+          // Prévisualisation de l'image locale pour un chargement plus rapide
           precacheImage(FileImage(tile.file), context);
         }
         return tile;
@@ -80,7 +80,6 @@ class _ImageCachedWidgetState extends State<ImageCachedWidget> {
       width: width,
       height: height,
       color: backgroundColor,
-      // 🚀 APPLIQUÉ 1/3 : Applique l'alignement au Container du placeholder
       alignment: widget.alignment,
       child: widget.icon != null
           ? Icon(
@@ -113,126 +112,60 @@ class _ImageCachedWidgetState extends State<ImageCachedWidget> {
 
         final file = snapshot.data?.file;
 
-        // 🧩 Si animation désactivée, on affiche directement le contenu
+        if (!isImageReady || file == null) {
+          return SizedBox(
+            width: widget.width,
+            height: widget.height,
+            child: placeholder,
+          );
+        }
+
+        // --- L'image est téléchargée et prête ---
+
         if (!widget.animation) {
-          if (isImageReady && file != null) {
-            return Image.file(
-              file,
-              key: ValueKey(file.path),
-              width: widget.width,
-              height: widget.height,
-              cacheWidth:
-              safeToInt(widget.width != null ? widget.width! * pixelRatio : null),
-              cacheHeight:
-              safeToInt(widget.height != null ? widget.height! * pixelRatio : null),
-              fit: widget.fit,
-              // 🚀 APPLIQUÉ 2/3 : Applique l'alignement à l'Image.file (sans animation)
-              alignment: widget.alignment,
-            );
-          }
-          else {
+          // Version sans animation : affichage direct
+          return Image.file(
+            file,
+            key: ValueKey(file.path),
+            width: widget.width,
+            height: widget.height,
+            cacheWidth:
+            safeToInt(widget.width != null ? widget.width! * pixelRatio : null),
+            cacheHeight:
+            safeToInt(widget.height != null ? widget.height! * pixelRatio : null),
+            fit: widget.fit,
+            alignment: widget.alignment,
+          );
+        }
+
+        // Version avec animation (FrameBuilder)
+        return Image.file(
+          file,
+          key: ValueKey(file.path),
+          width: widget.width,
+          height: widget.height,
+          cacheWidth:
+          safeToInt(widget.width != null ? widget.width! * pixelRatio : null),
+          cacheHeight:
+          safeToInt(widget.height != null ? widget.height! * pixelRatio : null),
+          fit: widget.fit,
+          alignment: widget.alignment,
+          // Utilisation de frameBuilder pour gérer l'animation de fondu
+          frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+            // Si l'image est déjà affichée ou chargée instantanément, on l'affiche directement
+            if (wasSynchronouslyLoaded || frame != null) {
+              return child;
+            }
+
+            // Sinon, on affiche le placeholder pendant le chargement
             return SizedBox(
               width: widget.width,
               height: widget.height,
+              child: placeholder,
             );
-          }
-        }
-
-        // 🪄 Version avec animation
-        return Stack(
-          // Important: L'alignement du Stack doit être center pour que les enfants se chevauchent correctement
-          alignment: Alignment.center,
-          children: [
-            // Fade-out du placeholder
-            AnimatedOpacity(
-              opacity: isImageReady ? 0.0 : 1.0,
-              duration: const Duration(milliseconds: 150),
-              curve: Curves.easeOut,
-              child: SizedBox(
-                width: widget.width,
-                height: widget.height,
-                child: placeholder,
-              ),
-            ),
-
-            // Fade-in de l’image
-            if (isImageReady && file != null)
-              _FadeInImageWidget(
-                file: file,
-                width: widget.width,
-                height: widget.height,
-                fit: widget.fit,
-                // 🚀 APPLIQUÉ 3/3 : Passe l'alignement au widget d'animation enfant
-                alignment: widget.alignment,
-                pixelRatio: pixelRatio,
-              ),
-          ],
+          },
         );
       },
-    );
-  }
-}
-
-class _FadeInImageWidget extends StatefulWidget {
-  // L'objet File est plus approprié que dynamic ici si vous travaillez avec dart:io.
-  final File file;
-  final double? width;
-  final double? height;
-  final BoxFit fit;
-  final Alignment alignment; // <-- Reçoit la propriété
-  final double pixelRatio;
-
-  const _FadeInImageWidget({
-    required this.file,
-    required this.width,
-    required this.height,
-    required this.fit,
-    required this.alignment,
-    required this.pixelRatio,
-  });
-
-  @override
-  State<_FadeInImageWidget> createState() => _FadeInImageWidgetState();
-}
-
-class _FadeInImageWidgetState extends State<_FadeInImageWidget> with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 50));
-  late final Animation<double> _fade = CurvedAnimation(parent: _controller, curve: Curves.easeIn);
-
-  @override
-  void initState() {
-    super.initState();
-    _controller.forward();
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  int? safeToInt(double? value) {
-    if (value == null || value.isInfinite || value.isNaN) return null;
-    return value.toInt();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return FadeTransition(
-      opacity: _fade,
-      child: Image.file(
-        widget.file,
-        key: ValueKey(widget.file.path),
-        width: widget.width,
-        height: widget.height,
-        cacheWidth:
-        safeToInt(widget.width != null ? widget.width! * widget.pixelRatio : null),
-        cacheHeight:
-        safeToInt(widget.height != null ? widget.height! * widget.pixelRatio : null),
-        // 🚀 APPLIQUÉ 4/4 : Utilise l'alignement dans le widget final Image.file
-        alignment: widget.alignment,
-        fit: widget.fit,
-      ),
     );
   }
 }

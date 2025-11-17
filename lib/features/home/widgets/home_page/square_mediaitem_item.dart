@@ -40,10 +40,10 @@ class HomeSquareMediaItemItem extends StatelessWidget {
                     ),
                   ),
                   Positioned(
-                    top: -8,
+                    top: -15,
                     right: -10,
                     child: PopupMenuButton(
-                      icon: const Icon(Icons.more_vert, color: Colors.white, shadows: [Shadow(color: Colors.black, blurRadius: 5)]),
+                      icon: const Icon(Icons.more_horiz, color: Colors.white, shadows: [Shadow(color: Colors.black, blurRadius: 5)]),
                       shadowColor: Colors.black,
                       elevation: 8,
                       itemBuilder: (context) => m is Audio ? [
@@ -124,7 +124,10 @@ class HomeSquareMediaItemItem extends StatelessWidget {
                               child: IconButton(
                                 padding: EdgeInsets.zero,
                                 onPressed: () {
-                                  media.download(context);
+                                  final RenderBox renderBox = context.findRenderObject() as RenderBox;
+                                  final Offset tapPosition = renderBox.localToGlobal(Offset.zero) + renderBox.size.center(Offset.zero);
+
+                                  media.download(context, tapPosition: tapPosition);
                                 },
                                 icon: const Icon(
                                   JwIcons.cloud_arrow_down,
@@ -142,7 +145,9 @@ class HomeSquareMediaItemItem extends StatelessWidget {
                               child: IconButton(
                                 padding: EdgeInsets.zero,
                                 onPressed: () {
-                                  media.download(context);
+                                  final RenderBox renderBox = context.findRenderObject() as RenderBox;
+                                  final Offset tapPosition = renderBox.localToGlobal(Offset.zero) + renderBox.size.center(Offset.zero);
+                                  media.download(context, tapPosition: tapPosition);
                                 },
                                 icon: const Icon(
                                   JwIcons.arrows_circular,

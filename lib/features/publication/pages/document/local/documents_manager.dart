@@ -28,6 +28,8 @@ class DocumentsManager {
   }
 
   Future<void> fetchDocuments() async {
+    bool isRtl = publication.mepsLanguage.isRtl;
+
     try {
       List<Map<String, dynamic>> result = [];
       if (publication.isBible()) {
@@ -73,6 +75,11 @@ class DocumentsManager {
       }
 
       documents = result.map((e) => Document.fromMap(database, publication, e)).toList();
+
+      if (isRtl) {
+        documents = documents.reversed.toList();
+      }
+
       if (mepsDocumentId != -1) {
         if(bookNumber != null && chapterNumber != null) {
           selectedDocumentIndex = documents.indexWhere((element) => element.bookNumber == bookNumber && element.chapterNumberBible == chapterNumber);
@@ -89,10 +96,6 @@ class DocumentsManager {
 
   Document getCurrentDocument() => documents[selectedDocumentIndex];
 
-  Document getPreviousDocument() => documents[selectedDocumentIndex - 1];
-
-  Document getNextDocument() => documents[selectedDocumentIndex + 1];
-
   Document getDocumentAt(int index) => documents[index];
 
   Document getDocumentFromMepsDocumentId(int mepsDocumentId) {
@@ -101,5 +104,9 @@ class DocumentsManager {
 
   int getIndexFromMepsDocumentId(int mepsDocumentId) {
     return documents.indexWhere((element) => element.mepsDocumentId == mepsDocumentId);
+  }
+
+  int getIndexFromBookNumberAndChapterNumber(int bookNumber, int chapterNumber) {
+    return documents.indexWhere((element) => element.bookNumber == bookNumber && element.chapterNumberBible == chapterNumber);
   }
 }

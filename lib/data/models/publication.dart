@@ -23,6 +23,7 @@ import '../../core/utils/utils_document.dart';
 import '../../features/publication/models/menu/local/words_suggestions_model.dart';
 import '../../features/publication/pages/document/local/documents_manager.dart';
 import '../../features/publication/pages/menu/local/publication_menu_view.dart';
+import '../../i18n/i18n.dart';
 import '../databases/catalog.dart';
 import '../repositories/PublicationRepository.dart';
 import 'audio.dart';
@@ -31,7 +32,7 @@ class Publication {
   final int id;
   MepsLanguage mepsLanguage;
   PublicationCategory category;
-  PublicationAttribute attribute;
+  List<PublicationAttribute> attributes;
   String title;
   String issueTitle;
   String shortTitle;
@@ -80,7 +81,7 @@ class Publication {
     required this.id,
     required this.mepsLanguage,
     required this.category,
-    required this.attribute,
+    required this.attributes,
     this.title = '',
     this.issueTitle = '',
     this.shortTitle = '',
@@ -151,16 +152,12 @@ class Publication {
       return existing;
     }
 
+    MepsLanguage mepsLanguage = json['LanguageSymbol'] != null ? MepsLanguage.fromJson(json) : JwLifeSettings().currentLanguage;
+
     // Sinon, en créer une nouvelle
     Publication publication = Publication(
       id: json['Id'] ?? json['PublicationId'] ?? -1,
-      mepsLanguage: json['LanguageSymbol'] != null ?
-        MepsLanguage(
-            id: json['MepsLanguageId'],
-            symbol: json['LanguageSymbol'],
-            vernacular: json['LanguageVernacularName'],
-            primaryIetfCode: json['LanguagePrimaryIetfCode'],
-            isSignLanguage: json['IsSignLanguage'] == 1) : JwLifeSettings().currentLanguage,
+      mepsLanguage: mepsLanguage,
       title: json['Title'] ?? '',
       issueTitle: json['IssueTitle'] ?? '',
       shortTitle: json['ShortTitle'] ?? '',
@@ -174,7 +171,27 @@ class Publication {
       keySymbol: keySymbol,
       reserved: json['Reserved'] ?? 0,
       category: json['PublicationTypeId'] != null ? PublicationCategory.all.firstWhere((element) => element.id == json['PublicationTypeId']) : json['PublicationType'] != null ? PublicationCategory.all.firstWhere((element) => element.type == json['PublicationType'] || element.type2 == json['PublicationType']) : PublicationCategory.all.first,
-      attribute: json['PublicationAttributeId'] != null ? PublicationAttribute.all.firstWhere((element) => element.id == json['PublicationAttributeId']) : json['Attribute'] != null ? PublicationAttribute.all.firstWhere((element) => element.type == json['Attribute']) : PublicationAttribute.all.first,
+      attributes: (() {
+        final idsString = json['PublicationAttributeIds'] as String?;
+        if (idsString != null && idsString.isNotEmpty) {
+          final ids = idsString.split(',').map((e) => int.tryParse(e.trim())).whereType<int>().toSet();
+          return PublicationAttribute.all.where((a) => ids.contains(a.id)).toList();
+        }
+        else if (json['PublicationAttributeId'] != null) {
+          final id = json['PublicationAttributeId'] as int;
+          return [PublicationAttribute.all.firstWhere((a) => a.id == id, orElse: () => PublicationAttribute.all.first)];
+        }
+        else if (json['AttributeTypes'] != null) {
+          final typesAttributesString = json['AttributeTypes'] as String;
+          final typesAttributes = typesAttributesString.split(',').map((e) => e.trim());
+          return PublicationAttribute.all.where((a) => typesAttributes.contains(a.type)).toList();
+        }
+        else if (json['Attribute'] != null) {
+          final type = json['Attribute'] as String;
+          return [PublicationAttribute.all.firstWhere((a) => a.type == type, orElse: () => PublicationAttribute.all.first)];
+        }
+        return [PublicationAttribute.all.first];
+      })(),
       size: json['Size'] ?? 0,
       expandedSize: json['ExpandedSize'] ?? 0,
       schemaVersion: json['SchemaVersion'] ?? 0,
@@ -236,7 +253,7 @@ class Publication {
     else {
       BuildContext context = GlobalKeyService.jwLifePageKey.currentState!.getCurrentState().context;
       showBottomMessageWithAction(getTitle(), SnackBarAction(
-          label: 'Ouvrir',
+          label: i18n().action_open,
           textColor:  Theme.of(context).primaryColor,
           onPressed: () {
             showMenu(context);
@@ -245,7 +262,7 @@ class Publication {
   }
 
   Future<bool> download(BuildContext context) async {
-    if (await hasInternetConnection()) {
+    if (await hasInternetConnection(context: context)) {
       if (!isDownloadingNotifier.value) {
         isDownloadingNotifier.value = true;
         progressNotifier.value = 0;
@@ -286,7 +303,7 @@ class Publication {
           progressNotifier.value = 1.0;
 
           // Notification de fin avec bouton "Ouvrir"
-          notifyDownload('Téléchargement terminé');
+          notifyDownload(i18n().message_download_complete);
           isDownloadingNotifier.value = false;
           return true; // <-- SUCCÈS
         }
@@ -297,12 +314,8 @@ class Publication {
           return false; // <-- ÉCHEC/ANNULATION
         }
       }
-      // Si la publication était déjà en cours de téléchargement
-      return false;
-    } else {
-      showNoConnectionDialog(context);
-      return false; // Pas de connexion
     }
+    return false;
   }
 
   Future<void> cancelDownload(BuildContext context, {void Function(double progress)? update}) async {
@@ -311,7 +324,7 @@ class Publication {
       _downloadOperation!.cancel();
       _cancelToken = null;
       _downloadOperation = null;
-      showBottomMessage('Téléchargement annulé');
+      showBottomMessage(i18n().message_download_cancel);
     }
     if (isDownloadingNotifier.value) {
       isDownloadingNotifier.value = false;
@@ -320,8 +333,8 @@ class Publication {
     }
   }
 
-  Future<void> update(BuildContext context) async {
-    if(await hasInternetConnection()) {
+  Future<bool> update(BuildContext context) async {
+    if(await hasInternetConnection(context: context)) {
       if (!isDownloadingNotifier.value) {
         progressNotifier.value = -1;
         isDownloadingNotifier.value = true;
@@ -334,7 +347,7 @@ class Publication {
           downloadJwpubFile(this, context, cancelToken, true),
           onCancel: () {
             isDownloadingNotifier.value = false;
-            isDownloadedNotifier.value = false;
+            isDownloadedNotifier.value = true;
             progressNotifier.value = 0;
             // Annuler la notification
             NotificationService().cancelNotification(hashCode);
@@ -353,18 +366,18 @@ class Publication {
           progressNotifier.value = 1.0;
 
           // ✅ Notification de fin avec bouton "Ouvrir" (comme dans downloads)
-          notifyDownload('Mise à jour terminée');
+          notifyDownload(i18n().message_catalog_success);
         } else {
           // Téléchargement annulé ou échoué
           await NotificationService().cancelNotification(hashCode);
         }
 
         isDownloadingNotifier.value = false;
+
+        return true;
       }
     }
-    else {
-      showNoConnectionDialog(context);
-    }
+    return false;
   }
 
 
@@ -374,11 +387,11 @@ class Publication {
       _updateOperation!.cancel();
       _cancelToken = null;
       _updateOperation = null;
-      showBottomMessage('Mis à jour annulée');
+      showBottomMessage(i18n().message_update_cancel);
     }
     if (isDownloadingNotifier.value) {
       isDownloadingNotifier.value = false;
-      isDownloadedNotifier.value = false;
+      isDownloadedNotifier.value = true;
       progressNotifier.value = 0;
     }
   }
@@ -400,7 +413,7 @@ class Publication {
     isDownloadedNotifier.value = false;
     progressNotifier.value = 0;
 
-    showBottomMessage('Publication supprimée');
+    showBottomMessage(i18n().message_delete_item(title));
 
     if (category.id == 1) {
       // Récupérer la liste des Bibles
@@ -455,8 +468,8 @@ class Publication {
   Future<void> showMenu(BuildContext context, {bool showDownloadDialog = true}) async {
     if(isDownloadedNotifier.value && !isDownloadingNotifier.value) {
       if(hasUpdate()) {
-        showBottomMessageWithAction('Une mise à jour de la publication est disponible', SnackBarAction(
-          label: 'Mettre à jour',
+        showBottomMessageWithAction(i18n().message_updated_publication, SnackBarAction(
+          label: i18n().action_update,
           textColor: Theme.of(context).primaryColor,
           onPressed: () {
             update(context);
@@ -466,17 +479,13 @@ class Publication {
       await showPage(PublicationMenuView(publication: this));
     }
     else {
-      if(await hasInternetConnection()) {
-        //await showPage(PublicationMenu(publication: this));
+      if(await hasInternetConnection(context: context)) {
         if(showDownloadDialog) {
           await showDownloadPublicationDialog(context, this);
         }
         else {
           await download(context);
         }
-      }
-      else {
-        await showNoConnectionDialog(context);
       }
     }
   }
@@ -539,22 +548,16 @@ class Publication {
     try {
       DateTime firstPublished = DateTime.parse(catalogedOn);
 
-      // On normalise les deux dates à minuit pour ignorer l'heure
-      DateTime publishedDate = DateTime(firstPublished.year, firstPublished.month, firstPublished.day);
-      DateTime today = DateTime.now();
-      DateTime currentDate = DateTime(today.year, today.month, today.day);
-
-      int days = currentDate.difference(publishedDate).inDays;
-
-      String textToShow = (days == 0)
-          ? "Aujourd'hui"
-          : (days == 1)
-          ? "Hier"
-          : "Il y a $days jours";
-
-      return "${mepsLanguage.vernacular} · $textToShow";
+      return "${mepsLanguage.vernacular} · ${timeAgo(firstPublished)}";
     } catch (e) {
       return "";
     }
+  }
+
+  String getFullPath(String? path) {
+    if(this.path != null && path != null) {
+      return '${this.path!}/$path';
+    }
+    return '';
   }
 }

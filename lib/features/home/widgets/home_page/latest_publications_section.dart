@@ -4,7 +4,7 @@ import 'package:jwlife/features/home/widgets/home_page/rectangle_publication_ite
 
 import '../../../../data/databases/catalog.dart';
 import '../../../../data/models/publication.dart';
-import '../../../../i18n/localization.dart';
+import '../../../../i18n/i18n.dart';
 
 class LatestPublicationSection extends StatefulWidget {
   const LatestPublicationSection({super.key});
@@ -28,7 +28,7 @@ class LatestPublicationsSectionState extends State<LatestPublicationSection> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          localization(context).navigation_whats_new,
+          i18n().navigation_whats_new,
           style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 4),

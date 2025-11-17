@@ -51,29 +51,33 @@ class BibleCluesInfo {
     );
   }
 
-  String getVerse(int book, int chapter, int verse) {
-    return getVerses(book, chapter, verse, book, chapter, verse);
+  String getVerse(int book, int chapter, int verse, {bool isAbbreviation = false}) {
+    return getVerses(book, chapter, verse, book, chapter, verse, isAbbreviation: isAbbreviation);
   }
 
-  String getVerses(int book1, int chapter1, int verse1, int book2, int chapter2, int verse2) {
+  String getVerses(int book1, int chapter1, int verse1, int book2, int chapter2, int verse2, {bool isAbbreviation = false}) {
     String verse1Text = verse1 == 0 ? superscriptionFullText : verse1.toString();
     String verse2Text = verse2 == 0 ? superscriptionFullText : verse2.toString();
 
     BibleBookName bookName = bibleBookNames.elementAt(book1 - 1);
+    String bibleBookName = isAbbreviation ? bookName.officialBookAbbreviation : bookName.standardBookName;
+
     if (book1 != book2) {
       BibleBookName bookName2 = bibleBookNames.elementAt(book2 - 1);
-      return '${bookName.standardBookName} $chapter1$chapterVerseSeparator$verse1Text $nonConsecutiveRangeSeparator ${bookName2.standardBookName} $chapter2$chapterVerseSeparator$verse2Text';
+      String bibleBookName2 = isAbbreviation ? bookName2.officialBookAbbreviation : bookName2.standardBookName;
+
+      return '$bibleBookName $chapter1$chapterVerseSeparator$verse1Text $nonConsecutiveRangeSeparator $bibleBookName2 $chapter2$chapterVerseSeparator$verse2Text';
     }
     else if (chapter1 != chapter2) {
-      return '${bookName.standardBookName} $chapter1$chapterVerseSeparator$verse1Text $nonConsecutiveRangeSeparator $chapter2$chapterVerseSeparator$verse2Text';
+      return '$bibleBookName $chapter1$chapterVerseSeparator$verse1Text $nonConsecutiveRangeSeparator $chapter2$chapterVerseSeparator$verse2Text';
     }
     else if (verse1 != verse2) {
       if (verse1 != verse2 - 1 || verse2 != verse1 - 1) {
-        return '${bookName.standardBookName} $chapter1$chapterVerseSeparator$verse1Text$rangeSeparator$verse2Text';
+        return '$bibleBookName $chapter1$chapterVerseSeparator$verse1Text$rangeSeparator$verse2Text';
       }
-      return '${bookName.standardBookName} $chapter1$chapterVerseSeparator$verse1Text $separator $verse2Text';
+      return '$bibleBookName $chapter1$chapterVerseSeparator$verse1Text $separator $verse2Text';
     }
-    return '${bookName.standardBookName} $chapter1$chapterVerseSeparator$verse1Text';
+    return '$bibleBookName $chapter1$chapterVerseSeparator$verse1Text';
   }
 
   Future<int?> getBibleVerseId(int book, int chapter, int verse) async {

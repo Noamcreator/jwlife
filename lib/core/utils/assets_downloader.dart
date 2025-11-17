@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:archive/archive.dart';
+import 'package:dio/dio.dart';
 import 'package:jwlife/core/utils/directory_helper.dart';
 import 'package:jwlife/core/utils/utils.dart';
 
@@ -24,10 +25,10 @@ class AssetsDownload {
       // 🎯 Construction de l'URL avec le paramètre de requête pour bypasser le cache
       String webappInfoApi = '${Api.gitubApi}webapp_version.json?$antiCacheQuery';
       printTime('Fetching webapp version: $webappInfoApi');
-      final response = await Api.httpGetWithHeaders(webappInfoApi);
-      final jsonBody = json.decode(response.body);
-      webappVersionServer = jsonBody['version'];
-      webappfileNameServer = jsonBody['name'];
+      final response = await Api.httpGetWithHeaders(webappInfoApi, responseType: ResponseType.plain);
+      final jsonData = json.decode(response.data);
+      webappVersionServer = jsonData['version'];
+      webappfileNameServer = jsonData['name'];
     }
     catch (e) {
       printTime('Error fetching webapp version: $e');
@@ -42,7 +43,7 @@ class AssetsDownload {
         final response = await Api.httpGetWithHeaders(webappFileUrl);
         if (response.statusCode == 200) {
           printTime('Extracting webapp...');
-          await extractWebAppZip(webappDir, response.bodyBytes);
+          await extractWebAppZip(webappDir, response.data);
           await setWebAppVersion(webappVersionServer);
           printTime('webapp downloaded');
         }

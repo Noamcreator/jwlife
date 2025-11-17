@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:jwlife/core/utils/utils_document.dart';
-import 'package:jwlife/data/models/userdata/inputField.dart';
 import 'package:jwlife/features/home/pages/search/search_model.dart';
 import 'package:jwlife/features/personal/widgets/input_field_item_widget.dart';
 
-import '../../../../app/services/settings_service.dart';
+import '../../../../data/models/userdata/input_field.dart';
 
 class InputFieldsSearchTab extends StatefulWidget {
   final SearchModel model; // type générique, ton model avec fetchInputFields()

@@ -6,6 +6,7 @@ import 'package:jwlife/data/realm/catalog.dart';
 import 'package:jwlife/features/library/pages/videos/videos_items_page.dart';
 import 'package:jwlife/widgets/image_cached_widget.dart';
 
+import '../../../../app/services/settings_service.dart';
 import '../../../../core/icons.dart';
 import '../../widgets/responsive_categories_wrap_layout.dart';
 
@@ -16,22 +17,42 @@ class VideosCategoriesPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 1. Mapper les données en Widgets.
+    final TextDirection direction = JwLifeSettings().currentLanguage.isRtl ? TextDirection.rtl : TextDirection.ltr;
+
     final List<Widget> categoryWidgets = categories.subcategories.map((category) {
-      return _buildCategoryButton(category);
+      return _buildCategoryButton(category, direction);
     }).toList();
 
-    // 2. Utiliser le layout générique pour disposer ces Widgets.
     return ResponsiveCategoriesWrapLayout(
+      textDirection: direction,
       children: categoryWidgets,
     );
   }
 
-  // NOTE : itemWidth n'est plus un paramètre !
-  Widget _buildCategoryButton(Category category) {
+  /// Construit un bouton de catégorie avec un support RTL complet,
+  /// prenant en paramètre la direction ambiante.
+  Widget _buildCategoryButton(Category category, TextDirection direction) {
+    final bool isRtl = direction == TextDirection.rtl;
+
     // Calcul du point de transition selon la longueur du texte
     int textLength = category.localizedName!.length - 8;
     double transitionPoint = (textLength / 19).clamp(0.38, 0.5);
+
+    // L'ordre des stops du dégradé doit être inversé pour le mode RTL :
+    // [0.0] doit toujours correspondre au côté où commence le texte (start).
+    final List<double> stops = isRtl
+        ? [
+      0.0, // Côté image (end)
+      transitionPoint,
+      transitionPoint + 0.3,
+      1.0  // Côté texte (start)
+    ]
+        : [
+      0.0, // Côté texte (start)
+      transitionPoint,
+      transitionPoint + 0.3,
+      1.0  // Côté image (end)
+    ];
 
     return InkWell(
       onTap: () {
@@ -39,9 +60,11 @@ class VideosCategoriesPage extends StatelessWidget {
       },
       child: Stack(
         children: [
-          // Image positionnée à droite
-          Positioned(
-            right: 0,
+          // 1. Image positionnée de manière directionnelle à 'end'
+          // (Droite en LTR, Gauche en RTL)
+          Positioned.directional(
+            textDirection: direction,
+            end: 0,
             top: 0,
             bottom: 0,
             child: ImageCachedWidget(
@@ -51,36 +74,35 @@ class VideosCategoriesPage extends StatelessWidget {
               fit: BoxFit.fill,
             ),
           ),
-          // Dégradé
+
+          // 2. Dégradé directionnel
           Positioned.fill(
             child: Container(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  begin: Alignment.centerLeft,
-                  end: Alignment.centerRight,
+                  // Commence à 'start' et finit à 'end'
+                  begin: AlignmentDirectional.centerStart,
+                  end: AlignmentDirectional.centerEnd,
                   colors: [
                     Colors.black.withOpacity(1.0),
                     Colors.black.withOpacity(1.0),
                     Colors.transparent,
                     Colors.transparent,
                   ],
-                  stops: [
-                    0.0,
-                    transitionPoint,
-                    transitionPoint + 0.3,
-                    1.0
-                  ],
+                  // Utilise les stops ajustés pour RTL/LTR
+                  stops: stops,
                 ),
               ),
             ),
           ),
-          // Titre positionné à gauche
+
+          // 3. Titre positionné et aligné à 'start'
+          // (Gauche en LTR, Droite en RTL)
           Positioned.fill(
             child: Align(
-              alignment: Alignment.centerLeft,
+              // S'aligne du côté de début du texte
+              alignment: AlignmentDirectional.centerStart,
               child: Padding(
-                // Utilisez un Padding pour créer l'espace à droite,
-                // remplaçant le calcul de width: itemWidth * 0.7
                 padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 6.0),
                 child: Text(
                   category.localizedName!,

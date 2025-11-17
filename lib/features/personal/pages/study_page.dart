@@ -1,20 +1,18 @@
 import 'dart:io';
 
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
-import 'package:jwlife/core/utils/utils_document.dart';
+import 'package:jwlife/core/utils/utils_playlist.dart';
 import 'package:jwlife/data/models/userdata/note.dart';
 import 'package:jwlife/features/personal/pages/playlist_page.dart';
 import 'package:jwlife/features/personal/pages/playlists_page.dart';
 
-import 'package:path/path.dart' as path;
-import '../../../app/services/global_key_service.dart';
-import '../../../core/utils/utils_pub.dart';
+
 import '../../../core/utils/utils_tag_dialogs.dart';
 import '../../../data/models/userdata/playlist.dart';
+import '../../../i18n/i18n.dart';
 import '../widgets/empty_message.dart';
 import 'note_page.dart';
 import 'notes_categories_page.dart';
@@ -85,7 +83,7 @@ class StudyTabViewState extends State<StudyTabView> {
             child: Row(
               children: [
                 Text(
-                  'Ma lecture de la Bible',
+                  i18n().navigation_bible_reading,
                   style: TextStyle(
                     color: Theme.of(context).primaryColor,
                     fontSize: 20,
@@ -135,7 +133,7 @@ class StudyTabViewState extends State<StudyTabView> {
             child: Row(
               children: [
                 Text(
-                  'Notes et Catégories',
+                  i18n().navigation_notes_and_tag,
                   style: TextStyle(
                     color: Theme.of(context).primaryColor,
                     fontSize: 20,
@@ -199,7 +197,7 @@ class StudyTabViewState extends State<StudyTabView> {
             child: Row(
               children: [
                 Text(
-                  'Listes de lecture',
+                  i18n().navigation_playlists,
                   style: TextStyle(
                     color: Theme.of(context).primaryColor,
                     fontSize: 20,
@@ -223,56 +221,16 @@ class StudyTabViewState extends State<StudyTabView> {
             ),
             itemBuilder: (ctx) => [
               PopupMenuItem<void>(
-                child: const Text('Créer une liste de lecture'),
+                child: Text(i18n().action_create_a_playlist),
                 onTap: () async {
                   await showAddTagDialog(context, true);
                   initPlaylist();
                 },
               ),
               PopupMenuItem<void>(
-                child: const Text('Importer une liste de lecture'),
+                child: Text(i18n().action_import_playlist),
                 onTap: () async {
-                  await Future.delayed(Duration.zero); // idem
-                  final result = await FilePicker.platform.pickFiles(
-                    type: FileType.any
-                  );
-                  if (result != null && result.files.isNotEmpty) {
-                    final filePath = result.files.single.path;
-                    if (filePath != null) {
-                      String fileName = path.basename(filePath);
-                      try {
-                        if (!showInvalidExtensionDialog(context, filePath: filePath, expectedExtension: '.jwlplaylist')) return;
-
-                        // Affiche le dialogue d'importation et attend son BuildContext.
-                        BuildContext? dialogContext = await showJwImport(context, fileName);
-
-                        Playlist? playlist = await JwLifeApp.userdata.importPlaylistFromFile(File(filePath));
-
-                        // Ferme le dialogue de chargement une fois l'importation terminée.
-                        if (dialogContext != null) {
-                          Navigator.of(dialogContext).pop();
-                        }
-
-                        // Gère le résultat de l'importation.
-                        if (playlist == null) {
-                          showImportFileError(context, '.jwplaylist');
-                        }
-                        else {
-                          // on refresh les playlist
-                          GlobalKeyService.personalKey.currentState?.openPlaylist(playlist);
-
-                          if (context.mounted) {
-                            showBottomMessage('Import de la liste de lecture réussi.');
-                          }
-                        }
-                      }
-                      catch (e) {
-                        if (context.mounted) {
-                          showBottomMessage('Échec de l’import de la liste de lecture : $e');
-                        }
-                      }
-                    }
-                  }
+                  await importPlaylist(context);
                 },
               ),
             ],
@@ -289,9 +247,10 @@ class StudyTabViewState extends State<StudyTabView> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Header Lecture de la Bible
-          buildSectionHeaderBibleReading(),
+          //buildSectionHeaderBibleReading(),
 
           // Lecture de la bible
+          /*
           Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: InkWell(
@@ -334,21 +293,15 @@ class StudyTabViewState extends State<StudyTabView> {
               )
           ),
 
+           */
+
           // Header Notes et Catégories
           buildSectionHeaderNotesTags(context),
 
           // Section Tags
-          JwLifeApp.userdata.tags.isEmpty
-              ? buildEmptyMessage(
-            JwIcons.tag,
-            'Créez des catégories pour classer vos publications et vos notes.',
-          )
+          JwLifeApp.userdata.tags.isEmpty ? buildEmptyMessage(JwIcons.tag, i18n().message_whatsnew_create_tags)
               : // Section Tags
-          JwLifeApp.userdata.tags.isEmpty
-              ? buildEmptyMessage(
-            JwIcons.tag,
-            'Créez des catégories pour classer vos publications et vos notes.',
-          )
+          JwLifeApp.userdata.tags.isEmpty ? buildEmptyMessage(JwIcons.tag, i18n().message_whatsnew_create_tags)
               : Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: LayoutBuilder(
@@ -433,7 +386,7 @@ class StudyTabViewState extends State<StudyTabView> {
           // Section Notes
           notes.isEmpty ? buildEmptyMessage(
             JwIcons.note_plus,
-            'Vos notes apparaîtront ici.',
+            i18n().message_no_notes,
           )
               : Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -501,7 +454,7 @@ class StudyTabViewState extends State<StudyTabView> {
           // Section Notes
           playlists.isEmpty ? buildEmptyMessage(
             JwIcons.plus,
-            'Aucune liste de lecture disponible.',
+            i18n().message_no_playlists,
           ) : Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: ListView.builder(
@@ -604,7 +557,7 @@ class StudyTabViewState extends State<StudyTabView> {
                                         children: [
                                           Icon(JwIcons.pencil),
                                           SizedBox(width: 8),
-                                          Text('Renommer'),
+                                          Text(i18n().action_rename),
                                         ],
                                       ),
                                       onTap: () async {
@@ -617,7 +570,7 @@ class StudyTabViewState extends State<StudyTabView> {
                                         children: [
                                           Icon(JwIcons.trash),
                                           SizedBox(width: 8),
-                                          Text('Supprimer'),
+                                          Text(i18n().action_delete),
                                         ],
                                       ),
                                       onTap: () async {
@@ -630,7 +583,7 @@ class StudyTabViewState extends State<StudyTabView> {
                                         children: [
                                           Icon(JwIcons.share),
                                           SizedBox(width: 8),
-                                          Text('Partager'),
+                                          Text(i18n().action_share),
                                         ],
                                       ),
                                       onTap: () {

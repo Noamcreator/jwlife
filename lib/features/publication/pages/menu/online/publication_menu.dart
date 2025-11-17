@@ -6,6 +6,7 @@ import 'package:jwlife/data/models/publication.dart';
 import '../../../../../core/api/api.dart';
 import '../../../../../core/utils/utils.dart';
 import '../../../../../core/utils/utils_pub.dart';
+import '../../../../../i18n/i18n.dart';
 
 class PublicationMenu extends StatefulWidget {
   final Publication publication;
@@ -66,7 +67,7 @@ class _PublicationMenuState extends State<PublicationMenu> with SingleTickerProv
     // Lancer le chargement HTML en parallèle
     Api.httpGetWithHeaders(wolLink).then((response) {
       if (response.statusCode == 200) {
-        _extractHtmlContent(response.body);
+        _extractHtmlContent(response.data);
       } else {
         throw Exception('Failed to load publication content');
       }
@@ -91,7 +92,7 @@ class _PublicationMenuState extends State<PublicationMenu> with SingleTickerProv
   Future<void> _fetchHtml() async {
     final response = await Api.httpGetWithHeaders(wolLink);
     if (response.statusCode == 200) {
-      _extractHtmlContent(response.body);
+      _extractHtmlContent(response.data);
     } else {
       throw Exception('Failed to load publication content');
     }
@@ -143,7 +144,7 @@ class _PublicationMenuState extends State<PublicationMenu> with SingleTickerProv
     try {
       final response = await Api.httpGetWithHeaders(tabLink);
       if (response.statusCode == 200) {
-        _extractTabHtml(response.body, tabIndex);
+        _extractTabHtml(response.data, tabIndex);
       } else {
         throw Exception('Failed to load tab content');
       }
@@ -305,7 +306,7 @@ class _PublicationMenuState extends State<PublicationMenu> with SingleTickerProv
             onPressed: () {},
           ),
           IconButton(
-            icon: const Icon(Icons.more_vert),
+            icon: const Icon(Icons.more_horiz),
             onPressed: () {},
           ),
         ],
@@ -550,7 +551,7 @@ class _PublicationMenuState extends State<PublicationMenu> with SingleTickerProv
                         icon: Icon(Icons.more_vert),
                         itemBuilder: (context) => [
                           PopupMenuItem(
-                            child: Text('Envoyer le lien'),
+                            child: Text(i18n().action_open_in_share),
                             onTap: () {
                               // Action à effectuer pour l'option 1
                             },

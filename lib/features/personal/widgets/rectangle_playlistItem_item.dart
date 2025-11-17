@@ -6,16 +6,17 @@ import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/core/utils/utils_audio.dart';
 import 'package:jwlife/core/utils/utils_video.dart'; // Ajout de l'import manquant
 import 'package:jwlife/data/models/media.dart';
-import 'package:jwlife/data/models/userdata/independentMedia.dart';
-import 'package:jwlife/data/models/userdata/playlistItem.dart';
 import 'package:jwlife/core/utils/utils_dialog.dart';
 
 import '../../../core/icons.dart';
 import '../../../core/utils/utils_playlist.dart';
 import '../../../data/models/audio.dart';
+import '../../../data/models/userdata/independent_media.dart';
 import '../../../data/models/userdata/location.dart';
+import '../../../data/models/userdata/playlist_item.dart';
 import '../../../data/models/video.dart';
 import '../../../data/repositories/MediaRepository.dart';
+import '../../../i18n/i18n.dart';
 import '../pages/playlist_player.dart';
 
 // 1. Convertir en StatefulWidget
@@ -41,40 +42,40 @@ class _RectanglePlaylistItemItemState extends State<RectanglePlaylistItemItem> {
       PopupMenuItem(
         value: 0,
         child: Row(
-          children: const [
-            Icon(JwIcons.play),
-            SizedBox(width: 8),
-            Text('Continuer'),
+          children: [
+            const Icon(JwIcons.play),
+            const SizedBox(width: 8),
+            Text(i18n().action_playlist_end_continue),
           ],
         ),
       ),
       PopupMenuItem(
         value: 1,
         child: Row(
-          children: const [
-            Icon(Icons.square_outlined),
-            SizedBox(width: 8),
-            Text('Arrêter'),
+          children: [
+            const Icon(Icons.square_outlined),
+            const SizedBox(width: 8),
+            Text(i18n().action_playlist_end_stop),
           ],
         ),
       ),
       PopupMenuItem(
         value: 2,
         child: Row(
-          children: const [
-            Icon(JwIcons.pause),
-            SizedBox(width: 8),
-            Text('Mettre en pause'),
+          children: [
+            const Icon(JwIcons.pause),
+            const SizedBox(width: 8),
+            Text(i18n().action_playlist_end_freeze),
           ],
         ),
       ),
       PopupMenuItem(
         value: 3,
         child: Row(
-          children: const [
-            Icon(JwIcons.arrows_loop),
-            SizedBox(width: 8),
-            Text('Répéter'),
+          children: [
+            const Icon(JwIcons.arrows_loop),
+            const SizedBox(width: 8),
+            Text(i18n().label_repeat),
           ],
         ),
       ),
@@ -89,23 +90,23 @@ class _RectanglePlaylistItemItemState extends State<RectanglePlaylistItemItem> {
     // Utiliser widget.item pour accéder à la propriété 'item'
     switch (widget.item.endAction) {
       case 0:
-        label = 'Continuer';
+        label = i18n().action_playlist_end_continue;
         icon = JwIcons.play;
         break;
       case 1:
-        label = 'Arrêter';
+        label = i18n().action_playlist_end_stop;
         icon = Icons.square_outlined;
         break;
       case 2:
-        label = 'Mettre en pause';
+        label = i18n().action_playlist_end_freeze;
         icon = JwIcons.pause;
         break;
       case 3:
-        label = 'Répéter';
+        label = i18n().label_repeat;
         icon = JwIcons.arrows_loop;
         break;
       default:
-        label = 'Continuer';
+        label = i18n().action_playlist_end_continue;
         icon = JwIcons.play;
         break;
     }
@@ -256,16 +257,16 @@ class _RectanglePlaylistItemItemState extends State<RectanglePlaylistItemItem> {
                         final items = <PopupMenuEntry>[
                           PopupMenuItem(
                             child: Row(
-                              children: const [
-                                Icon(JwIcons.pencil),
-                                SizedBox(width: 8),
-                                Text('Renommer'),
+                              children: [
+                                const Icon(JwIcons.pencil),
+                                const SizedBox(width: 8),
+                                Text(i18n().action_rename),
                               ],
                             ),
                             onTap: () async {
                               TextEditingController controller = TextEditingController(text: widget.item.label);
                               showJwDialog(context: context,
-                                titleText: 'Renommer',
+                                titleText: i18n().action_rename,
                                 content: Padding(
                                     padding: const EdgeInsets.symmetric(horizontal: 25),
                                     child: TextField(
@@ -273,8 +274,8 @@ class _RectanglePlaylistItemItemState extends State<RectanglePlaylistItemItem> {
                                     ),
                                 ),
                                 buttons: [
-                                  JwDialogButton(label: 'ANNULER', closeDialog: true),
-                                  JwDialogButton(label: 'RENOMMER', closeDialog: false, onPressed: (buildContext) {
+                                  JwDialogButton(label: i18n().action_cancel_uppercase, closeDialog: true),
+                                  JwDialogButton(label: i18n().action_rename_uppercase, closeDialog: false, onPressed: (buildContext) {
                                     Navigator.of(buildContext).pop();
                                     setState(() {
                                       widget.item.label = controller.text;
@@ -287,10 +288,10 @@ class _RectanglePlaylistItemItemState extends State<RectanglePlaylistItemItem> {
                           ),
                           PopupMenuItem(
                             child: Row(
-                              children: const [
-                                Icon(JwIcons.trash),
-                                SizedBox(width: 8),
-                                Text('Supprimer'),
+                              children: [
+                                const Icon(JwIcons.trash),
+                                const SizedBox(width: 8),
+                                Text(i18n().action_delete),
                               ],
                             ),
                             onTap: () async {
@@ -307,7 +308,7 @@ class _RectanglePlaylistItemItemState extends State<RectanglePlaylistItemItem> {
                                   children: [
                                     Icon(JwIcons.list_plus),
                                     SizedBox(width: 8),
-                                    Text('Ajouter à la liste de lecture'),
+                                    Text(i18n().action_add_to_playlist),
                                   ],
                                 ),
                                 onTap: () {

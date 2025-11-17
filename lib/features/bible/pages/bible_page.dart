@@ -3,7 +3,7 @@ import 'package:jwlife/core/shared_preferences/shared_preferences_utils.dart';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/repositories/PublicationRepository.dart';
 import 'package:jwlife/features/library/widgets/rectangle_publication_item.dart';
-import 'package:jwlife/i18n/localization.dart';
+import 'package:jwlife/i18n/i18n.dart';
 
 import '../../../app/services/settings_service.dart';
 import '../../../core/utils/utils_language_dialog.dart';
@@ -56,7 +56,7 @@ class BiblePageState extends State<BiblePage> {
       return Scaffold(
         resizeToAvoidBottomInset: false,
         appBar: AppBar(
-            title: Text(localization(context).navigation_bible, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            title: Text(i18n().navigation_bible, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
         ),
         body: Center(
           child: Padding(
@@ -83,7 +83,7 @@ class BiblePageState extends State<BiblePage> {
                   }
                 });
               },
-              child: const Text('Télécharger une Bible'),
+              child: Text(i18n().action_download_bible),
             ),
           ),
         ),

@@ -10,6 +10,7 @@ import 'package:share_plus/share_plus.dart';
 
 import '../../../../../core/api/api.dart';
 import '../../../../../core/utils/utils.dart';
+import '../../../../../i18n/i18n.dart';
 import 'publication_media_items_view.dart';
 import 'publication_svg_view.dart';
 
@@ -56,7 +57,7 @@ class _PagesDocumentViewState extends State<PagesDocumentView> {
       final response = await Api.httpGetWithHeaders('https://wol.jw.org/$newPath');
       if (response.statusCode == 200) {
 
-        final json = jsonDecode(response.body);
+        final json = jsonDecode(response.data);
 
         setState(() {
           _title = html_parser.parse(json['title']).documentElement?.text ?? '';
@@ -303,7 +304,7 @@ class _PagesDocumentViewState extends State<PagesDocumentView> {
                   },
                 ),
                 PopupMenuItem<String>(
-                  child: Text('Envoyer le lien'),
+                  child: Text(i18n().action_open_in_share),
                   onTap: () {
                     int docId = widget.navCards[_currentIndex]['docId']!;
                     Uri uri = Uri.parse('https://www.jw.org/finder?srcid=jwlshare&wtlocale=${widget.publication['LanguageSymbol']}&prefer=lang&docid=$docId');

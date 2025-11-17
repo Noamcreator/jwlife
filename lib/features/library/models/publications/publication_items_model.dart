@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:jwlife/data/models/meps_language.dart';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/models/publication_category.dart';
 import 'package:jwlife/data/models/publication_attribute.dart';
@@ -9,11 +10,10 @@ import 'package:diacritic/diacritic.dart';
 
 class PublicationsItemsViewModel with ChangeNotifier {
   // --- État ---
-  String _language = '';
+  MepsLanguage _mepsLanguage = JwLifeSettings().currentLanguage;
   String _selectedLanguageSymbol = '';
-  // Liste complète des publications, telle que chargée depuis la base de données
+  // *** MODIFICATION DE LA STRUCTURE DE LA MAP : Clé simple (PublicationAttribute) ***
   Map<PublicationAttribute, List<Publication>> _publications = {};
-  // La carte des publications par attribut est utilisée pour l'affichage filtré
   Map<PublicationAttribute, List<Publication>> _filteredPublications = {};
   bool _isSearching = false;
   bool _isLoading = true;
@@ -31,8 +31,9 @@ class PublicationsItemsViewModel with ChangeNotifier {
   PublicationsItemsViewModel({required this.category, this.year});
 
   // --- Getters publics ---
-  String get language => _language;
+  MepsLanguage get mepsLanguage => _mepsLanguage;
   String get selectedLanguageSymbol => _selectedLanguageSymbol;
+  // *** MODIFICATION DU GETTER ***
   Map<PublicationAttribute, List<Publication>> get filteredPublications => _filteredPublications;
   bool get isSearching => _isSearching;
   bool get isLoading => _isLoading;
@@ -48,33 +49,73 @@ class PublicationsItemsViewModel with ChangeNotifier {
   // --- LOGIQUE DE DONNÉES ---
 
   Future<void> loadItems({Map<String, dynamic>? mepsLanguage}) async {
-    Map<PublicationAttribute, List<Publication>> publications;
+    // *** MODIFICATION : Map locale utilise la clé simple ***
+    Map<PublicationAttribute, List<Publication>> publications = {};
 
     int mepsLanguageId = mepsLanguage?['LanguageId'] ?? JwLifeSettings().currentLanguage.id;
     _selectedLanguageSymbol = mepsLanguage?['Symbol'] ?? JwLifeSettings().currentLanguage.symbol;
 
+    // Charger les publications existantes (la sortie de PubCatalog devra être ajustée côté Base de données)
+    Map<List<PublicationAttribute>, List<Publication>> rawPublications = {};
+
     if (year != null) {
-      publications = await PubCatalog.getPublicationsFromCategory(
+      rawPublications = await PubCatalog.getPublicationsFromCategory(
           category.id,
           year: year,
           mepsLanguageId: mepsLanguageId
       );
     }
     else {
-      publications = await PubCatalog.getPublicationsFromCategory(
+      rawPublications = await PubCatalog.getPublicationsFromCategory(
           category.id,
           mepsLanguageId: mepsLanguageId
       );
     }
 
+    // Regrouper les publications brutes par leur premier attribut
+    rawPublications.values.expand((list) => list).forEach((pub) {
+      if (pub.attributes.isNotEmpty) {
+        PublicationAttribute attribute = pub.attributes.first;
+        // Vérifie s'il y a plus d'un attribut (optionnel)
+        if (pub.attributes.length > 1) {
+          // Vérifie si la liste contient l'attribut avec ID 3 ET l'attribut avec ID 9
+          final bool hasAttribute3 = pub.attributes.any((attr) => attr.id == 3);
+          final bool hasAttribute9 = pub.attributes.any((attr) => attr.id == 9);
+
+          // Si les deux attributs spéciaux sont présents
+          if (hasAttribute3 && hasAttribute9) {
+            attribute = PublicationAttribute.all.firstWhere((attr) => attr.id == 58);
+          }
+        }
+
+        publications.putIfAbsent(attribute, () => []).add(pub);
+      }
+    });
+
     // Ajout des publications téléchargées
     for (var pub in PublicationRepository().getAllDownloadedPublications()) {
       if (pub.category.id == category.id && pub.mepsLanguage.id == mepsLanguageId && (year == null || pub.year == year) && !publications.values.expand((list) => list).any((p) => p.keySymbol == pub.keySymbol && p.issueTagNumber == pub.issueTagNumber)) {
-        publications.putIfAbsent(pub.attribute, () => []).add(pub);
+
+        PublicationAttribute attribute = pub.attributes.first;
+        // Vérifie s'il y a plus d'un attribut (optionnel)
+        if (pub.attributes.length > 1) {
+          // Vérifie si la liste contient l'attribut avec ID 3 ET l'attribut avec ID 9
+          final bool hasAttribute3 = pub.attributes.any((attr) => attr.id == 3);
+          final bool hasAttribute9 = pub.attributes.any((attr) => attr.id == 9);
+
+          // Si les deux attributs spéciaux sont présents
+          if (hasAttribute3 && hasAttribute9) {
+            attribute = PublicationAttribute.all.firstWhere((attr) => attr.id == 58);
+          }
+        }
+
+        if (pub.attributes.isNotEmpty) {
+          publications.putIfAbsent(attribute, () => []).add(pub);
+        }
       }
     }
 
-    // Tri des attributs
+    // Tri des attributs (clés) pour un ordre de section stable
     var sortedEntries = publications.keys.toList()..sort((a, b) => a.id.compareTo(b.id));
     _publications = Map.fromEntries(sortedEntries.map((key) => MapEntry(key, publications[key]!)));
 
@@ -84,7 +125,7 @@ class PublicationsItemsViewModel with ChangeNotifier {
     // Applique le tri par défaut/actuel après le chargement
     _applySorting(_filteredPublications);
 
-    _language = mepsLanguage?['VernacularName'] ?? JwLifeSettings().currentLanguage.vernacular;
+    _mepsLanguage = _publications.values.first.first.mepsLanguage;
 
     _isLoading = false;
     notifyListeners(); // Rafraîchit l'interface
@@ -98,7 +139,8 @@ class PublicationsItemsViewModel with ChangeNotifier {
       // Normalisation de la requête pour la recherche (sans diacritiques et minuscule)
       final normalizedQuery = removeDiacritics(query).toLowerCase();
 
-      _filteredPublications = {}; // Réinitialise la carte filtrée
+      // *** MODIFICATION : La carte filtrée utilise la clé simple ***
+      _filteredPublications = {};
       _publications.forEach((attribute, publicationList) {
         final filteredList = publicationList.where((pub) {
           // Normalisation du titre et du symbole pour la comparaison
@@ -109,6 +151,7 @@ class PublicationsItemsViewModel with ChangeNotifier {
         }).toList();
 
         if (filteredList.isNotEmpty) {
+          // *** MODIFICATION : La clé est l'attribut simple ***
           _filteredPublications[attribute] = filteredList;
         }
       });
@@ -125,20 +168,23 @@ class PublicationsItemsViewModel with ChangeNotifier {
       return;
     }
 
-    // --- Logique de restauration de la structure après un tri 'year' ---
-    // Vérifie si la carte est actuellement "aplatie" (tri par année)
+    // --- Logique de restauration de la structure après un tri 'year' ou 'symbol' ---
+    // Les tris 'year' et 'symbol' utilisent l'attribut générique, ce qui aplatit la liste
     bool wasFlattened = _filteredPublications.length == 1 && _filteredPublications.containsKey(genericAttribute);
 
-    // Si on change pour un critère qui n'est pas 'year' ET que la liste était aplatie
-    if (newCriterion != 'year' && wasFlattened) {
+    // Si on change pour un critère qui n'est ni 'year' ni 'symbol' ET que la liste était aplatie
+    if (newCriterion != 'year' && newCriterion != 'symbol' && wasFlattened) {
       final List<Publication> flattenedList = _filteredPublications[genericAttribute]!;
 
-      // Restaurer la structure de _filteredPublications en fonction des attributs
+      // Restaurer la structure de _filteredPublications en fonction de l'attribut PRINCIPAL
       _filteredPublications = {};
 
       // Reconstruction des groupes d'attributs pour les publications actuellement affichées
       for (var pub in flattenedList) {
-        _filteredPublications.putIfAbsent(pub.attribute, () => []).add(pub);
+        // *** MODIFICATION : Utilise l'attribut PRINCIPAL (pub.attributes.first) pour le nouveau regroupement ***
+        if (pub.attributes.isNotEmpty) {
+          _filteredPublications.putIfAbsent(pub.attributes.first, () => []).add(pub);
+        }
       }
     }
     // -----------------------------------------------------------------
@@ -149,6 +195,7 @@ class PublicationsItemsViewModel with ChangeNotifier {
   }
 
   /// Logique de tri générique appliquée après le chargement, le filtrage ou le changement de critère.
+  // *** MODIFICATION : mapToSort a maintenant PublicationAttribute comme clé ***
   void _applySorting(Map<PublicationAttribute, List<Publication>> mapToSort) {
     String field = '';
     String order = ''; // 'asc' ou 'desc'
@@ -158,14 +205,12 @@ class PublicationsItemsViewModel with ChangeNotifier {
       field = parts[0];
       order = parts[1];
     } else {
-      // Cas de critère non-standard (ex: tri interne par défaut 'issueTagNumber')
       field = _currentSortCriterion;
-      order = 'asc'; // Ordre par défaut si non spécifié
+      order = 'asc';
     }
 
-    // --- 2. Tri par Année (Logique de Fusion) ---
+    // --- 1. Tri par Année (Logique de Fusion) ---
     if (field == 'year') {
-      // ... (Le code de tri par année est correct)
       List<Publication> allPublications = mapToSort.values.expand((list) => list).toList();
       bool isIssueTagNumber = allPublications.every((pub) => pub.issueTagNumber != 0);
 
@@ -177,14 +222,19 @@ class PublicationsItemsViewModel with ChangeNotifier {
         else {
           comparison = a.year.compareTo(b.year);
         }
-        // Logique correcte : Inverser si 'desc', garder si 'asc'
-        return isIssueTagNumber ? ((order == 'desc') ? comparison : -comparison) : (order == 'desc') ? -comparison : comparison;
+
+        if (isIssueTagNumber) {
+          return (order == 'desc') ? b.issueTagNumber.compareTo(a.issueTagNumber) : a.issueTagNumber.compareTo(b.issueTagNumber);
+        }
+        return (order == 'desc') ? b.year.compareTo(a.year) : a.year.compareTo(b.year);
       });
+
       mapToSort.clear();
       mapToSort[genericAttribute] = allPublications;
       return;
     }
 
+    // --- 2. Tri par Symbole (Logique de Fusion) ---
     if(field == 'symbol') {
       List<Publication> allPublications = mapToSort.values.expand((list) => list).toList();
 
@@ -192,60 +242,62 @@ class PublicationsItemsViewModel with ChangeNotifier {
         final comparison = a.keySymbol.compareTo(b.keySymbol);
         return order == 'desc' ? -comparison : comparison;
       });
+
       mapToSort.clear();
       mapToSort[genericAttribute] = allPublications;
       return;
     }
 
-    // --- 3. Tri par Attribut / Tri par défaut ---
+    // --- 3. Tri par Attribut / Tri par défaut (Titre) ---
 
-    // ... (Le bloc de tri 'issueTagNumber' reste inchangé)
-    if (category.hasYears) {
-      mapToSort.forEach((attribute, publicationsFromAttribute) {
-        publicationsFromAttribute.sort((a, b) => a.issueTagNumber.compareTo(b.issueTagNumber));
-      });
-      return;
-    }
-
-    // Tri par Attribut (Titre, Symbole, Année interne)
+    // A. Tri interne des publications
     mapToSort.forEach((attribute, publicationsFromAttribute) {
+      if (category.hasYears) {
+        publicationsFromAttribute.sort((a, b) => b.issueTagNumber.compareTo(a.issueTagNumber));
+        return;
+      }
+
+      // 'attribute' est maintenant l'attribut clé simple, on vérifie son ordre
       bool shouldSortByYearInternal = attribute.id != -1 && attribute.order == 1;
 
       publicationsFromAttribute.sort((a, b) {
         if (shouldSortByYearInternal) {
-          // Tri primaire : Année (descendant)
           final int primaryComparison = b.year.compareTo(a.year);
 
-          // Tri secondaire : issueTagNumber (descendant) si les années sont égales
           if (primaryComparison == 0) {
-            return a.issueTagNumber.compareTo(b.issueTagNumber);
+            return b.issueTagNumber.compareTo(a.issueTagNumber);
           }
-
-          // Retourner le résultat du tri primaire si les années sont différentes
           return primaryComparison;
         }
 
-        // --- Logique de Tri par Critère Utilisateur ---
-
-        final int comparison;
-
-        // Tri par défaut (Titre)
+        // --- Logique de Tri par Critère Utilisateur (Titre) ---
         String titleA = removeDiacritics(a.title).toLowerCase();
         String titleB = removeDiacritics(b.title).toLowerCase();
 
         bool isSpecialA = RegExp(r'^[^a-zA-Z]').hasMatch(titleA);
         bool isSpecialB = RegExp(r'^[^a-zA-Z]').hasMatch(titleB);
 
-        // Comparaison finale
-        comparison = isSpecialA == isSpecialB
+        final int comparison = isSpecialA == isSpecialB
             ? titleA.compareTo(titleB)
             : (isSpecialA ? -1 : 1);
 
-        // 🎯 CORRECTION: Appliquer l'ordre (ascendant ou descendant) en se basant uniquement sur 'order'
-        return (order == 'asc')
-            ? comparison
-            : -comparison;
+        return (order == 'asc') ? comparison : -comparison;
       });
     });
+
+    // B. Tri des groupes d'attributs (pour garantir l'ordre des sections)
+    if (field == 'title') {
+      // Nous trions les clés (PublicationAttribute) par leur ID pour un ordre stable des sections
+      final List<PublicationAttribute> sortedKeys = mapToSort.keys.toList()
+        ..sort((a, b) => a.id.compareTo(b.id));
+
+      // Reconstruit la map triée
+      final Map<PublicationAttribute, List<Publication>> newMap = {};
+      for (var key in sortedKeys) {
+        newMap[key] = mapToSort[key]!;
+      }
+      mapToSort.clear();
+      mapToSort.addAll(newMap);
+    }
   }
 }

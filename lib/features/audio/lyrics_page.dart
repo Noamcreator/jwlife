@@ -1,8 +1,10 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:html/parser.dart';
 
+import '../../app/services/settings_service.dart';
 import '../../core/api/api.dart';
 import '../../core/icons.dart';
 import '../../core/utils/utils.dart';
@@ -33,7 +35,7 @@ class _LyricsPageState extends State<LyricsPage> {
     final response = await Api.httpGetWithHeaders(apiVideoUrl);
     if (response.statusCode == 200) {
       // Parse le contenu HTML
-      var document = parse(response.body);
+      var document = parse(response.data);
 
       // Sélectionne tous les éléments <ol class="source">
       var elements = document.querySelectorAll('ol.source');
@@ -41,32 +43,38 @@ class _LyricsPageState extends State<LyricsPage> {
       // Concatène le HTML de chaque élément trouvé
       String htmlContent = elements.map((e) => e.outerHtml).join('\n');
 
-      final theme = Theme.of(context).brightness == Brightness.dark
-          ? 'cc-theme--dark'
-          : 'cc-theme--light';
-      final backgroundColor =
-      Theme.of(context).brightness == Brightness.dark ? '#111111' : '#ffffff';
+      final theme = Theme.of(context).brightness == Brightness.dark ? 'cc-theme--dark' : 'cc-theme--light';
 
       setState(() {
         _htmlContent = '''
-      <!DOCTYPE html>
-      <html style="overflow-x: hidden;">
-      <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="initial-scale=1.0, user-scalable=no, maximum-scale=1.0, minimum-scale=1.0">
-      </head>
-      <body>
-      <style> 
-      body {
-         font-size: 24px;
-         background-color: $backgroundColor;
-      }
-      </style>
-      <div class="jwac layout-reading layout-sidebar $theme">
-      $htmlContent
-       </div>
-      </body>
-      </html>
+        <!DOCTYPE html>
+        <html style="overflow-x: hidden; height: 100%;">
+          <head>
+            <meta content="text/html" charset="UTF-8">
+            <meta name="viewport" content="initial-scale=1.0, user-scalable=no">
+            <link rel="stylesheet" href="jw-styles.css" />
+          </head>
+          <meta charset="utf-8">
+          <style> 
+            body {
+              font-size: ${JwLifeSettings().webViewData.fontSize}px;
+              overflow-y: scroll;
+            }
+            body.cc-theme--dark {
+              background-color: #121212;
+              color: #e0e0e0;
+            }
+            body.cc-theme--light {
+              background-color: #ffffff;
+              color: #1a1a1a;
+            }
+          </style>
+          <body class="${JwLifeSettings().webViewData.theme}">
+            <article id="article" class="jwac docClass-31 ms-ROMAN ml-F dir-ltr layout-reading layout-sidebar">
+              $htmlContent
+            </article>
+          </body>
+        </html>
       ''';
       });
 
@@ -138,7 +146,7 @@ class _LyricsPageState extends State<LyricsPage> {
         ],
       ),
       body: InAppWebView(
-        initialData: InAppWebViewInitialData(data: ''),
+        initialData: InAppWebViewInitialData(data: '', baseUrl: WebUri('file://${JwLifeSettings().webViewData.webappPath}/')),
         onWebViewCreated: (controller) {
           _controller = controller;
         },

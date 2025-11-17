@@ -15,22 +15,20 @@ class PredicationPageState extends State<PredicationPage> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final titleStyle = theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold);
-    final subtitleStyle = theme.textTheme.bodySmall?.copyWith(color: Colors.grey);
+    // 2. Utiliser le nouveau thème
+    final titleStyle = Theme.of(context).textTheme.titleMedium;
 
     return Scaffold(
       resizeToAvoidBottomInset: false,
       appBar: AppBar(
         title: const Text('Prédication'),
-        centerTitle: true,
         actions: [
           IconButton(
-            icon: const Icon(Icons.timer_outlined),
+            icon: const Icon(Icons.timer_outlined, color: Color(0xFFCC6D00)), // Icônes orange
             onPressed: () {},
           ),
           IconButton(
-            icon: const Icon(Icons.map_outlined),
+            icon: const Icon(Icons.map_outlined, color: Color(0xFFCC6D00)), // Icônes orange
             onPressed: () {},
           ),
         ],
@@ -56,10 +54,11 @@ class PredicationPageState extends State<PredicationPage> {
               /// Outils de prédication
               Text('Outils de prédication', style: titleStyle),
               const SizedBox(height: 16),
+              // Note : Les _ToolCard sont ajustées pour mieux rendre en sombre
               _ToolCard(
                 title: 'Revisites',
                 icon: Icons.home_outlined,
-                gradient: const LinearGradient(colors: [Color(0xFF56ab2f), Color(0xFFa8e063)]),
+                gradient: const LinearGradient(colors: [Color(0xFFCC6D00), Color(0xFFFF9800)]),
                 onTap: () {
                   // Naviguer vers les revisites
                 },
@@ -68,7 +67,7 @@ class PredicationPageState extends State<PredicationPage> {
               _ToolCard(
                 title: 'Études bibliques',
                 icon: Icons.book_outlined,
-                gradient: const LinearGradient(colors: [Color(0xFF614385), Color(0xFF516395)]),
+                gradient: const LinearGradient(colors: [Color(0xFFCC6D00), Color(0xFFFF9800)]),
                 onTap: () {
                   // Naviguer vers les études
                 },
@@ -77,7 +76,7 @@ class PredicationPageState extends State<PredicationPage> {
               _ToolCard(
                 title: 'Rapport du mois',
                 icon: Icons.insert_chart_outlined,
-                gradient: const LinearGradient(colors: [Color(0xFF2193b0), Color(0xFF6dd5ed)]),
+                gradient: const LinearGradient(colors: [Color(0xFFCC6D00), Color(0xFFFF9800)]),
                 onTap: () {
                   // Voir rapport
                 },
@@ -92,7 +91,7 @@ class PredicationPageState extends State<PredicationPage> {
                 title: 'Territoire 15A',
                 subtitle: 'Visité aujourd\'hui',
                 icon: Icons.location_on_outlined,
-                color: Colors.green,
+                color: const Color(0xFFCC6D00), // Utiliser l'orange pour la cohérence
                 trailing: '3 maisons',
               ),
               const SizedBox(height: 12),
@@ -108,7 +107,7 @@ class PredicationPageState extends State<PredicationPage> {
                 title: 'Rapport juillet',
                 subtitle: 'En cours',
                 icon: Icons.edit_note,
-                color: Colors.orange,
+                color: Colors.grey, // Moins important/en cours
                 trailing: '8h, 12 pubs',
               ),
 
@@ -132,7 +131,7 @@ class _MonthSummaryCard extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
         child: Row(
           children: [
-            const Icon(Icons.calendar_month, size: 40),
+            Icon(Icons.calendar_month, size: 40, color: theme.colorScheme.primary), // Icône en orange
             const SizedBox(width: 20),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -152,11 +151,12 @@ class _MonthSummaryCard extends StatelessWidget {
 class _QuickActionsGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    final primaryColor = Theme.of(context).colorScheme.primary;
     final actions = [
-      _QuickActionData('Nouveau rapport', Icons.add, Colors.green, () {}),
-      _QuickActionData('Lettres / QR', Icons.qr_code, Colors.blue, () {}),
-      _QuickActionData('Mes territoires', Icons.map, Colors.purple, () {}),
-      _QuickActionData('Historique', Icons.history, Colors.orange, () {}),
+      _QuickActionData('Nouveau rapport', Icons.add, primaryColor, () {}),
+      _QuickActionData('Lettres / QR', Icons.qr_code, primaryColor, () {}),
+      _QuickActionData('Mes territoires', Icons.map, primaryColor, () {}),
+      _QuickActionData('Historique', Icons.history, primaryColor, () {}),
     ];
 
     return Wrap(
@@ -196,7 +196,7 @@ class _QuickActionCard extends StatelessWidget {
               children: [
                 Icon(data.icon, color: data.color, size: 32),
                 const SizedBox(height: 10),
-                Text(data.label, textAlign: TextAlign.center),
+                Text(data.label, textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodyMedium),
               ],
             ),
           ),
@@ -221,29 +221,32 @@ class _ToolCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return GestureDetector(
       onTap: onTap,
+      // Le Container extérieur avec le dégradé simule la bordure colorée (glow effect)
       child: Container(
         decoration: BoxDecoration(
           gradient: gradient,
           borderRadius: BorderRadius.circular(16),
         ),
+        // Le Container intérieur est de la couleur de fond pour l'effet "dégradé autour"
         child: Container(
           margin: const EdgeInsets.all(2),
           decoration: BoxDecoration(
-            color: Theme.of(context).scaffoldBackgroundColor,
+            color: theme.colorScheme.surface, // Couleur de surface (gris foncé)
             borderRadius: BorderRadius.circular(14),
           ),
           padding: const EdgeInsets.all(16),
           child: Row(
             children: [
               CircleAvatar(
-                backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-                child: Icon(icon, color: Theme.of(context).colorScheme.primary),
+                backgroundColor: theme.colorScheme.primary.withOpacity(0.15), // Cercle d'icône avec une teinte orange
+                child: Icon(icon, color: theme.colorScheme.primary), // Icône en orange
               ),
               const SizedBox(width: 16),
-              Expanded(child: Text(title, style: const TextStyle(fontWeight: FontWeight.w600))),
-              const Icon(Icons.chevron_right),
+              Expanded(child: Text(title, style: theme.textTheme.titleMedium)),
+              const Icon(Icons.chevron_right, color: Colors.white),
             ],
           ),
         ),
@@ -269,6 +272,7 @@ class _RecentActivityCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Utilisation de ListTile dans un Card, comme dans le code initial, mais avec le thème sombre.
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
@@ -278,8 +282,8 @@ class _RecentActivityCard extends StatelessWidget {
           child: Icon(icon, color: color),
         ),
         title: Text(title),
-        subtitle: Text(subtitle),
-        trailing: Text(trailing, style: const TextStyle(fontWeight: FontWeight.bold)),
+        subtitle: Text(subtitle, style: Theme.of(context).textTheme.bodySmall), // Assurer que le subtitle reste clair
+        trailing: Text(trailing, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
       ),
     );
   }
