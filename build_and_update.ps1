@@ -87,3 +87,36 @@ $jsonFileNew = Join-Path $destDir "app_version.json"
 $json | Out-File -Encoding utf8 $jsonFileNew
 Write-Host "New JSON generated: $jsonFileNew"
 Write-Host "Build and update completed!"
+
+# 8️⃣ Update app_versions.json (append to list)
+
+$appVersionsFile = Join-Path $destDir "app_versions.json"
+$newEntry = [PSCustomObject]@{
+    version   = $version
+    name      = $apkName
+    timestamp = $timestamp
+    changelog = $changelogSingleLine
+}
+
+# Load existing list or create empty
+if (Test-Path $appVersionsFile) {
+    try {
+        $existingList = Get-Content $appVersionsFile -Raw | ConvertFrom-Json
+        if ($existingList -isnot [System.Collections.IEnumerable]) {
+            $existingList = @($existingList)
+        }
+    } catch {
+        Write-Host "ERROR reading app_versions.json → file corrupted, recreating." -ForegroundColor Yellow
+        $existingList = @()
+    }
+} else {
+    $existingList = @()
+}
+
+# Append new entry at the end
+$updatedList = $existingList + $newEntry
+
+# Save JSON (pretty formatted)
+$updatedList | ConvertTo-Json -Depth 10 | Out-File -Encoding utf8 $appVersionsFile
+
+Write-Host "app_versions.json updated with new entry."

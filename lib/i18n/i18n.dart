@@ -17,8 +17,6 @@ class LocalizationService {
 }
 
 // Exemple : Utilisation dans une classe de service/modèle
-Future<AppLocalizations> i18nLocale(Locale locale) async {
-  // Ici, on force l'allemand ('de')
-  final localization = await AppLocalizations.delegate.load(locale);
-  return localization;
+Future<AppLocalizations> i18nLocale(Locale locale) {
+  return AppLocalizations.delegate.load(locale);
 }

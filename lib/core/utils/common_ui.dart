@@ -9,6 +9,7 @@ import '../../app/services/global_key_service.dart';
 import '../../data/models/publication.dart';
 import '../../features/audio/audio_player_widget.dart';
 import '../../features/personal/pages/playlist_player.dart';
+import '../../i18n/i18n.dart';
 
 Future<void> showPageDocument(Publication publication, int mepsDocumentId, {int? startParagraphId, int? endParagraphId, String? textTag, List<String>? wordsSelected}) async {
   final GlobalKey<DocumentPageState> documentPageKey = GlobalKey<DocumentPageState>();
@@ -156,7 +157,7 @@ Future<void> showErrorDialog(BuildContext context, String message) {
         content: Text(message),
         actions: <Widget>[
           TextButton(
-            child: const Text('OK'),
+            child: Text(i18n().action_ok),
             onPressed: () {
               Navigator.of(context).pop();
             },

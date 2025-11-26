@@ -71,14 +71,14 @@ class BlockRangesController extends ChangeNotifier {
   List<BlockRange> getBlockRangesByDocument({Document? document, DatedText? datedText}) {
     if(document != null) {
       if(document.isBibleChapter()) {
-        return blockRanges.where((n) => n.location.bookNumber == document.bookNumber && n.location.chapterNumber == document.chapterNumberBible).toList();
+        return blockRanges.where((n) => n.location.mepsLanguageId == document.mepsLanguageId && n.location.bookNumber == document.bookNumber && n.location.chapterNumber == document.chapterNumberBible).toList();
       }
       else {
-        return blockRanges.where((n) => n.location.mepsDocumentId == document.mepsDocumentId).toList();
+        return blockRanges.where((n) => n.location.mepsLanguageId == document.mepsLanguageId && n.location.mepsDocumentId == document.mepsDocumentId).toList();
       }
     }
     else if(datedText != null) {
-      return blockRanges.where((n) => n.location.mepsDocumentId == datedText.mepsDocumentId).toList();
+      return blockRanges.where((n) => n.location.mepsLanguageId == datedText.mepsLanguageId && n.location.mepsDocumentId == datedText.mepsDocumentId).toList();
     }
     return [];
   }

@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:jwlife/core/utils/files_helper.dart';
+import 'package:jwlife/core/utils/utils.dart';
 import 'package:sqflite/sqflite.dart';
 
 class BibleCluesInfo {
@@ -56,8 +57,26 @@ class BibleCluesInfo {
   }
 
   String getVerses(int book1, int chapter1, int verse1, int book2, int chapter2, int verse2, {bool isAbbreviation = false}) {
-    String verse1Text = verse1 == 0 ? superscriptionFullText : verse1.toString();
-    String verse2Text = verse2 == 0 ? superscriptionFullText : verse2.toString();
+
+    // Formatage des chiffres pour la locale (format '0' pour les entiers)
+    final String formattedChapter1 = formatNumber(chapter1, format: '0');
+    final String formattedChapter2 = formatNumber(chapter2, format: '0');
+
+    // Formatage du verset 1 (sauf s'il est égal à 0)
+    String formattedVerse1Text;
+    if (verse1 == 0) {
+      formattedVerse1Text = superscriptionFullText;
+    } else {
+      formattedVerse1Text = formatNumber(verse1, format: '0');
+    }
+
+    // Formatage du verset 2 (sauf s'il est égal à 0)
+    String formattedVerse2Text;
+    if (verse2 == 0) {
+      formattedVerse2Text = superscriptionFullText;
+    } else {
+      formattedVerse2Text = formatNumber(verse2, format: '0');
+    }
 
     BibleBookName bookName = bibleBookNames.elementAt(book1 - 1);
     String bibleBookName = isAbbreviation ? bookName.officialBookAbbreviation : bookName.standardBookName;
@@ -66,18 +85,19 @@ class BibleCluesInfo {
       BibleBookName bookName2 = bibleBookNames.elementAt(book2 - 1);
       String bibleBookName2 = isAbbreviation ? bookName2.officialBookAbbreviation : bookName2.standardBookName;
 
-      return '$bibleBookName $chapter1$chapterVerseSeparator$verse1Text $nonConsecutiveRangeSeparator $bibleBookName2 $chapter2$chapterVerseSeparator$verse2Text';
+      return '$bibleBookName $formattedChapter1$chapterVerseSeparator$formattedVerse1Text $nonConsecutiveRangeSeparator $bibleBookName2 $formattedChapter2$chapterVerseSeparator$formattedVerse2Text';
     }
     else if (chapter1 != chapter2) {
-      return '$bibleBookName $chapter1$chapterVerseSeparator$verse1Text $nonConsecutiveRangeSeparator $chapter2$chapterVerseSeparator$verse2Text';
+      return '$bibleBookName $formattedChapter1$chapterVerseSeparator$formattedVerse1Text $nonConsecutiveRangeSeparator $formattedChapter2$chapterVerseSeparator$formattedVerse2Text';
     }
     else if (verse1 != verse2) {
       if (verse1 != verse2 - 1 || verse2 != verse1 - 1) {
-        return '$bibleBookName $chapter1$chapterVerseSeparator$verse1Text$rangeSeparator$verse2Text';
+        return '$bibleBookName $formattedChapter1$chapterVerseSeparator$formattedVerse1Text$rangeSeparator$formattedVerse2Text';
       }
-      return '$bibleBookName $chapter1$chapterVerseSeparator$verse1Text $separator $verse2Text';
+      return '$bibleBookName $formattedChapter1$chapterVerseSeparator$formattedVerse1Text $separator $formattedVerse2Text';
     }
-    return '$bibleBookName $chapter1$chapterVerseSeparator$verse1Text';
+    // Cas où book1 == book2, chapter1 == chapter2, verse1 == verse2
+    return '$bibleBookName $formattedChapter1$chapterVerseSeparator$formattedVerse1Text';
   }
 
   Future<int?> getBibleVerseId(int book, int chapter, int verse) async {

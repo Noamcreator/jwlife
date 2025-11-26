@@ -5507,6 +5507,7 @@ function handleExpand(itemId) {
                    }
                } 
                else {
+                   const isRtl = ${publication.mepsLanguage.isRtl}; 
                    getNotePosition(article, target, noteIndicator);
            
                    // Positionner à droite si élément est à droite
@@ -5514,12 +5515,12 @@ function handleExpand(itemId) {
                    const windowWidth = window.innerWidth || document.documentElement.clientWidth;
            
                    if (elementRect.left > windowWidth / 2) {
-                       noteIndicator.style.right = '3.3px';
-                       noteIndicator.style.left = 'auto';
+                       noteIndicator.style.right = isRtl ? 'auto' : '3.3px';
+                       noteIndicator.style.left = isRtl ? '3.3px' : 'auto';
                    } 
                    else {
-                       noteIndicator.style.left = '3.3px';
-                       noteIndicator.style.right = 'auto';
+                       noteIndicator.style.left = isRtl ? 'auto' : '3.3px';
+                       noteIndicator.style.right = isRtl ? '3.3px' : 'auto';
                    }
                }
              }, 0);

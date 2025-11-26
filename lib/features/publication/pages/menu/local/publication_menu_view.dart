@@ -121,7 +121,7 @@ class PublicationMenuViewState extends State<PublicationMenuView> with SingleTic
     String subtitle = item.subTitle.replaceAll('​', '');
     bool showSubTitle = item.subTitle.isNotEmpty && subtitle != item.title;
     // Utilise firstWhereOrNull pour gérer le cas où audios est introuvable
-    Audio? audio = widget.publication.audios.firstWhereOrNull((audio) => audio.documentId == item.mepsDocumentId);
+    Audio? audio = widget.publication.audiosNotifier.value.firstWhereOrNull((audio) => audio.documentId == item.mepsDocumentId);
 
     // ✅ CORRECTION 1: Sécurisation du chemin de l'image de l'article (widget.publications.path!)
     final bool hasValidImagePath = showImage &&
@@ -221,7 +221,7 @@ class PublicationMenuViewState extends State<PublicationMenuView> with SingleTic
                     if (audio != null && audio.fileSize != null) { // Ajout de la vérification audio.fileSize != null
                       items.add(PopupMenuItem(child: Row(children: [Icon(JwIcons.cloud_arrow_down, color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black), const SizedBox(width: 8.0), ValueListenableBuilder<bool>(valueListenable: audio.isDownloadingNotifier, builder: (context, isDownloading, child) { return Text(isDownloading ? i18n().message_download_in_progress : audio.isDownloadedNotifier.value ? i18n().action_remove_audio_size(formatFileSize(audio.fileSize!)) : i18n().action_download_audio_size(formatFileSize(audio.fileSize!)), style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black)); }),]), onTap: () { if (audio.isDownloadedNotifier.value) { audio.remove(context); } else { audio.download(context); } }),
                       );
-                      items.add(PopupMenuItem(child: Row(children: [Icon(JwIcons.headphones__simple, color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black), const SizedBox(width: 8.0), Text(i18n().action_play_audio, style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black))]), onTap: () { int index = widget.publication.audios.indexWhere((audio) => audio.documentId == item.mepsDocumentId); if (index != -1) { showAudioPlayerPublicationLink(context, widget.publication, index); } }),
+                      items.add(PopupMenuItem(child: Row(children: [Icon(JwIcons.headphones__simple, color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black), const SizedBox(width: 8.0), Text(i18n().action_play_audio, style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black))]), onTap: () { int index = widget.publication.audiosNotifier.value.indexWhere((audio) => audio.documentId == item.mepsDocumentId); if (index != -1) { showAudioPlayerPublicationLink(context, widget.publication, index); } }),
                       );
                     }
                     return items;
@@ -309,7 +309,7 @@ class PublicationMenuViewState extends State<PublicationMenuView> with SingleTic
 
     // Votre logique hasAudio originale est conservée
     // Note: _model et widget ne sont pas définis dans cet extrait, mais conservés pour la complétude
-    final bool hasAudio = _model.publication.audios.any((audio) => audio.track == bibleBookId);
+    final bool hasAudio = _model.publication.audiosNotifier.value.any((audio) => audio.track == bibleBookId);
 
     final String displayTitle = _getBookDisplayTitle(item, screenWidth);
 

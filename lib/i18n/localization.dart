@@ -10,6 +10,7 @@ import 'localization_ar.dart';
 import 'localization_de.dart';
 import 'localization_en.dart';
 import 'localization_es.dart';
+import 'localization_fa.dart';
 import 'localization_fr.dart';
 import 'localization_gl.dart';
 import 'localization_hu.dart';
@@ -20,6 +21,7 @@ import 'localization_ne.dart';
 import 'localization_nl.dart';
 import 'localization_pt.dart';
 import 'localization_ru.dart';
+import 'localization_tr.dart';
 
 // ignore_for_file: type=lint
 
@@ -112,6 +114,7 @@ abstract class AppLocalizations {
     Locale('de'),
     Locale('en'),
     Locale('es'),
+    Locale('fa'),
     Locale('fr'),
     Locale('gl'),
     Locale('hu'),
@@ -122,6 +125,7 @@ abstract class AppLocalizations {
     Locale('nl'),
     Locale('pt'),
     Locale('ru'),
+    Locale('tr'),
   ];
 
   /// No description provided for @search_hint.
@@ -5602,6 +5606,7 @@ class _AppLocalizationsDelegate
     'de',
     'en',
     'es',
+    'fa',
     'fr',
     'gl',
     'hu',
@@ -5612,6 +5617,7 @@ class _AppLocalizationsDelegate
     'nl',
     'pt',
     'ru',
+    'tr',
   ].contains(locale.languageCode);
 
   @override
@@ -5631,6 +5637,8 @@ AppLocalizations lookupAppLocalizations(Locale locale) {
       return AppLocalizationsEn();
     case 'es':
       return AppLocalizationsEs();
+    case 'fa':
+      return AppLocalizationsFa();
     case 'fr':
       return AppLocalizationsFr();
     case 'gl':
@@ -5651,6 +5659,8 @@ AppLocalizations lookupAppLocalizations(Locale locale) {
       return AppLocalizationsPt();
     case 'ru':
       return AppLocalizationsRu();
+    case 'tr':
+      return AppLocalizationsTr();
   }
 
   throw FlutterError(

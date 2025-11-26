@@ -187,7 +187,7 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
       _isLoadingData = true;
     });
 
-    if (widget.publication.audios.isEmpty) {
+    if (widget.publication.audiosNotifier.value.isEmpty) {
       widget.publication.fetchAudios().then((value) {
         controlsKey.currentState?.refreshWidget();
 
@@ -196,16 +196,16 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
         List<Map<String, dynamic>> audioMarkersJson = [];
 
         if(doc.isBibleChapter()) {
-          if (widget.publication.audios.isNotEmpty) {
-            final audio = widget.publication.audios.firstWhereOrNull((a) => a.bookNumber == doc.bookNumber && a.track == doc.chapterNumberBible);
+          if (widget.publication.audiosNotifier.value.isNotEmpty) {
+            final audio = widget.publication.audiosNotifier.value.firstWhereOrNull((a) => a.bookNumber == doc.bookNumber && a.track == doc.chapterNumberBible);
             if (audio != null && audio.markers.isNotEmpty) {
               audioMarkersJson = audio.markers.map((m) => m.toJson()).toList();
             }
           }
         }
         else {
-          if (widget.publication.audios.isNotEmpty) {
-            final audio = widget.publication.audios.firstWhereOrNull((a) => a.documentId == doc.mepsDocumentId);;
+          if (widget.publication.audiosNotifier.value.isNotEmpty) {
+            final audio = widget.publication.audiosNotifier.value.firstWhereOrNull((a) => a.documentId == doc.mepsDocumentId);;
             if (audio != null && audio.markers.isNotEmpty) {
               audioMarkersJson = audio.markers.map((m) => m.toJson()).toList();
             }
@@ -256,7 +256,7 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
             _jumpToVerse(-1, -1);
           }
           else {
-            Audio audio = widget.publication.audios[currentIndex];
+            Audio audio = widget.publication.audiosNotifier.value[currentIndex];
             if(audio.bookNumber != widget.publication.documentsManager!.getCurrentDocument().bookNumber || audio.track != widget.publication.documentsManager!.getCurrentDocument().chapterNumberBible) {
               _jumpToPage(widget.publication.documentsManager!.documents.indexWhere((document) => document.bookNumber == audio.bookNumber && document.chapterNumberBible == audio.track));
             }
@@ -277,7 +277,7 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
             _jumpToParagraph(-1, -1);
           }
           else {
-            Audio audio = widget.publication.audios[currentIndex];
+            Audio audio = widget.publication.audiosNotifier.value[currentIndex];
             if(audio.documentId != widget.publication.documentsManager!.getCurrentDocument().mepsDocumentId) {
               _jumpToPage(widget.publication.documentsManager!.documents.indexWhere((document) => document.mepsDocumentId == audio.documentId));
             }
@@ -296,7 +296,7 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
 
       if(widget.publication.documentsManager!.getCurrentDocument().isBibleChapter()) {
         if(lastBookId != null && lastChapterId != null && lastBookId == widget.publication.documentsManager!.getCurrentDocument().bookNumber && lastChapterId == widget.publication.documentsManager!.getCurrentDocument().chapterNumberBible) {
-          Audio? audio = widget.publication.audios.firstWhereOrNull((audio) => audio.bookNumber == widget.publication.documentsManager!.getCurrentDocument().bookNumber && audio.track == widget.publication.documentsManager!.getCurrentDocument().chapterNumberBible);
+          Audio? audio = widget.publication.audiosNotifier.value.firstWhereOrNull((audio) => audio.bookNumber == widget.publication.documentsManager!.getCurrentDocument().bookNumber && audio.track == widget.publication.documentsManager!.getCurrentDocument().chapterNumberBible);
           if(audio != null) {
             Marker? marker = audio.markers.firstWhereOrNull((m) {
               final start = parseDuration(m.startTime).inSeconds;
@@ -315,7 +315,7 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
       }
       else {
         if(lastDocumentId != null && lastDocumentId == widget.publication.documentsManager!.getCurrentDocument().mepsDocumentId) {
-          Audio? audio = widget.publication.audios.firstWhereOrNull((audio) => audio.documentId == widget.publication.documentsManager!.getCurrentDocument().mepsDocumentId);
+          Audio? audio = widget.publication.audiosNotifier.value.firstWhereOrNull((audio) => audio.documentId == widget.publication.documentsManager!.getCurrentDocument().mepsDocumentId);
           if(audio != null) {
             Marker? marker = audio.markers.firstWhereOrNull((m) {
               final start = parseDuration(m.startTime).inSeconds;
@@ -630,8 +630,8 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
                           );
                         }
 
-                        if (widget.publication.audios.isNotEmpty) {
-                          final audio = widget.publication.audios.firstWhereOrNull((a) => a.bookNumber == doc.bookNumber && a.track == doc.chapterNumberBible);
+                        if (widget.publication.audiosNotifier.value.isNotEmpty) {
+                          final audio = widget.publication.audiosNotifier.value.firstWhereOrNull((a) => a.bookNumber == doc.bookNumber && a.track == doc.chapterNumberBible);
                           if (audio != null && audio.markers.isNotEmpty) {
                             audioMarkersJson = audio.markers.map((m) => m.toJson()).toList();
                           }
@@ -640,8 +640,8 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
                       else {
                         html = decodeBlobContent(doc.content!, widget.publication.hash!);
 
-                        if (widget.publication.audios.isNotEmpty) {
-                          final audio = widget.publication.audios.firstWhereOrNull((a) => a.documentId == doc.mepsDocumentId);
+                        if (widget.publication.audiosNotifier.value.isNotEmpty) {
+                          final audio = widget.publication.audiosNotifier.value.firstWhereOrNull((a) => a.documentId == doc.mepsDocumentId);
                           if (audio != null && audio.markers.isNotEmpty) {
                             audioMarkersJson = audio.markers.map((m) => m.toJson()).toList();
                           }
@@ -1215,10 +1215,10 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
                         Audio? audio;
 
                         if(isBible) {
-                          audio = widget.publication.audios.firstWhereOrNull((audio) => audio.bookNumber == widget.publication.documentsManager!.getCurrentDocument().bookNumber && audio.track == widget.publication.documentsManager!.getCurrentDocument().chapterNumberBible);
+                          audio = widget.publication.audiosNotifier.value.firstWhereOrNull((audio) => audio.bookNumber == widget.publication.documentsManager!.getCurrentDocument().bookNumber && audio.track == widget.publication.documentsManager!.getCurrentDocument().chapterNumberBible);
                         }
                         else {
-                          audio = widget.publication.audios.firstWhereOrNull((audio) => audio.documentId == widget.publication.documentsManager!.getCurrentDocument().mepsDocumentId);
+                          audio = widget.publication.audiosNotifier.value.firstWhereOrNull((audio) => audio.documentId == widget.publication.documentsManager!.getCurrentDocument().mepsDocumentId);
                         }
 
                         if(audio != null) {
@@ -1247,10 +1247,10 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
                             // Trouver l'index du document
                             int? index;
                             if(isBible) {
-                              index = widget.publication.audios.indexWhere((audio) => audio.bookNumber == widget.publication.documentsManager!.getCurrentDocument().bookNumber && audio.track == widget.publication.documentsManager!.getCurrentDocument().chapterNumberBible);
+                              index = widget.publication.audiosNotifier.value.indexWhere((audio) => audio.bookNumber == widget.publication.documentsManager!.getCurrentDocument().bookNumber && audio.track == widget.publication.documentsManager!.getCurrentDocument().chapterNumberBible);
                             }
                             else {
-                              index = widget.publication.audios.indexWhere((audio) => audio.documentId == widget.publication.documentsManager!.getCurrentDocument().mepsDocumentId);
+                              index = widget.publication.audiosNotifier.value.indexWhere((audio) => audio.documentId == widget.publication.documentsManager!.getCurrentDocument().mepsDocumentId);
                             }
 
                             if (index != -1) {
@@ -1708,17 +1708,17 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
                 subTitle: widget.publication.issueTitle.isNotEmpty ? widget.publication.issueTitle : widget.publication.shortTitle,
                 handleBackPress: widget.handleBackPress,
                 actions: [
-                  if (widget.publication.audios.any((audio) => audio.documentId == widget.publication.documentsManager!.getCurrentDocument().mepsDocumentId) || widget.publication.audios.any((audio) => audio.bookNumber == widget.publication.documentsManager!.getCurrentDocument().bookNumber && audio.track == widget.publication.documentsManager!.getCurrentDocument().chapterNumberBible))
+                  if (widget.publication.audiosNotifier.value.any((audio) => audio.documentId == widget.publication.documentsManager!.getCurrentDocument().mepsDocumentId) || widget.publication.audiosNotifier.value.any((audio) => audio.bookNumber == widget.publication.documentsManager!.getCurrentDocument().bookNumber && audio.track == widget.publication.documentsManager!.getCurrentDocument().chapterNumberBible))
                     IconTextButton(
                       text: "Écouter ou télécharger l'audio",
                       icon: Icon(JwIcons.headphones),
                       onPressed: (anchorContext) {
                         int? index;
                         if(widget.publication.documentsManager!.getCurrentDocument().isBibleChapter()) {
-                          index = widget.publication.audios.indexWhere((audio) => audio.bookNumber == widget.publication.documentsManager!.getCurrentDocument().bookNumber && audio.track == widget.publication.documentsManager!.getCurrentDocument().chapterNumberBible);
+                          index = widget.publication.audiosNotifier.value.indexWhere((audio) => audio.bookNumber == widget.publication.documentsManager!.getCurrentDocument().bookNumber && audio.track == widget.publication.documentsManager!.getCurrentDocument().chapterNumberBible);
                         }
                         else {
-                          index = widget.publication.audios.indexWhere((audio) => audio.documentId == widget.publication.documentsManager!.getCurrentDocument().mepsDocumentId);
+                          index = widget.publication.audiosNotifier.value.indexWhere((audio) => audio.documentId == widget.publication.documentsManager!.getCurrentDocument().mepsDocumentId);
                         }
                         if (index != -1) {
                           // Afficher un PopMenu avec Écouter l'audio ou Télécharger l'audio

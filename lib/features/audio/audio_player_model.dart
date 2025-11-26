@@ -259,12 +259,12 @@ class JwLifeAudioPlayer {
   }
 
   Future<void> playAudioFromPublicationLink(Publication publication, int id, Duration position) async {
-    Audio audio = publication.audios.elementAt(id);
+    Audio audio = publication.audiosNotifier.value.elementAt(id);
 
     History.insertAudio(audio);
 
     setRandomMode(false);
-    await setPlaylist(publication.audios, pub: publication, id: id, position: position);
+    await setPlaylist(publication.audiosNotifier.value, pub: publication, id: id, position: position);
     await play();
   }
 

@@ -66,10 +66,8 @@ class PublicationsCategoriesWidget extends StatelessWidget {
     );
   }
 
-  Future<Widget> _buildCategoryButton(
-      BuildContext context, PublicationCategory category, Color backgroundColor, Color textColor) async {
-    final String categoryName = await category.getNameAsync(
-        Locale(JwLifeSettings.instance.currentLanguage.value.primaryIetfCode));
+  Future<Widget> _buildCategoryButton(BuildContext context, PublicationCategory category, Color backgroundColor, Color textColor) async {
+    final String categoryName = await category.getNameAsync(Locale(JwLifeSettings.instance.currentLanguage.value.primaryIetfCode));
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20.0),

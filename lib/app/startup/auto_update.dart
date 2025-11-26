@@ -53,6 +53,26 @@ class JwLifeAutoUpdater {
     }
   }
 
+  static Future<List<dynamic>> getAllReleases({BuildContext? context}) async {
+    try {
+      final String antiCacheQuery = 'v=${DateTime.now().millisecondsSinceEpoch}';
+      String appInfoApi = '${Api.gitubApi}app/app_versions.json?$antiCacheQuery';
+      print(appInfoApi);
+
+      if(await hasInternetConnection(context: GlobalKeyService.jwLifePageKey.currentContext!)) {
+        final response = await Api.httpGetWithHeaders(appInfoApi, responseType: ResponseType.plain);
+        if (response.statusCode != 200) return [];
+
+        final jsonData = json.decode(response.data);
+
+        return jsonData;
+      }
+    } catch (e) {
+      debugPrint("❌ Erreur de récupération des versions: $e");
+    }
+    return [];
+  }
+
   static bool _isNewerVersion(String newV, String oldV) {
     List<int> newParts = newV.split('.').map(int.parse).toList();
     List<int> oldParts = oldV.split('.').map(int.parse).toList();
@@ -77,7 +97,8 @@ class JwLifeAutoUpdater {
             child: SingleChildScrollView(
               child: GptMarkdown(
                 changelog,
-                textScaler: TextScaler.linear(1.2),
+                textScaler: TextScaler.linear(1.1),
+                style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black),
               ),
             ),
           ),
@@ -175,7 +196,8 @@ class JwProgressDialog {
                   child: SingleChildScrollView(
                     child: GptMarkdown(
                       changelog,
-                      textScaler: TextScaler.linear(1.2),
+                      textScaler: TextScaler.linear(1.1),
+                      style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black),
                     ),
                   ),
                 ),

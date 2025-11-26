@@ -8,11 +8,10 @@ import 'package:jwlife/core/utils/files_helper.dart';
 import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/core/utils/utils_pub.dart';
 import 'package:jwlife/data/models/publication.dart';
+import 'package:jwlife/features/library/widgets/rectangle_mediaItem_item.dart';
 import 'package:jwlife/widgets/image_cached_widget.dart';
 import 'package:sqflite/sqflite.dart';
 
-import '../../../../core/utils/utils_audio.dart';
-import '../../../../core/utils/utils_video.dart';
 import '../../../../data/databases/catalog.dart';
 import '../../../../data/models/audio.dart';
 import '../../../../data/models/media.dart';
@@ -396,81 +395,6 @@ class _PendingUpdatesWidgetState extends State<PendingUpdatesWidget> {
   }
 
   Widget _buildMediaButton(BuildContext context, Media media) {
-    return SizedBox(
-      width: _itemWidth,
-      height: 85,
-      child: Stack(
-        children: [
-          Row(
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(0),
-                child: ImageCachedWidget(
-                  imageUrl: media.networkImageSqr,
-                  icon: media is Audio ? JwIcons.headphones__simple : JwIcons.video,
-                  height: 85,
-                  width: 85,
-                ),
-              ),
-              Expanded(
-                flex: 1,
-                child: Padding(
-                  padding: const EdgeInsets.only(left: 10.0, right: 20.0, top: 4.0, bottom: 4.0),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        media.title,
-                        style: TextStyle(fontSize: 14),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      Spacer(),
-                      Text(
-                        '${formatDateTime(media.lastModified!).year} - ${media.keySymbol}',
-                        style: TextStyle(fontSize: 12, color: Theme.of(context).brightness == Brightness.dark
-                            ? const Color(0xFFc3c3c3)
-                            : const Color(0xFF626262),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-          Positioned(
-            top: -5,
-            right: -10,
-            child: PopupMenuButton(
-              icon: Icon(
-                Icons.more_vert,
-                color: Theme.of(context).brightness == Brightness.dark
-                    ? const Color(0xFFc3c3c3)
-                    : const Color(0xFF626262),
-              ),
-              itemBuilder: (context) => media is Audio ?  [
-                getAudioShareItem(media),
-                getAudioAddPlaylistItem(context, media),
-                getAudioLanguagesItem(context, media),
-                getAudioFavoriteItem(media),
-                getAudioDownloadItem(context, media),
-                getAudioLyricsItem(context, media),
-                getCopyLyricsItem(media)
-              ] : media is Video ? [
-                getVideoShareItem(media),
-                getVideoAddPlaylistItem(context, media),
-                getVideoLanguagesItem(context, media),
-                getVideoFavoriteItem(media),
-                getVideoDownloadItem(context, media),
-                getShowSubtitlesItem(context, media),
-                getCopySubtitlesItem(context, media),
-              ] : [],
-            ),
-          ),
-        ],
-      ),
-    );
+    return RectangleMediaItemItem(media: media);
   }
 }

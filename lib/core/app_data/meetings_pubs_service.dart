@@ -2,6 +2,7 @@ import 'dart:ui';
 
 import 'package:collection/collection.dart';
 import 'package:intl/intl.dart';
+import 'package:jwlife/app/services/settings_service.dart';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:sqflite/sqflite.dart';
 
@@ -9,7 +10,10 @@ import '../../data/repositories/PublicationRepository.dart';
 import 'app_data_service.dart';
 
 void refreshPublicTalks() {
-  AppDataService.instance.publicTalkPub.value = PublicationRepository().getAllDownloadedPublications().firstWhereOrNull((pub) => pub.keySymbol.contains('S-34'));
+  String keySymbol = 'S-34';
+  String mepsLanguageSymbol = JwLifeSettings.instance.currentLanguage.value.symbol;
+
+  AppDataService.instance.publicTalkPub.value = PublicationRepository().getPublicationWithSymbol(keySymbol, 0, mepsLanguageSymbol);
 }
 
 Future<void> refreshMeetingsPubs({List<Publication>? pubs, DateTime? date}) async {
@@ -39,6 +43,8 @@ Future<void> refreshMeetingsPubs({List<Publication>? pubs, DateTime? date}) asyn
 
     if (midweekMeetingPub.isDownloadedNotifier.value) {
       AppDataService.instance.midweekMeeting.value = await fetchMidWeekMeeting(midweekMeetingPub, date ?? DateTime.now());
+
+      midweekMeetingPub.fetchAudios();
     }
     else {
       AppDataService.instance.midweekMeeting.value = null;
@@ -57,6 +63,8 @@ Future<void> refreshMeetingsPubs({List<Publication>? pubs, DateTime? date}) asyn
 
     if (weekendMeetingPub.isDownloadedNotifier.value) {
       AppDataService.instance.weekendMeeting.value = await fetchWeekendMeeting(weekendMeetingPub, date ?? DateTime.now());
+
+      weekendMeetingPub.fetchAudios();
     }
     else {
       AppDataService.instance.weekendMeeting.value = null;

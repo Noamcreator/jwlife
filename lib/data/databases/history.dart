@@ -405,6 +405,9 @@ class History {
 
   static Future<void> showHistoryDialog(BuildContext mainContext, {int? bottomBarIndex}) async {
     bool isDarkMode = Theme.of(mainContext).brightness == Brightness.dark;
+    final Color dividerColor = isDarkMode ? Colors.black : const Color(0xFFf0f0f0);
+    final Color hintColor = isDarkMode ? const Color(0xFFc5c5c5) : const Color(0xFF666666);
+    final Color subtitleColor = isDarkMode ? const Color(0xFFbdbdbd) : const Color(0xFF626262);
 
     // Variables d'état
     TextEditingController searchController = TextEditingController();
@@ -436,51 +439,64 @@ class History {
             return Dialog(
               insetPadding: const EdgeInsets.all(20),
               child: Container(
-                padding: EdgeInsets.symmetric(vertical: 0, horizontal: 30),
+                width: MediaQuery.of(context).size.width,
+                padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 0),
                 child: Column(
-                  mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     // Titre avec séparation
                     Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 20),
+                        padding: EdgeInsets.symmetric(vertical: 10, horizontal: 20),
                         child: Text(
                           i18n().action_history,
-                          style: TextStyle(fontFamily: 'Roboto', fontSize: 20, fontWeight: FontWeight.bold),
+                          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                         ),
                     ),
 
-                    Divider(color: isDarkMode ? Colors.black : Color(0xFFf1f1f1), height: 0),
+                    Divider(color: dividerColor),
 
-                    // Champ de recherche
-                    TextField(
-                      controller: searchController,
-                      decoration: InputDecoration(
-                        labelText: i18n().search_hint,
-                        border: OutlineInputBorder(),
-                        contentPadding: EdgeInsets.symmetric(vertical: 10),
-                        prefixIcon: Icon(JwIcons.magnifying_glass),
-                      ),
-                      onEditingComplete: () {
-                        filterHistory(searchController.text);
-                      },
-                      onChanged: (value) {
-                        filterHistory(value);
-                      },
+                    Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        child: Row(
+                          children: [
+                            Icon(JwIcons.magnifying_glass, color: hintColor),
+                            const SizedBox(width: 16),
+                            // **Wrap the TextField in Expanded**
+                            Expanded(
+                              child: TextField( // <-- This is now constrained
+                                controller: searchController,
+                                autocorrect: false,
+                                enableSuggestions: false,
+                                decoration: InputDecoration(
+                                  hintText: i18n().search_hint,
+                                  hintStyle: TextStyle(color: hintColor, fontSize: 16),
+                                  isDense: true,
+                                  contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                                ),
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: Theme.of(context).textTheme.bodyLarge?.color,
+                                ),
+                                onChanged: filterHistory,
+                                onSubmitted: (value) => filterHistory(value),
+                                onEditingComplete: () => filterHistory(searchController.text),
+                              ),
+                            ),
+                          ],
+                        )
                     ),
 
-                    Divider(color: isDarkMode ? Colors.black : Color(0xFFf1f1f1)),
+                    const SizedBox(height: 10),
 
                     Expanded(
                       child: ListView.separated(
-                        shrinkWrap: true,
+                        padding: EdgeInsets.zero,
                         itemCount: filteredHistory.length, // <== Utilisez la liste filtrée ici
-                        separatorBuilder: (context, index) => Divider(color: isDarkMode ? Colors.black : Color(0xFFf1f1f1), height: 0),
+                        separatorBuilder: (context, index) => Divider(color: dividerColor, height: 0),
                         itemBuilder: (context, index) {
                           var item = filteredHistory[index];
-                          IconData icon = item["Type"] == 'webview' ? item['PublicationTypeId'] != null ? PublicationCategory.all.firstWhere(
-                                  (category) => category.id == item['PublicationTypeId']).icon
-                              : JwIcons.document : JwIcons.document;
+                          IconData icon = item["Type"] == 'webview' ? item['PublicationTypeId'] != null ? PublicationCategory.all.firstWhere((category) => category.id == item['PublicationTypeId']).icon : JwIcons.document : JwIcons.document;
 
                           return InkWell(
                             onTap: () {
@@ -528,31 +544,20 @@ class History {
                               }
                             },
                             child: Container(
-                              padding: EdgeInsets.symmetric(vertical: 10),
+                              padding: const EdgeInsets.only(left: 20, right: 10, top: 5, bottom: 5),
                               child: Row(
                                 crossAxisAlignment: CrossAxisAlignment.center,
                                 children: [
-                                  Icon(
-                                    item["Type"] == "video"
-                                        ? JwIcons.video
-                                        : item["Type"] == "audio"
-                                        ? JwIcons.music
-                                        : icon,
-                                    color: Theme.of(context).primaryColor,
-                                    size: 25,
-                                  ),
-                                  SizedBox(width: 20),
                                   Expanded(
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
                                         Text(
                                           item["DisplayTitle"] ?? "Sans titre",
-                                          style: TextStyle(fontSize: 14),
+                                          style: const TextStyle(fontSize: 16),
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
                                         ),
-                                        SizedBox(height: 2),
                                         Text(
                                           item["Type"] == "video"
                                               ? "Vidéo"
@@ -560,16 +565,24 @@ class History {
                                               ? "Audio"
                                               : (item["PublicationIssueTitle"] ?? item["PublicationTitle"] ?? item['KeySymbol']),
                                           style: TextStyle(
-                                            fontSize: 13,
-                                            color: isDarkMode
-                                                ? Color(0xFFc0c0c0)
-                                                : Color(0xFF5a5a5a),
+                                            fontSize: 14,
+                                            color: subtitleColor,
                                           ),
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
                                         ),
                                       ],
                                     ),
+                                  ),
+                                  const SizedBox(width: 20),
+                                  Icon(
+                                    item["Type"] == "video"
+                                        ? JwIcons.video
+                                        : item["Type"] == "audio"
+                                        ? JwIcons.music
+                                        : icon,
+                                    color: isDarkMode ? Colors.white : Colors.black,
+                                    size: 20,
                                   ),
                                 ],
                               ),
@@ -580,7 +593,7 @@ class History {
                     ),
 
                     // Séparation et boutons
-                    Divider(color: isDarkMode ? Colors.black : Color(0xFFf1f1f1)),
+                    Divider(color: dividerColor),
 
                     Row(
                       mainAxisAlignment: MainAxisAlignment.end,
@@ -610,8 +623,6 @@ class History {
                         ),
                       ],
                     ),
-
-                    const SizedBox(height: 10),
                   ],
                 ),
               ),

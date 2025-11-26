@@ -34,9 +34,9 @@ void showAudioPlayerForLink(BuildContext context, String url, audio_service.Medi
 }
 
 void showAudioPlayerPublicationLink(BuildContext context, Publication publication, int id, {Duration? start}) async {
-  Audio audio = publication.audios.elementAt(id);
+  Audio audio = publication.audiosNotifier.value.elementAt(id);
 
-  if(publication.audios.isNotEmpty) {
+  if(publication.audiosNotifier.value.isNotEmpty) {
     if(await hasInternetConnection(context: context) || audio.isDownloadedNotifier.value) {
       JwLifeApp.audioPlayer.playAudioFromPublicationLink(publication, id, start ?? Duration.zero);
     }

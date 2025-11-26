@@ -112,7 +112,6 @@ class NotesController extends ChangeNotifier {
       if (document.isBibleChapter()) {
         return notes.where((n) =>
         n.location.keySymbol == document.publication.keySymbol &&
-            n.location.mepsLanguageId == langId &&
             n.location.bookNumber == document.bookNumber &&
             n.location.chapterNumber == document.chapterNumberBible
         ).toList();
@@ -120,7 +119,6 @@ class NotesController extends ChangeNotifier {
 
       // Cas document normal
       return notes.where((n) =>
-      n.location.mepsLanguageId == langId &&
           n.location.mepsDocumentId == document.mepsDocumentId
       ).toList();
     }
@@ -130,14 +128,12 @@ class NotesController extends ChangeNotifier {
 
       // Cas document normal
       return notes.where((n) =>
-      n.location.mepsLanguageId == langId &&
           n.location.mepsDocumentId == datedText.mepsDocumentId
       ).toList();
     }
 
     // --- 2) CAS : Filtrage par plages (Bible ou publication découpée) ---
     final hasFullBibleRange = keySymbol != null &&
-        mepsLanguageId != null &&
         firstBookNumber != null &&
             lastBookNumber != null &&
             firstChapterNumber != null &&
@@ -165,16 +161,16 @@ class NotesController extends ChangeNotifier {
     }
 
     // --- 3) CAS : Filtrage par documentId + block identifier ---
-    final hasDocBlockRange = mepsLanguageId != null && mepsDocumentId != null;
+    final hasDocBlockRange = mepsDocumentId != null;
 
     if (hasDocBlockRange) {
       return notes.where((n) {
         final block = n.blockIdentifier ?? -1;
 
         if(firstBlockIdentifier == null || lastBlockIdentifier == null) {
-          return n.location.mepsLanguageId == mepsLanguageId && n.location.mepsDocumentId == mepsDocumentId;
+          return n.location.mepsDocumentId == mepsDocumentId;
         }
-        return n.location.mepsLanguageId == mepsLanguageId && n.location.mepsDocumentId == mepsDocumentId && block >= firstBlockIdentifier && block <= lastBlockIdentifier;
+        return n.location.mepsDocumentId == mepsDocumentId && block >= firstBlockIdentifier && block <= lastBlockIdentifier;
       }).toList();
     }
 

@@ -1102,166 +1102,164 @@ class WorkShipPageState extends State<WorkShipPage> with TickerProviderStateMixi
 
     final String imageFullPath = '${midweekPub.path!}/${midweekMeeting['FilePath']}';
     final isRTL = midweekPub.mepsLanguage.isRtl;
-    Audio? audio = midweekPub.audios.firstWhereOrNull((audio) =>
-    audio.documentId == midweekMeeting['MepsDocumentId']);
 
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-          onTap: () {
-            showDocumentView(context, midweekMeeting['MepsDocumentId'], JwLifeSettings.instance.currentLanguage.value.id);
-          },
-          child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4.0),
-              child: Stack(
-                children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+    return ValueListenableBuilder(
+      valueListenable: midweekPub.audiosNotifier,
+      builder: (context, audioList, child) {
+        Audio? audio = audioList.firstWhereOrNull((audio) => audio.documentId == midweekMeeting['MepsDocumentId']);
+
+        return Material(
+          color: Colors.transparent,
+          child: InkWell(
+              onTap: () {
+                showDocumentView(context, midweekMeeting['MepsDocumentId'], JwLifeSettings.instance.currentLanguage.value.id);
+              },
+              child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4.0),
+                  child: Stack(
                     children: [
-                      SizedBox(
-                        width: 60.0,
-                        height: 60.0,
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(4.0),
-                          child: Image.file(
-                            File(imageFullPath),
-                            frameBuilder: (context, child, frame,
-                                wasSynchronouslyLoaded) {
-                              if (frame == null) {
-                                return Container(color: Theme
-                                    .of(context)
-                                    .brightness == Brightness.dark
-                                    ? const Color(
-                                    0xFF4f4f4f)
-                                    : const Color(0xFF8e8e8e));
-                              }
-
-                              return child;
-                            },
-                            fit: BoxFit.cover,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Column(
+                      Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text(
-                            midweekMeeting['Subtitle'],
-                            style: contextStyle, // Style ajusté
+                          SizedBox(
+                            width: 60.0,
+                            height: 60.0,
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(4.0),
+                              child: Image.file(
+                                File(imageFullPath),
+                                frameBuilder: (context, child, frame,
+                                    wasSynchronouslyLoaded) {
+                                  if (frame == null) {
+                                    return Container(color: Theme
+                                        .of(context)
+                                        .brightness == Brightness.dark
+                                        ? const Color(
+                                        0xFF4f4f4f)
+                                        : const Color(0xFF8e8e8e));
+                                  }
+        
+                                  return child;
+                                },
+                                fit: BoxFit.cover,
+                              ),
+                            ),
                           ),
-                          const SizedBox(height: 2),
-                          Text(
-                            midweekMeeting['Title'],
-                            style: titleStyle,
+                          const SizedBox(width: 8),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                midweekMeeting['Subtitle'],
+                                style: contextStyle, // Style ajusté
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                midweekMeeting['Title'],
+                                style: titleStyle,
+                              ),
+                            ],
                           ),
+                          const Spacer(),
                         ],
                       ),
-                      const Spacer(),
+                      Positioned(
+                        top: -15.0,
+                        // Ajuste vers le haut pour compenser le Padding vertical de 4.0
+                        // Positionnement absolu : Right pour LTR, Left pour RTL.
+                        right: isRTL ? null : -7,
+                        left: isRTL ? -7 : null,
+                        child: PopupMenuButton(
+                          // On utilise padding: EdgeInsets.zero pour annuler l'espace par défaut autour de l'icône
+                          padding: EdgeInsets.zero,
+                          icon: Icon(Icons.more_horiz, color: Color(0xFF9d9d9d)),
+                          itemBuilder: (context) {
+                            List<PopupMenuEntry> items = [
+                              PopupMenuItem(child: Row(children: [
+                                Icon(JwIcons.share, color: Theme
+                                    .of(context)
+                                    .brightness == Brightness.dark
+                                    ? Colors.white
+                                    : Colors.black),
+                                const SizedBox(width: 8.0),
+                                Text(i18n().action_open_in_share,
+                                    style: TextStyle(color: Theme
+                                        .of(context)
+                                        .brightness == Brightness.dark
+                                        ? Colors.white
+                                        : Colors.black))
+                              ]), onTap: () {
+                                midweekPub.documentsManager?.getDocumentFromMepsDocumentId(midweekMeeting['MepsDocumentId']).share(false);
+                              }),
+                            ];
+                            if (audio != null && audio.fileSize !=
+                                null) { // Ajout de la vérification audio.fileSize != null
+                              items.add(PopupMenuItem(child: Row(children: [
+                                Icon(JwIcons.cloud_arrow_down, color: Theme
+                                    .of(context)
+                                    .brightness == Brightness.dark
+                                    ? Colors.white
+                                    : Colors.black),
+                                const SizedBox(width: 8.0),
+                                ValueListenableBuilder<bool>(
+                                    valueListenable: audio.isDownloadingNotifier,
+                                    builder: (context, isDownloading, child) {
+                                      return Text(isDownloading ? i18n()
+                                          .message_download_in_progress : audio
+                                          .isDownloadedNotifier.value
+                                          ? i18n()
+                                          .action_remove_audio_size(
+                                          formatFileSize(audio.fileSize!))
+                                          : i18n()
+                                          .action_download_audio_size(
+                                          formatFileSize(audio.fileSize!)),
+                                          style: TextStyle(color: Theme
+                                              .of(context)
+                                              .brightness == Brightness.dark
+                                              ? Colors
+                                              .white
+                                              : Colors.black));
+                                    }),
+                              ]), onTap: () {
+                                if (audio.isDownloadedNotifier.value) {
+                                  audio.remove(context);
+                                } else {
+                                  audio.download(context);
+                                }
+                              }),
+                              );
+                              items.add(PopupMenuItem(child: Row(children: [
+                                Icon(
+                                    JwIcons.headphones__simple, color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black),
+                                const SizedBox(width: 8.0),
+                                Text(
+                                    i18n().action_play_audio,
+                                    style: TextStyle(color: Theme
+                                        .of(context)
+                                        .brightness == Brightness.dark
+                                        ? Colors.white
+                                        : Colors.black))
+                              ]), onTap: () {
+                                int index = midweekPub.audiosNotifier.value.indexWhere((audio) =>
+                                audio.documentId ==
+                                    midweekMeeting['MepsDocumentId']);
+                                if (index != -1) {
+                                  showAudioPlayerPublicationLink(context, midweekPub, index);
+                                }
+                              }),
+                              );
+                            }
+                            return items;
+                          },
+                        ),
+                      ),
                     ],
-                  ),
-                  Positioned(
-                    top: -15.0,
-                    // Ajuste vers le haut pour compenser le Padding vertical de 4.0
-                    // Positionnement absolu : Right pour LTR, Left pour RTL.
-                    right: isRTL ? null : -7,
-                    left: isRTL ? -7 : null,
-                    child: PopupMenuButton(
-                      // On utilise padding: EdgeInsets.zero pour annuler l'espace par défaut autour de l'icône
-                      padding: EdgeInsets.zero,
-                      icon: Icon(Icons.more_horiz, color: Color(0xFF9d9d9d)),
-                      itemBuilder: (context) {
-                        List<PopupMenuEntry> items = [
-                          PopupMenuItem(child: Row(children: [
-                            Icon(JwIcons.share, color: Theme
-                                .of(context)
-                                .brightness == Brightness.dark
-                                ? Colors.white
-                                : Colors.black),
-                            const SizedBox(width: 8.0),
-                            Text(i18n().action_open_in_share,
-                                style: TextStyle(color: Theme
-                                    .of(context)
-                                    .brightness == Brightness.dark
-                                    ? Colors.white
-                                    : Colors.black))
-                          ]), onTap: () {
-                            midweekPub.documentsManager
-                                ?.getDocumentFromMepsDocumentId(
-                                midweekMeeting['MepsDocumentId']).share(
-                                false);
-                          }),
-                        ];
-                        if (audio != null && audio.fileSize !=
-                            null) { // Ajout de la vérification audio.fileSize != null
-                          items.add(PopupMenuItem(child: Row(children: [
-                            Icon(JwIcons.cloud_arrow_down, color: Theme
-                                .of(context)
-                                .brightness == Brightness.dark
-                                ? Colors.white
-                                : Colors.black),
-                            const SizedBox(width: 8.0),
-                            ValueListenableBuilder<bool>(
-                                valueListenable: audio.isDownloadingNotifier,
-                                builder: (context, isDownloading, child) {
-                                  return Text(isDownloading ? i18n()
-                                      .message_download_in_progress : audio
-                                      .isDownloadedNotifier.value
-                                      ? i18n()
-                                      .action_remove_audio_size(
-                                      formatFileSize(audio.fileSize!))
-                                      : i18n()
-                                      .action_download_audio_size(
-                                      formatFileSize(audio.fileSize!)),
-                                      style: TextStyle(color: Theme
-                                          .of(context)
-                                          .brightness == Brightness.dark
-                                          ? Colors
-                                          .white
-                                          : Colors.black));
-                                }),
-                          ]), onTap: () {
-                            if (audio.isDownloadedNotifier.value) {
-                              audio.remove(context);
-                            } else {
-                              audio.download(context);
-                            }
-                          }),
-                          );
-                          items.add(PopupMenuItem(child: Row(children: [
-                            Icon(
-                                JwIcons.headphones__simple, color: Theme
-                                .of(context)
-                                .brightness == Brightness.dark
-                                ? Colors.white
-                                : Colors.black),
-                            const SizedBox(width: 8.0),
-                            Text(
-                                i18n().action_play_audio,
-                                style: TextStyle(color: Theme
-                                    .of(context)
-                                    .brightness == Brightness.dark
-                                    ? Colors.white
-                                    : Colors.black))
-                          ]), onTap: () {
-                            int index = midweekPub.audios
-                                .indexWhere((audio) =>
-                            audio.documentId ==
-                                midweekMeeting['MepsDocumentId']);
-                            if (index != -1) {
-                              showAudioPlayerPublicationLink(context, midweekPub, index);
-                            }
-                          }),
-                          );
-                        }
-                        return items;
-                      },
-                    ),
-                  ),
-                ],
+                  )
               )
-          )),
+          ),
+        );
+      }
     );
   }
 
@@ -1274,168 +1272,172 @@ class WorkShipPageState extends State<WorkShipPage> with TickerProviderStateMixi
 
     final String imageFullPath = '${weekendPub.path!}/${weekendMeeting['FilePath']}';
     final isRTL = weekendPub.mepsLanguage.isRtl;
-    Audio? audio = weekendPub.audios.firstWhereOrNull((audio) =>
-    audio.documentId == weekendMeeting['MepsDocumentId']);
 
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-          onTap: () {
-            showDocumentView(
-              context,
-              weekendMeeting['MepsDocumentId'],
-              JwLifeSettings.instance.currentLanguage.value.id,
-            );
-          },
-          child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4.0),
-              child: Stack(
-                children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+    return ValueListenableBuilder(
+      valueListenable: weekendPub.audiosNotifier,
+      builder: (context, audioList, child) {
+        Audio? audio = audioList.firstWhereOrNull((audio) => audio.documentId == weekendMeeting['MepsDocumentId']);
+
+        return Material(
+          color: Colors.transparent,
+          child: InkWell(
+              onTap: () {
+                showDocumentView(
+                  context,
+                  weekendMeeting['MepsDocumentId'],
+                  JwLifeSettings.instance.currentLanguage.value.id,
+                );
+              },
+              child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4.0),
+                  child: Stack(
                     children: [
-                      SizedBox(
-                        width: 60.0,
-                        height: 60.0,
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(4.0),
-                          child: Image.file(
-                            File(imageFullPath),
-                            frameBuilder: (context, child, frame,
-                                wasSynchronouslyLoaded) {
-                              if (frame == null && wasSynchronouslyLoaded) {
-                                return Container(color: Theme
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SizedBox(
+                            width: 60.0,
+                            height: 60.0,
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(4.0),
+                              child: Image.file(
+                                File(imageFullPath),
+                                frameBuilder: (context, child, frame,
+                                    wasSynchronouslyLoaded) {
+                                  if (frame == null && wasSynchronouslyLoaded) {
+                                    return Container(color: Theme
+                                        .of(context)
+                                        .brightness == Brightness.dark
+                                        ? const Color(0xFF4f4f4f)
+                                        : const Color(0xFF8e8e8e));
+                                  }
+
+                                  return child;
+                                },
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              // mainAxisSize.min est correct pour ne prendre que l'espace vertical nécessaire.
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  weekendMeeting['ContextTitle'],
+                                  style: contextStyle, // Assurez-vous que contextStyle est défini
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  weekendMeeting['Title'],
+                                  style: titleStyle,
+                                  // Assurez-vous que titleStyle est défini
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 20),
+                        ],
+                      ),
+
+                      Positioned(
+                        top: -15.0,
+                        // Ajuste vers le haut pour compenser le Padding vertical de 4.0
+                        // Positionnement absolu : Right pour LTR, Left pour RTL.
+                        right: isRTL ? null : -7,
+                        left: isRTL ? -7 : null,
+                        child: PopupMenuButton(
+                          // On utilise padding: EdgeInsets.zero pour annuler l'espace par défaut autour de l'icône
+                          padding: EdgeInsets.zero,
+                          icon: Icon(Icons.more_horiz, color: Color(0xFF9d9d9d)),
+                          itemBuilder: (context) {
+                            List<PopupMenuEntry> items = [
+                              PopupMenuItem(child: Row(children: [
+                                Icon(JwIcons.share, color: Theme
                                     .of(context)
                                     .brightness == Brightness.dark
-                                    ? const Color(0xFF4f4f4f)
-                                    : const Color(0xFF8e8e8e));
-                              }
-
-                              return child;
-                            },
-                            fit: BoxFit.cover,
-                          ),
+                                    ? Colors.white
+                                    : Colors.black),
+                                const SizedBox(width: 8.0),
+                                Text(i18n().action_open_in_share,
+                                    style: TextStyle(color: Theme
+                                        .of(context)
+                                        .brightness == Brightness.dark ? Colors
+                                        .white : Colors.black))
+                              ]), onTap: () {
+                                weekendPub.documentsManager
+                                    ?.getDocumentFromMepsDocumentId(
+                                    weekendMeeting['MepsDocumentId']).share(
+                                    false);
+                              }),
+                            ];
+                            if (audio != null && audio.fileSize !=
+                                null) { // Ajout de la vérification audio.fileSize != null
+                              items.add(PopupMenuItem(child: Row(children: [
+                                Icon(JwIcons.cloud_arrow_down, color: Theme
+                                    .of(context)
+                                    .brightness == Brightness.dark
+                                    ? Colors.white
+                                    : Colors.black),
+                                const SizedBox(width: 8.0),
+                                ValueListenableBuilder<bool>(
+                                    valueListenable: audio.isDownloadingNotifier,
+                                    builder: (context, isDownloading, child) {
+                                      return Text(isDownloading ? i18n()
+                                          .message_download_in_progress : audio
+                                          .isDownloadedNotifier.value
+                                          ? i18n().action_remove_audio_size(
+                                          formatFileSize(audio.fileSize!))
+                                          : i18n().action_download_audio_size(
+                                          formatFileSize(audio.fileSize!)),
+                                          style: TextStyle(color: Theme
+                                              .of(context)
+                                              .brightness == Brightness.dark
+                                              ? Colors.white
+                                              : Colors.black));
+                                    }),
+                              ]), onTap: () {
+                                if (audio.isDownloadedNotifier.value) {
+                                  audio.remove(context);
+                                } else {
+                                  audio.download(context);
+                                }
+                              }),
+                              );
+                              items.add(PopupMenuItem(child: Row(children: [
+                                Icon(JwIcons.headphones__simple, color: Theme
+                                    .of(context)
+                                    .brightness == Brightness.dark
+                                    ? Colors.white
+                                    : Colors.black),
+                                const SizedBox(width: 8.0),
+                                Text(i18n().action_play_audio,
+                                    style: TextStyle(color: Theme
+                                        .of(context)
+                                        .brightness == Brightness.dark ? Colors
+                                        .white : Colors.black))
+                              ]), onTap: () {
+                                int index = weekendPub.audiosNotifier.value.indexWhere((audio) =>
+                                audio.documentId == weekendMeeting['MepsDocumentId']);
+                                if (index != -1) {
+                                  showAudioPlayerPublicationLink(context, weekendPub, index);
+                                }
+                              }),
+                              );
+                            }
+                            return items;
+                          },
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          // mainAxisSize.min est correct pour ne prendre que l'espace vertical nécessaire.
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              weekendMeeting['ContextTitle'],
-                              style: contextStyle, // Assurez-vous que contextStyle est défini
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              weekendMeeting['Title'],
-                              style: titleStyle,
-                              // Assurez-vous que titleStyle est défini
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 20),
                     ],
-                  ),
-
-                  Positioned(
-                    top: -15.0,
-                    // Ajuste vers le haut pour compenser le Padding vertical de 4.0
-                    // Positionnement absolu : Right pour LTR, Left pour RTL.
-                    right: isRTL ? null : -7,
-                    left: isRTL ? -7 : null,
-                    child: PopupMenuButton(
-                      // On utilise padding: EdgeInsets.zero pour annuler l'espace par défaut autour de l'icône
-                      padding: EdgeInsets.zero,
-                      icon: Icon(Icons.more_horiz, color: Color(0xFF9d9d9d)),
-                      itemBuilder: (context) {
-                        List<PopupMenuEntry> items = [
-                          PopupMenuItem(child: Row(children: [
-                            Icon(JwIcons.share, color: Theme
-                                .of(context)
-                                .brightness == Brightness.dark
-                                ? Colors.white
-                                : Colors.black),
-                            const SizedBox(width: 8.0),
-                            Text(i18n().action_open_in_share,
-                                style: TextStyle(color: Theme
-                                    .of(context)
-                                    .brightness == Brightness.dark ? Colors
-                                    .white : Colors.black))
-                          ]), onTap: () {
-                            weekendPub.documentsManager
-                                ?.getDocumentFromMepsDocumentId(
-                                weekendMeeting['MepsDocumentId']).share(
-                                false);
-                          }),
-                        ];
-                        if (audio != null && audio.fileSize !=
-                            null) { // Ajout de la vérification audio.fileSize != null
-                          items.add(PopupMenuItem(child: Row(children: [
-                            Icon(JwIcons.cloud_arrow_down, color: Theme
-                                .of(context)
-                                .brightness == Brightness.dark
-                                ? Colors.white
-                                : Colors.black),
-                            const SizedBox(width: 8.0),
-                            ValueListenableBuilder<bool>(
-                                valueListenable: audio.isDownloadingNotifier,
-                                builder: (context, isDownloading, child) {
-                                  return Text(isDownloading ? i18n()
-                                      .message_download_in_progress : audio
-                                      .isDownloadedNotifier.value
-                                      ? i18n().action_remove_audio_size(
-                                      formatFileSize(audio.fileSize!))
-                                      : i18n().action_download_audio_size(
-                                      formatFileSize(audio.fileSize!)),
-                                      style: TextStyle(color: Theme
-                                          .of(context)
-                                          .brightness == Brightness.dark
-                                          ? Colors.white
-                                          : Colors.black));
-                                }),
-                          ]), onTap: () {
-                            if (audio.isDownloadedNotifier.value) {
-                              audio.remove(context);
-                            } else {
-                              audio.download(context);
-                            }
-                          }),
-                          );
-                          items.add(PopupMenuItem(child: Row(children: [
-                            Icon(JwIcons.headphones__simple, color: Theme
-                                .of(context)
-                                .brightness == Brightness.dark
-                                ? Colors.white
-                                : Colors.black),
-                            const SizedBox(width: 8.0),
-                            Text(i18n().action_play_audio,
-                                style: TextStyle(color: Theme
-                                    .of(context)
-                                    .brightness == Brightness.dark ? Colors
-                                    .white : Colors.black))
-                          ]), onTap: () {
-                            int index = weekendPub.audios
-                                .indexWhere((audio) =>
-                            audio.documentId == weekendMeeting['MepsDocumentId']);
-                            if (index != -1) {
-                              showAudioPlayerPublicationLink(context, weekendPub, index);
-                            }
-                          }),
-                          );
-                        }
-                        return items;
-                      },
-                    ),
-                  ),
-                ],
-              )
-          )),
+                  )
+              )),
+        );
+      }
     );
   }
 

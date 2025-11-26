@@ -144,7 +144,7 @@ Future<String> extractPublicationDescription(Publication? publication, {String? 
 Future<BuildContext?> showDownloadMediasDialog(BuildContext context, Publication publication) async {
   Completer<BuildContext?> completer = Completer<BuildContext?>();
 
-  List<Audio> audios = publication.audios;
+  List<Audio> audios = publication.audiosNotifier.value;
 
   // Calcul de la taille totale des fichiers audio (avec gestion des valeurs nulles)
   int totalSize = audios.fold(0, (previousValue, element) => previousValue + (element.fileSize ?? 0));

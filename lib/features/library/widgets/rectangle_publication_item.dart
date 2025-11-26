@@ -257,7 +257,7 @@ class RectanglePublicationItem extends StatelessWidget {
                           const Spacer(),
                           Text(
                             // Le texte de référence est généralement aligné avec le reste
-                            '${publication.year} - ${publication.keySymbol}',
+                            '${formatYear(publication.year, localeCode: Locale(publication.mepsLanguage.primaryIetfCode))} · ${publication.keySymbol}',
                             style: TextStyle(fontSize: 11, color: subtitleColor),
                             textAlign: TextAlign.start, // S'assurer de l'alignement
                           ),

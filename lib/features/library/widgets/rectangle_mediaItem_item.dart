@@ -23,11 +23,6 @@ class RectangleMediaItemItem extends StatelessWidget {
     this.height = kItemHeight,
   });
 
-  // Utilise le MediaRepository pour récupérer l'objet Media (comme dans l'original)
-  Media get _m => MediaRepository().getMedia(media);
-
-  // --- Fonctions d'extraction basées sur RectanglePublicationItem ---
-
   // Extrait la logique de la barre de progression
   Widget _buildProgressBar(double leftOffset) {
     return ValueListenableBuilder<bool>(
@@ -148,25 +143,25 @@ class RectangleMediaItemItem extends StatelessWidget {
             0.5,
           ),
           icon: const Icon(Icons.more_horiz, color: Color(0xFF9d9d9d)),
-          itemBuilder: (context) => _m is Audio
+          itemBuilder: (context) => media is Audio
               ? [
-            getAudioShareItem(_m as Audio),
-            getAudioAddPlaylistItem(context, _m as Audio),
-            getAudioLanguagesItem(context, _m as Audio),
-            getAudioFavoriteItem(_m as Audio),
-            getAudioDownloadItem(context, _m as Audio),
-            getAudioLyricsItem(context, _m as Audio),
-            getCopyLyricsItem(_m as Audio)
+            getAudioShareItem(media as Audio),
+            getAudioAddPlaylistItem(context, media as Audio),
+            getAudioLanguagesItem(context, media as Audio),
+            getAudioFavoriteItem(media as Audio),
+            getAudioDownloadItem(context, media as Audio),
+            getAudioLyricsItem(context, media as Audio),
+            getCopyLyricsItem(media as Audio)
           ]
-              : _m is Video
+              : media is Video
               ? [
-            getVideoShareItem(_m as Video),
-            getVideoAddPlaylistItem(context, _m as Video),
-            getVideoLanguagesItem(context, _m as Video),
-            getVideoFavoriteItem(_m as Video),
-            getVideoDownloadItem(context, _m as Video),
-            getShowSubtitlesItem(context, _m as Video),
-            getCopySubtitlesItem(context, _m as Video),
+            getVideoShareItem(media as Video),
+            getVideoAddPlaylistItem(context, media as Video),
+            getVideoLanguagesItem(context, media as Video),
+            getVideoFavoriteItem(media as Video),
+            getVideoDownloadItem(context, media as Video),
+            getShowSubtitlesItem(context, media as Video),
+            getCopySubtitlesItem(context, media as Video),
           ]
               : [],
         ),
@@ -179,7 +174,6 @@ class RectangleMediaItemItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    final Media m = _m; // Alias pour l'objet media résolu
 
     // Simplifie le calcul de la couleur de fond
     final Color itemBackgroundColor = backgroundColor ?? (isDarkMode ? const Color(0xFF292929) : Colors.white);
@@ -188,7 +182,7 @@ class RectangleMediaItemItem extends StatelessWidget {
     return Material(
       color: itemBackgroundColor,
       child: InkWell(
-        onTap: () => m.showPlayer(context),
+        onTap: () => media.showPlayer(context),
         child: SizedBox(
           height: height,
           child: Stack(
@@ -202,8 +196,8 @@ class RectangleMediaItemItem extends StatelessWidget {
                     child: ClipRRect(
                       // Suppression du borderRadius pour imiter le design RectanglePublicationItem
                       child: ImageCachedWidget(
-                        imageUrl: m.networkImageSqr,
-                        icon: m is Audio ? JwIcons.headphones__simple : JwIcons.video,
+                        imageUrl: media.networkImageSqr,
+                        icon: media is Audio ? JwIcons.headphones__simple : JwIcons.video,
                         height: height,
                         width: height,
                       ),
@@ -220,7 +214,7 @@ class RectangleMediaItemItem extends StatelessWidget {
                         children: [
                           // Titre (toujours affiché)
                           Text(
-                            m.title,
+                            media.title,
                             style: TextStyle(
                               height: 1.2,
                               fontSize: 14,
@@ -232,7 +226,7 @@ class RectangleMediaItemItem extends StatelessWidget {
                           const Spacer(),
                           // Date + keySymbol
                           Text(
-                            '${formatDateTime(m.lastModified ?? m.firstPublished!).year} - ${m.keySymbol}',
+                            '${formatYear(formatDateTime(media.lastModified ?? media.firstPublished!).year)} · ${media.keySymbol}',
                             style: TextStyle(fontSize: 11, color: subtitleColor),
                           ),
                         ],
@@ -254,13 +248,13 @@ class RectangleMediaItemItem extends StatelessWidget {
                   child: Row(
                     children: [
                       Icon(
-                        m is Audio ? JwIcons.headphones__simple : JwIcons.play,
+                        media is Audio ? JwIcons.headphones__simple : JwIcons.play,
                         size: 10,
                         color: Colors.white,
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        formatDuration(m.duration),
+                        formatDuration(media.duration),
                         style: const TextStyle(color: Colors.white, fontSize: 9),
                       ),
                     ],

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/files_helper.dart';
+import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/data/databases/history.dart';
 import 'package:sqflite/sqflite.dart';
 import '../../app/services/settings_service.dart';
@@ -182,12 +183,12 @@ class _LanguageDialogState extends State<LanguageDialog> {
   }
 
   void _applySearchFilter() {
-    String searchTerm = _searchController.text.toLowerCase();
+    String searchTerm = normalize(_searchController.text);
 
     // 1. Filtrer la liste complète (_allLanguagesList)
     final filtered = _allLanguagesList.where((lang) {
-      final name = lang['Name']?.toString().toLowerCase() ?? '';
-      final vernacularName = lang['VernacularName']?.toString().toLowerCase() ?? '';
+      final name = normalize(lang['Name']?.toString() ?? '');
+      final vernacularName = normalize(lang['VernacularName']?.toString() ?? '');
       return name.contains(searchTerm) || vernacularName.contains(searchTerm);
     }).toList();
 
@@ -247,19 +248,14 @@ class _LanguageDialogState extends State<LanguageDialog> {
     }).toList();
 
     return Dialog(
-      insetPadding: EdgeInsets.fromLTRB(
-        20,
-        20,
-        20,
-        20,
-      ),
+      insetPadding: const EdgeInsets.all(20),
       child: Container(
         width: MediaQuery.of(context).size.width,
         padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
+          children: [
             Padding(
               padding: EdgeInsets.symmetric(vertical: 10, horizontal: 20),
               child: Text(
@@ -367,14 +363,11 @@ class _LanguageDialogState extends State<LanguageDialog> {
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Column(
-                                  crossAxisAlignment:
-                                  CrossAxisAlignment.start,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(translatedName, style: const TextStyle(fontSize: 16)),
                                     Text(
-                                      title.isNotEmpty
-                                          ? title
-                                          : vernacularName,
+                                      title.isNotEmpty ? title : vernacularName,
                                       style: TextStyle(
                                         fontSize: 14,
                                         color: subtitleColor,

@@ -603,8 +603,8 @@ void showAudioPopupMenu(BuildContext context, Publication publication, int audio
         value: 'download', // Utilisation de la constante String
         child: ListTile(
           dense: true,
-          leading: Icon(publication.audios.elementAt(audioIndex).isDownloadedNotifier.value ? JwIcons.trash : JwIcons.cloud_arrow_down, color: Theme.of(context).primaryColor),
-          title: Text(publication.audios.elementAt(audioIndex).isDownloadedNotifier.value ? i18n().action_delete_audio : i18n().action_download_audio),
+          leading: Icon(publication.audiosNotifier.value.elementAt(audioIndex).isDownloadedNotifier.value ? JwIcons.trash : JwIcons.cloud_arrow_down, color: Theme.of(context).primaryColor),
+          title: Text(publication.audiosNotifier.value.elementAt(audioIndex).isDownloadedNotifier.value ? i18n().action_delete_audio : i18n().action_download_audio),
         ),
       ),
     ],
@@ -618,11 +618,11 @@ void showAudioPopupMenu(BuildContext context, Publication publication, int audio
         break;
 
       case 'download':
-        if(publication.audios.elementAt(audioIndex).isDownloadedNotifier.value) {
-          publication.audios.elementAt(audioIndex).remove(context);
+        if(publication.audiosNotifier.value.elementAt(audioIndex).isDownloadedNotifier.value) {
+          publication.audiosNotifier.value.elementAt(audioIndex).remove(context);
         }
         else {
-          publication.audios.elementAt(audioIndex).download(context);
+          publication.audiosNotifier.value.elementAt(audioIndex).download(context);
         }
         break;
 

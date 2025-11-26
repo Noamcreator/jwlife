@@ -16,6 +16,7 @@ import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/core/utils/utils_backup_app.dart';
 import 'package:jwlife/core/utils/utils_language_dialog.dart';
 import 'package:jwlife/data/databases/catalog.dart';
+import 'package:jwlife/features/releases_page.dart';
 import 'package:jwlife/i18n/i18n.dart';
 import 'package:jwlife/core/utils/utils_dialog.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -1300,8 +1301,14 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
       SettingsTile(
         title: i18n().settings_application_version,
         subtitle: _currentVersion,
+        trailing: IconButton(
+            icon: const Icon(JwIcons.arrows_circular),
+            onPressed: () {
+              JwLifeAutoUpdater.checkAndUpdate(showBannerNoUpdate: true);
+            }
+        ),
         onTap: () {
-         JwLifeAutoUpdater.checkAndUpdate(showBannerNoUpdate: true);
+          showPage(ReleasesPage());
         }
       ),
       SettingsTile(

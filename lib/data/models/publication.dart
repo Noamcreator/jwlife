@@ -67,7 +67,7 @@ class Publication {
   DatedTextManager? datedTextManager;
   WordsSuggestionsModel? wordsSuggestionsModel;
 
-  List<Audio> audios = [];
+  final ValueNotifier<List<Audio>> audiosNotifier;
 
   CancelableOperation? _downloadOperation;
   CancelableOperation? _updateOperation;
@@ -112,11 +112,13 @@ class Publication {
     this.databasePath,
     this.hasTopics = false,
     this.hasCommentary = false,
+    ValueNotifier<List<Audio>>? audiosNotifier,
     ValueNotifier<double>? progressNotifier,
     ValueNotifier<bool>? isDownloadingNotifier,
     ValueNotifier<bool>? isDownloadedNotifier,
     ValueNotifier<bool>? isFavoriteNotifier
-  }) : progressNotifier = progressNotifier ?? ValueNotifier(0.0),
+  }) : audiosNotifier = audiosNotifier ?? ValueNotifier([]),
+        progressNotifier = progressNotifier ?? ValueNotifier(0.0),
         isDownloadingNotifier = isDownloadingNotifier ?? ValueNotifier(false),
         isDownloadedNotifier = isDownloadedNotifier ?? ValueNotifier(false),
         isFavoriteNotifier = isFavoriteNotifier ?? ValueNotifier(false);
@@ -507,10 +509,10 @@ class Publication {
   }
 
   Future<void> fetchAudios() async {
-    if(audios.isEmpty) {
+    if(audiosNotifier.value.isEmpty) {
       List<Audio>? audios = await Api.getPubAudio(keySymbol: keySymbol, issueTagNumber: issueTagNumber, languageSymbol: mepsLanguage.symbol);
       if(audios != null) {
-        this.audios = audios;
+        audiosNotifier.value = audios;
       }
     }
   }

@@ -289,11 +289,11 @@ class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
   }
 
   void _applySearchAndSort() {
-    String searchTerm = _searchController.text.toLowerCase();
+    String searchTerm = normalize(_searchController.text);
 
     final filtered = _allLanguagesList.where((lang) {
-      final name = lang['LanguageName']?.toString().toLowerCase() ?? '';
-      final vernacularName = lang['VernacularName']?.toString().toLowerCase() ?? '';
+      final name = normalize(lang['LanguageName']?.toString() ?? '');
+      final vernacularName = normalize(lang['VernacularName']?.toString().toLowerCase() ?? '');
       return name.contains(searchTerm) || vernacularName.contains(searchTerm);
     }).toList();
 
@@ -341,12 +341,7 @@ class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
     }).toList();
 
     return Dialog(
-      insetPadding: EdgeInsets.fromLTRB(
-        20,
-        20,
-        20,
-        20,
-      ),
+      insetPadding: const EdgeInsets.all(20),
       child: Container(
         width: MediaQuery.of(context).size.width,
         padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 0),
@@ -504,7 +499,7 @@ class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
         },
         child: Container(
           color: languageSymbol == selectedLanguage && keySymbol == selectedSymbol && issueTagNumber == selectedIssueTagNumber ? Theme.of(context).brightness == Brightness.dark ? const Color(0xFF626262) : const Color(0xFFf0f0f0) : null,
-          padding: const EdgeInsets.only(left: 35, right: 5, top: 5, bottom: 5),
+          padding: const EdgeInsets.only(left: 40, right: 5, top: 5, bottom: 5),
           child: Stack(
             children: [
               // Contenu principal (Row avec Radio + Textes)

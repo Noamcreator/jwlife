@@ -19,8 +19,6 @@ class Assets {
   static const String fontsRobotoBoldItalic = 'assets/fonts/Roboto-BoldItalic.ttf';
   static const String fontsRobotoItalic = 'assets/fonts/Roboto-Italic.ttf';
   static const String fontsRobotoRegular = 'assets/fonts/Roboto-Regular.ttf';
-  static const String i18nIntlEn = 'assets/i18n/intl_en.arb';
-  static const String i18nIntlFr = 'assets/i18n/intl_fr.arb';
   static const String iconsIcHelp = 'assets/icons/ic_help.png';
   static const String iconsIcLauncher = 'assets/icons/ic_launcher.png';
   static const String iconsJwLife = 'assets/icons/jw_life.png';
