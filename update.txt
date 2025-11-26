@@ -548,86 +548,149 @@ Bonne aseemblée à vous
 
 📢 Mise à jour – 1.2.0 (25/11/2025)
 
-- Icons qui ont un double sens ffonctionnent dans les langues RTL (arabe, hébreux, etc.)
+🚀 Nouvelles Fonctionnalités
 
-- Création d'une page qui garde les 6 onglets qui permet de les afficher directement et plus rapidement. Plus de probleme de document qui revoient en haut après avoir été sur un document.
+- Création d’une page qui garde les 6 onglets actifs pour les afficher directement et plus rapidement. Plus de problème de document qui revient en haut après consultation.
 
-- Les preferecnes sont chargés au début unebonne fois pour toute donc pour chaque preference elles sont chargés rapidement
+- Ajout des menus pour le bouton 'Plus' sur la page de l’audio en plein écran.
 
-- Création d'une class qui garde toutes les données de l'app. Quand ces variables sont mis à jour elles mettent automatiquement à jour les widget qui les contients.
+- On peut maintenant, dans la page des Médias, ouvrir les cantiques avec le logo des médias à côté de celui de l’historique.
 
-- Chargement beaucoup plus optimisé au démarrage tout est chargé progressivement !
+- Ajout de la publication des Discours Publics 'S-34' dans la section « Autres publications pour les réunions » quand importée dans l’application.
 
-- Optimisation quand le clavier sort et rentre
+- Quand on clique sur le diamant dans la Bible, les notes sont triées par verset et le verset correspondant est affiché au-dessus des notes. Possibilité de choisir en haut sur quel verset aller.
 
-- Ajout des menus pour le bouton 'Plus' sur la page se l'audio en plein écran
+- La bibliothèque WOL est directement ajoutée pour la langue de base de l’application, pas besoin de la chercher en ligne.
 
-- Correction des tous les widget où quand on clique dessus il se mettent en plus clair et ajout sur les boutons des catégories Publications, Audios et Vidéos dans l'onglet 'Bibliothèque'
+- Quand on clique sur le logo langue dans la Bible, toutes les traductions de la Bible dans toutes les langues sont proposées.
 
-- Pages de recherche audio et vidéos amélioré et rendu plus jolie
+- Mise en place d’une classe commune pour tous les textes de l’application.
 
-- Nouvelle AppBar avec la fleche retour qui est une Icon de la police JW. Les boutons d'actions sont plus serré.
+🧩 Améliorations de l'Expérience
 
-- Correction de la couleur des icons du menu 'Plus' sur la page des chapitres de la Bible
+- Préférences chargées au début une bonne fois pour toutes, chaque préférence s’affiche rapidement.
 
-- La langue se met à jour automatiquement sur les AppBar et sur le menu paramètre quand on la change
+- Création d’une classe qui garde toutes les données de l’application : les mises à jour des variables mettent automatiquement à jour les widgets concernés.
 
-- La base de donnée du Catalog est maintenant ouverte tout le temps ce qui accélère les requêtes dessus
+- Chargement beaucoup plus optimisé au démarrage, tout est chargé progressivement.
 
-- La page du Culte a été encore amélioré pour faire en sorte que l'affichage des réunions soit comme celle dans un menu. Le texte n'est plus en gras.
+- Optimisation de l’affichage quand le clavier sort et rentre.
 
-- Ajout de la publication des Discours Publique 'S-34' dans la section 'Autres publications pour les réunions' quand on l'a importé dans l'application
+- Pages de recherche audio et vidéos améliorées et rendu plus esthétique.
 
-- Les notes sont mis à un même endroit donc quand je modifie une note une un document il se met à jour directement dans l'onglet 'Personel'
+- La langue se met à jour automatiquement sur les AppBar et sur le menu paramètre lorsqu’on la change.
 
-- On peut maintenant, dans la page des Médias ouvrir les cantiques avec le logo des médias à coté de celui de l'historique
+- La page du Culte améliorée pour que l’affichage des réunions soit comme dans un menu, texte non gras.
 
-- Quand on clique sur un verset qui a par exemple: Genèse 12:1-13:14 si le chapitre du 12 avait plus que 14 versets il me le selectionait que jusqu'au 14. Alors on vérifié si on est dans le même chapitre pour mettre en évidence un verset
+- Amélioration de la section Favorites : les publications non importées ont le même design que celles importées.
 
-- Amélioration de la section Favorite pour que les publciations non importé est le même design que celle importé
+- Notes et catégories chargées dès le début de l’application pour une fluidité optimale.
 
-- Correction du bug qui faisait que ceux qui ont les boutons android n'ont pas la liste qui chevauche la bar de navigation des onglets
+- L’icône sélectionnée sur la barre de navigation est légèrement brillant pour mieux visualiser l’onglet actif.
 
-- Optimisation de l'affichage des images
+- Les dialogues de sélection de langue s’adaptent au clavier et ne sont plus trop petits sur les téléphones Xiaomi.
 
-- Les notes et les catégories sont chargés tout au début de l'application ce qui permet que ça soit fluide après
+- Les médias dans la catégorie « Nouveautés assemblée » affichent le menu déroulant juste en dessous du bouton nuage, au lieu du coin supérieur droit.
 
-- On utilise plus de setState sur les pages pricipales pour éviter de tout rebuild
+- Changement du mode 'Préparation Mode' en 'Blocage Horizontal', qui peut être activé simultanément avec le mode Lecture.
 
-- L'icon selctionné sur la barre de navigation est légèrement briant pour qu'on voit plus sur quel onglet on est
+- Library Provider mise en place pour actualiser automatiquement les widgets.
 
-- Les dialogues des langues s'adapte au clavier et ils ne sont plus tout petit sur les téléphoens Xiaomi
+🎨 Interface & Design
 
-- La barre chargement principal a été mis en transparent en fond pour ressembler à JW Library
+- Nouvelle AppBar avec flèche retour utilisant une icône JW. Boutons d’action plus serrés.
 
-- Changement du logo play pour les médias vidéo
+- Correction de la couleur des icônes du menu 'Plus' sur la page des chapitres de la Bible.
 
-- Pour la langue de base de l'application, la bibliothèque WOL est directement ajouté pas besoin de les chercher en ligne
+- Correction des widgets qui s’éclaircissaient au clic et ajout de cet effet sur les boutons des catégories Publications, Audios et Vidéos dans l’onglet Bibliothèque.
 
-- Qaund on clique sur le logo langue dans la Bible il nous propose toutes les traductions de la bible dans toutes les langues
+- Optimisation de l’affichage des images.
 
-- Quand ouvrait la page de recherche de mot sur la Bible ça buggé. Bug corrigé.
+- Mise à jour du thème général de l’application pour corriger des bugs liés aux couleurs.
 
-- Sur la page de recherche de mot quand on ajoute un document dans un marque pas ça fonctionne
+- Amélioration du design du Switch.
 
-- updateLibraryCategories() déplace dans la section des médias
+- La barre de chargement principale est maintenant transparente en fond, similaire à JW Library.
 
-- Les médias dans la catégories 'Nouveautés assemblée' quand on clique sur le nuage le menu déroulant s'affiche juste en dessous du bouton au lieu de en haut à droite
+- Changement du logo play pour les médias vidéo.
 
-- Changement du mode 'Préparation Mode' en 'Blocage Horizontal' et il peut être mis en simultané avec le mode Lecture
+🛠 Optimisation
 
-- Mise en place d'une class commune pour tous les textes de la l'application
+- Chargement progressif et plus rapide des données de l’application.
 
-- Mise à jour du thème général de l'application pour corrigé des bugs lié aux couleurs
+- Plus de setState sur les pages principales pour éviter de rebuild tout le widget tree.
 
-- Amélioration, du design du Switch
+- Base de données du Catalog ouverte en permanence pour accélérer les requêtes.
 
-- Optimisation de tout le projet et beaucoup de réffactoring pour mieux ranger les class etc.
+- updateLibraryCategories() déplacé dans la section des médias.
 
-- Quand on clique sur le diamant dans la bible il nous trie les notes par verset et il écrit au dessus des notes le verset. On peut choisir en haut sur quel verset on veut aller où y'a une note
+- Optimisation globale du projet avec beaucoup de refactoring pour mieux organiser les classes.
 
-- Ajout de la Library provider pour actualiser automatiquement les widgets
+🐞 Corrections & Stabilité
 
-- Mise à jour du dart passé de 3.10.0 en 3.10.1
+- Icons à double sens fonctionnent dans les langues RTL (arabe, hébreux, etc.).
 
-- Mise à jour de file_picker de 13.3.6 en 10.3.7 et de flutter_svg de 2.2.2 en 2.2.3
+- Correction du bug de sélection de versets pour les plages dépassant le nombre de versets d’un chapitre.
+
+- Correction du bug sur la page de recherche de mot dans la Bible.
+
+- Correction du bug sur l’ajout d’un document dans un marque-page depuis la recherche de mot.
+
+- Correction du bug sur Android où la liste chevauchait la barre de navigation des onglets.
+
+📦 Mises à Jour Techniques
+
+- Passage de Dart de 3.10.0 à 3.10.1.
+
+- Mise à jour de file_picker de 13.3.6 à 10.3.7.
+
+- Mise à jour de flutter_svg de 2.2.2 à 2.2.3.
+
+
+📢 Mise à jour – v1.2.1 (26/11/2025)
+
+🚀 Nouvelles Fonctionnalités
+
+- Ajout de 2 nouvelles langues : Persan & Turc
+
+- Affichage des versets dans la langue choisie, avec les chiffres propres à chaque écriture (ex. chiffres arabes entièrement pris en charge).
+
+- Notes multi-langues : les notes s'affichent correctement dans un document, quel que soit la langue dans laquelle elles ont été créées.
+
+- Page dédiée aux versions de l’application :
+Dans Paramètres → À propos → Version, on peut désormais voir l’historique complet des mises à jour. Un combobox permet de sélectionner la version à afficher.
+
+🧩 Améliorations de l'Expérience
+
+- Les audios des réunions de la semaine sont désormais chargés et visibles dès le premier lancement.
+
+- Lorsqu’un utilisateur surligne dans un document, la langue du surlignage est vérifiée automatiquement avant l’application du style.
+
+- La recherche ignore désormais les diacritiques (ex. taper francais suffit pour trouver français).
+
+- Les discours publics ne s’affichent que dans les langues réellement disponibles.
+Exemple : si le S-34 existe uniquement en français, il ne sera pas affiché en anglais.
+
+- Dans les publications par catégories, les attributs (année, type, labels…) sont désormais affichés dans la langue de la bibliothèque, et non plus celle de l’application.
+
+🎨 Interface & Design
+
+- Les publications contenant des numéros par année (ex. La Tour de Garde, Réveillez-vous !, Cahier Vie et Ministère, etc.) passent automatiquement en affichage RTL pour les langues qui le nécessitent (arabe, hébreu…).
+
+- Les notes affichées dans les WebViews sont désormais correctement positionnées en format RTL.
+
+⚙️ Optimisation
+
+- Les années, les durées des vidéos et la taille des fichiers s’affichent au format numérique propre à la langue de la publication (ex. chiffres arabes en arabe, chiffres persans en persan, etc.).
+
+🐞 Corrections & Stabilité
+
+- Correction du placement incorrect des notes dans les documents RTL.
+
+- Meilleure cohérence entre langue de la bibliothèque, langue des publications et affichage interne.
+
+📦 Mises à Jour Techniques
+
+- Harmonisation des systèmes de gestion multilingue (numérotation, RTL, attributs de publications, surlignage).
+
+- Amélioration de la logique interne reliant audio, publications et langues disponibles.
