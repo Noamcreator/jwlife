@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../../../data/controller/notes_controller.dart';
 import '../../../../data/models/userdata/note.dart';
 import '../../../personal/widgets/note_item_widget.dart';
-import 'search_model.dart'; // ton modèle avec la méthode fetchNotes qui doit retourner List<Note>
+import 'search_model.dart';
 
 class NotesSearchTab extends StatefulWidget {
   final SearchModel model;
@@ -16,48 +18,33 @@ class _NotesSearchTabState extends State<NotesSearchTab> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: FutureBuilder<List<Note>>(
-        future: widget.model.fetchNotes(), // méthode async qui renvoie List<Note>
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          } else if (snapshot.hasError) {
-            return Center(child: Text('Erreur : ${snapshot.error}'));
-          } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return const Center(child: Text('Aucune note trouvée.'));
-          }
+    final notes = context.watch<NotesController>().searchNotes(widget.model.query);
 
-          final notes = snapshot.data!;
+    return Scrollbar(
+      interactive: true,
+      child: CustomScrollView(
+        physics: ClampingScrollPhysics(),
+        slivers: [
+          SliverList(
+            delegate: SliverChildBuilderDelegate(
+                  (context, index) {
+                final note = notes[index];
 
-          return Scrollbar(
-            interactive: true,
-            child: CustomScrollView(
-              physics: ClampingScrollPhysics(),
-              slivers: [
-                SliverList(
-                  delegate: SliverChildBuilderDelegate(
-                        (context, index) {
-                      final note = notes[index];
-
-                      return _KeepAliveNoteItem(
-                        key: ValueKey('note_${note.noteId}'),
-                        note: note,
-                        onUpdated: () => setState(() {}),
-                        // 🌟 TRANSMISSION du terme de recherche au widget enfant
-                        searchQuery: widget.model.query,
-                      );
-                    },
-                    childCount: notes.length,
-                    addAutomaticKeepAlives: true,
-                    addRepaintBoundaries: true,
-                    addSemanticIndexes: true,
-                  ),
-                ),
-              ],
+                return _KeepAliveNoteItem(
+                  key: ValueKey('note_${note.guid}'),
+                  note: note,
+                  onUpdated: () => setState(() {}),
+                  // 🌟 TRANSMISSION du terme de recherche au widget enfant
+                  searchQuery: widget.model.query,
+                );
+              },
+              childCount: notes.length,
+              addAutomaticKeepAlives: true,
+              addRepaintBoundaries: true,
+              addSemanticIndexes: true,
             ),
-          );
-        },
+          ),
+        ],
       ),
     );
   }

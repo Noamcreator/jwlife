@@ -161,7 +161,6 @@
   "action_playlist_end_continue": "Продолжить",
   "action_playlist_end_freeze": "Поставить на паузу",
   "action_playlist_end_stop": "Остановить",
-  "action_preparing_mode": "Режим подготовки",
   "action_previous": "Предыдущая",
   "action_reading_mode": "Режим чтения",
   "action_refresh": "Обновить",
@@ -907,5 +906,6 @@
   "action_public_talk_remove": "Удалить речь",
   "action_congregations": "Поместные Собрания",
   "action_meeting_management": "Планирование встреч",
-  "action_brothers_and_sisters": "Братья и Сёстры"
+  "action_brothers_and_sisters": "Братья и Сёстры",
+  "action_blocking_horizontally_mode": "Горизонтальная блокировка"
 }

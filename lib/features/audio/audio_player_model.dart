@@ -30,7 +30,7 @@ class JwLifeAudioPlayer {
 
   Future<void> fetchAudioData(Audio audio) async {
     String? lank = audio.naturalKey;
-    String? lang = audio.mepsLanguage ?? JwLifeSettings().currentLanguage.symbol;
+    String? lang = audio.mepsLanguage ?? JwLifeSettings.instance.currentLanguage.value.symbol;
 
     if(audio.fileUrl != null) {
       await setPlaylist([audio]);
@@ -71,7 +71,7 @@ class JwLifeAudioPlayer {
 
     if(album != category) {
       album = category;
-      String languageSymbol = category.language ?? JwLifeSettings().currentLanguage.symbol;
+      String languageSymbol = category.language ?? JwLifeSettings.instance.currentLanguage.value.symbol;
 
       if(await hasInternetConnection()) {
         // URL de l'API
@@ -165,7 +165,7 @@ class JwLifeAudioPlayer {
                 : RealmLibrary.realm
                 .all<realm_catalog.Category>()
                 .query(
-              "key == '${audio.categoryKey}' AND language == '${audio.mepsLanguage ?? JwLifeSettings().currentLanguage.symbol}'",
+              "key == '${audio.categoryKey}' AND language == '${audio.mepsLanguage ?? JwLifeSettings.instance.currentLanguage.value.symbol}'",
             )
                 .firstOrNull
                 ?.localizedName ?? '');
@@ -279,7 +279,7 @@ class JwLifeAudioPlayer {
 
   Future<void> play({Duration? initialPosition}) async {
     if (initialPosition != null) await player.seek(initialPosition);
-    if (!GlobalKeyService.jwLifePageKey.currentState!.audioWidgetVisible) {
+    if (!GlobalKeyService.jwLifePageKey.currentState!.audioWidgetVisible.value) {
       GlobalKeyService.jwLifePageKey.currentState!.toggleAudioWidgetVisibility(true);
     }
     await player.play();

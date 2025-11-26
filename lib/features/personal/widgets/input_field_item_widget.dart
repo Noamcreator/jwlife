@@ -45,7 +45,7 @@ class InputFieldItemWidget extends StatefulWidget {
     );
 
     String docTitle = '';
-    pub ??= await PubCatalog.searchPubNoMepsLanguage(inputField.location.keySymbol!, inputField.location.issueTagNumber!, inputField.location.mepsLanguageId!);
+    pub ??= await CatalogDb.instance.searchPubNoMepsLanguage(inputField.location.keySymbol!, inputField.location.issueTagNumber!, inputField.location.mepsLanguageId!);
 
     if (pub != null) {
       if (pub.isDownloadedNotifier.value) {

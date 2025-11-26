@@ -234,7 +234,7 @@ Future<void> showDocumentView(BuildContext context, int mepsDocId, int currentLa
   }
   else {
     if(await hasInternetConnection(context: context)) {
-      publication = await PubCatalog.searchPubFromMepsDocumentId(mepsDocId, currentLanguageId);
+      publication = await CatalogDb.instance.searchPubFromMepsDocumentId(mepsDocId, currentLanguageId);
       if (publication != null) {
         await showDownloadPublicationDialog(context, publication, mepsDocId: mepsDocId, startParagraphId: startParagraphId, endParagraphId: endParagraphId, textTag: textTag, wordsSelected: wordsSelected);
       }
@@ -242,12 +242,12 @@ Future<void> showDocumentView(BuildContext context, int mepsDocId, int currentLa
   }
 }
 
-Future<void> showChapterView(BuildContext context, String keySymbol, int currentLanguageId, int bookNumber, int chapterNumber, {int? firstVerseNumber, int? lastVerseNumber, List<String>? wordsSelected}) async {
+Future<void> showChapterView(BuildContext context, String keySymbol, int currentLanguageId, int bookNumber, int chapterNumber, {int? lastBookNumber, int? lastChapterNumber, firstVerseNumber, int? lastVerseNumber, List<String>? wordsSelected}) async {
   Publication? bible = PublicationRepository().getAllBibles().firstWhereOrNull((p) => p.keySymbol == keySymbol && p.mepsLanguage.id == currentLanguageId);
 
   if (bible != null) {
     if (bible.isDownloadedNotifier.value) {
-      await showPageBibleChapter(bible, bookNumber, chapterNumber, firstVerse: firstVerseNumber, lastVerse: lastVerseNumber, wordsSelected: wordsSelected);
+      await showPageBibleChapter(bible, bookNumber, chapterNumber, lastBookNumber: lastBookNumber, lastChapterNumber: lastChapterNumber, firstVerse: firstVerseNumber, lastVerse: lastVerseNumber, wordsSelected: wordsSelected);
     }
     else {
       await showDownloadPublicationDialog(context, bible, bookNumber: bookNumber, chapterNumber: chapterNumber, startParagraphId: firstVerseNumber, endParagraphId: lastVerseNumber, wordsSelected: wordsSelected);
@@ -255,7 +255,7 @@ Future<void> showChapterView(BuildContext context, String keySymbol, int current
   }
   else {
     if(await hasInternetConnection(context: context)) {
-      bible = await PubCatalog.searchPub(keySymbol, 0, currentLanguageId);
+      bible = await CatalogDb.instance.searchPub(keySymbol, 0, currentLanguageId);
       if (bible != null) {
         await showDownloadPublicationDialog(context, bible, bookNumber: bookNumber, chapterNumber: chapterNumber, startParagraphId: firstVerseNumber, endParagraphId: lastVerseNumber, wordsSelected: wordsSelected);
       }
@@ -275,7 +275,7 @@ Future<void> showDailyText(BuildContext context, Publication publication, {DateT
 }
 
 String createHtmlContent(String html, String articleClasses, String javascript) {
-  WebViewData webViewData = JwLifeSettings().webViewData;
+  WebViewData webViewData = JwLifeSettings.instance.webViewData;
   String htmlContent = '''
     <!DOCTYPE html>
     <html style="overflow-x: hidden; height: 100%;">
@@ -347,7 +347,7 @@ String getArticleClass(Publication publication, Document document) {
 }
 
 Future<void> showFontSizeDialog(BuildContext context, InAppWebViewController? controller) async {
-  double fontSize = JwLifeSettings().webViewData.fontSize;
+  double fontSize = JwLifeSettings.instance.webViewData.fontSize;
   showDialog(
     context: context,
     builder: (BuildContext context) {
@@ -385,8 +385,8 @@ Future<void> showFontSizeDialog(BuildContext context, InAppWebViewController? co
 
                           // Mise à jour en temps réel dans la WebView
                           controller?.evaluateJavascript(source: "resizeFont($fontSize);");
-                          JwLifeSettings().webViewData.updateFontSize(fontSize);
-                          setFontSize(fontSize);
+                          JwLifeSettings.instance.webViewData.updateFontSize(fontSize);
+                          AppSharedPreferences.instance.setFontSize(fontSize);
                         },
                       ),
                     ],
@@ -757,7 +757,7 @@ Future<Bookmark?> showBookmarkDialog(BuildContext context, Publication publicati
                                         if (bookmark != null)
                                           PopupMenuButton(
                                             icon: Icon(
-                                              Icons.more_vert,
+                                              Icons.more_horiz,
                                               color: Color(0xFF9d9d9d),
                                             ),
                                             itemBuilder: (context) {

@@ -5,7 +5,7 @@ import 'package:jwlife/app/services/settings_service.dart';
 
 import '../../app/services/global_key_service.dart';
 import '../../app/services/notification_service.dart';
-import '../../core/jworg_uri.dart';
+import '../../core/uri/jworg_uri.dart';
 import '../../core/utils/common_ui.dart';
 import '../../core/utils/utils_media.dart';
 import '../../i18n/i18n.dart';
@@ -85,7 +85,7 @@ abstract class Media {
   Future<void> download(BuildContext context, {int? resolution, Offset? tapPosition});
 
   Future<void> notifyDownload(String title) async {
-    if(JwLifeSettings().notificationDownload) {
+    if(JwLifeSettings.instance.notificationDownload) {
       // Notification de fin avec bouton "Ouvrir"
       await NotificationService().showCompletionNotification(
         id: hashCode,
@@ -145,7 +145,7 @@ abstract class Media {
       _downloadOperation!.cancel();
       _cancelToken = null;
       _downloadOperation = null;
-      showBottomMessage('Téléchargement annulé');
+      showBottomMessage(i18n().message_download_cancel);
     }
   }
 
@@ -176,7 +176,7 @@ abstract class Media {
       progressNotifier.value = 1.0;
 
       // Notification de fin avec bouton "Ouvrir"
-      notifyDownload('Mise à jour terminée');
+      notifyDownload(i18n().message_catalog_success);
     }
     else {
       // Téléchargement annulé ou échoué

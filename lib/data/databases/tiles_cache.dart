@@ -91,9 +91,11 @@ class TilesCache {
       } else {
         return await downloadImage(imageUrl, filename);
       }
-    } else if (imageUrl.startsWith('file')) {
+    }
+    else if (imageUrl.startsWith('file')) {
       return Tile(fileName: filename, file: File.fromUri(Uri.parse(imageUrl)));
-    } else {
+    }
+    else {
       return Tile(fileName: filename, file: File(imageUrl));
     }
   }

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/app_dimens.dart';
+import '../../../core/ui/app_dimens.dart';
 import '../../../core/icons.dart';
 import '../../../core/utils/utils.dart'; // Pour formatFileSize
 import '../../../core/utils/utils_pub.dart'; // Pour les fonctions de menu
@@ -65,7 +65,7 @@ class RectanglePublicationItem extends StatelessWidget {
         if (isDownloading) {
           return PositionedDirectional(
             bottom: -4,
-            end: -8,
+            end: -5,
             height: 40,
             child: IconButton(
               padding: EdgeInsets.zero,
@@ -87,7 +87,7 @@ class RectanglePublicationItem extends StatelessWidget {
                 children: [
                   PositionedDirectional(
                     bottom: 3,
-                    end: -10,
+                    end: -5,
                     height: 40,
                     child: IconButton(
                       padding: EdgeInsets.zero,
@@ -150,8 +150,8 @@ class RectanglePublicationItem extends StatelessWidget {
   Widget _buildPopupMenu(BuildContext context) {
     // Positionné en HAUT-FIN. Ceci est CORRECT.
     return PositionedDirectional(
-      top: -15,
-      end: -10,
+      top: -13,
+      end: -7,
       child: RepaintBoundary(
         child: PopupMenuButton(
           popUpAnimationStyle: AnimationStyle.lerp(

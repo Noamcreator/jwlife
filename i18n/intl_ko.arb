@@ -161,7 +161,6 @@
   "action_playlist_end_continue": "다음 영상 재생",
   "action_playlist_end_freeze": "일시 중지",
   "action_playlist_end_stop": "중지",
-  "action_preparing_mode": "준비 모드",
   "action_previous": "이전",
   "action_reading_mode": "읽기 모드",
   "action_refresh": "새로 고침",
@@ -907,5 +906,6 @@
   "action_public_talk_remove": "연설 삭제",
   "action_congregations": "지방회",
   "action_meeting_management": "집회 계획",
-  "action_brothers_and_sisters": "형제 자매"
+  "action_brothers_and_sisters": "형제 자매",
+  "action_blocking_horizontally_mode": "수평 차단"
 }

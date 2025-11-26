@@ -2,16 +2,19 @@ import 'package:dotted_border/dotted_border.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:jwlife/app/jwlife_app.dart';
+import 'package:jwlife/app/jwlife_app_bar.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/utils_tag_dialogs.dart';
 
 import 'package:jwlife/features/personal/pages/playlist_player.dart';
+import '../../../app/app_page.dart';
 import '../../../app/services/global_key_service.dart';
 import '../../../core/utils/utils_dialog.dart';
 import '../../../core/utils/utils_pub.dart';
 import '../../../data/models/userdata/playlist.dart';
 import '../../../data/models/userdata/playlist_item.dart';
 import '../../../i18n/i18n.dart';
+import '../../../widgets/responsive_appbar_actions.dart';
 import '../widgets/rectangle_playlistItem_item.dart';
 
 class PlaylistPage extends StatefulWidget {
@@ -161,27 +164,14 @@ class _PlaylistPageState extends State<PlaylistPage> {
           : const Color(0xFF626262),
     );
 
-    return Scaffold(
-      resizeToAvoidBottomInset: false,
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            Navigator.pop(context, _playlist);
-          },
-        ),
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(_playlist.name, style: textStyleTitle),
-            Text('${i18n().label_playlist_items(_filteredPlaylistItem.length)} · ${i18n().label_duration(getPlaylistDuration(_filteredPlaylistItem))}',
-                style: textStyleSubtitle),
-          ],
-        ),
-        actions: <Widget>[
-          IconButton(
+    return AppPage(
+      appBar: JwLifeAppBar(
+        title: _playlist.name,
+        subTitle: '${i18n().label_playlist_items(_filteredPlaylistItem.length)} · ${i18n().label_duration(getPlaylistDuration(_filteredPlaylistItem))}',
+        actions: [
+          IconTextButton(
             icon: const Icon(JwIcons.pencil),
-            onPressed: () async {
+            onPressed: (BuildContext context) async {
               Playlist? updatedCategory = await showEditTagDialog(context, _playlist) as Playlist?;
               if (updatedCategory != null) {
                 setState(() {
@@ -190,9 +180,9 @@ class _PlaylistPageState extends State<PlaylistPage> {
               }
             },
           ),
-          IconButton(
+          IconTextButton(
             icon: const Icon(JwIcons.trash),
-            onPressed: () async {
+            onPressed: (BuildContext context) async {
               await showDeleteTagDialog(context, _playlist, items: _filteredPlaylistItem).then((value) {
                 if (value != null && value) {
                   Navigator.pop(context);
@@ -201,9 +191,9 @@ class _PlaylistPageState extends State<PlaylistPage> {
 
             },
           ),
-          IconButton(
+          IconTextButton(
             icon: const Icon(JwIcons.share),
-            onPressed: () {
+            onPressed: (BuildContext context) {
               showSharePlaylist(context, _playlist, items: _filteredPlaylistItem);
             },
           ),

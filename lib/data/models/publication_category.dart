@@ -96,7 +96,7 @@ class PublicationCategory {
     }
   }
 
-  String getName(BuildContext context) {
+  String getName() {
     switch (type) {
       case 'Bible': return i18n().pub_type_bibles;
       case 'Book': return i18n().pub_type_books;

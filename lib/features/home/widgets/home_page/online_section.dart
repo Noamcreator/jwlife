@@ -99,16 +99,10 @@ class IconLinkInfo {
 
 List<IconLinkInfo> _iconLinks(BuildContext context) {
   return [
-    IconLinkInfo('assets/icons/nav_jworg.png', i18n().navigation_official_website, 'https://www.jw.org/${JwLifeSettings().currentLanguage.primaryIetfCode}'),
-    IconLinkInfo('assets/icons/nav_jwb.png', i18n().navigation_online_broadcasting, 'https://www.jw.org/open?docid=1011214&wtlocale=${JwLifeSettings().currentLanguage.symbol}'),
-    IconLinkInfo('assets/icons/nav_onlinelibrary.png', i18n().navigation_online_library, 'https://wol.jw.org/wol/finder?wtlocale=${JwLifeSettings().currentLanguage.symbol}'),
-    IconLinkInfo('assets/icons/nav_donation.png', i18n().navigation_online_donation, 'https://donate.jw.org/ui/${JwLifeSettings().currentLanguage.symbol}/donate-home.html'),
-    IconLinkInfo(
-      Theme.of(context).brightness == Brightness.dark
-          ? 'assets/icons/nav_github_light.png'
-          : 'assets/icons/nav_github_dark.png',
-      i18n().navigation_online_gitub,
-      'https://github.com/Noamcreator/jwlife',
-    ),
+    IconLinkInfo('assets/icons/nav_jworg.png', i18n().navigation_official_website, 'https://www.jw.org/${JwLifeSettings.instance.currentLanguage.value.primaryIetfCode}'),
+    IconLinkInfo('assets/icons/nav_jwb.png', i18n().navigation_online_broadcasting, 'https://www.jw.org/open?docid=1011214&wtlocale=${JwLifeSettings.instance.currentLanguage.value.symbol}'),
+    IconLinkInfo('assets/icons/nav_onlinelibrary.png', i18n().navigation_online_library, 'https://wol.jw.org/wol/finder?wtlocale=${JwLifeSettings.instance.currentLanguage.value.symbol}'),
+    IconLinkInfo('assets/icons/nav_donation.png', i18n().navigation_online_donation, 'https://donate.jw.org/ui/${JwLifeSettings.instance.currentLanguage.value.symbol}/donate-home.html'),
+    IconLinkInfo(Theme.of(context).brightness == Brightness.dark ? 'assets/icons/nav_github_light.png' : 'assets/icons/nav_github_dark.png', i18n().navigation_online_gitub, 'https://github.com/Noamcreator/jwlife'),
   ];
 }

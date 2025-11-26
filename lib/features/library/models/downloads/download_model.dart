@@ -12,7 +12,7 @@ import 'package:jwlife/data/repositories/PublicationRepository.dart';
 import 'package:jwlife/data/databases/catalog.dart';
 import 'package:path/path.dart' as path;
 
-import '../../../../app/services/global_key_service.dart';
+import '../../../../core/app_data/meetings_pubs_service.dart';
 import '../../../../core/utils/common_ui.dart';
 import '../../../publication/pages/menu/local/publication_menu_view.dart';
 
@@ -109,12 +109,11 @@ class DownloadPageModel with ChangeNotifier {
             }
             else {
               if (jwpub.keySymbol == 'S-34') {
-                GlobalKeyService.workShipKey.currentState?.refreshMeetingsPubs();
+                refreshPublicTalks();
               }
 
               if (f == result.files.last) {
-                PubCatalog.updateCatalogCategories();
-                GlobalKeyService.homeKey.currentState!.refreshFavorites();
+                CatalogDb.instance.updateCatalogCategories();
 
                 // Recharger les données après import
                 await _loadData();

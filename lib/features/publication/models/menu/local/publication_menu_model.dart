@@ -1,5 +1,6 @@
 import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/features/publication/models/menu/local/tab_items.dart';
+import 'package:jwlife/features/publication/models/menu/local/words_suggestions_model.dart';
 import 'package:sqflite/sqflite.dart';
 
 import '../../../../../core/utils/files_helper.dart';
@@ -32,6 +33,8 @@ class PublicationMenuModel {
 
     // Le '!' est sécurisé car il vient d'être initialisé ou supposé valide
     await publication.documentsManager!.initializeDatabaseAndData();
+
+    publication.wordsSuggestionsModel ??= WordsSuggestionsModel(publication);
 
     // Création de la map pour un accès O(1) aux objets Document
     _documentMap = {

@@ -8,36 +8,37 @@ import 'package:jwlife/features/video/video_player_page.dart';
 import '../../app/services/global_key_service.dart';
 import '../../data/models/publication.dart';
 import '../../features/audio/audio_player_widget.dart';
-import '../../features/image/image_page.dart';
 import '../../features/personal/pages/playlist_player.dart';
 
 Future<void> showPageDocument(Publication publication, int mepsDocumentId, {int? startParagraphId, int? endParagraphId, String? textTag, List<String>? wordsSelected}) async {
   final GlobalKey<DocumentPageState> documentPageKey = GlobalKey<DocumentPageState>();
-  GlobalKeyService.jwLifePageKey.currentState!.webViewPageKeys[GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex].add(documentPageKey);
+  GlobalKeyService.jwLifePageKey.currentState!.webViewPageKeys[GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex.value].add(documentPageKey);
 
   await showPage(DocumentPage(
       key: documentPageKey,
       publication: publication,
       mepsDocumentId: mepsDocumentId,
-      startParagraphId: startParagraphId,
-      endParagraphId: endParagraphId,
+      startBlockIdentifierId: startParagraphId,
+      endBlockIdentifierId: endParagraphId,
       textTag: textTag,
       wordsSelected: wordsSelected ?? []
     )
   );
 }
 
-Future<void> showPageBibleChapter(Publication bible, int book, int chapter, {int? firstVerse, int? lastVerse, List<String>? wordsSelected}) async {
+Future<void> showPageBibleChapter(Publication bible, int book, int chapter, {int? lastBookNumber, int? lastChapterNumber, int? firstVerse, int? lastVerse, List<String>? wordsSelected}) async {
   final GlobalKey<DocumentPageState> documentPageKey = GlobalKey<DocumentPageState>();
-  GlobalKeyService.jwLifePageKey.currentState!.webViewPageKeys[GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex].add(documentPageKey);
+  GlobalKeyService.jwLifePageKey.currentState!.webViewPageKeys[GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex.value].add(documentPageKey);
 
   await showPage(DocumentPage.bible(
       key: documentPageKey,
       bible: bible,
-      book: book,
-      chapter: chapter,
-      firstVerse: firstVerse,
-      lastVerse: lastVerse,
+      bookNumber: book,
+      chapterNumber: chapter,
+      lastBookNumber: lastBookNumber,
+      lastChapterNumber: lastChapterNumber,
+      firstVerseNumber: firstVerse,
+      lastVerseNumber: lastVerse,
       wordsSelected: wordsSelected ?? []
     )
   );
@@ -45,7 +46,7 @@ Future<void> showPageBibleChapter(Publication bible, int book, int chapter, {int
 
 Future<void> showPageDailyText(Publication publication, {DateTime? date}) async {
   final GlobalKey<DailyTextPageState> dailyTextKey = GlobalKey<DailyTextPageState>();
-  GlobalKeyService.jwLifePageKey.currentState!.webViewPageKeys[GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex].add(dailyTextKey);
+  GlobalKeyService.jwLifePageKey.currentState!.webViewPageKeys[GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex.value].add(dailyTextKey);
 
   await showPage(DailyTextPage(key: dailyTextKey, publication: publication, date: date));
 }
@@ -53,21 +54,12 @@ Future<void> showPageDailyText(Publication publication, {DateTime? date}) async 
 Future<void> showPage(Widget page) async {
   GlobalKeyService.jwLifePageKey.currentState!.addPageToTab(page);
 
-  final isWebViewFullscreenPage = page is DocumentPage || page is DailyTextPage;
-
-  final isTransparentFullscreenPage = page is VideoPlayerPage || page is PlaylistPlayerPage ||
-      page is FullScreenImagePage ||
-      page is ImagePage ||
-      page is FullAudioView;
-
+  final isTransparentFullscreenPage = page is VideoPlayerPage || page is PlaylistPlayerPage || page is FullScreenImagePage || page is FullAudioView;
   final isBottomTransition = page is FullAudioView || page is NotePage;
 
-  GlobalKeyService.jwLifePageKey.currentState!.toggleNavBarDisable(isWebViewFullscreenPage);
   GlobalKeyService.jwLifePageKey.currentState!.toggleNavBarTransparent(isTransparentFullscreenPage);
 
   final isResizeToAvoidBottomInset = page is NotePage;
-
-  GlobalKeyService.jwLifePageKey.currentState!.toggleResizeToAvoidBottomInset(isResizeToAvoidBottomInset);
 
   final isControlsVisible = GlobalKeyService.jwLifePageKey.currentState!.controlsVisible.value;
 
@@ -98,13 +90,11 @@ Future<void> showPage(Widget page) async {
                 end: Offset.zero,    // Point d'arrivée (centre de l'écran)
               ).chain(CurveTween(curve: curve)),
             ),
-            child: RepaintBoundary(
-              child: child,
-            ),
+            child: child
           );
         },
         opaque: false,
-        transitionDuration: const Duration(milliseconds: 400),
+        transitionDuration: const Duration(milliseconds: 350),
         reverseTransitionDuration: const Duration(milliseconds: 350),
       )
   );
@@ -121,7 +111,7 @@ void showBottomMessageWithAction(String message, SnackBarAction? action) {
   final context = pageState!.getCurrentState().context;
 
   final isDark = Theme.of(context).brightness == Brightness.dark;
-  final isAudioPlayerVisible = pageState.audioWidgetVisible;
+  final isAudioPlayerVisible = pageState.audioWidgetVisible.value;
   final bottomPadding = isAudioPlayerVisible ? 130.0 : 55.0;
 
   final messenger = ScaffoldMessenger.of(context);

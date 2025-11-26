@@ -1,13 +1,18 @@
 import 'package:diacritic/diacritic.dart';
+import 'package:flutter/cupertino.dart';
+import 'package:jwlife/app/services/global_key_service.dart';
+import 'package:provider/provider.dart';
 import 'package:string_similarity/string_similarity.dart';
 
-import '../../app/jwlife_app.dart';
+import '../../data/controller/tags_controller.dart';
 import '../../data/models/userdata/tag.dart';
 
 const double _similarityThreshold = 0.6;
 
 List<Tag> getFilteredTags(String query, List<int> tagsId) {
-  final tags = JwLifeApp.userdata.tags;
+  BuildContext context = GlobalKeyService.jwLifePageKey.currentContext!;
+
+  final tags = context.read<TagsController>().tags;
 
   // 1. Préparation de la requête : minuscule, sans accents
   final normalizedQuery = removeDiacritics(query).toLowerCase();

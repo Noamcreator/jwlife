@@ -8,6 +8,7 @@ import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../../../../app/app_page.dart';
 import '../../../../../core/api/api.dart';
 import '../../../../../core/utils/utils.dart';
 import '../../../../../i18n/i18n.dart';
@@ -253,7 +254,7 @@ class _PagesDocumentViewState extends State<PagesDocumentView> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return AppPage(
       backgroundColor: Theme.of(context).brightness == Brightness.dark ? Colors.black : Colors.white,
       appBar: AppBar(
         title: Column(
@@ -351,15 +352,6 @@ class _PagesDocumentViewState extends State<PagesDocumentView> {
             )
           );
         },
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _toggleNotesView,
-        elevation: 6.0,
-        shape: const CircleBorder(),
-        child: Icon(
-          _showNotes ? JwIcons.arrow_to_bar_right : JwIcons.gem,
-          color: Theme.of(context).brightness == Brightness.dark ? Colors.black : Colors.white,
-        ),
       ),
     );
   }

@@ -1,27 +1,21 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:jwlife/app/services/global_key_service.dart';
 import 'package:jwlife/features/home/pages/daily_text_page.dart';
-import 'package:jwlife/features/home/pages/home_page.dart';
-import 'package:jwlife/features/personal/pages/note_page.dart';
 import 'package:jwlife/features/publication/pages/document/local/document_page.dart';
 import 'package:jwlife/features/publication/pages/document/local/full_screen_image_page.dart';
 import 'package:jwlife/features/video/video_player_page.dart';
 import 'package:jwlife/core/utils/utils_dialog.dart';
 import '../data/databases/history.dart';
-import '../features/bible/pages/bible_page.dart';
-import '../features/image/image_page.dart';
-import '../features/workship/pages/workship_page.dart';
-import '../features/predication/pages/predication_page.dart';
-import 'package:jwlife/features/library/pages/library_page.dart';
-import 'package:jwlife/features/personal/pages/personal_page.dart';
 
 import '../core/icons.dart';
 import 'package:jwlife/i18n/i18n.dart';
 
 import '../features/audio/audio_player_widget.dart';
 import '../widgets/long_press_bottom_navigation_bar.dart';
-import '../widgets/slide_indexed_stack.dart';
+import 'container.dart';
 
 class JwLifePage extends StatefulWidget {
   const JwLifePage({super.key});
@@ -30,43 +24,33 @@ class JwLifePage extends StatefulWidget {
   State<JwLifePage> createState() => JwLifePageState();
 }
 
-class JwLifePageState extends State<JwLifePage> {
-  final List<bool> navBarIsDisable = [false, false, false, false, false, false];
-  final List<bool> navBarIsTransparent = [false, false, false, false, false, false];
-  final List<bool> resizeToAvoidBottomInset = [false, false, false, false, false, false];
+class JwLifePageState extends State<JwLifePage> with WidgetsBindingObserver {
+  final ValueNotifier<List<bool>> navBarIsTransparentNotifier = ValueNotifier<List<bool>>([false, false, false, false, false, false]);
 
-  bool audioWidgetVisible = false;
-  int currentNavigationBottomBarIndex = 0;
+  final ValueNotifier<bool> audioWidgetVisible = ValueNotifier<bool>(false);
+  final ValueNotifier<int> currentNavigationBottomBarIndex = ValueNotifier<int>(0);
+  final ValueNotifier<bool> controlsVisible = ValueNotifier<bool>(true);
+
   bool _popMenuOpen = false;
-
-  late final List<Widget> _pages;
 
   final List<GlobalKey<NavigatorState>> navigatorKeys = List.generate(6, (_) => GlobalKey<NavigatorState>());
   List<List<GlobalKey<State<StatefulWidget>>>> webViewPageKeys = List.generate(6, (_) => []);
 
   final Map<int, List<Widget>> pagesByNavigator = {};
 
-  final ValueNotifier<bool> controlsVisible = ValueNotifier<bool>(true);
-
   Orientation orientation = Orientation.portrait;
+
+  final ValueNotifier<Set<int>> loadedNavigators = ValueNotifier<Set<int>>({0});
 
   @override
   void initState() {
     super.initState();
-
-    _pages = [
-      HomePage(key: GlobalKeyService.getKey<HomePageState>(PageType.home)),
-      BiblePage(key: GlobalKeyService.getKey<BiblePageState>(PageType.bible)),
-      LibraryPage(key: GlobalKeyService.getKey<LibraryPageState>(PageType.library)),
-      WorkShipPage(key: GlobalKeyService.getKey<WorkShipPageState>(PageType.workShip)),
-      PredicationPage(key: GlobalKeyService.getKey<PredicationPageState>(PageType.predication)),
-      PersonalPage(key: GlobalKeyService.getKey<PersonalPageState>(PageType.personal)),
-    ];
   }
 
   @override
   void dispose() {
     controlsVisible.dispose();
+    navBarIsTransparentNotifier.dispose();
     super.dispose();
   }
 
@@ -79,26 +63,20 @@ class JwLifePageState extends State<JwLifePage> {
     _updateSystemUiMode(isVisible);
   }
 
-  void toggleNavBarDisable(bool isDisable) {
-    if (navBarIsDisable[currentNavigationBottomBarIndex] != isDisable) {
-      setState(() {
-        navBarIsDisable[currentNavigationBottomBarIndex] = isDisable;
-      });
-    }
-  }
-
   void toggleNavBarTransparent(bool isDisable) {
-    if (navBarIsTransparent[currentNavigationBottomBarIndex] != isDisable) {
-      setState(() {
-        navBarIsTransparent[currentNavigationBottomBarIndex] = isDisable;
-      });
+    final int currentIndex = currentNavigationBottomBarIndex.value;
+    final List<bool> currentList = navBarIsTransparentNotifier.value;
+
+    if (currentList[currentIndex] != isDisable) {
+      final List<bool> newList = List<bool>.from(currentList);
+      newList[currentIndex] = isDisable;
+
+      navBarIsTransparentNotifier.value = newList;
     }
   }
 
   void toggleAudioWidgetVisibility(bool isVisible) {
-    setState(() {
-      audioWidgetVisible = isVisible;
-    });
+    audioWidgetVisible.value = isVisible;
 
     for (var keys in GlobalKeyService.jwLifePageKey.currentState!.webViewPageKeys) {
       for (var key in keys) {
@@ -129,18 +107,10 @@ class JwLifePageState extends State<JwLifePage> {
     }
   }
 
-  void toggleResizeToAvoidBottomInset(bool resizeToAvoidBottom) {
-    if (resizeToAvoidBottomInset[currentNavigationBottomBarIndex] != resizeToAvoidBottom) {
-      setState(() {
-        resizeToAvoidBottomInset[currentNavigationBottomBarIndex] = resizeToAvoidBottom;
-      });
-    }
-  }
-
   Future<void> handleBack<T>(BuildContext context, {T? result}) async {
-    final currentNavigator = navigatorKeys[currentNavigationBottomBarIndex].currentState!;
-    final currentPages = pagesByNavigator[currentNavigationBottomBarIndex];
-    final currentWebKeys = webViewPageKeys[currentNavigationBottomBarIndex];
+    final currentNavigator = navigatorKeys[currentNavigationBottomBarIndex.value].currentState!;
+    final currentPages = pagesByNavigator[currentNavigationBottomBarIndex.value];
+    final currentWebKeys = webViewPageKeys[currentNavigationBottomBarIndex.value];
 
     if (_popMenuOpen) {
       togglePopMenuOpen(false);
@@ -172,7 +142,6 @@ class JwLifePageState extends State<JwLifePage> {
         Orientation currentOrientation = MediaQuery.of(context).orientation;
         if (currentOrientation != orientation) {
           if(orientation == Orientation.portrait) {
-            // revenir en mode portrait
             SystemChrome.setPreferredOrientations([
               DeviceOrientation.portraitUp,
               DeviceOrientation.portraitDown,
@@ -181,7 +150,6 @@ class JwLifePageState extends State<JwLifePage> {
             ]);
           }
           else if (orientation == Orientation.landscape) {
-            // revenir en mode landscape
             SystemChrome.setPreferredOrientations([
               DeviceOrientation.landscapeLeft,
               DeviceOrientation.landscapeRight,
@@ -203,7 +171,7 @@ class JwLifePageState extends State<JwLifePage> {
       _updateUiBasedOnPreviousPage(pageBeforePop);
       _updateSystemUiMode(true);
     }
-    else if (currentNavigationBottomBarIndex != 0) {
+    else if (currentNavigationBottomBarIndex.value != 0) {
       changeNavBarIndex(0);
     }
     else {
@@ -212,21 +180,14 @@ class JwLifePageState extends State<JwLifePage> {
   }
 
   void _updateUiBasedOnPreviousPage(Widget? pageBeforePop) {
-    final shouldDisableNavBar = pageBeforePop is DocumentPage || pageBeforePop is DailyTextPage;
+    final shouldDisableTransparentNavBar = pageBeforePop is FullScreenImagePage || pageBeforePop is VideoPlayerPage;
+    final int currentIndex = currentNavigationBottomBarIndex.value;
+    final List<bool> currentTransparentList = navBarIsTransparentNotifier.value;
 
-    final shouldDisableTransparentNavBar = pageBeforePop is FullScreenImagePage
-        || pageBeforePop is ImagePage || pageBeforePop is VideoPlayerPage;
-
-    setState(() {
-      navBarIsDisable[currentNavigationBottomBarIndex] = shouldDisableNavBar;
-      navBarIsTransparent[currentNavigationBottomBarIndex] = shouldDisableTransparentNavBar;
-    });
-
-    final currentPages = pagesByNavigator[currentNavigationBottomBarIndex];
-    if (currentPages != null && currentPages.isNotEmpty && currentPages.last is NotePage) {
-      setState(() {
-        resizeToAvoidBottomInset[currentNavigationBottomBarIndex] = false;
-      });
+    if(currentTransparentList[currentIndex] != shouldDisableTransparentNavBar) {
+      final List<bool> newList = List<bool>.from(currentTransparentList);
+      newList[currentIndex] = shouldDisableTransparentNavBar;
+      navBarIsTransparentNotifier.value = newList;
     }
   }
 
@@ -236,7 +197,7 @@ class JwLifePageState extends State<JwLifePage> {
       titleText: 'Quitter',
       contentText: 'Voulez-vous vraiment quitter l\'application JW life ?',
       buttons: [
-        JwDialogButton(label: 'ANNULER', closeDialog: true),
+        JwDialogButton(label: i18n().action_cancel_uppercase, closeDialog: true),
         JwDialogButton(
           label: 'QUITTER',
           closeDialog: true,
@@ -251,10 +212,13 @@ class JwLifePageState extends State<JwLifePage> {
   void returnToFirstPage(int index) {
     navigatorKeys[index].currentState?.popUntil((route) => route.isFirst);
     webViewPageKeys[index].clear();
-    setState(() {
-      navBarIsDisable[index] = false;
-      navBarIsTransparent[index] = false;
-    });
+
+    final List<bool> currentList = navBarIsTransparentNotifier.value;
+    if(currentList[index] != false) {
+      final List<bool> newList = List<bool>.from(currentList);
+      newList[index] = false;
+      navBarIsTransparentNotifier.value = newList;
+    }
 
     if(index == 1) {
       GlobalKeyService.bibleKey.currentState?.goToTheBooksTab();
@@ -268,154 +232,247 @@ class JwLifePageState extends State<JwLifePage> {
   }
 
   void changeNavBarIndex(int index, {bool goToFirstPage = false}) {
-    if (index == currentNavigationBottomBarIndex) {
+    if (index == currentNavigationBottomBarIndex.value) {
       returnToFirstPage(index);
     }
     else if(goToFirstPage) {
       GlobalKeyService.setCurrentPage(navigatorKeys[index]);
-      setState(() {
-        currentNavigationBottomBarIndex = index;
-      });
+      currentNavigationBottomBarIndex.value = index;
 
       returnToFirstPage(index);
     }
     else {
       GlobalKeyService.setCurrentPage(navigatorKeys[index]);
-      setState(() {
-        currentNavigationBottomBarIndex = index;
-      });
+      currentNavigationBottomBarIndex.value = index;
     }
   }
 
   void addPageToTab(Widget page) {
-    pagesByNavigator.putIfAbsent(currentNavigationBottomBarIndex, () => []);
-    pagesByNavigator[currentNavigationBottomBarIndex]!.add(page);
+    pagesByNavigator.putIfAbsent(currentNavigationBottomBarIndex.value, () => []);
+    pagesByNavigator[currentNavigationBottomBarIndex.value]!.add(page);
   }
 
   void removePageFromTab() {
-    if (pagesByNavigator[currentNavigationBottomBarIndex]!.isNotEmpty) {
-      pagesByNavigator[currentNavigationBottomBarIndex]!.removeLast();
+    if (pagesByNavigator[currentNavigationBottomBarIndex.value]!.isNotEmpty) {
+      pagesByNavigator[currentNavigationBottomBarIndex.value]!.removeLast();
     }
   }
 
   NavigatorState getCurrentState() {
-    return navigatorKeys[currentNavigationBottomBarIndex].currentState!;
+    return navigatorKeys[currentNavigationBottomBarIndex.value].currentState!;
   }
 
-  Widget _buildBottomNavigationBar({bool isTransparent = false}) {
-    return LongPressBottomNavBar(
-      currentIndex: currentNavigationBottomBarIndex,
-      type: BottomNavigationBarType.fixed,
-      backgroundColor: isTransparent ? Colors.transparent : Theme.of(context).bottomNavigationBarTheme.backgroundColor,
-      selectedItemColor: Theme.of(context).bottomNavigationBarTheme.selectedItemColor,
-      unselectedItemColor: isTransparent ? Colors.white : Theme.of(context).bottomNavigationBarTheme.unselectedItemColor,
-      selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 8.5),
-      unselectedLabelStyle: const TextStyle(fontSize: 8.0),
-      onTap: (index) {
-        changeNavBarIndex(index);
-      },
-      onLongPress: (index) {
-        if (index != currentNavigationBottomBarIndex) {
-          GlobalKeyService.setCurrentPage(navigatorKeys[index]);
-          setState(() {
-            currentNavigationBottomBarIndex = index;
-          });
-        }
-        BuildContext context = navigatorKeys[index].currentContext!;
-        // Faire vibre le tel
-        HapticFeedback.lightImpact();
-
-        History.showHistoryDialog(context, bottomBarIndex: index);
-      },
-      items: [
-        BottomNavigationBarItem(
-          icon: const Icon(JwIcons.home),
-          label: i18n().navigation_home,
-        ),
-        BottomNavigationBarItem(
-          icon: const Icon(JwIcons.bible),
-          label: i18n().navigation_bible,
-        ),
-        BottomNavigationBarItem(
-          icon: const Icon(JwIcons.publication_video_music),
-          label: i18n().navigation_library,
-        ),
-        BottomNavigationBarItem(
-          icon: const Icon(JwIcons.speaker_audience),
-          label: i18n().navigation_workship,
-        ),
-        BottomNavigationBarItem(
-          icon: const Icon(JwIcons.persons_doorstep),
-          label: i18n().navigation_predication,
-        ),
-        BottomNavigationBarItem(
-          icon: const Icon(JwIcons.person_studying),
-          label: i18n().navigation_personal,
-        ),
-      ],
-    );
+  void loadAllNavigator() {
+    if (mounted) {
+      loadedNavigators.value = {...loadedNavigators.value, 1, 2, 3, 4, 5};
+    }
   }
 
-  Widget getAudioWidget() {
-    return AudioPlayerWidget();
+  Widget _createNavigator(int index) {
+    switch (index) {
+      case 0:
+        return Navigator(
+          key: navigatorKeys[0],
+          onGenerateRoute: (settings) {
+            return MaterialPageRoute(
+              builder: (_) => const HomePageContainer(),
+              settings: settings,
+            );
+          },
+        );
+      case 1:
+        return Navigator(
+          key: navigatorKeys[1],
+          onGenerateRoute: (settings) {
+            return MaterialPageRoute(
+              builder: (_) => const BiblePageContainer(),
+              settings: settings,
+            );
+          },
+        );
+      case 2:
+        return Navigator(
+          key: navigatorKeys[2],
+          onGenerateRoute: (settings) {
+            return MaterialPageRoute(
+              builder: (_) => const LibraryPageContainer(),
+              settings: settings,
+            );
+          },
+        );
+      case 3:
+        return Navigator(
+          key: navigatorKeys[3],
+          onGenerateRoute: (settings) {
+            return MaterialPageRoute(
+              builder: (_) => const WorkShipPageContainer(),
+              settings: settings,
+            );
+          },
+        );
+      case 4:
+        return Navigator(
+          key: navigatorKeys[4],
+          onGenerateRoute: (settings) {
+            return MaterialPageRoute(
+              builder: (_) => const PredicationPageContainer(),
+              settings: settings,
+            );
+          },
+        );
+      case 5:
+        return Navigator(
+          key: navigatorKeys[5],
+          onGenerateRoute: (settings) {
+            return MaterialPageRoute(
+              builder: (_) => const PersonalPageContainer(),
+              settings: settings,
+            );
+          },
+        );
+      default:
+        return const SizedBox.shrink();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    print('build JwLifePage');
+    return MediaQuery.removeViewInsets(
+      removeBottom: true, // empêche les rebuilds liés au clavier
+      context: context,
+      child: Scaffold(
+        resizeToAvoidBottomInset: false,
+        extendBody: true,
+        extendBodyBehindAppBar: true,
 
-    final bool isDisabled = navBarIsDisable[currentNavigationBottomBarIndex] || navBarIsTransparent[currentNavigationBottomBarIndex];
-    final bool isTransparent = navBarIsTransparent[currentNavigationBottomBarIndex];
-
-    final Widget content = PopScope(
-        canPop: false,
-        onPopInvokedWithResult: (didPop, result) async {
-          if (didPop) return;
-          handleBack(context);
-        },
-        child: Padding(
-          padding: EdgeInsets.only(bottom: resizeToAvoidBottomInset[currentNavigationBottomBarIndex] ? 0 : !isDisabled ? audioWidgetVisible ? 150 : 70 : 0),
-          child: LazyIndexedStack(
-            index: currentNavigationBottomBarIndex,
-            initialIndexes: [0, 2],
-            builders: List.generate(_pages.length, (index) {
-              return (_) => Navigator(
-                key: navigatorKeys[index],
-                onGenerateRoute: (settings) {
-                  return MaterialPageRoute(
-                    builder: (_) => _pages[index],
-                    settings: settings,
+        body: Stack(
+          children: [
+            // --- CONTENU PRINCIPAL AVEC NAVIGATORS ---
+            PopScope(
+              canPop: false,
+              onPopInvokedWithResult: (didPop, result) async {
+                if (didPop) return;
+                handleBack(context);
+              },
+              child: ValueListenableBuilder<int>(
+                valueListenable: currentNavigationBottomBarIndex,
+                builder: (context, index, child) {
+                  return ValueListenableBuilder<Set<int>>(
+                    valueListenable: loadedNavigators,
+                    builder: (context, loaded, _) {
+                      return IndexedStack(
+                        index: index,
+                        children: List.generate(6, (i) {
+                          if (i == index || loaded.contains(i)) {
+                            return _createNavigator(i);
+                          }
+                          return const SizedBox.shrink();
+                        }),
+                      );
+                    },
                   );
                 },
-              );
-            }),
-          ),
-        )
-    );
-
-    return Scaffold(
-      resizeToAvoidBottomInset: isDisabled ? false : resizeToAvoidBottomInset[currentNavigationBottomBarIndex],
-      body: Stack(
-        children: [
-          content,
-          ValueListenableBuilder<bool>(
-            valueListenable: controlsVisible,
-            builder: (context, isVisible, child) {
-              if (!isVisible) return const SizedBox.shrink();
-              return child!;
-            },
-            child: Align(
-              alignment: Alignment.bottomCenter,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (audioWidgetVisible && !isTransparent) getAudioWidget(),
-                  _buildBottomNavigationBar(isTransparent: isTransparent),
-                ],
               ),
             ),
-          ),
-        ],
+
+            // --- BOTTOM BAR + AUDIO WIDGET ---
+            ValueListenableBuilder<bool>(
+              valueListenable: controlsVisible,
+              builder: (context, isVisible, _) {
+                if (!isVisible) return const SizedBox.shrink();
+
+                return ValueListenableBuilder<int>(
+                  valueListenable: currentNavigationBottomBarIndex,
+                  builder: (context, currentIndex, _) {
+                    return ValueListenableBuilder<List<bool>>(
+                      valueListenable: navBarIsTransparentNotifier,
+                      builder: (context, navBarTransparentList, _) {
+                        final bool isTransparent = navBarTransparentList[currentIndex];
+
+                        return Align(
+                          alignment: Alignment.bottomCenter,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              // --- AUDIO WIDGET ---
+                              ValueListenableBuilder<bool>(
+                                valueListenable: audioWidgetVisible,
+                                builder: (context, audioVisible, child) {
+                                  if (!audioVisible || isTransparent) return const SizedBox.shrink();
+                                  return child!;
+                                },
+                                child: const AudioPlayerWidget(),
+                              ),
+
+                              // --- NAVIGATION BAR ---
+                              LongPressBottomNavBar(
+                                currentIndex: currentIndex,
+                                type: BottomNavigationBarType.fixed,
+                                backgroundColor: isTransparent
+                                    ? Colors.transparent
+                                    : Theme.of(context).bottomNavigationBarTheme.backgroundColor,
+
+                                selectedItemColor: Theme.of(context).bottomNavigationBarTheme.selectedItemColor,
+                                unselectedItemColor: isTransparent
+                                    ? Colors.white
+                                    : Theme.of(context).bottomNavigationBarTheme.unselectedItemColor,
+
+                                selectedLabelStyle: const TextStyle(fontSize: 9),
+                                unselectedLabelStyle: const TextStyle(fontSize: 8.0),
+
+                                onTap: (index) {
+                                  changeNavBarIndex(index);
+                                },
+
+                                onLongPress: (index) {
+                                  if (index != currentNavigationBottomBarIndex.value) {
+                                    GlobalKeyService.setCurrentPage(navigatorKeys[index]);
+                                    currentNavigationBottomBarIndex.value = index;
+                                  }
+
+                                  final BuildContext context = navigatorKeys[index].currentContext!;
+                                  HapticFeedback.lightImpact();
+                                  History.showHistoryDialog(context, bottomBarIndex: index);
+                                },
+
+                                items: [
+                                  BottomNavigationBarItem(
+                                    icon: const Icon(JwIcons.home),
+                                    label: i18n().navigation_home,
+                                  ),
+                                  BottomNavigationBarItem(
+                                    icon: const Icon(JwIcons.bible),
+                                    label: i18n().navigation_bible,
+                                  ),
+                                  BottomNavigationBarItem(
+                                    icon: const Icon(JwIcons.publication_video_music),
+                                    label: i18n().navigation_library,
+                                  ),
+                                  BottomNavigationBarItem(
+                                    icon: const Icon(JwIcons.speaker_audience),
+                                    label: i18n().navigation_workship,
+                                  ),
+                                  BottomNavigationBarItem(
+                                    icon: const Icon(JwIcons.persons_doorstep),
+                                    label: i18n().navigation_predication,
+                                  ),
+                                  BottomNavigationBarItem(
+                                    icon: const Icon(JwIcons.person_studying),
+                                    label: i18n().navigation_personal,
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    );
+                  },
+                );
+              },
+            ),
+          ],
+        ),
       ),
     );
   }

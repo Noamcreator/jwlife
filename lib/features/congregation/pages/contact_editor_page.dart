@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
 
+import '../../../app/app_page.dart';
+
 class ContactEditorPage extends StatefulWidget {
   final String congregationId;
   final String id;
@@ -134,7 +136,7 @@ class _ContactEditorPageState extends State<ContactEditorPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return AppPage(
       appBar: AppBar(
         title: const Text('Modifier le contact'),
       ),

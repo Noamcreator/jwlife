@@ -89,7 +89,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get action_cancel_uppercase => 'ANNULER';
 
   @override
-  String get action_change_color => 'Changer la couleure';
+  String get action_change_color => 'Changer la couleur';
 
   @override
   String get action_chapters => 'Chapitres';
@@ -520,9 +520,6 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get action_playlist_end_stop => 'Arrêter';
-
-  @override
-  String get action_preparing_mode => 'Mode Préparation';
 
   @override
   String get action_previous => 'Précédent';
@@ -3150,4 +3147,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get action_brothers_and_sisters => 'Frères et Sœurs';
+
+  @override
+  String get action_blocking_horizontally_mode => 'Blocage Horizontal';
 }

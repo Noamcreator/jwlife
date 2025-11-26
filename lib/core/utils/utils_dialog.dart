@@ -238,7 +238,7 @@ Future<void> showNoConnectionDialog(BuildContext context) async {
 }
 
 Future<DateTime?> showMonthCalendarDialog(BuildContext context, DateTime initialDate) async {
-  final locale = JwLifeSettings().locale.languageCode;
+  final locale = JwLifeSettings.instance.locale.languageCode;
 
   // Pour afficher le mois et l'année
   String formatMonthYear(DateTime date) {
@@ -286,7 +286,7 @@ Future<DateTime?> showMonthCalendarDialog(BuildContext context, DateTime initial
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       IconButton(
-                        icon: Icon(Directionality.of(context) == TextDirection.rtl ? JwIcons.chevron_right : JwIcons.chevron_left),
+                        icon: Icon(JwIcons.chevron_left),
                         onPressed: () {
                           setState(() {
                             displayedMonth = DateTime(displayedMonth.year, displayedMonth.month - 1);
@@ -298,7 +298,7 @@ Future<DateTime?> showMonthCalendarDialog(BuildContext context, DateTime initial
                         style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                       ),
                       IconButton(
-                        icon: Icon(Directionality.of(context) == TextDirection.rtl ? JwIcons.chevron_left : JwIcons.chevron_right),
+                        icon: Icon(JwIcons.chevron_right),
                         onPressed: () {
                           setState(() {
                             displayedMonth = DateTime(displayedMonth.year, displayedMonth.month + 1);

@@ -524,9 +524,6 @@ class AppLocalizationsEs extends AppLocalizations {
   String get action_playlist_end_stop => 'Stop';
 
   @override
-  String get action_preparing_mode => 'Modo Preparación';
-
-  @override
   String get action_previous => 'Anterior';
 
   @override
@@ -3141,4 +3138,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get action_brothers_and_sisters => 'Hermanos y Hermanas';
+
+  @override
+  String get action_blocking_horizontally_mode => 'Bloqueo Horizontal';
 }

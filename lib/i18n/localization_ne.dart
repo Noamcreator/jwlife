@@ -511,9 +511,6 @@ class AppLocalizationsNe extends AppLocalizations {
   String get action_playlist_end_stop => 'रोक्ने';
 
   @override
-  String get action_preparing_mode => 'तयारी मोड';
-
-  @override
   String get action_previous => 'अघिल्लो';
 
   @override
@@ -3097,4 +3094,7 @@ class AppLocalizationsNe extends AppLocalizations {
 
   @override
   String get action_brothers_and_sisters => 'भाइहरू र दिदीबहिनीहरू';
+
+  @override
+  String get action_blocking_horizontally_mode => 'तेर्सो अवरोध';
 }

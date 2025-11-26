@@ -2,9 +2,11 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:jwlife/app/jwlife_app.dart';
+import 'package:jwlife/data/controller/tags_controller.dart';
 import 'package:jwlife/data/models/userdata/playlist.dart';
 import 'package:jwlife/features/personal/pages/playlist_page.dart';
 import 'package:jwlife/core/utils/utils_dialog.dart';
+import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../data/models/userdata/playlist_item.dart';
@@ -48,13 +50,13 @@ Future<Tag?> showAddTagDialog(BuildContext context, bool isPlaylist, {bool showT
           }
 
           // Création du tag
-          final tag = await JwLifeApp.userdata.addTag(name, isPlaylist ? 2 : 1);
+          Tag tag = await context.read<TagsController>().addTag(name, type: isPlaylist ? 2 : 1);
 
           // Ferme la boîte de dialogue avec la valeur créée
-          Navigator.of(dialogContext).pop(tag);
+          Navigator.of(dialogContext).pop();
 
           // Si besoin, ouvrir la page associée
-          if (tag != null && showTagPage) {
+          if (showTagPage) {
             if (!context.mounted) return;
             if (isPlaylist) {
               await showPage(PlaylistPage(playlist: tag as Playlist));
@@ -94,13 +96,8 @@ Future<Tag?> showEditTagDialog(BuildContext context, Tag tag) async {
         onPressed: (buildContext) async {
           String categoryName = textController.text.trim();
           if (categoryName.isNotEmpty) {
-            Tag? updatedCategory = await JwLifeApp.userdata.updateTag(tag, categoryName);
-            if (updatedCategory != null) {
-              Navigator.pop(buildContext, updatedCategory); // Ferme avec la catégorie mise à jour
-            }
-            else {
-              Navigator.pop(buildContext); // Ferme sans rien renvoyer
-            }
+            context.read<TagsController>().renameTag(tag.id, categoryName);
+            Navigator.pop(buildContext);
           }
         },
       ),
@@ -134,7 +131,7 @@ Future<bool?> showDeleteTagDialog(BuildContext context, Tag tag, {List<PlaylistI
         label: i18n().action_delete_uppercase,
         closeDialog: false,
         onPressed: (BuildContext dialogContext) async {
-          await JwLifeApp.userdata.deleteTag(tag, items: items);
+          context.read<TagsController>().removeTag(tag.id, type: tag.type, items: items);
           Navigator.pop(dialogContext, true);
         },
       ),

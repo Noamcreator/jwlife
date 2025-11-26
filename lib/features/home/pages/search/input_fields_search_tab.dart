@@ -16,53 +16,49 @@ class InputFieldsSearchTab extends StatefulWidget {
 class _InputFieldsSearchTabState extends State<InputFieldsSearchTab> {
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: FutureBuilder<List<InputField>>(
-        future: widget.model.fetchInputFields(), // Future<List<Map<String, dynamic>>>
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          } else if (snapshot.hasError) {
-            return Center(child: Text('Erreur : ${snapshot.error}'));
-          } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return const Center(child: Text('Aucun champ trouvé.'));
-          }
+    return FutureBuilder<List<InputField>>(
+      future: widget.model.fetchInputFields(), // Future<List<Map<String, dynamic>>>
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        } else if (snapshot.hasError) {
+          return Center(child: Text('Erreur : ${snapshot.error}'));
+        } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return const Center(child: Text('Aucun champ trouvé.'));
+        }
 
-          final inputFields = snapshot.data!;
+        final inputFields = snapshot.data!;
 
-          return Scrollbar(
-            interactive: true,
-            child: CustomScrollView(
-              physics: ClampingScrollPhysics(),
-              slivers: [
-                SliverList(
-                  delegate: SliverChildBuilderDelegate(
-                        (context, index) {
-                      final inputField = inputFields[index];
+        return Scrollbar(
+          interactive: true,
+          child: CustomScrollView(
+            physics: ClampingScrollPhysics(),
+            slivers: [
+              SliverList(
+                delegate: SliverChildBuilderDelegate(
+                      (context, index) {
+                    final inputField = inputFields[index];
 
-                      return _KeepAliveNoteItem(
-                        key: ValueKey('field_${inputField.textTag}_${inputField.location.mepsDocumentId}'),
-                        inputField: inputField,
-                        onUpdated: () => setState(() {}),
-                        // 🌟 TRANSMISSION du terme de recherche au widget enfant
-                        searchQuery: widget.model.query,
-                      );
-                    },
-                    childCount: inputFields.length,
-                    addAutomaticKeepAlives: true,
-                    addRepaintBoundaries: true,
-                    addSemanticIndexes: true,
-                  ),
+                    return _KeepAliveNoteItem(
+                      key: ValueKey('field_${inputField.textTag}_${inputField.location.mepsDocumentId}'),
+                      inputField: inputField,
+                      onUpdated: () => setState(() {}),
+                      searchQuery: widget.model.query,
+                    );
+                  },
+                  childCount: inputFields.length,
+                  addAutomaticKeepAlives: true,
+                  addRepaintBoundaries: true,
+                  addSemanticIndexes: true,
                 ),
-              ],
-            ),
-          );
-        },
-      ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
-
 
 class _KeepAliveNoteItem extends StatefulWidget {
   final InputField inputField;
@@ -94,7 +90,6 @@ class _KeepAliveNoteItemState extends State<_KeepAliveNoteItem>
       inputField: widget.inputField,
       onUpdated: widget.onUpdated,
       fullField: false,
-      // 🌟 TRANSMISSION au NoteItemWidget (nommé ici highlightQuery pour clarifier son rôle)
       highlightQuery: widget.searchQuery,
     );
   }

@@ -37,38 +37,36 @@ class _AudioSearchTabState extends State<AudioSearchTab> {
           return const Center(child: Text('Aucun résultat trouvé.'));
         } else {
           final results = snapshot.data!;
-          return Scaffold(
-            body: OrientationBuilder(
-              builder: (context, orientation) {
-                final int crossAxisCount = orientation == Orientation.portrait ? 1 : 2;
+          return OrientationBuilder(
+            builder: (context, orientation) {
+              final int crossAxisCount = orientation == Orientation.portrait ? 1 : 2;
 
-                if (orientation == Orientation.portrait) {
-                  return ListView.builder(
-                    itemCount: results.length,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    itemBuilder: (context, index) {
-                      final item = results[index];
-                      return _buildAudioCard(context, item);
-                    },
-                  );
-                } else {
-                  return GridView.builder(
-                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: crossAxisCount,
-                      crossAxisSpacing: 16,
-                      mainAxisSpacing: 16,
-                      childAspectRatio: 1.2,
-                    ),
-                    itemCount: results.length,
-                    padding: const EdgeInsets.all(16.0),
-                    itemBuilder: (context, index) {
-                      final item = results[index];
-                      return _buildAudioCard(context, item, isGrid: true);
-                    },
-                  );
-                }
-              },
-            ),
+              if (orientation == Orientation.portrait) {
+                return ListView.builder(
+                  itemCount: results.length,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  itemBuilder: (context, index) {
+                    final item = results[index];
+                    return _buildAudioCard(context, item);
+                  },
+                );
+              } else {
+                return GridView.builder(
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: crossAxisCount,
+                    crossAxisSpacing: 16,
+                    mainAxisSpacing: 16,
+                    childAspectRatio: 1.2,
+                  ),
+                  itemCount: results.length,
+                  padding: const EdgeInsets.all(16.0),
+                  itemBuilder: (context, index) {
+                    final item = results[index];
+                    return _buildAudioCard(context, item, isGrid: true);
+                  },
+                );
+              }
+            },
           );
         }
       },
@@ -76,7 +74,7 @@ class _AudioSearchTabState extends State<AudioSearchTab> {
   }
 
   Widget _buildAudioCard(BuildContext context, Map<String, dynamic> item, {bool isGrid = false}) {
-    MediaItem? mediaItem = getMediaItemFromLank(item['lank'], JwLifeSettings().currentLanguage.symbol);
+    MediaItem? mediaItem = getMediaItemFromLank(item['lank'], JwLifeSettings.instance.currentLanguage.value.symbol);
 
     if (mediaItem == null) return const SizedBox.shrink();
 
@@ -90,7 +88,6 @@ class _AudioSearchTabState extends State<AudioSearchTab> {
         margin: EdgeInsets.symmetric(vertical: isGrid ? 0 : 8),
         decoration: BoxDecoration(
           color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF292929) : Colors.white,
-          borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.1),
@@ -105,29 +102,25 @@ class _AudioSearchTabState extends State<AudioSearchTab> {
           children: [
             Stack(
               children: [
-                ClipRRect(
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                  child: item['imageUrl'].isNotEmpty
-                      ? Image.network(
-                    item['imageUrl'],
-                    width: double.infinity,
-                    height: isGrid ? null : 200,
-                    fit: BoxFit.cover,
-                  )
-                      : Container(
-                    width: double.infinity,
-                    height: isGrid ? null : 150,
-                    color: Colors.grey,
-                  ),
+                item['imageUrl'].isNotEmpty
+                    ? Image.network(
+                  item['imageUrl'],
+                  width: double.infinity,
+                  height: isGrid ? null : 200,
+                  fit: BoxFit.cover,
+                )
+                    : Container(
+                  width: double.infinity,
+                  height: isGrid ? null : 150,
+                  color: Colors.grey,
                 ),
                 Positioned(
-                  top: 12,
-                  left: 12,
+                  top: 0,
+                  left: 0,
                   child: Container(
                     padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
                     decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.6),
-                      borderRadius: BorderRadius.circular(20),
+                      color: Colors.black.withOpacity(0.7),
                     ),
                     child: Row(
                       children: [
@@ -149,10 +142,10 @@ class _AudioSearchTabState extends State<AudioSearchTab> {
                   ),
                 ),
                 Positioned(
-                  top: 10,
-                  right: 10,
+                  top: 5,
+                  right: 5,
                   child: PopupMenuButton(
-                    icon: const Icon(Icons.more_vert, color: Colors.white, size: 30),
+                    icon: const Icon(Icons.more_horiz, color: Colors.white, size: 30),
                     itemBuilder: (context) => [
                       getAudioShareItem(audio),
                       getAudioAddPlaylistItem(context, audio),
@@ -167,12 +160,12 @@ class _AudioSearchTabState extends State<AudioSearchTab> {
               ],
             ),
             Padding(
-              padding: const EdgeInsets.all(16.0),
+              padding: const EdgeInsets.all(10.0),
               child: Text(
                 item['title'] ?? '',
                 style: const TextStyle(
                   fontWeight: FontWeight.bold,
-                  fontSize: 18,
+                  fontSize: 17,
                 ),
                 maxLines: isGrid ? 2 : null,
                 overflow: isGrid ? TextOverflow.ellipsis : null,

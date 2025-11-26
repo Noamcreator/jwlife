@@ -1,21 +1,19 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
+import 'package:jwlife/core/app_data/app_data_service.dart';
 import 'package:realm/realm.dart';
 
 import '../../app/services/settings_service.dart';
 import '../models/audio.dart';
 import '../models/video.dart';
-import '../models/media.dart'; // Assurez-vous que MediaItem, Language, Images, Category sont importés ici
-import 'catalog.dart'; // Contient probablement les classes Language, Images, Category, MediaItem.
+import '../models/media.dart';
+import 'catalog.dart';
 
 /// Classe pour gérer les opérations de la base de données Realm.
 class RealmLibrary {
-  // Rendre le constructeur privé pour une utilisation en singleton/statique
   RealmLibrary._();
 
-  // Utiliser un getter pour le Realm, pour s'assurer qu'il est toujours initialisé.
-  // Utiliser `lazy` ou `static final` est bon pour un Realm global.
   static final Realm realm = Realm(
     Configuration.local([
       MediaItem.schema,
@@ -38,11 +36,21 @@ class RealmLibrary {
     return _loadMediaFromCategory('LatestAudioVideo');
   }
 
+  static void updateLibraryCategories() {
+    String languageSymbol = JwLifeSettings.instance.currentLanguage.value.symbol;
+
+    final videoResults = realm.all<Category>().query("key == 'VideoOnDemand' AND language == '$languageSymbol'");
+    final audioResults = realm.all<Category>().query("key == 'Audio' AND language == '$languageSymbol'");
+
+    AppDataService.instance.videoCategories.value = videoResults.isNotEmpty ? videoResults.first : null;
+    AppDataService.instance.audioCategories.value = audioResults.isNotEmpty ? audioResults.first : null;
+  }
+
   /// Helper générique pour charger les médias à partir d'une clé de catégorie.
   static List<Media> _loadMediaFromCategory(String categoryKey) {
     final List<Media> out = [];
     // Utiliser `symbol` directement est plus propre
-    final String languageSymbol = JwLifeSettings().currentLanguage.symbol;
+    final String languageSymbol = JwLifeSettings.instance.currentLanguage.value.symbol;
 
     final categories = realm.all<Category>().query("key == \$0 AND language == \$1", [categoryKey, languageSymbol]);
 

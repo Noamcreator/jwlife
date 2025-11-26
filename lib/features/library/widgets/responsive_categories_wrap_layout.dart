@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/app_dimens.dart';
+import '../../../core/ui/app_dimens.dart';
 
 class ResponsiveCategoriesWrapLayout extends StatelessWidget {
   final TextDirection textDirection;

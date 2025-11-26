@@ -3,12 +3,15 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'package:jwlife/app/jwlife_app_bar.dart';
 
 import 'package:jwlife/core/api/api.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/data/models/video.dart' hide Subtitles;
 import 'package:jwlife/features/video/subtitles.dart';
+import 'package:jwlife/widgets/responsive_appbar_actions.dart';
 
+import '../../app/app_page.dart';
 import '../../app/services/settings_service.dart';
 import '../../core/icons.dart';
 import '../../core/utils/widgets_utils.dart';
@@ -281,7 +284,7 @@ class _SubtitlesPageState extends State<SubtitlesPage> {
     <meta charset="utf-8">
     <style>
         body {
-          font-size: ${JwLifeSettings().webViewData.fontSize}px;
+          font-size: ${JwLifeSettings.instance.webViewData.fontSize}px;
           overflow-y: scroll;
         }
         body.cc-theme--dark {
@@ -301,7 +304,7 @@ class _SubtitlesPageState extends State<SubtitlesPage> {
           line-height: 1.5;
         }
     </style>
-    <body class="${JwLifeSettings().webViewData.theme}">
+    <body class="${JwLifeSettings.instance.webViewData.theme}">
       <article id="article" class="jwac docClass-31 ms-ROMAN ml-F dir-ltr layout-reading layout-sidebar">
         ${buffer.toString()}
       </article>
@@ -317,7 +320,7 @@ class _SubtitlesPageState extends State<SubtitlesPage> {
     final html = _buildHtmlContent();
     _controller?.loadData(
         data: html,
-        baseUrl: WebUri('file://${JwLifeSettings().webViewData.webappPath}/')
+        baseUrl: WebUri('file://${JwLifeSettings.instance.webViewData.webappPath}/')
     ).then((_) {
       if (widget.query != null && widget.query!.isNotEmpty) {
         _search(widget.query!);
@@ -370,12 +373,11 @@ class _SubtitlesPageState extends State<SubtitlesPage> {
   Widget build(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
-    return Scaffold(
-      resizeToAvoidBottomInset: false,
+    return AppPage(
       backgroundColor: isDarkMode ? const Color(0xFF111111) : Colors.white,
-      appBar: AppBar(
-        title: _isSearching
-            ? SearchBar(
+      appBar: _isSearching ? AppBar(
+        titleSpacing: 0.0,
+        title: SearchBar(
           autoFocus: true,
           hintText: 'Rechercher...',
           controller: _searchController,
@@ -407,16 +409,9 @@ class _SubtitlesPageState extends State<SubtitlesPage> {
                 },
               ),
           ],
-        )
-            : Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(widget.video.title, style: const TextStyle(fontSize: 18.0)),
-            const Text('Sous-titres', style: TextStyle(fontSize: 12.0)),
-          ],
         ),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(JwIcons.chevron_left),
           onPressed: () {
             if (_isSearching) {
               setState(() {
@@ -432,20 +427,24 @@ class _SubtitlesPageState extends State<SubtitlesPage> {
             }
           },
         ),
+
+      ) : JwLifeAppBar(
+        title: widget.video.title,
+        subTitle: 'Sous-titres',
         actions: [
           if (!_isSearching)
-            IconButton(
+            IconTextButton(
               icon: const Icon(JwIcons.magnifying_glass),
-              onPressed: () {
+              onPressed: (BuildContext context) {
                 setState(() {
                   _isSearching = true;
                 });
               },
             ),
           if (!_isSearching)
-            IconButton(
+            IconTextButton(
               icon: const Icon(JwIcons.document_stack),
-              onPressed: _copySubtitles,
+              onPressed: (BuildContext context) =>_copySubtitles,
             ),
         ],
       ),
@@ -454,7 +453,7 @@ class _SubtitlesPageState extends State<SubtitlesPage> {
           InAppWebView(
             initialData: InAppWebViewInitialData(
                 data: _buildHtmlContent(),
-                baseUrl: WebUri('file://${JwLifeSettings().webViewData.webappPath}/')),
+                baseUrl: WebUri('file://${JwLifeSettings.instance.webViewData.webappPath}/')),
             onWebViewCreated: (controller) {
               _controller = controller;
 

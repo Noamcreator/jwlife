@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../app/app_page.dart';
 import 'congregations_page.dart';
 
 class CongregationPage extends StatefulWidget {
@@ -19,7 +20,7 @@ class _CongregationPageState extends State<CongregationPage> {
   Widget build(BuildContext context) {
     return DefaultTabController(
         length: 3,
-        child: Scaffold(
+        child: AppPage(
           appBar: AppBar(
             title: Text(
               "",//localization(context).navigation_congregations,

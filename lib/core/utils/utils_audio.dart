@@ -17,13 +17,12 @@ import 'package:realm/realm.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:jwlife/app/jwlife_app.dart';
 
-import '../../app/services/global_key_service.dart';
 import '../../app/services/settings_service.dart';
 import '../../features/audio/lyrics_page.dart';
 import '../../features/video/subtitles.dart';
 import '../../i18n/i18n.dart';
 import '../api/api.dart';
-import '../jworg_uri.dart';
+import '../uri/jworg_uri.dart';
 import 'common_ui.dart';
 
 import 'package:audio_service/audio_service.dart' as audio_service;
@@ -45,7 +44,7 @@ void showAudioPlayerPublicationLink(BuildContext context, Publication publicatio
 }
 
 MediaItem? getAudioItem(String? keySymbol, int? track, int? documentId, int? issueTagNumber, int? mepsLanguageId) {
-  String languageSymbol = JwLifeSettings().currentLanguage.symbol;
+  String languageSymbol = JwLifeSettings.instance.currentLanguage.value.symbol;
   var queryParts = <String>[];
   if (keySymbol != null && keySymbol != '') queryParts.add("pubSymbol == '$keySymbol'");
   if (track != null && track != 0) queryParts.add("track == '$track'");
@@ -178,8 +177,6 @@ PopupMenuItem getAudioFavoriteItem(Audio audio) {
         await JwLifeApp.userdata.addInFavorite(audio);
         audio.isFavoriteNotifier.value = true;
       }
-
-      GlobalKeyService.homeKey.currentState?.refreshFavorites();
     },
   );
 }

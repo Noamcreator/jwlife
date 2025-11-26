@@ -513,9 +513,6 @@ class AppLocalizationsRu extends AppLocalizations {
   String get action_playlist_end_stop => 'Остановить';
 
   @override
-  String get action_preparing_mode => 'Режим подготовки';
-
-  @override
   String get action_previous => 'Предыдущая';
 
   @override
@@ -3116,4 +3113,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get action_brothers_and_sisters => 'Братья и Сёстры';
+
+  @override
+  String get action_blocking_horizontally_mode => 'Горизонтальная блокировка';
 }

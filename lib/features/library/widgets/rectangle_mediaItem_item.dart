@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:jwlife/core/app_dimens.dart';
+import 'package:jwlife/core/ui/app_dimens.dart';
 
 import '../../../core/icons.dart';
 import '../../../core/utils/utils.dart'; // Pour formatDateTime
@@ -84,30 +84,29 @@ class RectangleMediaItemItem extends StatelessWidget {
           valueListenable: media.isDownloadedNotifier,
           builder: (context, isDownloaded, _) {
             if (!isDownloaded || media.hasUpdate()) {
-              return Stack(
-                children: [
-                  // Icône de téléchargement ou de mise à jour
-                  Positioned(
-                    bottom: 3,
-                    right: -8,
-                    height: 40,
-                    child: IconButton(
-                      padding: EdgeInsets.zero,
-                      onPressed: () {
-                        if (media.hasUpdate()) {
-                          //media.update(context);
-                        } else {
-                          media.download(context);
-                        }
-                      },
-                      icon: Icon(
-                        media.hasUpdate() ? JwIcons.arrows_circular : JwIcons.cloud_arrow_down,
-                        size: media.hasUpdate() ? 20 : 24,
-                        color: const Color(0xFF9d9d9d),
-                      ),
-                    ),
+              return Positioned(
+                bottom: 0,
+                right: -5,
+                height: 40,
+                child: IconButton(
+                  padding: EdgeInsets.zero,
+                  onPressed: () {
+                    if (media.hasUpdate()) {
+                      //media.update(context);
+                    }
+                    else {
+                      final RenderBox renderBox = context.findRenderObject() as RenderBox;
+                      final Offset tapPosition = renderBox.localToGlobal(Offset.zero) + renderBox.size.center(Offset.zero);
+
+                      media.download(context, tapPosition: tapPosition);
+                    }
+                  },
+                  icon: Icon(
+                    media.hasUpdate() ? JwIcons.arrows_circular : JwIcons.cloud_arrow_down,
+                    size: media.hasUpdate() ? 20 : 24,
+                    color: const Color(0xFF9d9d9d),
                   ),
-                ],
+                ),
               );
             }
 
@@ -139,8 +138,8 @@ class RectangleMediaItemItem extends StatelessWidget {
   // Extrait le menu contextuel (const)
   Widget _buildPopupMenu(BuildContext context) {
     return Positioned(
-      top: -15,
-      right: -10,
+      top: -13,
+      right: -7,
       child: RepaintBoundary(
         child: PopupMenuButton(
           popUpAnimationStyle: AnimationStyle.lerp(

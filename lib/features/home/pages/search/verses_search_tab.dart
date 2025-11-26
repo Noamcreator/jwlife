@@ -7,6 +7,7 @@ import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/repositories/PublicationRepository.dart';
 import 'package:jwlife/widgets/image_cached_widget.dart';
 
+import '../../../../app/app_page.dart';
 import '../../../../core/utils/utils.dart';
 import '../../../../core/utils/utils_jwpub.dart';
 import 'search_model.dart';
@@ -28,7 +29,7 @@ class _VersesSearchTabState extends State<VersesSearchTab> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return AppPage(
       body: FutureBuilder<List<Map<String, dynamic>>?>(
         future: widget.model.fetchVerses(), // appel async
         builder: (context, snapshot) {
@@ -158,7 +159,7 @@ class _VersesSearchTabState extends State<VersesSearchTab> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    downloadPub.category.getName(context),
+                                    downloadPub.category.getName(),
                                     style: TextStyle(
                                       color: Colors.grey[600],
                                       fontSize: 9,

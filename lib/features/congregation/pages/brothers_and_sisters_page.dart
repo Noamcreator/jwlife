@@ -3,6 +3,7 @@ import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
 
+import '../../../app/app_page.dart';
 import 'contact_editor_page.dart';
 
 class BrothersAndSistersPage extends StatefulWidget {
@@ -231,7 +232,7 @@ class _BrothersAndSistersPageState extends State<BrothersAndSistersPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return AppPage(
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : Column(
@@ -435,10 +436,6 @@ class _BrothersAndSistersPageState extends State<BrothersAndSistersPage> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        child: const Icon(JwIcons.plus),
-        onPressed: () => _importContacts(),
-      )
     );
   }
 }

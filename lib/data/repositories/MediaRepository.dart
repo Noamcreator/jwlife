@@ -36,7 +36,7 @@ class MediaRepository {
   Media? getByCompositeKey(MediaItem? mediaItem) {
     String keySymbol = mediaItem?.pubSymbol ?? '';
     int documentId = mediaItem?.documentId ?? 0;
-    String mepsLanguage = mediaItem?.languageSymbol ?? JwLifeSettings().currentLanguage.symbol;
+    String mepsLanguage = mediaItem?.languageSymbol ?? JwLifeSettings.instance.currentLanguage.value.symbol;
     int issueTagNumber = mediaItem?.issueDate ?? 0;
     int? track = mediaItem?.track ?? 0;
     bool isAudio = mediaItem?.type == 'AUDIO' ? true : false;
@@ -47,7 +47,7 @@ class MediaRepository {
   Media? getByCompositeKeyForDownload(MediaItem mediaItem) {
     String keySymbol = mediaItem.pubSymbol ?? '';
     int documentId = mediaItem.documentId ?? 0;
-    String mepsLanguage = mediaItem.languageSymbol ?? JwLifeSettings().currentLanguage.symbol;
+    String mepsLanguage = mediaItem.languageSymbol ?? JwLifeSettings.instance.currentLanguage.value.symbol;
     int issueTagNumber = mediaItem.issueDate ?? 0;
     int? track = mediaItem.track ?? 0;
 

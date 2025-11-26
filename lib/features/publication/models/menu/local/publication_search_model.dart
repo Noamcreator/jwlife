@@ -235,10 +235,8 @@ class PublicationSearchModel {
                 final endPosition = paragraphPosition['EndPosition'];
 
                 if (beginPosition != null && endPosition != null) {
-                  final documentBlob = decodeBlobParagraph(
-                      document['Content'], publication.hash!);
-                  final paragraphBlob = documentBlob.sublist(
-                      beginPosition, endPosition);
+                  final documentBlob = decodeBlobParagraph(document['Content'], publication.hash!);
+                  final paragraphBlob = documentBlob.sublist(beginPosition, endPosition);
                   final paragraphHtml = utf8.decode(paragraphBlob);
                   paragraphText = parse(paragraphHtml).body?.text ?? '';
                 }
@@ -293,7 +291,7 @@ class PublicationSearchModel {
       await findRankingBlob();
     }
 
-    if ( _verses.isEmpty && wordsSelectedVerse.isNotEmpty) {
+    if (_verses.isEmpty && wordsSelectedVerse.isNotEmpty) {
       List<Set<int>> verseIdSets = [];
       Map<int, Map<String, dynamic>> tempVerses = {};
 
@@ -487,7 +485,7 @@ class PublicationSearchModel {
       verses.sort((a, b) => a['verseId'].compareTo(b['verseId']));
     }
     else if(type == 1) {
-      if (versesRanking.isNotEmpty && versesRanking.length > 0) {
+      if (versesRanking.isNotEmpty && versesRanking.isNotEmpty) {
         verses.sort((verse1, verse2) {
           final int verseId1 = verse1['verseId'];
           final int verseId2 = verse2['verseId'];

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
 
+import '../../../app/app_page.dart';
 import '../../../app/services/settings_service.dart';
 
 class PredicationReportPage extends StatefulWidget {
@@ -103,7 +104,7 @@ class _PredicationReportPageState extends State<PredicationReportPage> {
       totalCredits += int.tryParse(report['credits'] ?? '0') ?? 0;
     }
 
-    return Scaffold(
+    return AppPage(
       body: SingleChildScrollView(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -130,7 +131,7 @@ class _PredicationReportPageState extends State<PredicationReportPage> {
               ),
             ),
             TableCalendar(
-              locale: JwLifeSettings().locale.languageCode,
+              locale: JwLifeSettings.instance.locale.languageCode,
               firstDay: DateTime.utc(2020, 1, 1),
               lastDay: DateTime.utc(2030, 12, 31),
               focusedDay: _focusedDay,
@@ -176,7 +177,7 @@ class _PredicationReportPageState extends State<PredicationReportPage> {
             const SizedBox(height: 20),
             if (_selectedDay != null) ...[
               Text(
-                DateFormat("EEEE d MMMM", JwLifeSettings().locale.languageCode).format(_selectedDay!),
+                DateFormat("EEEE d MMMM", JwLifeSettings.instance.locale.languageCode).format(_selectedDay!),
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 10),

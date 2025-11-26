@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:jwlife/app/jwlife_app_bar.dart';
+import 'package:jwlife/core/app_data/app_data_service.dart';
 import 'package:jwlife/core/utils/utils_language_dialog.dart';
+import 'package:jwlife/widgets/responsive_appbar_actions.dart';
 
-import '../../../../app/services/global_key_service.dart';
 import '../../../../app/services/settings_service.dart';
 import '../../../../core/icons.dart';
 import '../../../../core/shared_preferences/shared_preferences_utils.dart';
+import '../../../../core/ui/text_styles.dart';
 import '../../../../data/databases/history.dart';
 import '../../../../i18n/i18n.dart';
 import '../../../../widgets/searchfield/searchfield_all_widget.dart';
@@ -24,7 +27,7 @@ class HomeAppBar extends StatefulWidget implements PreferredSizeWidget {
 class _HomeAppBarState extends State<HomeAppBar> {
   bool isSearching = false;
 
-  Future<void> onOpenSearch() async {
+  Future<void> onOpenSearch(BuildContext context) async {
     setState(() {
       isSearching = true;
     });
@@ -36,16 +39,16 @@ class _HomeAppBarState extends State<HomeAppBar> {
     });
   }
 
-  void onOpenHistory() {
+  void onOpenHistory(BuildContext context) {
     History.showHistoryDialog(context);
   }
 
-  void onOpenLanguageDialog() async {
+  void onOpenLanguageDialog(BuildContext context) async {
     showLanguageDialog(context).then((language) async {
       if (language != null) {
-        if (language['Symbol'] != JwLifeSettings().currentLanguage.symbol) {
-          await setLibraryLanguage(language);
-          GlobalKeyService.homeKey.currentState?.changeLanguageAndRefresh();
+        if (language['Symbol'] != JwLifeSettings.instance.currentLanguage.value.symbol) {
+          await AppSharedPreferences.instance.setLibraryLanguage(language);
+          AppDataService.instance.changeLanguageAndRefreshContent();
         }
       }
     });
@@ -53,48 +56,41 @@ class _HomeAppBarState extends State<HomeAppBar> {
 
   @override
   Widget build(BuildContext context) {
-    final textStyleTitle = const TextStyle(fontSize: 20, fontWeight: FontWeight.bold);
-    final textStyleSubtitle = TextStyle(
-      fontSize: 14,
-      color: Theme.of(context).brightness == Brightness.dark
-          ? const Color(0xFFc3c3c3)
-          : const Color(0xFF626262),
-    );
-
     if (isSearching) {
       return AppBar(
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(JwIcons.chevron_left),
           onPressed: onCloseSearch,
         ),
+        titleSpacing: 0.0,
         title: SearchFieldAll(onClose: onCloseSearch),
       );
     }
 
-    return AppBar(
-      title: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(i18n().navigation_home, style: textStyleTitle),
-          Text(JwLifeSettings().currentLanguage.vernacular, style: textStyleSubtitle),
-        ],
-      ),
+    return JwLifeAppBar(
+      canPop: false,
+      title: i18n().navigation_home,
+      subTitleWidget: ValueListenableBuilder(valueListenable: JwLifeSettings.instance.currentLanguage, builder: (context, value, child) {
+        return Text(value.vernacular, style: Theme.of(context).extension<JwLifeThemeStyles>()!.appBarSubTitle);
+      }),
       actions: [
-        IconButton(
+        IconTextButton(
           icon: const Icon(JwIcons.magnifying_glass),
           onPressed: onOpenSearch,
         ),
-        IconButton(
+        IconTextButton(
           icon: const Icon(JwIcons.arrow_circular_left_clock),
           onPressed: onOpenHistory,
         ),
-        IconButton(
+        IconTextButton(
           icon: const Icon(JwIcons.language),
           onPressed: onOpenLanguageDialog,
         ),
-        IconButton(
+        IconTextButton(
           icon: const Icon(JwIcons.gear),
-          onPressed: widget.onOpenSettings,
+          onPressed: (BuildContext context) {
+            widget.onOpenSettings();
+          },
         ),
       ],
     );

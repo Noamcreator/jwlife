@@ -62,7 +62,7 @@ class _AllSearchTabState extends State<AllSearchTab> {
               int bookNumber = int.parse(remainingString.substring(0, remainingString.length - 3));
 
               List<String> wordsSelected = widget.model.query.split(' ');
-              showChapterView(context, 'nwtsty', JwLifeSettings().currentLanguage.id, bookNumber, chapterNumber, firstVerseNumber: verseNumber, lastVerseNumber: verseNumber, wordsSelected: wordsSelected);
+              showChapterView(context, 'nwtsty', JwLifeSettings.instance.currentLanguage.value.id, bookNumber, chapterNumber, firstVerseNumber: verseNumber, lastVerseNumber: verseNumber, wordsSelected: wordsSelected);
             },
             child: Container(
                 width: 250,
@@ -129,7 +129,7 @@ class _AllSearchTabState extends State<AllSearchTab> {
               if (item['links'] != null && item['links']['wol'] != null) {
                 String lank = item['lank'];
                 int docId = int.parse(lank.replaceAll("pa-", ""));
-                showDocumentView(context, docId, JwLifeSettings().currentLanguage.id);
+                showDocumentView(context, docId, JwLifeSettings.instance.currentLanguage.value.id);
               } else {
                 launchUrl(Uri.parse(item['links']['jw.org']!), mode: LaunchMode.externalApplication);
               }
@@ -186,7 +186,7 @@ class _AllSearchTabState extends State<AllSearchTab> {
         itemCount: result['results'].length,
         itemBuilder: (context, videoIndex) {
           final item = result['results'][videoIndex];
-          MediaItem? mediaItem = getMediaItemFromLank(item['lank'], JwLifeSettings().currentLanguage.symbol);
+          MediaItem? mediaItem = getMediaItemFromLank(item['lank'], JwLifeSettings.instance.currentLanguage.value.symbol);
 
           if (mediaItem == null) return const SizedBox.shrink();
 
@@ -301,7 +301,7 @@ class _AllSearchTabState extends State<AllSearchTab> {
         itemCount: result['results'].length,
         itemBuilder: (context, audioIndex) {
           final item = result['results'][audioIndex];
-          MediaItem? mediaItem = getMediaItemFromLank(item['lank'], JwLifeSettings().currentLanguage.symbol);
+          MediaItem? mediaItem = getMediaItemFromLank(item['lank'], JwLifeSettings.instance.currentLanguage.value.symbol);
 
           if (mediaItem == null) return const SizedBox.shrink();
 
@@ -441,10 +441,10 @@ class _AllSearchTabState extends State<AllSearchTab> {
                   }
                 }
 
-                Publication? publication = await PubCatalog.searchPub(
+                Publication? publication = await CatalogDb.instance.searchPub(
                   keySymbol,
                   int.parse(issueTagNumber),
-                  JwLifeSettings().currentLanguage.id,
+                  JwLifeSettings.instance.currentLanguage.value.id,
                 );
 
                 if (publication != null) {
@@ -538,7 +538,7 @@ class _AllSearchTabState extends State<AllSearchTab> {
                 String lank = article['lank'];
                 int docId = int.parse(lank.replaceAll("pa-", ""));
                 List<String> wordsSelected = widget.model.query.split(' ');
-                showDocumentView(context, docId, JwLifeSettings().currentLanguage.id, wordsSelected: wordsSelected);
+                showDocumentView(context, docId, JwLifeSettings.instance.currentLanguage.value.id, wordsSelected: wordsSelected);
               }
               else {
                 launchUrl(Uri.parse(article['links']['jw.org']!), mode: LaunchMode.externalApplication);

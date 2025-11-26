@@ -39,7 +39,7 @@ class CopyAssets {
       final timestampInZip = manifestJson['timestamp'] as String;
 
       // 2. Vérifier l'état actuel
-      final lastMepsTimestamp = await getLastMepsTimestamp();
+      final lastMepsTimestamp = AppSharedPreferences.instance.getLastMepsTimestamp();
 
       if (timestampInZip == lastMepsTimestamp && await mepsUnitDb.exists()) {
         print('Le fichier $dbFileName est déjà à jour. Extraction annulée.');
@@ -60,7 +60,7 @@ class CopyAssets {
       await mepsUnitDb.writeAsBytes(mepsUnitFile.content);
 
       // 5. Mise à jour du timestamp
-      await setNewMepsTimestamp(timestampInZip);
+      await AppSharedPreferences.instance.setNewMepsTimestamp(timestampInZip);
 
       print('Extraction de $dbFileName terminée avec succès.');
     } on StateError catch (e) {

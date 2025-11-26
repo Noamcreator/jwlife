@@ -1,21 +1,25 @@
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:jwlife/app/services/global_key_service.dart';
 import 'package:jwlife/core/utils/utils_document.dart';
+import 'package:jwlife/data/controller/notes_controller.dart';
+import 'package:jwlife/data/controller/tags_controller.dart';
 import 'package:jwlife/data/models/userdata/note.dart';
-import 'package:jwlife/features/personal/widgets/note_item_widget.dart';
 import 'package:jwlife/widgets/image_cached_widget.dart';
 import 'package:diacritic/diacritic.dart';
+import 'package:provider/provider.dart';
+import 'package:sqflite/sqflite.dart';
 
+import '../../../app/app_page.dart';
 import '../../../app/jwlife_app.dart';
 import '../../../core/icons.dart';
 import '../../../core/utils/utils_search.dart';
+import '../../../data/databases/catalog.dart';
 import '../../../data/models/publication.dart';
 import '../../../data/models/userdata/tag.dart';
+import '../../../data/repositories/PublicationRepository.dart';
 import '../../../i18n/i18n.dart';
 
-// --------------------------------------------------------------------------
-// 🌟 FONCTION UTILITAIRE POUR CRÉER LES TEXTSPANS SURLIGNÉS
-// --------------------------------------------------------------------------
 List<TextSpan> _buildHighlightedTextSpans(
     String text, String? query, TextStyle defaultStyle, Color highlightColor) {
   if (query == null || query.isEmpty || text.isEmpty) {
@@ -131,10 +135,16 @@ class _NotePageState extends State<NotePage> {
 
   late ScrollController _scrollController;
 
+  late NotesController _notesController;
+  late TagsController _tagsController;
+
   @override
   void initState() {
     super.initState();
     _note = widget.note;
+
+    _notesController = context.read<NotesController>();
+    _tagsController = context.read<TagsController>();
 
     _scrollController = ScrollController();
 
@@ -147,10 +157,9 @@ class _NotePageState extends State<NotePage> {
       defaultStyle: defaultTitleStyle,
     );
     _titleController.addListener(() {
-      JwLifeApp.userdata.updateNote(_note, _titleController.text, _contentController.text);
+      _notesController.updateNote(_note.guid, _titleController.text, _contentController.text);
       if (widget.searchQuery != null && _titleController.searchQuery != null) {
-        _titleController.searchQuery = null; // Retire le surlignage lors de l'édition
-        // 🌟 CORRECTION : Force le rebuild pour retirer le surlignage
+        _titleController.searchQuery = null;
         setState(() {});
       }
     });
@@ -164,10 +173,9 @@ class _NotePageState extends State<NotePage> {
       defaultStyle: defaultContentStyle,
     );
     _contentController.addListener(() {
-      JwLifeApp.userdata.updateNote(_note, _titleController.text, _contentController.text);
+      _notesController.updateNote(_note.guid, _titleController.text, _contentController.text);
       if (widget.searchQuery != null && _contentController.searchQuery != null) {
-        _contentController.searchQuery = null; // Retire le surlignage lors de l'édition
-        // 🌟 CORRECTION : Force le rebuild pour retirer le surlignage
+        _contentController.searchQuery = null;
         setState(() {});
       }
     });
@@ -178,11 +186,62 @@ class _NotePageState extends State<NotePage> {
       _showOverlay();
     });
 
-    _dataFuture = NoteItemWidget.resolveNoteDependencies(widget.note);
+    _dataFuture = _resolveDependencies();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _scrollToQuery();
     });
+  }
+
+  /// Méthode privée qui remplace resolveNoteDependencies de NoteItemWidget
+  Future<Map<String, dynamic>> _resolveDependencies() async {
+    String? keySymbol = _note.location.keySymbol;
+    int? issueTagNumber = _note.location.issueTagNumber;
+    int? mepsLanguageId = _note.location.mepsLanguageId;
+
+    if (keySymbol == null || issueTagNumber == null || mepsLanguageId == null) {
+      return {'pub': null, 'docTitle': ''};
+    }
+
+    Publication? pub = PublicationRepository()
+        .getAllPublications()
+        .firstWhereOrNull((p) =>
+    p.keySymbol == keySymbol &&
+        p.issueTagNumber == issueTagNumber &&
+        p.mepsLanguage.id == mepsLanguageId);
+
+    String docTitle = '';
+
+    pub ??= await CatalogDb.instance.searchPubNoMepsLanguage(keySymbol, issueTagNumber, mepsLanguageId);
+
+    if (pub != null && pub.isDownloadedNotifier.value) {
+      if (pub.isBible() &&
+          _note.location.bookNumber != null &&
+          _note.location.chapterNumber != null) {
+        docTitle = JwLifeApp.bibleCluesInfo.getVerse(
+          _note.location.bookNumber!,
+          _note.location.chapterNumber!,
+          _note.blockIdentifier ?? 0,
+        );
+      } else {
+        if (pub.documentsManager == null) {
+          final db = await openDatabase(pub.databasePath!);
+          final rows = await db.rawQuery(
+            'SELECT Title FROM Document WHERE MepsDocumentId = ?',
+            [_note.location.mepsDocumentId],
+          );
+          if (rows.isNotEmpty) {
+            docTitle = rows.first['Title'] as String;
+          }
+        } else {
+          final doc = pub.documentsManager!.documents.firstWhereOrNull(
+                  (d) => d.mepsDocumentId == _note.location.mepsDocumentId);
+          docTitle = doc?.title ?? '';
+        }
+      }
+    }
+
+    return {'pub': pub, 'docTitle': docTitle};
   }
 
   @override
@@ -259,7 +318,7 @@ class _NotePageState extends State<NotePage> {
 
     final String searchText = _categoriesController.text.trim();
     // Tags disponibles qui ne sont pas déjà dans la note
-    final allAvailableTags = JwLifeApp.userdata.tags.where((tag) => !_note.tagsId.contains(tag.id));
+    final allAvailableTags = _tagsController.tags.where((tag) => !_note.tagsId.contains(tag.id));
 
     // Utilisation de getFilteredTags qui doit utiliser removeDiacritics pour être cohérent avec NotesTagsPage
     final filteredTags = searchText.isEmpty
@@ -306,18 +365,14 @@ class _NotePageState extends State<NotePage> {
                       style: TextStyle(fontSize: 15),
                     ),
                     onTap: () async {
-                      Tag? tag = await JwLifeApp.userdata
-                          .addTag(_categoriesController.text, 1);
-                      if (tag != null) {
-                        await JwLifeApp.userdata
-                            .addTagToNoteWithGuid(_note.guid, tag.id);
-                        setState(() {
-                          _note.tagsId.add(tag.id);
-                          _categoriesController.clear();
-                          _showCategoryInput = false;
-                        });
-                        _removeOverlay();
-                      }
+                      Tag tag = await _tagsController.addTag(_categoriesController.text);
+                      _notesController.addTagIdToNote(_note.guid, tag.id);
+
+                      setState(() {
+                        _categoriesController.clear();
+                        _showCategoryInput = false;
+                      });
+                      _removeOverlay();
                     },
                   );
                 }
@@ -328,9 +383,8 @@ class _NotePageState extends State<NotePage> {
                   dense: true,
                   title: Text(tag.name, style: TextStyle(fontSize: 15)),
                   onTap: () async {
-                    await JwLifeApp.userdata.addTagToNoteWithGuid(_note.guid, tag.id);
+                    _notesController.addTagIdToNote(_note.guid, tag.id);
                     setState(() {
-                      _note.tagsId.add(tag.id);
                       _categoriesController.clear();
                       _showCategoryInput = false;
                     });
@@ -353,13 +407,13 @@ class _NotePageState extends State<NotePage> {
         ? Color(0xFF292929)
         : Color(0xFFe9e9e9);
 
-    return Scaffold(
-      resizeToAvoidBottomInset: true,
+    return AppPage(
       backgroundColor: _note.getColor(context),
       appBar: AppBar(
         backgroundColor: _note.getColor(context),
+        titleSpacing: 0.0,
         leading: IconButton(
-            icon: Icon(Icons.arrow_back),
+            icon: Icon(JwIcons.chevron_down, color: Colors.white),
             onPressed: () {
               // 2. Vérifie si un champ de texte a le focus (clavier ouvert) et le ferme
               if (FocusScope.of(context).hasFocus) {
@@ -374,19 +428,18 @@ class _NotePageState extends State<NotePage> {
               }
 
               // 3. Effectue la navigation après avoir fermé tout ce qui est ouvert
-              GlobalKeyService.jwLifePageKey.currentState?.handleBack(context, result: _note);
+              GlobalKeyService.jwLifePageKey.currentState?.handleBack(context);
             }
         ),
         actions: [
           PopupMenuButton(
+            icon: Icon(JwIcons.three_dots_horizontal, color: Colors.white),
             itemBuilder: (context) => [
               PopupMenuItem(
                 child: ListTile(
                   title: Text(i18n().action_delete),
                   onTap: () async {
-                    await JwLifeApp.userdata.deleteNote(_note);
-                    _note.noteId = -1;
-                    Navigator.pop(context);
+                    _notesController.removeNote(_note.guid);
                     Navigator.pop(context);
                   },
                 ),
@@ -403,15 +456,7 @@ class _NotePageState extends State<NotePage> {
                     value: _note.colorIndex,
                     onChanged: (int? newValue) {
                       if (newValue != null) {
-                        _note.colorIndex = newValue;
-                        JwLifeApp.userdata.updateNote(_note, _titleController.text,
-                            _contentController.text,
-                            colorIndex: newValue)
-                            .then((updatedNote) {
-                          setState(() {
-                            _note = updatedNote;
-                          });
-                        });
+                        _notesController.changeNoteColor(_note.guid, 0, newValue);
                       }
                     },
                     items: List.generate(7, (index) {
@@ -487,8 +532,9 @@ class _NotePageState extends State<NotePage> {
                       spacing: 12,
                       runSpacing: 4,
                       crossAxisAlignment: WrapCrossAlignment.start,
-                      children: _note.tagsId.map<Widget>((tagId) {
-                        Tag tag = JwLifeApp.userdata.tags.firstWhere((tag) => tag.id == tagId);
+                      children: context.watch<NotesController>().notes.firstWhere((note) => note.guid == _note.guid).tagsId.map<Widget>((tagId) {
+                        Tag? tag = context.watch<TagsController>().tags.firstWhereOrNull((tag) => tag.id == tagId);
+                        if (tag == null) return SizedBox.shrink();
                         return Chip(
                           shape: StadiumBorder(),
                           side: BorderSide(color: color, width: 1),
@@ -496,11 +542,7 @@ class _NotePageState extends State<NotePage> {
                           backgroundColor: color,
                           deleteIcon: Icon(JwIcons.x, size: 18),
                           onDeleted: () async {
-                            await JwLifeApp.userdata
-                                .removeTagFromNoteWithGuid(_note.guid, tag.id);
-                            setState(() {
-                              _note.tagsId.remove(tagId);
-                            });
+                            _notesController.removeTagIdFromNote(_note.guid, tagId);
                           },
                         );
                       }).toList(),
@@ -524,19 +566,14 @@ class _NotePageState extends State<NotePage> {
                               ),
                               onSubmitted: (value) async {
                                 if (value.trim().isNotEmpty) {
-                                  Tag? tag = await JwLifeApp.userdata
-                                      .addTag(value, 1);
-                                  if (tag != null) {
-                                    await JwLifeApp.userdata
-                                        .addTagToNoteWithGuid(
-                                        _note.guid, tag.id);
-                                    setState(() {
-                                      _note.tagsId.add(tag.id);
-                                      _categoriesController.clear();
-                                      _showCategoryInput = false;
-                                    });
-                                    _removeOverlay();
-                                  }
+                                  Tag tag = await _tagsController.addTag(value);
+                                  _notesController.addTagIdToNote(_note.guid, tag.id);
+
+                                  setState(() {
+                                    _categoriesController.clear();
+                                    _showCategoryInput = false;
+                                  });
+                                  _removeOverlay();
                                 }
                               },
                             ),
@@ -615,50 +652,47 @@ class _NotePageState extends State<NotePage> {
                           );
                         }
                       },
-                      child: SafeArea(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 10.0),
-                          child: Row(
-                            children: [
-                              ImageCachedWidget(
-                                imageUrl: pub.imageSqr,
-                                icon: pub.category.icon,
-                                height: 35,
-                                width: 35,
+                      child: Padding(
+                        padding: EdgeInsets.only(top: 10, bottom: 20 + MediaQuery.of(context).viewInsets.bottom),
+                        child: Row(
+                          children: [
+                            ImageCachedWidget(
+                              imageUrl: pub.imageSqr,
+                              icon: pub.category.icon,
+                              height: 35,
+                              width: 35,
+                            ),
+                            SizedBox(width: 8),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    docTitle.isEmpty
+                                        ? pub.getShortTitle()
+                                        : docTitle,
+                                    style: TextStyle(fontSize: 16, height: 1),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  SizedBox(height: 3),
+                                  Text(
+                                    docTitle.isEmpty
+                                        ? pub.getSymbolAndIssue()
+                                        : pub.getShortTitle(),
+                                    style: TextStyle(
+                                        fontSize: 12,
+                                        height: 1,
+                                        color: Colors.grey),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
                               ),
-                              SizedBox(width: 8),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      docTitle.isEmpty
-                                          ? pub.getShortTitle()
-                                          : docTitle,
-                                      style: TextStyle(fontSize: 16, height: 1),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                    SizedBox(height: 3),
-                                    Text(
-                                      docTitle.isEmpty
-                                          ? pub.getSymbolAndIssue()
-                                          : pub.getShortTitle(),
-                                      style: TextStyle(
-                                          fontSize: 12,
-                                          height: 1,
-                                          color: Colors.grey),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
-                      )
-                    );
+                      ));
                   },
                 ),
                 // Padding en bas pour le cas où le clavier est fermé

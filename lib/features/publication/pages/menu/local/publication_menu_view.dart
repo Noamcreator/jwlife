@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:jwlife/app/jwlife_app_bar.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/core/utils/html_styles.dart';
@@ -21,15 +22,15 @@ import 'package:jwlife/widgets/dialog/publication_dialogs.dart';
 import 'package:jwlife/widgets/responsive_appbar_actions.dart';
 import 'package:jwlife/widgets/searchfield/searchfield_widget.dart';
 
+import '../../../../../app/app_page.dart';
 import '../../../../../app/services/global_key_service.dart';
 import '../../../../../app/services/settings_service.dart';
-import '../../../../../core/app_dimens.dart';
+import '../../../../../core/ui/app_dimens.dart';
 import '../../../../../core/shared_preferences/shared_preferences_utils.dart';
 import '../../../../../core/utils/utils_language_dialog.dart';
 import '../../../../../core/utils/utils_pub.dart';
 import '../../../../../i18n/i18n.dart';
 import '../../../../bible/pages/bible_chapter_page.dart';
-import '../../../../image/image_page.dart';
 import '../../../models/menu/local/menu_list_item.dart';
 import '../../../models/menu/local/publication_menu_model.dart';
 import '../../../models/menu/local/tab_items.dart';
@@ -42,9 +43,9 @@ const double breakpointBig = 900.0;
 class PublicationMenuView extends StatefulWidget {
   final Publication publication;
   final bool showAppBar;
-  final bool biblePage;
+  final bool canPop;
 
-  const PublicationMenuView({super.key, required this.publication, this.showAppBar = true, this.biblePage = false});
+  const PublicationMenuView({super.key, required this.publication, this.showAppBar = true, this.canPop = true});
 
   @override
   PublicationMenuViewState createState() => PublicationMenuViewState();
@@ -64,8 +65,6 @@ class PublicationMenuViewState extends State<PublicationMenuView> with SingleTic
   void initState() {
     super.initState();
     _model = PublicationMenuModel(widget.publication);
-    // Initialise le modèle de suggestion ici ou assurez-vous qu'il est non null
-    widget.publication.wordsSuggestionsModel ??= WordsSuggestionsModel(widget.publication);
     init();
   }
 
@@ -134,129 +133,132 @@ class PublicationMenuViewState extends State<PublicationMenuView> with SingleTic
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4.0),
-      child: InkWell(
-        onTap: () { showPageDocument(widget.publication, item.mepsDocumentId); },
-        // Le Stack est le parent que nous allons utiliser pour le Positioned
-        child: Stack(
-          children: [
-            // 1. Déterminer la direction du texte pour ajuster les paddings/positions
-            Builder(
-              builder: (context) {
-                final imageSpacing = showImage ? 8.0 : 0.0;
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () { showPageDocument(widget.publication, item.mepsDocumentId); },
+          // Le Stack est le parent que nous allons utiliser pour le Positioned
+          child: Stack(
+            children: [
+              // 1. Déterminer la direction du texte pour ajuster les paddings/positions
+              Builder(
+                builder: (context) {
+                  final imageSpacing = showImage ? 8.0 : 0.0;
 
-                // La Row inversera automatiquement l'ordre en RTL (Image à droite, Texte à gauche)
-                return Row(
-                  // On retire MainAxisAlignment.spaceBetween pour éviter les espaces vides excessifs
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // 1A. Image (sera à gauche en LTR, à droite en RTL)
-                    showImage ? SizedBox(
-                      width: 60.0,
-                      height: 60.0,
-                      child: hasValidImagePath
-                          ? ClipRRect(
-                        borderRadius: BorderRadius.circular(4.0),
-                        child: Image.file(
-                          File(imageFullPath),
-                          frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
-                            // 1. Vérifie si l'image est encore en cours de chargement (frame est null)
-                            if (frame == null) {
-                              // Remplacement par le Container gris pendant le chargement
-                              return Container(color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF4f4f4f) : const Color(0xFF8e8e8e));
-                            }
+                  // La Row inversera automatiquement l'ordre en RTL (Image à droite, Texte à gauche)
+                  return Row(
+                    // On retire MainAxisAlignment.spaceBetween pour éviter les espaces vides excessifs
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // 1A. Image (sera à gauche en LTR, à droite en RTL)
+                      showImage ? SizedBox(
+                        width: 60.0,
+                        height: 60.0,
+                        child: hasValidImagePath
+                            ? ClipRRect(
+                          borderRadius: BorderRadius.circular(4.0),
+                          child: Image.file(
+                            File(imageFullPath),
+                            frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+                              // 1. Vérifie si l'image est encore en cours de chargement (frame est null)
+                              if (frame == null) {
+                                // Remplacement par le Container gris pendant le chargement
+                                return Container(color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF4f4f4f) : const Color(0xFF8e8e8e));
+                              }
 
-                            // 2. Si l'image est chargée (frame n'est pas null), affiche l'image elle-même (child)
-                            return child;
+                              // 2. Si l'image est chargée (frame n'est pas null), affiche l'image elle-même (child)
+                              return child;
+                            },
+                            fit: BoxFit.cover,
+                          ),
+                        )
+                            :
+                        // Si le chemin n'est PAS valide (hasValidImagePath est false), on affiche le Container gris par défaut
+                        Container(color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF4f4f4f) : const Color(0xFF8e8e8e)),
+                      ) : const SizedBox.shrink(),
+
+                      // 1B. Texte Expansé (il prendra tout l'espace restant)
+                      Expanded(
+                        child: Padding(
+                          // Ajuster le padding : si LTR, padding à gauche. Si RTL, padding à droite.
+                          // On retire aussi l'espace pour le PopupMenuButton
+                          padding: EdgeInsets.only(
+                            left: isRTL ? 30.0 : imageSpacing,
+                            right: isRTL ? imageSpacing : 30.0,
+                            top: 4.0, // Petit ajustement vertical pour le texte
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if(showSubTitle) Text(item.subTitle, style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFFc0c0c0) : const Color(0xFF626262), fontSize: 14), maxLines: 1, overflow: TextOverflow.ellipsis),
+                              const SizedBox(height: 2.0),
+                              Text(item.title, style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF9fb9e3) : const Color(0xFF4a6da7), fontSize: showSubTitle ? 15.0 : 16.0, height: 1.2), maxLines: 2, overflow: TextOverflow.ellipsis),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+
+              // 2. PopupMenuButton Positioned :
+              // Il sera positionné dans le coin supérieur Droit (LTR) ou Gauche (RTL) du Stack.
+              // Le `top: -4.0` ou une valeur similaire permet de compenser le Padding interne par défaut.
+              Positioned(
+                top: -10.0, // Ajuste vers le haut pour compenser le Padding vertical de 4.0
+                // Positionnement absolu : Right pour LTR, Left pour RTL.
+                right: isRTL ? null : -8,
+                left: isRTL ? -8 : null,
+                child: PopupMenuButton(
+                  // On utilise padding: EdgeInsets.zero pour annuler l'espace par défaut autour de l'icône
+                  padding: EdgeInsets.zero,
+                  icon: Icon(Icons.more_horiz, color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF8e8e8e) : const Color(0xFF757575)),
+                  itemBuilder: (context) {
+                    List<PopupMenuEntry> items = [
+                      PopupMenuItem(child: Row(children: [Icon(JwIcons.share, color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black), const SizedBox(width: 8.0), Text(i18n().action_open_in_share, style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black))]), onTap: () { widget.publication.documentsManager?.getDocumentFromMepsDocumentId(item.mepsDocumentId).share(false); }),
+                    ];
+                    if (audio != null && audio.fileSize != null) { // Ajout de la vérification audio.fileSize != null
+                      items.add(PopupMenuItem(child: Row(children: [Icon(JwIcons.cloud_arrow_down, color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black), const SizedBox(width: 8.0), ValueListenableBuilder<bool>(valueListenable: audio.isDownloadingNotifier, builder: (context, isDownloading, child) { return Text(isDownloading ? i18n().message_download_in_progress : audio.isDownloadedNotifier.value ? i18n().action_remove_audio_size(formatFileSize(audio.fileSize!)) : i18n().action_download_audio_size(formatFileSize(audio.fileSize!)), style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black)); }),]), onTap: () { if (audio.isDownloadedNotifier.value) { audio.remove(context); } else { audio.download(context); } }),
+                      );
+                      items.add(PopupMenuItem(child: Row(children: [Icon(JwIcons.headphones__simple, color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black), const SizedBox(width: 8.0), Text(i18n().action_play_audio, style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black))]), onTap: () { int index = widget.publication.audios.indexWhere((audio) => audio.documentId == item.mepsDocumentId); if (index != -1) { showAudioPlayerPublicationLink(context, widget.publication, index); } }),
+                      );
+                    }
+                    return items;
+                  },
+                ),
+              ),
+
+              // 3. LinearProgressIndicator (doit être positionnée correctement en RTL)
+              if (audio != null)
+                ValueListenableBuilder<bool>(
+                  valueListenable: audio.isDownloadingNotifier,
+                  builder: (context, isDownloading, child) {
+                    if (isDownloading) {
+                      const positionOffset = 65.0; // Largeur de l'image (60.0) + un petit espace
+
+                      return Positioned(
+                        bottom: 0,
+                        left: isRTL ? null : showImage ? positionOffset : 0,
+                        right: isRTL ? (showImage ? positionOffset : 0) : 40.0,
+                        child: ValueListenableBuilder<double>(
+                          valueListenable: audio.progressNotifier,
+                          builder: (context, progress, child) {
+                            return SizedBox(
+                              width: MediaQuery.of(context).size.width - (showImage ? positionOffset + 40.0 : 40.0),
+                              child: LinearProgressIndicator(
+                                value: progress, minHeight: 2.0, backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.2), valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).colorScheme.primary),
+                              ),
+                            );
                           },
-                          fit: BoxFit.cover,
                         ),
-                      )
-                          :
-                      // Si le chemin n'est PAS valide (hasValidImagePath est false), on affiche le Container gris par défaut
-                      Container(color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF4f4f4f) : const Color(0xFF8e8e8e)),
-                    ) : const SizedBox.shrink(),
-
-                    // 1B. Texte Expansé (il prendra tout l'espace restant)
-                    Expanded(
-                      child: Padding(
-                        // Ajuster le padding : si LTR, padding à gauche. Si RTL, padding à droite.
-                        // On retire aussi l'espace pour le PopupMenuButton
-                        padding: EdgeInsets.only(
-                          left: isRTL ? 30.0 : imageSpacing,
-                          right: isRTL ? imageSpacing : 30.0,
-                          top: 4.0, // Petit ajustement vertical pour le texte
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            if(showSubTitle) Text(item.subTitle, style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFFc0c0c0) : const Color(0xFF626262), fontSize: 14), maxLines: 1, overflow: TextOverflow.ellipsis),
-                            const SizedBox(height: 2.0),
-                            Text(item.title, style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF9fb9e3) : const Color(0xFF4a6da7), fontSize: showSubTitle ? 15.0 : 16.0, height: 1.2), maxLines: 2, overflow: TextOverflow.ellipsis),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                );
-              },
-            ),
-
-            // 2. PopupMenuButton Positioned :
-            // Il sera positionné dans le coin supérieur Droit (LTR) ou Gauche (RTL) du Stack.
-            // Le `top: -4.0` ou une valeur similaire permet de compenser le Padding interne par défaut.
-            Positioned(
-              top: -10.0, // Ajuste vers le haut pour compenser le Padding vertical de 4.0
-              // Positionnement absolu : Right pour LTR, Left pour RTL.
-              right: isRTL ? null : -8,
-              left: isRTL ? -8 : null,
-              child: PopupMenuButton(
-                // On utilise padding: EdgeInsets.zero pour annuler l'espace par défaut autour de l'icône
-                padding: EdgeInsets.zero,
-                icon: Icon(Icons.more_horiz, color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF8e8e8e) : const Color(0xFF757575)),
-                itemBuilder: (context) {
-                  List<PopupMenuEntry> items = [
-                    PopupMenuItem(child: Row(children: [Icon(JwIcons.share, color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black), const SizedBox(width: 8.0), Text(i18n().action_open_in_share, style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black))]), onTap: () { widget.publication.documentsManager?.getDocumentFromMepsDocumentId(item.mepsDocumentId).share(false); }),
-                  ];
-                  if (audio != null && audio.fileSize != null) { // Ajout de la vérification audio.fileSize != null
-                    items.add(PopupMenuItem(child: Row(children: [Icon(JwIcons.cloud_arrow_down, color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black), const SizedBox(width: 8.0), ValueListenableBuilder<bool>(valueListenable: audio.isDownloadingNotifier, builder: (context, isDownloading, child) { return Text(isDownloading ? i18n().message_download_in_progress : audio.isDownloadedNotifier.value ? i18n().action_remove_audio_size(formatFileSize(audio.fileSize!)) : i18n().action_download_audio_size(formatFileSize(audio.fileSize!)), style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black)); }),]), onTap: () { if (audio.isDownloadedNotifier.value) { audio.remove(context); } else { audio.download(context); } }),
-                    );
-                    items.add(PopupMenuItem(child: Row(children: [Icon(JwIcons.headphones__simple, color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black), const SizedBox(width: 8.0), Text(i18n().action_play_audio, style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black))]), onTap: () { int index = widget.publication.audios.indexWhere((audio) => audio.documentId == item.mepsDocumentId); if (index != -1) { showAudioPlayerPublicationLink(context, widget.publication, index); } }),
-                    );
-                  }
-                  return items;
-                },
-              ),
-            ),
-
-            // 3. LinearProgressIndicator (doit être positionnée correctement en RTL)
-            if (audio != null)
-              ValueListenableBuilder<bool>(
-                valueListenable: audio.isDownloadingNotifier,
-                builder: (context, isDownloading, child) {
-                  if (isDownloading) {
-                    const positionOffset = 65.0; // Largeur de l'image (60.0) + un petit espace
-
-                    return Positioned(
-                      bottom: 0,
-                      left: isRTL ? null : showImage ? positionOffset : 0,
-                      right: isRTL ? (showImage ? positionOffset : 0) : 40.0,
-                      child: ValueListenableBuilder<double>(
-                        valueListenable: audio.progressNotifier,
-                        builder: (context, progress, child) {
-                          return SizedBox(
-                            width: MediaQuery.of(context).size.width - (showImage ? positionOffset + 40.0 : 40.0),
-                            child: LinearProgressIndicator(
-                              value: progress, minHeight: 2.0, backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.2), valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).colorScheme.primary),
-                            ),
-                          );
-                        },
-                      ),
-                    );
-                  }
-                  return const SizedBox.shrink();
-                },
-              ),
-          ],
+                      );
+                    }
+                    return const SizedBox.shrink();
+                  },
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -330,8 +332,8 @@ class PublicationMenuViewState extends State<PublicationMenuView> with SingleTic
               child: Text(
                 displayTitle,
                 style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 16
+                    color: Colors.white,
+                    fontSize: 16
                 ),
                 textAlign: TextAlign.start,
                 maxLines: 1,
@@ -430,8 +432,6 @@ class PublicationMenuViewState extends State<PublicationMenuView> with SingleTic
           // Détermination de la largeur disponible
           double screenWidth = constraints.maxWidth;
 
-          print(screenWidth);
-
           final double maxListWidth = screenWidth / 2 / 4 - 3 * kSpacing;
 
           // Détermination des métriques du GridView selon la taille d'écran
@@ -529,24 +529,24 @@ class PublicationMenuViewState extends State<PublicationMenuView> with SingleTic
                       // *** LOGIQUE POUR screenWidth >= 900.0 (Sans SizedBox) ***
                       // Utilise la largeur complète de la colonne Expanded
                         ConstrainedBox(
-                          constraints: BoxConstraints(
-                            maxWidth: tabWithItems.items.indexOf(item) == 0 ? ((maxListWidth * 4) + kSpacing * 3) : ((maxListWidth * 3) + kSpacing * 2)
-                          ),
-                          child: GridView.builder(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                              // Le crossAxisCount est maintenant conditionnel à l'index de l'item (comme vous l'avez spécifié)
-                              crossAxisCount: tabWithItems.items.indexOf(item) == 0 ? 4 : 3,
-                              crossAxisSpacing: kSpacing,
-                              mainAxisSpacing: kSpacing,
-                              mainAxisExtent: mainAxisExtent, // 45.0
+                            constraints: BoxConstraints(
+                                maxWidth: tabWithItems.items.indexOf(item) == 0 ? ((maxListWidth * 4) + kSpacing * 3) : ((maxListWidth * 3) + kSpacing * 2)
                             ),
-                            itemCount: item.subItems.length,
-                            itemBuilder: (context, index) {
-                              return _buildBookItem(context, item.subItems[index], screenWidth);
-                            },
-                          )
+                            child: GridView.builder(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                                // Le crossAxisCount est maintenant conditionnel à l'index de l'item (comme vous l'avez spécifié)
+                                crossAxisCount: tabWithItems.items.indexOf(item) == 0 ? 4 : 3,
+                                crossAxisSpacing: kSpacing,
+                                mainAxisSpacing: kSpacing,
+                                mainAxisExtent: mainAxisExtent, // 45.0
+                              ),
+                              itemCount: item.subItems.length,
+                              itemBuilder: (context, index) {
+                                return _buildBookItem(context, item.subItems[index], screenWidth);
+                              },
+                            )
                         )
                   ],
                 ),
@@ -624,31 +624,31 @@ class PublicationMenuViewState extends State<PublicationMenuView> with SingleTic
       if (isTitleItem) {
         // Contenu du titre (Titre + Divider + Sous-éléments)
         contentWidget = Center(
-          child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: kMaxMenuItemWidth), // Ajout de 'const'
-              child: Padding(
-                  padding: const EdgeInsets.only(top: 16.0, left: 10.0, right: 10.0),
-                  child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start, // Garder .start pour aligner la colonne à gauche
-                      children: [
-                        Text(
-                            item.title,
-                            style: TextStyle(
-                                color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black,
-                                fontSize: 20.0,
-                                fontWeight: FontWeight.bold
-                            )
-                        ), // <-- PARENTHÈSE FERMANTE AJOUTÉE ICI
-                        const SizedBox(height: 2),
-                        // 2. Centrer la Divider (pour qu'elle ait la même largeur contrainte)
-                        const Divider(color: Color(0xFFa7a7a7), height: 1),
-                        const SizedBox(height: 10),
-                        // 3. Les subItems
-                        ...item.subItems.map((subItem) => _buildNameItem(context, item.subItems.any((subItem) => subItem.imageFilePath.isNotEmpty), subItem)),
-                      ]
-                  )
-              )
-          )
+            child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: kMaxMenuItemWidth), // Ajout de 'const'
+                child: Padding(
+                    padding: const EdgeInsets.only(top: 16.0, left: 10.0, right: 10.0),
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start, // Garder .start pour aligner la colonne à gauche
+                        children: [
+                          Text(
+                              item.title,
+                              style: TextStyle(
+                                  color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black,
+                                  fontSize: 20.0,
+                                  fontWeight: FontWeight.bold
+                              )
+                          ), // <-- PARENTHÈSE FERMANTE AJOUTÉE ICI
+                          const SizedBox(height: 2),
+                          // 2. Centrer la Divider (pour qu'elle ait la même largeur contrainte)
+                          const Divider(color: Color(0xFFa7a7a7), height: 1),
+                          const SizedBox(height: 10),
+                          // 3. Les subItems
+                          ...item.subItems.map((subItem) => _buildNameItem(context, item.subItems.any((subItem) => subItem.imageFilePath.isNotEmpty), subItem)),
+                        ]
+                    )
+                )
+            )
         );
       }
       else {
@@ -690,7 +690,7 @@ class PublicationMenuViewState extends State<PublicationMenuView> with SingleTic
     }
 
     // VRAI: Catégorie Bible (ID 1), VRAI: si la publications est ouverte comme page Bible
-    bool isBible = widget.publication.isBible() || widget.biblePage;
+    bool isBible = widget.publication.isBible() || !widget.canPop;
 
     // La largeur maximale est appliquée conditionnellement
     final double? maxContentWidth = isBible ? null : kMaxMenuItemWidth;
@@ -949,9 +949,7 @@ class PublicationMenuViewState extends State<PublicationMenuView> with SingleTic
 
     return !widget.showAppBar
         ? _buildCircuitMenu()
-        : Scaffold(
-      backgroundColor: Theme.of(context).brightness == Brightness.dark ? Colors.black : const Color(0xFFf1f1f1),
-      resizeToAvoidBottomInset: false,
+        : AppPage(
       appBar: _isSearching
           ? AppBar(
           leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () { setState(() { _isSearching = false; }); }),
@@ -986,41 +984,32 @@ class PublicationMenuViewState extends State<PublicationMenuView> with SingleTic
             // suggestionsNotifier: Utilisation du ValueNotifier du modèle
             suggestionsNotifier: widget.publication.wordsSuggestionsModel?.suggestionsNotifier ?? ValueNotifier([]),
           )
-      ) : AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(widget.publication.getShortTitle(), style: textStyleTitle),
-            Text("${widget.publication.mepsLanguage.vernacular} · ${widget.publication.keySymbol}", style: textStyleSubtitle),
-          ],
-        ),
-        leading: widget.biblePage ? null : IconButton(icon: const Icon(Icons.arrow_back), onPressed: () { GlobalKeyService.jwLifePageKey.currentState?.handleBack(context); }),
+      ) : JwLifeAppBar(
+        canPop: widget.canPop,
+        title: widget.publication.getShortTitle(),
+        subTitle: "${widget.publication.mepsLanguage.vernacular} · ${widget.publication.keySymbol}",
         actions: [
-          ResponsiveAppBarActions(
-            allActions: [
-              IconTextButton(text: i18n().action_search, icon: const Icon(JwIcons.magnifying_glass), onPressed: (anchorContext) async {
-                // Initialisation du modèle lors du clic sur rechercher
-                widget.publication.wordsSuggestionsModel ??= WordsSuggestionsModel(widget.publication);
-                setState(() { _isSearching = true; });
-              }),
-              IconTextButton(text: i18n().action_bookmarks, icon: const Icon(JwIcons.bookmark), onPressed: (anchorContext) async {
-                Bookmark? bookmark = await showBookmarkDialog(context, widget.publication);
-                if (bookmark != null) {
-                  // Utilisation de ?? 0 pour éviter le '!'
-                  if (bookmark.location.bookNumber != null && bookmark.location.chapterNumber != null) { showPageBibleChapter(widget.publication, bookmark.location.bookNumber ?? 0, bookmark.location.chapterNumber ?? 0, firstVerse: bookmark.blockIdentifier, lastVerse: bookmark.blockIdentifier); }
-                  else if (bookmark.location.mepsDocumentId != null) { showPageDocument(widget.publication, bookmark.location.mepsDocumentId ?? 0, startParagraphId: bookmark.blockIdentifier, endParagraphId: bookmark.blockIdentifier); }
-                }
-              }),
-              IconTextButton(text: i18n().action_languages, icon: const Icon(JwIcons.language), onPressed: (anchorContext) async {
-                if(widget.biblePage) { showLanguagePubDialog(context, null).then((languageBible) async { if (languageBible != null) { String bibleKey = languageBible.getKey(); JwLifeSettings().lookupBible = bibleKey; setLookUpBible(bibleKey); GlobalKeyService.bibleKey.currentState?.refreshBiblePage(); } }); }
-                else { showLanguagePubDialog(context, widget.publication).then((languagePub) async { if(languagePub != null) { languagePub.showMenu(context); } }); }
-              }),
-              IconTextButton(text: "Ajouter un widget sur l'écran d'accueil", icon: const Icon(JwIcons.article), onPressed: (anchorContext) async { /* ... */ }),
-              IconTextButton(text: i18n().action_download_media, icon: const Icon(JwIcons.cloud_arrow_down), onPressed: (anchorContext) { showDownloadMediasDialog(context, widget.publication); }),
-              IconTextButton(text: i18n().action_history, icon: const Icon(JwIcons.arrow_circular_left_clock), onPressed: (anchorContext) { History.showHistoryDialog(context); }),
-              IconTextButton(text: i18n().action_open_in_share, icon: const Icon(JwIcons.share), onPressed: (anchorContext) { widget.publication.shareLink(); }),
-            ],
-          ),
+          IconTextButton(text: i18n().action_search, icon: const Icon(JwIcons.magnifying_glass), onPressed: (anchorContext) async {
+            // Initialisation du modèle lors du clic sur rechercher
+            widget.publication.wordsSuggestionsModel ??= WordsSuggestionsModel(widget.publication);
+            setState(() { _isSearching = true; });
+          }),
+          IconTextButton(text: i18n().action_bookmarks, icon: const Icon(JwIcons.bookmark), onPressed: (anchorContext) async {
+            Bookmark? bookmark = await showBookmarkDialog(context, widget.publication);
+            if (bookmark != null) {
+              // Utilisation de ?? 0 pour éviter le '!'
+              if (bookmark.location.bookNumber != null && bookmark.location.chapterNumber != null) { showPageBibleChapter(widget.publication, bookmark.location.bookNumber ?? 0, bookmark.location.chapterNumber ?? 0, firstVerse: bookmark.blockIdentifier, lastVerse: bookmark.blockIdentifier); }
+              else if (bookmark.location.mepsDocumentId != null) { showPageDocument(widget.publication, bookmark.location.mepsDocumentId ?? 0, startParagraphId: bookmark.blockIdentifier, endParagraphId: bookmark.blockIdentifier); }
+            }
+          }),
+          IconTextButton(text: i18n().action_languages, icon: const Icon(JwIcons.language), onPressed: (anchorContext) async {
+            if(!widget.canPop) { showLanguagePubDialog(context, null).then((languageBible) async { if (languageBible != null) { String bibleKey = languageBible.getKey(); JwLifeSettings.instance.lookupBible.value = bibleKey; AppSharedPreferences.instance.setLookUpBible(bibleKey); } }); }
+            else { showLanguagePubDialog(context, widget.publication).then((languagePub) async { if(languagePub != null) { languagePub.showMenu(context); } }); }
+          }),
+          IconTextButton(text: "Ajouter un widget sur l'écran d'accueil", icon: const Icon(JwIcons.article), onPressed: (anchorContext) async { /* ... */ }),
+          IconTextButton(text: i18n().action_download_media, icon: const Icon(JwIcons.cloud_arrow_down), onPressed: (anchorContext) { showDownloadMediasDialog(context, widget.publication); }),
+          IconTextButton(text: i18n().action_history, icon: const Icon(JwIcons.arrow_circular_left_clock), onPressed: (anchorContext) { History.showHistoryDialog(context); }),
+          IconTextButton(text: i18n().action_open_in_share, icon: const Icon(JwIcons.share), onPressed: (anchorContext) { widget.publication.shareLink(); }),
         ],
       ),
       body: Directionality(textDirection: textDirection, child: _buildPublication()),

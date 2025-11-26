@@ -49,7 +49,7 @@ class SearchModel {
     final queryParams = {'q': query};
     final url = Uri.https(
       'b.jw-cdn.org',
-      '/apis/search/results/${JwLifeSettings().currentLanguage.symbol}/$path',
+      '/apis/search/results/${JwLifeSettings.instance.currentLanguage.value.symbol}/$path',
       queryParams,
     );
 
@@ -148,7 +148,7 @@ class SearchModel {
 
     List<Future<List<Map<String, dynamic>>>> futures = [];
 
-    for (Publication publication in PublicationRepository().getPublicationsFromLanguage(JwLifeSettings().currentLanguage)) {
+    for (Publication publication in PublicationRepository().getPublicationsFromLanguage(JwLifeSettings.instance.currentLanguage.value)) {
       futures.add(_fetchVerseFromPublication(publication, verseId));
     }
 
@@ -251,7 +251,7 @@ class SearchModel {
 
     final List<Future<List<Map<String, dynamic>>>> futures = [];
 
-    for (Publication pub in PublicationRepository().getPublicationsFromLanguage(JwLifeSettings().currentLanguage)) {
+    for (Publication pub in PublicationRepository().getPublicationsFromLanguage(JwLifeSettings.instance.currentLanguage.value)) {
       futures.add(_fetchImagesFromPublication(pub, query));
     }
 
@@ -404,11 +404,6 @@ class SearchModel {
     }
 
     return -1;
-  }
-
-  Future<List<Note>> fetchNotes() async {
-    if (notes.isNotEmpty) return notes;
-    return await JwLifeApp.userdata.getNotes(query: query);
   }
 
   Future<List<InputField>> fetchInputFields() async {

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:jwlife/app/jwlife_app_bar.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/models/publication_category.dart';
@@ -6,9 +7,12 @@ import 'package:jwlife/data/models/video.dart';
 import 'package:jwlife/data/databases/catalog.dart';
 import 'package:jwlife/data/realm/catalog.dart';
 import 'package:jwlife/features/library/widgets/rectangle_publication_item.dart';
+import 'package:jwlife/widgets/responsive_appbar_actions.dart';
 import 'package:realm/realm.dart';
 
+import '../../../../app/app_page.dart';
 import '../../../../app/services/settings_service.dart';
+import '../../../../core/ui/text_styles.dart';
 import '../../../../core/utils/utils_language_dialog.dart';
 import '../../../../data/models/audio.dart';
 import '../../../../data/realm/realm_library.dart';
@@ -42,8 +46,8 @@ class _ConventionItemsViewState extends State<ConventionItemsView> {
   }
 
   void loadItems() async {
-    List<Publication> pubs = await PubCatalog.fetchPubsFromConventionsDays();
-    RealmResults<Category> convDaysCategories = RealmLibrary.realm.all<Category>().query("language == '${JwLifeSettings().currentLanguage.symbol}'").query("key == 'ConvDay1' OR key == 'ConvDay2' OR key == 'ConvDay3'");
+    List<Publication> pubs = await CatalogDb.instance.fetchPubsFromConventionsDays();
+    RealmResults<Category> convDaysCategories = RealmLibrary.realm.all<Category>().query("language == '${JwLifeSettings.instance.currentLanguage.value.symbol}'").query("key == 'ConvDay1' OR key == 'ConvDay2' OR key == 'ConvDay3'");
 
     setState(() {
       publications = pubs.where((element) => element.conventionReleaseDayNumber == widget.indexDay).toList();
@@ -72,23 +76,22 @@ class _ConventionItemsViewState extends State<ConventionItemsView> {
     items.addAll(publications);
     items.addAll(medias);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(i18n().label_convention_day(widget.indexDay), style: textStyleTitle),
-            Text(JwLifeSettings().currentLanguage.vernacular, style: textStyleSubtitle),
-          ],
-        ),
+    return AppPage(
+      appBar: JwLifeAppBar(
+        title: i18n().label_convention_day(widget.indexDay),
+        subTitleWidget: ValueListenableBuilder(valueListenable: JwLifeSettings.instance.currentLanguage, builder: (context, value, child) {
+          return Text(value.vernacular, style: Theme.of(context).extension<JwLifeThemeStyles>()!.appBarSubTitle);
+        }),
         actions: [
-          IconButton(
+          IconTextButton(
             icon: Icon(JwIcons.magnifying_glass),
-            onPressed: () {},
+            onPressed: (BuildContext context) {
+
+            },
           ),
-          IconButton(
+          IconTextButton(
             icon: const Icon(JwIcons.language),
-            onPressed: () {
+            onPressed: (BuildContext context) {
               showLanguageDialog(context).then((language) async {
                 if (language != null) {
                   loadItems();

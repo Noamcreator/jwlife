@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:jwlife/core/app_dimens.dart';
+import 'package:jwlife/core/ui/app_dimens.dart';
 
 import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/data/realm/catalog.dart';
@@ -10,17 +10,14 @@ import '../../../../app/services/settings_service.dart';
 import '../../../../core/icons.dart';
 import '../../widgets/responsive_categories_wrap_layout.dart';
 
-class AudiosCategoriesPage extends StatelessWidget {
+class AudiosCategoriesWidget extends StatelessWidget {
   final Category categories;
 
-  const AudiosCategoriesPage({super.key, required this.categories});
+  const AudiosCategoriesWidget({super.key, required this.categories});
 
   @override
   Widget build(BuildContext context) {
-    // Déterminer la direction du texte pour la page entière
-    final TextDirection direction = JwLifeSettings().currentLanguage.isRtl
-        ? TextDirection.rtl
-        : TextDirection.ltr;
+    final TextDirection direction = JwLifeSettings.instance.currentLanguage.value.isRtl ? TextDirection.rtl : TextDirection.ltr;
 
     final List<Widget> categoryWidgets = categories.subcategories.map((category) {
       return _buildCategoryButton(category, direction);
@@ -32,41 +29,24 @@ class AudiosCategoriesPage extends StatelessWidget {
     );
   }
 
-  /// Construit un bouton de catégorie avec un support RTL complet.
-  /// La position de l'image, du texte et le dégradé sont inversés en mode RTL.
   Widget _buildCategoryButton(Category category, TextDirection direction) {
     final bool isRtl = direction == TextDirection.rtl;
 
-    // Calcul du point de transition selon la longueur du texte
     int textLength = category.localizedName!.length - 8;
     double transitionPoint = (textLength / 19).clamp(0.38, 0.5);
 
-    // L'ordre des stops doit être inversé pour le dégradé en mode RTL
     final List<double> stops = isRtl
-        ? [
-      0.0, // Côté image (end)
-      transitionPoint,
-      transitionPoint + 0.3,
-      1.0  // Côté texte (start)
-    ]
-        : [
-      0.0, // Côté texte (start)
-      transitionPoint,
-      transitionPoint + 0.3,
-      1.0  // Côté image (end)
-    ];
+        ? [0.0, transitionPoint, transitionPoint + 0.3, 1.0]
+        : [0.0, transitionPoint, transitionPoint + 0.3, 1.0];
 
-    return InkWell(
-      onTap: () {
-        showPage(AudioItemsPage(category: category));
-      },
+    return Material(
+      color: Colors.black,
       child: Stack(
         children: [
-          // 1. Image positionnée de manière directionnelle à 'end'
-          // (Droite en LTR, Gauche en RTL)
+          // 1. Image positionnée à 'end'
           Positioned.directional(
-            textDirection: direction, // IMPORTANT: Utiliser la direction
-            end: 0, // Positionne l'image à la fin de la ligne
+            textDirection: direction,
+            end: 0,
             top: 0,
             bottom: 0,
             child: ImageCachedWidget(
@@ -82,7 +62,6 @@ class AudiosCategoriesPage extends StatelessWidget {
             child: Container(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  // Commence à 'start' et finit à 'end'
                   begin: AlignmentDirectional.centerStart,
                   end: AlignmentDirectional.centerEnd,
                   colors: [
@@ -91,18 +70,15 @@ class AudiosCategoriesPage extends StatelessWidget {
                     Colors.transparent,
                     Colors.transparent,
                   ],
-                  // Utilise les stops ajustés pour RTL/LTR
                   stops: stops,
                 ),
               ),
             ),
           ),
 
-          // 3. Titre positionné et aligné à 'start'
-          // (Gauche en LTR, Droite en RTL)
+          // 3. Titre positionné à 'start'
           Positioned.fill(
             child: Align(
-              // S'aligne du côté de début du texte
               alignment: AlignmentDirectional.centerStart,
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 6.0),
@@ -115,6 +91,20 @@ class AudiosCategoriesPage extends StatelessWidget {
                   ),
                   maxLines: 2,
                 ),
+              ),
+            ),
+          ),
+
+          // 4. InkWell PAR-DESSUS tout le reste
+          Positioned.fill(
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () {
+                  showPage(AudioItemsPage(category: category));
+                },
+                splashColor: Colors.white24,
+                highlightColor: Colors.white10,
               ),
             ),
           ),

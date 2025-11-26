@@ -11,6 +11,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_video_info/flutter_video_info.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
+import 'package:jwlife/core/app_data/app_data_service.dart';
 import 'package:jwlife/app/services/global_key_service.dart';
 import 'package:jwlife/app/services/settings_service.dart';
 import 'package:jwlife/app/startup/copy_assets.dart';
@@ -19,7 +20,10 @@ import 'package:jwlife/core/shared_preferences/shared_preferences_utils.dart';
 import 'package:jwlife/core/utils/directory_helper.dart';
 import 'package:jwlife/core/utils/files_helper.dart';
 import 'package:jwlife/core/utils/utils.dart';
+import 'package:jwlife/data/controller/notes_controller.dart';
+import 'package:jwlife/data/controller/tags_controller.dart';
 import 'package:jwlife/data/models/publication.dart';
+import 'package:jwlife/data/models/userdata/block_range.dart';
 import 'package:jwlife/data/models/userdata/bookmark.dart';
 import 'package:jwlife/data/models/userdata/tag.dart';
 import 'package:jwlife/data/models/video.dart';
@@ -28,6 +32,7 @@ import 'package:jwlife/features/publication/pages/document/data/models/dated_tex
 import 'package:jwlife/core/utils/utils_dialog.dart';
 import 'package:mime/mime.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:provider/provider.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:uuid/uuid.dart' as uuid;
 import 'package:path/path.dart' as path;
@@ -35,6 +40,8 @@ import 'package:uuid/uuid.dart';
 
 import '../../core/utils/utils_video.dart';
 import '../../features/publication/pages/document/data/models/document.dart';
+import '../../i18n/i18n.dart';
+import '../controller/block_ranges_controller.dart';
 import '../models/audio.dart';
 import '../models/media.dart';
 import '../models/userdata/congregation.dart';
@@ -48,12 +55,11 @@ import '../models/userdata/playlist.dart';
 import 'package:image/image.dart' as img;
 
 import '../models/userdata/playlist_item.dart';
+import 'catalog.dart';
 
 class Userdata {
   int schemaVersion = 14;
   late Database _database;
-  List<dynamic> favorites = [];
-  List<Tag> tags = [];
 
   Future<void> init() async {
     File userdataFile = await getUserdataDatabaseFile();
@@ -61,16 +67,24 @@ class Userdata {
     _database = await openDatabase(userdataFile.path, version: schemaVersion, onCreate: (db, version) async {
       await createDbUserdata(db);
     });
-
-    await fetchFavorites();
-    fetchTags();
   }
 
   String get formattedTimestamp => DateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'").format(DateTime.now().toUtc());
 
   Future<void> reload_db() async {
     await _database.close();
+
+    final context = GlobalKeyService.jwLifePageKey.currentContext!;
+    context.read<BlockRangesController>().clearAll();
+    context.read<NotesController>().clearAll();
+    context.read<TagsController>().clearAll();
+
     await init();
+
+    AppDataService.instance.favorites.value = await fetchFavorites();
+
+    context.read<NotesController>().loadNotes();
+    context.read<TagsController>().loadTags();
 
     // vérifier si les nouvelles tables sont présentes
     if(!await tableExists(_database, "Congregation")) {
@@ -96,18 +110,12 @@ class Userdata {
     for(Publication publication in PublicationRepository().getAllPublications()) {
       if(publication.documentsManager != null) {
         for(Document document in publication.documentsManager!.documents) {
-          document.notes.clear();
-          document.extractedNotes.clear();
-          document.blockRanges.clear();
           document.bookmarks.clear();
           document.hasAlreadyBeenRead = false;
         }
       }
       else if(publication.datedTextManager != null) {
         for(DatedText datedText in publication.datedTextManager!.datedTexts) {
-          datedText.notes.clear();
-          datedText.extractedNotes.clear();
-          datedText.blockRanges.clear();
           datedText.bookmarks.clear();
           datedText.hasAlreadyBeenRead = false;
         }
@@ -120,13 +128,13 @@ class Userdata {
     }
   }
 
-  Future<void> fetchFavorites() async {
-    favorites = [];
+  Future<List<dynamic>> fetchFavorites() async {
+    List<dynamic> favorites = [];
 
     try {
       final mepsFile = await getMepsUnitDatabaseFile();
 
-      if (!mepsFile.existsSync()) return;
+      if (!mepsFile.existsSync()) return favorites;
 
       await _database.execute("ATTACH DATABASE '${mepsFile.path}' AS meps");
 
@@ -211,24 +219,19 @@ class Userdata {
 
       // Charger les publications manquantes via catalog
       if (publicationsToLoad.isNotEmpty) {
-        final catalogFile = await getCatalogDatabaseFile();
+        try {
+          await CatalogDb.instance.database.transaction((txn) async {
+            await txn.execute("ATTACH DATABASE '${_database.path}' AS userdata");
 
-        if (catalogFile.existsSync()) {
-          final catalog = await openReadOnlyDatabase(catalogFile.path);
+            final conditions = publicationsToLoad.map((row) =>
+            "(p.KeySymbol = ? AND p.IssueTagNumber = ? AND p.MepsLanguageId = ?)"
+            ).join(" OR ");
 
-          try {
-            await catalog.transaction((txn) async {
-              await txn.execute("ATTACH DATABASE '${_database.path}' AS userdata");
+            final args = publicationsToLoad.expand((row) => [
+              row['KeySymbol'], row['IssueTagNumber'], row['MepsLanguage']
+            ]).toList();
 
-              final conditions = publicationsToLoad.map((row) =>
-              "(p.KeySymbol = ? AND p.IssueTagNumber = ? AND p.MepsLanguageId = ?)"
-              ).join(" OR ");
-
-              final args = publicationsToLoad.expand((row) => [
-                row['KeySymbol'], row['IssueTagNumber'], row['MepsLanguage']
-              ]).toList();
-
-              final result = await txn.rawQuery('''
+            final result = await txn.rawQuery('''
                 SELECT DISTINCT
                   p.*,
                   pa.LastModified, 
@@ -248,40 +251,74 @@ class Userdata {
                 WHERE $conditions
               ''', args);
 
-              for (final pubRow in publicationsToLoad) {
-                final index = pubRow['index'] as int;
+            for (final pubRow in publicationsToLoad) {
+              final index = pubRow['index'] as int;
 
-                final match = result.firstWhereOrNull((dbRow) =>
-                dbRow['KeySymbol'] == pubRow['KeySymbol'] &&
-                    dbRow['IssueTagNumber'] == pubRow['IssueTagNumber'] &&
-                    dbRow['MepsLanguageId'] == pubRow['MepsLanguage']
-                );
+              final match = result.firstWhereOrNull((dbRow) =>
+              dbRow['KeySymbol'] == pubRow['KeySymbol'] &&
+                  dbRow['IssueTagNumber'] == pubRow['IssueTagNumber'] &&
+                  dbRow['MepsLanguageId'] == pubRow['MepsLanguage']
+              );
 
-                orderedFavorites[index] = match != null ? Publication.fromJson(match, isFavorite: true) : pubRow; // fallback brut
-              }
+              orderedFavorites[index] = match != null ? Publication.fromJson(match, isFavorite: true) : pubRow; // fallback brut
+            }
 
-              await txn.execute("DETACH DATABASE userdata");
-            });
-
-            await catalog.close();
-          } catch (e) {
-            printTime('Erreur: $e');
-            throw Exception('Échec de chargement des favoris.');
-          }
-        } else {
-          // Si aucun catalog, fallback brut à l’indice d’origine
-          for (final pubRow in publicationsToLoad) {
-            final index = pubRow['index'] as int;
-            orderedFavorites[index] = pubRow;
-          }
+            await txn.execute("DETACH DATABASE userdata");
+          });
+        }
+        catch (e) {
+          printTime('Erreur: $e');
+          throw Exception('Échec de chargement des favoris.');
         }
       }
 
       // Supprimer les valeurs null si jamais une ligne a échoué sans fallback
       favorites = orderedFavorites.whereType<dynamic>().toList();
-    } catch (e) {
+    }
+    catch (e) {
       printTime("Erreur finale: $e");
     }
+
+    return favorites;
+  }
+
+  Future<List<Note>> fetchNotes({int? limit, int? offset, String? query}) async {
+    final sql = '''
+      SELECT
+        N.NoteId,
+        N.Guid,
+        N.Title,
+        N.Content,
+        N.BlockType,
+        N.BlockIdentifier,
+        N.LastModified,
+        N.Created,
+        UM.UserMarkId,
+        UM.ColorIndex,
+        UM.UserMarkGuid,
+        T_Agg.TagsId,
+        L.LocationId,
+        L.BookNumber,
+        L.ChapterNumber,
+        L.DocumentId,
+        L.IssueTagNumber,
+        L.KeySymbol,
+        L.MepsLanguage
+    FROM Note N
+    LEFT JOIN Location L ON L.LocationId = N.LocationId
+    LEFT JOIN UserMark UM ON UM.UserMarkId = N.UserMarkId
+    LEFT JOIN (
+        SELECT 
+            TM.NoteId, 
+            GROUP_CONCAT(DISTINCT TM.TagId) AS TagsId
+        FROM TagMap TM
+        GROUP BY TM.NoteId
+    ) AS T_Agg ON N.NoteId = T_Agg.NoteId
+    ORDER BY N.LastModified DESC;
+    ''';
+
+    final result = await _database.rawQuery(sql);
+    return result.map((note) => Note.fromMap(note)).toList();
   }
 
   Future<int?> _getLocationId({
@@ -383,7 +420,7 @@ class Userdata {
       VALUES (NULL, ?, 1, ?)
     ''', [locationId, position]);
 
-      favorites.add(object);
+      AppDataService.instance.favorites.value = List.from(AppDataService.instance.favorites.value)..add(object);
     }
     catch (e) {
       printTime('Error: $e');
@@ -396,7 +433,6 @@ class Userdata {
       int? locationId;
 
       if (object is Publication) {
-        // Pour Publication
         locationId = await _getLocationId(
           issueTagNumber: object.issueTagNumber,
           keySymbol: object.keySymbol,
@@ -421,12 +457,11 @@ class Userdata {
           track: object.track,
           issueTagNumber: object.issueTagNumber,
           keySymbol: object.keySymbol,
-          mepsLanguageId: 3, // TODO: ajuster dynamiquement
+          mepsLanguageId: 3, // TODO dynamique
           type: object is Audio ? 2 : 3,
         );
       }
       else if (object is Map<String, dynamic>) {
-        // Pour les cas inconnus (Map brute)
         locationId = await _getLocationId(
           track: object['Track'],
           issueTagNumber: object['IssueTagNumber'],
@@ -439,31 +474,41 @@ class Userdata {
         throw Exception('Type non reconnu pour suppression');
       }
 
-      // Supprime les entrées associées
+      // Suppression SQL
       if (locationId != null) {
         await _database.rawDelete('DELETE FROM TagMap WHERE LocationId = ?', [locationId]);
         await _database.rawDelete('DELETE FROM Location WHERE LocationId = ?', [locationId]);
       }
 
-      // Supprimer de la mémoire locale favorites
-      favorites.removeWhere((item) {
+      // 🔥 Supprimer dans favorites en réassignant la liste
+      final notifier = AppDataService.instance.favorites;
+      final current = notifier.value;
+
+      final updated = current.where((item) {
         if (object is Publication && item is Publication) {
-          return item.keySymbol == object.keySymbol &&
+          return !(item.keySymbol == object.keySymbol &&
               item.issueTagNumber == object.issueTagNumber &&
-              item.mepsLanguage.id == object.mepsLanguage.id;
+              item.mepsLanguage.id == object.mepsLanguage.id);
         }
-        else if (object is Media && item is Media) {
-          return item.keySymbol == object.keySymbol &&
+
+        if (object is Media && item is Media) {
+          return !(item.keySymbol == object.keySymbol &&
               item.issueTagNumber == object.issueTagNumber &&
-              item.track == object.track;
+              item.track == object.track);
         }
-        else if (object is Map && item is Map) {
-          return item['KeySymbol'] == object['KeySymbol'] &&
+
+        if (object is Map && item is Map) {
+          return !(item['KeySymbol'] == object['KeySymbol'] &&
               item['IssueTagNumber'] == object['IssueTagNumber'] &&
-              item['MepsLanguage'] == object['MepsLanguage'];
+              item['MepsLanguage'] == object['MepsLanguage']);
         }
-        return false;
-      });
+
+        return true;
+      }).toList();
+
+      // 🔔 Réaffecte la liste → notifyListeners()
+      notifier.value = updated;
+
     } catch (e) {
       printTime('Error: $e');
       throw Exception('Failed to remove favorite from database.');
@@ -471,20 +516,31 @@ class Userdata {
   }
 
   Future<void> reorderFavorites(int oldIndex, int newIndex) async {
-    if (oldIndex < 0 || oldIndex >= favorites.length ||
-        newIndex < 0 || newIndex >= favorites.length) {
+    final notifier = AppDataService.instance.favorites;
+    final current = notifier.value;
+
+    if (oldIndex < 0 || oldIndex >= current.length ||
+        newIndex < 0 || newIndex >= current.length) {
       throw Exception('Invalid index');
     }
 
     if (oldIndex == newIndex) return;
 
-    // Réordonner la liste en mémoire
-    final Object movedItem = favorites.removeAt(oldIndex);
-    favorites.insert(newIndex, movedItem);
+    // 🔥 Créer une nouvelle liste pour réordonner correctement
+    final updated = List<dynamic>.from(current);
+
+    final movedItem = updated.removeAt(oldIndex);
+    updated.insert(newIndex, movedItem);
+
+    // 🔔 Mise à jour UI (obligatoire pour que ValueListenableBuilder se notifie)
+    notifier.value = updated;
+
+    // -------------------------------
+    // 🔽 DATABASE UPDATE (inchangé)
+    // -------------------------------
 
     final batch = _database.batch();
 
-    // Supprimer tous les favoris liés à Tag.Type = 0
     batch.rawDelete('''
     DELETE FROM TagMap
     WHERE TagId IN (
@@ -492,8 +548,8 @@ class Userdata {
     )
   ''');
 
-    for (int i = 0; i < favorites.length; i++) {
-      final item = favorites[i];
+    for (int i = 0; i < updated.length; i++) {
+      final item = updated[i];
 
       if (item is Publication) {
         batch.rawInsert('''
@@ -502,18 +558,31 @@ class Userdata {
         FROM Tag
         JOIN Location ON Location.IssueTagNumber = ? AND Location.KeySymbol = ? AND Location.MepsLanguage = ? AND Location.Type = ?
         WHERE Tag.Type = 0
-        ''', [i, item.issueTagNumber, item.keySymbol, item.mepsLanguage.id, 1]);
+      ''', [i, item.issueTagNumber, item.keySymbol, item.mepsLanguage.id, 1]);
       }
+
       else if (item is Document) {
         bool isBibleChapter = item.isBibleChapter();
         batch.rawInsert('''
-          INSERT INTO TagMap (TagId, LocationId, Position)
-          SELECT Tag.TagId, Location.LocationId, ?
-          FROM Tag
-          JOIN Location ON Location.BookNumber = ? AND Location.ChapterNumber = ? AND Location.DocumentId = ? AND Location.IssueTagNumber = ? AND Location.KeySymbol = ? AND Location.MepsLanguage = ? AND Location.Type = ?
-          WHERE Tag.Type = 0
-        ''', [i, item.bookNumber, item.chapterNumber, isBibleChapter ? null : item.mepsDocumentId, item.publication.issueTagNumber, item.publication.keySymbol, item.publication.mepsLanguage.id, 0]);
+        INSERT INTO TagMap (TagId, LocationId, Position)
+        SELECT Tag.TagId, Location.LocationId, ?
+        FROM Tag
+        JOIN Location ON Location.BookNumber = ? AND Location.ChapterNumber = ? AND Location.DocumentId = ?
+                        AND Location.IssueTagNumber = ? AND Location.KeySymbol = ?
+                        AND Location.MepsLanguage = ? AND Location.Type = ?
+        WHERE Tag.Type = 0
+      ''', [
+          i,
+          item.bookNumber,
+          item.chapterNumber,
+          isBibleChapter ? null : item.mepsDocumentId,
+          item.publication.issueTagNumber,
+          item.publication.keySymbol,
+          item.publication.mepsLanguage.id,
+          0
+        ]);
       }
+
       else if (item is Audio) {
         batch.rawInsert('''
         INSERT INTO TagMap (TagId, LocationId, Position)
@@ -521,8 +590,9 @@ class Userdata {
         FROM Tag
         JOIN Location ON Location.Track = ? AND Location.IssueTagNumber = ? AND Location.KeySymbol = ? AND Location.MepsLanguage = ? AND Location.Type = ?
         WHERE Tag.Type = 0
-        ''', [i, item.track, item.issueTagNumber ?? 0, item.keySymbol, 3, 2]);
+      ''', [i, item.track, item.issueTagNumber ?? 0, item.keySymbol, 3, 2]);
       }
+
       else if (item is Video) {
         batch.rawInsert('''
         INSERT INTO TagMap (TagId, LocationId, Position)
@@ -530,11 +600,10 @@ class Userdata {
         FROM Tag
         JOIN Location ON Location.Track = ? AND Location.IssueTagNumber = ? AND Location.KeySymbol = ? AND Location.MepsLanguage = ? AND Location.Type = ?
         WHERE Tag.Type = 0
-        ''', [i, item.track, item.issueTagNumber ?? 0, item.keySymbol, 3, 3]);
+      ''', [i, item.track, item.issueTagNumber ?? 0, item.keySymbol, 3, 3]);
       }
-      else {
-        printTime('Unknown item type: $item');
 
+      else if (item is Map<String, dynamic>) {
         final track = item['Track'];
         final issueTagNumber = item['IssueTagNumber'];
         final keySymbol = item['KeySymbol'];
@@ -543,21 +612,20 @@ class Userdata {
 
         if (track == null) {
           batch.rawInsert('''
-            INSERT INTO TagMap (TagId, LocationId, Position)
-            SELECT Tag.TagId, Location.LocationId, ?
-            FROM Tag
-            JOIN Location ON Location.IssueTagNumber = ? AND Location.KeySymbol = ? AND Location.MepsLanguage = ? AND Location.Type = ?
-            WHERE Tag.Type = 0
-          ''', [i, issueTagNumber, keySymbol, mepsLanguage, type]);
-        }
-        else {
+          INSERT INTO TagMap (TagId, LocationId, Position)
+          SELECT Tag.TagId, Location.LocationId, ?
+          FROM Tag
+          JOIN Location ON Location.IssueTagNumber = ? AND Location.KeySymbol = ? AND Location.MepsLanguage = ? AND Location.Type = ?
+          WHERE Tag.Type = 0
+        ''', [i, issueTagNumber, keySymbol, mepsLanguage, type]);
+        } else {
           batch.rawInsert('''
-            INSERT INTO TagMap (TagId, LocationId, Position)
-            SELECT Tag.TagId, Location.LocationId, ?
-            FROM Tag
-            JOIN Location ON Location.Track = ? AND Location.IssueTagNumber = ? AND Location.KeySymbol = ? AND Location.MepsLanguage = ? AND Location.Type = ?
-            WHERE Tag.Type = 0
-          ''', [i, track, issueTagNumber, keySymbol, mepsLanguage, type]);
+          INSERT INTO TagMap (TagId, LocationId, Position)
+          SELECT Tag.TagId, Location.LocationId, ?
+          FROM Tag
+          JOIN Location ON Location.Track = ? AND Location.IssueTagNumber = ? AND Location.KeySymbol = ? AND Location.MepsLanguage = ? AND Location.Type = ?
+          WHERE Tag.Type = 0
+        ''', [i, track, issueTagNumber, keySymbol, mepsLanguage, type]);
         }
       }
     }
@@ -565,16 +633,16 @@ class Userdata {
     await batch.commit(noResult: true);
   }
 
-  Future<void> fetchTags() async {
+  Future<List<Tag>> fetchTags() async {
     List<Map<String, dynamic>> result = await _database.rawQuery('''
       SELECT DISTINCT 
         Tag.TagId, 
         Tag.Name
       FROM Tag
-      WHERE Tag.Type = 1 --- '1' pour les tags de type "Categorie" pour les notes
+      WHERE Tag.Type = 1
     ''');
 
-    tags = result.map((tag) => Tag.fromMap(tag, type: 1)).toList();
+    return result.map((tag) => Tag.fromMap(tag, type: 1)).toList();
   }
 
   Future<Tag?> addTag(String name, int? type) async {
@@ -599,7 +667,7 @@ class Userdata {
           buttonAxisAlignment: MainAxisAlignment.end,
           buttons: [
             JwDialogButton(
-              label: 'OK',
+              label: i18n().action_ok,
             ),
           ],
         );
@@ -619,7 +687,6 @@ class Userdata {
       }
       else {
         tag = Tag.fromMap({'TagId': tagId, 'Type': type ?? 1, 'Name': name});
-        tags.add(tag);
       }
 
       return tag;
@@ -630,65 +697,42 @@ class Userdata {
     }
   }
 
-  Future<Tag?> updateTag(Tag tag, String name) async {
+  Future<void> renameTag(int tagId, int type, String name) async {
     try {
       // Mise à jour dans la base de données
       await _database.update(
         'Tag',
         {'Name': name},
         where: 'TagId = ? AND Type = ?',
-        whereArgs: [tag.id, tag.type],
+        whereArgs: [tagId, type],
       );
-
-      // Mise à jour dans la liste locale `tags`
-      if (tag.type == 1) {
-        final index = tags.indexWhere((t) => t.id == tag.id && t.type == tag.type);
-        if (index != -1) {
-          tags[index] = Tag(id: tag.id, name: name, type: tag.type);
-          return tags[index];
-        }
-        else {
-          printTime('Tag non trouvé dans la liste locale.');
-          return null;
-        }
-      }
-      else if(tag.type == 2) {
-        tag.name = name;
-        return tag;
-      }
-      else {
-        return tag;
-      }
     }
     catch (e) {
       printTime('Erreur lors de la mise à jour du tag : $e');
-      return null;
     }
   }
 
-  Future<bool> deleteTag(Tag tag, {List<PlaylistItem>? items}) async {
+  Future<bool> removeTag(int tagId, int type, {List<PlaylistItem>? items}) async {
     try {
       int count = 0;
 
       // Mise à jour de la liste locale `tags`
-      if (tag.type == 1) {
+      if (type == 1) {
         count = await _database.delete(
           'Tag',
           where: 'TagId = ? AND Type = ?',
-          whereArgs: [tag.id, tag.type],
+          whereArgs: [tagId, type],
         );
 
         // On enlève aussi les associations dans les TagMap
         await _database.delete(
           'TagMap',
           where: 'TagId = ?',
-          whereArgs: [tag.id],
+          whereArgs: [tagId],
         );
-
-        tags.removeWhere((t) => t.id == tag.id);
       }
-      else if (tag.type == 2) {
-        items ??= await getPlaylistItemByPlaylistId(tag.id);
+      else if (type == 2) {
+        items ??= await getPlaylistItemByPlaylistId(tagId);
 
         // On attend que tous les PlaylistItem soient supprimés
         for (var item in items) {
@@ -698,7 +742,7 @@ class Userdata {
         count = await _database.delete(
           'Tag',
           where: 'TagId = ? AND Type = ?',
-          whereArgs: [tag.id, tag.type],
+          whereArgs: [tagId, type],
         );
       }
 
@@ -709,7 +753,9 @@ class Userdata {
     }
   }
 
-  Future<int?> insertLocationWithDocument(Publication publication, Document? document, {DatedText? datedText, bool language = true}) async {
+  Future<int?> insertLocationWithDocument(Document? document, {DatedText? datedText, bool language = true}) async {
+    if(document == null && datedText == null) return null;
+    Publication publication = datedText?.publication ?? document!.publication;
     int mepsDocumentId = document?.mepsDocumentId ?? datedText!.mepsDocumentId;
     int? locationId = await insertLocation(document?.bookNumber, document?.chapterNumber, mepsDocumentId, null, publication.issueTagNumber, publication.keySymbol, language ? publication.mepsLanguage.id : null);
     return locationId;
@@ -871,7 +917,7 @@ class Userdata {
           ''', [documentId]
       );
 
-      return inputFieldsData;
+      return inputFieldsData.map((inputField) => Map<String, dynamic>.from(inputField)).toList();
 
     } catch (e) {
       printTime('Error: $e');
@@ -882,7 +928,7 @@ class Userdata {
   Future<void> updateOrInsertInputField(Document document, String tag, String value) async {
     try {
       // Étape 1 : Obtenir ou insérer le LocationId via insertLocation
-      final int? locationId = await insertLocationWithDocument(document.publication, document, language: false);
+      final int? locationId = await insertLocationWithDocument(document, language: false);
 
       // Étape 2 : Insérer ou mettre à jour l'entrée InputField
       await _database.rawInsert('''
@@ -897,7 +943,7 @@ class Userdata {
     }
   }
 
-  Future<List<Map<String, dynamic>>> getBlockRangesFromChapterNumber(int bookId, int chapterId, String keySymbol, int mepsLanguageId, {int? startVerse, int? endVerse}) async {
+  Future<List<BlockRange>> getBlockRangesFromChapterNumber(int bookId, int chapterId, String keySymbol, int mepsLanguageId, {int? startVerse, int? endVerse}) async {
     try {
       List<dynamic> arguments = [bookId, chapterId, keySymbol, mepsLanguageId];
       String whereClause = 'WHERE Location.BookNumber = ? AND Location.ChapterNumber = ? AND Location.KeySymbol = ? AND Location.MepsLanguage = ?';
@@ -916,16 +962,16 @@ class Userdata {
 
       // La requête SQL complète avec la clause WHERE construite dynamiquement
       String sqlQuery = '''
-          SELECT BlockRange.BlockType, BlockRange.Identifier, BlockRange.StartToken, BlockRange.EndToken, UserMark.ColorIndex, UserMark.StyleIndex, UserMark.UserMarkGuid
-          FROM Location
-          LEFT JOIN UserMark ON Location.LocationId = UserMark.LocationId
-          LEFT JOIN BlockRange ON UserMark.UserMarkId = BlockRange.UserMarkId
-          $whereClause
-    ''';
+        SELECT BlockRange.*, UserMark.*, Location.* -- AJOUT DE 'SELECT' ICI
+        FROM Location
+        INNER JOIN UserMark ON Location.LocationId = UserMark.LocationId
+        INNER JOIN BlockRange ON UserMark.UserMarkId = BlockRange.UserMarkId
+        $whereClause
+    '''; // Notez que les triples guillemets incluent le 'SELECT'
 
       List<Map<String, dynamic>> blockRanges = await _database.rawQuery(sqlQuery, arguments);
 
-      return blockRanges;
+      return blockRanges.map((blockRange) => BlockRange.fromMap(blockRange)).toList();
 
     } catch (e) {
       printTime('Error: $e');
@@ -933,7 +979,7 @@ class Userdata {
     }
   }
 
-  Future<List<Map<String, dynamic>>> getBlockRangesFromDocumentId(int documentId, int mepsLanguageId, {int? startParagraph, int? endParagraph}) async {
+  Future<List<BlockRange>> getBlockRangesFromDocumentId(int documentId, int mepsLanguageId, {int? startParagraph, int? endParagraph}) async {
     try {
       List<dynamic> arguments = [documentId, mepsLanguageId];
       String whereClause = 'WHERE Location.DocumentId = ? AND Location.MepsLanguage = ?';
@@ -952,16 +998,16 @@ class Userdata {
 
       // La requête SQL complète avec la clause WHERE construite
       String sqlQuery = '''
-          SELECT BlockRange.BlockType, BlockRange.Identifier, BlockRange.StartToken, BlockRange.EndToken, UserMark.ColorIndex, UserMark.StyleIndex, UserMark.UserMarkGuid
+          SELECT BlockRange.*, UserMark.*, Location.*
           FROM Location
-          LEFT JOIN UserMark ON Location.LocationId = UserMark.LocationId
-          LEFT JOIN BlockRange ON UserMark.UserMarkId = BlockRange.UserMarkId
+          INNER JOIN UserMark ON Location.LocationId = UserMark.LocationId
+          INNER JOIN BlockRange ON UserMark.UserMarkId = BlockRange.UserMarkId
           $whereClause
-    ''';
+      ''';
 
       List<Map<String, dynamic>> blockRanges = await _database.rawQuery(sqlQuery, arguments);
 
-      return blockRanges;
+      return blockRanges.map((blockRange) => BlockRange.fromMap(blockRange)).toList();
 
     } catch (e) {
       printTime('Error: $e');
@@ -999,10 +1045,10 @@ class Userdata {
       ''', [colorIndex, styleIndex, userMarkGuid]);
 
       // on enregistre dans la base de donnée les nouveau highlight
-      if(JwLifeSettings().webViewData.styleIndex != styleIndex || JwLifeSettings().webViewData.colorIndex != colorIndex) {
-        JwLifeSettings().webViewData.updateStyleAndColorIndex(styleIndex, colorIndex);
-        setStyleIndex(styleIndex);
-        setColorIndex(colorIndex);
+      if(JwLifeSettings.instance.webViewData.styleIndex != styleIndex || JwLifeSettings.instance.webViewData.colorIndex != colorIndex) {
+        JwLifeSettings.instance.webViewData.updateStyleAndColorIndex(styleIndex, colorIndex);
+        AppSharedPreferences.instance.setStyleIndex(styleIndex);
+        AppSharedPreferences.instance.setColorIndex(colorIndex);
       }
 
     }
@@ -1012,43 +1058,71 @@ class Userdata {
     }
   }
 
-  Future<void> addBlockRangesToDocument(Publication publication, Document? document, List<dynamic> blockRangesParagraphs, int styleIndex, int colorIndex, String uuid, {DatedText? datedText}) async {
+  Future<List<BlockRange>> addBlockRanges(String userMarkGuid, int styleIndex, int colorIndex, List<dynamic> blockRangesParagraphs, {Document? document, DatedText? datedText}) async {
+    List<BlockRange> blockRanges = [];
+
+    if(document == null && datedText == null) return [];
+
     try {
-      // Étape 1 : Obtenir ou insérer le LocationId via insertLocation
-      final locationId = await insertLocationWithDocument(publication, document, datedText: datedText);
+      int? locationId = await insertLocationWithDocument(document, datedText: datedText);
 
-      printTime('locationId: $locationId');
-
-      // Étape 2 : Insérer dans la table UserMark
       final userMarkId = await _database.insert('UserMark', {
         'ColorIndex': colorIndex,
         'LocationId': locationId,
         'StyleIndex': styleIndex,
-        'UserMarkGuid': uuid,
+        'UserMarkGuid': userMarkGuid,
         'Version': 1,
       });
 
       // Étape 3 : Insérer dans la table BlockRange
-      for(Map<String, dynamic> blockRange in blockRangesParagraphs) {
+      for(Map<String, dynamic> b in blockRangesParagraphs) {
+        int blockType = b['BlockType'];
+        int identifier = int.parse(b['Identifier'].toString());
+        int startToken = b['StartToken'];
+        int endToken = b['EndToken'];
+
         await _database.insert('BlockRange', {
-          'UserMarkId': userMarkId,
-          'BlockType': blockRange['blockType'],
-          'Identifier': int.parse(blockRange['identifier'].toString()),
-          'StartToken': blockRange['startToken'],
-          'EndToken': blockRange['endToken']
+          'BlockType': blockType,
+          'Identifier': identifier,
+          'StartToken': startToken,
+          'EndToken': endToken,
+          'UserMarkId': userMarkId
         });
+
+        BlockRange blockRange = BlockRange(
+            userMarkGuid: userMarkGuid,
+            startToken: startToken,
+            endToken: endToken,
+            colorIndex: colorIndex,
+            styleIndex: styleIndex,
+            blockType: blockType,
+            identifier: identifier,
+            location: Location(
+                type: 0,
+                bookNumber: document?.bookNumber,
+                chapterNumber: document?.chapterNumberBible,
+                mepsDocumentId: datedText?.mepsDocumentId ?? document?.mepsDocumentId,
+                mepsLanguageId: datedText?.publication.mepsLanguage.id ?? document?.publication.mepsLanguage.id,
+                issueTagNumber: datedText?.publication.issueTagNumber ?? document?.publication.issueTagNumber,
+                keySymbol: datedText?.publication.keySymbol ?? document?.publication.keySymbol,
+            )
+        );
+
+        blockRanges.add(blockRange);
       }
 
       // on enregistre dans la base de donnée les nouveau highlight
-      if(JwLifeSettings().webViewData.styleIndex != styleIndex || JwLifeSettings().webViewData.colorIndex != colorIndex) {
-        JwLifeSettings().webViewData.updateStyleAndColorIndex(styleIndex, colorIndex);
-        setStyleIndex(styleIndex);
-        setColorIndex(colorIndex);
+      if(JwLifeSettings.instance.webViewData.styleIndex != styleIndex || JwLifeSettings.instance.webViewData.colorIndex != colorIndex) {
+        JwLifeSettings.instance.webViewData.updateStyleAndColorIndex(styleIndex, colorIndex);
+        AppSharedPreferences.instance.setStyleIndex(styleIndex);
+        AppSharedPreferences.instance.setColorIndex(colorIndex);
       }
 
-    } catch (e) {
+      return blockRanges;
+    }
+    catch (e) {
       printTime('Erreur dans addBlockRangeToDocument: $e');
-      throw Exception('Échec de l\'ajout du surlignage pour ce webview.');
+      return [];
     }
   }
 
@@ -1063,8 +1137,7 @@ class Userdata {
           ''', [documentId]
       );
 
-      return bookmarksData;
-
+      return bookmarksData.map((bookmark) => Map<String, dynamic>.from(bookmark)).toList();
     }
     catch (e) {
       printTime('Error: $e');
@@ -1083,73 +1156,12 @@ class Userdata {
           ''', [bookNumber, chapterNumber, keySymbol]
       );
 
-      return inputFieldsData;
-
+      return inputFieldsData.map((bookmark) => Map<String, dynamic>.from(bookmark)).toList();
     }
     catch (e) {
       printTime('Error: $e');
       throw Exception('Failed to load notes for the given DocumentId and MepsLanguage.');
     }
-  }
-
-  Future<List<Note>> getNotes({int? limit, int? offset, String? query}) async {
-    final params = <dynamic>[];
-    String whereClause = '';
-    if (query != null && query.trim().isNotEmpty) {
-      whereClause = 'WHERE (N.Title LIKE ? OR N.Content LIKE ?)';
-      final likeQuery = '%${query.trim()}%';
-      params.addAll([likeQuery, likeQuery]);
-    }
-
-    String limitClause = '';
-    // Assurez-vous d'avoir une limite si vous utilisez le décalage, mais aussi pour le cas général
-    if (limit != null) {
-      limitClause = 'LIMIT ?';
-      params.add(limit);
-    }
-
-    String offsetClause = '';
-    if (offset != null) {
-      // La clause OFFSET vient après la clause LIMIT
-      offsetClause = 'OFFSET ?';
-      params.add(offset);
-    }
-
-    final sql = '''
-      SELECT 
-        N.NoteId,
-        N.Guid,
-        N.Title,
-        N.Content,
-        N.BlockType,
-        N.BlockIdentifier,
-        N.LastModified,
-        N.Created,
-        UM.UserMarkId,
-        UM.ColorIndex,
-        UM.UserMarkGuid,
-        GROUP_CONCAT(DISTINCT T.TagId) AS TagsId,
-        L.LocationId,
-        L.BookNumber,
-        L.ChapterNumber,
-        L.DocumentId,
-        L.IssueTagNumber,
-        L.KeySymbol,
-        L.MepsLanguage
-      FROM Note N
-      LEFT JOIN Location L ON L.LocationId = N.LocationId
-      LEFT JOIN TagMap TM ON N.NoteId = TM.NoteId
-      LEFT JOIN Tag T ON TM.TagId = T.TagId
-      LEFT JOIN UserMark UM ON N.UserMarkId = UM.UserMarkId
-      $whereClause
-      GROUP BY N.NoteId
-      ORDER BY N.LastModified DESC
-      $limitClause
-      $offsetClause
-    ''';
-
-    final result = await _database.rawQuery(sql, params);
-    return result.map((note) => Note.fromMap(note)).toList();
   }
 
   Future<List<Map<String, dynamic>>> getNotesFromDocumentId(int documentId, int mepsLanguageId, {int? startParagraph, int? endParagraph}) async {
@@ -1245,7 +1257,7 @@ class Userdata {
     }
   }
 
-  Future<void> addNoteToDocId(Publication publication, Document? document, int blockType, int identifier, String title, String uuid, String? userMarkGuid, {DatedText? datedText}) async {
+  Future<Note> addNoteToDocId(String guid, String title, String? userMarkGuid, int blockType, int identifier, int styleIndex, int colorIndex, {Document? document, DatedText? datedText}) async {
     try {
       int? userMarkId;
       int? locationId;
@@ -1266,13 +1278,13 @@ class Userdata {
       }
 
       // Si on n’a pas encore de locationId, on l’obtient via insertLocation
-      locationId ??= await insertLocationWithDocument(publication, document, datedText: datedText);
+      locationId ??= await insertLocationWithDocument(document, datedText: datedText);
 
       final timestamp = DateTime.now().toIso8601String();
 
       // Insérer dans la table Note
       await _database.insert('Note', {
-        'Guid': uuid,
+        'Guid': guid,
         'UserMarkId': userMarkId,
         'LocationId': locationId,
         'Title': title,
@@ -1283,7 +1295,30 @@ class Userdata {
         'BlockIdentifier': identifier,
       });
 
-    } catch (e, stackTrace) {
+      return Note(
+        guid: guid,
+        title: title,
+        content: '',
+        lastModified: timestamp,
+        created: timestamp,
+        blockType: blockType,
+        blockIdentifier: identifier,
+        colorIndex: colorIndex,
+        tagsId: [],
+        userMarkGuid: userMarkGuid,
+        location: Location(
+          type: 0,
+          bookNumber: document?.bookNumber,
+          chapterNumber: document?.chapterNumberBible,
+          mepsDocumentId: datedText?.mepsDocumentId ?? document?.mepsDocumentId,
+          mepsLanguageId: datedText?.publication.mepsLanguage.id ?? document?.publication.mepsLanguage.id,
+          issueTagNumber: datedText?.publication.issueTagNumber ?? document?.publication.issueTagNumber,
+          keySymbol: datedText?.publication.keySymbol ?? document?.publication.keySymbol,
+        )
+      );
+
+    }
+    catch (e, stackTrace) {
       printTime('Error in addNoteToDocId: $e');
       printTime('Stack trace: $stackTrace');
       throw Exception('Failed to add note for the given DocumentId and BlockIdentifier.');
@@ -1366,7 +1401,6 @@ class Userdata {
       }
 
       Note newNote = Note.fromMap({
-        'NoteId': noteId,
         'Guid': guidNote,
         'Title': title,
         'Content': content,
@@ -1398,7 +1432,7 @@ class Userdata {
     }
   }
 
-  Future<void> changeNoteUserMark(String noteGuid, String userMarkGuid) async {
+  Future<void> changeNoteUserMark(String guid, String userMarkGuid) async {
     try {
       // Récupérer l'ID du UserMark
       List<Map<String, dynamic>> userMarkResult = await _database.rawQuery('''
@@ -1416,7 +1450,7 @@ class Userdata {
         UPDATE Note
         SET UserMarkId = ?, LastModified = ?
         WHERE Guid = ?
-      ''', [userMarkId, formattedTimestamp, noteGuid]);
+      ''', [userMarkId, formattedTimestamp, guid]);
     }
     catch (e) {
       printTime('Error: $e');
@@ -1424,7 +1458,7 @@ class Userdata {
     }
   }
 
-  Future<void> updateNoteColorWithGuid(String guid, int colorIndex) async {
+  Future<void> updateNoteColorWithGuid(String guid, int styleIndex, int colorIndex) async {
     try {
       await _database.rawUpdate('''
         UPDATE UserMark
@@ -1510,7 +1544,8 @@ class Userdata {
         SET LastModified = ?
         WHERE NoteId = ?
       ''', [formattedTimestamp, noteId]);
-    } catch (e) {
+    }
+    catch (e) {
       printTime('Error: $e');
       throw Exception('Failed to remove tag from note with Guid $guid.');
     }
@@ -1518,15 +1553,14 @@ class Userdata {
 
   Future<Note> updateNote(Note note, String title, String content, {int? colorIndex, List<int>? tagsId}) async {
     try {
-      int noteId = note.noteId;
-      int? userMarkId = note.userMarkId;
+      String? userMarkGuid = note.userMarkGuid;
 
-      if (userMarkId != null) {
+      if (userMarkGuid != null) {
         await _database.update(
           'UserMark',
           {'ColorIndex': colorIndex ?? note.colorIndex},
-          where: 'UserMarkId = ?',
-          whereArgs: [userMarkId],
+          where: 'UserMarkGuid = ?',
+          whereArgs: [userMarkGuid],
         );
       }
 
@@ -1539,8 +1573,8 @@ class Userdata {
           'Content': content,
           'LastModified': lastModified,
         },
-        where: 'NoteId = ?',
-        whereArgs: [noteId],
+        where: 'Guid = ?',
+        whereArgs: [note.guid],
       );
 
       // Mettre à jour et retourner l'objet note
@@ -1556,34 +1590,6 @@ class Userdata {
       return note;
     }
   }
-
-  Future<bool> deleteNote(Note note) async {
-    try {
-      int noteId = note.noteId;
-
-      // Supprimer d'abord les entrées associées dans la table TagMap
-      await _database.delete(
-        'TagMap',
-        where: 'NoteId = ?',
-        whereArgs: [noteId],
-      );
-
-      // Supprimer ensuite l'entrée correspondante dans la table Note
-      await _database.delete(
-        'Note',
-        where: 'NoteId = ?',
-        whereArgs: [noteId],
-      );
-
-      printTime('Note supprimée avec succès');
-      return true;
-
-    } catch (e) {
-      printTime('Erreur lors de la suppression de la note : $e');
-      return false;
-    }
-  }
-
 
   Future<List<Note>> getNotesByTag(int tagId) async {
     List<Map<String, dynamic>> result = await _database.rawQuery('''
@@ -1640,17 +1646,17 @@ class Userdata {
     return result.map((map) => Note.fromMap(map)).toList();
   }
 
-  Future<void> reorderNotesInTag(int tagId, List<int> noteIdsInNewOrder) async {
+  Future<void> reorderNotesInTag(int tagId, List<String> noteIdsInNewOrder) async {
     print(tagId);
     print(noteIdsInNewOrder);
 
     await _database.transaction((txn) async {
+      /*
       // --- 1. Dégager toutes les positions pour éviter les conflits UNIQUE ---
       for (int i = 0; i < noteIdsInNewOrder.length; i++) {
-        final int noteId = noteIdsInNewOrder[i];
+        final String noteGuid = noteIdsInNewOrder[i];
 
         // Attribuer une position temporaire négative (ex: -1, -2, -3...)
-        // Ce Position Id temporaire doit aussi être UNIQUE pour éviter une autre violation.
         final int tempPosition = -(i + 1);
 
         final Map<String, dynamic> tempValues = {
@@ -1661,7 +1667,7 @@ class Userdata {
           'TagMap',
           tempValues,
           where: 'TagId = ? AND NoteId = ?',
-          whereArgs: [tagId, noteId],
+          whereArgs: [tagId, noteGuid],
         );
       }
 
@@ -1682,6 +1688,8 @@ class Userdata {
           whereArgs: [tagId, noteId],
         );
       }
+
+       */
     });
   }
 

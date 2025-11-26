@@ -7,7 +7,7 @@ import 'package:jwlife/core/utils/files_helper.dart';
 import 'package:jwlife/core/utils/utils_document.dart';
 import 'package:jwlife/core/utils/utils_jwpub.dart';
 
-import '../../../core/jworg_uri.dart';
+import '../../../core/uri/jworg_uri.dart';
 import '../../../core/utils/common_ui.dart';
 
 // Classe pour encapsuler les données d'un livre

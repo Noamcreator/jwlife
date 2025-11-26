@@ -116,24 +116,34 @@ Duration parseDuration(String startTime) {
 }
 
 String formatFileSize(int bytes) {
-  if (bytes < 1024) {
-    return i18n().label_units_storage_bytes(bytes); // Retourne la taille en octets
-  } else if (bytes < 1024 * 1024) {
-    double kb = bytes / 1024;
-    int roundedKb = kb.ceil(); // Arrondir à l'entier supérieur
-    return i18n().label_units_storage_kb(roundedKb); // Retourne la taille en kilo-octets
-  } else if (bytes < 1024 * 1024 * 1024) {
-    double mb = bytes / (1024 * 1024);
-    int roundedMb = mb.ceil(); // Arrondir à l'entier supérieur
-    return i18n().label_units_storage_mb(roundedMb); // Retourne la taille en mégaoctets
-  } else if (bytes < 1024 * 1024 * 1024 * 1024) { // Ajout du Gigaoctet
-    double gb = bytes / (1024 * 1024 * 1024);
-    int roundedGb = gb.ceil(); // Arrondir à l'entier supérieur
-    return i18n().label_units_storage_gb(roundedGb); // Retourne la taille en gigaoctets
-  } else { // Reste, c'est-à-dire le Teraoctet (To) et plus
-    double tb = bytes / (1024 * 1024 * 1024 * 1024);
-    int roundedTb = tb.ceil(); // Arrondir à l'entier supérieur
-    return i18n().label_units_storage_tb(roundedTb); // Retourne la taille en téraoctets
+  const int KB = 1024;
+  const int MB = 1024 * KB;
+  const int GB = 1024 * MB;
+  const int TB = 1024 * GB;
+
+  if (bytes < KB) {
+    // Retourne la taille en octets
+    return i18n().label_units_storage_bytes(bytes);
+  } else if (bytes < MB) {
+    double kb = bytes / KB;
+    // Utiliser floor() pour obtenir 4 KO pour 4.2 KO
+    int roundedKb = kb.floor();
+    return i18n().label_units_storage_kb(roundedKb);
+  } else if (bytes < GB) {
+    double mb = bytes / MB;
+    // Utiliser floor() pour obtenir 4 MO pour 4.2 MO
+    int roundedMb = mb.floor();
+    return i18n().label_units_storage_mb(roundedMb);
+  } else if (bytes < TB) {
+    double gb = bytes / GB;
+    // Utiliser floor() pour obtenir 4 GO pour 4.2 GO
+    int roundedGb = gb.floor();
+    return i18n().label_units_storage_gb(roundedGb);
+  } else {
+    double tb = bytes / TB;
+    // Utiliser floor() pour obtenir 4 TO pour 4.2 TO
+    int roundedTb = tb.floor();
+    return i18n().label_units_storage_tb(roundedTb);
   }
 }
 

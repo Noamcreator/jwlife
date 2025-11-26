@@ -14,8 +14,8 @@ class JwIcons {
   static const IconData arrow_circular_right_15 = IconData(0xE608, fontFamily: _kFontFam);
   static const IconData arrow_curved_left = IconData(0xE609, fontFamily: _kFontFam);
   static const IconData arrow_curved_right = IconData(0xE60A, fontFamily: _kFontFam);
-  static const IconData arrow_to_bar_left = IconData(0xE60B, fontFamily: _kFontFam);
-  static const IconData arrow_to_bar_right = IconData(0xE60C, fontFamily: _kFontFam);
+  static const IconData arrow_to_bar_left = IconData(0xE60B, fontFamily: _kFontFam, matchTextDirection: true);
+  static const IconData arrow_to_bar_right = IconData(0xE60C, fontFamily: _kFontFam, matchTextDirection: true);
   static const IconData arrows_circular = IconData(0xE60D, fontFamily: _kFontFam);
   static const IconData arrows_inward = IconData(0xE60E, fontFamily: _kFontFam);
   static const IconData arrows_loop = IconData(0xE60F, fontFamily: _kFontFam);
@@ -25,7 +25,7 @@ class JwIcons {
   static const IconData arrows_twisted_right = IconData(0xE613, fontFamily: _kFontFam);
   static const IconData arrows_up_down = IconData(0xE614, fontFamily: _kFontFam);
   static const IconData article = IconData(0xE615, fontFamily: _kFontFam);
-  static const IconData article_stack = IconData(0xE616, fontFamily: _kFontFam);
+  static const IconData article_stack = IconData(0xE616, fontFamily: _kFontFam, matchTextDirection: true);
   static const IconData assembly_hall = IconData(0xE617, fontFamily: _kFontFam);
   static const IconData atom = IconData(0xE618, fontFamily: _kFontFam);
   static const IconData awake_exclamation_mark = IconData(0xE619, fontFamily: _kFontFam);
@@ -58,10 +58,10 @@ class JwIcons {
   static const IconData check__bold = IconData(0xE634, fontFamily: _kFontFam);
   static const IconData check_circle = IconData(0xE635, fontFamily: _kFontFam);
   static const IconData check_circle__fill = IconData(0xE636, fontFamily: _kFontFam);
-  static const IconData checklist = IconData(0xE637, fontFamily: _kFontFam);
+  static const IconData checklist = IconData(0xE637, fontFamily: _kFontFam, matchTextDirection: true);
   static const IconData chevron_down = IconData(0xE638, fontFamily: _kFontFam);
-  static const IconData chevron_left = IconData(0xE639, fontFamily: _kFontFam);
-  static const IconData chevron_right = IconData(0xE63A, fontFamily: _kFontFam);
+  static const IconData chevron_left = IconData(0xE639, fontFamily: _kFontFam, matchTextDirection: true);
+  static const IconData chevron_right = IconData(0xE63A, fontFamily: _kFontFam, matchTextDirection: true);
   static const IconData chevron_up = IconData(0xE63B, fontFamily: _kFontFam);
   static const IconData children = IconData(0xE63C, fontFamily: _kFontFam);
   static const IconData circle = IconData(0xE63D, fontFamily: _kFontFam);
@@ -83,7 +83,7 @@ class JwIcons {
   static const IconData document = IconData(0xE64D, fontFamily: _kFontFam);
   static const IconData document_envelope = IconData(0xE64E, fontFamily: _kFontFam);
   static const IconData document_form_pen = IconData(0xE64F, fontFamily: _kFontFam);
-  static const IconData document_speaker = IconData(0xE650, fontFamily: _kFontFam);
+  static const IconData document_speaker = IconData(0xE650, fontFamily: _kFontFam, matchTextDirection: true);
   static const IconData document_stack = IconData(0xE651, fontFamily: _kFontFam);
   static const IconData donation = IconData(0xE652, fontFamily: _kFontFam);
   static const IconData envelope = IconData(0xE653, fontFamily: _kFontFam);
@@ -116,10 +116,10 @@ class JwIcons {
   static const IconData lightbulb__fill = IconData(0xE66E, fontFamily: _kFontFam);
   static const IconData link = IconData(0xE66F, fontFamily: _kFontFam);
   static const IconData link_crossed = IconData(0xE670, fontFamily: _kFontFam);
-  static const IconData list_bulleted = IconData(0xE671, fontFamily: _kFontFam);
+  static const IconData list_bulleted = IconData(0xE671, fontFamily: _kFontFam, matchTextDirection: true);
   static const IconData list_play = IconData(0xE672, fontFamily: _kFontFam);
   static const IconData list_plus = IconData(0xE673, fontFamily: _kFontFam);
-  static const IconData list_thumbnail = IconData(0xE674, fontFamily: _kFontFam);
+  static const IconData list_thumbnail = IconData(0xE674, fontFamily: _kFontFam, matchTextDirection: true);
   static const IconData magazine_stack = IconData(0xE675, fontFamily: _kFontFam);
   static const IconData magnifying_glass = IconData(0xE676, fontFamily: _kFontFam);
   static const IconData magnifying_glass_minus = IconData(0xE677, fontFamily: _kFontFam);
@@ -167,7 +167,7 @@ class JwIcons {
   static const IconData screen_square_top_right = IconData(0xE6A1, fontFamily: _kFontFam);
   static const IconData scroll = IconData(0xE6A2, fontFamily: _kFontFam);
   static const IconData share = IconData(0xE6A3, fontFamily: _kFontFam);
-  static const IconData sheep = IconData(0xE6A4, fontFamily: _kFontFam);
+  static const IconData sheep = IconData(0xE6A4, fontFamily: _kFontFam, matchTextDirection: true);
   static const IconData sign_language = IconData(0xE6A5, fontFamily: _kFontFam);
   static const IconData sister = IconData(0xE6A6, fontFamily: _kFontFam);
   static const IconData sister_cart = IconData(0xE6A7, fontFamily: _kFontFam);
@@ -178,7 +178,7 @@ class JwIcons {
   static const IconData speaker_presentation_audience = IconData(0xE6AC, fontFamily: _kFontFam);
   static const IconData speech_balloon = IconData(0xE6AD, fontFamily: _kFontFam);
   static const IconData speedometer = IconData(0xE6AE, fontFamily: _kFontFam);
-  static const IconData square_arrow_diagonal_up = IconData(0xE6AF, fontFamily: _kFontFam);
+  static const IconData square_arrow_diagonal_up = IconData(0xE6AF, fontFamily: _kFontFam, matchTextDirection: true);
   static const IconData square_arrow_up = IconData(0xE6B0, fontFamily: _kFontFam);
   static const IconData square_magnifying_glass = IconData(0xE6B1, fontFamily: _kFontFam);
   static const IconData square_stack = IconData(0xE6B2, fontFamily: _kFontFam);

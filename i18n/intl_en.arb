@@ -161,7 +161,6 @@
   "action_playlist_end_continue": "Continue",
   "action_playlist_end_freeze": "Freeze",
   "action_playlist_end_stop": "Stop",
-  "action_preparing_mode": "Preparing Mode",
   "action_previous": "Previous",
   "action_reading_mode": "Reading mode",
   "action_refresh": "Refresh",
@@ -907,5 +906,6 @@
   "action_public_talk_remove": "Delete talk",
   "action_congregations": "Local Congregations",
   "action_meeting_management": "Meeting Planning",
-  "action_brothers_and_sisters": "Brothers and Sisters"
+  "action_brothers_and_sisters": "Brothers and Sisters",
+  "action_blocking_horizontally_mode": "Horizontal Blocking"
 }

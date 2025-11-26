@@ -1,15 +1,15 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
+import 'package:jwlife/app/jwlife_app_bar.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
-import 'package:jwlife/core/utils/files_helper.dart';
 import 'package:jwlife/data/models/publication_category.dart';
 import 'package:jwlife/data/databases/catalog.dart';
+import 'package:jwlife/widgets/responsive_appbar_actions.dart';
 import 'package:realm/realm.dart';
-import 'package:sqflite/sqflite.dart';
 
+import '../../../../app/app_page.dart';
 import '../../../../app/services/settings_service.dart';
+import '../../../../core/ui/text_styles.dart';
 import '../../../../core/utils/utils_language_dialog.dart';
 import '../../../../data/models/publication.dart';
 import '../../../../data/realm/catalog.dart';
@@ -18,16 +18,16 @@ import '../../../../i18n/i18n.dart';
 import 'convention_items_page.dart';
 import 'publications_items_page.dart';
 
-class PublicationSubcategoriesView extends StatefulWidget {
+class PublicationSubcategoriesPage extends StatefulWidget {
   final PublicationCategory category;
 
-  const PublicationSubcategoriesView({super.key, required this.category});
+  const PublicationSubcategoriesPage({super.key, required this.category});
 
   @override
-  _PublicationSubcategoriesViewState createState() => _PublicationSubcategoriesViewState();
+  _PublicationSubcategoriesPageState createState() => _PublicationSubcategoriesPageState();
 }
 
-class _PublicationSubcategoriesViewState extends State<PublicationSubcategoriesView> {
+class _PublicationSubcategoriesPageState extends State<PublicationSubcategoriesPage> {
   List<Map<String, dynamic>> items = [];
 
   @override
@@ -44,8 +44,8 @@ class _PublicationSubcategoriesViewState extends State<PublicationSubcategoriesV
   void loadItemsDays() async {
     List<Map<String, dynamic>> days = [];
 
-    List<Publication> pubs = await PubCatalog.fetchPubsFromConventionsDays();
-    RealmResults<Category> convDaysCategories = RealmLibrary.realm.all<Category>().query("language == '${JwLifeSettings().currentLanguage.symbol}'").query("key == 'ConvDay1' OR key == 'ConvDay2' OR key == 'ConvDay3'");
+    List<Publication> pubs = await CatalogDb.instance.fetchPubsFromConventionsDays();
+    RealmResults<Category> convDaysCategories = RealmLibrary.realm.all<Category>().query("language == '${JwLifeSettings.instance.currentLanguage.value.symbol}'").query("key == 'ConvDay1' OR key == 'ConvDay2' OR key == 'ConvDay3'");
 
     for(int i = 1; i < 3+1; i++) {
       if (pubs.any((element) => element.conventionReleaseDayNumber == i) || convDaysCategories.any((element) => element.key == 'ConvDay$i')) {
@@ -62,67 +62,32 @@ class _PublicationSubcategoriesViewState extends State<PublicationSubcategoriesV
     });
   }
 
-  void loadItemsYears() async {
-    int langId = JwLifeSettings().currentLanguage.id;
-
-    File catalogFile = await getCatalogDatabaseFile();
-    File mepsFile = await getMepsUnitDatabaseFile();
-
-    if (await catalogFile.exists() && await mepsFile.exists()) {
-      Database catalogDB = await openDatabase(catalogFile.path);
-      List<Map<String, dynamic>> result = await catalogDB.rawQuery(''' 
-    SELECT DISTINCT
-      p.Year
-    FROM 
-      Publication p
-    WHERE p.MepsLanguageId = ? AND p.PublicationTypeId = ?
-    ORDER BY p.Year DESC
-    ''', [langId, widget.category.id]);
-
-      setState(() {
-        items = result;
-      });
-
-      await catalogDB.close();
-    }
+  Future<void> loadItemsYears({int? mepsLanguageId}) async {
+    final years = await CatalogDb.instance.getItemsYearInCategory(widget.category.id, mepsLanguageId: mepsLanguageId);
+    setState(() {
+      items = years;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    final textStyleTitle = const TextStyle(fontSize: 20, fontWeight: FontWeight.bold);
-    final textStyleSubtitle = TextStyle(
-      fontSize: 14,
-      color: Theme.of(context).brightness == Brightness.dark
-          ? const Color(0xFFc3c3c3)
-          : const Color(0xFF626262),
-    );
-
-    return Scaffold(
-      appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              widget.category.getName(context),
-              style: textStyleTitle,
-            ),
-            Text(
-              JwLifeSettings().currentLanguage.vernacular,
-              style: textStyleSubtitle,
-            ),
-          ],
-        ),
+    return AppPage(
+      appBar: JwLifeAppBar(
+        title: widget.category.getName(),
+        subTitleWidget: ValueListenableBuilder(valueListenable: JwLifeSettings.instance.currentLanguage, builder: (context, value, child) {
+          return Text(value.vernacular, style: Theme.of(context).extension<JwLifeThemeStyles>()!.appBarSubTitle);
+        }),
         actions: [
-          IconButton(
+          IconTextButton(
             icon: Icon(JwIcons.magnifying_glass),
-            onPressed: () {},
+            onPressed: (BuildContext context) {},
           ),
-          IconButton(
+          IconTextButton(
             icon: const Icon(JwIcons.language),
-            onPressed: () {
+            onPressed: (BuildContext context) {
               showLanguageDialog(context).then((language) async {
                 if (language != null) {
-                  loadItemsYears();
+                  loadItemsYears(mepsLanguageId: language['LanguageId']);
                 }
               });
             },
@@ -152,7 +117,7 @@ class _PublicationSubcategoriesViewState extends State<PublicationSubcategoriesV
                 ));
               }
               else {
-                showPage(PublicationsItemsView(
+                showPage(PublicationsItemsPage(
                   category: widget.category,
                   year: number,
                 ));

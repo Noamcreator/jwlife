@@ -283,7 +283,7 @@ abstract class AppLocalizations {
   /// No description provided for @action_change_color.
   ///
   /// In fr, this message translates to:
-  /// **'Changer la couleure'**
+  /// **'Changer la couleur'**
   String get action_change_color;
 
   /// No description provided for @action_chapters.
@@ -1089,12 +1089,6 @@ abstract class AppLocalizations {
   /// In fr, this message translates to:
   /// **'Arrêter'**
   String get action_playlist_end_stop;
-
-  /// No description provided for @action_preparing_mode.
-  ///
-  /// In fr, this message translates to:
-  /// **'Mode Préparation'**
-  String get action_preparing_mode;
 
   /// No description provided for @action_previous.
   ///
@@ -5584,6 +5578,12 @@ abstract class AppLocalizations {
   /// In fr, this message translates to:
   /// **'Frères et Sœurs'**
   String get action_brothers_and_sisters;
+
+  /// No description provided for @action_blocking_horizontally_mode.
+  ///
+  /// In fr, this message translates to:
+  /// **'Blocage Horizontal'**
+  String get action_blocking_horizontally_mode;
 }
 
 class _AppLocalizationsDelegate

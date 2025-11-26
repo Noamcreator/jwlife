@@ -1,4 +1,4 @@
-import 'constants.dart';
+import '../constants.dart';
 
 class JwOrgUri {
   static JwOrgUri? startUri; // ← rendre static

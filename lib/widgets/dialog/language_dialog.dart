@@ -47,7 +47,7 @@ class _LanguageDialogState extends State<LanguageDialog> {
   }
 
   Future<void> initSettings() async {
-    selectedLanguage = widget.selectedLanguageSymbol ?? JwLifeSettings().currentLanguage.symbol;
+    selectedLanguage = widget.selectedLanguageSymbol ?? JwLifeSettings.instance.currentLanguage.value.symbol;
 
     File mepsUnitFile = await getMepsUnitDatabaseFile();
 
@@ -92,7 +92,7 @@ class _LanguageDialogState extends State<LanguageDialog> {
       WHERE l.VernacularName IS NOT '' 
         AND (ln_src.Name IS NOT NULL OR (ln_src.Name IS NULL AND ln_fallback.Name IS NOT NULL))
       ORDER BY Name COLLATE NOCASE;
-    ''', [JwLifeSettings().locale.languageCode]);
+    ''', [JwLifeSettings.instance.locale.languageCode]);
 
     // Si widget.languagesListJson est fourni, filtrer et mapper les résultats
     if (widget.languagesListJson.isNotEmpty) {
@@ -251,7 +251,7 @@ class _LanguageDialogState extends State<LanguageDialog> {
         20,
         20,
         20,
-        20 + MediaQuery.of(context).viewInsets.bottom,
+        20,
       ),
       child: Container(
         width: MediaQuery.of(context).size.width,

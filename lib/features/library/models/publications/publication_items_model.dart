@@ -10,7 +10,7 @@ import 'package:diacritic/diacritic.dart';
 
 class PublicationsItemsViewModel with ChangeNotifier {
   // --- État ---
-  MepsLanguage _mepsLanguage = JwLifeSettings().currentLanguage;
+  MepsLanguage _mepsLanguage = JwLifeSettings.instance.currentLanguage.value;
   String _selectedLanguageSymbol = '';
   // *** MODIFICATION DE LA STRUCTURE DE LA MAP : Clé simple (PublicationAttribute) ***
   Map<PublicationAttribute, List<Publication>> _publications = {};
@@ -52,21 +52,21 @@ class PublicationsItemsViewModel with ChangeNotifier {
     // *** MODIFICATION : Map locale utilise la clé simple ***
     Map<PublicationAttribute, List<Publication>> publications = {};
 
-    int mepsLanguageId = mepsLanguage?['LanguageId'] ?? JwLifeSettings().currentLanguage.id;
-    _selectedLanguageSymbol = mepsLanguage?['Symbol'] ?? JwLifeSettings().currentLanguage.symbol;
+    int mepsLanguageId = mepsLanguage?['LanguageId'] ?? JwLifeSettings.instance.currentLanguage.value.id;
+    _selectedLanguageSymbol = mepsLanguage?['Symbol'] ?? JwLifeSettings.instance.currentLanguage.value.symbol;
 
     // Charger les publications existantes (la sortie de PubCatalog devra être ajustée côté Base de données)
     Map<List<PublicationAttribute>, List<Publication>> rawPublications = {};
 
     if (year != null) {
-      rawPublications = await PubCatalog.getPublicationsFromCategory(
+      rawPublications = await CatalogDb.instance.getPublicationsFromCategory(
           category.id,
           year: year,
           mepsLanguageId: mepsLanguageId
       );
     }
     else {
-      rawPublications = await PubCatalog.getPublicationsFromCategory(
+      rawPublications = await CatalogDb.instance.getPublicationsFromCategory(
           category.id,
           mepsLanguageId: mepsLanguageId
       );

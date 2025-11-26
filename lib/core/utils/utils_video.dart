@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/core/icons.dart';
-import 'package:jwlife/core/jworg_uri.dart';
+import 'package:jwlife/core/uri/jworg_uri.dart';
 import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/core/utils/utils_language_dialog.dart';
 import 'package:jwlife/core/utils/utils_playlist.dart';
@@ -15,7 +15,6 @@ import 'package:realm/realm.dart';
 
 import 'package:share_plus/share_plus.dart';
 
-import '../../app/services/global_key_service.dart';
 import '../../app/services/settings_service.dart';
 import '../../data/realm/catalog.dart';
 import '../../data/realm/realm_library.dart';
@@ -41,7 +40,7 @@ MediaItem? getMediaItem(String? keySymbol, int? track, int? documentId, int? iss
     queryParts.add("issueDate == '$issueStr'");
   }
 
-  String languageSymbol = JwLifeSettings().currentLanguage.symbol;
+  String languageSymbol = JwLifeSettings.instance.currentLanguage.value.symbol;
   if (mepsLanguage != null && mepsLanguage is String) {
     languageSymbol = mepsLanguage;
   }
@@ -162,8 +161,6 @@ PopupMenuItem getVideoFavoriteItem(Video video) {
         await JwLifeApp.userdata.addInFavorite(video);
         video.isFavoriteNotifier.value = true;
       }
-
-      GlobalKeyService.homeKey.currentState?.refreshFavorites();
     },
   );
 }

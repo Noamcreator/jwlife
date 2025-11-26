@@ -1,7 +1,13 @@
 import 'dart:io';
 
+import 'package:dio/dio.dart';
 import 'package:jwlife/core/utils/files_helper.dart';
 import 'package:sqflite/sqflite.dart';
+
+import '../../app/services/settings_service.dart';
+import '../../core/api/api.dart';
+import '../../core/shared_preferences/shared_preferences_utils.dart';
+import '../../core/utils/utils.dart';
 
 class MepsLanguage {
   final int id;
@@ -32,8 +38,8 @@ class MepsLanguage {
     this.isCharacterSpaced = false,
     this.isCharacterBreakable = false,
     this.hasSystemDigits = true,
-    this.rsConf = '',
-    this.lib = '',
+    this.rsConf = 'r1',
+    this.lib = 'lp-e',
   });
 
   MepsLanguage.fromJson(Map<String, dynamic> json)
@@ -49,8 +55,8 @@ class MepsLanguage {
         isCharacterSpaced = json['IsCharacterSpaced'] != null ? json['IsCharacterSpaced'] == 1 : false,
         isCharacterBreakable = json['IsCharacterBreakable'] != null ? json['IsCharacterBreakable'] == 1 : false,
         hasSystemDigits = json['HasSystemDigits'] != null ? json['HasSystemDigits'] == 1 : true,
-        rsConf = json['RsConf'] ?? '',
-        lib = json['Lib'] ?? '';
+        rsConf = json['RsConf'] ?? 'r1',
+        lib = json['Lib'] ?? 'lp-e';
 
 
   void setRsConf(String newRsConf) {
@@ -74,5 +80,60 @@ class MepsLanguage {
     await database.close();
 
     return results.first['Symbol'];
+  }
+
+  Future<void> loadWolInfo() async {
+    if(JwLifeSettings.instance.currentLanguage.value.rsConf.isEmpty || JwLifeSettings.instance.currentLanguage.value.lib.isEmpty) {
+      final wolLink = 'https://wol.jw.org/wol/finder?wtlocale=${JwLifeSettings.instance.currentLanguage.value.symbol}';
+      printTime('WOL link: $wolLink');
+
+      try {
+        final headers = Api.getHeaders();
+
+        final response = await Api.dio.get(
+          wolLink,
+          options: Options(
+            headers: headers,
+            followRedirects: false, // Bloque la redirection automatique
+            maxRedirects: 0,
+            validateStatus: (status) => true,
+          ),
+        );
+
+        // Afficher tous les headers de la réponse
+        printTime('All headers: ${response.headers}');
+
+        // Gestion des codes de redirection (301, 302, 307, 308)
+        if ([301, 302, 307, 308].contains(response.statusCode)) {
+          final location = response.headers.value('location');
+          if (location != null && location.isNotEmpty) {
+            // Analyse de l'URL de redirection
+            final parts = location.split('/');
+            if (parts.length >= 6) {
+              final rCode = parts[4];
+              final lpCode = parts[5];
+              printTime('rCode: $rCode');
+              printTime('lpCode: $lpCode');
+
+              JwLifeSettings.instance.currentLanguage.value.setRsConf(rCode);
+              JwLifeSettings.instance.currentLanguage.value.setLib(lpCode);
+
+              AppSharedPreferences.instance.setLibraryLanguage(JwLifeSettings.instance.currentLanguage);
+            }
+          } else {
+            printTime('No location header found in redirect response');
+          }
+        } else if (response.statusCode == 200) {
+          printTime('Direct response (no redirect)');
+          // Traitement si pas de redirection
+        } else {
+          printTime('Unexpected status code: ${response.statusCode}');
+        }
+
+      } catch (e, stack) {
+        printTime('Error loading WOL info: $e');
+        print(stack);
+      }
+    }
   }
 }

@@ -12,6 +12,7 @@ import 'package:jwlife/core/utils/utils_audio.dart';
 import 'package:jwlife/data/models/audio.dart';
 import 'package:jwlife/data/realm/catalog.dart' as realm;
 import 'package:path_provider/path_provider.dart';
+import '../../app/app_page.dart';
 import '../../app/jwlife_app.dart';
 import '../../core/icons.dart';
 import '../../core/utils/common_ui.dart';
@@ -664,6 +665,7 @@ class _FullAudioViewState extends State<FullAudioView> {
   bool _isPlaying = false;
   String _currentTitle = "";
   String _currentAlbum = "";
+  Map<String, dynamic>? _currentExtras = {};
   ImageCachedWidget? _currentImageWidget;
   Duration _position = Duration.zero;
   Duration _duration = Duration.zero;
@@ -702,6 +704,7 @@ class _FullAudioViewState extends State<FullAudioView> {
                 width: 60,
                 height: 60,
               );
+              _currentExtras = tag.extras;
             });
 
             _updateBackgroundColor();
@@ -766,8 +769,16 @@ class _FullAudioViewState extends State<FullAudioView> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      resizeToAvoidBottomInset: false,
+    String? keySymbol = _currentExtras?['keySymbol'];
+    int? track = _currentExtras?['track'];
+    int? mepsDocumentId = _currentExtras?['documentId'];
+    int? issueTagNumber = _currentExtras?['issueTagNumber'];
+    String? mepsLanguage = _currentExtras?['mepsLanguage'];
+
+    realm.MediaItem? mediaItem = getMediaItem(keySymbol, track, mepsDocumentId, issueTagNumber, mepsLanguage);
+    Audio audio = Audio.fromJson(mediaItem: mediaItem);
+    return AppPage(
+      isWebview: true,
       body: Container(
         decoration: BoxDecoration(
           color: _dominantColor,
@@ -783,9 +794,10 @@ class _FullAudioViewState extends State<FullAudioView> {
                   children: [
                     AppBar(
                       backgroundColor: Colors.transparent,
+                      titleSpacing: 0.0,
                       elevation: 0,
                       leading: IconButton(
-                        icon: const Icon(Icons.keyboard_arrow_down, color: Colors.white, size: 32),
+                        icon: const Icon(JwIcons.chevron_down, color: Colors.white),
                         onPressed: () {
                           _playerStateSubscription.cancel();
                           _sequenceStateSubscription.cancel();
@@ -795,10 +807,17 @@ class _FullAudioViewState extends State<FullAudioView> {
                         },
                       ),
                       actions: [
-                        IconButton(
-                          icon: Icon(Icons.more_vert, color: Colors.white,
-                              size: 32),
-                          onPressed: () {},
+                        PopupMenuButton(
+                          icon: Icon(JwIcons.three_dots_horizontal, color: Colors.white),
+                          itemBuilder: (context) => [
+                            getAudioShareItem(audio),
+                            getAudioAddPlaylistItem(context, audio),
+                            getAudioLanguagesItem(context, audio),
+                            getAudioFavoriteItem(audio),
+                            getAudioDownloadItem(context, audio),
+                            getAudioLyricsItem(context, audio),
+                            getCopyLyricsItem(audio)
+                          ]
                         ),
                       ],
                     ),

@@ -506,9 +506,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get action_playlist_end_stop => '停止';
 
   @override
-  String get action_preparing_mode => '準備モード';
-
-  @override
   String get action_previous => '戻る';
 
   @override
@@ -2997,4 +2994,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get action_brothers_and_sisters => '兄弟姉妹';
+
+  @override
+  String get action_blocking_horizontally_mode => '水平方向のブロック';
 }

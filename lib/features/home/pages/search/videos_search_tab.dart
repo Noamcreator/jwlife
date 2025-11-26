@@ -27,66 +27,63 @@ class _VideosSearchTabState extends State<VideosSearchTab> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      resizeToAvoidBottomInset: false,
-      body: FutureBuilder<List<Map<String, dynamic>>>(
-        future: widget.model.fetchVideos(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          } else if (snapshot.hasError) {
-            return Center(child: Text('Erreur: ${snapshot.error}'));
-          } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return const Center(child: Text('Aucune vidéo trouvée.'));
-          } else {
-            final results = snapshot.data!;
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: widget.model.fetchVideos(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        } else if (snapshot.hasError) {
+          return Center(child: Text('Erreur: ${snapshot.error}'));
+        } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return const Center(child: Text('Aucune vidéo trouvée.'));
+        } else {
+          final results = snapshot.data!;
 
-            return OrientationBuilder(
-              builder: (context, orientation) {
-                final int crossAxisCount = orientation == Orientation.portrait ? 1 : 2;
+          return OrientationBuilder(
+            builder: (context, orientation) {
+              final int crossAxisCount = orientation == Orientation.portrait ? 1 : 2;
 
-                if (orientation == Orientation.portrait) {
-                  return ListView.builder(
-                    itemCount: results.length,
-                    padding: const EdgeInsets.all(16.0),
-                    itemBuilder: (context, index) {
-                      final item = results[index];
-                      if (item['subtype'] == 'videoCategory') {
-                        return _buildVideoCategoryCard(context, item);
-                      } else if (item['subtype'] == 'video') {
-                        return _buildVideoCard(context, item);
-                      } else {
-                        return const SizedBox.shrink();
-                      }
-                    },
-                  );
-                } else {
-                  return GridView.builder(
-                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: crossAxisCount,
-                      crossAxisSpacing: 16,
-                      mainAxisSpacing: 16,
-                      childAspectRatio: 1.2,
-                    ),
-                    itemCount: results.length,
-                    padding: const EdgeInsets.all(16.0),
-                    itemBuilder: (context, index) {
-                      final item = results[index];
-                      if (item['subtype'] == 'videoCategory') {
-                        return _buildVideoCategoryCard(context, item);
-                      } else if (item['subtype'] == 'video') {
-                        return _buildVideoCard(context, item);
-                      } else {
-                        return const SizedBox.shrink();
-                      }
-                    },
-                  );
-                }
-              },
-            );
-          }
-        },
-      ),
+              if (orientation == Orientation.portrait) {
+                return ListView.builder(
+                  itemCount: results.length,
+                  padding: const EdgeInsets.all(16.0),
+                  itemBuilder: (context, index) {
+                    final item = results[index];
+                    if (item['subtype'] == 'videoCategory') {
+                      return _buildVideoCategoryCard(context, item);
+                    } else if (item['subtype'] == 'video') {
+                      return _buildVideoCard(context, item);
+                    } else {
+                      return const SizedBox.shrink();
+                    }
+                  },
+                );
+              } else {
+                return GridView.builder(
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: crossAxisCount,
+                    crossAxisSpacing: 16,
+                    mainAxisSpacing: 16,
+                    childAspectRatio: 1.2,
+                  ),
+                  itemCount: results.length,
+                  padding: const EdgeInsets.all(16.0),
+                  itemBuilder: (context, index) {
+                    final item = results[index];
+                    if (item['subtype'] == 'videoCategory') {
+                      return _buildVideoCategoryCard(context, item);
+                    } else if (item['subtype'] == 'video') {
+                      return _buildVideoCard(context, item);
+                    } else {
+                      return const SizedBox.shrink();
+                    }
+                  },
+                );
+              }
+            },
+          );
+        }
+      },
     );
   }
 
@@ -162,7 +159,7 @@ class _VideosSearchTabState extends State<VideosSearchTab> {
   }
 
   Widget _buildVideoCard(BuildContext context, Map<String, dynamic> item) {
-    MediaItem? mediaItem = getMediaItemFromLank(item['lank'], JwLifeSettings().currentLanguage.symbol);
+    MediaItem? mediaItem = getMediaItemFromLank(item['lank'], JwLifeSettings.instance.currentLanguage.value.symbol);
 
     if (mediaItem == null) {
       return const SizedBox.shrink();
@@ -178,7 +175,7 @@ class _VideosSearchTabState extends State<VideosSearchTab> {
         margin: const EdgeInsets.symmetric(vertical: 8),
         decoration: BoxDecoration(
           color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF292929) : Colors.white,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(0),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.1),
@@ -193,17 +190,14 @@ class _VideosSearchTabState extends State<VideosSearchTab> {
           children: [
             Stack(
               children: [
-                ClipRRect(
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                  child: ImageCachedWidget(
-                    imageUrl: mediaItem.realmImages?.wideFullSizeImageUrl ??
-                        mediaItem.realmImages?.wideImageUrl ??
-                        mediaItem.realmImages?.squareImageUrl,
-                    icon: JwIcons.video,
-                    height: 200,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                  ),
+                ImageCachedWidget(
+                  imageUrl: mediaItem.realmImages?.wideFullSizeImageUrl ??
+                      mediaItem.realmImages?.wideImageUrl ??
+                      mediaItem.realmImages?.squareImageUrl,
+                  icon: JwIcons.video,
+                  height: 200,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
                 ),
                 Positioned.fill(
                   child: Container(
@@ -218,20 +212,21 @@ class _VideosSearchTabState extends State<VideosSearchTab> {
                   ),
                 ),
                 Positioned(
-                  top: 12,
-                  left: 12,
+                  top: 0,
+                  left: 0,
                   child: Container(
                     padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
                     decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.6),
-                      borderRadius: BorderRadius.circular(20),
+                      color: Colors.black.withOpacity(0.7),
                     ),
                     child: Row(
                       children: [
-                        const Icon(
-                          JwIcons.play,
-                          color: Colors.white,
-                          size: 20,
+                        const Text(
+                          '►︎',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                          ),
                         ),
                         const SizedBox(width: 8),
                         Text(
@@ -246,10 +241,10 @@ class _VideosSearchTabState extends State<VideosSearchTab> {
                   ),
                 ),
                 Positioned(
-                  top: 10,
-                  right: 10,
+                  top: 5,
+                  right: 5,
                   child: PopupMenuButton(
-                    icon: const Icon(Icons.more_vert, color: Colors.white, size: 30),
+                    icon: const Icon(Icons.more_horiz, color: Colors.white, size: 30),
                     itemBuilder: (context) => [
                       getVideoShareItem(video),
                       getVideoAddPlaylistItem(context, video),
@@ -264,12 +259,12 @@ class _VideosSearchTabState extends State<VideosSearchTab> {
               ],
             ),
             Padding(
-              padding: const EdgeInsets.all(16.0),
+              padding: const EdgeInsets.all(10.0),
               child: Text(
                 item['title'] ?? '',
                 style: const TextStyle(
                   fontWeight: FontWeight.bold,
-                  fontSize: 18,
+                  fontSize: 17,
                 ),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,

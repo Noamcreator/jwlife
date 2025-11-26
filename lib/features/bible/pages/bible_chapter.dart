@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:html/parser.dart' as html_parser;
+import 'package:jwlife/app/jwlife_app_bar.dart';
 
+import '../../../app/app_page.dart';
 import '../../../core/api/api.dart';
 import '../../../core/utils/utils.dart';
 import 'online_bible_view.dart';
@@ -54,9 +56,9 @@ class _ChapterBiblePageState extends State<ChapterBiblePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.book.name, style: TextStyle(fontWeight: FontWeight.bold)), // bold font
+    return AppPage(
+      appBar: JwLifeAppBar(
+        title: widget.book.name, // bold font
       ),
       body: _isLoading
           ? Center(child: CircularProgressIndicator())

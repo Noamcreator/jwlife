@@ -1,4 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:jwlife/widgets/responsive_appbar_actions.dart';
+
+import '../../../app/app_page.dart';
+import '../../../app/jwlife_app_bar.dart';
+import '../../../i18n/i18n.dart';
 
 class PredicationPage extends StatefulWidget {
   const PredicationPage({super.key});
@@ -18,18 +23,17 @@ class PredicationPageState extends State<PredicationPage> {
     // 2. Utiliser le nouveau thème
     final titleStyle = Theme.of(context).textTheme.titleMedium;
 
-    return Scaffold(
-      resizeToAvoidBottomInset: false,
-      appBar: AppBar(
-        title: const Text('Prédication'),
+    return AppPage(
+      appBar: JwLifeAppBar(
+        title: i18n().navigation_predication,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.timer_outlined, color: Color(0xFFCC6D00)), // Icônes orange
-            onPressed: () {},
+          IconTextButton(
+            icon: const Icon(Icons.timer_outlined), // Icônes orange
+            onPressed: (BuildContext context) {},
           ),
-          IconButton(
-            icon: const Icon(Icons.map_outlined, color: Color(0xFFCC6D00)), // Icônes orange
-            onPressed: () {},
+          IconTextButton(
+            icon: const Icon(Icons.map_outlined), // Icônes orange
+            onPressed: (BuildContext context) {},
           ),
         ],
       ),

@@ -4,9 +4,9 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz;
 
-import '../../core/jworg_uri.dart';
+import '../../core/uri/jworg_uri.dart';
+import '../../core/uri/utils_uri.dart';
 import '../../i18n/i18n.dart';
-import 'global_key_service.dart';
 
 @pragma('vm:entry-point')
 void notificationTapBackground(NotificationResponse notificationResponse) {
@@ -71,7 +71,7 @@ class NotificationService {
 
     try {
       final uri = JwOrgUri.parse(response.payload!);
-      GlobalKeyService.jwLifeAppKey.currentState!.handleUri(uri);
+      handleUri(uri);
     }
     catch (e) {
       print('ERREUR: $e');
@@ -271,7 +271,7 @@ class NotificationService {
         notificationDetails,
         matchDateTimeComponents: DateTimeComponents.time, // Répète chaque jour à la même heure
         payload: JwOrgUri.dailyText(
-          wtlocale: JwLifeSettings().currentLanguage.symbol,
+          wtlocale: JwLifeSettings.instance.currentLanguage.value.symbol,
           date: 'today'
         ).toString(),
         androidScheduleMode: AndroidScheduleMode.exact,
@@ -341,7 +341,7 @@ class NotificationService {
         notificationDetails,
         matchDateTimeComponents: DateTimeComponents.time, // Répète chaque jour à la même heure
         payload: JwOrgUri.bibleBook(
-            wtlocale: JwLifeSettings().currentLanguage.symbol,
+            wtlocale: JwLifeSettings.instance.currentLanguage.value.symbol,
             pub: 'nwtsty',
             book: 1,
         ).toString(),

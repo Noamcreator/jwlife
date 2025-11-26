@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
-import 'package:jwlife/core/icons.dart';
+import 'package:jwlife/app/jwlife_app_bar.dart';
+import 'package:jwlife/app/services/settings_service.dart';
 
+import '../../../app/app_page.dart';
 import '../../../core/utils/utils.dart';
 
 class ArticlePage extends StatefulWidget {
@@ -15,7 +17,6 @@ class ArticlePage extends StatefulWidget {
 }
 
 class _ArticlePageState extends State<ArticlePage> {
-  bool _showNotes = false;
   bool _isLoading = false;
   late InAppWebViewController? _webViewController;
 
@@ -50,17 +51,12 @@ class _ArticlePageState extends State<ArticlePage> {
      */
   }
 
-  void _toggleNotesView() {
-    setState(() {
-      _showNotes = !_showNotes;
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.title),
+    return AppPage(
+      appBar: JwLifeAppBar(
+        title: widget.title,
+        subTitle: JwLifeSettings.instance.currentLanguage.value.vernacular
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -113,15 +109,6 @@ class _ArticlePageState extends State<ArticlePage> {
             },
           ),
         ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _toggleNotesView,
-        elevation: 6.0,
-        shape: const CircleBorder(),
-        child: Icon(
-          _showNotes ? JwIcons.arrow_to_bar_right : JwIcons.gem,
-          color: Theme.of(context).brightness == Brightness.dark ? Colors.black : Colors.white,
-        ),
       ),
     );
   }

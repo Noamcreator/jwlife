@@ -63,7 +63,7 @@ class MediaCollections {
   Audio? getAudioFromMediaItem(MediaItem mediaItem) {
     String keySymbol = mediaItem.pubSymbol ?? '';
     int documentId = mediaItem.documentId ?? 0;
-    String mepsLanguage = mediaItem.languageSymbol ?? JwLifeSettings().currentLanguage.symbol;
+    String mepsLanguage = mediaItem.languageSymbol ?? JwLifeSettings.instance.currentLanguage.value.symbol;
     int issueTagNumber = mediaItem.issueDate ?? 0;
     int? track = mediaItem.track ?? 0;
 
@@ -85,7 +85,7 @@ class MediaCollections {
   Video? getVideo(MediaItem mediaItem) {
     String keySymbol = mediaItem.pubSymbol ?? '';
     int documentId = mediaItem.documentId ?? 0;
-    String mepsLanguage = mediaItem.languageSymbol ?? JwLifeSettings().currentLanguage.symbol;
+    String mepsLanguage = mediaItem.languageSymbol ?? JwLifeSettings.instance.currentLanguage.value.symbol;
     int issueTagNumber = mediaItem.issueDate ?? 0;
     int? track = mediaItem.track ?? 0;
 
@@ -201,7 +201,7 @@ class MediaCollections {
         media.keySymbol ?? '',
         media is Audio ? 2 : 1,
         media.documentId ?? 0,
-        media.mepsLanguage ?? JwLifeSettings().currentLanguage.symbol,
+        media.mepsLanguage ?? JwLifeSettings.instance.currentLanguage.value.symbol,
         media.issueTagNumber ?? 0,
         media.track ?? 0,
       ],
@@ -229,7 +229,7 @@ class MediaCollections {
           "ImagePath": imagePath,
           "MediaType": media is Audio ? 2 : 1,
           "DocumentId": media.documentId ?? 0,
-          "MepsLanguage": media.mepsLanguage ?? JwLifeSettings().currentLanguage.symbol,
+          "MepsLanguage": media.mepsLanguage ?? JwLifeSettings.instance.currentLanguage.value.symbol,
           "IssueTagNumber": media.issueTagNumber ?? 0,
           "Track": media.track ?? 0,
           "BookNumber": media.bookNumber ?? 0,
@@ -323,7 +323,7 @@ class MediaCollections {
         media.keySymbol ?? '',
         media is Audio ? 2 : 1,
         media.documentId ?? 0,
-        media.mepsLanguage ?? JwLifeSettings().currentLanguage.symbol,
+        media.mepsLanguage ?? JwLifeSettings.instance.currentLanguage.value.symbol,
         media.issueTagNumber ?? 0,
         media.track ?? 0,
       ],

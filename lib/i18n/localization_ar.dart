@@ -515,9 +515,6 @@ class AppLocalizationsAr extends AppLocalizations {
   String get action_playlist_end_stop => 'إيقاف';
 
   @override
-  String get action_preparing_mode => 'وضع التحضير';
-
-  @override
   String get action_previous => 'السابق';
 
   @override
@@ -3078,4 +3075,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get action_brothers_and_sisters => 'الإخوة والأخوات';
+
+  @override
+  String get action_blocking_horizontally_mode => 'حظر أفقي';
 }

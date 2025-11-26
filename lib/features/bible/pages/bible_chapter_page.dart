@@ -4,7 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
-import 'package:jwlife/core/app_dimens.dart';
+import 'package:jwlife/app/jwlife_app_bar.dart';
+import 'package:jwlife/core/ui/app_dimens.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/core/utils/utils_language_dialog.dart';
@@ -13,6 +14,7 @@ import 'package:jwlife/data/databases/history.dart';
 import 'package:jwlife/widgets/responsive_appbar_actions.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../../app/app_page.dart';
 import '../../../app/services/settings_service.dart';
 import '../../../core/utils/utils_document.dart';
 import '../../../data/models/userdata/bookmark.dart';
@@ -68,7 +70,7 @@ class _BibleChapterPageState extends State<BibleChapterPage> {
   Widget build(BuildContext context) {
     // Afficher un loader pendant l'initialisation ou si aucun livre n'est disponible
     if (_controller.isInitialLoading || _controller.currentBook == null) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const AppPage(body: Center(child: CircularProgressIndicator()));
     }
 
     final currentBook = _controller.currentBook!;
@@ -105,92 +107,70 @@ class _BibleChapterPageState extends State<BibleChapterPage> {
       bodyContent = _buildMobileLayout();
     }
 
-    return Scaffold(
+    return AppPage(
       extendBodyBehindAppBar: hasCommentary,
-      appBar: AppBar(
+      appBar: JwLifeAppBar(
         backgroundColor: hasCommentary ? Colors.transparent : null,
-        elevation: hasCommentary ? 0 : 4,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (!hasCommentary)
-              Text(
-                _controller.getBookTitle(),
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: titleColor),
-              ),
-            if (!hasCommentary)
-              Text(
-                widget.bible.shortTitle,
-                style: textStyleSubtitle,
-              ),
-          ],
-        ),
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: hasCommentary ? Colors.white : null),
-          onPressed: () => Navigator.pop(context),
-        ),
+        iconsColor: hasCommentary ? Colors.white : null,
+        title: !hasCommentary ? _controller.getBookTitle() : "",
+        subTitle: !hasCommentary ? widget.bible.shortTitle : null,
         actions: [
-          ResponsiveAppBarActions(
-            colorIcon: hasCommentary ? Colors.white : null,
-            allActions: [
-              IconTextButton(
-                text: "Rechercher",
-                icon: Icon(JwIcons.magnifying_glass),
-                onPressed: (anchorContext) {},
-              ),
-              if (!isLargeScreen)
-                IconTextButton(
-                  text: "Aperçu",
-                  icon: Icon(currentBook.isOverview ? JwIcons.grid_squares : JwIcons.outline),
-                  onPressed: (anchorContext) {_controller.toggleOverview(); },
+          IconTextButton(
+            text: "Rechercher",
+            icon: Icon(JwIcons.magnifying_glass),
+            onPressed: (anchorContext) {},
+          ),
+          if (!isLargeScreen)
+            IconTextButton(
+              text: "Aperçu",
+              icon: Icon(currentBook.isOverview ? JwIcons.grid_squares : JwIcons.outline),
+              onPressed: (anchorContext) {_controller.toggleOverview(); },
+            ),
+          IconTextButton(
+            text: i18n().action_bookmarks,
+            icon: Icon(JwIcons.bookmark),
+            onPressed: (anchorContext) async {
+              Bookmark? bookmark = await showBookmarkDialog(context, widget.bible);
+              if (bookmark != null) {
+                if(bookmark.location.bookNumber!= null && bookmark.location.chapterNumber != null) {
+                  showPageBibleChapter(widget.bible, bookmark.location.bookNumber!, bookmark.location.chapterNumber!, firstVerse: bookmark.blockIdentifier, lastVerse: bookmark.blockIdentifier);
+                }
+                else if(bookmark.location.mepsDocumentId != null) {
+                  showPageDocument(widget.bible, bookmark.location.mepsDocumentId!, startParagraphId: bookmark.blockIdentifier, endParagraphId: bookmark.blockIdentifier);
+                }
+              }
+            },
+          ),
+          IconTextButton(
+            text: i18n().action_languages,
+            icon: Icon(JwIcons.language),
+            onPressed: (anchorContext) {
+              showLanguagePubDialog(context, null).then((bible) async {
+                if (bible != null) {
+                  String bibleKey = bible.getKey();
+                  JwLifeSettings.instance.lookupBible.value = bibleKey;
+                }
+              });
+            },
+          ),
+          IconTextButton(
+            text: i18n().action_history,
+            icon: const Icon(JwIcons.arrow_circular_left_clock),
+            onPressed: (anchorContext) {
+              History.showHistoryDialog(context);
+            },
+          ),
+          IconTextButton(
+            text: i18n().action_open_in_share,
+            icon: Icon(JwIcons.share),
+            onPressed: (anchorContext) {
+              SharePlus.instance.share(
+                ShareParams(
+                  title: currentBook.bookInfo['BookName'],
+                  uri: Uri.tryParse(_controller.getShareUri()),
                 ),
-              IconTextButton(
-                text: i18n().action_bookmarks,
-                icon: Icon(JwIcons.bookmark),
-                onPressed: (anchorContext) async {
-                  Bookmark? bookmark = await showBookmarkDialog(context, widget.bible);
-                  if (bookmark != null) {
-                    if(bookmark.location.bookNumber!= null && bookmark.location.chapterNumber != null) {
-                      showPageBibleChapter(widget.bible, bookmark.location.bookNumber!, bookmark.location.chapterNumber!, firstVerse: bookmark.blockIdentifier, lastVerse: bookmark.blockIdentifier);
-                    }
-                    else if(bookmark.location.mepsDocumentId != null) {
-                      showPageDocument(widget.bible, bookmark.location.mepsDocumentId!, startParagraphId: bookmark.blockIdentifier, endParagraphId: bookmark.blockIdentifier);
-                    }
-                  }
-                },
-              ),
-              IconTextButton(
-                text: i18n().action_languages,
-                icon: Icon(JwIcons.language),
-                onPressed: (anchorContext) {
-                  showLanguagePubDialog(context, null).then((bible) async {
-                    if (bible != null) {
-                      String bibleKey = bible.getKey();
-                      JwLifeSettings().lookupBible = bibleKey;
-                    }
-                  });
-                },
-              ),
-              IconTextButton(
-                text: i18n().action_history,
-                icon: const Icon(JwIcons.arrow_circular_left_clock),
-                onPressed: (anchorContext) {
-                  History.showHistoryDialog(context);
-                },
-              ),
-              IconTextButton(
-                text: i18n().action_open_in_share,
-                icon: Icon(JwIcons.share),
-                onPressed: (anchorContext) {
-                  SharePlus.instance.share(
-                    ShareParams(
-                      title: currentBook.bookInfo['BookName'],
-                      uri: Uri.tryParse(_controller.getShareUri()),
-                    ),
-                  );
-                },
-              ),
-            ],
+              );
+            },
           ),
         ],
       ),
@@ -262,7 +242,7 @@ class _BibleChapterPageState extends State<BibleChapterPage> {
   // --- Widgets partagés ---
   Widget _buildBookPageContent(BibleBook bookData, {bool isLargeScreen = false}) {
     final hasCommentary = bookData.bookInfo['HasCommentary'] == 1;
-    final double topCompensation = hasCommentary ? _kHeaderImageHeight - 50 : 0;
+    final double topCompensation = hasCommentary ? _kHeaderImageHeight : 0;
 
     return Stack(
       children: [
@@ -352,7 +332,7 @@ class _BibleChapterPageState extends State<BibleChapterPage> {
         initialData: InAppWebViewInitialData(
             data: html,
             mimeType: 'text/html',
-            baseUrl: WebUri('file://${JwLifeSettings().webViewData.webappPath}/')
+            baseUrl: WebUri('file://${JwLifeSettings.instance.webViewData.webappPath}/')
         )
     );
   }

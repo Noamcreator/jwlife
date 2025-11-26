@@ -3,6 +3,7 @@ import 'package:html/parser.dart' as htmlParser;
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/data/models/publication.dart';
 
+import '../../../../../app/app_page.dart';
 import '../../../../../core/api/api.dart';
 import '../../../../../core/utils/utils.dart';
 import '../../../../../core/utils/utils_pub.dart';
@@ -293,7 +294,7 @@ class _PublicationMenuState extends State<PublicationMenu> with SingleTickerProv
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return AppPage(
       appBar: AppBar(
         title: Text(widget.publication.shortTitle, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 19)),
         actions: [

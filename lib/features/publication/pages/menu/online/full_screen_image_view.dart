@@ -3,6 +3,7 @@ import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/utils_video.dart';
 import 'package:jwlife/data/realm/catalog.dart';
 
+import '../../../../../app/app_page.dart';
 import '../../../../../data/models/video.dart';
 
 class FullScreenImageView extends StatefulWidget {
@@ -32,7 +33,7 @@ class _FullScreenImageViewState extends State<FullScreenImageView> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return AppPage(
       appBar: AppBar(
         backgroundColor: Colors.black,
         leading: IconButton(

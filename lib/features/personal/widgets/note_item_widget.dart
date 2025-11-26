@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:jwlife/data/controller/tags_controller.dart';
 import 'package:jwlife/data/databases/catalog.dart';
+import 'package:provider/provider.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:collection/collection.dart';
-import 'package:diacritic/diacritic.dart'; // Import de diacritic
+import 'package:diacritic/diacritic.dart';
 
 import '../../../app/jwlife_app.dart';
 import '../../../core/utils/common_ui.dart';
@@ -20,7 +22,7 @@ class NoteItemWidget extends StatefulWidget {
   final Tag? tag;
   final VoidCallback? onUpdated;
   final bool fullNote;
-  final String? highlightQuery; // Terme de recherche à mettre en évidence
+  final String? highlightQuery;
 
   const NoteItemWidget({
     super.key,
@@ -31,280 +33,251 @@ class NoteItemWidget extends StatefulWidget {
     this.highlightQuery,
   });
 
-  static Future<Map<String, dynamic>> resolveNoteDependencies(Note note) async {
+  /// 🔥 Cache global : chaque note résout ses dépendances UNE SEULE FOIS
+  static final Map<String, Map<String, dynamic>> _cache = {};
+
+  /// Résolution des dépendances + mise en cache
+  static Future<Map<String, dynamic>> resolveDependenciesCached(Note note) async {
+    if (_cache.containsKey(note.guid)) {
+      return _cache[note.guid]!;
+    }
+
     String? keySymbol = note.location.keySymbol;
     int? issueTagNumber = note.location.issueTagNumber;
     int? mepsLanguageId = note.location.mepsLanguageId;
 
     if (keySymbol == null || issueTagNumber == null || mepsLanguageId == null) {
-      return {'pub': null, 'docTitle': ''};
+      _cache[note.guid] = {'pub': null, 'docTitle': ''};
+      return _cache[note.guid]!;
     }
 
-    Publication? pub = PublicationRepository().getAllPublications().firstWhereOrNull((element) => element.keySymbol == note.location.keySymbol && element.issueTagNumber == note.location.issueTagNumber && element.mepsLanguage.id == note.location.mepsLanguageId);
+    Publication? pub = PublicationRepository()
+        .getAllPublications()
+        .firstWhereOrNull((p) =>
+    p.keySymbol == keySymbol &&
+        p.issueTagNumber == issueTagNumber &&
+        p.mepsLanguage.id == mepsLanguageId);
 
     String docTitle = '';
-    pub ??= await PubCatalog.searchPubNoMepsLanguage(note.location.keySymbol!, note.location.issueTagNumber!, note.location.mepsLanguageId!);
 
-    if (pub != null) {
-      if (pub.isDownloadedNotifier.value) {
-        if(pub.isBible() && note.location.bookNumber != null && note.location.chapterNumber != null) {
-          docTitle = JwLifeApp.bibleCluesInfo.getVerse(note.location.bookNumber!, note.location.chapterNumber!, note.blockIdentifier ?? 0);
-        }
-        else {
-          if (pub.documentsManager == null) {
-            final db = await openDatabase(pub.databasePath!);
-            final rows = await db.rawQuery(
+    pub ??= await CatalogDb.instance
+        .searchPubNoMepsLanguage(keySymbol, issueTagNumber, mepsLanguageId);
+
+    if (pub != null && pub.isDownloadedNotifier.value) {
+      if (pub.isBible() &&
+          note.location.bookNumber != null &&
+          note.location.chapterNumber != null) {
+        docTitle = JwLifeApp.bibleCluesInfo.getVerse(
+          note.location.bookNumber!,
+          note.location.chapterNumber!,
+          note.blockIdentifier ?? 0,
+        );
+      } else {
+        if (pub.documentsManager == null) {
+          final db = await openDatabase(pub.databasePath!);
+          final rows = await db.rawQuery(
               'SELECT Title FROM Document WHERE MepsDocumentId = ?',
-              [note.location.mepsDocumentId],
-            );
-            if (rows.isNotEmpty) {
-              docTitle = rows.first['Title'] as String;
-            }
-          }
-          else {
-            final doc = pub.documentsManager!.documents.firstWhereOrNull((d) => d.mepsDocumentId == note.location.mepsDocumentId);
-            docTitle = doc?.title ?? '';
-          }
+              [note.location.mepsDocumentId]);
+          if (rows.isNotEmpty) docTitle = rows.first['Title'] as String;
+        } else {
+          final doc = pub.documentsManager!.documents.firstWhereOrNull(
+                  (d) => d.mepsDocumentId == note.location.mepsDocumentId);
+          docTitle = doc?.title ?? '';
         }
       }
     }
 
-    return {'pub': pub, 'docTitle': docTitle};
+    _cache[note.guid] = {'pub': pub, 'docTitle': docTitle};
+    return _cache[note.guid]!;
   }
 
   @override
   State<NoteItemWidget> createState() => _NoteItemWidgetState();
 
-  // Fonction utilitaire pour la mise en évidence (AVEC DIACRITIC)
-  Widget _buildHighlightedText(String text, String? query, TextStyle defaultStyle, TextStyle highlightStyle, {int? maxLines, TextOverflow? overflow}) {
+  /// 🔥 Nouvelle version ultra rapide du surlignage
+  Widget buildHighlight(
+      String text,
+      String? query,
+      TextStyle base,
+      TextStyle hl, {
+        int? maxLines,
+      }) {
     if (query == null || query.isEmpty) {
-      return Text(text, style: defaultStyle, maxLines: maxLines, overflow: overflow ?? TextOverflow.ellipsis);
+      return Text(text, style: base, maxLines: maxLines, overflow: TextOverflow.ellipsis);
     }
 
-    // Normalisation du texte et de la requête pour la recherche
-    final normalizedText = removeDiacritics(text.toLowerCase());
-    final normalizedQuery = removeDiacritics(query.toLowerCase());
-    int firstMatchIndex = normalizedText.indexOf(normalizedQuery); // Recherche sur le texte normalisé
+    final normText = removeDiacritics(text.toLowerCase());
+    final normQuery = removeDiacritics(query.toLowerCase());
+    final index = normText.indexOf(normQuery);
 
-    String displayText = text;
-    int searchStartOffset = 0; // Point de départ de la recherche dans le texte normalisé
-
-    // Logic: Si maxLines est défini (mode aperçu) ET qu'il y a une correspondance
-    if (maxLines != null && maxLines > 0 && firstMatchIndex != -1) {
-      // Déterminer le point de départ: 40 caractères avant la correspondance (ou 0 si c'est au début)
-      int charBeforeMatch = 40;
-      searchStartOffset = (firstMatchIndex - charBeforeMatch).clamp(0, firstMatchIndex);
-
-      // Le texte à afficher est tronqué. On utilise l'index trouvé (startOffset) pour tronquer le texte ORIGINAL.
-      displayText = text.substring(searchStartOffset);
-
-      // Ajouter des points de suspension au début si le texte a été tronqué
-      if (searchStartOffset > 0) {
-        displayText = '...$displayText';
-      }
-    }
-
-    final List<TextSpan> spans = [];
-    int start = 0;
-
-    // Pour l'itération de RichText: nous devons normaliser le displayText pour trouver les occurrences dans cette sous-chaîne.
-    final normalizedDisplayText = removeDiacritics(displayText.toLowerCase());
-
-    while (start < normalizedDisplayText.length) {
-      final index = normalizedDisplayText.indexOf(normalizedQuery, start);
-
-      if (index == -1) {
-        // Ajouter le reste du texte normal
-        spans.add(TextSpan(text: displayText.substring(start), style: defaultStyle));
-        break;
-      }
-
-      // Texte normal avant la correspondance
-      if (index > start) {
-        spans.add(TextSpan(text: displayText.substring(start, index), style: defaultStyle));
-      }
-
-      // Texte de la correspondance mis en évidence
-      // On utilise la partie correspondante du texte ORIGINAL (displayText)
-      spans.add(
-        TextSpan(
-          text: displayText.substring(index, index + query.length), // Utiliser query.length car c'est la longueur de la partie à mettre en évidence.
-          style: highlightStyle,
-        ),
-      );
-
-      start = index + query.length;
+    if (index == -1) {
+      return Text(text, style: base, maxLines: maxLines, overflow: TextOverflow.ellipsis);
     }
 
     return RichText(
-      text: TextSpan(children: spans),
       maxLines: maxLines,
-      overflow: overflow ?? TextOverflow.ellipsis,
+      overflow: TextOverflow.ellipsis,
+      text: TextSpan(
+        children: [
+          TextSpan(text: text.substring(0, index), style: base),
+          TextSpan(text: text.substring(index, index + query.length), style: hl),
+          TextSpan(text: text.substring(index + query.length), style: base),
+        ],
+      ),
     );
   }
 }
 
 class _NoteItemWidgetState extends State<NoteItemWidget> {
-  late Future<Map<String, dynamic>> _dataFuture;
+  late Future<Map<String, dynamic>> future;
 
   @override
   void initState() {
     super.initState();
-    _dataFuture = NoteItemWidget.resolveNoteDependencies(widget.note);
+    future = NoteItemWidget.resolveDependenciesCached(widget.note);
   }
 
-  // Mise à jour de _dataFuture lorsque la note change pour rafraîchir les dépendances
   @override
-  void didUpdateWidget(covariant NoteItemWidget oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (widget.note != oldWidget.note) {
-      _dataFuture = NoteItemWidget.resolveNoteDependencies(widget.note);
+  void didUpdateWidget(covariant NoteItemWidget old) {
+    super.didUpdateWidget(old);
+    if (widget.note.guid != old.note.guid) {
+      future = NoteItemWidget.resolveDependenciesCached(widget.note);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (widget.note.noteId == -1) return SizedBox.shrink();
+    if (widget.note.guid.isEmpty) return const SizedBox.shrink();
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    // Styles de mise en évidence
-    final defaultTitleStyle = TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black);
-    final highlightTitleStyle = defaultTitleStyle.copyWith(
-      backgroundColor: Colors.yellow.withOpacity(0.4),
-      color: Theme.of(context).brightness == Brightness.dark ? Colors.black : Colors.black, // Assurer la lisibilité
-    );
-    final defaultContentStyle = TextStyle(fontSize: 14, color: isDark ? Colors.white : Colors.black);
-    final highlightContentStyle = defaultContentStyle.copyWith(
-      backgroundColor: Colors.yellow.withOpacity(0.4),
-      color: Theme.of(context).brightness == Brightness.dark ? Colors.black : Colors.black,
+    final titleStyle = TextStyle(
+      fontSize: 16,
+      fontWeight: FontWeight.bold,
+      color: isDark ? Colors.white : Colors.black,
     );
 
-    final note = widget.note;
-    final maxLinesContent = widget.fullNote ? null : (note.location.keySymbol != null ? 4 : 8);
+    final titleHL = titleStyle.copyWith(
+      backgroundColor: Colors.yellow.withOpacity(0.4),
+      color: Colors.black,
+    );
 
-    return FutureBuilder<Map<String, dynamic>>(
-      future: _dataFuture,
+    final contentStyle = TextStyle(
+      fontSize: 14,
+      color: isDark ? Colors.white : Colors.black,
+    );
+
+    final contentHL = contentStyle.copyWith(
+      backgroundColor: Colors.yellow.withOpacity(0.4),
+      color: Colors.black,
+    );
+
+    return FutureBuilder(
+      future: future,
       builder: (context, snapshot) {
-        if (!snapshot.hasData) {
-          return Container(
-            margin: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-            padding: EdgeInsets.all(12),
-            height: widget.fullNote ? null : 280,
-            decoration: BoxDecoration(
-              color: Theme.of(context).brightness == Brightness.dark
-                  ? Colors.grey[900]
-                  : Colors.grey[200],
-              borderRadius: BorderRadius.circular(8),
-            ),
-          );
-        }
-
-        final pub = snapshot.data!['pub'] as Publication?;
-        final docTitle = snapshot.data!['docTitle'] as String;
-        final hasPub = pub != null;
+        final pub = snapshot.data?['pub'];
+        final docTitle = snapshot.data?['docTitle'] ?? '';
+        final bool hasPub = pub != null;
 
         return GestureDetector(
           onTap: () async {
-            // 🌟 MODIFICATION : Passe le highlightQuery à NotePage pour le défilement
-            await showPage(NotePage(note: note, searchQuery: widget.highlightQuery));
+            await showPage(
+              NotePage(
+                note: widget.note,
+                searchQuery: widget.highlightQuery,
+              ),
+            );
             widget.onUpdated?.call();
           },
           child: Container(
-            margin: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-            padding: EdgeInsets.all(12),
-            height: widget.fullNote ? null : 280,
+            margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              border: Border.all(
-                color: Theme.of(context).brightness == Brightness.dark
-                    ? Colors.grey[850]!
-                    : Colors.grey[300]!,
-              ),
-              color: note.getColor(context),
+              color: widget.note.getColor(context),
               borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: isDark ? Colors.grey[850]! : Colors.grey[300]!,
+              ),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: widget.fullNote ? MainAxisSize.min : MainAxisSize.max,
               children: [
-                // Date
-                Text(note.getRelativeTime(), style: TextStyle(fontSize: 10)),
-                SizedBox(height: 4),
+                Text(widget.note.getRelativeTime(), style: const TextStyle(fontSize: 10)),
+                const SizedBox(height: 6),
 
-                // Titre : Utilisation de la fonction de mise en évidence
-                widget._buildHighlightedText(
-                  note.title ?? '',
+                /// TITRE
+                widget.buildHighlight(
+                  widget.note.title ?? '',
                   widget.highlightQuery,
-                  defaultTitleStyle,
-                  highlightTitleStyle,
-                  maxLines: widget.fullNote ? null : 1,
-                  overflow: widget.fullNote ? TextOverflow.visible : TextOverflow.ellipsis,
+                  titleStyle,
+                  titleHL,
+                  maxLines: 1,
                 ),
-                SizedBox(height: 10),
 
-                // Contenu : Utilisation de la fonction de mise en évidence
+                const SizedBox(height: 8),
+
+                /// CONTENU
                 widget.fullNote
-                    ? widget._buildHighlightedText(
-                  note.content ?? '',
+                    ? widget.buildHighlight(
+                  widget.note.content ?? '',
                   widget.highlightQuery,
-                  defaultContentStyle,
-                  highlightContentStyle,
-                  maxLines: null,
-                  overflow: TextOverflow.visible,
+                  contentStyle,
+                  contentHL,
                 )
-                    : Expanded(
-                  child: widget._buildHighlightedText(
-                    note.content ?? '',
+                    : SizedBox(
+                  height: hasPub ? 86 : 140,
+                  child: widget.buildHighlight(
+                    widget.note.content ?? '',
                     widget.highlightQuery,
-                    defaultContentStyle,
-                    highlightContentStyle,
-                    maxLines: hasPub ? 4 : 8, // Logique de lignes basée sur la présence de la pub
-                    overflow: TextOverflow.ellipsis,
+                    contentStyle,
+                    contentHL,
+                    maxLines: hasPub ? 4 : 8,
                   ),
                 ),
-                SizedBox(height: 8),
 
-                // Tags - MAINTENANT UNIFIÉ pour avoir une hauteur de 32 dans les deux modes
+                const SizedBox(height: 8),
+
+                /// TAGS
                 SizedBox(
                   height: 32,
                   child: ListView(
                     scrollDirection: Axis.horizontal,
-                    children: note.tagsId.map((t) {
-                      final tag = JwLifeApp.userdata.tags.firstWhereOrNull((tg) => tg.id == t);
-                      if (tag == null) return SizedBox.shrink();
+                    children: widget.note.tagsId.map((t) {
+                      final tag = context.watch<TagsController>().tags.firstWhereOrNull((tg) => tg.id == t);
+                      if (tag == null) return const SizedBox();
                       return Padding(
-                        padding: EdgeInsets.only(right: 4),
+                        padding: const EdgeInsets.only(right: 4),
                         child: _buildTagButton(context, tag),
                       );
                     }).toList(),
                   ),
                 ),
 
-                // Publication (si existe)
                 if (hasPub) ...[
-                  const SizedBox(height: 8),
-                  Divider(thickness: 1, color: Colors.grey, height: 1),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 10),
+                  Divider(color: Colors.grey[600], height: 1),
+                  const SizedBox(height: 10),
+
                   InkWell(
                     onTap: () {
-                      if (note.location.mepsDocumentId != null) {
+                      if (widget.note.location.mepsDocumentId != null) {
                         showDocumentView(
                           context,
-                          note.location.mepsDocumentId!,
-                          note.location.mepsLanguageId!,
-                          startParagraphId: note.blockIdentifier,
-                          endParagraphId: note.blockIdentifier,
+                          widget.note.location.mepsDocumentId!,
+                          widget.note.location.mepsLanguageId!,
+                          startParagraphId: widget.note.blockIdentifier,
+                          endParagraphId: widget.note.blockIdentifier,
                         );
                       }
-                      else if (note.location.bookNumber != null && note.location.chapterNumber != null) {
+                      else if (widget.note.location.bookNumber != null && widget.note.location.chapterNumber != null) {
                         showChapterView(
                             context,
-                            note.location.keySymbol!,
-                            note.location.mepsLanguageId!,
-                            note.location.bookNumber!,
-                            note.location.chapterNumber!,
-                            firstVerseNumber: note.blockIdentifier,
-                            lastVerseNumber: note.blockIdentifier
+                            widget.note.location.keySymbol!,
+                            widget.note.location.mepsLanguageId!,
+                            widget.note.location.bookNumber!,
+                            widget.note.location.chapterNumber!,
+                            firstVerseNumber: widget.note.blockIdentifier,
+                            lastVerseNumber: widget.note.blockIdentifier
                         );
                       }
                     },
@@ -316,21 +289,21 @@ class _NoteItemWidgetState extends State<NoteItemWidget> {
                           height: 30,
                           width: 30,
                         ),
-                        SizedBox(width: 8),
+                        const SizedBox(width: 8),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
                                 docTitle.isEmpty ? pub.getShortTitle() : docTitle,
-                                style: TextStyle(fontSize: 14, height: 1),
+                                style: const TextStyle(fontSize: 14, height: 1),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
                               const SizedBox(height: 3),
                               Text(
                                 docTitle.isEmpty ? pub.getSymbolAndIssue() : pub.getShortTitle(),
-                                style: TextStyle(fontSize: 11, height: 1, color: Colors.grey),
+                                style: TextStyle(fontSize: 11, height: 1, color: Colors.grey[600]),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),

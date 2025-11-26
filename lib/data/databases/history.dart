@@ -7,6 +7,7 @@ import 'package:jwlife/core/utils/utils_audio.dart';
 import 'package:jwlife/core/utils/utils_database.dart';
 import 'package:jwlife/core/utils/utils_document.dart';
 import 'package:jwlife/core/utils/utils_video.dart';
+import 'package:jwlife/data/databases/catalog.dart';
 import 'package:jwlife/data/models/publication_category.dart';
 import 'package:jwlife/data/models/video.dart';
 import 'package:jwlife/data/realm/catalog.dart';
@@ -60,10 +61,9 @@ class History {
   }
 
   static Future<List<Map<String, dynamic>>> loadAllHistory(int? bottomBarIndex) async {
-    final catalogFile = await getCatalogDatabaseFile();
     final db = await getHistoryDb();
 
-    await attachDatabases(db, {'catalog': catalogFile.path});
+    await attachDatabases(db, {'catalog': CatalogDb.instance.database.path});
 
     // Initialise la clause WHERE vide
     String whereClause = '';
@@ -126,7 +126,7 @@ class History {
           "EndBlockIdentifier": endParagraphId,
           "VisitCount": (existing.first["VisitCount"] ?? 0) + 1,
           "LastVisited": DateTime.now().toUtc().toIso8601String(),
-          "NavigationBottomBarIndex": GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex,
+          "NavigationBottomBarIndex": GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex.value,
           "ScrollPosition": 0
         },
         where: "HistoryId = ?",
@@ -143,7 +143,7 @@ class History {
         "IssueTagNumber": pub.issueTagNumber,
         "MepsLanguageId": pub.mepsLanguage.id,
         "Type": "document",
-        "NavigationBottomBarIndex": GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex,
+        "NavigationBottomBarIndex": GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex.value,
         "ScrollPosition": 0,
         "LastVisited": DateTime.now().toUtc().toIso8601String()
       });
@@ -172,7 +172,7 @@ class History {
           "EndBlockIdentifier": endVerse,
           "VisitCount": (existing.first["VisitCount"] ?? 0) + 1,
           "LastVisited": DateTime.now().toUtc().toIso8601String(),
-          "NavigationBottomBarIndex": GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex,
+          "NavigationBottomBarIndex": GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex.value,
           "ScrollPosition": 0
         },
         where: "HistoryId = ?",
@@ -189,7 +189,7 @@ class History {
         "KeySymbol": bible.keySymbol,
         "MepsLanguageId": bible.mepsLanguage.id,
         "Type": "chapter",
-        "NavigationBottomBarIndex": GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex,
+        "NavigationBottomBarIndex": GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex.value,
         "ScrollPosition": 0,
         "LastVisited": DateTime.now().toUtc().toIso8601String()
       });
@@ -206,7 +206,7 @@ class History {
     int? documentId = video.documentId;
     int? issueTagNumber = video.issueTagNumber;
     String? displayTitle = video.title;
-    int mepsLanguageId = JwLifeSettings().currentLanguage.id;
+    int mepsLanguageId = JwLifeSettings.instance.currentLanguage.value.id;
 
     String whereClause = "Type = ?";
     List<dynamic> whereArgs = ["video"];
@@ -243,7 +243,7 @@ class History {
         {
           "VisitCount": (existing.first["VisitCount"] ?? 0) + 1,
           "LastVisited": DateTime.now().toUtc().toIso8601String(),
-          "NavigationBottomBarIndex": GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex,
+          "NavigationBottomBarIndex": GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex.value,
         },
         where: "HistoryId = ?",
         whereArgs: [existing.first["HistoryId"]],
@@ -258,7 +258,7 @@ class History {
         "IssueTagNumber": issueTagNumber ?? 0,
         "MepsLanguageId": mepsLanguageId,
         "Type": "video",
-        "NavigationBottomBarIndex": GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex,
+        "NavigationBottomBarIndex": GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex.value,
         "LastVisited": DateTime.now().toUtc().toIso8601String()
       });
     }
@@ -274,7 +274,7 @@ class History {
     int? documentId = audio.documentId;
     int? issueTagNumber = audio.issueTagNumber;
     String? displayTitle = audio.title;
-    int mepsLanguageId = JwLifeSettings().currentLanguage.id;
+    int mepsLanguageId = JwLifeSettings.instance.currentLanguage.value.id;
 
     String whereClause = "Type = ?";
     List<dynamic> whereArgs = ["audio"];
@@ -311,7 +311,7 @@ class History {
         {
           "VisitCount": (existing.first["VisitCount"] ?? 0) + 1,
           "LastVisited": DateTime.now().toUtc().toIso8601String(),
-          "NavigationBottomBarIndex": GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex,
+          "NavigationBottomBarIndex": GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex.value,
         },
         where: "HistoryId = ?",
         whereArgs: [existing.first["HistoryId"]],
@@ -326,7 +326,7 @@ class History {
         "IssueTagNumber": issueTagNumber ?? 0,
         "MepsLanguageId": mepsLanguageId,
         "Type": "audio",
-        "NavigationBottomBarIndex": GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex,
+        "NavigationBottomBarIndex": GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex.value,
         "LastVisited": DateTime.now().toUtc().toIso8601String()
       });
     }
@@ -342,7 +342,7 @@ class History {
     int? documentId = audio.documentId;
     int? issueTagNumber = audio.issueTagNumber;
     String? displayTitle = audio.title;
-    int mepsLanguageId = JwLifeSettings().currentLanguage.id;
+    int mepsLanguageId = JwLifeSettings.instance.currentLanguage.value.id;
 
     String whereClause = "Type = ?";
     List<dynamic> whereArgs = ["audio"];
@@ -379,7 +379,7 @@ class History {
         {
           "VisitCount": (existing.first["VisitCount"] ?? 0) + 1,
           "LastVisited": DateTime.now().toUtc().toIso8601String(),
-          "NavigationBottomBarIndex": GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex,
+          "NavigationBottomBarIndex": GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex.value,
         },
         where: "HistoryId = ?",
         whereArgs: [existing.first["HistoryId"]],
@@ -394,7 +394,7 @@ class History {
         "IssueTagNumber": issueTagNumber ?? 0,
         "MepsLanguageId": mepsLanguageId,
         "Type": "audio",
-        "NavigationBottomBarIndex": GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex,
+        "NavigationBottomBarIndex": GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex.value,
         "LastVisited": DateTime.now().toUtc().toIso8601String()
       });
     }

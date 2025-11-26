@@ -15,6 +15,7 @@ import 'package:jwlife/data/repositories/MediaRepository.dart';
 import 'package:video_player/video_player.dart';
 import 'package:jwlife/core/icons.dart';
 
+import '../../../app/app_page.dart';
 import '../../../app/services/global_key_service.dart';
 import '../../../core/api/api.dart';
 import '../../../core/utils/utils.dart';
@@ -776,7 +777,7 @@ class _PlaylistPlayerPageState extends State<PlaylistPlayerPage> {
   @override
   Widget build(BuildContext context) {
     if (widget.items.isEmpty) {
-      return const Scaffold(
+      return const AppPage(
         backgroundColor: Colors.black,
         body: Center(child: Text('La playlist est vide.', style: TextStyle(color: Colors.white))),
       );
@@ -894,7 +895,7 @@ class _PlaylistPlayerPageState extends State<PlaylistPlayerPage> {
         _activePointers = 0;
         _isDragging = false;
       },
-      child: Scaffold(
+      child: AppPage(
         backgroundColor: const Color(0xFF121212),
         body: Stack(
           children: [

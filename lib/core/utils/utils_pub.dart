@@ -70,8 +70,6 @@ PopupMenuItem getPubFavoriteItem(Publication pub) {
         await JwLifeApp.userdata.addInFavorite(pub);
         pub.isFavoriteNotifier.value = true;
       }
-
-      GlobalKeyService.homeKey.currentState?.refreshFavorites();
     },
   );
 }

@@ -13,9 +13,12 @@ import 'package:jwlife/data/realm/realm_library.dart';
 import 'package:jwlife/widgets/image_cached_widget.dart';
 import 'package:realm/realm.dart';
 
+import '../../../../app/app_page.dart';
+import '../../../../app/jwlife_app_bar.dart';
 import '../../../../core/api/api.dart';
 import '../../../../core/utils/utils_language_dialog.dart';
 import '../../../../i18n/i18n.dart';
+import '../../../../widgets/responsive_appbar_actions.dart';
 import '../../../../widgets/searchfield/searchfield_widget.dart';
 
 class AudioItemsPage extends StatefulWidget {
@@ -129,14 +132,6 @@ class _AudioItemsPageState extends State<AudioItemsPage> {
 
   @override
   Widget build(BuildContext context) {
-    final textStyleTitle = TextStyle(fontSize: 20, fontWeight: FontWeight.bold);
-    final textStyleSubtitle = TextStyle(
-      fontSize: 14,
-      color: Theme.of(context).brightness == Brightness.dark
-          ? const Color(0xFFc3c3c3)
-          : const Color(0xFF626262),
-    );
-
     Widget bodyContent;
     if (_filteredAudios.isEmpty && !_isSearching) {
       bodyContent = Center(
@@ -155,6 +150,7 @@ class _AudioItemsPageState extends State<AudioItemsPage> {
     } else {
       bodyContent = Column(
         children: [
+          // Boutons en haut (non scrollable)
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
@@ -163,14 +159,13 @@ class _AudioItemsPageState extends State<AudioItemsPage> {
                 _buildOutlinedButton(JwIcons.play, i18n().action_play_all.toUpperCase(), _playAll),
                 const SizedBox(width: 10),
                 _buildOutlinedButton(JwIcons.arrows_twisted_right, i18n().action_shuffle.toUpperCase(), _playRandom),
-                //const SizedBox(width: 10),
-                //_buildOutlinedButton(JwIcons.language, "LANGUE ALÉATOIRE", _playRandomLanguage),
               ],
             ),
           ),
-          Directionality(
-            textDirection: _language.isRtl! ? TextDirection.rtl : TextDirection.ltr,
-            child: Expanded(
+          // Liste scrollable
+          Expanded(
+            child: Directionality(
+              textDirection: _language.isRtl! ? TextDirection.rtl : TextDirection.ltr,
               child: ListView.builder(
                 padding: const EdgeInsets.all(5.0),
                 itemCount: _filteredAudios.length,
@@ -182,76 +177,71 @@ class _AudioItemsPageState extends State<AudioItemsPage> {
       );
     }
 
-    return Scaffold(
-        resizeToAvoidBottomInset: false,
-        appBar: _isSearching
-            ? AppBar(
-          title: SearchFieldWidget(
-            query: '',
-            onSearchTextChanged: (text) {
-              _filterAudios(text);
-              return;
-            },
-            onSuggestionTap: (item) {},
-            onSubmit: (item) {
+    return AppPage(
+      appBar: _isSearching
+          ? AppBar(
+        titleSpacing: 0.0,
+        title: SearchFieldWidget(
+          query: '',
+          onSearchTextChanged: (text) {
+            _filterAudios(text);
+            return;
+          },
+          onSuggestionTap: (item) {},
+          onSubmit: (item) {
+            setState(() {
+              _isSearching = false;
+            });
+          },
+          onTapOutside: (event) {
+            setState(() {
+              _isSearching = false;
+            });
+          },
+          suggestionsNotifier: ValueNotifier([]),
+        ),
+        leading: IconButton(
+          icon: const Icon(JwIcons.chevron_left),
+          onPressed: () {
+            setState(() {
+              _isSearching = false;
+              _filterAudios('');
+            });
+          },
+        ),
+      )
+          : JwLifeAppBar(
+        title: _category?.localizedName ?? '',
+        subTitle: _language.vernacular,
+        actions: [
+          IconTextButton(
+            icon: Icon(JwIcons.magnifying_glass),
+            onPressed: (BuildContext context) {
               setState(() {
-                _isSearching = false;
-              });
-            },
-            onTapOutside: (event) {
-              setState(() {
-                _isSearching = false;
-              });
-            },
-            suggestionsNotifier: ValueNotifier([]),
-          ),
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
-            onPressed: () {
-              setState(() {
-                _isSearching = false;
+                _isSearching = true;
                 _filterAudios('');
               });
             },
           ),
-        )
-            : AppBar(
-          title: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(_category?.localizedName ?? '', style: textStyleTitle),
-              Text(_language.vernacular ?? '', style: textStyleSubtitle),
-            ],
-          ),
-          actions: [
-            IconButton(
-              icon: Icon(JwIcons.magnifying_glass),
-              onPressed: () {
-                setState(() {
-                  _isSearching = true;
-                  _filterAudios('');
-                });
-              },
-            ),
-            IconButton(
-              icon: const Icon(JwIcons.language),
-              onPressed: () async {
-                showLanguageDialog(context, selectedLanguageSymbol: _language.symbol).then((language) async {
-                  if (language != null) {
-                    loadItems(symbol: language['Symbol']);
+          IconTextButton(
+            icon: const Icon(JwIcons.language),
+            onPressed: (BuildContext context) async {
+              showLanguageDialog(context, selectedLanguageSymbol: _language.symbol).then((language) async {
+                if (language != null) {
+                  loadItems(symbol: language['Symbol']);
 
-                    if(await Api.isLibraryUpdateAvailable(symbol: language['Symbol'])) {
-                      Api.updateLibrary(language['Symbol']!).then((_) {
-                        loadItems(symbol: language['Symbol']);
-                      });
-                    }
+                  if (await Api.isLibraryUpdateAvailable(symbol: language['Symbol'])) {
+                    Api.updateLibrary(language['Symbol']!).then((_) {
+                      loadItems(symbol: language['Symbol']);
+                    });
                   }
-                });
-              },
-            ),
-          ],
-        ),
-        body: bodyContent
+                }
+              });
+            },
+          ),
+        ],
+      ),
+      body: bodyContent,
     );
   }
 
@@ -268,16 +258,14 @@ class _AudioItemsPageState extends State<AudioItemsPage> {
     int id = _allAudios.indexOf(audio);
 
     return SizedBox(
-      height: 60,
-      child: InkWell(
-        onTap: () => _play(id),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Expanded(
-              child: Padding(
-                // Réduction du Padding horizontal pour les bords à 10 au lieu de 15.
-                // Le Padding.zero sur les actions sera plus efficace avec cette réduction.
+      height: 55,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => _play(id),
+          child: Stack(
+            children: [
+              Padding(
                 padding: EdgeInsets.only(left: _language.isRtl! ? 0 : 10, right: _language.isRtl! ? 10 : 0),
                 child: Row(
                   children: [
@@ -287,33 +275,37 @@ class _AudioItemsPageState extends State<AudioItemsPage> {
                       child: ImageCachedWidget(
                         imageUrl: audio.networkImageSqr,
                         icon: JwIcons.headphones__simple,
-                        height: 55,
-                        width: 55,
+                        height: 50,
+                        width: 50,
                       ),
                     ),
                     const SizedBox(width: 14),
 
-                    // --- Titre / Durée (Expanded pour prendre l'espace restant) ---
+                    // --- Titre / Durée ---
                     Expanded(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
                             audio.title,
                             style: TextStyle(
-                              fontSize: 15.5,
+                              fontSize: 15,
                               fontWeight: FontWeight.bold,
                               overflow: TextOverflow.ellipsis,
                               color: JwLifeApp.audioPlayer.currentId == id &&
-                                  JwLifeApp.audioPlayer.album?.localizedName == (_category?.localizedName ?? widget.category.localizedName) ? Theme.of(context).primaryColor : Theme.of(context).secondaryHeaderColor,
+                                  JwLifeApp.audioPlayer.album?.localizedName ==
+                                      (_category?.localizedName ?? widget.category.localizedName)
+                                  ? Theme.of(context).primaryColor
+                                  : Theme.of(context).secondaryHeaderColor,
                             ),
+                            maxLines: 1,
                           ),
-                          const SizedBox(height: 2),
                           Text(
                             formatDuration(audio.duration),
                             style: TextStyle(
-                              fontSize: 14,
+                              fontSize: 13.5,
                               color: Theme.of(context).brightness == Brightness.dark
                                   ? const Color(0xFF8e8e8e)
                                   : const Color(0xFF757575),
@@ -323,90 +315,74 @@ class _AudioItemsPageState extends State<AudioItemsPage> {
                       ),
                     ),
 
-                    // --- Actions (Icônes + Menu) ---
+                    // --- Actions ---
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        // Icône/Actions Téléchargement/Favoris
                         _buildActionIcon(context, audio),
-
-                        // Bouton Menu
-                        // On ajoute un Container avec un padding négatif pour compenser
-                        // le padding interne par défaut du PopupMenuButton et le tirer
-                        // plus près du bord. (ou envelopper dans un Padding.fromLTRB)
-                        Padding(
-                          padding: EdgeInsets.only(
-                            // Ajustez cette valeur pour rapprocher le bouton du bord
-                            left: _language.isRtl! ? 0 : 0,
-                            right: _language.isRtl! ? 0 : 0,
+                        PopupMenuButton(
+                          icon: Icon(
+                            Icons.more_horiz,
+                            color: Theme.of(context).brightness == Brightness.dark
+                                ? const Color(0xFF8e8e8e)
+                                : const Color(0xFF757575),
+                            size: 25,
                           ),
-                          child: PopupMenuButton(
-                            // La clé ici est le `padding: EdgeInsets.zero` si vous utilisez l'icône
-                            // directement dans un IconButton. Pour un PopupMenuButton,
-                            // nous allons ajuster le `icon` à l'intérieur.
-                            icon: Icon(
-                              Icons.more_vert,
-                              color: Theme.of(context).brightness == Brightness.dark
-                                  ? const Color(0xFF8e8e8e)
-                                  : const Color(0xFF757575),
-                              size: 25,
-                            ),
-                            padding: EdgeInsets.zero, // Retire le padding interne du PopupMenuButton
-                            itemBuilder: (context) => [
-                              getAudioShareItem(audio),
-                              getAudioAddPlaylistItem(context, audio),
-                              getAudioLanguagesItem(context, audio),
-                              getAudioFavoriteItem(audio),
-                              getAudioDownloadItem(context, audio),
-                              getAudioLyricsItem(context, audio),
-                              getCopyLyricsItem(audio),
-                            ],
-                          ),
+                          padding: EdgeInsets.zero,
+                          itemBuilder: (context) => [
+                            getAudioShareItem(audio),
+                            getAudioAddPlaylistItem(context, audio),
+                            getAudioLanguagesItem(context, audio),
+                            getAudioFavoriteItem(audio),
+                            getAudioDownloadItem(context, audio),
+                            getAudioLyricsItem(context, audio),
+                            getCopyLyricsItem(audio),
+                          ],
                         ),
                       ],
                     ),
                   ],
                 ),
               ),
-            ),
 
-            // --- Barre de progression ---
-            ValueListenableBuilder<bool>(
-              valueListenable: audio.isDownloadingNotifier,
-              builder: (context, isDownloading, _) {
-                if (!isDownloading) return const SizedBox.shrink();
+              // --- Barre de progression EN BAS ---
+              Positioned(
+                left: _language.isRtl! ? 0 : 70,
+                right: _language.isRtl! ? 70 : 0,
+                bottom: 4,
+                child: ValueListenableBuilder<bool>(
+                  valueListenable: audio.isDownloadingNotifier,
+                  builder: (context, isDownloading, _) {
+                    if (!isDownloading) return const SizedBox.shrink();
 
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 10.0), // Ajusté à 10.0
-                  child: ValueListenableBuilder<double>(
-                    valueListenable: audio.progressNotifier,
-                    builder: (context, progress, _) {
-                      return LinearProgressIndicator(
-                        value: progress == -1 ? null : progress,
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          Theme.of(context).primaryColor,
-                        ),
-                        backgroundColor: Colors.black.withOpacity(0.2),
-                        minHeight: 2,
-                      );
-                    },
-                  ),
-                );
-              },
-            ),
-          ],
+                    return ValueListenableBuilder<double>(
+                      valueListenable: audio.progressNotifier,
+                      builder: (context, progress, _) {
+                        return LinearProgressIndicator(
+                          value: progress == -1 ? null : progress,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Theme.of(context).primaryColor,
+                          ),
+                          backgroundColor: Colors.black.withOpacity(0.2),
+                          minHeight: 2,
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  // Fonction utilitaire pour construire l'icône d'action (téléchargement/mise à jour/favori)
   Widget _buildActionIcon(BuildContext context, Audio audio) {
     return ValueListenableBuilder<bool>(
       valueListenable: audio.isDownloadingNotifier,
       builder: (context, isDownloading, _) {
         if (isDownloading) {
-          // --- Icône pour annuler le téléchargement ---
           return IconButton(
             padding: EdgeInsets.zero,
             iconSize: 20,
@@ -427,7 +403,6 @@ class _AudioItemsPageState extends State<AudioItemsPage> {
                 final hasUpdate = audio.hasUpdate();
 
                 if (!isDownloaded) {
-                  // --- Icône nuage (pas téléchargé) ---
                   return IconButton(
                     padding: EdgeInsets.zero,
                     iconSize: 20,
@@ -438,7 +413,6 @@ class _AudioItemsPageState extends State<AudioItemsPage> {
                     ),
                   );
                 } else if (hasUpdate) {
-                  // --- Icône mise à jour ---
                   return IconButton(
                     padding: EdgeInsets.zero,
                     iconSize: 20,
@@ -449,8 +423,6 @@ class _AudioItemsPageState extends State<AudioItemsPage> {
                     ),
                   );
                 } else if (isFavorite) {
-                  // --- Icône favoris (juste un Icon, pas un IconButton) ---
-                  // On garde un petit Padding horizontal pour l'esthétique
                   return const Padding(
                     padding: EdgeInsets.symmetric(horizontal: 5.0),
                     child: Icon(

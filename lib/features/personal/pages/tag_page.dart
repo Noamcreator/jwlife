@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:jwlife/app/jwlife_app.dart';
+import 'package:jwlife/app/jwlife_app_bar.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/core/utils/utils_tag_dialogs.dart';
 import 'package:jwlife/data/models/userdata/tag.dart';
 import 'package:jwlife/data/models/userdata/note.dart';
+import 'package:jwlife/widgets/responsive_appbar_actions.dart';
+import 'package:provider/provider.dart';
+import '../../../app/app_page.dart';
 import '../../../app/services/global_key_service.dart';
+import '../../../data/controller/notes_controller.dart';
 import '../../../i18n/i18n.dart';
 import '../widgets/note_item_widget.dart';
 import 'note_page.dart';
@@ -27,14 +32,6 @@ class _TagPageState extends State<TagPage> {
   void initState() {
     super.initState();
     _tag = widget.tag;
-    notesByCategory();
-  }
-
-  Future<void> notesByCategory() async {
-    List<Note> notes = await JwLifeApp.userdata.getNotesByTag(_tag.id);
-    setState(() {
-      _filteredNotes = notes;
-    });
   }
 
   // --- Fonctions de réordonnancement ---
@@ -53,49 +50,31 @@ class _TagPageState extends State<TagPage> {
   }
 
   Future<void> _updateNoteOrderInDatabase() async {
-    List<int> noteIdsInNewOrder = _filteredNotes.map((note) => note.noteId).toList();
-    await JwLifeApp.userdata.reorderNotesInTag(_tag.id, noteIdsInNewOrder);
+    List<String> noteGuidInNewOrder = _filteredNotes.map((note) => note.guid).toList();
+    await JwLifeApp.userdata.reorderNotesInTag(_tag.id, noteGuidInNewOrder);
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      resizeToAvoidBottomInset: false,
-      appBar: AppBar(
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back),
-          onPressed: () {
-            GlobalKeyService.jwLifePageKey.currentState?.handleBack(context, result: _tag);
-          },
-        ),
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(_tag.name),
-            Text(
-              i18n().label_tag_notes(_filteredNotes.length),
-              style: TextStyle(
-                fontSize: 12,
-              ),
-            ),
-          ],
-        ),
-        actions: <Widget>[
-          IconButton(
+    _filteredNotes = context.watch<NotesController>().getNotesFromTagId(_tag.id);
+
+    return AppPage(
+      appBar: JwLifeAppBar(
+        title: _tag.name,
+        subTitle: i18n().label_tag_notes(_filteredNotes.length),
+        actions: [
+          IconTextButton(
             icon: Icon(JwIcons.note_plus),
-            onPressed: () async {
+            onPressed: (BuildContext context) async {
               Note? note = await JwLifeApp.userdata.addNote("", "", 0, [_tag.id], null, null, null, null, null, null);
               if (note != null) {
                 await showPage(NotePage(note: note));
-                setState(() {
-                  _filteredNotes.add(note);
-                });
               }
             },
           ),
-          IconButton(
+          IconTextButton(
             icon: Icon(JwIcons.pencil),
-            onPressed: () async {
+            onPressed: (BuildContext context) async {
               Tag? updatedCategory = await showEditTagDialog(context, _tag);
               if (updatedCategory != null) {
                 setState(() {
@@ -104,13 +83,12 @@ class _TagPageState extends State<TagPage> {
               }
             },
           ),
-          IconButton(
+          IconTextButton(
             icon: Icon(JwIcons.tag_crossed),
-            onPressed: () async {
+            onPressed: (BuildContext context) async {
               bool? tagDeleted = await showDeleteTagDialog(context, _tag);
-              setState(() {});
               if (tagDeleted == true) {
-                GlobalKeyService.jwLifePageKey.currentState?.handleBack(context, result: _tag);
+                GlobalKeyService.jwLifePageKey.currentState?.handleBack(context);
               }
             },
           ),
@@ -128,13 +106,13 @@ class _TagPageState extends State<TagPage> {
           itemBuilder: (context, index) {
             final note = _filteredNotes[index];
 
-            if (note.noteId == -1) {
+            if (note.guid == '') {
               return const SizedBox.shrink(key: ValueKey('note_hidden'));
             }
 
             // Wrapping dans AutomaticKeepAliveClientMixin via un widget custom
             return _KeepAliveNoteItem(
-              key: ValueKey('note_${note.noteId}'),
+              key: ValueKey('note_${note.guid}'),
               note: note,
               tag: _tag,
               onUpdated: () => setState(() {}),

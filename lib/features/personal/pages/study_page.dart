@@ -8,9 +8,12 @@ import 'package:jwlife/core/utils/utils_playlist.dart';
 import 'package:jwlife/data/models/userdata/note.dart';
 import 'package:jwlife/features/personal/pages/playlist_page.dart';
 import 'package:jwlife/features/personal/pages/playlists_page.dart';
+import 'package:provider/provider.dart';
 
 
 import '../../../core/utils/utils_tag_dialogs.dart';
+import '../../../data/controller/notes_controller.dart';
+import '../../../data/controller/tags_controller.dart';
 import '../../../data/models/userdata/playlist.dart';
 import '../../../i18n/i18n.dart';
 import '../widgets/empty_message.dart';
@@ -26,33 +29,25 @@ class StudyTabView extends StatefulWidget {
 }
 
 class StudyTabViewState extends State<StudyTabView> {
-  List<Note> notes = [];
   List<Playlist> playlists = [];
 
   @override
   void initState() {
     super.initState();
-    initNotes();
     initPlaylist();
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
   }
 
   Future<void> reloadData() async {
-    initNotes();
     initPlaylist();
-  }
-
-  Future<void> initNotes() async {
-    notes = await JwLifeApp.userdata.getNotes(limit: 4);
-    setState(() {});
   }
 
   Future<void> initPlaylist() async {
     playlists = await JwLifeApp.userdata.getPlaylists(limit: 4);
-    setState(() {});
-  }
-
-  Future<void> refreshNote() async {
-    notes = await JwLifeApp.userdata.getNotes(limit: 4);
     setState(() {});
   }
 
@@ -92,7 +87,7 @@ class StudyTabViewState extends State<StudyTabView> {
                 ),
                 SizedBox(width: 4),
                 Icon(
-                  Directionality.of(context) == TextDirection.rtl ? JwIcons.chevron_left : JwIcons.chevron_right,
+                  JwIcons.chevron_right,
                   color: Theme.of(context).primaryColor,
                   size: 24,
                 ),
@@ -127,8 +122,7 @@ class StudyTabViewState extends State<StudyTabView> {
         children: [
           InkWell(
             onTap: () async {
-              await showPage(NotesTagsPage());
-              initNotes();
+              showPage(NotesTagsPage());
             },
             child: Row(
               children: [
@@ -142,7 +136,7 @@ class StudyTabViewState extends State<StudyTabView> {
                 ),
                 SizedBox(width: 4),
                 Icon(
-                  Directionality.of(context) == TextDirection.rtl ? JwIcons.chevron_left : JwIcons.chevron_right,
+                  JwIcons.chevron_right,
                   color: Theme.of(context).primaryColor,
                   size: 24,
                 ),
@@ -175,7 +169,6 @@ class StudyTabViewState extends State<StudyTabView> {
                   );
                   if (note != null) {
                     await showPage(NotePage(note: note));
-                    initNotes();
                   }
                 },
               ),
@@ -206,7 +199,7 @@ class StudyTabViewState extends State<StudyTabView> {
                 ),
                 SizedBox(width: 4),
                 Icon(
-                  Directionality.of(context) == TextDirection.rtl ? JwIcons.chevron_left : JwIcons.chevron_right,
+                  JwIcons.chevron_right,
                   color: Theme.of(context).primaryColor,
                   size: 24,
                 ),
@@ -242,6 +235,9 @@ class StudyTabViewState extends State<StudyTabView> {
 
   @override
   Widget build(BuildContext context) {
+    final notes = context.watch<NotesController>().getNotes(limit: 4);
+    final tags = context.watch<TagsController>().tags;
+
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -299,9 +295,7 @@ class StudyTabViewState extends State<StudyTabView> {
           buildSectionHeaderNotesTags(context),
 
           // Section Tags
-          JwLifeApp.userdata.tags.isEmpty ? buildEmptyMessage(JwIcons.tag, i18n().message_whatsnew_create_tags)
-              : // Section Tags
-          JwLifeApp.userdata.tags.isEmpty ? buildEmptyMessage(JwIcons.tag, i18n().message_whatsnew_create_tags)
+          tags.isEmpty ? buildEmptyMessage(JwIcons.tag, i18n().message_whatsnew_create_tags)
               : Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: LayoutBuilder(
@@ -312,7 +306,7 @@ class StudyTabViewState extends State<StudyTabView> {
                 const double spacing = 8;
                 const double maxLines = 4;
 
-                for (var tag in JwLifeApp.userdata.tags) {
+                for (var tag in tags) {
                   // Calcul approximatif de la largeur du bouton
                   final textPainter = TextPainter(
                     text: TextSpan(
@@ -340,8 +334,7 @@ class StudyTabViewState extends State<StudyTabView> {
                   tagWidgets.add(
                     ElevatedButton(
                       onPressed: () async {
-                        await showPage(TagPage(tag: tag));
-                        initNotes();
+                        showPage(TagPage(tag: tag));
                       },
                       style: ButtonStyle(
                         minimumSize: MaterialStateProperty.all<Size>(Size(0, 16)),
@@ -383,12 +376,10 @@ class StudyTabViewState extends State<StudyTabView> {
 
           const SizedBox(height: 10),
 
-          // Section Notes
           notes.isEmpty ? buildEmptyMessage(
             JwIcons.note_plus,
             i18n().message_no_notes,
-          )
-              : Padding(
+          ) : Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: ListView.builder(
               shrinkWrap: true,
@@ -412,8 +403,7 @@ class StudyTabViewState extends State<StudyTabView> {
                   ),
                   child: TextButton(
                     onPressed: () async {
-                      await showPage(NotePage(note: note));
-                      initNotes();
+                      showPage(NotePage(note: note));
                     },
                     style: TextButton.styleFrom(
                       padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),

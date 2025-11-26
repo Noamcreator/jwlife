@@ -45,7 +45,7 @@ class PublicationRepository {
   }
 
   List<Publication> getOrderBibles() {
-    List<String> biblesSet = JwLifeSettings().webViewData.biblesSet;
+    List<String> biblesSet = JwLifeSettings.instance.webViewData.biblesSet;
 
     // On filtre d'abord pour ne garder que celles présentes dans biblesSet
     final filteredBibles = getAllBibles().where((bible) {
@@ -67,8 +67,8 @@ class PublicationRepository {
     return filteredBibles;
   }
 
-  Publication? getLookUpBible() {
-    String bibleKey = JwLifeSettings().lookupBible;
+  Publication? getLookUpBible({String? bibleKey}) {
+    bibleKey ??= JwLifeSettings.instance.lookupBible.value;
 
     List<String> parts = bibleKey.split('_');
     if(parts.length < 2) return null;

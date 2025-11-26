@@ -13,6 +13,7 @@ import 'package:sqflite/sqflite.dart';
 
 import '../../../../core/utils/utils_audio.dart';
 import '../../../../core/utils/utils_video.dart';
+import '../../../../data/databases/catalog.dart';
 import '../../../../data/models/audio.dart';
 import '../../../../data/models/media.dart';
 import '../../../../data/models/video.dart';
@@ -20,14 +21,14 @@ import '../../../../data/repositories/MediaRepository.dart';
 import '../../../../i18n/i18n.dart';
 import '../../../publication/pages/menu/local/publication_menu_view.dart';
 
-class PendingUpdatesPage extends StatefulWidget {
-  const PendingUpdatesPage({super.key});
+class PendingUpdatesWidget extends StatefulWidget {
+  const PendingUpdatesWidget({super.key});
 
   @override
-  _PendingUpdatesPageState createState() => _PendingUpdatesPageState();
+  _PendingUpdatesWidgetState createState() => _PendingUpdatesWidgetState();
 }
 
-class _PendingUpdatesPageState extends State<PendingUpdatesPage> {
+class _PendingUpdatesWidgetState extends State<PendingUpdatesWidget> {
   bool _isLoading = true;
 
   Map<String, List<Publication>> _groupedPublications = {};
@@ -72,7 +73,6 @@ class _PendingUpdatesPageState extends State<PendingUpdatesPage> {
 
   Future<void> _loadAndGroupPublications() async {
     File pubCollectionsFile = await getPubCollectionsDatabaseFile();
-    File catalogFile = await getCatalogDatabaseFile();
     File mepsFile = await getMepsUnitDatabaseFile();
 
     if (await pubCollectionsFile.exists()) {
@@ -81,7 +81,7 @@ class _PendingUpdatesPageState extends State<PendingUpdatesPage> {
       await pubCollectionsDB.execute(
           "ATTACH DATABASE '${mepsFile.path}' AS meps");
       await pubCollectionsDB.execute(
-          "ATTACH DATABASE '${catalogFile.path}' AS catalog");
+          "ATTACH DATABASE '${CatalogDb.instance.database.path}' AS catalog");
 
       List<Map<String, dynamic>> result = await pubCollectionsDB.rawQuery('''
         SELECT DISTINCT
@@ -123,7 +123,7 @@ class _PendingUpdatesPageState extends State<PendingUpdatesPage> {
         for (var pub in result) {
           Publication publication = Publication.fromJson(pub);
           _groupedPublications.putIfAbsent(
-              publication.category.getName(context), () => []).add(publication);
+              publication.category.getName(), () => []).add(publication);
         }
       });
 
@@ -354,8 +354,8 @@ class _PendingUpdatesPageState extends State<PendingUpdatesPage> {
               onPressed: () async {
                 await publication.update(context);
                 setState(() {
-                  _groupedPublications[publication.category.getName(context)]?.remove(publication);
-                  if(_groupedPublications[publication.category.getName(context)]!.isEmpty) _groupedPublications.remove(publication.category.getName(context));
+                  _groupedPublications[publication.category.getName()]?.remove(publication);
+                  if(_groupedPublications[publication.category.getName()]!.isEmpty) _groupedPublications.remove(publication.category.getName());
                 });
               },
               icon: Icon(JwIcons.arrows_circular, color: Color(0xFF9d9d9d)),

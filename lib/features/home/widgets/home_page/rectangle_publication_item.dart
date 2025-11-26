@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:jwlife/data/repositories/PublicationRepository.dart';
 
+import '../../../../core/ui/app_dimens.dart';
 import '../../../../core/icons.dart';
+import '../../../../core/ui/text_styles.dart';
 import '../../../../core/utils/utils.dart';
 import '../../../../core/utils/utils_pub.dart';
 import '../../../../data/models/publication.dart';
@@ -62,7 +64,7 @@ class HomeRectanglePublicationItem extends StatelessWidget {
           // Annuler le téléchargement (Positionné en BAS-FIN)
           return PositionedDirectional(
             bottom: -4,
-            end: -8, // Utilisé au lieu de 'right'
+            end: -5, // Utilisé au lieu de 'right'
             height: 40,
             child: IconButton(
               padding: EdgeInsets.zero,
@@ -87,7 +89,7 @@ class HomeRectanglePublicationItem extends StatelessWidget {
                   // Icône de téléchargement
                   PositionedDirectional(
                     bottom: 3,
-                    end: -8, // Utilisé au lieu de 'right'
+                    end: -5, // Utilisé au lieu de 'right'
                     height: 40,
                     child: IconButton(
                       padding: EdgeInsets.zero,
@@ -151,8 +153,8 @@ class HomeRectanglePublicationItem extends StatelessWidget {
   Widget _buildPopupMenu(Publication publication) {
     // Menu (Positionné en HAUT-FIN)
     return PositionedDirectional(
-      top: -15,
-      end: -10, // Utilisé au lieu de 'right'
+      top: -13,
+      end: -7, // Utilisé au lieu de 'right'
       child: RepaintBoundary(
         child: PopupMenuButton(
           icon: const Icon(Icons.more_horiz_rounded, color: Color(0xFF9d9d9d)),
@@ -173,13 +175,11 @@ class HomeRectanglePublicationItem extends StatelessWidget {
     final publication = PublicationRepository().getPublication(pub);
 
     return Material(
-      color: Theme.of(context).brightness == Brightness.dark
-          ? const Color(0xFF292929)
-          : Colors.white,
+      color: Theme.of(context).extension<JwLifeThemeStyles>()!.containerColor,
       child: InkWell(
         onTap: () => publication.showMenu(context, showDownloadDialog: false),
         child: SizedBox(
-          height: 80,
+          height: kSquareItemHeight,
           width: 320,
           child: Stack(
             children: [
@@ -190,58 +190,36 @@ class HomeRectanglePublicationItem extends StatelessWidget {
                     child: ImageCachedWidget(
                       imageUrl: publication.imageSqr,
                       icon: publication.category.icon,
-                      height: 80,
-                      width: 80,
+                      height: kSquareItemHeight,
+                      width: kSquareItemHeight,
                     ),
                   ),
                   Expanded(
                     child: Padding(
-                      // *** MODIFICATION RTL: Utiliser EdgeInsetsDirectional ***
-                      // left: 6.0 devient start: 6.0
-                      // right: 25.0 devient end: 25.0
-                      padding: const EdgeInsetsDirectional.only(start: 6.0, end: 25.0, top: 2.0, bottom: 2.0),
+                      padding: const EdgeInsetsDirectional.only(start: 6.0, end: 25.0, top: 4.0, bottom: 4.0),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
-                        // CrossAxisAlignment.start est CORRECT pour l'alignement sur le bord de lecture
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            publication.issueTagNumber == 0 ? publication.category.getName(context) : publication.issueTitle,
+                            publication.issueTagNumber == 0 ? publication.category.getName() : publication.issueTitle,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             // *** AMÉLIORATION RTL: Ajouter TextAlign.start ***
                             textAlign: TextAlign.start,
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: Theme.of(context).brightness == Brightness.dark
-                                  ? const Color(0xFFc3c3c3)
-                                  : const Color(0xFF585858),
-                            ),
+                            style: Theme.of(context).extension<JwLifeThemeStyles>()!.rectanglePublicationContext
                           ),
                           Text(
-                            publication.issueTagNumber == 0
-                                ? publication.title
-                                : publication.coverTitle,
-                            style: TextStyle(
-                              height: 1.2,
-                              fontSize: 14,
-                              color: Theme.of(context).secondaryHeaderColor,
-                            ),
+                            publication.issueTagNumber == 0 ? publication.title : publication.coverTitle,
+                            style: Theme.of(context).extension<JwLifeThemeStyles>()!.rectanglePublicationTitle,
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
-                            // *** AMÉLIORATION RTL: Ajouter TextAlign.start ***
                             textAlign: TextAlign.start,
                           ),
                           const Spacer(),
                           Text(
                             publication.getRelativeDateText(),
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Theme.of(context).brightness == Brightness.dark
-                                  ? const Color(0xFFc3c3c3)
-                                  : const Color(0xFF626262),
-                            ),
-                            // *** AMÉLIORATION RTL: Ajouter TextAlign.start ***
+                            style: Theme.of(context).extension<JwLifeThemeStyles>()!.rectanglePublicationSubtitle,
                             textAlign: TextAlign.start,
                           ),
                         ],

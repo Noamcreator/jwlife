@@ -1,87 +1,106 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:jwlife/features/home/widgets/home_page/square_mediaitem_item.dart';
 import 'package:jwlife/features/home/widgets/home_page/square_publication_item.dart';
 
-import '../../../../data/databases/catalog.dart';
+import '../../../../core/app_data/app_data_service.dart';
+import '../../../../core/ui/text_styles.dart';
 import '../../../../data/models/media.dart';
 import '../../../../data/models/publication.dart';
-import '../../../../data/realm/realm_library.dart';
 import '../../../../i18n/i18n.dart';
 
-class ToolboxSection extends StatefulWidget {
+class ToolboxSection extends StatelessWidget {
   const ToolboxSection({super.key});
 
   @override
-  State<ToolboxSection> createState() => ToolboxSectionState();
-}
-
-class ToolboxSectionState extends State<ToolboxSection> {
-  final List<dynamic> _toolbox = [];
-  final List<dynamic> _toolboxTracts = [];
-
-  void refreshToolbox() {
-    setState(() {
-      _toolbox.clear();
-      _toolboxTracts.clear();
-      _toolbox.addAll(RealmLibrary.loadTeachingToolboxVideos());
-      _toolbox.addAll(PubCatalog.teachingToolboxPublications);
-      _toolboxTracts.addAll(PubCatalog.teachingToolboxTractsPublications);
-    });
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return _toolbox.isEmpty ? const SizedBox.shrink() : Column(
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          i18n().navigation_ministry,
-          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 4),
-        SizedBox(
-          height: 120,
-          child: ListView.builder(
-            padding: const EdgeInsets.all(0.0),
-            scrollDirection: Axis.horizontal,
-            itemCount: _toolbox.length,
-            itemBuilder: (context, index) {
-              return Padding(
-                padding: const EdgeInsets.only(right: 2.0),
-                child: _buildToolboxItem(_toolbox[index], context),
-              );
-            },
-          ),
-        ),
-        if(_toolboxTracts.isNotEmpty)
-          SizedBox(
-            height: 100,
-            child: ListView.builder(
-              padding: const EdgeInsets.all(0.0),
-              scrollDirection: Axis.horizontal,
-              itemCount: _toolboxTracts.length,
-              itemBuilder: (context, index) {
-                return Padding(
-                  padding: const EdgeInsets.only(right: 2.0),
-                  child: HomeSquarePublicationItem(pub: _toolboxTracts[index], toolbox: true),
+
+        /// ------------------------------------------------------------
+        /// 🔹 Toolbox – Médias en premier, puis Publications
+        /// ------------------------------------------------------------
+        ValueListenableBuilder<List<Media>>(
+          valueListenable: AppDataService.instance.teachingToolboxMedias,
+          builder: (context, medias, _) {
+            return ValueListenableBuilder<List<Publication?>>(
+              valueListenable:
+              AppDataService.instance.teachingToolboxPublications,
+              builder: (context, pubs, _) {
+                final combined = [
+                  ...medias,
+                  ...pubs,
+                ];
+
+                if (combined.isEmpty) return const SizedBox.shrink();
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      i18n().navigation_ministry,
+                      style: Theme.of(context)
+                          .extension<JwLifeThemeStyles>()!
+                          .labelTitle,
+                    ),
+                    const SizedBox(height: 4),
+                    SizedBox(
+                      height: 120,
+                      child: ListView.separated(
+                        padding: EdgeInsets.zero,
+                        scrollDirection: Axis.horizontal,
+                        itemCount: combined.length,
+                        separatorBuilder: (_, __) => const SizedBox(width: 2),
+                        itemBuilder: (context, index) {
+                          final item = combined[index];
+                          return _buildToolboxItem(item, context);
+                        },
+                      ),
+                    ),
+                  ],
                 );
               },
-            ),
-          ),
+            );
+          },
+        ),
+
+        const SizedBox(height: 8),
+
+        /// ------------------------------------------------------------
+        /// 🔹 Tracts Publications
+        /// ------------------------------------------------------------
+        ValueListenableBuilder<List<Publication?>>(
+          valueListenable:
+          AppDataService.instance.teachingToolboxTractsPublications,
+          builder: (context, tractsList, _) {
+            if (tractsList.isEmpty) return const SizedBox.shrink();
+
+            return SizedBox(
+              height: 100,
+              child: ListView.separated(
+                padding: EdgeInsets.zero,
+                scrollDirection: Axis.horizontal,
+                itemCount: tractsList.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 2),
+                itemBuilder: (context, index) {
+                  final pub = tractsList[index];
+                  return _buildToolboxItem(pub, context);
+                },
+              ),
+            );
+          },
+        ),
       ],
     );
   }
 
   Widget _buildToolboxItem(dynamic item, BuildContext context) {
-    if (item is Publication) {
-      return HomeSquarePublicationItem(pub: item, toolbox: true);
-    }
     if (item is Media) {
       return HomeSquareMediaItemItem(media: item);
     }
-    else {
-      return const SizedBox(width: 20);
+    else if (item is Publication) {
+      return HomeSquarePublicationItem(pub: item, toolbox: true);
     }
+    return const SizedBox(width: 20);
   }
 }

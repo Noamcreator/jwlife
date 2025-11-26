@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/features/home/pages/search/input_fields_search_tab.dart';
 import 'package:jwlife/features/home/pages/search/notes_search_tab.dart';
 import 'package:jwlife/features/home/pages/search/search_model.dart';
@@ -6,6 +7,7 @@ import 'package:jwlife/features/home/pages/search/verses_search_tab.dart';
 import 'package:jwlife/features/home/pages/search/wikipedia_search_tab.dart';
 import 'package:jwlife/widgets/slide_indexed_stack.dart';
 
+import '../../../../app/app_page.dart';
 import '../../../../app/services/global_key_service.dart';
 import '../../../../widgets/searchfield/searchfield_all_widget.dart';
 import 'all_search_tab.dart';
@@ -78,22 +80,24 @@ class _SearchPageState extends State<SearchPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      resizeToAvoidBottomInset: false,
+    return AppPage(
       appBar: AppBar(
+        titleSpacing: 0.0,
+        actionsPadding: const EdgeInsets.only(left: 10, right: 5),
         title: SearchFieldAll(
           autofocus: false,
           initialText: widget.query,
         ),
         leading: IconButton(
-          icon: Icon(Icons.arrow_back),
+          icon: Icon(JwIcons.chevron_left),
           onPressed: () {
             GlobalKeyService.jwLifePageKey.currentState?.handleBack(context);
           },
         ),
         actions: [
           PopupMenuButton<int>(
-            icon: Icon(Icons.menu),
+            style: ButtonStyle(visualDensity: VisualDensity.compact),
+            icon: Icon(JwIcons.three_dots_horizontal),
             onSelected: selectTab,
             itemBuilder: (context) {
               return List.generate(

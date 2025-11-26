@@ -4,6 +4,7 @@ import 'package:html/dom.dart' as html;
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
 
+import '../../../app/app_page.dart';
 import '../../../core/api/api.dart';
 import 'bible_chapter.dart';
 
@@ -94,7 +95,7 @@ class _BiblePageState extends State<BiblePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return AppPage(
       appBar: AppBar(
         title: Text("Bible d'Étude", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
         actions: [

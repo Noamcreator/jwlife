@@ -1,53 +1,53 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:jwlife/features/home/widgets/home_page/square_publication_item.dart';
 
-import '../../../../data/databases/catalog.dart';
+import '../../../../core/app_data/app_data_service.dart';
+import '../../../../core/ui/text_styles.dart';
 import '../../../../data/models/publication.dart';
 import '../../../../i18n/i18n.dart';
 
-class FrequentlyUsedSection extends StatefulWidget {
+class FrequentlyUsedSection extends StatelessWidget {
   const FrequentlyUsedSection({super.key});
 
   @override
-  State<FrequentlyUsedSection> createState() => FrequentlyUsedSectionState();
-}
-
-class FrequentlyUsedSectionState extends State<FrequentlyUsedSection> {
-  List<dynamic> _frequentlyUsed = [];
-
-  void refreshFrequentlyUsed() {
-    setState(() {
-      _frequentlyUsed = PubCatalog.recentPublications;
-    });
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return _frequentlyUsed.isEmpty ? const SizedBox.shrink() : Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          i18n().navigation_frequently_used,
-          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 4),
-        SizedBox(
-          height: 120, // Hauteur à ajuster selon votre besoin
-          child: ListView.builder(
-            padding: const EdgeInsets.all(0.0),
-            scrollDirection: Axis.horizontal,
-            itemCount: _frequentlyUsed.length,
-            itemBuilder: (context, index) {
-              Publication publication = _frequentlyUsed[index];
-              return Padding(
-                padding: const EdgeInsets.only(right: 2.0), // Espacement entre les items
-                child: HomeSquarePublicationItem(pub: publication),
-              );
-            },
-          ),
-        ),
-      ],
+    return ValueListenableBuilder<List<Publication>>(
+      valueListenable: AppDataService.instance.frequentlyUsed,
+      builder: (context, frequentlyUsed, _) {
+
+        if (frequentlyUsed.isEmpty) {
+          return const SizedBox.shrink();
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              i18n().navigation_frequently_used,
+              style: Theme.of(context)
+                  .extension<JwLifeThemeStyles>()!
+                  .labelTitle,
+            ),
+            const SizedBox(height: 4),
+            SizedBox(
+              height: 120,
+              child: ListView.builder(
+                padding: EdgeInsets.zero,
+                scrollDirection: Axis.horizontal,
+                itemCount: frequentlyUsed.length,
+                itemBuilder: (context, index) {
+                  final publication = frequentlyUsed[index];
+
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 2.0),
+                    child: HomeSquarePublicationItem(pub: publication),
+                  );
+                },
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }

@@ -1,29 +1,31 @@
 import 'package:flutter/material.dart';
+import 'package:jwlife/app/jwlife_app_bar.dart';
 
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/data/databases/history.dart';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/models/publication_category.dart';
 import 'package:jwlife/features/library/widgets/rectangle_publication_item.dart';
-import 'package:jwlife/core/app_dimens.dart';
+import 'package:jwlife/core/ui/app_dimens.dart';
 import 'package:jwlife/core/utils/utils_language_dialog.dart';
 import 'package:jwlife/data/models/publication_attribute.dart';
 import 'package:jwlife/widgets/responsive_appbar_actions.dart';
 import 'package:jwlife/widgets/searchfield/searchfield_widget.dart';
+import '../../../../app/app_page.dart';
 import '../../../../i18n/i18n.dart';
 import '../../models/publications/publication_items_model.dart';
 
-class PublicationsItemsView extends StatefulWidget {
+class PublicationsItemsPage extends StatefulWidget {
   final PublicationCategory category;
   final int? year;
 
-  const PublicationsItemsView({super.key, required this.category, this.year});
+  const PublicationsItemsPage({super.key, required this.category, this.year});
 
   @override
-  _PublicationsItemsViewState createState() => _PublicationsItemsViewState();
+  _PublicationsItemsPageState createState() => _PublicationsItemsPageState();
 }
 
-class _PublicationsItemsViewState extends State<PublicationsItemsView> {
+class _PublicationsItemsPageState extends State<PublicationsItemsPage> {
   late final PublicationsItemsViewModel _model;
   final TextEditingController _searchController = TextEditingController();
 
@@ -66,23 +68,12 @@ class _PublicationsItemsViewState extends State<PublicationsItemsView> {
 
   @override
   Widget build(BuildContext context) {
-    // Styles définis une seule fois
-    final textStyleTitle = const TextStyle(fontSize: 20, fontWeight: FontWeight.bold);
-    final textStyleSubtitle = TextStyle(
-      fontSize: 14,
-      color: Theme.of(context).brightness == Brightness.dark
-          ? const Color(0xFFc3c3c3)
-          : const Color(0xFF626262),
-    );
-
-    // ListenableBuilder n'englobe plus que l'AppBar et le Body
     return ListenableBuilder(
       listenable: _model,
       builder: (context, child) {
         final isSearching = _model.isSearching;
 
-        return Scaffold(
-          resizeToAvoidBottomInset: false,
+        return AppPage(
           appBar: isSearching
               ? AppBar(
             title: SearchFieldWidget(
@@ -106,121 +97,113 @@ class _PublicationsItemsViewState extends State<PublicationsItemsView> {
               suggestionsNotifier: ValueNotifier([]),
             ),
             leading: IconButton(
-              icon: const Icon(Icons.arrow_back),
+              icon: const Icon(JwIcons.chevron_left),
               onPressed: () {
                 _model.setIsSearching(false);
                 _searchController.clear();
                 _model.filterPublications('');
               },
             ),
-          ) : AppBar(
-            // App bar normale
-            title: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(widget.year != null ? '${widget.year}' : widget.category.getName(context), style: textStyleTitle),
-                Text(_model.mepsLanguage.vernacular, style: textStyleSubtitle),
-              ],
-            ),
+          ) : JwLifeAppBar(
+            title: widget.year != null ? '${widget.year}' : widget.category.getName(),
+            subTitle: _model.mepsLanguage.vernacular,
             actions: [
-              ResponsiveAppBarActions(allActions: [
-                IconTextButton(
-                  icon: const Icon(JwIcons.magnifying_glass),
-                  text: i18n().search_bar_search,
+              IconTextButton(
+                icon: const Icon(JwIcons.magnifying_glass),
+                text: i18n().search_bar_search,
+                onPressed: (anchorContext) {
+                  _model.setIsSearching(true);
+                  _model.filterPublications(_searchController.text);
+                },
+              ),
+              IconTextButton(
+                icon: const Icon(JwIcons.language),
+                text: i18n().action_languages,
+                onPressed: (anchorContext) async {
+                  showLanguageDialog(context, selectedLanguageSymbol: _model.selectedLanguageSymbol).then((language) async {
+                    if (language != null) {
+                      _model.loadItems(mepsLanguage: language);
+                    }
+                  });
+                },
+              ),
+              IconTextButton(
+                  icon: const Icon(JwIcons.arrows_up_down),
+                  text: i18n().action_sort_by,
                   onPressed: (anchorContext) {
-                    _model.setIsSearching(true);
-                    _model.filterPublications(_searchController.text);
-                  },
-                ),
-                IconTextButton(
-                  icon: const Icon(JwIcons.language),
-                  text: i18n().action_languages,
-                  onPressed: (anchorContext) async {
-                    showLanguageDialog(context, selectedLanguageSymbol: _model.selectedLanguageSymbol).then((language) async {
-                      if (language != null) {
-                        _model.loadItems(mepsLanguage: language);
+                    // 1. Définir les options du menu (les `PopupMenuItem`s)
+                    final List<PopupMenuEntry> menuItems = [
+                      // --- Tri par Titre ---
+                      // Option 1.1 : Tri par Titre (A-Z)
+                      PopupMenuItem(
+                        value: 'title_asc', // champ: title, ordre: ascendant
+                        child: Text(i18n().label_sort_title_asc),
+                      ),
+                      // Option 1.2 : Tri par Titre (Z-A)
+                      PopupMenuItem(
+                        value: 'title_desc', // champ: title, ordre: descendant
+                        child: Text(i18n().label_sort_title_desc),
+                      ),
+
+                      // Ajouter un séparateur visuel si vous le souhaitez (non obligatoire)
+                      const PopupMenuDivider(),
+
+                      // --- Tri par Année ---
+                      // Option 2.1 : Tri par Année (Le plus récent d'abord)
+                      PopupMenuItem(
+                        value: 'year_desc', // champ: year, ordre: descendant (car année > -> plus récent)
+                        child: Text(i18n().label_sort_year_desc),
+                      ),
+                      // Option 2.2 : Tri par Année (Le plus ancien d'abord)
+                      PopupMenuItem(
+                        value: 'year_asc', // champ: year, ordre: ascendant
+                        child: Text(i18n().label_sort_year_asc),
+                      ),
+
+                      // Ajouter un séparateur visuel si vous le souhaitez
+                      const PopupMenuDivider(),
+
+                      // --- Tri par Symbole (Exemple) ---
+                      // Option 3.1 : Tri par Symbole (A-Z)
+                      PopupMenuItem(
+                        value: 'symbol_asc',
+                        child: Text(i18n().label_sort_symbol_asc),
+                      ),
+                      // Option 3.2 : Tri par Symbole (Z-A)
+                      PopupMenuItem(
+                        value: 'symbol_desc',
+                        child: Text(i18n().label_sort_symbol_desc),
+                      ),
+                    ];
+
+                    // 2. Afficher le menu avec les options
+                    showMenu(
+                      context: context,
+                      elevation: 8.0,
+                      items: menuItems,
+                      initialValue: null,
+                      position: RelativeRect.fromLTRB(
+                        _model.mepsLanguage.isRtl ? 10 : MediaQuery.of(context).size.width - 210, // left
+                        40, // top
+                        _model.mepsLanguage.isRtl ? MediaQuery.of(context).size.width - 210 : 10, // right
+                        0, // bottom
+                      ),
+                    ).then((res) {
+                      if (res != null) {
+                        // 'res' sera maintenant une chaîne comme 'title_asc', 'year_desc', etc.
+                        _model.sortPublications(res);
                       }
                     });
-                  },
-                ),
-                IconTextButton(
-                    icon: const Icon(JwIcons.arrows_up_down),
-                    text: i18n().action_sort_by,
-                    onPressed: (anchorContext) {
-                      // 1. Définir les options du menu (les `PopupMenuItem`s)
-                      final List<PopupMenuEntry> menuItems = [
-                        // --- Tri par Titre ---
-                        // Option 1.1 : Tri par Titre (A-Z)
-                        PopupMenuItem(
-                          value: 'title_asc', // champ: title, ordre: ascendant
-                          child: Text(i18n().label_sort_title_asc),
-                        ),
-                        // Option 1.2 : Tri par Titre (Z-A)
-                        PopupMenuItem(
-                          value: 'title_desc', // champ: title, ordre: descendant
-                          child: Text(i18n().label_sort_title_desc),
-                        ),
-
-                        // Ajouter un séparateur visuel si vous le souhaitez (non obligatoire)
-                        const PopupMenuDivider(),
-
-                        // --- Tri par Année ---
-                        // Option 2.1 : Tri par Année (Le plus récent d'abord)
-                        PopupMenuItem(
-                          value: 'year_desc', // champ: year, ordre: descendant (car année > -> plus récent)
-                          child: Text(i18n().label_sort_year_desc),
-                        ),
-                        // Option 2.2 : Tri par Année (Le plus ancien d'abord)
-                        PopupMenuItem(
-                          value: 'year_asc', // champ: year, ordre: ascendant
-                          child: Text(i18n().label_sort_year_asc),
-                        ),
-
-                        // Ajouter un séparateur visuel si vous le souhaitez
-                        const PopupMenuDivider(),
-
-                        // --- Tri par Symbole (Exemple) ---
-                        // Option 3.1 : Tri par Symbole (A-Z)
-                        PopupMenuItem(
-                          value: 'symbol_asc',
-                          child: Text(i18n().label_sort_symbol_asc),
-                        ),
-                        // Option 3.2 : Tri par Symbole (Z-A)
-                        PopupMenuItem(
-                          value: 'symbol_desc',
-                          child: Text(i18n().label_sort_symbol_desc),
-                        ),
-                      ];
-
-                      // 2. Afficher le menu avec les options
-                      showMenu(
-                        context: context,
-                        elevation: 8.0,
-                        items: menuItems,
-                        initialValue: null,
-                        position: RelativeRect.fromLTRB(
-                          _model.mepsLanguage.isRtl ? 10 : MediaQuery.of(context).size.width - 210, // left
-                          40, // top
-                          _model.mepsLanguage.isRtl ? MediaQuery.of(context).size.width - 210 : 10, // right
-                          0, // bottom
-                        ),
-                      ).then((res) {
-                        if (res != null) {
-                          // 'res' sera maintenant une chaîne comme 'title_asc', 'year_desc', etc.
-                          _model.sortPublications(res);
-                        }
-                      });
-                    }
-                ),
-                IconTextButton(
-                    icon: const Icon(JwIcons.arrow_circular_left_clock),
-                    text: i18n().action_history,
-                    onPressed: (anchorContext) {
-                      History.showHistoryDialog(context);
-                    }
-                )
-              ])
-            ],
+                  }
+              ),
+              IconTextButton(
+                  icon: const Icon(JwIcons.arrow_circular_left_clock),
+                  text: i18n().action_history,
+                  onPressed: (anchorContext) {
+                    History.showHistoryDialog(context);
+                  }
+              )
+            ]
           ),
 
           // Le corps utilise un widget dédié pour le défilement

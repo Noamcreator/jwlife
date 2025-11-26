@@ -507,9 +507,6 @@ class AppLocalizationsKo extends AppLocalizations {
   String get action_playlist_end_stop => '중지';
 
   @override
-  String get action_preparing_mode => '준비 모드';
-
-  @override
   String get action_previous => '이전';
 
   @override
@@ -3008,4 +3005,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get action_brothers_and_sisters => '형제 자매';
+
+  @override
+  String get action_blocking_horizontally_mode => '수평 차단';
 }

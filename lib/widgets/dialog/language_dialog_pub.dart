@@ -32,7 +32,6 @@ class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
   List<Map<String, dynamic>> _allLanguagesList = [];
   List<Map<String, dynamic>> _filteredLanguagesList = [];
   List<Map<String, dynamic>> _recommendedLanguages = [];
-  Database? database;
   Timer? _debounce;
 
   // Stocke la liste des IDs MEPS des langues recommandées pour un accès rapide
@@ -72,22 +71,24 @@ class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
 
     if (await catalogFile.exists()) {
       try {
-        database = await openDatabase(catalogFile.path);
         await _fetchAllPubLanguages();
-      } finally {
-        await database?.close();
+      }
+      catch (e) {
+        printTime('Error initSettings: $e');
       }
     }
   }
 
   Future<void> _fetchAllPubLanguages() async {
+    Database? database = CatalogDb.instance.database;
+
     File mepsUnitFile = await getMepsUnitDatabaseFile();
 
-    await database!.execute('ATTACH DATABASE ? AS meps', [mepsUnitFile.path]);
+    await database.execute('ATTACH DATABASE ? AS meps', [mepsUnitFile.path]);
     printTime('Database meps attached');
 
     // PrimaryIetfCode de la langue source
-    String sourceLanguageLocale = JwLifeSettings().locale.languageCode;
+    String sourceLanguageLocale = JwLifeSettings.instance.locale.languageCode;
 
     List<dynamic> arguments = [];
     String baseQuery;
@@ -218,9 +219,9 @@ class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
     // ==========================================================
 
     List<Map<String, dynamic>> response =
-    await database!.rawQuery(baseQuery, arguments);
+    await database.rawQuery(baseQuery, arguments);
 
-    await database!.execute('DETACH DATABASE meps');
+    await database.execute('DETACH DATABASE meps');
 
     List<Map<String, dynamic>> languagesModifiable = List.from(response);
 
@@ -344,7 +345,7 @@ class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
         20,
         20,
         20,
-        20 + MediaQuery.of(context).viewInsets.bottom,
+        20,
       ),
       child: Container(
         width: MediaQuery.of(context).size.width,
@@ -498,7 +499,7 @@ class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
             selectedIssueTagNumber = issueTagNumber;
           });
 
-          publication ??= await PubCatalog.searchPub(keySymbol, issueTagNumber, languageSymbol);
+          publication ??= await CatalogDb.instance.searchPub(keySymbol, issueTagNumber, languageSymbol);
           await _handlePublicationSelection(context, publication);
         },
         child: Container(
@@ -570,7 +571,7 @@ class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
                       return [
                         PopupMenuItem(
                           onTap: () async {
-                            Publication? publication = await PubCatalog.searchPub(keySymbol, issueTagNumber, languageSymbol);
+                            Publication? publication = await CatalogDb.instance.searchPub(keySymbol, issueTagNumber, languageSymbol);
 
                             if(publication == null) return;
                             publication.shareLink();
@@ -585,7 +586,7 @@ class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
                         ),
                         PopupMenuItem(
                           onTap: () async {
-                            publication ??= await PubCatalog.searchPub(keySymbol, issueTagNumber, languageSymbol);
+                            publication ??= await CatalogDb.instance.searchPub(keySymbol, issueTagNumber, languageSymbol);
 
                             if(publication != null) {
                               if(publication!.isDownloadedNotifier.value) {
@@ -646,7 +647,7 @@ class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
                           selectedIssueTagNumber = issueTagNumber;
                         });
 
-                        publication ??= await PubCatalog.searchPub(keySymbol, issueTagNumber, languageSymbol);
+                        publication ??= await CatalogDb.instance.searchPub(keySymbol, issueTagNumber, languageSymbol);
                         await _handlePublicationSelection(context, publication);
                       }
                     }

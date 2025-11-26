@@ -16,7 +16,6 @@ enum PageType {
   library,
   workShip,
   predication,
-  //congregation,
   personal,
 }
 
@@ -49,7 +48,6 @@ class GlobalKeyService {
   static GlobalKey<LibraryPageState> get libraryKey => _pageKeys[PageType.library]! as GlobalKey<LibraryPageState>;
   static GlobalKey<WorkShipPageState> get workShipKey => _pageKeys[PageType.workShip]! as GlobalKey<WorkShipPageState>;
   static GlobalKey<PredicationPageState> get predicationKey => _pageKeys[PageType.predication]! as GlobalKey<PredicationPageState>;
-  //static GlobalKey<CongregationPageState> get congregationKey => _pageKeys[PageType.congregation]! as GlobalKey<CongregationPageState>;
   static GlobalKey<PersonalPageState> get personalKey => _pageKeys[PageType.personal]! as GlobalKey<PersonalPageState>;
 
   /// Récupère une clé générique par type

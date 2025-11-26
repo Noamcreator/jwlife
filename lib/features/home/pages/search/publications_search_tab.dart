@@ -1,6 +1,4 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:jwlife/core/api/api.dart';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/databases/catalog.dart';
 import 'package:jwlife/features/home/pages/search/search_model.dart';
@@ -8,7 +6,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../app/services/settings_service.dart';
-import '../../../../core/jworg_uri.dart';
+import '../../../../core/uri/jworg_uri.dart';
 import '../../../../core/utils/utils_language_dialog.dart';
 import '../../../../i18n/i18n.dart';
 
@@ -69,10 +67,10 @@ class _PublicationsSearchTabState extends State<PublicationsSearchTab> {
 
             return GestureDetector(
               onTap: () async {
-                Publication? publication = await PubCatalog.searchPub(
+                Publication? publication = await CatalogDb.instance.searchPub(
                   keySymbol,
                   int.parse(issueTagNumber),
-                  JwLifeSettings().currentLanguage.id,
+                  JwLifeSettings.instance.currentLanguage.value.id,
                 );
 
                 if (publication != null) {
@@ -146,7 +144,7 @@ class _PublicationsSearchTabState extends State<PublicationsSearchTab> {
                                 top: -7,
                                 right: -13,
                                 child: PopupMenuButton<String>(
-                                  icon: const Icon(Icons.more_vert, size: 25),
+                                  icon: const Icon(Icons.more_horiz, size: 25),
                                   itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
                                     PopupMenuItem(
                                       child: Text(i18n().action_open_in_share),
@@ -173,7 +171,7 @@ class _PublicationsSearchTabState extends State<PublicationsSearchTab> {
                                           }
 
                                           final uri = JwOrgUri.publication(
-                                            wtlocale: JwLifeSettings().currentLanguage.symbol,
+                                            wtlocale: JwLifeSettings.instance.currentLanguage.value.symbol,
                                             pub: symbol,
                                             issue: issueTagNumber ?? 0, // 0 si pas d’édition
                                           ).toString();
@@ -187,10 +185,10 @@ class _PublicationsSearchTabState extends State<PublicationsSearchTab> {
                                     PopupMenuItem(
                                       child: Text(i18n().label_languages_more),
                                       onTap: () async {
-                                        Publication? publication = await PubCatalog.searchPub(
+                                        Publication? publication = await CatalogDb.instance.searchPub(
                                           keySymbol,
                                           int.parse(issueTagNumber),
-                                          JwLifeSettings().currentLanguage.id,
+                                          JwLifeSettings.instance.currentLanguage.value.id,
                                         );
 
                                         if (publication != null) {

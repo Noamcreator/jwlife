@@ -9,22 +9,25 @@ import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
+import 'package:jwlife/app/jwlife_app_bar.dart';
 import 'package:jwlife/app/startup/auto_update.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/core/utils/utils_backup_app.dart';
 import 'package:jwlife/core/utils/utils_language_dialog.dart';
-import 'package:jwlife/data/models/meps_language.dart';
+import 'package:jwlife/data/databases/catalog.dart';
 import 'package:jwlife/i18n/i18n.dart';
 import 'package:jwlife/core/utils/utils_dialog.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:realm/realm.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:sqflite/sqflite.dart';
+import '../app/app_page.dart';
 import '../app/jwlife_app.dart';
 import '../app/services/global_key_service.dart';
 import '../app/services/notification_service.dart';
 import '../app/services/settings_service.dart';
+import '../core/app_data/app_data_service.dart';
 import '../core/keys.dart';
 import '../core/constants.dart';
 import '../core/shared_preferences/shared_preferences_utils.dart';
@@ -47,19 +50,15 @@ class SettingsPage extends StatefulWidget {
 
 class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClientMixin {
   // Cache des données pour éviter les recalculs
-  ThemeMode _theme = JwLifeSettings().themeMode;
+  ThemeMode _theme = JwLifeSettings.instance.themeMode;
   Locale _selectedLocale = const Locale('en');
   String _selectedLocaleVernacular = 'English';
   Color? _selectedColor = Colors.blue;
   Color? _bibleSelectedColor = Colors.blue;
-  final MepsLanguage _selectedLanguage = JwLifeSettings().currentLanguage;
 
   String catalogDate = '';
   String libraryDate = '';
   int cacheSize = 0;
-  double _fontSize = 16;
-  int _styleIndex = 0;
-  int _colorIndex = 1;
 
   bool _dailyTextNotification = false;
   DateTime _dailyTextNotificationTime = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day, 8, 0);
@@ -100,36 +99,19 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
   }
 
   Future<void> _loadSettings() async {
-    // Charge toutes les données en parallèle pour réduire le temps d'attente
-    final futures = await Future.wait([
-      getTheme(),
-      getLocale(),
-      getPrimaryColor(_theme),
-      getBibleColor(),
-      getFontSize(),
-      getStyleIndex(),
-      getColorIndex(),
-      getDailyTextNotification(),
-      getDailyTextNotificationTime(),
-      getBibleReadingNotification(),
-      getBibleReadingNotificationTime(),
-      getDownloadNotification()
-    ]);
+    final sharedPreferences = AppSharedPreferences.instance;
 
-    final theme = futures[0] as String;
-    final selectedLanguage = futures[1] as String;
-    final primaryColor = futures[2] as Color;
-    final bibleColor = futures[3] as Color;
-    final fontSize = futures[4] as double;
-    final styleIndex = futures[5] as int;
-    final colorIndex = futures[6] as int;
+    final theme = sharedPreferences.getTheme();
+    final selectedLanguage = sharedPreferences.getLocale();
+    final primaryColor = sharedPreferences.getPrimaryColor(_theme);
+    final bibleColor = sharedPreferences.getBibleColor();
 
-    final dailyTextNotification = futures[7] as bool;
-    final dailyTextNotificationTime = futures[8] as DateTime;
-    final bibleReadingNotification = futures[9] as bool;
-    final bibleReadingNotificationTime = futures[10] as DateTime;
+    final dailyTextNotification = sharedPreferences.getDailyTextNotification();
+    final dailyTextNotificationTime = sharedPreferences.getDailyTextNotificationTime();
+    final bibleReadingNotification = sharedPreferences.getBibleReadingNotification();
+    final bibleReadingNotificationTime = sharedPreferences.getBibleReadingNotificationTime();
 
-    final downloadNotification = futures[11] as bool;
+    final downloadNotification = sharedPreferences.getDownloadNotification();
 
     final info = await PackageInfo.fromPlatform();
     final currentVersion = info.version;
@@ -154,9 +136,6 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
         _selectedLocale = Locale(selectedLanguage);
         _selectedColor = primaryColor;
         _bibleSelectedColor = bibleColor;
-        _fontSize = fontSize;
-        _styleIndex = styleIndex;
-        _colorIndex = colorIndex;
 
         _dailyTextNotification = dailyTextNotification;
         _dailyTextNotificationTime = dailyTextNotificationTime;
@@ -215,25 +194,14 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
   }
 
   Future<void> _getCatalogDate() async {
-    try {
-      final catalogFile = await getCatalogDatabaseFile();
-      final database = await openDatabase(catalogFile.path);
-      final result = await database.rawQuery('SELECT Created FROM Revision');
-      await database.close();
-
-      if (result.isNotEmpty) {
-        final dateStr = result.first['Created'] as String;
-        if (dateStr.isNotEmpty) {
-          final parsedDate = DateTime.parse(dateStr);
-          if (mounted) {
-            setState(() {
-              catalogDate = _formatDate(parsedDate);
-            });
-          }
-        }
+    String catalogDateStr = await CatalogDb.instance.getCatalogDate();
+    if (catalogDateStr.isNotEmpty) {
+      final parsedDate = DateTime.parse(catalogDateStr);
+      if (mounted) {
+        setState(() {
+          catalogDate = _formatDate(parsedDate);
+        });
       }
-    } catch (e) {
-      // Gestion d'erreur silencieuse
     }
   }
 
@@ -241,7 +209,7 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
     try {
       final results = RealmLibrary.realm
           .all<Language>()
-          .query("symbol == '${JwLifeSettings().currentLanguage.symbol}'");
+          .query("symbol == '${JwLifeSettings.instance.currentLanguage.value.symbol}'");
 
       final date = results.isNotEmpty ? results.first.lastModified : null;
 
@@ -262,7 +230,7 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
     final localDate = dateTime.toLocal();
     return DateFormat(
       'EEEE d MMMM yyyy HH:mm:ss',
-      JwLifeSettings().currentLanguage.primaryIetfCode,
+      JwLifeSettings.instance.currentLanguage.value.primaryIetfCode,
     ).format(localDate);
   }
 
@@ -389,7 +357,7 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
           label: i18n().action_cancel.toUpperCase(),
         ),
         JwDialogButton(
-          label: '', // i18n().action_save.toUpperCase(),
+          label: i18n().action_ok.toUpperCase(),
           closeDialog: true,
           onPressed: (BuildContext context) {
             isPrimaryColor ? _updatePrimaryColor(tempColor) : _updateBibleColor(tempColor);
@@ -699,7 +667,6 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
         buttonAxisAlignment: MainAxisAlignment.end,
       );
 
-      GlobalKeyService.homeKey.currentState?.refreshFavorites();
       GlobalKeyService.personalKey.currentState?.refreshUserdata();
     }
     catch (e) {
@@ -985,13 +952,9 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
   Widget build(BuildContext context) {
     super.build(context); // Important pour AutomaticKeepAliveClientMixin
 
-    return Scaffold(
-      resizeToAvoidBottomInset: false,
-      appBar: AppBar(
-        title: Text(
-          i18n().navigation_settings,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
-        ),
+    return AppPage(
+      appBar: JwLifeAppBar(
+        title: i18n().navigation_settings
       ),
       body: ListView.builder(
         // Utilise ListView.builder pour une meilleure performance
@@ -1034,17 +997,22 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
         subtitle: _selectedLocaleVernacular,
         onTap: showLanguageSelectionDialog,
       ),
-      SettingsTile(
-        title: i18n().settings_language_library,
-        subtitle: _selectedLanguage.vernacular,
-        onTap: () {
-          showLanguageDialog(context).then((value) async {
-            if (value['Symbol'] != JwLifeSettings().currentLanguage.symbol) {
-              await setLibraryLanguage(value);
-              GlobalKeyService.homeKey.currentState?.changeLanguageAndRefresh();
-            }
-          });
-        },
+      ValueListenableBuilder(
+          valueListenable: JwLifeSettings.instance.currentLanguage,
+          builder: (context, value, child) {
+            return SettingsTile(
+              title: i18n().settings_language_library,
+              subtitle: value.vernacular,
+              onTap: () {
+                showLanguageDialog(context).then((value) async {
+                  if (value['Symbol'] != JwLifeSettings.instance.currentLanguage.value.symbol) {
+                    await AppSharedPreferences.instance.setLibraryLanguage(value);
+                    AppDataService.instance.changeLanguageAndRefreshContent();
+                  }
+                });
+              },
+            );
+          }
       ),
       const Divider(),
 
@@ -1165,7 +1133,6 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
             }
 
             // Mises à jour de l'interface
-            GlobalKeyService.homeKey.currentState?.refreshFavorites();
             GlobalKeyService.personalKey.currentState?.refreshUserdata();
           }
           catch (e) {
@@ -1192,7 +1159,7 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
             setState(() {
               _dailyTextNotification = value;
             });
-            await setDailyTextNotification(value);
+            await AppSharedPreferences.instance.setDailyTextNotification(value);
             if(_dailyTextNotification) {
               await NotificationService().scheduleDailyTextReminder(hour: _dailyTextNotificationTime.hour, minute: _dailyTextNotificationTime.minute);
             }
@@ -1209,7 +1176,7 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
                 setState(() {
                   _dailyTextNotificationTime = time;
                 });
-                await setDailyTextNotificationTime(time);
+                await AppSharedPreferences.instance.setDailyTextNotificationTime(time);
                 if(_dailyTextNotification) {
                   await NotificationService().scheduleDailyTextReminder(hour: _dailyTextNotificationTime.hour, minute: _dailyTextNotificationTime.minute);
                 }
@@ -1226,7 +1193,7 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
             setState(() {
               _bibleReadingNotification = value;
             });
-            await setBibleReadingNotification(value);
+            await AppSharedPreferences.instance.setBibleReadingNotification(value);
             if(_bibleReadingNotification) {
               await NotificationService().scheduleBibleReadingReminder(hour: _bibleReadingNotificationTime.hour, minute: _bibleReadingNotificationTime.minute);
             }
@@ -1243,7 +1210,7 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
               setState(() {
                 _bibleReadingNotificationTime = time;
               });
-              await setBibleReadingNotificationTime(time);
+              await AppSharedPreferences.instance.setBibleReadingNotificationTime(time);
               if(_bibleReadingNotification) {
                 await NotificationService().scheduleBibleReadingReminder(hour: _bibleReadingNotificationTime.hour, minute: _bibleReadingNotificationTime.minute);
               }
@@ -1260,8 +1227,8 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
               setState(() {
                 _downloadNotification = value;
               });
-              await setDownloadNotification(value);
-              JwLifeSettings().notificationDownload = value;
+              await AppSharedPreferences.instance.setDownloadNotification(value);
+              JwLifeSettings.instance.notificationDownload = value;
             },
           ),
       ),

@@ -1,7 +1,10 @@
+import 'dart:convert';
+
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'package:jwlife/app/jwlife_app_bar.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/core/utils/utils_document.dart';
@@ -9,9 +12,11 @@ import 'package:jwlife/core/utils/utils_jwpub.dart';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/databases/catalog.dart';
 import 'package:jwlife/features/home/pages/search/search_page.dart';
+import 'package:jwlife/features/publication/pages/document/data/models/dated_text.dart';
+import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 
-import '../../../app/jwlife_app.dart';
+import '../../../app/app_page.dart';
 import '../../../app/services/global_key_service.dart';
 import '../../../app/services/settings_service.dart';
 import '../../../core/shared_preferences/shared_preferences_utils.dart';
@@ -22,8 +27,12 @@ import '../../../core/utils/utils_video.dart';
 import '../../../core/utils/widgets_utils.dart';
 import '../../../core/webview/webview_javascript.dart';
 import '../../../core/webview/webview_utils.dart';
+import '../../../data/controller/block_ranges_controller.dart';
+import '../../../data/controller/notes_controller.dart';
+import '../../../data/controller/tags_controller.dart';
 import '../../../data/databases/history.dart';
 import '../../../data/models/userdata/bookmark.dart';
+import '../../../data/models/userdata/note.dart';
 import '../../../data/models/userdata/tag.dart';
 import '../../../data/models/video.dart';
 import '../../../data/realm/catalog.dart';
@@ -60,15 +69,24 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
   final List<int> _pageHistory = []; // Historique des pages visitées
   int _currentPageHistory = 0;
 
+  late BlockRangesController _blockRangesController;
+  late NotesController _notesController;
+  late TagsController _tagsController;
+
   @override
   void initState() {
     super.initState();
+    _blockRangesController = context.read<BlockRangesController>();
+    _notesController = context.read<NotesController>();
+    _tagsController = context.read<TagsController>();
     init();
   }
 
   @override
   void dispose() {
     _controller.dispose();
+    _notesController.removeListener(_updateNotesListener);
+    _tagsController.removeListener(_updateTagsListener);
     super.dispose();
   }
 
@@ -85,6 +103,28 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
     setState(() {
       _isLoadingData = true;
     });
+  }
+
+  String? _lastSentNotes;
+
+  // Dans init ou onLoadStop, tu crées des fonctions pour pouvoir les retirer :
+  void _updateNotesListener() {
+    if (!mounted) return;
+    final notes = _notesController.getNotesByDocument(datedText: widget.publication.datedTextManager!.getCurrentDatedText()).map((note) => note.toMap()).toList();
+    final jsonNotes = jsonEncode(notes);
+    if (jsonNotes == _lastSentNotes) return;
+    _lastSentNotes = jsonNotes;
+
+    _controller.callAsyncJavaScript(
+        functionBody: "updateAllNotesUI($jsonNotes);"
+    );
+  }
+
+  void _updateTagsListener() {
+    if (!mounted) return;
+    final tags = _tagsController.tags.map((t) => t.toMap()).toList();
+    final jsonTags = jsonEncode(tags);_controller.callAsyncJavaScript(functionBody: "updateTags($jsonTags);"
+    );
   }
 
   Future<void> changePageAt(int index) async {
@@ -121,7 +161,7 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
             widget.publication,
             widget.publication.datedTextManager!.selectedDatedTextIndex,
             widget.publication.datedTextManager!.datedTexts.length - 1
-        ), baseUrl: WebUri('file://${JwLifeSettings().webViewData.webappPath}/'));
+        ), baseUrl: WebUri('file://${JwLifeSettings.instance.webViewData.webappPath}/'));
       }
       else {
         _currentPageHistory = _pageHistory.removeLast(); // Revenir à la dernière page dans l'historique
@@ -190,15 +230,14 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-        resizeToAvoidBottomInset: false,
+    return AppPage(
+        isWebview: true,
         backgroundColor: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF111111) : Colors.white,
         body: Stack(
             children: [
               _isLoadingData ? SafeArea(
                   child:  InAppWebView(
                     initialSettings: InAppWebViewSettings(
-                      scrollBarStyle: null,
                       verticalScrollBarEnabled: false,
                       horizontalScrollBarEnabled: false,
                       useShouldOverrideUrlLoading: true,
@@ -218,7 +257,7 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
                             widget.publication.datedTextManager!.selectedDatedTextIndex,
                             widget.publication.datedTextManager!.datedTexts.length - 1
                         ),
-                        baseUrl: WebUri('file://${JwLifeSettings().webViewData.webappPath}/')
+                        baseUrl: WebUri('file://${JwLifeSettings.instance.webViewData.webappPath}/')
                     ),
                     onWebViewCreated: (controller) async {
                       _controller = controller;
@@ -244,13 +283,13 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
                       controller.addJavaScriptHandler(
                         handlerName: 'getSettings',
                         callback: (args) {
-                          final webViewData = JwLifeSettings().webViewData;
+                          final webViewData = JwLifeSettings.instance.webViewData;
 
                           return {
                             'isDark': webViewData.theme == 'cc-theme--dark',
                             'isFullScreenMode': webViewData.isFullScreenMode,
                             'isReadingMode': webViewData.isReadingMode,
-                            'isPreparingMode': webViewData.isPreparingMode,
+                            'isBlockingHorizontallyMode': webViewData.isBlockingHorizontallyMode,
                           };
                         },
                       );
@@ -271,14 +310,14 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
                               buttonAxisAlignment: MainAxisAlignment.end,
                               buttons: [
                                 JwDialogButton(
-                                    label: 'NON',
+                                    label: i18n().action_no.toUpperCase(),
                                     closeDialog: false,
                                     onPressed: (buildContext) async {
                                       Navigator.of(buildContext).pop(false);
                                     }
                                 ),
                                 JwDialogButton(
-                                    label: 'OUI',
+                                    label: i18n().action_yes.toUpperCase(),
                                     closeDialog: false,
                                     onPressed: (buildContext) async {
                                       Navigator.of(buildContext).pop(true);
@@ -296,7 +335,7 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
                         callback: (args) async {
                           final index = args[0] as int;
                           if (index < 0 || index >= widget.publication.datedTextManager!.datedTexts.length) {
-                            return {'html': '', 'className': '', 'audiosMarkers': '', 'isBibleChapter': false};
+                            return {'title': '', 'html': '', 'className': '', 'audiosMarkers': '', 'isBibleChapter': false};
                           }
 
                           final datedText = widget.publication.datedTextManager!.datedTexts[index];
@@ -313,7 +352,7 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
                             'dir-${widget.publication.mepsLanguage.isRtl ? 'rtl' : 'ltr'}',
                             'layout-reading',
                             'layout-sidebar',
-                            JwLifeSettings().webViewData.theme,
+                            JwLifeSettings.instance.webViewData.theme,
                           ].join(' ');
 
                           if(loadingKey.currentState!.isLoadingFonts) {
@@ -321,6 +360,7 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
                           }
 
                           return {
+                            'title': datedText.getTitle(),
                             'html': html,
                             'className': className,
                             'audiosMarkers': [],
@@ -338,83 +378,6 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
                       );
 
                       controller.addJavaScriptHandler(
-                        handlerName: 'getUserdata',
-                        callback: (args) {
-                          return {
-                            'blockRanges': widget.publication.datedTextManager!.getCurrentDatedText().blockRanges,
-                            'notes': widget.publication.datedTextManager!.getCurrentDatedText().notes,
-                            'inputFields': [],
-                            'bookmarks': widget.publication.datedTextManager!.getCurrentDatedText().bookmarks,
-                          };
-                        },
-                      );
-
-                      controller.addJavaScriptHandler(
-                        handlerName: 'getNoteByGuid',
-                        callback: (args) {
-                          String guid = args[0] as String;
-                          Map<String, dynamic>? note = widget.publication.datedTextManager!.getCurrentDatedText().notes.firstWhereOrNull((n) => n['Guid'] == guid) ?? widget.publication.datedTextManager!.getCurrentDatedText().extractedNotes.firstWhereOrNull((n) => n['Guid'] == guid);
-
-                          return {
-                            'title': note == null ? '' : note['Title'],
-                            'content': note == null ? '' : note['Content'],
-                            'tagsId': note == null ? [] : note['TagsId'],
-                            'tags': JwLifeApp.userdata.tags.map((t) => t.toMap()).toList(),
-                            'colorIndex': note == null ? 0 : note['ColorIndex'],
-                          };
-                        },
-                      );
-
-                      controller.addJavaScriptHandler(
-                        handlerName: 'getNotes',
-                        callback: (args) {
-                          // 1. Récupération des listes de notes (Notes + Notes extraites)
-                          // On suppose ici que toutes les notes sont des Maps<String, dynamic>.
-                          final List<Map<String, dynamic>> datedTextNotes = widget.publication.datedTextManager!.getCurrentDatedText().notes;
-
-                          // 3. Récupération et formatage de la liste de tags disponibles
-                          final List<Map<String, dynamic>> availableTags =
-                          JwLifeApp.userdata.tags.map((t) => t.toMap()).toList();
-
-                          // Trier en fonction de la valeur de BlockIdentifier
-                          datedTextNotes.sort((a, b) => a['BlockIdentifier'].compareTo(b['BlockIdentifier']));
-
-                          // 4. Mappage des notes pour inclure la liste de tous les tags dans chaque objet.
-                          final List<Map<String, dynamic>> notesWithTags = datedTextNotes.map((note) {
-                            return {
-                              // Champs spécifiques à la note
-                              'guid': note['Guid'],
-                              'title': note['Title'] ?? '',
-                              'content': note['Content'] ?? '',
-                              'tagsId': note['TagsId'] ?? [],
-                              'colorIndex': note['ColorIndex'] ?? 0,
-
-                              // Liste de tous les tags disponibles (la même pour toutes les notes)
-                              'tags': availableTags,
-                            };
-                          }).toList();
-
-                          // 5. Retourne la liste complète des notes formatées
-                          return notesWithTags;
-                        },
-                      );
-
-                      controller.addJavaScriptHandler(
-                        handlerName: 'getFilteredTags',
-                        callback: (args) {
-                          String query = args[0] as String;
-                          // Récupérer la liste brute
-                          List<dynamic> dynamicTags = args[1] as List<dynamic>;
-
-                          // ➡️ Ligne corrigée pour gérer les valeurs null ou non-entiers
-                          List<int> tagsId = dynamicTags.where((e) => e is int).cast<int>().toList();
-
-                          // Reste du code inchangé
-                          return getFilteredTags(query, tagsId).map((t) => t.toMap()).toList();
-                        },
-                      );
-
-                      controller.addJavaScriptHandler(
                         handlerName: 'onScroll',
                         callback: (args) async {
                           if (args[1] == "down") {
@@ -426,22 +389,50 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
                         },
                       );
 
-                      // Récupérer un guid pour un highlight
+                      controller.addJavaScriptHandler(
+                        handlerName: 'getFilteredTags',
+                        callback: (args) {
+                          String query = args[0] as String;
+
+                          List<dynamic> dynamicTags = args[1] as List<dynamic>;
+                          List<int> tagsId = dynamicTags.where((e) => e is int).cast<int>().toList();
+                          return getFilteredTags(query, tagsId).map((t) => t.toMap()).toList();
+                        },
+                      );
+
+                      // Récupérer un guid
                       controller.addJavaScriptHandler(
                         handlerName: 'getGuid',
                         callback: (args) {
-                          var uuid = Uuid();
                           return {
-                            'guid': uuid.v4()
+                            'Guid': Uuid().v4()
                           };
                         },
                       );
 
                       controller.addJavaScriptHandler(
-                        handlerName: 'addBlockRange',
+                        handlerName: 'getUserdata',
                         callback: (args) {
-                          printTime('addBlockRange ${args[0]} ${args[1]} ${args[2]} ${args[3]}');
-                          widget.publication.datedTextManager!.getCurrentDatedText().addBlockRange(args[0], args[1], args[2], args[3]);
+                          DatedText datedText = widget.publication.datedTextManager!.getCurrentDatedText();
+                          return {
+                            'blockRanges': _blockRangesController.getBlockRangesByDocument(datedText: datedText).map((blockRange) => blockRange.toMap()).toList(),
+                            'notes': _notesController.getNotesByDocument(datedText: datedText).map((note) => note.toMap()).toList(),
+                            'tags': _tagsController.tags.map((tag) => tag.toMap()).toList(),
+                            'inputFields': [],
+                            'bookmarks': widget.publication.datedTextManager!.getCurrentDatedText().bookmarks,
+                          };
+                        },
+                      );
+
+                      controller.addJavaScriptHandler(
+                        handlerName: 'addBlockRanges',
+                        callback: (args) {
+                          String guid = args[0];
+                          int styleIndex = args[1];
+                          int colorIndex = args[2];
+                          List<dynamic> blockRangeParagraphs = args[3];
+
+                          _blockRangesController.addBlockRanges(guid, styleIndex, colorIndex, blockRangeParagraphs, datedText: widget.publication.datedTextManager!.getCurrentDatedText());
                         },
                       );
 
@@ -449,15 +440,19 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
                       controller.addJavaScriptHandler(
                           handlerName: 'removeBlockRange',
                           callback: (args) async {
-                            bool showAlertDialog = args[0]['showAlertDialog'];
-                            final blockRange = widget.publication.datedTextManager!.getCurrentDatedText().blockRanges.firstWhereOrNull((h) => h['UserMarkGuid'] == args[0]['guid']);
-                            widget.publication.datedTextManager!.getCurrentDatedText().removeBlockRange(args[0]['guid']);
-                            final note = widget.publication.datedTextManager!.getCurrentDatedText().notes.firstWhereOrNull((n) => n['UserMarkGuid'] == args[0]['guid']);
+                            DatedText datedText = widget.publication.datedTextManager!.getCurrentDatedText();
+                            String userMarkGuid = args[0]['UserMarkGuid'];
+                            String? newUserMarkGuid = args[0]['NewUserMarkGuid'];
+                            bool showAlertDialog = args[0]['ShowAlertDialog'];
+
+                            _blockRangesController.removeBlockRange(userMarkGuid);
+
+                            final note = _notesController.getNotesByDocument(datedText: datedText).firstWhereOrNull((n) => n.guid == userMarkGuid);
 
                             if(note != null) {
                               if(showAlertDialog) {
-                                final String title = 'Supprimer';
-                                final String message = 'Voulez-vous supprimer la note "${note['Title']}" associé à votre surlignage ?';
+                                final String title = i18n().action_delete;
+                                final String message = 'Voulez-vous supprimer la note "${note.title}" associé à votre surlignage ?';
 
                                 // Affiche un dialog Flutter et retourne la réponse
                                 final bool? confirmed = await showJwDialog(
@@ -467,14 +462,14 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
                                     buttonAxisAlignment: MainAxisAlignment.end,
                                     buttons: [
                                       JwDialogButton(
-                                          label: 'NON',
+                                          label: i18n().action_no,
                                           closeDialog: false,
                                           onPressed: (buildContext) async {
                                             Navigator.of(buildContext).pop(false);
                                           }
                                       ),
                                       JwDialogButton(
-                                          label: 'OUI',
+                                          label: i18n().action_yes,
                                           closeDialog: false,
                                           onPressed: (buildContext) async {
                                             Navigator.of(buildContext).pop(true);
@@ -484,45 +479,73 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
                                 );
 
                                 if(confirmed == true) {
-                                  controller.evaluateJavascript(source: 'removeNote("${note['Guid']}", false)');
-                                  widget.publication.datedTextManager!.getCurrentDatedText().removeNote(note['Guid']);
+                                  controller.evaluateJavascript(source: 'removeNote("${note.guid}", false)');
+                                  _notesController.removeNote(note.guid);
                                 }
                                 else {
-                                  controller.evaluateJavascript(source: 'removeNote("${note['Guid']}", false)');
+                                  controller.evaluateJavascript(source: 'removeNote("${note.guid}", false)');
                                 }
                               }
-                              else {
-                                widget.publication.datedTextManager!.getCurrentDatedText().changeNoteUserMark(note['Guid'], args[0]['newGuid'], blockRange?['StyleIndex'] ?? 0, blockRange?['ColorIndex'] ?? 0);
+                              else if (newUserMarkGuid != null) {
+                                final blockRange = _blockRangesController.getBlockRangesByDocument(datedText: datedText).firstWhereOrNull((h) => h.userMarkGuid == userMarkGuid);
+                                if(blockRange != null) {
+                                  _notesController.changeNoteUserMark(note.guid, newUserMarkGuid, blockRange.styleIndex, blockRange.colorIndex);
+                                }
                               }
                             }
                           }
                       );
 
-                      // Quand on change le color index d'un highlight
+                      // On change le color index d'un highlight
                       controller.addJavaScriptHandler(
                           handlerName: 'changeBlockRangeStyle',
                           callback: (args) {
-                            widget.publication.datedTextManager!.getCurrentDatedText().changeBlockRangeStyle(args[0]['guid'], args[0]['newStyleIndex'], args[0]['newColorIndex']);
+                            String userMarkGuid = args[0]['UserMarkGuid'];
+                            int styleIndex = args[0]['StyleIndex'];
+                            int colorIndex = args[0]['ColorIndex'];
+
+                            _blockRangesController.changeBlockRangeStyle(userMarkGuid, styleIndex, colorIndex);
                           }
                       );
 
                       controller.addJavaScriptHandler(
-                        handlerName: 'addNote',
+                        handlerName: 'getNoteByGuid',
                         callback: (args) {
-                          var uuid = Uuid();
-                          String uuidV4 = uuid.v4();
+                          String guid = args[0] as String;
+                          Note? note = _notesController.getNoteByGuid(guid);
 
-                          widget.publication.datedTextManager!.getCurrentDatedText().addNoteWithUserMarkGuid(
-                            args[0]['blockType'],
-                            args[0]['identifier'],
-                            args[0]['title'],
-                            uuidV4,
-                            args[0]['userMarkGuid'],
-                            0,
-                            args[0]['colorIndex'],
-                          );
                           return {
-                            'uuid': uuidV4
+                            'Title': note == null ? '' : note.title,
+                            'Content': note == null ? '' : note.content,
+                            'TagsId': note == null ? [] : note.tagsId.join(','),
+                            'ColorIndex': note == null ? 0 : note.colorIndex,
+                          };
+                        },
+                      );
+
+                      controller.addJavaScriptHandler(
+                        handlerName: 'addNote',
+                        callback: (args) async {
+                          String guid = Uuid().v4();
+                          String title = args[0]['Title'];
+                          String? userMarkGuid = args[0]['UserMarkGuid'];
+                          int blockType = args[0]['BlockType'];
+                          int blockIdentifier = args[0]['BlockIdentifier'];
+                          int colorIndex = args[0]['ColorIndex'];
+
+                          await _notesController.addNote(
+                              guid,
+                              title,
+                              userMarkGuid,
+                              blockType,
+                              blockIdentifier,
+                              0,
+                              colorIndex,
+                              datedText: widget.publication.datedTextManager!.getCurrentDatedText()
+                          );
+
+                          return {
+                            'uuid': guid
                           };
                         },
                       );
@@ -530,62 +553,81 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
                       controller.addJavaScriptHandler(
                         handlerName: 'removeNote',
                         callback: (args) {
-                          String guid = args[0]['guid'];
-                          widget.publication.datedTextManager!.getCurrentDatedText().removeNote(guid);
+                          String guid = args[0]['Guid'];
+
+                          _notesController.removeNote(guid);
                         },
                       );
 
                       controller.addJavaScriptHandler(
                         handlerName: 'updateNote',
                         callback: (args) {
-                          String uuid = args[0]['noteGuid'];
-                          String title = args[0]['title'];
-                          String content = args[0]['content'];
-                          widget.publication.datedTextManager!.getCurrentDatedText().updateNote(uuid, title, content);
+                          String guid = args[0]['Guid'];
+                          String title = args[0]['Title'];
+                          String content = args[0]['Content'];
+
+                          _notesController.updateNote(guid, title, content);
                         },
                       );
 
                       controller.addJavaScriptHandler(
                           handlerName: 'changeNoteColor',
                           callback: (args) {
-                            widget.publication.datedTextManager!.getCurrentDatedText().changeNoteColor(args[0]['guid'], args[0]['newStyleIndex'], args[0]['newColorIndex']);
+                            String guid = args[0]['Guid'];
+                            int styleIndex = args[0]['StyleIndex'];
+                            int colorIndex = args[0]['ColorIndex'];
+
+                            _notesController.changeNoteColor(guid, styleIndex, colorIndex);
                           }
                       );
 
                       controller.addJavaScriptHandler(
-                        handlerName: 'addTagToNote',
+                        handlerName: 'addTagIdToNote',
                         callback: (args) {
-                          String uuid = args[0]['noteGuid'];
-                          int tagId = args[0]['tagId'];
-                          widget.publication.datedTextManager!.getCurrentDatedText().addTagToNote(uuid, tagId);
+                          String guid = args[0]['Guid'];
+                          int tagId = args[0]['TagId'];
+
+                          _notesController.addTagIdToNote(guid, tagId);
                         },
                       );
 
                       controller.addJavaScriptHandler(
-                        handlerName: 'removeTagToNote',
+                        handlerName: 'removeTagIdFromNote',
                         callback: (args) {
-                          String uuid = args[0]['noteGuid'];
-                          int tagId = args[0]['tagId'];
-                          widget.publication.datedTextManager!.getCurrentDatedText().removeTagToNote(uuid, tagId);
+                          String guid = args[0]['Guid'];
+                          int tagId = args[0]['TagId'];
+
+                          _notesController.removeTagIdFromNote(guid, tagId);
                         },
                       );
 
                       controller.addJavaScriptHandler(
                         handlerName: 'openTagPage',
                         callback: (args) {
-                          int tagId = args[0]['tagId'];
-                          showPage(TagPage(tag: JwLifeApp.userdata.tags.firstWhere((tag) => tag.id == tagId)));
+                          int tagId = args[0]['TagId'];
+                          Tag tag = _tagsController.tags.firstWhere((tag) => tag.id == tagId);
+                          showPage(TagPage(tag: tag));
                         },
                       );
 
                       controller.addJavaScriptHandler(
                         handlerName: 'addTag',
                         callback: (args) async {
-                          String tagName = args[0]['tagName'];
-                          Tag? tag = await JwLifeApp.userdata.addTag(tagName, 1);
-                          if (tag == null) return {};
+                          String tagName = args[0]['Name'];
+                          Tag tag = await _tagsController.addTag(tagName);
                           return {
-                            'tag': tag.toMap()
+                            'Tag': tag.toMap()
+                          };
+                        },
+                      );
+
+                      controller.addJavaScriptHandler(
+                        handlerName: 'addTag',
+                        callback: (args) async {
+                          String tagName = args[0]['Name'];
+                          Tag tag = await _tagsController.addTag(tagName);
+                          return {
+                            'Tag': tag.toMap()
                           };
                         },
                       );
@@ -641,17 +683,46 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
                           Map<String, dynamic>? document = args[0];
                           if (document != null) {
                             if (document['mepsDocumentId'] != null) {
-                              await showDocumentView(context, document['mepsDocumentId'], document['mepsLanguageId'], startParagraphId: document['startParagraphId'], endParagraphId: document['endParagraphId']);
+                              int? mepsDocumentId = document['mepsDocumentId'] is int ? document['mepsDocumentId'] : int.tryParse(document['mepsDocumentId'].toString());
+                              int? mepsLanguageId = document['mepsLanguageId'] is int ? document['mepsLanguageId'] : int.tryParse(document['mepsLanguageId'].toString());
+
+                              int? startParagraphId = document['startParagraphId'] != null
+                                  ? (document['startParagraphId'] is int ? document['startParagraphId'] : int.tryParse(document['startParagraphId'].toString()))
+                                  : null;
+
+                              int? endParagraphId = document['endParagraphId'] != null
+                                  ? (document['endParagraphId'] is int ? document['endParagraphId'] : int.tryParse(document['endParagraphId'].toString()))
+                                  : null;
+
+                              // Appel de la vue de document avec les IDs convertis
+                              await showDocumentView(
+                                  context,
+                                  mepsDocumentId!,
+                                  mepsLanguageId!,
+                                  startParagraphId: startParagraphId,
+                                  endParagraphId: endParagraphId
+                              );
                             }
-                            else if (document['bookNumber'] != null && document['chapterNumber'] != null) {
+                            else if ((document['firstBookNumber'] != null && document['firstChapterNumber'] != null) || (document['bookNumber'] != null && document['chapterNumber'] != null)) {
+                              int bookNumber1 = document['firstBookNumber'] ?? document['bookNumber'];
+                              int bookNumber2 = document['lastBookNumber'] ?? bookNumber1;
+                              int chapterNumber1 = document['firstChapterNumber'] ?? document['chapterNumber'];
+                              int chapterNumber2 = document['lastChapterNumber'] ?? chapterNumber1;
+
+                              int? firstVerseNumber = document['firstVerseNumber'] ?? document['verseNumber'];
+                              int? lastVerseNumber = document['lastVerseNumber'] ?? firstVerseNumber;
+
+
                               await showChapterView(
                                 context,
                                 document["keySymbol"],
                                 document["mepsLanguageId"],
-                                document["bookNumber"],
-                                document["chapterNumber"],
-                                firstVerseNumber: document["firstVerseNumber"],
-                                lastVerseNumber: document["lastVerseNumber"],
+                                bookNumber1,
+                                chapterNumber1,
+                                lastBookNumber: bookNumber2,
+                                lastChapterNumber: chapterNumber2,
+                                firstVerseNumber: firstVerseNumber,
+                                lastVerseNumber: lastVerseNumber,
                               );
                             }
                           }
@@ -817,7 +888,7 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
                             final pub = uri.queryParameters['pub']?.toLowerCase();
                             final issueTagNumber = uri.queryParameters.containsKey('issueTagNumber') ? int.parse(uri.queryParameters['issueTagNumber']!) : 0;
 
-                            Publication? publication = await PubCatalog.searchPub(pub!, issueTagNumber, wtlocale!);
+                            Publication? publication = await CatalogDb.instance.searchPub(pub!, issueTagNumber, wtlocale!);
                             if (publication != null) {
                               await publication.showMenu(context);
                             }
@@ -843,6 +914,10 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
                       // Permet la navigation pour tous les autres liens
                       return NavigationActionPolicy.ALLOW;
                     },
+                    onLoadStop: (controller, url) {
+                      _notesController.addListener(_updateNotesListener);
+                      _tagsController.addListener(_updateTagsListener);
+                    }
                   )
               ) : Container(),
 
@@ -990,161 +1065,112 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
             right: 0,
             child: Visibility(
                 visible: _controlsVisible,
-                child: AppBar(
-                  title: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        widget.publication.datedTextManager!.getCurrentDatedText().getTitle(),
-                        style: textStyleTitle,
-                      ),
-                      Text(
-                        widget.publication.shortTitle,
-                        style: textStyleSubtitle,
-                      ),
-                    ],
-                  ),
-                  leading: IconButton(
-                    icon: const Icon(Icons.arrow_back),
-                    onPressed: () {
-                      widget.handleBackPress();
-                    },
-                  ),
+                child: JwLifeAppBar(
+                  title: widget.publication.datedTextManager!.getCurrentDatedText().getTitle(),
+                  subTitle: widget.publication.shortTitle,
+                  handleBackPress: widget.handleBackPress,
                   actions: [
-                    ResponsiveAppBarActions(
-                      allActions: [
-                        /*
-                        IconTextButton(
-                          text: "Marque-pages",
-                          icon: Icon(JwIcons.bookmark),
-                          onPressed: () async {
-                            Bookmark? bookmark = await showBookmarkDialog(context, widget.publication, webViewController: _controller, mepsDocumentId: widget.publication.datedTextManager!.getCurrentDatedText().mepsDocumentId, title: widget.publication.datedTextManager!.getCurrentDatedText().getTitle(), snippet: '', blockType: 0, blockIdentifier: null);
-                            if (bookmark != null) {
-                              if(bookmark.location.mepsDocumentId != widget.publication.datedTextManager!.getCurrentDatedText().mepsDocumentId) {
-                                int page = widget.publication.datedTextManager!.datedTexts.indexWhere((doc) => doc.mepsDocumentId == bookmark.location.mepsDocumentId);
+                    IconTextButton(
+                      text: i18n().action_languages,
+                      icon: Icon(JwIcons.language),
+                      onPressed: (anchorContext) async {
+                        showLanguagePubDialog(context, widget.publication).then((languagePub) async {
+                          if(languagePub != null) {
+                            languagePub.showMenu(context);
+                          }
+                        });
+                      },
+                    ),
+                    IconTextButton(
+                      icon: Icon(JwIcons.calendar),
+                      text: i18n().label_select_a_week,
+                      onPressed: (anchorContext) async {
+                        DateTime currentDate = widget.publication.datedTextManager!.getCurrentDatedText().getDate();
 
-                                if (page != widget.publication.datedTextManager!.selectedDatedTextIndex) {
-                                  await widget.jumpToPage(page);
-                                }
+                        DateTime? selectedDay = await showMonthCalendarDialog(context, currentDate);
 
-                                if (bookmark.blockIdentifier != null) {
-                                  widget.jumpToParagraph(bookmark.blockIdentifier!, bookmark.blockIdentifier!);
-                                }
-                              }
-                            }
-                          },
-                        ),
+                        if (selectedDay != null) {
+                          // Vérifie si on est dans la même année
+                          bool sameYear = selectedDay.year == currentDate.year;
 
-                         */
-                        IconTextButton(
-                          text: i18n().action_languages,
-                          icon: Icon(JwIcons.language),
-                          onPressed: (anchorContext) async {
-                            showLanguagePubDialog(context, widget.publication).then((languagePub) async {
-                              if(languagePub != null) {
-                                languagePub.showMenu(context);
-                              }
+                          if (!sameYear) {
+                            List<Publication> dayPubs = await CatalogDb.instance.getPublicationsForTheDay(date: selectedDay);
+
+                            // Si Publication a un champ 'symbol' à tester
+                            Publication? dailyTextPub = dayPubs.firstWhereOrNull((p) => p.keySymbol.contains('es'));
+
+                            if (dailyTextPub == null) return;
+
+                            showDailyText(context, dailyTextPub, date: selectedDay);
+                          }
+                          else {
+                            int dateInt = convertDateTimeToIntDate(selectedDay);
+                            int index = widget.publication.datedTextManager!.datedTexts.indexWhere((element) => element.firstDateOffset == dateInt);
+                            widget.jumpToPage(index);
+                          }
+                        }
+                      },
+                    ),
+                    IconTextButton(
+                      text: i18n().action_history,
+                      icon: const Icon(JwIcons.arrow_circular_left_clock),
+                      onPressed: (anchorContext) {
+                        History.showHistoryDialog(context);
+                      },
+                    ),
+                    IconTextButton(
+                      text: i18n().action_open_in_share,
+                      icon: Icon(JwIcons.share),
+                      onPressed: (anchorContext) {
+                        widget.publication.datedTextManager!.getCurrentDatedText().share();
+                      },
+                    ),
+                    IconTextButton(
+                      text: i18n().action_text_settings,
+                      icon: const Icon(Icons.text_increase),
+                      onPressed: (anchorContext) {
+                        showFontSizeDialog(context, _controller);
+                      },
+                    ),
+                    IconTextButton(
+                      text: i18n().action_full_screen,
+                      icon: Icon(JwIcons.square_stack),
+                      isSwitch: JwLifeSettings.instance.webViewData.isFullScreenMode,
+                      onSwitchChange: (value) async {
+                        if(value != JwLifeSettings.instance.webViewData.isFullScreenMode) {
+                          await AppSharedPreferences.instance.setFullscreenMode(value);
+                          JwLifeSettings.instance.webViewData.updateFullscreen(value);
+                          setState(() {
+
+                          });
+                        }
+                      },
+                    ),
+                    IconTextButton(
+                        text: i18n().action_reading_mode,
+                        icon: Icon(JwIcons.scroll),
+                        isSwitch: JwLifeSettings.instance.webViewData.isReadingMode,
+                        onSwitchChange: (value) async {
+                          if(value != JwLifeSettings.instance.webViewData.isReadingMode) {
+                            await AppSharedPreferences.instance.setReadingMode(value);
+                            setState(() {
+                              JwLifeSettings.instance.webViewData.updateReadingMode(value);
                             });
-                          },
-                        ),
-                        IconTextButton(
-                          icon: Icon(JwIcons.calendar),
-                          text: i18n().label_select_a_week,
-                          onPressed: (anchorContext) async {
-                            DateTime currentDate = widget.publication.datedTextManager!.getCurrentDatedText().getDate();
-
-                            DateTime? selectedDay = await showMonthCalendarDialog(context, currentDate);
-
-                            if (selectedDay != null) {
-                              // Vérifie si on est dans la même année
-                              bool sameYear = selectedDay.year == currentDate.year;
-
-                              if (!sameYear) {
-                                List<Publication> dayPubs = await PubCatalog.getPublicationsForTheDay(date: selectedDay);
-
-                                // Si Publication a un champ 'symbol' à tester
-                                Publication? dailyTextPub = dayPubs.firstWhereOrNull((p) => p.keySymbol.contains('es'));
-
-                                if (dailyTextPub == null) return;
-
-                                showDailyText(context, dailyTextPub, date: selectedDay);
-                              }
-                              else {
-                                int dateInt = convertDateTimeToIntDate(selectedDay);
-                                int index = widget.publication.datedTextManager!.datedTexts.indexWhere((element) => element.firstDateOffset == dateInt);
-                                widget.jumpToPage(index);
-                              }
-                            }
-                          },
-                        ),
-                        IconTextButton(
-                          text: i18n().action_history,
-                          icon: const Icon(JwIcons.arrow_circular_left_clock),
-                          onPressed: (anchorContext) {
-                            History.showHistoryDialog(context);
-                          },
-                        ),
-                        IconTextButton(
-                          text: i18n().action_open_in_share,
-                          icon: Icon(JwIcons.share),
-                          onPressed: (anchorContext) {
-                            widget.publication.datedTextManager!.getCurrentDatedText().share();
-                          },
-                        ),
-                        IconTextButton(
-                          text: i18n().action_text_settings,
-                          icon: Icon(JwIcons.device_text),
-                          onPressed: (anchorContext) {
-                            showFontSizeDialog(context, _controller);
-                          },
-                        ),
-                        IconTextButton(
-                          text: i18n().action_full_screen,
-                          icon: Icon(JwIcons.square_stack),
-                          isSwitch: JwLifeSettings().webViewData.isFullScreenMode,
-                          onSwitchChange: (value) async {
-                            if(value != JwLifeSettings().webViewData.isFullScreenMode) {
-                              await setFullscreenMode(value);
-                              JwLifeSettings().webViewData.updateFullscreen(value);
-                              setState(() {
-
-                              });
-                            }
-                          },
-                        ),
-                        IconTextButton(
-                            text: i18n().action_reading_mode,
-                            icon: Icon(JwIcons.scroll),
-                            isSwitch: JwLifeSettings().webViewData.isReadingMode,
-                            onSwitchChange: (value) async {
-                              if(value != JwLifeSettings().webViewData.isReadingMode) {
-                                await setReadingMode(value);
-                                if(value) {
-                                  await setPreparingMode(!value);
-                                }
-                                setState(() {
-                                  JwLifeSettings().webViewData.updateReadingMode(value);
-                                });
-                              }
-                            }
-                        ),
-                        IconTextButton(
-                            text: i18n().action_preparing_mode,
-                            icon: Icon(JwIcons.highlighter),
-                            isSwitch: JwLifeSettings().webViewData.isPreparingMode,
-                            onSwitchChange: (value) async {
-                              if(value != JwLifeSettings().webViewData.isPreparingMode) {
-                                await setPreparingMode(value);
-                                if(value) {
-                                  await setReadingMode(!value);
-                                }
-                                setState(() {
-                                  JwLifeSettings().webViewData.updatePreparingMode(value);
-                                });
-                              }
-                            }
-                        ),
-                      ],
+                          }
+                        }
+                    ),
+                    IconTextButton(
+                        text: i18n().action_blocking_horizontally_mode,
+                        icon: Icon(Icons.block),
+                        isSwitch: JwLifeSettings.instance.webViewData.isBlockingHorizontallyMode,
+                        onSwitchChange: (value) async {
+                          if(value != JwLifeSettings.instance.webViewData.isBlockingHorizontallyMode) {
+                            await AppSharedPreferences.instance.setBlockingHorizontallyMode(value);
+                            setState(() {
+                              JwLifeSettings.instance.webViewData.updatePreparingMode(value);
+                            });
+                          }
+                        }
                     ),
                   ],
                 )

@@ -7,21 +7,21 @@ import 'package:jwlife/data/models/publication.dart';
 
 import '../../app/services/settings_service.dart';
 
-String createReaderHtmlShell(Publication publication, int firstIndex, int maxIndex, {int? startParagraphId, int? endParagraphId, int? startVerseId, String? textTag, int? endVerseId, List<String> wordsSelected = const []}) {
+String createReaderHtmlShell(Publication publication, int firstIndex, int maxIndex, {int? bookNumber, int? chapterNumber, int? lastBookNumber, int? lastChapterNumber, int? startParagraphId, int? endParagraphId, int? startVerseId, int? endVerseId, String? textTag, List<String> wordsSelected = const []}) {
   String publicationPath = publication.path ?? '';
-  final webViewData = JwLifeSettings().webViewData;
+  final webViewData = JwLifeSettings.instance.webViewData;
   final fontSize = webViewData.fontSize;
   final styleIndex = webViewData.styleIndex;
   final colorIndex = webViewData.colorIndex;
   bool isDarkMode = webViewData.theme == 'cc-theme--dark';
-  String direction = JwLifeSettings().currentLanguage.isRtl ? 'rtl' : 'ltr';
+  String direction = publication.mepsLanguage.isRtl ? 'rtl' : 'ltr';
   bool isFullscreenMode = webViewData.isFullScreenMode;
   bool isReadingMode = webViewData.isReadingMode;
-  bool isPreparingMode = webViewData.isPreparingMode;
-  bool audioPlayerVisible = GlobalKeyService.jwLifePageKey.currentState?.audioWidgetVisible ?? false;
+  bool isBlockingHorizontallyMode = webViewData.isBlockingHorizontallyMode;
+  bool audioPlayerVisible = GlobalKeyService.jwLifePageKey.currentState?.audioWidgetVisible.value ?? false;
 
-  final lightPrimaryColor = toHex(JwLifeSettings().lightPrimaryColor);
-  final darkPrimaryColor = toHex(JwLifeSettings().darkPrimaryColor);
+  final lightPrimaryColor = toHex(JwLifeSettings.instance.lightPrimaryColor);
+  final darkPrimaryColor = toHex(JwLifeSettings.instance.darkPrimaryColor);
 
   String theme = isDarkMode ? 'dark' : 'light';
 
@@ -385,7 +385,7 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
 
           let isFullscreenMode = $isFullscreenMode;
           let isReadingMode = $isReadingMode;
-          let isPreparingMode = $isPreparingMode;
+          let isBlockingHorizontallyMode = $isBlockingHorizontallyMode;
           let controlsVisible = true;
           let audioPlayerVisible = $audioPlayerVisible;
           
@@ -474,9 +474,98 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
           
           let blockRanges;
           let notes;
+          let tags;
           let inputFields;
           let bookmarks;
           
+          function updateTags(tags) {
+            this.tags = tags;
+          }
+          
+          function updateNoteUI(note, silent = true) {
+              const dialogIndex = dialogHistory.findIndex(item => 
+                  item.type === 'note' && 
+                  item.options?.noteData?.noteGuid === note.Guid
+              );
+              if (dialogIndex === -1) return false;
+          
+              const dialogData = dialogHistory[dialogIndex];
+              const dialog = document.getElementById(dialogData.dialogId);
+              if (!dialog) return false;
+          
+              const titleElement = dialog.querySelector(".note-title");
+              const contentElement = dialog.querySelector(".note-content");
+              const tagsContainer = dialog.querySelector(".tags-container");
+              const noteWrapper = dialog.querySelector(".note-dialog") || dialog;
+          
+              if (note.Title !== undefined && titleElement) {
+                  titleElement.value = note.Title;
+                  if (!silent) titleElement.dispatchEvent(new Event("input"));
+              }
+          
+              if (note.Content !== undefined && contentElement) {
+                  contentElement.value = note.Content;
+                  if (!silent) contentElement.dispatchEvent(new Event("input"));
+              }
+              
+              // 5. Mise à jour de la couleur
+              if (note.ColorIndex !== undefined && noteWrapper) {
+                  // Supprimer toutes les classes de couleur existantes
+                  colorsList.forEach((_, index) => {
+                      const className = getNoteClass(index, false);
+                      if (className) noteWrapper.classList.remove(className);
+                  });
+                  noteWrapper.classList.add(getNoteClass(note.ColorIndex, false));
+              }
+          
+              // 6. Mise à jour des tags
+              if (note.TagsId !== undefined && tagsContainer) {
+                  const newTags = note.TagsId
+                      .split(",")
+                      .map(id => parseInt(id))
+                      .filter(id => !isNaN(id));
+          
+                  // Effacer les tags actuels (sauf l'input)
+                  [...tagsContainer.children].forEach(child => {
+                      if (!child.classList.contains("tag-input-wrapper")) {
+                          child.remove();
+                      }
+                  });
+          
+                  // Recréer les tags UI
+                  newTags.forEach(tagId => {
+                      const tag = tags.find(t => t.TagId === tagId);
+                      if (tag) {
+                          const tagEl = createTagElement(tag);
+                          const inputWrapper = tagsContainer.querySelector(".tag-input-wrapper");
+                          if (inputWrapper) {
+                              tagsContainer.insertBefore(tagEl, inputWrapper);
+                          } else {
+                              tagsContainer.appendChild(tagEl);
+                          }
+                      }
+                  });
+              }
+          
+              return true;
+          }
+          
+          function updateAllNotesUI(notesList) {
+              notes = notesList;
+              notes.forEach(note => {
+                  const currentNote = document.querySelector(`[\${noteAttr}="\${note.Guid}"]`);
+                  if (currentNote) {
+                     updateNoteUI(note, true); // silent = true
+                  }
+                  else {
+                    const paragraphInfo = paragraphsDataDialog.get(note.BlockIdentifier);
+                    const isBible = isBible();
+             
+                    addNoteWithGuid(pageCenter, paragraphInfo.paragraphs[0], null, note.Guid, 0, isBible, true);
+                  }
+              });
+          }
+         
           function changeTheme(isDarkMode) {
             isDark = isDarkMode;
             document.body.classList.remove('cc-theme--dark', 'cc-theme--light');
@@ -501,7 +590,7 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
           }
           
           function changePreparingMode(isPreparing) {
-            isPreparingMode = isPreparing;
+            isBlockingHorizontallyMode = isPreparing;
           }
           
           function updateAudios(audios, index) {
@@ -1155,41 +1244,73 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
             return;
           }
         
+          // --- Modification: Determine the maximum paragraph ID ---
+          let maxParagraphId = null; 
+          paragraphs.forEach(p => {
+            let id = getParagraphId(p, selector, idAttr);
+            if (id !== null) {
+              if (maxParagraphId === null || id > maxParagraphId) {
+                maxParagraphId = id;
+              }
+            }
+          });
+          // ---------------------------------------------------------
+          
+          // Helper function to extract ID (moved logic out for cleanliness)
+          function getParagraphId(p, selector, idAttr) {
+            let id;
+            if (selector === '[data-pid]') {
+              id = parseInt(p.getAttribute(idAttr), 10);
+              if (isNaN(id)) return null;
+            } else {
+              const attrValue = p.getAttribute(idAttr)?.trim();
+              if (!attrValue) return null;
+              const idParts = attrValue.split('-');
+              if (idParts.length < 4) return null;
+              id = parseInt(idParts[2], 10);
+              if (isNaN(id)) return null;
+            }
+            return id;
+          }
+        
+          // --- Modification: Handle 'end' being null/undefined or -1 (if -1 is intended as a special value) ---
+          let effectiveEnd = end;
+          if (end === null || end === undefined || (end === -1 && begin !== -1)) {
+            // If end is null/undefined, or if it's -1 but we're not in the "show all" mode (begin also -1), 
+            // set effectiveEnd to the max ID found.
+            effectiveEnd = maxParagraphId; 
+          }
+        
+          // Original check for full document visibility (begin === -1 && end === -1)
           if (begin === -1 && end === -1) {
             paragraphs.forEach(p => {
               p.style.opacity = '1';
             });
             return;
           }
+          // -----------------------------------------------------------------------------------------------------
         
           let targetParagraph = null;
           let firstParagraphId = null;
-          let endParagraphId = null;
         
           paragraphs.forEach(p => {
-            let id;
-            if (selector === '[data-pid]') {
-              id = parseInt(p.getAttribute(idAttr), 10);
-              if (isNaN(id)) return;
-            } else {
-              const attrValue = p.getAttribute(idAttr)?.trim();
-              if (!attrValue) return;
-              const idParts = attrValue.split('-');
-              if (idParts.length < 4) return;
-              id = parseInt(idParts[2], 10);
-              if (isNaN(id)) return;
-            }
+            // Use the helper function to get the ID
+            const id = getParagraphId(p, selector, idAttr);
+            if (id === null) return;
         
             if (firstParagraphId === null) {
               firstParagraphId = id;
             }
-            endParagraphId = id;
         
-            if (id >= begin && id <= end && !targetParagraph) {
+            // Note: maxParagraphId (calculated earlier) now handles what 'endParagraphId' used to track, 
+            // ensuring we know the absolute last ID before the loop finishes.
+        
+            // Use effectiveEnd for the comparison
+            if (id >= begin && id <= effectiveEnd && !targetParagraph) {
               targetParagraph = p;
             }
         
-            p.style.opacity = (id >= begin && id <= end) ? '1' : '0.5';
+            p.style.opacity = (id >= begin && id <= effectiveEnd) ? '1' : '0.5';
           });
         
           if (targetParagraph) {
@@ -1508,10 +1629,10 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
                       const endIdx   = Math.max(idxFirst, idxLast);
                     
                       blockRangesArray.push({
-                        blockType: isVerse ? 2 : 1, // Assurez-vous que isVerse est bien géré
-                        identifier: pid,
-                        startToken: startIdx,
-                        endToken: endIdx,
+                        BlockType: isVerse ? 2 : 1, // Assurez-vous que isVerse est bien géré
+                        Identifier: pid,
+                        StartToken: startIdx,
+                        EndToken: endIdx,
                       });
                     }
                     // **********************************************
@@ -1556,7 +1677,7 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
                     // Appel unique à Flutter pour tous les blockRanges
                     const finalColorIndex = getColorIndex(styleIndex);
                     // NOTE: 'window.flutter_inappwebview' doit être accessible
-                    window.flutter_inappwebview.callHandler('addBlockRange', blockRangesToSend, styleIndex, finalColorIndex, currentGuid);
+                    window.flutter_inappwebview.callHandler('addBlockRanges', currentGuid, styleIndex, finalColorIndex, blockRangesToSend);
                     removeAllSelected();
                   } 
                   else {
@@ -2461,54 +2582,109 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
           };
           
           async function createNotesDashboardContent(container, opt) {
-              // Nettoyer l'indicateur de chargement
-              container.innerHTML = '<h2>Mes Notes Récentes</h2><p>Chargement des notes...</p>';
-              
-              if (typeof applyContentContainerStyles === 'function') {
-                  applyContentContainerStyles('base', container, globalFullscreenPreference);
-              }
-              
-              // Conteneur interne pour le padding
-              const innerContainer = document.createElement('div');
-             
-              container.innerHTML = ''; // Nettoyer l'indicateur de chargement
-              container.appendChild(innerContainer); // Ajout du conteneur interne
-              
-              let notes = await window.flutter_inappwebview.callHandler('getNotes');
+              const isBibleMode = isBible(); 
           
-              if (!notes || notes.length === 0) { // Vérification de l'existence de 'notes'
-                  // --- AJOUTER CE STYLE POUR CENTRER LE TEXTE ---
+              container.innerHTML = '';
+              const innerContainer = document.createElement('div');
+              container.appendChild(innerContainer);
+          
+              if (!notes || notes.length === 0) {
                   innerContainer.style.display = 'flex';
-                  innerContainer.style.justifyContent = 'center'; // Centrage horizontal
+                  innerContainer.style.justifyContent = 'center';
                   innerContainer.style.height = '100%';
-                  innerContainer.innerHTML += '<p>Aucune notes</p>'; // Utiliser += si le titre doit rester
+                  innerContainer.innerHTML = '<p>Aucune notes</p>';
                   return;
               }
           
-              // Ajouter chaque note
-              notes.forEach(note => {
-               
+              // -----------------------------------------
+              // 🔥 TRIER LES NOTES PAR BlockIdentifier
+              // -----------------------------------------
+              const sortedNotes = [...notes].sort((a, b) => {
+                  const A = a.BlockIdentifier || '';
+                  const B = b.BlockIdentifier || '';
+                  if (A < B) return -1;
+                  if (A > B) return 1;
+                  return (a.Guid || "").localeCompare(b.Guid || "");
+              });
+          
+              // -----------------------------------------
+              // 🔥 CRÉER L'INDEX EN HAUT (CARRÉS)
+              // -----------------------------------------
+              const indexContainer = document.createElement('div');
+              indexContainer.style.display = 'flex';
+              indexContainer.style.flexWrap = 'wrap';
+              indexContainer.style.gap = '8px';
+              indexContainer.style.marginBottom = '16px';
+              innerContainer.appendChild(indexContainer);
+          
+              const blockIdSet = new Set();
+          
+              sortedNotes.forEach(note => {
+                  if (isBibleMode && note.BlockIdentifier && !blockIdSet.has(note.BlockIdentifier)) {
+                      blockIdSet.add(note.BlockIdentifier);
+          
+                      // Carré pour accéder à ce groupe
+                      const square = document.createElement('div');
+                      square.textContent = note.BlockIdentifier; // texte à l’intérieur
+                      square.style.cursor = 'pointer';
+                      square.style.width = '50px';       // largeur uniforme
+                      square.style.height = '50px';      // hauteur uniforme
+                      square.style.display = 'flex';
+                      square.style.alignItems = 'center';
+                      square.style.justifyContent = 'center';
+                      square.style.backgroundColor = '#757575'; // couleur demandée
+                      square.style.color = '#fff';              // texte en blanc pour contraste
+                      square.style.borderRadius = '4px';        // coins légèrement arrondis
+                      square.style.fontSize = '0.85em';
+                      square.style.fontWeight = 'bold';
+          
+                      // Scroll vers le groupe
+                      square.onclick = () => {
+                          const target = document.getElementById(`block-\${note.BlockIdentifier}`);
+                          if (target) {
+                              target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                          }
+                      };
+          
+                      indexContainer.appendChild(square);
+                  }
+              });
+          
+              // -----------------------------------------
+              // 🔥 AFFICHAGE DES NOTES PAR GROUPES
+              // -----------------------------------------
+              let lastBlockIdentifier = null;
+          
+              sortedNotes.forEach(note => {
+          
+                  // Si nouveau BlockIdentifier → ajouter titre avec id
+                  if (isBibleMode && note.BlockIdentifier && note.BlockIdentifier !== lastBlockIdentifier) {
+          
+                      const blockElem = document.createElement('div');
+                      blockElem.textContent = cachedPages[currentIndex].title + ':' + note.BlockIdentifier;
+          
+                      blockElem.id = `block-\${note.BlockIdentifier}`; // pour le scroll
+                      blockElem.style.fontWeight = 'bold';
+                      blockElem.style.margin = '40px 0 6px 8px';
+          
+                      innerContainer.appendChild(blockElem);
+                      lastBlockIdentifier = note.BlockIdentifier;
+                  }
+          
+                  // Note
                   const noteData = {
-                      noteGuid: note.guid,
-                      title: note.title,
-                      content: note.content,
-                      tags: note.tags,
-                      tagsId: note.tagsId,
-                      colorIndex: note.colorIndex,
+                      noteGuid: note.Guid,
+                      title: note.Title,
+                      content: note.Content,
+                      tagsId: note.TagsId,
+                      colorIndex: note.ColorIndex
                   };
-              
-                  const newNote = { 'noteData': noteData }; 
-              
-                  const noteElement = createNoteContent(innerContainer, newNote); 
-                  
+          
+                  const newNote = { noteData };
+                  const noteElement = createNoteContent(innerContainer, newNote);
+          
                   if (noteElement) {
-                      noteElement.style.marginBottom = '16px'; 
-                      
-                      if (notes.indexOf(note) === notes.length - 1) {
-                          noteElement.style.marginBottom = '0';
-                      }
-                      
-                      // 3. Ajout de l'élément de la note au conteneur.
+                      noteElement.style.marginBottom = '16px';
                       innerContainer.appendChild(noteElement);
                   }
               });
@@ -3016,7 +3192,7 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
           // Initialiser le FAB au chargement
           showFloatingButton();
 
-          async function openNoteDialog(userMarkGuid, noteGuid) {
+          async function openNoteDialog(noteGuid, userMarkGuid) {
               const note = await window.flutter_inappwebview.callHandler('getNoteByGuid', noteGuid);
              
               if (!note) {
@@ -3029,11 +3205,10 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
                   type: 'note',
                   noteData: {
                       noteGuid: noteGuid,
-                      title: note.title,
-                      content: note.content,
-                      tags: note.tags, 
-                      tagsId: note.tagsId, 
-                      colorIndex: note.colorIndex,
+                      title: note.Title,
+                      content: note.Content,
+                      tagsId: note.TagsId, 
+                      colorIndex: note.ColorIndex,
                   },
                   contentRenderer: (contentContainer, noteOptions) => {
                       createNoteContent(contentContainer, noteOptions);
@@ -3050,7 +3225,7 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
                   return;
               }
           
-              const { noteGuid, title, content, tags, tagsId, colorIndex } = options.noteData;
+              const { noteGuid, title, content, tagsId, colorIndex } = options.noteData;
               const isDark = isDarkTheme();
               const isEditMode = true;
               
@@ -3063,6 +3238,8 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
           
               // 🎯 CONTENEUR DE CONTENU DE LA NOTE (pour le padding)
               const noteContentWrapper = document.createElement('div');
+              noteContentWrapper.classList.add('note-content-wrapper');
+              noteContentWrapper.id = `data-note-guid-\${noteGuid}`;
               noteContentWrapper.style.cssText = `
                   padding: 16px;
                   box-sizing: border-box;
@@ -3202,14 +3379,14 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
                       tagsContainer.removeChild(tagElement);
                       const index = currentTagIds.indexOf(tag.TagId);
                       if (index > -1) currentTagIds.splice(index, 1);
-                      window.flutter_inappwebview.callHandler('removeTagToNote', { noteGuid: noteGuid, tagId: tag.TagId });
+                      window.flutter_inappwebview.callHandler('removeTagIdFromNote', { Guid: noteGuid, TagId: tag.TagId });
                       setTimeout(() => tagInput.focus(), 10);
                   };
                   
                   tagElement.appendChild(closeBtn);
                   tagElement.onclick = (e) => {
                       if (e.target === closeBtn) return;
-                      window.flutter_inappwebview.callHandler('openTagPage', { tagId: tag.TagId });
+                      window.flutter_inappwebview.callHandler('openTagPage', { TagId: tag.TagId });
                   };
                   
                   return tagElement;
@@ -3220,7 +3397,7 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
                       const tagElement = createTagElement(tag);
                       tagsContainer.insertBefore(tagElement, tagInputWrapper);
                       currentTagIds.push(tag.TagId);
-                      window.flutter_inappwebview.callHandler('addTagToNote', { noteGuid: noteGuid, tagId: tag.TagId });
+                      window.flutter_inappwebview.callHandler('addTagIdToNote', { Guid: noteGuid, TagId: tag.TagId });
                   }
               };
           
@@ -3329,8 +3506,8 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
               }, { passive: false }); // 'passive: false' est CRUCIAL pour que preventDefault fonctionne
           
               async function addTagToDatabase(value) {
-                  const result = await window.flutter_inappwebview.callHandler('addTag', { tagName: value });    
-                  if (result && result.tag) addTagToUI(result.tag);
+                  const result = await window.flutter_inappwebview.callHandler('addTag', { Name: value });    
+                  if (result && result.Tag) addTagToUI(result.Tag);
               }
           
               const showSuggestions = async (filteredTags, query) => {
@@ -3491,9 +3668,9 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
               // Sauvegarde
               const saveChanges = () => {
                   window.flutter_inappwebview.callHandler('updateNote', {
-                      noteGuid: noteGuid,
-                      title: titleElement.value,
-                      content: contentElement.value
+                      Guid: noteGuid,
+                      Title: titleElement.value,
+                      Content: contentElement.value
                   });
               };
           
@@ -3584,7 +3761,7 @@ String createReaderHtmlShell(Publication publication, int firstIndex, int maxInd
               
                       // Supprime côté Flutter
                       window.flutter_inappwebview.callHandler('removeNote', {
-                          guid: noteGuid
+                          Guid: noteGuid
                       });
               
                       removeDialogByNoteGuid(noteGuid);
@@ -4046,7 +4223,6 @@ function showVerseInfoDialog(article, verseInfo, href) {
                               noteGuid: item.Guid,
                               title: item.Title,
                               content: item.Content,
-                              tags: verseInfo['tags'],
                               tagsId: item.TagsId,
                               colorIndex: item.ColorIndex,
                           };
@@ -4789,11 +4965,11 @@ function handleExpand(itemId) {
           
           async function addNote(paragraph, id, isBible, title) {
               const noteGuid = await window.flutter_inappwebview.callHandler('addNote', {
-                  title: title,
-                  blockType: (id != null) ? (isBible ? 2 : 1) : 1,
-                  identifier: id,
-                  userMarkGuid: null,
-                  colorIndex: 0
+                  Title: title,
+                  BlockType: (id != null) ? (isBible ? 2 : 1) : 1,
+                  BlockIdentifier: id,
+                  UserMarkGuid: null,
+                  ColorIndex: 0
               });
               
               addNoteWithGuid(pageCenter, paragraph, null, noteGuid.uuid, 0, isBible, true);
@@ -4821,7 +4997,7 @@ function handleExpand(itemId) {
             }
           
             await window.flutter_inappwebview.callHandler('removeNote', {
-              guid: noteGuid
+              Guid: noteGuid
             });
             
             removeDialogByNoteGuid(noteGuid);
@@ -4846,11 +5022,11 @@ function handleExpand(itemId) {
             let colorIndex = cfg.classes.findIndex(cls => blockRangeTarget.classList.contains(cls));
           
             const noteGuid = await window.flutter_inappwebview.callHandler('addNote', {
-              title: title,
-              blockType: isVerse ? 2 : 1,
-              identifier: id,
-              userMarkGuid: userMarkGuid,
-              colorIndex: colorIndex
+              Title: title,
+              BlockType: isVerse ? 2 : 1,
+              BlockIdentifier: id,
+              UserMarkGuid: userMarkGuid,
+              ColorIndex: colorIndex
             });
             
             addNoteWithGuid(
@@ -4965,6 +5141,7 @@ function handleExpand(itemId) {
           
             blockRanges = userdata.blockRanges;
             notes = userdata.notes;
+            tags = userdata.tags;
             inputFields = userdata.inputFields;
             bookmarks = userdata.bookmarks;
           
@@ -5300,7 +5477,7 @@ function handleExpand(itemId) {
              // Clic pour afficher la note
              noteIndicator.addEventListener('click', (e) => {
                  e.stopPropagation();
-                 openNoteDialog(userMarkGuid, noteGuid);
+                 openNoteDialog(noteGuid, userMarkGuid);
              });
              
              // Clic pour supprimer la note
@@ -5309,13 +5486,8 @@ function handleExpand(itemId) {
                  removeNote(noteGuid, true);
              });
            
-             // 🔑 ÉTAPE 1: Ajouter le carré au container principal IMMÉDIATEMENT
              article.appendChild(noteIndicator);
            
-             // ----------------------------------------------------------------------
-             // 🔑 ÉTAPE 2: Différer le calcul de la position au prochain cycle de rendu
-             // pour garantir la justesse des mesures du DOM.
-             // ----------------------------------------------------------------------
              setTimeout(() => {
                // Calcul de position différent si pas de firstBlockRangeElement
                if (firstBlockRangeElement) {
@@ -5354,13 +5526,13 @@ function handleExpand(itemId) {
              // ----------------------------------------------------------------------
            
              if(open) {
-               openNoteDialog(userMarkGuid, noteGuid);
+               openNoteDialog(noteGuid, userMarkGuid);
              }
            }
 
           // Fonction utilitaire pour supprimer un surlignage spécifique par son UUID
-          function removeBlockRangeByGuid(blockRangeGuid) {
-            const blockRangeElements = document.querySelectorAll(`[\${blockRangeAttr}="\${blockRangeGuid}"]`);
+          function removeBlockRangeByGuid(userMarkGuid) {
+            const blockRangeElements = document.querySelectorAll(`[\${blockRangeAttr}="\${userMarkGuid}"]`);
             blockRangeElements.forEach(element => {
               // Supprimer toutes les classes de style
               removeAllStylesClasses(element);
@@ -5369,23 +5541,23 @@ function handleExpand(itemId) {
             });
             
             window.flutter_inappwebview.callHandler('removeBlockRange', {
-              guid: blockRangeGuid,
-              showAlertDialog: true
+              UserMarkGuid: userMarkGuid,
+              ShowAlertDialog: true
             });
           }
     
           // Fonction utilitaire pour changer la couleur d'un surlignage spécifique
-          function changeBlockRangeStyle(blockRangeGuid, styleIndex, colorIndex) {
-            const blockRangeElements = pageCenter.querySelectorAll(`[\${blockRangeAttr}="\${blockRangeGuid}"]`);
-            const newClass = getStyleClass(styleIndex, colorIndex);
+          function changeBlockRangeStyle(userMarkGuid, styleIndex, colorIndex) {
+            const blockRangeElements = pageCenter.querySelectorAll(`[\${blockRangeAttr}="\${userMarkGuid}"]`);
+            const newStyleClass = getStyleClass(styleIndex, colorIndex);
             const newNoteClass = getNoteClass(colorIndex, true);
             
             blockRangeElements.forEach(element => {
               removeAllStylesClasses(element);
-              element.classList.add(newClass);
+              element.classList.add(newStyleClass);
             });
             
-            const noteElements = pageCenter.querySelectorAll(`[\${noteBlockRangeAttr}="\${blockRangeGuid}"]`);
+            const noteElements = pageCenter.querySelectorAll(`[\${noteBlockRangeAttr}="\${userMarkGuid}"]`);
             
             if (noteElements.length !== 0) {
               noteElements.forEach(element => {
@@ -5396,9 +5568,9 @@ function handleExpand(itemId) {
             
             // Appel Flutter
             window.flutter_inappwebview.callHandler('changeBlockRangeStyle', {
-              guid: blockRangeGuid,
-              newStyleIndex: styleIndex,
-              newColorIndex: colorIndex
+              UserMarkGuid: userMarkGuid,
+              StyleIndex: styleIndex,
+              ColorIndex: colorIndex
             });
           }
           
@@ -5427,9 +5599,9 @@ function handleExpand(itemId) {
             }
             
             window.flutter_inappwebview.callHandler('changeNoteColor', {
-              guid: noteGuid,
-              newStyleIndex: targetStyleIndex,
-              newColorIndex: newColorIndex
+              Guid: noteGuid,
+              StyleIndex: targetStyleIndex,
+              ColorIndex: newColorIndex
             });
           }
           
@@ -5544,9 +5716,6 @@ function handleExpand(itemId) {
             pageCenter.scrollTop = 0;
             pageCenter.scrollLeft = 0;
               
-            // Afficher la page (avec fondu)
-            window.flutter_inappwebview.callHandler('fontsLoaded');
-            
             pageCenter.classList.add('visible');
             
             const curr = cachedPages[currentIndex];
@@ -5565,9 +5734,6 @@ function handleExpand(itemId) {
             // Informer Flutter que la page principale est chargée
             await window.flutter_inappwebview.callHandler('changePageAt', currentIndex);
           
-            // Attendre que les polices soient prêtes
-            //await document.fonts.ready;
-          
             // Charger les données utilisateur (notes/bookmarks, etc.)
             await loadUserdata();
             
@@ -5580,7 +5746,9 @@ function handleExpand(itemId) {
               jumpToIdSelector('[data-pid]', 'data-pid', $startParagraphId, $endParagraphId);
             } 
             else if ($startVerseId != null && $endVerseId != null) {
-              jumpToIdSelector('.v', 'id', $startVerseId, $endVerseId);
+              const hasSameChapter = $bookNumber === $lastBookNumber && $chapterNumber === $lastChapterNumber;
+              const endIdForJump = hasSameChapter ? $endVerseId : null;
+              jumpToIdSelector('.v', 'id', $startVerseId, endIdForJump);
             }
             else if($textTag != null) {
               jumpToTextTag($textTag);
@@ -6009,8 +6177,8 @@ function handleExpand(itemId) {
                 if (firstLongPressTarget && firstTargetClassList && (firstTargetClassList.contains('word') || firstTargetClassList.contains('punctuation'))) {
                   try {
                     // GUID pour le style courant
-                    const uuid = await window.flutter_inappwebview.callHandler('getGuid');
-                    currentGuid = uuid.guid;
+                    const response = await window.flutter_inappwebview.callHandler('getGuid');
+                    currentGuid = response.Guid;
           
                     setLongPressing(true);
                     isLongTouchFix = true;
@@ -6427,9 +6595,9 @@ function handleExpand(itemId) {
           
                     // Demander à Flutter de supprimer l’ancien block range
                     window.flutter_inappwebview.callHandler('removeBlockRange', {
-                      guid: value.styleId,
-                      newGuid: currentGuid,
-                      showAlertDialog: false
+                      UserMarkGuid: value.styleId,
+                      NewUserMarkGuid: currentGuid,
+                      ShowAlertDialog: false
                     });
                   }
                 });
@@ -6496,20 +6664,20 @@ function handleExpand(itemId) {
                 }
           
                 blockRangesToSend.push({
-                  blockType: isVerse ? 2 : 1,
-                  identifier: pid,
-                  startToken: Math.min(startIdx, endIdx),
-                  endToken: Math.max(startIdx, endIdx),
+                  BlockType: isVerse ? 2 : 1,
+                  Identifier: pid,
+                  StartToken: Math.min(startIdx, endIdx),
+                  EndToken: Math.max(startIdx, endIdx),
                 });
               }
           
               // Envoi unique à Flutter
               await window.flutter_inappwebview.callHandler(
-                'addBlockRange',
-                blockRangesToSend,
+                'addBlockRanges',
+                currentGuid,
                 finalStyleIndex,
                 finalColorIndex,
-                currentGuid
+                blockRangesToSend
               );
           
               // Nettoyage final du cache
@@ -6731,7 +6899,7 @@ function handleExpand(itemId) {
           
           // Gestionnaire touchstart modifié pour détecter 2 doigts
           container.addEventListener('touchstart', (e) => {
-            if (isLongPressing || isPreparingMode) return;
+            if (isLongPressing || isBlockingHorizontallyMode) return;
             
             document.querySelectorAll('.options-menu, .color-menu').forEach(el => el.remove());
             
@@ -6745,7 +6913,7 @@ function handleExpand(itemId) {
           
           // Gestionnaire touchmove modifié
           const handleContainerTouchMove = throttle((e) => {
-            if (isLongPressing || !isDragging || isPreparingMode) {
+            if (isLongPressing || !isDragging || isBlockingHorizontallyMode) {
               return;
             }
             
@@ -6780,7 +6948,7 @@ function handleExpand(itemId) {
               return;
             }
             
-            if(isPreparingMode) return;
+            if(isBlockingHorizontallyMode) return;
 
             if (!isDragging) return;
             

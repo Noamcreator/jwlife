@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:html/dom.dart' as html_dom;
+import 'package:jwlife/app/jwlife_app_bar.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/widgets/image_cached_widget.dart';
+
+import '../../../../../app/app_page.dart';
 
 class PublicationMediaItemsView extends StatefulWidget {
   final String document;
@@ -49,9 +52,9 @@ class _PublicationMediaItemsViewState extends State<PublicationMediaItemsView> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Voir les médias'),
+    return AppPage(
+      appBar: JwLifeAppBar(
+        title: 'Voir les médias',
       ),
       body: ListView.builder(
         itemCount: _mediaItems.length,

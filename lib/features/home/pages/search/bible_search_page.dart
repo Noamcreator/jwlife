@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 
+import '../../../../app/app_page.dart';
 import '../../../../core/api/api.dart';
 import '../../../../core/utils/utils.dart';
 import '../../../../widgets/searchfield/searchfield_with_suggestions/decoration.dart';
@@ -99,7 +100,7 @@ class _SearchBiblePageState extends State<SearchBiblePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return AppPage(
       appBar: AppBar(
         title: Text('Recherche Biblique'),
       ),

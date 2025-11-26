@@ -10,14 +10,15 @@ import 'package:jwlife/data/models/publication_attribute.dart';
 import 'package:jwlife/data/models/publication_category.dart';
 import 'package:jwlife/data/models/meps_language.dart';
 import 'package:jwlife/features/publication/pages/document/local/dated_text_manager.dart';
-import 'package:jwlife/core/utils/utils_dialog.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../core/app_data/app_data_service.dart';
 import '../../app/services/global_key_service.dart';
 import '../../app/services/notification_service.dart';
 import '../../app/services/settings_service.dart';
 import '../../core/api/api.dart';
-import '../../core/jworg_uri.dart';
+import '../../core/app_data/meetings_pubs_service.dart';
+import '../../core/uri/jworg_uri.dart';
 import '../../core/shared_preferences/shared_preferences_utils.dart';
 import '../../core/utils/utils_document.dart';
 import '../../features/publication/models/menu/local/words_suggestions_model.dart';
@@ -152,7 +153,7 @@ class Publication {
       return existing;
     }
 
-    MepsLanguage mepsLanguage = json['LanguageSymbol'] != null ? MepsLanguage.fromJson(json) : JwLifeSettings().currentLanguage;
+    MepsLanguage mepsLanguage = json['LanguageSymbol'] != null ? MepsLanguage.fromJson(json) : JwLifeSettings.instance.currentLanguage.value;
 
     // Sinon, en créer une nouvelle
     Publication publication = Publication(
@@ -211,7 +212,7 @@ class Publication {
       hasCommentary: json['VerseCommentary'] == 1,
 
       isDownloadedNotifier: ValueNotifier(json['Hash'] != null && json['DatabasePath'] != null && json['Path'] != null),
-      isFavoriteNotifier: ValueNotifier(isFavorite ?? JwLifeApp.userdata.favorites.any((p) => p is Publication && (p.keySymbol == keySymbol && p.mepsLanguage.id == mepsLanguageId && p.issueTagNumber == issueTagNumber))),
+      isFavoriteNotifier: ValueNotifier(isFavorite ?? AppDataService.instance.favorites.value.any((p) => p is Publication && (p.keySymbol == keySymbol && p.mepsLanguage.id == mepsLanguageId && p.issueTagNumber == issueTagNumber))),
     );
 
     PublicationRepository().addPublication(publication);
@@ -237,7 +238,7 @@ class Publication {
   }
 
   Future<void> notifyDownload(String title) async {
-    if(JwLifeSettings().notificationDownload) {
+    if(JwLifeSettings.instance.notificationDownload) {
       // Notification de fin avec bouton "Ouvrir"
       await NotificationService().showCompletionNotification(
           id: hashCode,
@@ -292,12 +293,11 @@ class Publication {
           if (category.id == 1) {
             if(!hasBible) {
               String bibleKey = pubDownloaded.getKey();
-              JwLifeSettings().lookupBible = bibleKey;
-              setLookUpBible(bibleKey);
+              JwLifeSettings.instance.lookupBible.value = bibleKey;
+              AppSharedPreferences.instance.setLookUpBible(bibleKey);
             }
 
-            JwLifeSettings().webViewData.addBibleToBibleSet(this);
-            GlobalKeyService.bibleKey.currentState?.refreshBiblePage();
+            JwLifeSettings.instance.webViewData.addBibleToBibleSet(this);
           }
 
           progressNotifier.value = 1.0;
@@ -444,24 +444,21 @@ class Publication {
       }
 
       // Application unique des mises à jour pour éviter la duplication de code
-      JwLifeSettings().lookupBible = bibleKeyToUse;
-      setLookUpBible(bibleKeyToUse);
+      JwLifeSettings.instance.lookupBible.value = bibleKeyToUse;
+      AppSharedPreferences.instance.setLookUpBible(bibleKeyToUse);
 
-      JwLifeSettings().webViewData.removeBibleFromBibleSet(this);
-
-      GlobalKeyService.bibleKey.currentState?.refreshBiblePage();
+      JwLifeSettings.instance.webViewData.removeBibleFromBibleSet(this);
     }
 
     if(keySymbol == 'S-34') {
-      GlobalKeyService.workShipKey.currentState?.refreshMeetingsPubs();
+      refreshPublicTalks();
     }
     
     // on cherche si la publication est dans le catalogue
-    String? keySymbolString = await PubCatalog.getKeySymbolFromCatalogue(symbol, issueTagNumber, mepsLanguage.id);
+    String? keySymbolString = await CatalogDb.instance.getKeySymbolFromCatalogue(symbol, issueTagNumber, mepsLanguage.id);
     if(keySymbolString == null) {
       // on enlève du repository
       PublicationRepository().removePublication(this);
-      GlobalKeyService.homeKey.currentState!.refreshFavorites();
     }
   }
 

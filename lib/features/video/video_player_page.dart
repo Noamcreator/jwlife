@@ -13,6 +13,7 @@ import 'package:jwlife/data/databases/history.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:video_player/video_player.dart';
 
+import '../../app/app_page.dart';
 import '../../app/services/global_key_service.dart';
 import '../../core/api/api.dart';
 import '../../core/utils/utils_playlist.dart';
@@ -183,12 +184,12 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
   void _startControlsTimer() {
     _timer?.cancel();
 
-    int currentNavBarIndex = GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex;
+    int currentNavBarIndex = GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex.value;
 
     if (_controller != null && _controller!.value.isPlaying) {
       _timer = Timer(const Duration(seconds: 2), () {
         if (mounted) {
-          if(currentNavBarIndex == GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex) {
+          if(currentNavBarIndex == GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex.value) {
             _controlsVisibleNotifier.value = false;
             GlobalKeyService.jwLifePageKey.currentState!.toggleNavBarVisibility(false);
           }
@@ -939,7 +940,8 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
           _activePointers = 0;
           _isDragging = false;
         },
-        child: Scaffold(
+        child: AppPage(
+          isWebview: true,
           backgroundColor: const Color(0xFF121212),
           body: Stack(
             children: [
@@ -1135,7 +1137,8 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
                       child: AppBar(
                         backgroundColor: Colors.transparent,
                         elevation: 0,
-                        titleSpacing: 2,
+                        titleSpacing: 0,
+                        actionsPadding: const EdgeInsets.only(left: 10, right: 5),
                         title: ValueListenableBuilder<double>(
                             valueListenable: _speedNotifier,
                             builder: (context, speed, _) {
@@ -1143,7 +1146,7 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
                             }
                         ),
                         leading: IconButton(
-                          icon: const Icon(Icons.arrow_back, color: Colors.white),
+                          icon: const Icon(JwIcons.chevron_left, color: Colors.white),
                           onPressed: () {
                             GlobalKeyService.jwLifePageKey.currentState?.handleBack(context);
                           },

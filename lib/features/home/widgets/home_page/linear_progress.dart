@@ -1,35 +1,24 @@
 import 'package:flutter/material.dart';
+import '../../../../core/app_data/app_data_service.dart';
 
-class LinearProgress extends StatefulWidget {
+class LinearProgress extends StatelessWidget {
   const LinearProgress({super.key});
 
   @override
-  State<LinearProgress> createState() => LinearProgressState();
-}
-
-class LinearProgressState extends State<LinearProgress> {
-  bool _isRefreshing = false;
-
-  bool get isRefreshing => _isRefreshing;
-
-  void startRefreshing() {
-    setState(() {
-      _isRefreshing = true;
-    });
-  }
-
-  void stopRefreshing() {
-    setState(() {
-      _isRefreshing = false;
-    });
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return _isRefreshing ? SizedBox(
-      height: 2.5,
-      child: LinearProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).primaryColor), backgroundColor: Colors.grey[300])
-    )
-    : const SizedBox(height: 0);
+    return ValueListenableBuilder<bool>(
+      valueListenable: AppDataService.instance.isRefreshing,
+      builder: (context, isRefreshing, child) {
+        return isRefreshing
+            ? SizedBox(
+          height: 2,
+          child: LinearProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).primaryColor),
+            backgroundColor: Colors.transparent,
+          ),
+        )
+            : const SizedBox(height: 0);
+      },
+    );
   }
 }

@@ -1,14 +1,20 @@
 import 'package:diacritic/diacritic.dart';
 import 'package:flutter/material.dart';
-import 'dart:async'; // 👈 NOUVEL IMPORT
+import 'dart:async';
 import 'package:jwlife/app/jwlife_app.dart';
+import 'package:jwlife/app/jwlife_app_bar.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/core/utils/utils_tag_dialogs.dart';
+import 'package:jwlife/data/controller/tags_controller.dart';
 import 'package:jwlife/data/databases/history.dart';
 import 'package:jwlife/data/models/userdata/tag.dart';
 import 'package:jwlife/data/models/userdata/note.dart';
 import 'package:jwlife/features/personal/pages/tag_page.dart';
+import 'package:jwlife/widgets/responsive_appbar_actions.dart';
+import 'package:provider/provider.dart';
+import '../../../app/app_page.dart';
+import '../../../data/controller/notes_controller.dart';
 import '../../../i18n/i18n.dart';
 import '../widgets/note_item_widget.dart';
 import 'note_page.dart';
@@ -23,7 +29,6 @@ class NotesTagsPage extends StatefulWidget {
 
 class _NotesTagsPageState extends State<NotesTagsPage> {
   List<Tag> filteredTags = [];
-  List<Note> allNotes = [];
   List<Note> filteredNotes = [];
   String searchQuery = ''; // Terme de recherche à mettre en évidence
   bool showAllCategories = false; // Pour afficher toutes les catégories
@@ -34,7 +39,6 @@ class _NotesTagsPageState extends State<NotesTagsPage> {
   @override
   void initState() {
     super.initState();
-    init();
   }
 
   @override
@@ -43,77 +47,22 @@ class _NotesTagsPageState extends State<NotesTagsPage> {
     super.dispose();
   }
 
-  void init() async {
-    // Constante pour la taille du lot
-    const batchSize = 2000;
-    int offset = 0;
-    bool moreNotes = true;
-    List<Note> allFetchedNotes = [];
-
-    // Début de la boucle de chargement
-    while (moreNotes) {
-      // 1. Récupération du lot de notes
-      final notesBatch = await JwLifeApp.userdata.getNotes(
-          limit: batchSize,
-          offset: offset
-      );
-
-      if (notesBatch.isEmpty) {
-        // 2. Fin de la récupération si le lot est vide
-        moreNotes = false;
-      } else {
-        // 3. Ajout des notes récupérées à la liste complète
-        allFetchedNotes.addAll(notesBatch);
-
-        // 4. MISE À JOUR DE L'ÉTAT DE L'UI APRÈS CHAQUE LOT
-        // Cela rafraîchit la liste avec les notes nouvellement chargées.
-        setState(() {
-          // Il est souvent préférable de créer une nouvelle liste
-          // pour s'assurer que Flutter détecte le changement.
-          allNotes = List.from(allFetchedNotes);
-          // Si les filtres/tags n'ont pas encore été chargés, faites-le ici
-          if (filteredTags.isEmpty) {
-            filteredTags = JwLifeApp.userdata.tags;
-          }
-          filteredNotes = allNotes;
-        });
-
-        // 5. Préparation pour le prochain lot
-        offset += batchSize;
-      }
-    }
-
-    // NOTE : Un setState final n'est plus strictement nécessaire ici,
-    // car le dernier lot (même s'il est incomplet) aura déclenché un setState.
-    // Cependant, le laisser ne fait pas de mal.
-  }
-
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-        resizeToAvoidBottomInset: false,
-        appBar: AppBar(
-          leading: IconButton(
-            icon: Icon(Icons.arrow_back),
-            onPressed: () {
-              Navigator.pop(context);
-            },
-          ),
-          title: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(i18n().navigation_notes_and_tag),
-              Text(
-                i18n().label_tags_and_notes(filteredTags.length, filteredNotes.length),
-                style: TextStyle(fontSize: 12),
-                maxLines: 2,
-              ),
-            ],
-          ),
-          actions: <Widget>[
-            IconButton(
+    final notesController = context.watch<NotesController>();
+    final tagsController  = context.watch<TagsController>();
+
+    filteredNotes = searchQuery.isEmpty ? notesController.getNotes() : filteredNotes;
+    filteredTags = searchQuery.isEmpty ? tagsController.tags : filteredTags;
+
+    return AppPage(
+        appBar: JwLifeAppBar(
+          title: i18n().navigation_notes_and_tag,
+          subTitle: i18n().label_tags_and_notes(filteredTags.length, filteredNotes.length),
+          actions: [
+            IconTextButton(
               icon: Icon(JwIcons.note_plus),
-              onPressed: () async {
+              onPressed: (BuildContext context) async {
                 Note? note = await JwLifeApp.userdata.addNote("", "", 0, [], null, null, null, null, null, null);
                 if (note != null) {
                   await showPage(NotePage(note: note));
@@ -123,25 +72,22 @@ class _NotesTagsPageState extends State<NotesTagsPage> {
                 }
               },
             ),
-            IconButton(
+            IconTextButton(
               icon: Icon(JwIcons.tag_plus),
-              onPressed: () async {
+              onPressed: (BuildContext context) async {
                 await showAddTagDialog(context, false);
-                setState(() {
-                  filteredTags = JwLifeApp.userdata.tags;
-                });
               },
             ),
-            IconButton(
+            IconTextButton(
               icon: Icon(JwIcons.arrow_circular_left_clock),
-              onPressed: () {
+              onPressed: (BuildContext context) {
                 History.showHistoryDialog(context);
               },
             ),
           ],
         ),
         body: Scrollbar(
-          interactive: true,
+          interactive: false,
           child: CustomScrollView(
             physics: ClampingScrollPhysics(),
             slivers: [
@@ -149,6 +95,7 @@ class _NotesTagsPageState extends State<NotesTagsPage> {
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   child: TextField(
+                    keyboardType: TextInputType.text,
                     // 🌟 LOGIQUE DE DEBOUNCING APPLIQUÉE ICI
                     onChanged: (value) {
                       // 1. Mettre à jour la valeur de recherche immédiatement
@@ -158,19 +105,19 @@ class _NotesTagsPageState extends State<NotesTagsPage> {
                       if (_debounce?.isActive ?? false) _debounce!.cancel();
 
                       // 3. Démarrer un nouveau timer
-                      _debounce = Timer(const Duration(milliseconds: 300), () {
+                      _debounce = Timer(const Duration(milliseconds: 200), () {
                         // Exécuter le filtrage seulement après l'arrêt de la saisie
                         final normalizedQuery = removeDiacritics(searchQuery.toLowerCase());
 
                         setState(() {
                           // 4. Filtrer les Tags
-                          filteredTags = JwLifeApp.userdata.tags.where((tag) {
+                          filteredTags = tagsController.tags.where((tag) {
                             final normalizedTagName = removeDiacritics(tag.name.toLowerCase());
                             return normalizedTagName.contains(normalizedQuery);
                           }).toList();
 
                           // 5. Filtrer les Notes
-                          filteredNotes = allNotes.where((note) {
+                          filteredNotes = notesController.getNotes().where((note) {
                             final normalizedTitle = note.title != null
                                 ? removeDiacritics(note.title!.toLowerCase())
                                 : '';
@@ -186,9 +133,24 @@ class _NotesTagsPageState extends State<NotesTagsPage> {
                       });
                     },
                     decoration: InputDecoration(
+                      isDense: true,
                       hintText: i18n().search_bar_search,
-                      prefixIcon: Icon(Icons.search),
+                      hintStyle: TextStyle(color: Colors.grey),
+                      prefixIcon: Icon(Icons.search, color: Colors.grey),
+                      contentPadding: EdgeInsets.all(10),
+                      visualDensity: VisualDensity.compact,
+                      border: UnderlineInputBorder(
+                        borderSide: BorderSide(color: Colors.grey),
+                      ),
+                      enabledBorder: UnderlineInputBorder(
+                        borderSide: BorderSide(color: Colors.grey),
+                      ),
+                      focusedBorder: UnderlineInputBorder(
+                        borderSide: BorderSide(color: Colors.grey), // reste gris même en focus
+                      ),
                     ),
+                    cursorColor: Colors.grey, // couleur du curseur si tu veux
+                    style: TextStyle(color: Colors.white), // texte blanc si fond noir
                   ),
                 ),
               ),
@@ -204,9 +166,6 @@ class _NotesTagsPageState extends State<NotesTagsPage> {
                         return ElevatedButton(
                           onPressed: () async {
                             await showPage(TagPage(tag: category));
-                            setState(() {
-                              filteredTags = JwLifeApp.userdata.tags;
-                            });
                           },
                           style: ButtonStyle(
                             minimumSize: MaterialStateProperty.all<Size>(Size(0, 30)),
@@ -229,7 +188,7 @@ class _NotesTagsPageState extends State<NotesTagsPage> {
                             ),
                           ),
                         );
-                      }).toList(),
+                      }),
                       // Bouton "Mes X catégories" ou "Réduire"
                       if (filteredTags.length > 10)
                         ElevatedButton(
@@ -286,7 +245,7 @@ class _NotesTagsPageState extends State<NotesTagsPage> {
                     final note = filteredNotes[index];
 
                     return _KeepAliveNoteItem(
-                      key: ValueKey('note_${note.noteId}'),
+                      key: ValueKey('note_${note.guid}'),
                       note: note,
                       onUpdated: () => setState(() {}),
                       // 🌟 TRANSMISSION du terme de recherche au widget enfant

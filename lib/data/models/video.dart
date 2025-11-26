@@ -1,9 +1,7 @@
-import 'dart:convert';
-
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:jwlife/data/realm/catalog.dart';
-import '../../app/jwlife_app.dart';
+import '../../core/app_data/app_data_service.dart';
 import '../../app/services/settings_service.dart';
 import '../../core/api/api.dart';
 import '../../core/utils/common_ui.dart';
@@ -68,7 +66,7 @@ class Video extends Media {
     final issueTagNumber = json?['IssueTagNumber'] ?? mediaItem?.issueDate;
     final track = json?['Track'] ?? mediaItem?.track;
 
-    final mepsLanguage = json?['MepsLanguage'] ?? mediaItem?.languageSymbol ?? JwLifeSettings().currentLanguage.symbol;
+    final mepsLanguage = json?['MepsLanguage'] ?? mediaItem?.languageSymbol ?? JwLifeSettings.instance.currentLanguage.value.symbol;
 
     mediaItem ??= getMediaItem(keySymbol, track, documentId, issueTagNumber, mepsLanguage, isVideo: true);
 
@@ -129,7 +127,7 @@ class Video extends Media {
       isDownloadedNotifier: ValueNotifier((json?['FilePath'] != null) && ((json?['FileSize'] ?? 0) > 0)),
       isFavoriteNotifier: ValueNotifier(
         isFavorite ??
-            JwLifeApp.userdata.favorites.any(
+            AppDataService.instance.favorites.value.any(
                   (fav) =>
               fav is Video &&
                   fav.keySymbol == keySymbol &&

@@ -1,45 +1,34 @@
 import 'package:flutter/material.dart';
 import 'package:jwlife/data/models/media.dart';
-import 'package:jwlife/data/realm/realm_library.dart';
+import 'package:jwlife/widgets/mediaitem_item_widget.dart';
+import '../../../../core/app_data/app_data_service.dart';
 
-import '../../../../widgets/mediaitem_item_widget.dart';
-
-class LatestMediasSection extends StatefulWidget {
+class LatestMediasSection extends StatelessWidget {
   const LatestMediasSection({super.key});
 
   @override
-  State<LatestMediasSection> createState() => LatestMediasSectionState();
-}
-
-class LatestMediasSectionState extends State<LatestMediasSection> {
-  List<Media> _latestMedias = [];
-
-  void refreshLatestMedias() {
-    setState(() {
-      _latestMedias = RealmLibrary.loadLatestMedias();
-    });
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return _latestMedias.isEmpty ? const SizedBox.shrink() : Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
+    return ValueListenableBuilder<List<Media>>(
+      valueListenable: AppDataService.instance.latestMedias,
+      builder: (context, latestMedias, _) {
+        if (latestMedias.isEmpty) return const SizedBox.shrink();
+
+        return SizedBox(
           height: 140,
           child: ListView.builder(
-            padding: const EdgeInsets.all(0.0),
+            padding: EdgeInsets.zero,
             scrollDirection: Axis.horizontal,
-            itemCount: _latestMedias.length,
-            itemBuilder: (context, mediaIndex) {
+            itemCount: latestMedias.length,
+            itemBuilder: (context, index) {
+              final media = latestMedias[index];
               return MediaItemItemWidget(
-                  media: _latestMedias[mediaIndex],
-                  timeAgoText: true
+                media: media,
+                timeAgoText: true,
               );
             },
           ),
-        ),
-      ],
+        );
+      },
     );
   }
 }

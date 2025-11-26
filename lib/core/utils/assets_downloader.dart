@@ -14,7 +14,7 @@ class AssetsDownload {
   static Future<void> download() async {
     final directory = await getAppFilesDirectory();
     final webappDir = Directory('${directory.path}/webapp_assets');
-    final webappVersion = await getWebAppVersion();
+    final webappVersion = AppSharedPreferences.instance.getWebAppVersion();
     String webappVersionServer = '0.0.0';
     String webappfileNameServer = 'webapp_assets.zip';
 
@@ -44,7 +44,7 @@ class AssetsDownload {
         if (response.statusCode == 200) {
           printTime('Extracting webapp...');
           await extractWebAppZip(webappDir, response.data);
-          await setWebAppVersion(webappVersionServer);
+          await AppSharedPreferences.instance.setWebAppVersion(webappVersionServer);
           printTime('webapp downloaded');
         }
         else {

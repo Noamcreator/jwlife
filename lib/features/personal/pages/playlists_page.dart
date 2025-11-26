@@ -2,9 +2,12 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:jwlife/app/jwlife_app.dart';
+import 'package:jwlife/app/jwlife_app_bar.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/features/personal/pages/playlist_page.dart';
+import 'package:jwlife/widgets/responsive_appbar_actions.dart';
+import '../../../app/app_page.dart';
 import '../../../core/utils/utils_playlist.dart';
 import '../../../core/utils/utils_tag_dialogs.dart';
 import '../../../data/models/userdata/playlist.dart';
@@ -41,48 +44,25 @@ class _PlaylistsPageState extends State<PlaylistsPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      resizeToAvoidBottomInset: false,
-      appBar: AppBar(
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back),
-          onPressed: () {
-            Navigator.pop(context);
-          },
-        ),
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(i18n().navigation_playlists),
-            Text(
-              i18n().label_playlist_items(filteredPlaylists.length),
-              style: TextStyle(fontSize: 12),
-              maxLines: 2,
-            ),
-          ],
-        ),
-        actions: <Widget>[
-          PopupMenuButton<void>(
-            icon: Icon(
-              JwIcons.plus,
-              color: Theme.of(context).primaryColor,
-              size: 25,
-            ),
-            itemBuilder: (ctx) => [
-              PopupMenuItem<void>(
-                child: Text(i18n().action_create_a_playlist),
-                onTap: () async {
-                  await showAddTagDialog(context, true);
-                  init();
-                },
-              ),
-              PopupMenuItem<void>(
-                child: Text(i18n().action_import_playlist),
-                onTap: () async {
-                  await importPlaylist(context);
-                },
-              ),
-            ],
+    return AppPage(
+      appBar: JwLifeAppBar(
+        title: i18n().navigation_playlists,
+        subTitle: i18n().label_playlist_items(filteredPlaylists.length),
+        actions: [
+          IconTextButton(
+            icon: Icon(JwIcons.plus),
+            text: i18n().action_create_a_playlist,
+            onPressed: (BuildContext context) async {
+              await showAddTagDialog(context, true);
+              init();
+            },
+          ),
+          IconTextButton(
+            icon: Icon(JwIcons.document),
+            text: i18n().action_import_playlist,
+            onPressed: (BuildContext context) async {
+              await importPlaylist(context);
+            },
           )
         ],
       ),

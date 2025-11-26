@@ -161,7 +161,6 @@
   "action_playlist_end_continue": "Continuar",
   "action_playlist_end_freeze": "Pausar",
   "action_playlist_end_stop": "Parar",
-  "action_preparing_mode": "Modo Preparação",
   "action_previous": "Anterior",
   "action_reading_mode": "Modo leitura",
   "action_refresh": "Atualizar",
@@ -907,5 +906,6 @@
   "action_public_talk_remove": "Eliminar discurso",
   "action_congregations": "Assembleias Locais",
   "action_meeting_management": "Planejamento das Reuniões",
-  "action_brothers_and_sisters": "Irmãos e Irmãs"
+  "action_brothers_and_sisters": "Irmãos e Irmãs",
+  "action_blocking_horizontally_mode": "Bloqueio Horizontal"
 }

@@ -14,7 +14,7 @@ class Mepsunit {
       final mepsUnit = await openReadOnlyDatabase(mepsFile.path);
 
       try {
-        List<Map<String, dynamic>> result = await mepsUnit.rawQuery("SELECT * FROM BibleCluesInfo WHERE LanguageId = ${JwLifeSettings().currentLanguage.id}");
+        List<Map<String, dynamic>> result = await mepsUnit.rawQuery("SELECT * FROM BibleCluesInfo WHERE LanguageId = ${JwLifeSettings.instance.currentLanguage.value.id}");
         List<Map<String, dynamic>> result2 = await mepsUnit.rawQuery("SELECT * FROM BibleBookName WHERE BibleCluesInfoId = ${result[0]['BibleCluesInfoId']}");
 
         List<BibleBookName> bibleBookNames = result2.map((book) => BibleBookName.fromJson(book)).toList();

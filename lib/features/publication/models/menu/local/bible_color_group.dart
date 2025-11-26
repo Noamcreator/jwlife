@@ -3,7 +3,7 @@ import 'package:jwlife/app/services/settings_service.dart';
 
 class BibleColorGroup {
   static Color getGroupColorAt(int groupId) {
-    final bibleColor = JwLifeSettings().bibleColor;
+    final bibleColor = JwLifeSettings.instance.bibleColor;
 
     // Vous pouvez ajuster les couleurs selon le groupId
     switch (groupId) {

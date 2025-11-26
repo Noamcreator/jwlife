@@ -521,7 +521,7 @@ Future<bool> showCustomizeVersesDialog(BuildContext context) async {
     // L'utilisateur a cliqué sur 'TERMINÉ'
 
     // 1. Mise à jour des données (sauvegarde de la nouvelle liste ordonnée)
-    JwLifeSettings().webViewData.updateBiblesSet(result);
+    JwLifeSettings.instance.webViewData.updateBiblesSet(result);
 
     // 2. Vérification s'il y a eu un changement (ajout, suppression ou changement d'ordre)
     final resultKeys = result.map((p) => p.getKey()).toList();

@@ -3,12 +3,14 @@ import 'dart:typed_data';
 
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:jwlife/app/jwlife_app.dart';
-import 'package:jwlife/app/jwlife_page.dart';
 import 'package:jwlife/app/services/global_key_service.dart';
-import 'package:jwlife/core/jworg_uri.dart';
+import 'package:jwlife/core/uri/jworg_uri.dart';
+import 'package:jwlife/data/controller/block_ranges_controller.dart';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/databases/history.dart';
+import 'package:jwlife/data/models/userdata/block_range.dart';
 import 'package:jwlife/data/models/userdata/bookmark.dart';
+import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:sqflite/sqflite.dart';
 
@@ -64,12 +66,8 @@ class Document {
 
   List<Multimedia> multimedias;
   List<Map<String, dynamic>> svgs = [];
-  List<Map<String, dynamic>> blockRanges = [];
-  List<Map<String, dynamic>> notes = [];
   List<Map<String, dynamic>> inputFields = [];
   List<Map<String, dynamic>> bookmarks = [];
-
-  List<Map<String, dynamic>> extractedNotes = [];
 
   bool hasAlreadyBeenRead = false;
 
@@ -171,6 +169,9 @@ class Document {
   }
 
   Future<void> changePageAt(int? startBlockIdentifier, int? endBlockIdentifier) async {
+    if(!hasAlreadyBeenRead) {
+      await loadUserdata();
+    }
     if (isBibleChapter()) {
       History.insertBibleChapter(displayTitle, publication, bookNumber!, chapterNumber!, startBlockIdentifier, endBlockIdentifier);
     }
@@ -181,9 +182,6 @@ class Document {
       History.insertDocument(title, publication, mepsDocumentId, startBlockIdentifier, endBlockIdentifier);
     }
 
-    if(!hasAlreadyBeenRead) {
-      await loadUserdata();
-    }
     hasAlreadyBeenRead = true;
   }
 
@@ -252,31 +250,33 @@ class Document {
   }
 
   Future<void> loadUserdata() async {
-    List<List<Map<String, dynamic>>> results;
+    List<dynamic> results;
+    final context = GlobalKeyService.jwLifePageKey.currentContext!;
+
+    List<BlockRange> blockRanges = context.read<BlockRangesController>().blockRanges;
+
     if(isBibleChapter()) {
       results = await Future.wait([
         JwLifeApp.userdata.getBlockRangesFromChapterNumber(bookNumber!, chapterNumberBible!, publication.keySymbol, mepsLanguageId),
-        JwLifeApp.userdata.getNotesFromChapterNumber(bookNumber!, chapterNumberBible!, publication.keySymbol, mepsLanguageId),
         JwLifeApp.userdata.getBookmarksFromChapterNumber(bookNumber!, chapterNumberBible!, publication.keySymbol),
       ]);
 
-      blockRanges = results[0].map((item) => Map<String, dynamic>.from(item)).toList();
-      notes = results[1].map((item) => Map<String, dynamic>.from(item)).toList();
-      bookmarks = results[2].map((item) => Map<String, dynamic>.from(item)).toList();
+      blockRanges = results[0];
+      bookmarks = results[1];
     }
     else {
       results = await Future.wait([
         JwLifeApp.userdata.getBlockRangesFromDocumentId(mepsDocumentId, mepsLanguageId),
-        JwLifeApp.userdata.getNotesFromDocumentId(mepsDocumentId, mepsLanguageId),
         JwLifeApp.userdata.getInputFieldsFromDocumentId(mepsDocumentId),
         JwLifeApp.userdata.getBookmarksFromDocumentId(mepsDocumentId, mepsLanguageId),
       ]);
 
-      blockRanges = results[0].map((item) => Map<String, dynamic>.from(item)).toList();
-      notes = results[1].map((item) => Map<String, dynamic>.from(item)).toList();
-      inputFields = results[2].map((item) => Map<String, dynamic>.from(item)).toList();
-      bookmarks = results[3].map((item) => Map<String, dynamic>.from(item)).toList();
+      blockRanges = results[0];
+      inputFields = results[1];
+      bookmarks = results[2];
     }
+
+    context.read<BlockRangesController>().loadBlockRanges(blockRanges);
   }
 
   Future<dynamic> getImagePathFromDatabase(String url, {bool returnFile = false}) async {
@@ -287,7 +287,8 @@ class Document {
 
     // Si une correspondance est trouvée, retourne le chemin
     if (result.isNotEmpty) {
-      File file = File('${publication.path}/${result.first['FilePath']}');
+      String path = publication.getFullPath(result.first['FilePath']);
+      File file = File(path);
 
       if(returnFile) {
         return file;
@@ -382,155 +383,6 @@ class Document {
         item['BlockType'] == bookmark.blockType &&
         item['BlockIdentifier'] == bookmark.blockIdentifier
     );
-  }
-
-  Future<void> addBlockRange(List<dynamic> blockRangeParagraphs, int styleIndex, int colorIndex, String uuid) async {
-    for(dynamic blockRange in blockRangeParagraphs) {
-      blockRanges.add({
-        'UserMarkGuid': uuid,
-        'ColorIndex': colorIndex,
-        'StyleIndex': styleIndex,
-        'BlockType': blockRange['blockType'],
-        'Identifier': int.parse(blockRange['identifier'].toString()),
-        'StartToken': blockRange['startToken'],
-        'EndToken': blockRange['endToken']
-      });
-    }
-
-    await JwLifeApp.userdata.addBlockRangesToDocument(publication, this, blockRangeParagraphs, styleIndex, colorIndex, uuid);
-  }
-
-  Future<void> removeBlockRange(String uuid) async {
-    blockRanges.removeWhere((blockRange) => blockRange['UserMarkGuid'] == uuid);
-    await JwLifeApp.userdata.removeBlockRangeWithGuid(uuid);
-
-    // Actualiser la page des notes
-    GlobalKeyService.personalKey.currentState?.refreshUserdata();
-
-    // Actualiser la page des notes
-    GlobalKeyService.personalKey.currentState?.refreshUserdata();
-  }
-
-  Future<void> changeBlockRangeStyle(String uuid, int styleIndex, int colorIndex) async {
-    blockRanges.where((blockRange) => blockRange['UserMarkGuid'] == uuid).forEach((blockRange) {
-      blockRange['ColorIndex'] = colorIndex;
-      blockRange['StyleIndex'] = styleIndex;
-    });
-
-    notes.where((note) => note['UserMarkGuid'] == uuid).forEach((note) {
-      note['ColorIndex'] = colorIndex;
-      note['StyleIndex'] = styleIndex;
-    });
-
-    await JwLifeApp.userdata.changeBlockRangeStyleWithGuid(uuid, styleIndex, colorIndex);
-
-    // Actualiser la page des notes
-    GlobalKeyService.personalKey.currentState?.refreshUserdata();
-  }
-
-  Future<void> addNoteWithUserMarkGuid(int blockType, int identifier, String title, String uuid, String? userMarkGuid, int styleIndex, int colorIndex) async {
-    notes.add({
-      'Guid': uuid,
-      'Title': title,
-      'Content': '',
-      'BlockType': blockType,
-      'BlockIdentifier': identifier,
-      'UserMarkGuid': userMarkGuid,
-      'ColorIndex': colorIndex,
-      'StyleIndex': styleIndex,
-    });
-    await JwLifeApp.userdata.addNoteToDocId(publication, this, blockType, identifier, title, uuid, userMarkGuid);
-
-    // Actualiser la page des notes
-    GlobalKeyService.personalKey.currentState?.refreshUserdata();
-  }
-
-  Future<void> removeNote(String noteGuid) async {
-    notes.removeWhere((note) => note['Guid'] == noteGuid);
-    extractedNotes.removeWhere((note) => note['Guid'] == noteGuid);
-    await JwLifeApp.userdata.removeNoteWithGuid(noteGuid);
-
-    // Actualiser la page des notes
-    GlobalKeyService.personalKey.currentState?.refreshUserdata();
-  }
-
-  Future<void> updateNote(String noteGuid, String title, String content) async {
-    notes.where((note) => note['Guid'] == noteGuid).forEach((note) {
-      note['Title'] = title;
-      note['Content'] = content;
-    });
-
-    extractedNotes.where((note) => note['Guid'] == noteGuid).forEach((note) {
-      note['Title'] = title;
-      note['Content'] = content;
-    });
-
-    await JwLifeApp.userdata.updateNoteWithGuid(noteGuid, title, content);
-  }
-
-  Future<void> changeNoteUserMark(String noteGuid, String userMarkGuid, int styleIndex, int colorIndex) async {
-    notes.where((note) => note['Guid'] == noteGuid).forEach((note) {
-      note['UserMarkGuid'] = userMarkGuid;
-      note['StyleIndex'] = styleIndex;
-      note['ColorIndex'] = colorIndex;
-    });
-
-    extractedNotes.where((note) => note['Guid'] == noteGuid).forEach((note) {
-      note['UserMarkGuid'] = userMarkGuid;
-      note['StyleIndex'] = styleIndex;
-      note['ColorIndex'] = colorIndex;
-    });
-
-    await JwLifeApp.userdata.changeNoteUserMark(noteGuid, userMarkGuid);
-
-    // Actualiser la page des notes
-    GlobalKeyService.personalKey.currentState?.refreshUserdata();
-  }
-
-  Future<void> changeNoteColor(String noteGuid, int styleIndex, int colorIndex) async {
-    notes.where((note) => note['Guid'] == noteGuid).forEach((note) {
-      note['ColorIndex'] = colorIndex;
-      note['StyleIndex'] = styleIndex;
-
-      blockRanges.where((blockRange) => blockRange['UserMarkGuid'] == note['UserMarkGuid']).forEach((blockRange) {
-        blockRange['ColorIndex'] = colorIndex;
-        blockRange['StyleIndex'] = styleIndex;
-      });
-    });
-
-    extractedNotes.where((note) => note['Guid'] == noteGuid).forEach((note) {
-      note['ColorIndex'] = colorIndex;
-      note['StyleIndex'] = styleIndex;
-    });
-
-    await JwLifeApp.userdata.updateNoteColorWithGuid(noteGuid, colorIndex);
-
-    // Actualiser la page des notes
-    GlobalKeyService.personalKey.currentState?.refreshUserdata();
-  }
-
-  Future<void> addTagToNote(String noteGuid, int tagId) async {
-    notes.where((note) => note['Guid'] == noteGuid).forEach((note) {
-      note['TagsId'] != null ? note['TagsId'] != '' ? note['TagsId'] = '${note['TagsId']},$tagId' : note['TagsId'] = '$tagId' : note['TagsId'] = '$tagId';
-    });
-
-    extractedNotes.where((note) => note['Guid'] == noteGuid).forEach((note) {
-      note['TagsId'] != null ? note['TagsId'] != '' ? note['TagsId'] = '${note['TagsId']},$tagId' : note['TagsId'] = '$tagId' : note['TagsId'] = '$tagId';
-    });
-
-    await JwLifeApp.userdata.addTagToNoteWithGuid(noteGuid, tagId);
-  }
-
-  Future<void> removeTagToNote(String noteGuid, int tagId) async {
-    notes.where((note) => note['Guid'] == noteGuid).forEach((note) {
-      note['TagsId'] != null ? note['TagsId'] != '' ? note['TagsId'] = note['TagsId'].toString().replaceAll('$tagId', '') : note['TagsId'] = '' : note['TagsId'] = '';
-    });
-
-    extractedNotes.where((note) => note['Guid'] == noteGuid).forEach((note) {
-      note['TagsId'] != null ? note['TagsId'] != '' ? note['TagsId'] = note['TagsId'].toString().replaceAll('$tagId', '') : note['TagsId'] = '' : note['TagsId'] = '';
-    });
-
-    await JwLifeApp.userdata.removeTagFromNoteWithGuid(noteGuid, tagId);
   }
 
   Future<void> updateOrInsertInputFieldValue(String tag, String value) async {

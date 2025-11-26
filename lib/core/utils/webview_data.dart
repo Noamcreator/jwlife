@@ -20,7 +20,7 @@ class WebViewData {
   late int styleIndex;
   late bool isFullScreenMode;
   late bool isReadingMode;
-  late bool isPreparingMode;
+  late bool isBlockingHorizontallyMode;
 
   late String webappPath;
 
@@ -28,19 +28,20 @@ class WebViewData {
 
   // Méthode privée pour charger le CSS
   Future<void> init(bool isDark) async {
+    final sharedPreferences = AppSharedPreferences.instance;
     theme = isDark ? 'cc-theme--dark' : 'cc-theme--light';
     backgroundColor = isDark ? '#121212' : '#ffffff';
-    fontSize = await getFontSize();
-    styleIndex = await getStyleIndex();
-    colorIndex = await getColorIndex();
-    isFullScreenMode = await getFullscreenMode();
-    isReadingMode = await getReadingMode();
-    isPreparingMode = await getPreparingMode();
+    fontSize = sharedPreferences.getFontSize();
+    styleIndex = sharedPreferences.getStyleIndex();
+    colorIndex = sharedPreferences.getColorIndex();
+    isFullScreenMode = sharedPreferences.getFullscreenMode();
+    isReadingMode = sharedPreferences.getReadingMode();
+    isBlockingHorizontallyMode = sharedPreferences.getBlockingHorizontallyMode();
 
     Directory filesDirectory = await getAppFilesDirectory();
     webappPath = '${filesDirectory.path}/webapp_assets';
 
-    biblesSet = await getBiblesSet();
+    biblesSet = sharedPreferences.getBiblesSet();
   }
 
   void updateTheme(bool isDark) {
@@ -103,38 +104,22 @@ class WebViewData {
   void updateReadingMode(bool value) {
     isReadingMode = value;
 
-    if(value) {
-      isPreparingMode = !value;
-    }
-
     for (var keys in GlobalKeyService.jwLifePageKey.currentState!.webViewPageKeys) {
       for (var key in keys) {
         final state = key.currentState;
 
         if (state is DocumentPageState) {
           state.changeReadingMode(value);
-
-          if(value) {
-            state.changePreparingMode(!value);
-          }
         }
         else if (state is DailyTextPageState) {
           state.changeReadingMode(value);
-
-          if(value) {
-            state.changePreparingMode(!value);
-          }
         }
       }
     }
   }
 
   void updatePreparingMode(bool value) {
-    isPreparingMode = value;
-
-    if(value) {
-      isReadingMode = !value;
-    }
+    isBlockingHorizontallyMode = value;
 
     for (var keys in GlobalKeyService.jwLifePageKey.currentState!.webViewPageKeys) {
       for (var key in keys) {
@@ -142,17 +127,9 @@ class WebViewData {
 
         if (state is DocumentPageState) {
           state.changePreparingMode(value);
-
-          if(value) {
-            state.changeReadingMode(!value);
-          }
         }
         else if (state is DailyTextPageState) {
           state.changePreparingMode(value);
-
-          if(value) {
-            state.changeReadingMode(!value);
-          }
         }
       }
     }
@@ -160,17 +137,17 @@ class WebViewData {
 
   void addBibleToBibleSet(Publication bible) {
     biblesSet.add(bible.getKey());
-    addBibleSet(bible.getKey());
+    AppSharedPreferences.instance.addBibleSet(bible.getKey());
   }
 
   void removeBibleFromBibleSet(Publication bible) {
     biblesSet.remove(bible.getKey());
-    removeBibleFromSet(bible.getKey());
+    AppSharedPreferences.instance.removeBibleFromSet(bible.getKey());
   }
 
   void updateBiblesSet(List<Publication> newBiblesList) async {
     final newKeysList = newBiblesList.map((bible) => bible.getKey()).toList();
     biblesSet = newKeysList;
-    await setBiblesSet(biblesSet);
+    await AppSharedPreferences.instance.setBiblesSet(biblesSet);
   }
 }

@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:jwlife/app/jwlife_app.dart';
+import 'package:jwlife/app/jwlife_app_bar.dart';
 import 'package:jwlife/core/icons.dart';
-import 'package:jwlife/core/jworg_uri.dart';
+import 'package:jwlife/core/uri/jworg_uri.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/core/utils/utils_document.dart';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/databases/history.dart';
+import 'package:jwlife/widgets/responsive_appbar_actions.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../../../../app/app_page.dart';
 import '../../../../../i18n/i18n.dart';
 import '../../../../../widgets/searchfield/searchfield_widget.dart';
 import '../../../models/menu/local/publication_search_model.dart';
@@ -32,7 +35,7 @@ class _PublicationSearchViewState extends State<PublicationSearchView> {
   final int _maxCharacters = 200;
 
   bool _isSearching = false;
-  bool _isLoading = false;
+  bool _isLoading = true;
 
   @override
   void initState() {
@@ -43,28 +46,26 @@ class _PublicationSearchViewState extends State<PublicationSearchView> {
   }
 
   Future<void> searchQuery(String query, {bool newSearch = false, bool isExactMatch = false, int sortMode = 0}) async {
-    setState(() {
-      _isLoading = true;
-      _query = query;
-      _exactMatch = isExactMatch;
-      _sortMode = sortMode;
-    });
+    _isLoading = true;
+    _query = query;
+    _exactMatch = isExactMatch;
+    _sortMode = sortMode;
 
-    // Application du tri
-    if (widget.publication.isBible()) {
-      // Appel des fonctions de recherche : la logique a été rétablie dans le modèle
-      await _model.searchBibleVerses(query, isExactMatch ? 2 : 1, newSearch: newSearch);
-      _model.sortVerses(_sortMode);
+    try {
+      if (widget.publication.isBible()) {
+        await _model.searchBibleVerses(query, isExactMatch ? 2 : 1, newSearch: newSearch);
+        _model.sortVerses(_sortMode);
+      } else {
+        await _model.searchDocuments(query, isExactMatch ? 2 : 1, newSearch: newSearch);
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _expandedDocuments.clear();
+        });
+      }
     }
-    else {
-      await _model.searchDocuments(query, isExactMatch ? 2 : 1, newSearch: newSearch);
-    }
-
-    // Fin du chargement et rafraîchissement de l'UI
-    setState(() {
-      _isLoading = false;
-      _expandedDocuments.clear();
-    });
   }
 
   Widget _buildDocumentItem(Map<String, dynamic> doc) {
@@ -250,7 +251,7 @@ class _PublicationSearchViewState extends State<PublicationSearchView> {
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: linkColor),
                   ),
                   Text(
-                    verse['occurences'] == 0 ? i18n().search_results_none : verse['occurences'] == 1 ? i18n().search_results_occurence : i18n().search_results_occurences(verse['occurences']),
+                    verse['occurrences'] == 0 ? i18n().search_results_none : verse['occurrences'] == 1 ? i18n().search_results_occurence : i18n().search_results_occurences(verse['occurrences']),
                     style: const TextStyle(fontSize: 16),
                   ),
                 ],
@@ -312,14 +313,14 @@ class _PublicationSearchViewState extends State<PublicationSearchView> {
   Widget _buildPopupMenu(String title, int docId) {
     return PopupMenuButton<String>(
       icon: Icon(
-        Icons.more_vert,
+        Icons.more_horiz,
         color: Theme.of(context).brightness == Brightness.dark
             ? const Color(0xFFc3c3c3)
             : const Color(0xFF626262),
       ),
       onSelected: (String value) {
         if(value == 'bookmark') {
-          showBookmarkDialog(context, widget.publication, mepsDocumentId: docId);
+          showBookmarkDialog(context, widget.publication, mepsDocumentId: docId, title: title, snippet: '', blockType: 0, blockIdentifier: null);
         }
         else {
           String uri = JwOrgUri.document(
@@ -475,15 +476,15 @@ class _PublicationSearchViewState extends State<PublicationSearchView> {
           : const Color(0xFF626262),
     );
 
-    return Scaffold(
+    return AppPage(
       backgroundColor: Theme.of(context).brightness == Brightness.dark
           ? Colors.black
           : const Color(0xFFf1f1f1),
-      resizeToAvoidBottomInset: false,
       appBar: _isSearching
           ? AppBar(
+        titleSpacing: 0.0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(JwIcons.chevron_left),
           onPressed: () => setState(() => _isSearching = false),
         ),
         title: SearchFieldWidget(
@@ -504,27 +505,17 @@ class _PublicationSearchViewState extends State<PublicationSearchView> {
           suggestionsNotifier: _model.publication.wordsSuggestionsModel?.suggestionsNotifier ?? ValueNotifier([]),
         ),
       )
-          : AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(_query, style: textStyleTitle),
-            Text(
-              widget.publication.issueTitle.isNotEmpty
-                  ? widget.publication.issueTitle
-                  : widget.publication.shortTitle,
-              style: textStyleSubtitle,
-            ),
-          ],
-        ),
+          : JwLifeAppBar(
+        title: _query,
+        subTitle: widget.publication.getShortTitle(),
         actions: [
-          IconButton(
+          IconTextButton(
             icon: const Icon(JwIcons.magnifying_glass),
-            onPressed: () => setState(() => _isSearching = true),
+            onPressed: (BuildContext context) => setState(() => _isSearching = true),
           ),
-          IconButton(
+          IconTextButton(
             icon: const Icon(JwIcons.arrow_circular_left_clock),
-            onPressed: () => History.showHistoryDialog(context),
+            onPressed: (BuildContext context) => History.showHistoryDialog(context),
           ),
         ],
       ),

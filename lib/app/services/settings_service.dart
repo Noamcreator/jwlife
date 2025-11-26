@@ -1,51 +1,68 @@
 import 'package:flutter/material.dart';
-import 'package:jwlife/core/theme.dart';
+import 'package:jwlife/core/ui/theme.dart';
 import 'package:jwlife/core/utils/webview_data.dart';
 import '../../core/constants.dart';
 import '../../core/shared_preferences/shared_preferences_utils.dart';
 import '../../data/models/meps_language.dart';
 
 class JwLifeSettings {
-  // Singleton
-  static final JwLifeSettings _instance = JwLifeSettings._internal();
-  factory JwLifeSettings() => _instance;
+  static final JwLifeSettings instance = JwLifeSettings._internal();
   JwLifeSettings._internal();
 
   ThemeMode themeMode = ThemeMode.system;
   ThemeData lightData = AppTheme.getLightTheme(Constants.defaultLightPrimaryColor);
   ThemeData darkData = AppTheme.getDarkTheme(Constants.defaultDarkPrimaryColor);
   Locale locale = const Locale('en');
-  late MepsLanguage currentLanguage;
   WebViewData webViewData = WebViewData();
   Color lightPrimaryColor = Constants.defaultLightPrimaryColor;
   Color darkPrimaryColor = Constants.defaultDarkPrimaryColor;
   Color bibleColor = Constants.defaultBibleColor;
 
   bool notificationDownload = false;
+  final currentLanguage = ValueNotifier<MepsLanguage>(MepsLanguage(
+    id: 0,
+    symbol: 'E',
+    vernacular: 'English',
+    primaryIetfCode: 'en',
+    isSignLanguage: false,
+    internalScriptName: 'ROMAN',
+    displayScriptName: 'Roman',
+    isBidirectional: false,
+    isRtl: false,
+    isCharacterSpaced: false,
+    isCharacterBreakable: false,
+    hasSystemDigits: false,
+    rsConf: 'r1',
+    lib: 'lp-e',
+  ));
 
-  String lookupBible = '';
+  final lookupBible = ValueNotifier<String>('');
 
   Future<void> init() async {
-    final theme = await getTheme();
+    final sharedPreferences = AppSharedPreferences.instance;
+
+    await sharedPreferences.initialize();
+
+    final theme = sharedPreferences.getTheme();
     final themeMod = theme == 'dark' ? ThemeMode.dark : theme == 'light' ? ThemeMode.light : ThemeMode.system;
 
-    final lightColor = await getPrimaryColor(ThemeMode.light);
-    final darkColor = await getPrimaryColor(ThemeMode.dark);
+    final lightColor = sharedPreferences.getPrimaryColor(ThemeMode.light);
+    final darkColor = sharedPreferences.getPrimaryColor(ThemeMode.dark);
     lightPrimaryColor = lightColor;
     darkPrimaryColor = darkColor;
 
-    final bibleColor = await getBibleColor();
+    final bibleColor = sharedPreferences.getBibleColor();
     this.bibleColor = bibleColor;
 
-    final localeCode = await getLocale();
+    final localeCode = sharedPreferences.getLocale();
     locale = Locale(localeCode);
 
     themeMode = themeMod;
     lightData = AppTheme.getLightTheme(lightColor);
     darkData = AppTheme.getDarkTheme(darkColor);
     
-    List<String> libraryLanguage = await getLibraryLanguage();
-    currentLanguage = MepsLanguage(
+    List<String> libraryLanguage = sharedPreferences.getLibraryLanguage();
+    currentLanguage.value = MepsLanguage(
       id: int.parse(libraryLanguage[0]),
       symbol: libraryLanguage[1],
       vernacular: libraryLanguage[2],
@@ -62,8 +79,8 @@ class JwLifeSettings {
       lib: libraryLanguage[13],
     );
 
-    notificationDownload = await getDownloadNotification();
+    notificationDownload = sharedPreferences.getDownloadNotification();
 
-    lookupBible = await getLookUpBible();
+    lookupBible.value = sharedPreferences.getLookUpBible();
   }
 }

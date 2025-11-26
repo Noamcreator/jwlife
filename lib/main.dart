@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'package:jwlife/core/utils/utils.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app/jwlife_app.dart';
@@ -10,7 +11,7 @@ import 'app/services/audio_service/just_audio_background.dart';
 import 'app/services/file_handler_service.dart';
 import 'app/services/global_key_service.dart';
 import 'app/services/notification_service.dart';
-import 'core/jworg_uri.dart';
+import 'core/uri/jworg_uri.dart';
 
 // Constante pour le préfixe SharedPreferences
 const String _kSharedPrefsPrefix = 'jwlife.';
@@ -24,7 +25,10 @@ Future<void> _initializeServices() async {
     InAppWebViewController.setWebContentsDebuggingEnabled(true);
   }
 
-  SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+  SystemChrome.setEnabledSystemUIMode(
+    SystemUiMode.manual,
+    overlays: [SystemUiOverlay.top, SystemUiOverlay.bottom],
+  );
 
   // 2. Configuration et Initialisation des Services
   SharedPreferences.setPrefix(_kSharedPrefsPrefix); // Fait une seule fois
@@ -36,7 +40,7 @@ Future<void> _initializeServices() async {
     // Initialisation du service de fichiers
     FileHandlerService().initialize(),
     // Initialisation des configurations de l'application
-    JwLifeSettings().init(),
+    JwLifeSettings.instance.init(),
   ]);
 
   // 3. Configuration de Just Audio Background (nécessite d'être après ensureInitialized)
@@ -67,14 +71,12 @@ Future<void> _handleNotificationLaunch() async {
 }
 
 Future<void> main() async {
+  printTime('Start app at:');
   // Exécute toutes les initialisations
   await _initializeServices();
 
   // Traiter l'éventuel lancement par notification (après l'init du service de notification)
   await _handleNotificationLaunch();
-
-  HeadlessInAppWebView headlessWebView = HeadlessInAppWebView();
-  headlessWebView.run();
 
   // Lance l'application Flutter
   runApp(JwLifeApp(key: GlobalKeyService.jwLifeAppKey));

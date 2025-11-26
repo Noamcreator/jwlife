@@ -1,10 +1,10 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/files_helper.dart';
 import 'package:sqflite/sqflite.dart';
 
+import '../../../app/app_page.dart';
 import '../../../app/services/settings_service.dart';
 
 class VisitsView extends StatefulWidget {
@@ -83,7 +83,7 @@ class _VisitsViewState extends State<VisitsView> {
     List<Map<String, dynamic>> publications = await catalogDb.rawQuery('''
     SELECT * FROM Publication
     WHERE MepsLanguageId = ? AND IssueTagNumber = 0
-  ''', [JwLifeSettings().currentLanguage.id]);
+  ''', [JwLifeSettings.instance.currentLanguage.value.id]);
     await catalogDb.close();
 
     File pubCollectionsFile = await getPubCollectionsDatabaseFile();
@@ -91,7 +91,7 @@ class _VisitsViewState extends State<VisitsView> {
     List<Map<String, dynamic>> downloadPublications = await pubCollectionDb.rawQuery('''
     SELECT * FROM Publication
     WHERE MepsLanguageId = ? AND IssueTagNumber = 0
-  ''', [JwLifeSettings().currentLanguage.id]);
+  ''', [JwLifeSettings.instance.currentLanguage.value.id]);
     await pubCollectionDb.close();
 
     List<Map<String, dynamic>> documents = [];
@@ -248,7 +248,7 @@ class _VisitsViewState extends State<VisitsView> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return AppPage(
       body: ListView.builder(
         itemCount: _visits.length,
         itemBuilder: (context, index) {
@@ -277,16 +277,6 @@ class _VisitsViewState extends State<VisitsView> {
             ),
           );
         },
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _showAddVisitDialog,
-        elevation: 6.0,
-        shape: const CircleBorder(),
-        tooltip: 'Ajouter une visite',
-        child: Icon(
-          JwIcons.plus,
-          color: Theme.of(context).brightness == Brightness.dark ? Colors.black : Colors.white,
-        ),
       ),
     );
   }

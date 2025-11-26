@@ -1,3 +1,5 @@
+const double kAudioHeight = 80;
+
 // Largeur maximale des tuiles pour les grilles responsives
 const double kMaxItemWidth = 300.0;
 
@@ -6,6 +8,7 @@ const double kSpacing = 2.0;
 
 // Hauteur harmonisée des éléments de liste (RectanglePublicationItem)
 const double kItemHeight = 85.0;
+const double kSquareItemHeight = 80.0;
 
 const double kFontBase = 15.0;
 

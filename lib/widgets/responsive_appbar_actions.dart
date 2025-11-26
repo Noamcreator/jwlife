@@ -4,12 +4,14 @@ import 'package:jwlife/core/icons.dart';
 
 class ResponsiveAppBarActions extends StatelessWidget {
   final List<IconTextButton> allActions;
-  final Color? colorIcon;
+  final bool canPop;
+  final Color? iconsColor;
 
   const ResponsiveAppBarActions({
     super.key,
     required this.allActions,
-    this.colorIcon
+    this.canPop = true,
+    this.iconsColor
   });
 
   // Fonction utilitaire pour cloner l'icône et appliquer la couleur
@@ -29,14 +31,14 @@ class ResponsiveAppBarActions extends StatelessWidget {
     final double screenWidth = MediaQuery.of(context).size.width;
 
     // 1. Déterminer le nombre d'icônes visibles basé sur la largeur de l'écran (avec un plafond)
-    int baseVisibleCount = 2; // Par défaut: 2 icônes (Compact <= 600)
+    int baseVisibleCount = canPop ? 2 : 3; // Par défaut: 2 icônes (Compact <= 600)
 
     if (screenWidth > 900) {
-      baseVisibleCount = 5;
+      baseVisibleCount = canPop ? 5 : 6;
     } else if (screenWidth > 750) {
-      baseVisibleCount = 4;
+      baseVisibleCount = canPop ? 4 : 5;
     } else if (screenWidth > 600) {
-      baseVisibleCount = 3;
+      baseVisibleCount = canPop ? 3 : 4;
     }
 
     // Assurer que le nombre calculé ne dépasse pas le nombre réel d'actions disponibles
@@ -51,7 +53,8 @@ class ResponsiveAppBarActions extends StatelessWidget {
               return IconButton(
                 // L'onPressed appelle la fonction stockée en lui passant l'anchorContext
                 onPressed: () => action.onPressed?.call(anchorContext),
-                icon: _cloneIconWithColor(action.icon, colorIcon),
+                icon: _cloneIconWithColor(action.icon, iconsColor),
+                visualDensity: VisualDensity.compact,
               );
             }
         )).toList(),
@@ -60,8 +63,8 @@ class ResponsiveAppBarActions extends StatelessWidget {
 
     // 3. CAS COMPLEXE: Division des actions en visibles et menu, et affichage du bouton "plus"
 
-    final visibleIcons = allActions.take(finalVisibleCount).toList();
-    final menuItems = allActions.skip(finalVisibleCount).toList();
+    final visibleIcons = finalVisibleCount == allActions.length - 1 ? allActions.toList() : allActions.take(finalVisibleCount).toList();
+    final menuItems = finalVisibleCount == allActions.length - 1 ? allActions.skip(finalVisibleCount+1).toList() : allActions.skip(finalVisibleCount).toList();
 
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -73,18 +76,20 @@ class ResponsiveAppBarActions extends StatelessWidget {
               return IconButton(
                 // L'onPressed appelle la fonction stockée en lui passant l'anchorContext
                 onPressed: () => action.onPressed?.call(anchorContext),
-                icon: _cloneIconWithColor(action.icon, colorIcon),
+                visualDensity: VisualDensity.compact,
+                icon: _cloneIconWithColor(action.icon, iconsColor),
               );
             }
         )),
 
         // Bouton "Plus" (trois points) et menu
-        RepaintBoundary(
+        menuItems.isEmpty ? const SizedBox.shrink() : RepaintBoundary(
           child: PopupMenuButton<IconTextButton>(
+            style: ButtonStyle(visualDensity: VisualDensity.compact),
             popUpAnimationStyle: AnimationStyle(curve: Curves.easeInExpo, duration: const Duration(milliseconds: 200)),
 
             // Bouton 'plus' affiché (sa couleur est définie ici)
-            icon: Icon(JwIcons.three_dots_horizontal, color: colorIcon),
+            icon: Icon(JwIcons.three_dots_horizontal, color: iconsColor),
 
             itemBuilder: (context) => menuItems.map((action) =>
                 PopupMenuItem(
@@ -94,15 +99,13 @@ class ResponsiveAppBarActions extends StatelessWidget {
                     dense: true,
                     contentPadding: const EdgeInsets.symmetric(horizontal: 16.0),
                     // Couleur des icônes dans le menu (blanche si spécifiée, sinon thème)
-                    iconColor: colorIcon ?? Theme.of(context).primaryColor,
+                    iconColor: iconsColor ?? Theme.of(context).primaryColor,
                     // ⬅️ CORRECTION : Cloner l'icône du menu avec la couleur pour les éléments du menu
-                    leading: _cloneIconWithColor(action.icon, colorIcon ?? Theme.of(context).primaryColor),
-                    title: Text(action.text),
+                    leading: _cloneIconWithColor(action.icon, Theme.of(context).primaryColor),
+                    title: Text(action.text ?? 'No text'),
 
                     trailing: action.onSwitchChange != null && action.isSwitch != null ? Switch(
                         value: action.isSwitch!,
-                        padding: EdgeInsets.zero,
-                        activeColor: Theme.of(context).primaryColor,
                         onChanged: (value) {
                           action.onSwitchChange?.call(value);
                           Navigator.pop(context);
@@ -128,7 +131,7 @@ class ResponsiveAppBarActions extends StatelessWidget {
 }
 
 class IconTextButton {
-  final String text;
+  final String? text;
   final Icon icon;
   // Définition correcte de la fonction qui accepte un BuildContext
   final void Function(BuildContext context)? onPressed;
@@ -136,7 +139,7 @@ class IconTextButton {
   final ValueChanged<bool>? onSwitchChange;
 
   const IconTextButton({
-    required this.text,
+    this.text,
     required this.icon,
     this.onPressed,
     this.isSwitch,

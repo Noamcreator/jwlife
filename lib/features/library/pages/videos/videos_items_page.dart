@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:jwlife/app/jwlife_app_bar.dart';
+import 'package:jwlife/widgets/responsive_appbar_actions.dart';
 import 'package:provider/provider.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/data/realm/catalog.dart';
 import 'package:jwlife/widgets/mediaitem_item_widget.dart';
 import 'package:jwlife/widgets/searchfield/searchfield_widget.dart';
+import '../../../../app/app_page.dart';
 import '../../../../i18n/i18n.dart';
 import '../../models/videos/videos_items_model.dart';
 
@@ -18,17 +21,9 @@ class VideoItemsPage extends StatelessWidget {
       create: (_) => VideoItemsModel(initialCategory: category)..loadItems(),
       child: Consumer<VideoItemsModel>(
         builder: (context, model, child) {
-          const textStyleTitle = TextStyle(fontSize: 20, fontWeight: FontWeight.bold);
-          final textStyleSubtitle = TextStyle(
-            fontSize: 14,
-            color: Theme.of(context).brightness == Brightness.dark
-                ? const Color(0xFFc3c3c3)
-                : const Color(0xFF626262),
-          );
-
-          final appBar = model.isSearching
+          PreferredSizeWidget? appBar = model.isSearching
               ? _buildSearchingAppBar(context, model)
-              : _buildRegularAppBar(context, model, textStyleTitle, textStyleSubtitle);
+              : _buildRegularAppBar(model);
 
           Widget bodyContent;
           if (model.filteredVideos.isEmpty && !model.isSearching) {
@@ -37,8 +32,7 @@ class VideoItemsPage extends StatelessWidget {
             bodyContent = Directionality(textDirection: model.language.isRtl! ? TextDirection.rtl : TextDirection.ltr, child: _buildContentList(context, model));
           }
 
-          return Scaffold(
-            resizeToAvoidBottomInset: false,
+          return AppPage(
             appBar: appBar,
             body: bodyContent,
           );
@@ -49,8 +43,9 @@ class VideoItemsPage extends StatelessWidget {
 
   // --- Méthodes de construction des composants UI (Widgets) ---
 
-  AppBar _buildSearchingAppBar(BuildContext context, VideoItemsModel model) {
+  PreferredSizeWidget _buildSearchingAppBar(BuildContext context, VideoItemsModel model) {
     return AppBar(
+      titleSpacing: 0.0,
       title: SearchFieldWidget(
         query: '',
         onSearchTextChanged: model.filterVideos,
@@ -60,29 +55,24 @@ class VideoItemsPage extends StatelessWidget {
         suggestionsNotifier: ValueNotifier([]),
       ),
       leading: IconButton(
-        icon: const Icon(Icons.arrow_back),
+        icon: const Icon(JwIcons.chevron_left),
         onPressed: () => model.cancelSearch(),
       ),
     );
   }
 
-  AppBar _buildRegularAppBar(BuildContext context, VideoItemsModel model, TextStyle titleStyle, TextStyle subtitleStyle) {
-    return AppBar(
-      title: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(model.category?.localizedName ?? '', style: titleStyle),
-          Text(model.language.vernacular ?? '', style: subtitleStyle),
-        ],
-      ),
+  PreferredSizeWidget _buildRegularAppBar(VideoItemsModel model) {
+    return JwLifeAppBar(
+      title: model.category?.localizedName ?? '',
+      subTitle: model.language.vernacular,
       actions: [
-        IconButton(
+        IconTextButton(
           icon: const Icon(JwIcons.magnifying_glass),
-          onPressed: () => model.setIsSearching(true),
+          onPressed: (BuildContext context) => model.setIsSearching(true),
         ),
-        IconButton(
+        IconTextButton(
           icon: const Icon(JwIcons.language),
-          onPressed: () => model.showLanguageSelection(context),
+          onPressed: (BuildContext context) => model.showLanguageSelection(context),
         ),
       ],
     );

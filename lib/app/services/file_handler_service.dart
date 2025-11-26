@@ -11,8 +11,9 @@ import '../../core/icons.dart';
 import '../../core/utils/common_ui.dart';
 import '../../core/utils/utils.dart';
 import '../../core/utils/utils_jwpub.dart';
-import '../../core/jworg_uri.dart';
+import '../../core/uri/jworg_uri.dart';
 import '../../core/utils/utils_pub.dart';
+import '../../core/uri/utils_uri.dart';
 import '../../core/utils/widgets_utils.dart';
 import '../../data/databases/catalog.dart';
 import '../../data/databases/userdata.dart';
@@ -170,9 +171,9 @@ class FileHandlerService {
       final uri = JwOrgUri.parse(url);
 
       // Utiliser votre système de navigation existant
-      final context = GlobalKeyService.jwLifeAppKey.currentState?.context;
+      final context = GlobalKeyService.jwLifePageKey.currentState?.context;
       if (context != null) {
-        GlobalKeyService.jwLifeAppKey.currentState!.handleUri(uri);
+        handleUri(uri);
       }
       else {
         // Si le contexte n'est pas encore prêt, stocker l'URI pour plus tard
@@ -390,7 +391,6 @@ class FileHandlerService {
       );
 
       if (dialogContext != null) Navigator.of(dialogContext!).pop();
-      GlobalKeyService.homeKey.currentState?.refreshFavorites();
       GlobalKeyService.personalKey.currentState?.refreshUserdata();
 
       // Réinitialiser après succès
@@ -403,7 +403,7 @@ class FileHandlerService {
 
   Future<void> _importJwPlaylistFile(File file) async {
     // Récupère le contexte de la page actuelle.
-    BuildContext context = GlobalKeyService.jwLifePageKey.currentState!.navigatorKeys[GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex].currentState!.context;
+    BuildContext context = GlobalKeyService.jwLifePageKey.currentState!.navigatorKeys[GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex.value].currentState!.context;
 
     // Sépare le nom du fichier du chemin complet.
     String fileName = file.path.split('/').last;
@@ -439,7 +439,7 @@ class FileHandlerService {
 
   Future<void> _importJwPubFile(File file, {String keySymbol = '', int issueTagNumber = 0, int mepsLanguageId = 0}) async {
     // Récupère le contexte de la page actuelle.
-    BuildContext context = GlobalKeyService.jwLifePageKey.currentState!.navigatorKeys[GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex].currentState!.context;
+    BuildContext context = GlobalKeyService.jwLifePageKey.currentState!.navigatorKeys[GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex.value].currentState!.context;
 
     // Sépare le nom du fichier du chemin complet.
     String fileName = file.path.split('/').last;
@@ -464,8 +464,7 @@ class FileHandlerService {
     else {
       if(keySymbol.isNotEmpty) {
         showJwPubNotGoodFile(keySymbol);
-        PubCatalog.updateCatalogCategories();
-        GlobalKeyService.homeKey.currentState!.refreshFavorites();
+        CatalogDb.instance.updateCatalogCategories();
       }
       else {
         showPage(PublicationMenuView(publication: jwpub));

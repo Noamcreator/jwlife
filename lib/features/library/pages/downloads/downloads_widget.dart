@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:jwlife/core/app_dimens.dart'; // Importe kItemHeight et kSpacing
+import 'package:jwlife/core/ui/app_dimens.dart'; // Importe kItemHeight et kSpacing
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/data/models/media.dart';
@@ -11,14 +11,14 @@ import '../../../publication/pages/menu/local/publication_menu_view.dart';
 import '../../models/downloads/download_model.dart';
 import '../../widgets/rectangle_publication_item.dart';
 
-class DownloadPage extends StatefulWidget {
-  const DownloadPage({super.key});
+class DownloadWidget extends StatefulWidget {
+  const DownloadWidget({super.key});
 
   @override
-  _DownloadPageState createState() => _DownloadPageState();
+  _DownloadWidgetState createState() => _DownloadWidgetState();
 }
 
-class _DownloadPageState extends State<DownloadPage> {
+class _DownloadWidgetState extends State<DownloadWidget> {
   late final DownloadPageModel _model;
 
   @override
@@ -47,7 +47,7 @@ class _DownloadPageState extends State<DownloadPage> {
     if (items.first is Publication) {
       final pub = items.first as Publication;
       // Récupération du nom de catégorie localisé
-      displayTitle = pub.category.getName(context);
+      displayTitle = pub.category.getName();
     }
     else {
       if (titleKey == 'Audios') {

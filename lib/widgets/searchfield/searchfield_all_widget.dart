@@ -57,10 +57,10 @@ class _SearchFieldAllState extends State<SearchFieldAll> {
     return SearchField<SuggestionItem>(
       controller: _controller,
       animationDuration: const Duration(milliseconds: 300),
-      itemHeight: 53,
+      itemHeight: 50,
       autofocus: widget.autofocus ?? true,
-      offset: const Offset(-65, 55),
-      maxSuggestionsInViewPort: 9,
+      offset: const Offset(-45, 55),
+      maxSuggestionsInViewPort: 10,
       maxSuggestionBoxHeight: 200,
       suggestionState: Suggestion.expand,
       searchInputDecoration: SearchInputDecoration(
@@ -162,7 +162,7 @@ class _SearchFieldAllState extends State<SearchFieldAll> {
 
     String normalizedText = normalize(query);
 
-    String apiWol = 'https://wol.jw.org/wol/sg/${JwLifeSettings().currentLanguage.rsConf}/${JwLifeSettings().currentLanguage.lib}?q=$query';
+    String apiWol = 'https://wol.jw.org/wol/sg/${JwLifeSettings.instance.currentLanguage.value.rsConf}/${JwLifeSettings.instance.currentLanguage.value.lib}?q=$query';
     printTime(apiWol);
     final response = await Api.httpGetWithHeaders(apiWol, responseType: ResponseType.json);
     final items = (response.data['items'] as List).take(2); // prend seulement les 2 premiers
@@ -245,7 +245,7 @@ class _SearchFieldAllState extends State<SearchFieldAll> {
     // 🎵 Recherche dans les médias Realm
     final medias = RealmLibrary.realm.all<MediaItem>().query(
       r"title CONTAINS[c] $0 AND languageSymbol == $1",
-      [query, JwLifeSettings().currentLanguage.symbol],
+      [query, JwLifeSettings.instance.currentLanguage.value.symbol],
     );
 
     if (requestId == _latestRequestId) {
@@ -294,13 +294,13 @@ class _SearchFieldAllState extends State<SearchFieldAll> {
     BuildContext context = GlobalKeyService.jwLifePageKey.currentState!.getCurrentState().context;
     switch (selected.type) {
       case 'document':
-        await showDocumentView(context, selected.query, JwLifeSettings().currentLanguage.id);
+        await showDocumentView(context, selected.query, JwLifeSettings.instance.currentLanguage.value.id);
         break;
       case 'bible':
         showPage(SearchBiblePage(query: selected.query));
         break;
       case 'publication':
-        final publication = await PubCatalog.searchPub(selected.query, 0, JwLifeSettings().currentLanguage.id);
+        final publication = await CatalogDb.instance.searchPub(selected.query, 0, JwLifeSettings.instance.currentLanguage.value.id);
         if (publication != null) {
           publication.showMenu(context);
         } else {

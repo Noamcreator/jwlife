@@ -93,7 +93,7 @@ class Api {
   static Future<bool> isCatalogUpdateAvailable() async {
     try {
       final catalogFile = await getCatalogDatabaseFile();
-      final lastRevisionDownloaded = await getLastCatalogRevision();
+      final lastRevisionDownloaded = AppSharedPreferences.instance.getLastCatalogRevision();
       final lastRevisionAvailable = await fetchCatalogInfo();
       Api.lastRevisionAvailable = lastRevisionAvailable;
 
@@ -127,7 +127,7 @@ class Api {
         printTime('Le fichier "catalog.db" a été décompressé avec succés dans : $catalogFile');
 
         printTime('On met à jour ala dernière revision ($lastRevisionAvailable) du catalogue dans les préférences');
-        setNewCatalogRevision(lastRevisionAvailable);
+        AppSharedPreferences.instance.setNewCatalogRevision(lastRevisionAvailable);
       }
       else {
         printTime('Erreur lors du téléchargement de catalog.db : ${response.statusCode}');
@@ -140,7 +140,7 @@ class Api {
 
   /// Vérifie si une mise à jour de la bibliothèque pour une langue donnée est disponible.
   static Future<bool> isLibraryUpdateAvailable({String? symbol}) async {
-    String languageSymbol = symbol ?? JwLifeSettings().currentLanguage.symbol;
+    String languageSymbol = symbol ?? JwLifeSettings.instance.currentLanguage.value.symbol;
 
     try {
       final url = langCatalogUrl.replaceFirst('{language_code}', languageSymbol);

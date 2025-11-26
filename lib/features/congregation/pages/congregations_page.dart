@@ -6,6 +6,8 @@ import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/i18n/i18n.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../app/app_page.dart';
+import '../../../app/jwlife_app_bar.dart';
 import '../../../app/services/settings_service.dart';
 import '../../../core/api/api.dart';
 import '../../../core/utils/utils.dart';
@@ -69,7 +71,7 @@ class _CongregationsPageState extends State<CongregationsPage> {
       'keywords': query,
       'latitude': '0',
       'longitude': '0',
-      'searchLanguageCode': JwLifeSettings().currentLanguage.symbol
+      'searchLanguageCode': JwLifeSettings.instance.currentLanguage.value.symbol
     };
 
     final url = Uri.https(
@@ -229,7 +231,7 @@ class _CongregationsPageState extends State<CongregationsPage> {
     final now = DateTime.now();
     final date = now.add(Duration(days: (weekday - now.weekday)));
     // Formatage avec intl pour obtenir le jour localisé
-    return DateFormat.EEEE(JwLifeSettings().locale.languageCode).format(date);
+    return DateFormat.EEEE(JwLifeSettings.instance.locale.languageCode).format(date);
   }
 
   /// Méthode réutilisable pour construire chaque élément de suggestion
@@ -263,15 +265,10 @@ class _CongregationsPageState extends State<CongregationsPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      resizeToAvoidBottomInset: false,
-      appBar: AppBar(
-        title: Text(i18n().action_congregations,
-          style: const TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
+    return AppPage(
+      appBar: JwLifeAppBar(
+        title: i18n().action_congregations,
+        subTitle: _congregations.isNotEmpty ? _congregations[0].name : null,
       ),
       body: Column(
         children: [
@@ -443,7 +440,8 @@ class _CongregationsPageState extends State<CongregationsPage> {
             ),
           )
         ],
-      ),
+      )
+        /*
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           setState(() {
@@ -452,6 +450,8 @@ class _CongregationsPageState extends State<CongregationsPage> {
         },
         child: const Icon(JwIcons.plus),
       ),
+
+         */
     );
   }
 }

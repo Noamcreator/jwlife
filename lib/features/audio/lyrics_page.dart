@@ -3,7 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:html/parser.dart';
+import 'package:jwlife/app/jwlife_app_bar.dart';
+import 'package:jwlife/widgets/responsive_appbar_actions.dart';
 
+import '../../app/app_page.dart';
 import '../../app/services/settings_service.dart';
 import '../../core/api/api.dart';
 import '../../core/icons.dart';
@@ -57,7 +60,7 @@ class _LyricsPageState extends State<LyricsPage> {
           <meta charset="utf-8">
           <style> 
             body {
-              font-size: ${JwLifeSettings().webViewData.fontSize}px;
+              font-size: ${JwLifeSettings.instance.webViewData.fontSize}px;
               overflow-y: scroll;
             }
             body.cc-theme--dark {
@@ -69,7 +72,7 @@ class _LyricsPageState extends State<LyricsPage> {
               color: #1a1a1a;
             }
           </style>
-          <body class="${JwLifeSettings().webViewData.theme}">
+          <body class="${JwLifeSettings.instance.webViewData.theme}">
             <article id="article" class="jwac docClass-31 ms-ROMAN ml-F dir-ltr layout-reading layout-sidebar">
               $htmlContent
             </article>
@@ -127,26 +130,23 @@ class _LyricsPageState extends State<LyricsPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Paroles'),
+    return AppPage(
+      appBar: JwLifeAppBar(
+        title: 'Paroles',
         actions: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8.0),
-            child: IconButton(
-              icon: const Icon(JwIcons.document_stack),
-              onPressed: () {
-                Clipboard.setData(ClipboardData(text: _htmlContent));
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Contenu copié dans le presse-papiers')),
-                );
-              },
-            ),
+          IconTextButton(
+            icon: const Icon(JwIcons.document_stack),
+            onPressed: (BuildContext context) {
+              Clipboard.setData(ClipboardData(text: _htmlContent));
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Contenu copié dans le presse-papiers')),
+              );
+            },
           ),
         ],
       ),
       body: InAppWebView(
-        initialData: InAppWebViewInitialData(data: '', baseUrl: WebUri('file://${JwLifeSettings().webViewData.webappPath}/')),
+        initialData: InAppWebViewInitialData(data: '', baseUrl: WebUri('file://${JwLifeSettings.instance.webViewData.webappPath}/')),
         onWebViewCreated: (controller) {
           _controller = controller;
         },

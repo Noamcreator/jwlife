@@ -3,7 +3,6 @@ import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/data/models/userdata/location.dart';
 
 class Note {
-  int noteId;
   String guid;
   String? title;
   String? content;
@@ -12,13 +11,11 @@ class Note {
   int blockType;
   int? blockIdentifier;
   int colorIndex;
-  int? userMarkId;
   String? userMarkGuid;
   Location location;
   List<int> tagsId;
 
   Note({
-    required this.noteId,
     required this.guid,
     this.title,
     this.content,
@@ -27,7 +24,6 @@ class Note {
     required this.blockType,
     this.blockIdentifier,
     required this.colorIndex,
-    this.userMarkId,
     this.userMarkGuid,
     required this.location,
     required this.tagsId,
@@ -62,7 +58,6 @@ class Note {
   /// Créé une instance Note à partir d'une map (ex: JSON)
   factory Note.fromMap(Map<String, dynamic> map) {
     return Note(
-      noteId: map['NoteId'],
       guid: map['Guid'],
       title: map['Title'],
       content: map['Content'],
@@ -71,7 +66,6 @@ class Note {
       blockType: map['BlockType'],
       blockIdentifier: map['BlockIdentifier'],
       colorIndex: map['ColorIndex'] ?? 0,
-      userMarkId: map['UserMarkId'],
       userMarkGuid: map['UserMarkGuid'],
       location: Location.fromMap(map),
       tagsId: map['TagsId'] == null
@@ -86,6 +80,50 @@ class Note {
           .cast<int>()
           .toList()
           : [], // Dans tout autre cas (par exemple, si c'est un seul int, bool, etc.), retourne une liste vide.
+    );
+  }
+
+  /// Convertit l'instance Note en une map (ex: JSON)
+  Map<String, dynamic> toMap() {
+    return {
+      'Guid': guid,
+      'Title': title,
+      'Content': content,
+      'LastModified': lastModified,
+      'Created': created,
+      'BlockType': blockType,
+      'BlockIdentifier': blockIdentifier,
+      'ColorIndex': colorIndex,
+      'UserMarkGuid': userMarkGuid,
+      'TagsId': tagsId.join(','),
+    };
+  }
+
+  Note copyWith({
+    String? guid,
+    String? title,
+    String? content,
+    String? lastModified,
+    String? created,
+    int? blockType,
+    int? blockIdentifier,
+    int? colorIndex,
+    String? userMarkGuid,
+    Location? location,
+    List<int>? tagsId,
+  }) {
+    return Note(
+      guid: guid ?? this.guid,
+      title: title ?? this.title,
+      content: content ?? this.content,
+      lastModified: lastModified ?? this.lastModified,
+      created: created ?? this.created,
+      blockType: blockType ?? this.blockType,
+      blockIdentifier: blockIdentifier ?? this.blockIdentifier,
+      colorIndex: colorIndex ?? this.colorIndex,
+      userMarkGuid: userMarkGuid ?? this.userMarkGuid,
+      location: location ?? this.location,
+      tagsId: tagsId ?? List.from(this.tagsId),
     );
   }
 
@@ -111,5 +149,17 @@ class Note {
     String mois = date.month.toString().padLeft(2, '0');
     String annee = date.year.toString();
     return '$jour/$mois/$annee';
+  }
+
+  void addTagId(int tagId) {
+    if (!tagsId.contains(tagId)) {
+      tagsId.add(tagId);
+    }
+  }
+
+  void removeTagId(int tagId) {
+    if (tagsId.contains(tagId)) {
+      tagsId.remove(tagId);
+    }
   }
 }

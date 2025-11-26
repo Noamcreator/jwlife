@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:html/parser.dart' as html_parser;
 import 'package:html/dom.dart' as html;
-import 'package:jwlife/core/icons.dart';
 
+import '../../../app/app_page.dart';
 import '../../../core/api/api.dart';
 import '../../../core/utils/utils.dart';
 
@@ -99,7 +99,7 @@ class _BibleViewState extends State<BibleView> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return AppPage(
       appBar: AppBar(
         title: Text("Bible View"),
       ),
@@ -167,12 +167,6 @@ class _BibleViewState extends State<BibleView> {
             ),
           ],
         ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          // Handle floating action button press
-        },
-        child: Icon(JwIcons.gem, color: Colors.white),
       ),
     );
   }

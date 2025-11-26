@@ -48,9 +48,9 @@ class _ImageCachedWidgetState extends State<ImageCachedWidget> {
     if (widget.imageUrl == null || widget.imageUrl!.isEmpty) {
       _imageFuture = Future.value(null);
     } else {
-      _imageFuture = TilesCache().getOrDownloadImage(widget.imageUrl).then((tile) {
+      _imageFuture = TilesCache().getOrDownloadImage(widget.imageUrl!).then((tile) {
         if (tile != null && mounted) {
-          // Prévisualisation de l'image locale pour un chargement plus rapide
+          // Préchargement léger pour éviter le jank
           precacheImage(FileImage(tile.file), context);
         }
         return tile;
@@ -59,8 +59,7 @@ class _ImageCachedWidgetState extends State<ImageCachedWidget> {
   }
 
   Widget _buildPlaceholder(bool isDark) {
-    final Color backgroundColor =
-    isDark ? const Color(0xFF4F4F4F) : const Color(0xFF999999);
+    final Color backgroundColor = isDark ? const Color(0xFF4F4F4F) : const Color(0xFF999999);
 
     double? width = widget.width;
     double? height = widget.height;
@@ -71,9 +70,7 @@ class _ImageCachedWidgetState extends State<ImageCachedWidget> {
     double iconSize = 30.0;
     if (width != null && height != null) {
       iconSize = (width < height ? width : height) * 0.45;
-      if (iconSize.isInfinite || iconSize.isNaN) {
-        iconSize = 30.0;
-      }
+      if (iconSize.isInfinite || iconSize.isNaN) iconSize = 30.0;
     }
 
     return Container(
@@ -91,28 +88,32 @@ class _ImageCachedWidgetState extends State<ImageCachedWidget> {
     );
   }
 
-  int? safeToInt(double? value) {
-    if (value == null || value.isInfinite || value.isNaN) return null;
-    return value.toInt();
-  }
-
+  // --- La méthode build avec la correction pour le cacheWidth/cacheHeight ---
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final pixelRatio = MediaQuery.of(context).devicePixelRatio;
-
     final placeholder = _buildPlaceholder(isDark);
+
+    // Fonction utilitaire pour gérer les valeurs Infinity/NaN et calculer la dimension du cache
+    int? _getCacheDimension(double? dimension) {
+      // Retourne null si la dimension est nulle, infinie ou NaN
+      if (dimension == null || dimension.isInfinite || dimension.isNaN) {
+        return null;
+      }
+      // Effectue le calcul sécurisé
+      return (dimension * pixelRatio).toInt();
+    }
+
+    final int? cacheW = _getCacheDimension(widget.width);
+    final int? cacheH = _getCacheDimension(widget.height);
+    // -------------------------------------------------------------------------
 
     return FutureBuilder<Tile?>(
       future: _imageFuture,
       builder: (context, snapshot) {
-        final bool isImageReady = snapshot.connectionState == ConnectionState.done &&
-            !snapshot.hasError &&
-            snapshot.data != null;
-
         final file = snapshot.data?.file;
-
-        if (!isImageReady || file == null) {
+        if (snapshot.connectionState != ConnectionState.done || file == null) {
           return SizedBox(
             width: widget.width,
             height: widget.height,
@@ -120,50 +121,22 @@ class _ImageCachedWidgetState extends State<ImageCachedWidget> {
           );
         }
 
-        // --- L'image est téléchargée et prête ---
-
-        if (!widget.animation) {
-          // Version sans animation : affichage direct
-          return Image.file(
-            file,
-            key: ValueKey(file.path),
-            width: widget.width,
-            height: widget.height,
-            cacheWidth:
-            safeToInt(widget.width != null ? widget.width! * pixelRatio : null),
-            cacheHeight:
-            safeToInt(widget.height != null ? widget.height! * pixelRatio : null),
-            fit: widget.fit,
-            alignment: widget.alignment,
-          );
-        }
-
-        // Version avec animation (FrameBuilder)
         return Image.file(
           file,
-          key: ValueKey(file.path),
           width: widget.width,
           height: widget.height,
-          cacheWidth:
-          safeToInt(widget.width != null ? widget.width! * pixelRatio : null),
-          cacheHeight:
-          safeToInt(widget.height != null ? widget.height! * pixelRatio : null),
           fit: widget.fit,
           alignment: widget.alignment,
-          // Utilisation de frameBuilder pour gérer l'animation de fondu
-          frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
-            // Si l'image est déjà affichée ou chargée instantanément, on l'affiche directement
-            if (wasSynchronouslyLoaded || frame != null) {
-              return child;
-            }
-
-            // Sinon, on affiche le placeholder pendant le chargement
-            return SizedBox(
-              width: widget.width,
-              height: widget.height,
-              child: placeholder,
-            );
-          },
+          // Utilisation des valeurs validées
+          cacheWidth: cacheW,
+          cacheHeight: cacheH,
+          filterQuality: FilterQuality.low,
+          frameBuilder: widget.animation
+              ? (context, child, frame, wasLoaded) {
+            if (wasLoaded || frame != null) return child;
+            return SizedBox(width: widget.width, height: widget.height, child: placeholder);
+          }
+              : null,
         );
       },
     );

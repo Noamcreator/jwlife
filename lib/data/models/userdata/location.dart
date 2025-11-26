@@ -35,6 +35,21 @@ class Location {
     );
   }
 
+  /// Convertit l'instance Location en une map (ex: JSON)
+  Map<String, dynamic> toMap() {
+    return {
+      'BookNumber': bookNumber,
+      'ChapterNumber': chapterNumber,
+      'DocumentId': mepsDocumentId,
+      'Track': track,
+      'IssueTagNumber': issueTagNumber,
+      'KeySymbol': keySymbol,
+      'MepsLanguage': mepsLanguageId,
+      'Type': type,
+      'Title': title,
+    };
+  }
+
   bool isNull() {
     return bookNumber == null &&
         chapterNumber == null &&

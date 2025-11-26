@@ -6,9 +6,8 @@ plugins {
 
 android {
     namespace = "org.noam.jwlife"
-
-    // Versions SDK minimales
-    compileSdk = maxOf(flutter.compileSdkVersion, 34)
+    compileSdk = flutter.compileSdkVersion
+    ndkVersion = flutter.ndkVersion
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -22,8 +21,8 @@ android {
 
     defaultConfig {
         applicationId = "org.noam.jwlife"
-        minSdk = maxOf(flutter.minSdkVersion, 21)
-        targetSdk = maxOf(flutter.targetSdkVersion, 34)
+        minSdk = flutter.minSdkVersion
+        targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }

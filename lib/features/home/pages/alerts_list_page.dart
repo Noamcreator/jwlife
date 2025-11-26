@@ -5,12 +5,14 @@ import 'package:dio/dio.dart' as http hide Response;
 import 'package:flutter/material.dart';
 import 'package:http/http.dart';
 import 'package:http/http.dart' as http;
+import 'package:jwlife/app/jwlife_app_bar.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:jwlife/core/utils/utils_video.dart';
 import 'package:jwlife/core/utils/webview_data.dart';
 import 'package:jwlife/data/realm/catalog.dart';
 
+import '../../../app/app_page.dart';
 import '../../../app/services/settings_service.dart';
 import '../../../core/api/api.dart';
 import '../../../core/utils/directory_helper.dart';
@@ -21,17 +23,18 @@ import '../../../data/models/publication.dart';
 import '../../../data/models/video.dart';
 import '../../../i18n/i18n.dart';
 import '../../../widgets/dialog/publication_dialogs.dart';
+import '../../../widgets/responsive_appbar_actions.dart';
 
-class AlertInfoPage extends StatefulWidget {
+class AlertsListPage extends StatefulWidget {
   final List<dynamic> alerts; // URL de l'alerte à afficher
 
-  const AlertInfoPage({super.key, required this.alerts});
+  const AlertsListPage({super.key, required this.alerts});
 
   @override
-  _AlertInfoPageState createState() => _AlertInfoPageState();
+  _AlertsListPageState createState() => _AlertsListPageState();
 }
 
-class _AlertInfoPageState extends State<AlertInfoPage> {
+class _AlertsListPageState extends State<AlertsListPage> {
   String _language = '';
   String _languageSymbol = '';
 
@@ -67,7 +70,7 @@ class _AlertInfoPageState extends State<AlertInfoPage> {
   }
 
   String convertAlertsToHtml(List<dynamic> alerts) {
-    WebViewData webViewData = JwLifeSettings().webViewData;
+    WebViewData webViewData = JwLifeSettings.instance.webViewData;
 
     String htmlAlerts = '';
 
@@ -134,35 +137,21 @@ class _AlertInfoPageState extends State<AlertInfoPage> {
 
   void setLanguage() async {
     setState(() {
-      _language = JwLifeSettings().currentLanguage.vernacular;
-      _languageSymbol = JwLifeSettings().currentLanguage.symbol;
+      _language = JwLifeSettings.instance.currentLanguage.value.vernacular;
+      _languageSymbol = JwLifeSettings.instance.currentLanguage.value.symbol;
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      resizeToAvoidBottomInset: false,
-      appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              i18n().label_breaking_news,
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            Text(
-              _language,
-              style: TextStyle(fontSize: 14, color: Theme.of(context).brightness == Brightness.dark
-                  ? const Color(0xFFc3c3c3)
-                  : const Color(0xFF626262))
-            ),
-          ],
-        ),
+    return AppPage(
+      appBar: JwLifeAppBar(
+        title: i18n().label_breaking_news,
+        subTitle: _language,
         actions: [
-          IconButton(
+          IconTextButton(
             icon: const Icon(JwIcons.language),
-            onPressed: () async {
+            onPressed: (BuildContext context) async {
               showLanguageDialog(context).then((language) async {
                 final queryParams = {
                   'type': 'news',
@@ -264,7 +253,7 @@ class _AlertInfoPageState extends State<AlertInfoPage> {
               final pub = uri.queryParameters['pub']?.toLowerCase();
               final issueTagNumber = uri.queryParameters.containsKey('issueTagNumber') ? int.parse(uri.queryParameters['issueTagNumber']!) : 0;
 
-              Publication? publication = await PubCatalog.searchPub(pub!, issueTagNumber, wtlocale);
+              Publication? publication = await CatalogDb.instance.searchPub(pub!, issueTagNumber, wtlocale);
               if (publication != null) {
                 await publication.showMenu(context);
               }

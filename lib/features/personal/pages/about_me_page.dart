@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:jwlife/core/icons.dart';
 
+import '../../../app/app_page.dart';
+
 class AboutMePage extends StatefulWidget {
   const AboutMePage({super.key});
 
@@ -118,7 +120,7 @@ class _AboutMePageState extends State<AboutMePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return AppPage(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SingleChildScrollView(
         padding: EdgeInsets.all(16),

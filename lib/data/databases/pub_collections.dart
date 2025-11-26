@@ -121,7 +121,7 @@ class PubCollections {
         keySymbol = publication.keySymbol;
       }
       else {
-        String? keySymbolCatalog = await PubCatalog.getKeySymbolFromCatalogue(symbol, issueTagNum, languageId);
+        String? keySymbolCatalog = await CatalogDb.instance.getKeySymbolFromCatalogue(symbol, issueTagNum, languageId);
 
         if(keySymbolCatalog != null) {
           keySymbol = keySymbolCatalog;

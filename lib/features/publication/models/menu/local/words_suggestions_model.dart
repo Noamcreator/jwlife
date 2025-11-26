@@ -26,7 +26,7 @@ class WordsSuggestionsModel {
   // MÉTHODE : Charger tous les mots dans le cache une seule fois
   // -------------------------------------------------------------------
   Future<void> _loadAllWords() async {
-    if (publication.documentsManager == null || publication.documentsManager!.database == null) {
+    if (publication.documentsManager == null || publication.documentsManager?.database == null) {
       debugPrint('Erreur: Publication Documents Manager ou Database est null. Impossible de charger les mots.');
       return;
     }

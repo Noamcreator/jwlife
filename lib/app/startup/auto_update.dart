@@ -64,7 +64,7 @@ class JwLifeAutoUpdater {
   }
 
   static void _showUpdateDialog(String version, String changelog, String apkUrl) {
-    BuildContext context = GlobalKeyService.homeKey.currentState!.context;
+    BuildContext context = GlobalKeyService.jwLifePageKey.currentContext!;
 
     showJwDialog(
       context: context,

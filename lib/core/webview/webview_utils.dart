@@ -4,17 +4,23 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart' hide Element;
 import 'package:html/dom.dart';
 import 'package:html/parser.dart';
+import 'package:jwlife/app/services/global_key_service.dart';
 import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/core/utils/utils_document.dart';
 import 'package:jwlife/core/utils/utils_jwpub.dart';
+import 'package:jwlife/data/models/userdata/block_range.dart';
+import 'package:provider/provider.dart';
 import 'package:sqflite/sqflite.dart';
 
 import '../../app/jwlife_app.dart';
 import '../../app/services/settings_service.dart';
+import '../../data/controller/block_ranges_controller.dart';
+import '../../data/controller/notes_controller.dart';
 import '../../data/databases/catalog.dart';
 import '../../data/databases/tiles_cache.dart';
 import '../../data/models/publication.dart';
 import '../../data/models/publication_category.dart';
+import '../../data/models/userdata/note.dart';
 import '../../data/repositories/PublicationRepository.dart';
 import '../utils/files_helper.dart';
 
@@ -128,7 +134,6 @@ Future<Map<String, dynamic>> fetchVerses(Publication publication, String link) a
               (match) => '<span class="cl"><strong>${match.group(1)}</strong> </span>',
         );
 
-
         htmlContent += label;
 
         String decodedHtml = decodeBlobContent(
@@ -148,15 +153,9 @@ Future<Map<String, dynamic>> fetchVerses(Publication publication, String link) a
         htmlContent += decodedHtml;
       }
 
-      List<Map<String, dynamic>> blockRanges = await JwLifeApp.userdata.getBlockRangesFromChapterNumber(book1, chapter1, bible.keySymbol, bible.mepsLanguage.id, startVerse: verse1, endVerse: verse2);
-      List<Map<String, dynamic>> notes = await JwLifeApp.userdata.getNotesFromChapterNumber(book1, chapter1, bible.keySymbol, bible.mepsLanguage.id, startVerse: verse1, endVerse: verse2);
-
-      if(publication.documentsManager == null) {
-        publication.datedTextManager!.getCurrentDatedText().extractedNotes.addAll(notes.map((item) => Map<String, dynamic>.from(item)).toList());
-      }
-      else {
-        publication.documentsManager!.getCurrentDocument().extractedNotes.addAll(notes.map((item) => Map<String, dynamic>.from(item)).toList());
-      }
+      BuildContext context = GlobalKeyService.jwLifePageKey.currentContext!;
+      List<BlockRange> blockRanges = await JwLifeApp.userdata.getBlockRangesFromChapterNumber(book1, chapter1, bible.keySymbol, bible.mepsLanguage.id, startVerse: verse1, endVerse: verse2);
+      context.read<BlockRangesController>().loadBlockRanges(blockRanges);
 
       items.add({
         'type': 'verse',
@@ -165,15 +164,17 @@ Future<Map<String, dynamic>> fetchVerses(Publication publication, String link) a
         'subtitle': bible.mepsLanguage.vernacular,
         'imageUrl': bible.imageSqr,
         'publicationTitle': bible.shortTitle,
-        'bookNumber': book1,
-        'chapterNumber': chapter1,
+        'firstBookNumber': book1,
+        'lastBookNumber': book2,
+        'firstChapterNumber': chapter1,
+        'lastChapterNumber': chapter2,
         'firstVerseNumber': verse1,
         'lastVerseNumber': verse2,
         'audio': {},
         'keySymbol': bible.keySymbol,
         'mepsLanguageId': bible.mepsLanguage.id,
-        'highlights': blockRanges,
-        'notes': notes
+        'highlights': blockRanges.map((blockRange) => blockRange.toMap()).toList(),
+        'notes': context.read<NotesController>().getNotesByDocument(keySymbol: bible.keySymbol, mepsLanguageId: bible.mepsLanguage.id, firstBookNumber: book1, lastBookNumber: book2, firstChapterNumber: chapter1, lastChapterNumber: chapter2, firstBlockIdentifier: verse1, lastBlockIdentifier: verse2).map((n) => n.toMap()).toList(),
       });
     }
 
@@ -208,7 +209,7 @@ Future<Map<String, dynamic>?> fetchExtractPublication(BuildContext context, Stri
     List<Map<String, dynamic>> extractItems = [];
 
     for (var extract in response) {
-      Publication? refPub = await PubCatalog.searchPub(extract['UndatedSymbol'], int.parse(extract['IssueTagNumber']), extract['MepsLanguageIndex']);
+      Publication? refPub = await CatalogDb.instance.searchPub(extract['UndatedSymbol'], int.parse(extract['IssueTagNumber']), extract['MepsLanguageIndex']);
 
       var doc = parse(extract['Caption']);
       String caption = doc.querySelector('.etitle')?.text ?? '';
@@ -245,20 +246,9 @@ Future<Map<String, dynamic>?> fetchExtractPublication(BuildContext context, Stri
         }
       }
 
-      List<Map<String, dynamic>> blockRanges = [];
-      List<Map<String, dynamic>> notes = [];
+      List<BlockRange> blockRanges = [];
       if (extractMepsDocumentId != null) {
         blockRanges = await JwLifeApp.userdata.getBlockRangesFromDocumentId(extractMepsDocumentId, extract['MepsLanguageIndex'], startParagraph: firstParagraphId, endParagraph: lastParagraphId);
-        notes = await JwLifeApp.userdata.getNotesFromDocumentId(extractMepsDocumentId, extract['MepsLanguageIndex'], startParagraph: firstParagraphId, endParagraph: lastParagraphId);
-
-        if(publication.documentsManager == null) {
-          publication.datedTextManager!.getCurrentDatedText().extractedNotes.clear();
-          publication.datedTextManager!.getCurrentDatedText().extractedNotes.addAll(notes.map((item) => Map<String, dynamic>.from(item)).toList());
-        }
-        else {
-          publication.documentsManager!.getCurrentDocument().extractedNotes.clear();
-          publication.documentsManager!.getCurrentDocument().extractedNotes.addAll(notes.map((item) => Map<String, dynamic>.from(item)).toList());
-        }
       }
 
       dynamic article = {
@@ -272,8 +262,8 @@ Future<Map<String, dynamic>?> fetchExtractPublication(BuildContext context, Stri
         'startParagraphId': firstParagraphId,
         'endParagraphId': lastParagraphId,
         'publicationTitle': refPub == null ? extract['ShortTitle'] : refPub.getShortTitle(),
-        'highlights': blockRanges,
-        'notes': notes
+        'highlights': blockRanges.map((blockRange) => blockRange.toMap()).toList(),
+        'notes': context.read<NotesController>().getNotesByDocument(mepsDocumentId: extractMepsDocumentId, mepsLanguageId: extract['MepsLanguageIndex'], firstBlockIdentifier: firstParagraphId, lastBlockIdentifier: lastParagraphId).map((n) => n.toMap()).toList()
       };
 
       // Ajouter l'élément document à la liste versesItems
@@ -328,7 +318,7 @@ Future<Map<String, dynamic>?> fetchExtractPublication(BuildContext context, Stri
 }
 
 Future<Map<String, dynamic>?> fetchGuideVerse(BuildContext context, Publication publication, String guideVerseId) async {
-  Publication? guideVersePub = await PubCatalog.searchPub('rsg19', 0, JwLifeSettings().currentLanguage.id);
+  Publication? guideVersePub = await CatalogDb.instance.searchPub('rsg19', 0, JwLifeSettings.instance.currentLanguage.value.id);
   if(guideVersePub == null) return null;
 
   Database? guideVersePubDb;
@@ -352,7 +342,7 @@ Future<Map<String, dynamic>?> fetchGuideVerse(BuildContext context, Publication 
     List<Map<String, dynamic>> extractItems = [];
 
     for (var extract in response) {
-      Publication? refPub = await PubCatalog.searchPub(extract['UndatedSymbol'], int.parse(extract['IssueTagNumber']), extract['MepsLanguageIndex']);
+      Publication? refPub = await CatalogDb.instance.searchPub(extract['UndatedSymbol'], int.parse(extract['IssueTagNumber']), extract['MepsLanguageIndex']);
 
       var doc = parse(extract['Caption']);
       String caption = doc.querySelector('.etitle')?.text ?? '';
@@ -377,19 +367,19 @@ Future<Map<String, dynamic>?> fetchGuideVerse(BuildContext context, Publication 
       int? firstParagraphId = extract['RefBeginParagraphOrdinal'];
       int? lastParagraphId = extract['RefEndParagraphOrdinal'];
 
-      List<Map<String, dynamic>> highlights = [];
+      List<BlockRange> blockRanges = [];
       List<Map<String, dynamic>> notes = [];
       if (extractMepsDocumentId != null) {
-        highlights = await JwLifeApp.userdata.getBlockRangesFromDocumentId(extractMepsDocumentId, extract['MepsLanguageIndex'], startParagraph: firstParagraphId, endParagraph: lastParagraphId);
+        blockRanges = await JwLifeApp.userdata.getBlockRangesFromDocumentId(extractMepsDocumentId, extract['MepsLanguageIndex'], startParagraph: firstParagraphId, endParagraph: lastParagraphId);
         notes = await JwLifeApp.userdata.getNotesFromDocumentId(extractMepsDocumentId, extract['MepsLanguageIndex'], startParagraph: firstParagraphId, endParagraph: lastParagraphId);
 
         if(publication.documentsManager == null) {
-          publication.datedTextManager!.getCurrentDatedText().extractedNotes.clear();
-          publication.datedTextManager!.getCurrentDatedText().extractedNotes.addAll(notes.map((item) => Map<String, dynamic>.from(item)).toList());
+          //publication.datedTextManager!.getCurrentDatedText().extractedNotes.clear();
+          //publication.datedTextManager!.getCurrentDatedText().extractedNotes.addAll(notes.map((item) => Map<String, dynamic>.from(item)).toList());
         }
         else {
-          publication.documentsManager!.getCurrentDocument().extractedNotes.clear();
-          publication.documentsManager!.getCurrentDocument().extractedNotes.addAll(notes.map((item) => Map<String, dynamic>.from(item)).toList());
+          //publication.documentsManager!.getCurrentDocument().extractedNotes.clear();
+          //publication.documentsManager!.getCurrentDocument().extractedNotes.addAll(notes.map((item) => Map<String, dynamic>.from(item)).toList());
         }
       }
 
@@ -404,7 +394,7 @@ Future<Map<String, dynamic>?> fetchGuideVerse(BuildContext context, Publication 
         'startParagraphId': firstParagraphId,
         'endParagraphId': lastParagraphId,
         'publicationTitle': refPub == null ? extract['ShortTitle'] : refPub.getShortTitle(),
-        'highlights': highlights,
+        'highlights': blockRanges,
         'notes': notes
       };
 
@@ -814,8 +804,6 @@ Future<List<Map<String, dynamic>>> fetchOtherVerseVersion(BuildContext context, 
       );
       htmlContent += decodedHtml;
 
-
-
       versesTranslations.add({
         'type': 'verse',
         'content': htmlContent,
@@ -830,8 +818,8 @@ Future<List<Map<String, dynamic>>> fetchOtherVerseVersion(BuildContext context, 
         'lastVerseNumber': verse,
         'audio': {},
         'mepsLanguageId': bible.mepsLanguage.id,
-        'highlights': publication.documentsManager!.getCurrentDocument().blockRanges,
-        'notes': publication.documentsManager!.getCurrentDocument().notes
+        //'highlights': publication.documentsManager!.getCurrentDocument().blockRanges,
+        //'notes': publication.documentsManager!.getCurrentDocument()
       });
     }
     return versesTranslations;
@@ -959,7 +947,7 @@ Future<List<Map<String, dynamic>>> fetchVerseResearchGuide(
         }
 
         // 3. Appeler searchPubs une seule fois pour toutes les publications de référence
-        final List<Publication> refPubs = await PubCatalog.searchPubs(
+        final List<Publication> refPubs = await CatalogDb.instance.searchPubs(
             pubKeySymbols.map((e) => e.split('-')[0]).toList(), // Extraire KeySymbol
             pubIssueTagNumbers,
             pubLanguages.firstWhere((e) => true, orElse: () => null) // Supposition: la langue est la même pour l'ensemble des refPubs
@@ -1034,11 +1022,13 @@ Future<List<Map<String, dynamic>>> fetchVerseResearchGuide(
                 }
               }
 
-              List<Map<String, dynamic>> blockRanges = [];
-              List<Map<String, dynamic>> notes = [];
+              List<BlockRange> blockRanges = [];
+              List<Note> notes = [];
+
               if (extractMepsDocumentId != null) {
                 blockRanges = await JwLifeApp.userdata.getBlockRangesFromDocumentId(extractMepsDocumentId, extract['MepsLanguageIndex'], startParagraph: firstParagraphId, endParagraph: lastParagraphId);
-                notes = await JwLifeApp.userdata.getNotesFromDocumentId(extractMepsDocumentId, extract['MepsLanguageIndex'], startParagraph: firstParagraphId, endParagraph: lastParagraphId);
+                context.read<BlockRangesController>().loadBlockRanges(blockRanges);
+                notes = context.read<NotesController>().getNotesByDocument(mepsDocumentId: extractMepsDocumentId, mepsLanguageId: extract['MepsLanguageIndex'], firstBlockIdentifier: firstParagraphId, lastBlockIdentifier: lastParagraphId);
               }
 
               // Construction de l’article
@@ -1053,8 +1043,8 @@ Future<List<Map<String, dynamic>>> fetchVerseResearchGuide(
                 'startParagraphId': firstParagraphId,
                 'endParagraphId': lastParagraphId,
                 'publicationTitle': refPub == null ? extract['ShortTitle']?.toString() ?? '' : refPub.getShortTitle(),
-                'highlights': blockRanges,
-                'notes': notes,
+                'highlights': blockRanges.map((b) => b.toMap()).toList(),
+                'notes': notes.map((n) => n.toMap()).toList(),
               });
             }
           }

@@ -9,6 +9,7 @@ import 'package:jwlife/core/utils/utils_video.dart';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/realm/catalog.dart';
 import 'package:jwlife/widgets/image_cached_widget.dart';
+import '../../../../../app/app_page.dart';
 import '../../../../../app/services/global_key_service.dart';
 import '../../../../../data/models/video.dart';
 import '../data/models/multimedia.dart';
@@ -89,8 +90,8 @@ class _FullScreenImagePageState extends State<FullScreenImagePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      resizeToAvoidBottomInset: false,
+    return AppPage(
+      isWebview: true,
       backgroundColor: const Color(0xFF101010),
       body: Stack(
         children: [
@@ -206,12 +207,13 @@ class _FullScreenImagePageState extends State<FullScreenImagePage> {
     child: AppBar(
       backgroundColor: Colors.transparent,
       elevation: 0,
+      titleSpacing: 0.0,
       title: Text(
         _multimedias[_currentIndex].caption,
         style: const TextStyle(color: Colors.white),
       ),
       leading: IconButton(
-        icon: const Icon(Icons.arrow_back, color: Colors.white),
+        icon: const Icon(JwIcons.chevron_left, color: Colors.white),
         onPressed: () =>
             GlobalKeyService.jwLifePageKey.currentState?.handleBack(context),
       ),
@@ -302,77 +304,80 @@ class _FullScreenImagePageState extends State<FullScreenImagePage> {
     );
   }
 
-  Widget _buildThumbnailList() => Positioned(
-    bottom: 80,
-    left: 0,
-    right: 0,
-    child: SizedBox(
-      height: 80,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        controller: _scrollController,
-        itemCount: _multimedias.length,
-        itemBuilder: (context, index) {
-          final media = _multimedias[index];
-          bool isVideo = media.mimeType == 'video/mp4';
+  Widget _buildThumbnailList() => SafeArea(
+    child: Align(
+      alignment: Alignment.bottomCenter,
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: kBottomNavigationBarHeight + 10),
+        child: SizedBox(
+          height: 80,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            controller: _scrollController,
+            itemCount: _multimedias.length,
+            itemBuilder: (context, index) {
+              final media = _multimedias[index];
+              bool isVideo = media.mimeType == 'video/mp4';
 
-          MediaItem? mediaItem;
-          if (isVideo) {
-            String? pub = media.keySymbol;
-            int? track = media.track;
-            int? documentId = media.mepsDocumentId;
-            int? issueTagNumber = media.issueTagNumber;
-            int? mepsLanguageId = media.mepsLanguageId;
+              MediaItem? mediaItem;
+              if (isVideo) {
+                String? pub = media.keySymbol;
+                int? track = media.track;
+                int? documentId = media.mepsDocumentId;
+                int? issueTagNumber = media.issueTagNumber;
+                int? mepsLanguageId = media.mepsLanguageId;
 
-            mediaItem = getMediaItem(
-                pub,
-                track,
-                documentId,
-                issueTagNumber,
-                mepsLanguageId,
-                isVideo: true
-            );
-          }
+                mediaItem = getMediaItem(
+                    pub,
+                    track,
+                    documentId,
+                    issueTagNumber,
+                    mepsLanguageId,
+                    isVideo: true
+                );
+              }
 
-          final isSelected = index == _currentIndex;
+              final isSelected = index == _currentIndex;
 
-          return GestureDetector(
-            onTap: () => _pageController.jumpToPage(index),
-            child: Container(
-              width: isSelected ? 80 : 60,
-              margin: EdgeInsets.symmetric(horizontal: 5),
-              child: Align(
-                alignment: Alignment.center,
+              return GestureDetector(
+                onTap: () => _pageController.jumpToPage(index),
                 child: Container(
-                    width: isSelected ? 80 : 60,
-                    height: isSelected ? 80 : 60,
-                    decoration: BoxDecoration(
-                      border: isSelected ? Border.all(color: Colors.white, width: 2) : null,
-                      borderRadius: BorderRadius.circular(0),
-                    ),
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        ClipRRect(
+                  width: isSelected ? 80 : 60,
+                  margin: EdgeInsets.symmetric(horizontal: 5),
+                  child: Align(
+                    alignment: Alignment.center,
+                    child: Container(
+                        width: isSelected ? 80 : 60,
+                        height: isSelected ? 80 : 60,
+                        decoration: BoxDecoration(
+                          border: isSelected ? Border.all(color: Colors.white, width: 2) : null,
                           borderRadius: BorderRadius.circular(0),
-                          child: mediaItem != null ? ImageCachedWidget(
-                            imageUrl:
-                            mediaItem.realmImages?.squareFullSizeImageUrl ??
-                                mediaItem.realmImages?.squareImageUrl ??
-                                mediaItem.realmImages?.wideFullSizeImageUrl ?? mediaItem.realmImages?.wideImageUrl,
-                            icon: JwIcons.video,
-                            fit: BoxFit.cover,
-                            animation: false,
-                          ) : Image.file(File('${widget.publication.path}/${media.filePath}'), fit: BoxFit.cover),
                         ),
-                        isVideo ? Icon(JwIcons.play_circle, color: Colors.white, size: 30) : Container(),
-                      ],
-                    )
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(0),
+                              child: mediaItem != null ? ImageCachedWidget(
+                                imageUrl:
+                                mediaItem.realmImages?.squareFullSizeImageUrl ??
+                                    mediaItem.realmImages?.squareImageUrl ??
+                                    mediaItem.realmImages?.wideFullSizeImageUrl ?? mediaItem.realmImages?.wideImageUrl,
+                                icon: JwIcons.video,
+                                fit: BoxFit.cover,
+                                animation: false,
+                              ) : Image.file(File('${widget.publication.path}/${media.filePath}'), fit: BoxFit.cover),
+                            ),
+                            isVideo ? Icon(JwIcons.play_circle, color: Colors.white, size: 30) : Container(),
+                          ],
+                        )
+                    ),
+                  ),
                 ),
-              ),
-            ),
-          );
-        },
+              );
+            },
+          ),
+        ),
       ),
     ),
   );

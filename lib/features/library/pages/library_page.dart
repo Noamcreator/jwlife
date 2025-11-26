@@ -1,20 +1,21 @@
 import 'package:flutter/material.dart';
-
+import 'package:jwlife/app/jwlife_app_bar.dart';
+import 'package:jwlife/core/app_data/app_data_service.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/widgets_utils.dart';
 import 'package:jwlife/data/databases/history.dart';
-import 'package:jwlife/features/library/pages/publications/publications_categories_page.dart';
-import 'package:jwlife/features/library/pages/videos/videos_categories_page.dart';
+import 'package:jwlife/features/library/pages/pending_update/pending_updates_widget.dart';
+import 'package:jwlife/features/library/pages/publications/publications_categories_widget.dart';
+import 'package:jwlife/features/library/pages/videos/videos_categories_widget.dart';
 import 'package:jwlife/i18n/i18n.dart';
-
-import '../../../app/services/global_key_service.dart' show GlobalKeyService;
+import 'package:jwlife/widgets/responsive_appbar_actions.dart';
+import '../../../app/app_page.dart';
+import '../../../app/services/settings_service.dart';
 import '../../../core/shared_preferences/shared_preferences_utils.dart';
+import '../../../core/ui/text_styles.dart';
 import '../../../core/utils/utils_language_dialog.dart';
-import '../../../data/models/publication_category.dart';
-import '../models/library_model.dart';
-import 'audios/audios_categories_page.dart';
-import 'downloads/downloads_page.dart';
-import 'pending_update/pending_updates_page.dart';
+import 'audios/audios_categories_widget.dart';
+import 'downloads/downloads_widget.dart';
 
 class LibraryPage extends StatefulWidget {
   const LibraryPage({super.key});
@@ -25,180 +26,155 @@ class LibraryPage extends StatefulWidget {
 
 class LibraryPageState extends State<LibraryPage> with TickerProviderStateMixin {
   TabController? _tabController;
-  late final LibraryPageModel _model; // Le modèle de données/logique
 
   @override
   void initState() {
     super.initState();
-    _model = LibraryPageModel(); // Initialisation du modèle
+    _tabController = TabController(length: _calculateTabsLength(), vsync: this);
 
-    // Le contrôleur est initialisé avec une longueur de 0 (ou celle du modèle)
-    _tabController = TabController(length: _model.tabsLength, vsync: this);
-
-    // Écoute les changements dans le modèle pour mettre à jour le TabController si nécessaire
-    _model.addListener(_onModelChange);
-
-    // Démarre la logique de chargement
-    _model.refreshLibraryCategories();
+    // Écoute des changements dans les catégories pour reconstruire les onglets
+    AppDataService.instance.publicationsCategories.addListener(_onModelChange);
+    AppDataService.instance.videoCategories.addListener(_onModelChange);
+    AppDataService.instance.audioCategories.addListener(_onModelChange);
   }
 
   @override
   void dispose() {
     _tabController?.dispose();
-    _model.removeListener(_onModelChange);
-    _model.dispose(); // Libérer les ressources du modèle
     super.dispose();
   }
 
-  void refreshCatalogCategories(List<PublicationCategory> categories) {
-    _model.refreshCatalogCategories(categories);
-  }
-
-  void refreshLibraryCategories() {
-    _model.refreshLibraryCategories();
-  }
-
-  // Gère la recréation du TabController si la liste des onglets change
   void _onModelChange() {
-    // Si la page n'est plus montée, on ne fait rien.
     if (!mounted) return;
 
-    final newLength = _model.tabsLength;
+    final newLength = _calculateTabsLength();
+    if (_tabController == null) return;
 
     if (_tabController!.length != newLength) {
       final currentIndex = _tabController!.index;
-
-      // Un petit 'setState' pour s'assurer que le widget utilise la nouvelle logique
-      // et que le TabController sera recréé.
-      setState(() {
-        _tabController!.dispose(); // Libérer l'ancien contrôleur
-
-        // Créer un nouveau contrôleur avec la nouvelle longueur
-        _tabController = TabController(
-          length: newLength,
-          vsync: this,
-          // S'assurer que l'index initial est valide pour la nouvelle longueur
-          initialIndex: currentIndex.clamp(0, newLength > 0 ? newLength - 1 : 0),
-        );
-      });
+      _tabController!.dispose();
+      _tabController = TabController(
+        length: newLength,
+        vsync: this,
+        initialIndex: currentIndex.clamp(0, newLength - 1),
+      );
+      setState(() {});
+    } else {
+      setState(() {});
     }
   }
 
+  int _calculateTabsLength() {
+    final publications = AppDataService.instance.publicationsCategories.value;
+    final videos = AppDataService.instance.videoCategories.value;
+    final audios = AppDataService.instance.audioCategories.value;
+
+    int length = 0;
+    if (publications.isNotEmpty) length++; // Publications
+    if (videos != null) length++; // Vidéos
+    if (audios != null) length++; // Audio
+    length += 2; // Téléchargés + Mises à jour en attente
+    return length;
+  }
+
   void goToThePubsTab() {
-    // Utilise la logique du modèle pour la vérification
-    if (_tabController != null && _model.catalogCategories.isNotEmpty) {
+    final publications = AppDataService.instance.publicationsCategories.value;
+    if (_tabController != null && publications.isNotEmpty) {
       _tabController!.animateTo(0);
     }
   }
 
-  // Fonctions de l'AppBar déplacées de la logique vers le widget
   void _onLanguagePressed(BuildContext context) async {
-    showLanguageDialog(context).then((language) async {
-      if (language != null) {
-        await setLibraryLanguage(language);
-        _model.refreshLibraryCategories(); // Utilisation de la fonction du modèle
-        GlobalKeyService.homeKey.currentState?.changeLanguageAndRefresh();
-      }
-    });
+    final language = await showLanguageDialog(context);
+    if (language != null) {
+      await AppSharedPreferences.instance.setLibraryLanguage(language);
+      AppDataService.instance.changeLanguageAndRefreshContent();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    // Utilisation de ListenableBuilder pour n'écouter que les changements
-    // du modèle, tout en gardant le TickerProviderStateMixin du StatefulWidget.
-    return ListenableBuilder(
-      listenable: _model,
-      builder: (context, _) {
-        final tabs = <Tab>[];
-        final views = <Widget>[];
+    final publicationsCategories = AppDataService.instance.publicationsCategories.value;
+    final videosCategories = AppDataService.instance.videoCategories.value;
+    final audioCategories = AppDataService.instance.audioCategories.value;
 
-        // --- Construction des Onglets (basée sur le modèle) ---
-        if (_model.catalogCategories.isNotEmpty) {
-          tabs.add(Tab(text: i18n().navigation_publications.toUpperCase()));
-          views.add(PublicationsCategoriesPage(categories: _model.catalogCategories));
-        }
+    final tabs = <Tab>[];
+    final views = <Widget>[];
 
-        if (_model.isMediaLoading || _model.video != null) {
-          tabs.add(Tab(text: i18n().pub_type_videos_uppercase));
-          views.add(
-            _model.isMediaLoading
-                ? getLoadingWidget(Theme.of(context).primaryColor)
-                : (_model.video != null ? VideosCategoriesPage(categories: _model.video!) : const SizedBox.shrink()),
-          );
-        }
+    // Publications
+    if (publicationsCategories.isNotEmpty) {
+      tabs.add(Tab(text: i18n().navigation_publications.toUpperCase()));
+      views.add(PublicationsCategoriesWidget());
+    }
 
-        if (_model.isMediaLoading || _model.audio != null) {
-          tabs.add(Tab(text: i18n().pub_type_audio_programs_uppercase));
-          views.add(
-            _model.isMediaLoading
-                ? getLoadingWidget(Theme.of(context).primaryColor)
-                : (_model.audio != null ? AudiosCategoriesPage(categories: _model.audio!) : const SizedBox.shrink()),
-          );
-        }
+    // Vidéos
+    if (videosCategories != null) {
+      tabs.add(Tab(text: i18n().pub_type_videos_uppercase));
+      views.add(VideosCategoriesWidget(categories: videosCategories));
+    }
 
-        tabs.add(Tab(text: i18n().label_downloaded_uppercase));
-        views.add(const DownloadPage());
+    // Audio
+    if (audioCategories != null) {
+      tabs.add(Tab(text: i18n().pub_type_audio_programs_uppercase));
+      views.add(AudiosCategoriesWidget(categories: audioCategories));
+    }
 
-        tabs.add(Tab(text: i18n().label_pending_updates_uppercase));
-        views.add(const PendingUpdatesPage());
+    // Téléchargés
+    tabs.add(Tab(text: i18n().label_downloaded_uppercase));
+    views.add(const DownloadWidget());
 
-        return Scaffold(
-          resizeToAvoidBottomInset: false,
-          appBar: AppBar(
-            title: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(i18n().navigation_library,
-                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                Text(
-                  _model.language, // Langue issue du modèle
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Theme.of(context).brightness == Brightness.dark
-                        ? const Color(0xFFc3c3c3)
-                        : const Color(0xFF626262),
-                  ),
-                ),
-              ],
+    // Mises à jour en attente
+    tabs.add(Tab(text: i18n().label_pending_updates_uppercase));
+    views.add(const PendingUpdatesWidget());
+
+    // Mise à jour du TabController si nécessaire
+    if (_tabController == null || _tabController!.length != tabs.length) {
+      _tabController?.dispose();
+      _tabController = TabController(length: tabs.length, vsync: this);
+    }
+
+    return AppPage(
+      appBar: JwLifeAppBar(
+        canPop: false,
+        title: i18n().navigation_library,
+        subTitleWidget: ValueListenableBuilder(valueListenable: JwLifeSettings.instance.currentLanguage, builder: (context, value, child) {
+          return Text(value.vernacular, style: Theme.of(context).extension<JwLifeThemeStyles>()!.appBarSubTitle);
+        }),
+        actions: [
+          IconTextButton(
+            icon: const Icon(JwIcons.language),
+            onPressed: _onLanguagePressed,
+          ),
+          IconTextButton(
+            icon: const Icon(JwIcons.arrow_circular_left_clock),
+            onPressed: History.showHistoryDialog,
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          Container(
+            color: Theme.of(context).brightness == Brightness.dark
+                ? const Color(0xFF111111)
+                : Colors.white,
+            child: TabBar(
+              controller: _tabController,
+              isScrollable: true,
+              tabs: tabs,
+              dividerHeight: 1,
+              dividerColor: const Color(0xFF686868),
             ),
-            actions: [
-              IconButton(
-                icon: const Icon(JwIcons.language),
-                onPressed: () => _onLanguagePressed(context),
-              ),
-              IconButton(
-                disabledColor: Colors.grey,
-                icon: const Icon(JwIcons.arrow_circular_left_clock),
-                onPressed: () => History.showHistoryDialog(context),
-              ),
-            ],
           ),
-          body: Column(
-            children: [
-              Container(
-                color: Theme.of(context).brightness == Brightness.dark
-                    ? const Color(0xFF111111)
-                    : Colors.white,
-                child: TabBar(
-                  controller: _tabController,
-                  isScrollable: true,
-                  tabs: tabs,
-                  dividerHeight: 1,
-                  dividerColor: const Color(0xFF686868),
-                ),
-              ),
-              Expanded(
-                child: TabBarView(
-                  controller: _tabController,
-                  children: tabs.isEmpty // Afficher un chargement si aucun onglet
-                      ? [getLoadingWidget(Theme.of(context).primaryColor)]
-                      : views,
-                ),
-              )
-            ],
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: tabs.isEmpty
+                  ? [getLoadingWidget(Theme.of(context).primaryColor)]
+                  : views,
+            ),
           ),
-        );
-      },
+        ],
+      ),
     );
   }
 }

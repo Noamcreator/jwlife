@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:jwlife/widgets/image_cached_widget.dart';
 
+import '../../../../../app/app_page.dart';
+
 class PublicationSvgView extends StatefulWidget {
   final List<String> svgUrls;
 
@@ -24,7 +26,7 @@ class _PublicationSvgViewState extends State<PublicationSvgView> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return AppPage(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: PageView.builder(
         controller: _pageController,

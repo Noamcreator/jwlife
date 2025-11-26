@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:jwlife/data/models/userdata/playlist.dart';
 import 'package:jwlife/i18n/i18n.dart';
 
+import '../../../app/app_page.dart';
 import '../../../app/services/global_key_service.dart';
 import 'study_page.dart';
 
@@ -37,8 +38,7 @@ class PersonalPageState extends State<PersonalPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      resizeToAvoidBottomInset: false,
+    return AppPage(
       appBar: AppBar(
         title: Text(
           i18n().navigation_personal,

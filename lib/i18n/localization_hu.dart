@@ -522,9 +522,6 @@ class AppLocalizationsHu extends AppLocalizations {
   String get action_playlist_end_stop => 'Leállítás';
 
   @override
-  String get action_preparing_mode => 'Előkészítő mód';
-
-  @override
   String get action_previous => 'Előző';
 
   @override
@@ -3126,4 +3123,7 @@ class AppLocalizationsHu extends AppLocalizations {
 
   @override
   String get action_brothers_and_sisters => 'Testvérek';
+
+  @override
+  String get action_blocking_horizontally_mode => 'Vízszintes blokkolás';
 }

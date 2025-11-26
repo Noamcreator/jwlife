@@ -161,7 +161,6 @@
   "action_playlist_end_continue": "Folytatás",
   "action_playlist_end_freeze": "Szünet",
   "action_playlist_end_stop": "Leállítás",
-  "action_preparing_mode": "Előkészítő mód",
   "action_previous": "Előző",
   "action_reading_mode": "Olvasási mód",
   "action_refresh": "Frissítés",
@@ -907,5 +906,6 @@
   "action_public_talk_remove": "Előadás törlése",
   "action_congregations": "Helyi Gyülekezetek",
   "action_meeting_management": "Összejövetel-tervezés",
-  "action_brothers_and_sisters": "Testvérek"
+  "action_brothers_and_sisters": "Testvérek",
+  "action_blocking_horizontally_mode": "Vízszintes blokkolás"
 }

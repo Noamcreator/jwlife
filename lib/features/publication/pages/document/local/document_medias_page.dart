@@ -1,17 +1,22 @@
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
+import 'package:jwlife/app/jwlife_app_bar.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/core/utils/utils_video.dart';
 import 'package:jwlife/data/databases/history.dart';
 import 'package:jwlife/data/models/media.dart';
 import 'package:jwlife/data/realm/catalog.dart';
+import 'package:jwlife/data/realm/realm_library.dart';
+import 'package:jwlife/features/library/pages/audios/audios_items_page.dart';
 import 'package:jwlife/widgets/image_cached_widget.dart';
+import 'package:realm/realm.dart';
 
-import '../../../../../app/services/global_key_service.dart';
+import '../../../../../app/app_page.dart';
 import '../../../../../data/models/video.dart';
 import '../../../../../i18n/i18n.dart';
 import '../../../../../widgets/mediaitem_item_widget.dart';
+import '../../../../../widgets/responsive_appbar_actions.dart';
 import '../data/models/document.dart';
 import '../data/models/multimedia.dart';
 import 'full_screen_image_page.dart';
@@ -93,38 +98,25 @@ class _DocumentMediasViewState extends State<DocumentMediasView> {
     final crossAxisCount = _getCrossAxisCount(screenWidth);
     final spacing = _getSpacing(screenWidth);
 
-    final textStyleTitle = TextStyle(fontSize: 20, fontWeight: FontWeight.bold);
-    final textStyleSubtitle = TextStyle(fontSize: 14, color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFFc3c3c3) : const Color(0xFF626262));
-
-    return Scaffold(
-      appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              i18n().navigation_meetings_show_media,
-              style: textStyleTitle,
-            ),
-            Text(
-              widget.document.getDisplayTitle(),
-              style: textStyleSubtitle,
-            ),
-          ],
-        ),
+    return AppPage(
+      appBar: JwLifeAppBar(
+        title: i18n().navigation_meetings_show_media,
+        subTitle: widget.document.getDisplayTitle(),
         actions: [
-          IconButton(
+          IconTextButton(
             icon: const Icon(JwIcons.arrow_circular_left_clock),
-            onPressed: () {
-              History.showHistoryDialog(context);
-            },
+            onPressed: History.showHistoryDialog
+          ),
+          IconTextButton(
+              icon: const Icon(JwIcons.video_music),
+              onPressed: (BuildContext context) {
+                String categoryKey = 'SJJMeetings';
+                String languageSymbol = widget.document.publication.mepsLanguage.symbol;
+                RealmResults<Category> category = RealmLibrary.realm.all<Category>().query("key == \$0 AND language == \$1", [categoryKey, languageSymbol]);
+                showPage(AudioItemsPage(category: category.first));
+                            }
           ),
         ],
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back),
-          onPressed: () {
-            GlobalKeyService.jwLifePageKey.currentState?.handleBack(context);
-          },
-        ),
       ),
       body: (videos.isEmpty && images.isEmpty)
           ? const Center(child: CircularProgressIndicator())

@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:jwlife/app/jwlife_app_bar.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/data/databases/history.dart';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/widgets/image_cached_widget.dart';
+import 'package:jwlife/widgets/responsive_appbar_actions.dart';
 
+import '../../../app/app_page.dart';
 import '../../../core/utils/common_ui.dart';
 import '../../../i18n/i18n.dart';
 import '../../publication/pages/document/data/models/multimedia.dart';
@@ -209,30 +212,16 @@ class _BibleBookMediasViewState extends State<BibleBookMediasView> {
     final screenWidth = MediaQuery.of(context).size.width;
     final crossAxisCount = _getCrossAxisCount(screenWidth);
     final spacing = _getSpacing(screenWidth);
-    final textStyleTitle = const TextStyle(fontSize: 20, fontWeight: FontWeight.bold);
-    final textStyleSubtitle = TextStyle(fontSize: 14, color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFFc3c3c3) : const Color(0xFF626262));
-
     final sortedChapterIds = groupedMedias.keys.toList()..sort();
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              i18n().label_media_gallery,
-              style: textStyleTitle,
-            ),
-            Text(
-              widget.bibleBook.bookInfo['BookName'],
-              style: textStyleSubtitle,
-            ),
-          ],
-        ),
+    return AppPage(
+      appBar: JwLifeAppBar(
+        title: i18n().label_media_gallery,
+        subTitle: widget.bibleBook.bookInfo['BookName'],
         actions: [
-          IconButton(
+          IconTextButton(
             icon: const Icon(JwIcons.arrow_circular_left_clock),
-            onPressed: () {
+            onPressed: (BuildContext context) {
               History.showHistoryDialog(context);
             },
           )
