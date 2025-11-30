@@ -7,7 +7,8 @@ const double kMaxItemWidth = 300.0;
 const double kSpacing = 2.0;
 
 // Hauteur harmonisée des éléments de liste (RectanglePublicationItem)
-const double kItemHeight = 85.0;
+const double kCategoriesHeight = 80.0;
+const double kItemHeight = 80.0;
 const double kSquareItemHeight = 80.0;
 
 const double kFontBase = 15.0;

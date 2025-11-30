@@ -60,7 +60,7 @@ class MediaCollections {
     return a;
   }
 
-  Audio? getAudioFromMediaItem(MediaItem mediaItem) {
+  Audio? getAudioFromMediaItem(RealmMediaItem mediaItem) {
     String keySymbol = mediaItem.pubSymbol ?? '';
     int documentId = mediaItem.documentId ?? 0;
     String mepsLanguage = mediaItem.languageSymbol ?? JwLifeSettings.instance.currentLanguage.value.symbol;
@@ -70,7 +70,7 @@ class MediaCollections {
     return audios.firstWhereOrNull((element) => element.keySymbol == keySymbol && element.documentId == documentId && element.mepsLanguage == mepsLanguage && element.issueTagNumber == issueTagNumber && element.track == track);
   }
 
-  List<Audio> getAudiosFromCategory(Category category) {
+  List<Audio> getAudiosFromCategory(RealmCategory category) {
     return audios.where((element) => element.categoryKey == category.key).toList();
   }
 
@@ -82,7 +82,7 @@ class MediaCollections {
     return audios.where((element) => element.keySymbol == keySymbol && element.issueTagNumber == issueTagNumber && element.mepsLanguage == mepsLanguage).toList();
   }
 
-  Video? getVideo(MediaItem mediaItem) {
+  Video? getVideo(RealmMediaItem mediaItem) {
     String keySymbol = mediaItem.pubSymbol ?? '';
     int documentId = mediaItem.documentId ?? 0;
     String mepsLanguage = mediaItem.languageSymbol ?? JwLifeSettings.instance.currentLanguage.value.symbol;
@@ -207,7 +207,7 @@ class MediaCollections {
       ],
     );
 
-    String? imageUrl = media is Audio ? media.networkImageSqr : media.networkImageLsr;
+    String? imageUrl = media is Audio ? media.networkFullSizeImageSqr : media.networkFullSizeImageLsr;
     String imagePath = '';
     if (imageUrl != null && imageUrl.startsWith('https')) {
       Tile? tile = await TilesCache().getOrDownloadImage(imageUrl);

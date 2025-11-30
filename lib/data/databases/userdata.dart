@@ -1341,42 +1341,61 @@ class Userdata {
     }
   }
 
-  Future<Note?> addNote(String title, String content, int? colorIndex, List<int> categoryIds, int? mepsDocumentId, int? bookNumber, int? chapterNumber, int? issueTagNumber, String? keySymbol, int? mepsLanguageId, {int blockType = 0, int? blockIdentifier}) async {
+  Future<Note> addNote({
+    String? title,
+    String? content,
+    List<int>? tagsIds,
+    int? styleIndex,
+    int? colorIndex,
+    int? blockType,
+    int? identifier,
+    Document? document,
+    DatedText? datedText,
+  }) async {
     try {
-      int? locationId = await insertLocation(bookNumber, chapterNumber, mepsDocumentId, null, issueTagNumber, keySymbol, mepsLanguageId);
+      // ---- NORMALISATION DES NULLS ----
+      final safeTitle = title ?? '';
+      final safeContent = content ?? '';
+      final safeTagsIds = tagsIds ?? const [];
+      final safeStyleIndex = styleIndex ?? 0;
+      final safeColorIndex = colorIndex ?? 0;
+      final safeBlockType = blockType ?? 0;
+
+      int? locationId = await insertLocationWithDocument(document, datedText: datedText);
+      final timestamp = DateTime.now().toIso8601String();
 
       int? userMarkId;
-      if (colorIndex != null && locationId != null) {
-        final userMarkGuid = uuid.Uuid().v4(); // Generates a version 4 UUID
+      String? userMarkGuid;
 
-        // Insérer une nouvelle entrée dans la table UserMark avec un LocationId valide
+      if (locationId != null) {
+        userMarkGuid = uuid.Uuid().v4(); // Generates a version 4 UUID
+
         userMarkId = await _database.insert('UserMark', {
-          'ColorIndex': colorIndex,  // Insérer le ColorIndex
-          'LocationId': locationId,  // Associer à un LocationId valide
-          'StyleIndex': 0,  // Insérer un StyleIndex valide
-          'UserMarkGuid': userMarkGuid,  // Générer un GUID unique
-          'Version': 1,  // Insérer une version valide
+          'ColorIndex': safeColorIndex,
+          'LocationId': locationId,
+          'StyleIndex': safeStyleIndex,
+          'UserMarkGuid': userMarkGuid,
+          'Version': 1,
         });
       }
 
-      final guidNote = uuid.Uuid().v4(); // Generates a version 4 UUID
+      final guid = uuid.Uuid().v4(); // Generates a version 4 UUID
 
-      // Insérer la nouvelle note dans la table Note, en liant UserMarkId
+      // --- INSERT NOTE ---
       int noteId = await _database.insert('Note', {
-        'Guid': guidNote, // Générer un GUID unique pour la note
-        'UserMarkId': userMarkId, // Lier la note à l'entrée UserMark
-        'LocationId': locationId, // Lier la note à un LocationId valide
-        'Title': title,
-        'Content': content,
-        'LastModified': DateTime.now().toIso8601String(),
-        'Created': DateTime.now().toIso8601String(),
-        'BlockType': blockType,
-        'BlockIdentifier': blockIdentifier,
+        'Guid': guid,
+        'UserMarkId': userMarkId,
+        'LocationId': locationId,
+        'Title': safeTitle,
+        'Content': safeContent,
+        'LastModified': timestamp,
+        'Created': timestamp,
+        'BlockType': safeBlockType,
+        'BlockIdentifier': identifier,
       });
 
-      // Ajouter les catégories associées à la note dans la table TagMap avec une position unique pour chaque catégorie
-      for (int categoryId in categoryIds) {
-        // Regarder le plus grand position pour cette category
+      // --- TAGS MAP ---
+      for (int categoryId in safeTagsIds) {
         final maxPositionResult = await _database.query(
           'TagMap',
           where: 'TagId = ?',
@@ -1385,36 +1404,46 @@ class Userdata {
           limit: 1,
         );
 
-        // Vérifier si un résultat existe pour cette catégorie
-        int newPosition = 0;  // Si aucune position n'existe, commencer à 0
+        int newPosition = 0;
         if (maxPositionResult.isNotEmpty) {
-          // Convertir 'Position' en int avant d'incrémenter
           newPosition = (maxPositionResult.first['Position'] as int) + 1;
         }
 
-        // Insérer le TagMap avec la nouvelle position
         await _database.insert('TagMap', {
-          'NoteId': noteId,  // Utiliser seulement NoteId
+          'NoteId': noteId,
           'TagId': categoryId,
-          'Position': newPosition,  // Incrémenter la position pour chaque TagId
+          'Position': newPosition,
         });
       }
 
-      Note newNote = Note.fromMap({
-        'Guid': guidNote,
-        'Title': title,
-        'Content': content,
-        'LastModified': DateTime.now().toIso8601String(),
-        'Created': DateTime.now().toIso8601String(),
-        'TagsId': categoryIds,
-        'BlockType': blockType,
-        'BlockIdentifier': blockIdentifier
-      });
-      return newNote;
-    }
-    catch (e) {
+      // --- RETURN NOTE ---
+      return Note(
+        guid: guid,
+        title: safeTitle,
+        content: safeContent,
+        lastModified: timestamp,
+        created: timestamp,
+        blockType: safeBlockType,
+        blockIdentifier: identifier,
+        colorIndex: safeColorIndex,
+        tagsId: safeTagsIds,
+        userMarkGuid: userMarkGuid,
+        location: Location(
+          type: 0,
+          bookNumber: document?.bookNumber,
+          chapterNumber: document?.chapterNumberBible,
+          mepsDocumentId: datedText?.mepsDocumentId ?? document?.mepsDocumentId,
+          mepsLanguageId: datedText?.publication.mepsLanguage.id ??
+              document?.publication.mepsLanguage.id,
+          issueTagNumber: datedText?.publication.issueTagNumber ??
+              document?.publication.issueTagNumber,
+          keySymbol: datedText?.publication.keySymbol ??
+              document?.publication.keySymbol,
+        ),
+      );
+    } catch (e) {
       printTime('Erreur lors de l\'ajout de la note : $e');
-      return null;
+      throw Exception('Failed to add note for the given DocumentId and BlockIdentifier.');
     }
   }
 

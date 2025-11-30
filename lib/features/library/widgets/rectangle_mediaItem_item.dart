@@ -226,7 +226,7 @@ class RectangleMediaItemItem extends StatelessWidget {
                           const Spacer(),
                           // Date + keySymbol
                           Text(
-                            '${formatYear(formatDateTime(media.lastModified ?? media.firstPublished!).year)} · ${media.keySymbol}',
+                            '${formatYear(formatDateTime(media.lastModified ?? media.firstPublished.toString()).year)} · ${media.keySymbol}',
                             style: TextStyle(fontSize: 11, color: subtitleColor),
                           ),
                         ],

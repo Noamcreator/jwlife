@@ -114,7 +114,7 @@ class StudyTabViewState extends State<StudyTabView> {
     );
   }
 
-  Widget buildSectionHeaderNotesTags(BuildContext context) {
+  Widget buildSectionHeaderNotesTags(BuildContext context, NotesController controller) {
     return Padding(
       padding: const EdgeInsets.only(left: 8, right: 8, top: 0, bottom: 0),
       child: Row(
@@ -154,7 +154,6 @@ class StudyTabViewState extends State<StudyTabView> {
                 ),
                 onPressed: () async {
                   await showAddTagDialog(context, false);
-                  setState(() {});
                 },
               ),
               IconButton(
@@ -164,12 +163,8 @@ class StudyTabViewState extends State<StudyTabView> {
                   size: 25,
                 ),
                 onPressed: () async {
-                  Note? note = await JwLifeApp.userdata.addNote(
-                    "", "", 0, [], null, null, null, null, null, null,
-                  );
-                  if (note != null) {
-                    await showPage(NotePage(note: note));
-                  }
+                  Note note = await controller.addNote();
+                  await showPage(NotePage(note: note));
                 },
               ),
             ],
@@ -235,7 +230,8 @@ class StudyTabViewState extends State<StudyTabView> {
 
   @override
   Widget build(BuildContext context) {
-    final notes = context.watch<NotesController>().getNotes(limit: 4);
+    final notesController = context.watch<NotesController>();
+    final notes = notesController.getNotes(limit: 4);
     final tags = context.watch<TagsController>().tags;
 
     return SingleChildScrollView(
@@ -292,7 +288,7 @@ class StudyTabViewState extends State<StudyTabView> {
            */
 
           // Header Notes et Catégories
-          buildSectionHeaderNotesTags(context),
+          buildSectionHeaderNotesTags(context, notesController),
 
           // Section Tags
           tags.isEmpty ? buildEmptyMessage(JwIcons.tag, i18n().message_whatsnew_create_tags)

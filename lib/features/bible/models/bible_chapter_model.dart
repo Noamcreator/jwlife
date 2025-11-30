@@ -9,6 +9,8 @@ import 'package:jwlife/core/utils/utils_jwpub.dart';
 
 import '../../../core/uri/jworg_uri.dart';
 import '../../../core/utils/common_ui.dart';
+import '../../publication/models/menu/local/words_suggestions_model.dart';
+import '../../publication/pages/document/local/documents_manager.dart';
 
 // Classe pour encapsuler les données d'un livre
 class BibleBook {
@@ -76,6 +78,16 @@ class BibleChapterController {
   Future<void> _fetchBooks() async {
     File mepsFile = await getMepsUnitDatabaseFile();
     try {
+      if(bible.documentsManager == null) {
+        // CORRECTION: Initialisation et vérification sécurisée
+        bible.documentsManager ??= DocumentsManager(publication: bible, mepsDocumentId: -1);
+
+        // Le '!' est sécurisé car il vient d'être initialisé ou supposé valide
+        await bible.documentsManager!.initializeDatabaseAndData();
+
+        bible.wordsSuggestionsModel ??= WordsSuggestionsModel(bible);
+      }
+
       Database database = bible.documentsManager!.database;
 
       await database.execute("ATTACH DATABASE '${mepsFile.path}' AS meps");
@@ -96,7 +108,7 @@ class BibleChapterController {
         FROM BibleBook
         INNER JOIN meps.BibleBookName ON BibleBook.BibleBookId = meps.BibleBookName.BookNumber
         INNER JOIN meps.BibleCluesInfo ON meps.BibleBookName.BibleCluesInfoId = meps.BibleCluesInfo.BibleCluesInfoId
-        INNER JOIN Document d1 ON BibleBook.IntroDocumentId = d1.DocumentId
+        LEFT JOIN Document d1 ON BibleBook.IntroDocumentId = d1.DocumentId
         LEFT JOIN Document d2 ON BibleBook.OutlineDocumentId = d2.DocumentId
         LEFT JOIN Document d3 ON BibleBook.OverviewDocumentId = d3.DocumentId
         WHERE meps.BibleCluesInfo.LanguageId = ?

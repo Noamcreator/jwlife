@@ -239,10 +239,10 @@ class _AlertsListPageState extends State<AlertsListPage> {
             printTime('Requested URL: $url');
             final wtlocale = _languageSymbol;
             if (uri.queryParameters.containsKey('lank')) {
-              MediaItem? mediaItem;
+              RealmMediaItem? mediaItem;
               if(uri.queryParameters.containsKey('lank')) {
                 final lank = uri.queryParameters['lank'];
-                mediaItem = getMediaItemFromLank(lank!, wtlocale!);
+                mediaItem = getMediaItemFromLank(lank!, wtlocale);
               }
 
               Video video = Video.fromJson(mediaItem: mediaItem!);

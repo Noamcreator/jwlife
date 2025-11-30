@@ -21,7 +21,7 @@ import '../../data/realm/catalog.dart' as realm_catalog;
 class JwLifeAudioPlayer {
   int? currentId;
   final player = AudioPlayer();
-  realm_catalog.Category? album;
+  realm_catalog.RealmCategory? album;
   Publication? publication;
   String query = '';
   bool randomMode = false;
@@ -42,7 +42,7 @@ class JwLifeAudioPlayer {
         final response = await Api.httpGetWithHeaders(apiUrl, responseType: ResponseType.json);
 
         if (response.statusCode == 200) {
-          album = RealmLibrary.realm.all<realm_catalog.Category>().query("key == '${audio.categoryKey}' AND language == '$lang'").firstOrNull;
+          album = RealmLibrary.realm.all<realm_catalog.RealmCategory>().query("Key == '${audio.categoryKey}' AND LanguageSymbol == '$lang'").firstOrNull;
 
           final apiMedia = response.data['media'][0];
           audio.imagePath = audio.networkImageSqr;
@@ -66,12 +66,12 @@ class JwLifeAudioPlayer {
     }
   }
 
-  Future<void> fetchAudiosCategoryData(realm_catalog.Category category, List<Audio> filteredAudios, {int? id}) async {
+  Future<void> fetchAudiosCategoryData(realm_catalog.RealmCategory category, List<Audio> filteredAudios, {int? id}) async {
     List<Audio> audios = [];
 
     if(album != category) {
       album = category;
-      String languageSymbol = category.language ?? JwLifeSettings.instance.currentLanguage.value.symbol;
+      String languageSymbol = category.languageSymbol ?? JwLifeSettings.instance.currentLanguage.value.symbol;
 
       if(await hasInternetConnection()) {
         // URL de l'API
@@ -160,15 +160,13 @@ class JwLifeAudioPlayer {
         // 1. Déterminer la valeur de l'album une seule fois.
         // Cette logique complexe est maintenant factorisée.
         final String albumTitle = pub?.getTitle() ??
-            (album?.localizedName?.isNotEmpty == true
-                ? album!.localizedName!
+            (album?.name?.isNotEmpty == true
+                ? album!.name!
                 : RealmLibrary.realm
-                .all<realm_catalog.Category>()
-                .query(
-              "key == '${audio.categoryKey}' AND language == '${audio.mepsLanguage ?? JwLifeSettings.instance.currentLanguage.value.symbol}'",
-            )
+                .all<realm_catalog.RealmCategory>()
+                .query("Key == '${audio.categoryKey}' AND LanguageSymbol == '${audio.mepsLanguage ?? JwLifeSettings.instance.currentLanguage.value.symbol}'",)
                 .firstOrNull
-                ?.localizedName ?? '');
+                ?.name ?? '');
 
         final MediaItem mediaItem = MediaItem(
           id: '$i',
@@ -221,7 +219,7 @@ class JwLifeAudioPlayer {
     await play(initialPosition: initialPosition);
   }
 
-  Future<void> playAudios(realm_catalog.Category category, List<Audio> filteredAudios, {int id = 0, bool randomMode = false}) async {
+  Future<void> playAudios(realm_catalog.RealmCategory category, List<Audio> filteredAudios, {int id = 0, bool randomMode = false}) async {
     History.insertAudioMediaItem(filteredAudios[id]);
 
     setRandomMode(randomMode);

@@ -35,19 +35,14 @@ class PublicationsCategoriesWidget extends StatelessWidget {
             child: InkWell(
               onTap: () {
                 final Widget destinationPage =
-                category.hasYears || category.type == 'Convention'
-                    ? PublicationSubcategoriesPage(category: category)
-                    : PublicationsItemsPage(category: category);
+                category.hasYears || category.type == 'Convention' ? PublicationSubcategoriesPage(category: category) : PublicationsItemsPage(category: category);
 
                 showPage(destinationPage);
               },
               child: FutureBuilder<Widget>(
                 future: _buildCategoryButton(context, category, backgroundColor, textColor),
                 builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return _buildPlaceholder(context, category, backgroundColor, textColor);
-                  }
-                  if (snapshot.hasError) {
+                  if (snapshot.hasError || snapshot.connectionState == ConnectionState.waiting) {
                     return _buildCategoryButtonSync(context, category, textColor);
                   }
                   return snapshot.data ?? _buildCategoryButtonSync(context, category, textColor);
@@ -67,15 +62,16 @@ class PublicationsCategoriesWidget extends StatelessWidget {
   }
 
   Future<Widget> _buildCategoryButton(BuildContext context, PublicationCategory category, Color backgroundColor, Color textColor) async {
-    final String categoryName = await category.getNameAsync(Locale(JwLifeSettings.instance.currentLanguage.value.primaryIetfCode));
+    final String categoryName = await category.getNameAsync(JwLifeSettings.instance.currentLanguage.value.getSafeLocale());
+    final iconColor = Theme.of(context).brightness == Brightness.dark ? Color(0xFFC0C0C0) : Color(0xFF4F4F4F);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20.0),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Icon(category.icon, size: 38.0, color: textColor),
-          const SizedBox(width: 20.0),
+          Icon(category.icon, size: 38.0, color: iconColor),
+          const SizedBox(width: 25.0),
           Expanded(
             child: Text(
               categoryName,
@@ -85,32 +81,6 @@ class PublicationsCategoriesWidget extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildPlaceholder(
-      BuildContext context, PublicationCategory category, Color backgroundColor, Color textColor) {
-    return Container(
-      color: backgroundColor,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20.0),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Icon(category.icon, size: 38.0, color: textColor),
-            const SizedBox(width: 20.0),
-            Expanded(
-              child: SizedBox(
-                height: 16.0,
-                child: LinearProgressIndicator(
-                  backgroundColor: textColor.withOpacity(0.1),
-                  valueColor: AlwaysStoppedAnimation<Color>(textColor.withOpacity(0.3)),
-                ),
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

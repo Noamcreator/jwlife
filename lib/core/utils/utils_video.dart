@@ -24,35 +24,35 @@ import '../../i18n/i18n.dart';
 import '../api/api.dart';
 import 'common_ui.dart';
 
-MediaItem? getMediaItemFromLank(String lank, String wtlocale) => RealmLibrary.realm.all<MediaItem>().query("languageAgnosticNaturalKey == '$lank'").query("languageSymbol == '$wtlocale'").firstOrNull;
+RealmMediaItem? getMediaItemFromLank(String lank, String wtlocale) => RealmLibrary.realm.all<RealmMediaItem>().query("LanguageAgnosticNaturalKey == '$lank' AND LanguageSymbol == '$wtlocale'").firstOrNull;
 
-MediaItem? getMediaItem(String? keySymbol, int? track, int? documentId, int? issueTagNumber, dynamic mepsLanguage, {bool? isVideo}) {
+RealmMediaItem? getMediaItem(String? keySymbol, int? track, int? documentId, int? issueTagNumber, dynamic mepsLanguage, {bool? isVideo}) {
   var queryParts = <String>[];
 
-  if (keySymbol != null) queryParts.add("pubSymbol == '$keySymbol'");
-  if (track != null) queryParts.add("track == '$track'");
-  if (documentId != null && documentId != 0) queryParts.add("documentId == '$documentId'");
+  if (keySymbol != null) queryParts.add("PubSymbol == '$keySymbol'");
+  if (track != null) queryParts.add("Track == '$track'");
+  if (documentId != null && documentId != 0) queryParts.add("DocumentId == '$documentId'");
   if (issueTagNumber != null && issueTagNumber != 0) {
     String issueStr = issueTagNumber.toString();
     if (issueStr.endsWith("00")) {
       issueStr = issueStr.substring(0, 6); // Supprime les deux derniers 0
     }
-    queryParts.add("issueDate == '$issueStr'");
+    queryParts.add("IssueDate == '$issueStr'");
   }
 
   String languageSymbol = JwLifeSettings.instance.currentLanguage.value.symbol;
   if (mepsLanguage != null && mepsLanguage is String) {
     languageSymbol = mepsLanguage;
   }
-  if (mepsLanguage != null) queryParts.add("languageSymbol == '$languageSymbol'");
+  if (mepsLanguage != null) queryParts.add("LanguageSymbol == '$languageSymbol'");
 
-  if (isVideo != null) queryParts.add("type == '${isVideo ? 'VIDEO' : 'AUDIO'}'");
+  if (isVideo != null) queryParts.add("Type == '${isVideo ? 'VIDEO' : 'AUDIO'}'");
 
   if (queryParts.isEmpty) return null;
 
   String query = queryParts.join(" AND ");
 
-  final results = RealmLibrary.realm.all<MediaItem>().query(query);
+  final results = RealmLibrary.realm.all<RealmMediaItem>().query(query);
   return results.isNotEmpty ? results.first : null;
 }
 
@@ -109,9 +109,9 @@ PopupMenuItem getVideoLanguagesItem(BuildContext context, Video video) {
       if(await hasInternetConnection(context: context)) {
         String link = 'https://b.jw-cdn.org/apis/mediator/v1/media-item-availability/${video.naturalKey}';
         final response = await Api.httpGetWithHeaders(link, responseType: ResponseType.json);
-        if (response.statusCode == 200) {;
+        if (response.statusCode == 200) {
 
-          showLanguageDialog(context, languagesListJson: response.data['languages']).then((language) async {
+          showLanguageDialog(context, languagesListJson: response.data['languages'], media: video).then((language) async {
             if (language != null) {
               String link = 'https://b.jw-cdn.org/apis/mediator/v1/media-items/${language['Symbol']}/${video.naturalKey}';
               final response = await Api.httpGetWithHeaders(link);
@@ -352,7 +352,7 @@ Future<int?> showVideoDownloadMenu(BuildContext context, List<dynamic> files, Of
       value: fileIndex, // La valeur à retourner
       child: rawFilesize == 0
           ? Text("Télécharger les vidéos en $label")
-          : Text(i18n().action_download_video(label, formatFileSize(rawFilesize))),
+          : Text('$label (${formatFileSize(rawFilesize)})'),
     );
   }).toList();
 

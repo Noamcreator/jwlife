@@ -50,7 +50,7 @@ class ResponsiveCategoriesWrapLayout extends StatelessWidget {
                   for (final child in children)
                     SizedBox(
                       width: itemWidth,
-                      height: kItemHeight,
+                      height: kCategoriesHeight,
                       child: child,
                     ),
                 ],

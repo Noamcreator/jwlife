@@ -11,7 +11,7 @@ import '../../../../core/icons.dart';
 import '../../widgets/responsive_categories_wrap_layout.dart';
 
 class AudiosCategoriesWidget extends StatelessWidget {
-  final Category categories;
+  final RealmCategory categories;
 
   const AudiosCategoriesWidget({super.key, required this.categories});
 
@@ -19,7 +19,7 @@ class AudiosCategoriesWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final TextDirection direction = JwLifeSettings.instance.currentLanguage.value.isRtl ? TextDirection.rtl : TextDirection.ltr;
 
-    final List<Widget> categoryWidgets = categories.subcategories.map((category) {
+    final List<Widget> categoryWidgets = categories.subCategories.map((category) {
       return _buildCategoryButton(category, direction);
     }).toList();
 
@@ -29,10 +29,10 @@ class AudiosCategoriesWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildCategoryButton(Category category, TextDirection direction) {
+  Widget _buildCategoryButton(RealmCategory category, TextDirection direction) {
     final bool isRtl = direction == TextDirection.rtl;
 
-    int textLength = category.localizedName!.length - 8;
+    int textLength = category.name!.length - 8;
     double transitionPoint = (textLength / 19).clamp(0.38, 0.5);
 
     final List<double> stops = isRtl
@@ -50,7 +50,7 @@ class AudiosCategoriesWidget extends StatelessWidget {
             top: 0,
             bottom: 0,
             child: ImageCachedWidget(
-              imageUrl: category.persistedImages!.extraWideFullSizeImageUrl,
+              imageUrl: category.images!.extraWideImageUrl,
               icon: JwIcons.headphones__simple,
               height: kItemHeight,
               fit: BoxFit.fill,
@@ -83,7 +83,7 @@ class AudiosCategoriesWidget extends StatelessWidget {
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 6.0),
                 child: Text(
-                  category.localizedName!,
+                  category.name!,
                   style: const TextStyle(
                     fontSize: kFontBase,
                     color: Colors.white,

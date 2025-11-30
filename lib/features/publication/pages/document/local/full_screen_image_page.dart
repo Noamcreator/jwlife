@@ -103,7 +103,7 @@ class _FullScreenImagePageState extends State<FullScreenImagePage> {
               Multimedia media = _multimedias[index];
               bool isVideo = media.mimeType == 'video/mp4';
 
-              MediaItem? mediaItem;
+              RealmMediaItem? mediaItem;
               if (isVideo) {
                 String? pub = media.keySymbol;
                 int? track = media.track;
@@ -130,9 +130,9 @@ class _FullScreenImagePageState extends State<FullScreenImagePage> {
                       alignment: Alignment.center,
                       children: [
                         ImageCachedWidget(
-                          imageUrl: mediaItem.realmImages?.wideFullSizeImageUrl ??
-                              mediaItem.realmImages?.wideImageUrl ??
-                              mediaItem.realmImages?.squareImageUrl,
+                          imageUrl: mediaItem.images?.wideFullSizeImageUrl ??
+                              mediaItem.images?.wideImageUrl ??
+                              mediaItem.images?.squareImageUrl,
                           icon: JwIcons.video,
                           fit: BoxFit.cover,
                           animation: false,
@@ -319,7 +319,7 @@ class _FullScreenImagePageState extends State<FullScreenImagePage> {
               final media = _multimedias[index];
               bool isVideo = media.mimeType == 'video/mp4';
 
-              MediaItem? mediaItem;
+              RealmMediaItem? mediaItem;
               if (isVideo) {
                 String? pub = media.keySymbol;
                 int? track = media.track;
@@ -360,9 +360,9 @@ class _FullScreenImagePageState extends State<FullScreenImagePage> {
                               borderRadius: BorderRadius.circular(0),
                               child: mediaItem != null ? ImageCachedWidget(
                                 imageUrl:
-                                mediaItem.realmImages?.squareFullSizeImageUrl ??
-                                    mediaItem.realmImages?.squareImageUrl ??
-                                    mediaItem.realmImages?.wideFullSizeImageUrl ?? mediaItem.realmImages?.wideImageUrl,
+                                mediaItem.images?.squareFullSizeImageUrl ??
+                                    mediaItem.images?.squareImageUrl ??
+                                    mediaItem.images?.wideFullSizeImageUrl ?? mediaItem.images?.wideImageUrl,
                                 icon: JwIcons.video,
                                 fit: BoxFit.cover,
                                 animation: false,

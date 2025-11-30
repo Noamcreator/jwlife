@@ -71,44 +71,77 @@ Future<Map<String, dynamic>> fetchVerses(Publication publication, String link) a
     Database db = await openDatabase(mepsFile.path);
     List<Map<String, dynamic>> versesIds = await db.rawQuery("""
       SELECT
-      (
-        SELECT
-          FirstBibleVerseId +
-        CASE
-            WHEN EXISTS (
+        (
+          SELECT
+            FirstBibleVerseId +
+            CASE
+                WHEN EXISTS (
+                    SELECT 1 FROM BibleSuperscriptionLocation
+                    WHERE BookNumber = ? AND ChapterNumber = ?
+                ) THEN
+                    CASE
+                        WHEN ? = 0 OR ? = 1 THEN 0
+                        ELSE (? - FirstOrdinal) + 1
+                    END
+                ELSE (? - FirstOrdinal)
+            END
+          FROM BibleRange
+          INNER JOIN BibleInfo ON BibleRange.BibleInfoId = BibleInfo.BibleInfoId
+          WHERE BibleInfo.Name = 'NWTR' AND BookNumber = ? AND ChapterNumber = ?
+        ) AS NewFirstVerseId,
+    
+        (
+          SELECT 
+            FirstBibleVerseId + (? - FirstOrdinal) + 
+            CASE 
+              WHEN EXISTS (
                 SELECT 1 FROM BibleSuperscriptionLocation
                 WHERE BookNumber = ? AND ChapterNumber = ?
-            ) THEN
-                CASE
-                    WHEN ? = 0 OR ? = 1 THEN 0
-                    ELSE (? - FirstOrdinal) + 1
-                END
-            ELSE (? - FirstOrdinal)
-        END
-        FROM BibleRange
-        INNER JOIN BibleInfo ON BibleRange.BibleInfoId = BibleInfo.BibleInfoId
-        WHERE BibleInfo.Name = ? AND BookNumber = ? AND ChapterNumber = ?
-      ) AS FirstVerseId,
+              ) AND ? > 0 THEN 1 ELSE 0
+            END
+          FROM BibleRange
+          INNER JOIN BibleInfo ON BibleRange.BibleInfoId = BibleInfo.BibleInfoId
+          WHERE BibleInfo.Name = 'NWTR' AND BookNumber = ? AND ChapterNumber = ?
+        ) AS NewLastVerseId,
     
-      (
-        SELECT 
-          FirstBibleVerseId + (? - FirstOrdinal) + 
-          CASE 
-            WHEN EXISTS (
-              SELECT 1 FROM BibleSuperscriptionLocation
-              WHERE BookNumber = ? AND ChapterNumber = ?
-            ) AND ? > 0 THEN 1 ELSE 0
-          END
-        FROM BibleRange
-        INNER JOIN BibleInfo ON BibleRange.BibleInfoId = BibleInfo.BibleInfoId
-        WHERE BibleInfo.Name = ? AND BookNumber = ? AND ChapterNumber = ?
-      ) AS LastVerseId;
-      """, [
-      book1, chapter1, verse1, verse1, verse1, verse1, bibleInfoName, book1, chapter1,
-      verse2, book2, chapter2, verse2, bibleInfoName, book2, chapter2,
+        (
+          SELECT
+            FirstBibleVerseId +
+            CASE
+                WHEN EXISTS (
+                    SELECT 1 FROM BibleSuperscriptionLocation
+                    WHERE BookNumber = ? AND ChapterNumber = ?
+                ) THEN
+                    CASE
+                        WHEN ? = 0 OR ? = 1 THEN 0
+                        ELSE (? - FirstOrdinal) + 1
+                    END
+                ELSE (? - FirstOrdinal)
+            END
+          FROM BibleRange
+          INNER JOIN BibleInfo ON BibleRange.BibleInfoId = BibleInfo.BibleInfoId
+          WHERE BibleInfo.Name = 'NWT' AND BookNumber = ? AND ChapterNumber = ?
+        ) AS OldFirstVerseId,
+    
+        (
+          SELECT 
+            FirstBibleVerseId + (? - FirstOrdinal) + 
+            CASE 
+              WHEN EXISTS (
+                SELECT 1 FROM BibleSuperscriptionLocation
+                WHERE BookNumber = ? AND ChapterNumber = ?
+              ) AND ? > 0 THEN 1 ELSE 0
+            END
+          FROM BibleRange
+          INNER JOIN BibleInfo ON BibleRange.BibleInfoId = BibleInfo.BibleInfoId
+          WHERE BibleInfo.Name = 'NWT' AND BookNumber = ? AND ChapterNumber = ?
+        ) AS OldLastVerseId;
+    """, [
+      book1, chapter1, verse1, verse1, verse1, verse1, book1, chapter1,
+      verse2, book2, chapter2, verse2, book2, chapter2,
+      book1, chapter1, verse1, verse1, verse1, verse1, book1, chapter1,
+      verse2, book2, chapter2, verse2, book2, chapter2,
     ]);
-
-    //print('book1: $book1, chapter1: $chapter1, verse1: $verse1, book2: $book2, chapter2: $chapter2, verse2: $verse2');
 
     db.close();
 
@@ -121,11 +154,15 @@ Future<Map<String, dynamic>> fetchVerses(Publication publication, String link) a
         bibleDb = bible.documentsManager!.database;
       }
 
+      bool isNewWorldTranslation = bible.keySymbol.contains('nwt');
+      int firstVerseId = isNewWorldTranslation ? versesIds.first['NewFirstVerseId'] : versesIds.first['OldFirstVerseId'];
+      int lastVerseId = isNewWorldTranslation ? versesIds.first['NewLastVerseId'] : versesIds.first['OldLastVerseId'];
+
       List<Map<String, dynamic>> results = await bibleDb.rawQuery("""
         SELECT *
         FROM BibleVerse
         WHERE BibleVerseId BETWEEN ? AND ?
-      """, [versesIds.first['FirstVerseId'], versesIds.first['LastVerseId']]);
+      """, [firstVerseId, lastVerseId]);
 
       String htmlContent = '';
       for (Map<String, dynamic> row in results) {

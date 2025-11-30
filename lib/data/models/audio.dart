@@ -16,7 +16,6 @@ class Audio extends Media {
 
   Audio({
     this.audioId,
-    super.mediaId,
     super.naturalKey,
     super.keySymbol,
     super.categoryKey,
@@ -48,7 +47,7 @@ class Audio extends Media {
     super.isFavoriteNotifier,
   });
 
-  factory Audio.fromJson({Map<String, dynamic>? json, MediaItem? mediaItem, String? languageSymbol, bool? isFavorite}) {
+  factory Audio.fromJson({Map<String, dynamic>? json, RealmMediaItem? mediaItem, String? languageSymbol, bool? isFavorite}) {
     final keySymbol = json?['KeySymbol'] ?? mediaItem?.pubSymbol;
     final documentId = json?['DocumentId'] ?? mediaItem?.documentId;
     final bookNumber = json?['BookNumber'];
@@ -80,15 +79,16 @@ class Audio extends Media {
       existing.firstPublished = json?['FirstPublished'] ?? mediaItem?.firstPublished ?? existing.firstPublished;
       existing.lastModified = json?['ModifiedDateTime'] ?? existing.lastModified;
       existing.isFavoriteNotifier.value = isFavorite ?? existing.isFavoriteNotifier.value;
-      existing.networkImageSqr = mediaItem?.realmImages!.squareFullSizeImageUrl ?? mediaItem?.realmImages!.squareImageUrl;
-      existing.networkImageLsr = mediaItem?.realmImages!.wideFullSizeImageUrl ?? mediaItem?.realmImages!.wideImageUrl ?? mediaItem?.realmImages!.squareFullSizeImageUrl ?? mediaItem?.realmImages!.squareImageUrl;
+      existing.networkImageSqr = mediaItem?.images!.squareImageUrl;
+      existing.networkFullSizeImageSqr = mediaItem?.images!.squareFullSizeImageUrl;
+      existing.networkImageLsr = mediaItem?.images!.wideImageUrl ?? mediaItem?.images!.squareImageUrl;
+      existing.networkFullSizeImageLsr = mediaItem?.images!.wideFullSizeImageUrl ?? mediaItem?.images!.squareFullSizeImageUrl;
 
       return existing;
     }
 
     final audio = Audio(
       audioId: json?['AudioId'] ?? -1,
-      mediaId: json?['MediaKeyId'] ?? -1,
       naturalKey: mediaItem?.languageAgnosticNaturalKey,
       keySymbol: keySymbol,
       documentId: documentId,
@@ -103,8 +103,8 @@ class Audio extends Media {
       bitRate: (json?['BitRate'] ?? 0).toDouble(),
       duration: (json?['Duration'] ?? mediaItem?.duration ?? 0).toDouble(),
       imagePath: json?['Image'] ?? json?['ImagePath'] ?? '',
-      networkImageSqr: mediaItem?.realmImages!.squareFullSizeImageUrl ?? mediaItem?.realmImages!.squareImageUrl,
-      networkImageLsr: mediaItem?.realmImages!.wideFullSizeImageUrl ?? mediaItem?.realmImages!.wideImageUrl ?? mediaItem?.realmImages!.squareFullSizeImageUrl ?? mediaItem?.realmImages!.squareImageUrl,
+      networkImageSqr: mediaItem?.images!.squareFullSizeImageUrl ?? mediaItem?.images!.squareImageUrl,
+      networkImageLsr: mediaItem?.images!.wideFullSizeImageUrl ?? mediaItem?.images!.wideImageUrl ?? mediaItem?.images!.squareFullSizeImageUrl ?? mediaItem?.images!.squareImageUrl,
       checkSum: json?['Checksum'],
       fileSize: json?['FileSize'],
       filePath: json?['FilePath'],

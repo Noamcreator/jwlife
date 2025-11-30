@@ -533,7 +533,7 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
                           int blockIdentifier = args[0]['BlockIdentifier'];
                           int colorIndex = args[0]['ColorIndex'];
 
-                          await _notesController.addNote(
+                          await _notesController.addNoteWithGuid(
                               guid,
                               title,
                               userMarkGuid,
@@ -819,7 +819,7 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
                           int? docId = uri.queryParameters['docid'] != null ? int.parse(uri.queryParameters['docid']!) : null;
                           int? track = uri.queryParameters['track'] != null ? int.parse(uri.queryParameters['track']!) : null;
 
-                          MediaItem? mediaItem = getMediaItem(pub, track, docId, issue, null);
+                          RealmMediaItem? mediaItem = getMediaItem(pub, track, docId, issue, null);
 
                           if(mediaItem != null) {
                             Video video = Video.fromJson(mediaItem: mediaItem);
@@ -874,7 +874,7 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
                         if(uri.queryParameters.containsKey('wtlocale')) {
                           final wtlocale = uri.queryParameters['wtlocale'];
                           if (uri.queryParameters.containsKey('lank')) {
-                            MediaItem? mediaItem;
+                            RealmMediaItem? mediaItem;
                             if(uri.queryParameters.containsKey('lank')) {
                               final lank = uri.queryParameters['lank'];
                               mediaItem = getMediaItemFromLank(lank!, wtlocale!);

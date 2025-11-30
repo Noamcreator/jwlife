@@ -147,10 +147,8 @@ class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
         COALESCE(translatedName.Name, mepsLang.EnglishName) AS LanguageName,
         mepsLang.VernacularName
       FROM Publication
-      INNER JOIN PublicationAsset 
-        ON Publication.Id = PublicationAsset.PublicationId  
-      JOIN meps.Language AS mepsLang
-        ON Publication.MepsLanguageId = mepsLang.LanguageId
+      INNER JOIN PublicationAsset ON Publication.Id = PublicationAsset.PublicationId  
+      JOIN meps.Language AS mepsLang ON Publication.MepsLanguageId = mepsLang.LanguageId
       
       LEFT JOIN meps.Language AS sourceLang
         ON sourceLang.PrimaryIetfCode = ?

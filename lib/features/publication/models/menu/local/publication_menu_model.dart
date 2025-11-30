@@ -64,9 +64,7 @@ class PublicationMenuModel {
               vs.DataType
           ) AS DataType
         FROM PublicationView pv
-        INNER JOIN PublicationViewItem pvi 
-            ON pvi.PublicationViewId = pv.PublicationViewId
-           AND pvi.ParentPublicationViewItemId = -1
+        INNER JOIN PublicationViewItem pvi ON pvi.PublicationViewId = pv.PublicationViewId AND pvi.ParentPublicationViewItemId = -1
         LEFT JOIN (
             SELECT SchemaType, MIN(DataType) AS DataType
             FROM PublicationViewSchema
@@ -173,7 +171,7 @@ class PublicationMenuModel {
   Future<List<Map<String, dynamic>>> _getItemsForParent(int parentId) async {
     // La logique de séparation Bible/Non-Bible est déléguée à getBibleItems/getPublicationItems
     if (publication.isBible()) {
-      return getBibleItems(parentId);
+      return await getBibleItems(parentId);
     }
 
     // Cas Non-Bible : Construction de la requête + exécution
@@ -377,7 +375,9 @@ class PublicationMenuModel {
       imageFilePath: item['FilePath'] as String? ?? '',
       dataType: item['DataType'] as String? ?? '',
       groupId: document.type == 2 ? item['GroupId'] as int? ?? -1 : -1,
-      hasCommentary: document.type == 2 ? item['HasCommentary'] as int == 1 : false,
+      hasCommentary: document.type == 2
+          ? (item['HasCommentary'] ?? 0) == 1
+          : false,
       bibleBookId: item['BibleBookId'] as int? ?? -1,
       mepsDocumentId: document.mepsDocumentId, // Assumé non-null
       isTitle: false,

@@ -2,19 +2,10 @@ import 'package:realm/realm.dart';
 
 part 'catalog.realm.dart';
 
-@RealmModel()
-class _Category {
-  String? key;
-  String? localizedName;
-  String? type;
-  late List<String> media;
-  late List<_Category> subcategories;
-  _Images? persistedImages;
-  String? language;
-}
+// ------------------- IMAGES -------------------
 
 @RealmModel()
-class _Images {
+class _RealmImages {
   String? squareImageUrl;
   String? squareFullSizeImageUrl;
   String? wideImageUrl;
@@ -23,36 +14,55 @@ class _Images {
   String? extraWideFullSizeImageUrl;
 }
 
+// ------------------- MEDIA -------------------
+
 @RealmModel()
-class _Language {
+class _RealmMediaItem {
+  @PrimaryKey()
+  String? compoundKey;
+  int? documentId;
+  late double duration;
+  late DateTime firstPublished;
+  late bool isConventionRelease;
+  int? issueDate;
+  String? languageAgnosticNaturalKey;
+  String? languageSymbol;
+  String? naturalKey;
+  late final List<String> checksums;
+  _RealmImages? images;
+  String? type;
+  String? remoteType;
+  String? primaryCategory;
+  String? pubSymbol;
+  String? title;
+  int? track;
+}
+
+// ------------------- LANGUAGE -------------------
+
+@RealmModel()
+class _RealmLanguage {
   @PrimaryKey()
   String? symbol;
   String? locale;
   String? vernacular;
   String? name;
+  bool? isLanguagePair;
   bool? isSignLanguage;
   bool? isRtl;
   String? eTag;
   String? lastModified;
 }
 
+// ------------------- CATEGORY -------------------
+
 @RealmModel()
-class _MediaItem {
-  @PrimaryKey()
-  String? compoundKey;
-  String? naturalKey;
-  String? languageAgnosticNaturalKey;
+class _RealmCategory {
+  String? key;
+  String? name;
   String? type;
-  String? primaryCategory;
-  String? title;
-  String? firstPublished;
-  late List<String> checksums;
-  double? duration;
-  String? pubSymbol;
+  _RealmImages? images;
+  late final List<String> media;
+  late final List<_RealmCategory> subCategories;
   String? languageSymbol;
-  _Images? realmImages;
-  int? documentId;
-  int? issueDate;
-  int? track;
-  bool? isConventionRelease;
 }

@@ -22,7 +22,7 @@ import '../../../../widgets/responsive_appbar_actions.dart';
 import '../../../../widgets/searchfield/searchfield_widget.dart';
 
 class AudioItemsPage extends StatefulWidget {
-  final Category category;
+  final RealmCategory category;
 
   const AudioItemsPage({super.key, required this.category});
 
@@ -31,8 +31,8 @@ class AudioItemsPage extends StatefulWidget {
 }
 
 class _AudioItemsPageState extends State<AudioItemsPage> {
-  Category? _category;
-  late Language _language;
+  RealmCategory? _category;
+  late RealmLanguage _language;
 
   // Liste complète des médias
   List<Audio> _allAudios = [];
@@ -71,18 +71,18 @@ class _AudioItemsPageState extends State<AudioItemsPage> {
   }
 
   void loadItems({String? symbol}) async {
-    symbol ??= widget.category.language;
+    symbol ??= widget.category.languageSymbol;
 
     RealmLibrary.realm.refresh();
-    Language? lang = RealmLibrary.realm.all<Language>().query("symbol == '$symbol'").firstOrNull;
+    RealmLanguage? lang = RealmLibrary.realm.all<RealmLanguage>().query("Symbol == '$symbol'").firstOrNull;
     if(lang == null) return;
-    _category = RealmLibrary.realm.all<Category>().query("key == '${widget.category.key}' AND language == '$symbol'").firstOrNull ?? _category;
+    _category = RealmLibrary.realm.all<RealmCategory>().query("Key == '${widget.category.key}' AND LanguageSymbol == '$symbol'").firstOrNull ?? _category;
 
     setState(() {
       _language = lang;
       // On charge la liste complète uniquement ici
-      _allAudios = _category!.media.map((key) {
-        return Audio.fromJson(mediaItem: RealmLibrary.realm.all<MediaItem>().query("naturalKey == '$key'").first);
+      _allAudios = _category!.media.map((naturalKey) {
+        return Audio.fromJson(mediaItem: RealmLibrary.getMediaItemByNaturalKey(naturalKey, lang.symbol!));
       }).toList();
 
       // Au début, filteredAudios = allAudios (pas de filtre)
@@ -211,7 +211,7 @@ class _AudioItemsPageState extends State<AudioItemsPage> {
         ),
       )
           : JwLifeAppBar(
-        title: _category?.localizedName ?? '',
+        title: _category?.name ?? '',
         subTitle: _language.vernacular,
         actions: [
           IconTextButton(
@@ -295,8 +295,8 @@ class _AudioItemsPageState extends State<AudioItemsPage> {
                               fontWeight: FontWeight.bold,
                               overflow: TextOverflow.ellipsis,
                               color: JwLifeApp.audioPlayer.currentId == id &&
-                                  JwLifeApp.audioPlayer.album?.localizedName ==
-                                      (_category?.localizedName ?? widget.category.localizedName)
+                                  JwLifeApp.audioPlayer.album?.name ==
+                                      (_category?.name ?? widget.category.name)
                                   ? Theme.of(context).primaryColor
                                   : Theme.of(context).secondaryHeaderColor,
                             ),

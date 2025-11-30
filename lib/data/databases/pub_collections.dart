@@ -60,12 +60,14 @@ class PubCollections {
             s.IsCharacterSpaced AS IsCharacterSpaced,
             s.IsCharacterBreakable AS IsCharacterBreakable,
             s.SupportsCodeNames AS SupportsCodeNames,
-            s.HasSystemDigits AS HasSystemDigits
+            s.HasSystemDigits AS HasSystemDigits,
+            fallback.PrimaryIetfCode AS FallbackPrimaryIetfCode
         FROM Publication p
         LEFT JOIN PublicationAttribute pa ON pa.PublicationId = p.PublicationId
         LEFT JOIN PublicationIssueProperty pip ON pip.PublicationId = p.PublicationId
         INNER JOIN meps.Language l ON p.MepsLanguageId = l.LanguageId
         INNER JOIN meps.Script s ON l.ScriptId = s.ScriptId
+        LEFT JOIN meps.Language fallback ON l.PrimaryFallbackLanguageId = fallback.LanguageId
         LEFT JOIN ImageData img ON img.PublicationId = p.PublicationId
         GROUP BY p.PublicationId;
       ''');

@@ -70,6 +70,7 @@ class FavoritesSectionState extends State<FavoritesSection> {
                 },
               ),
             ),
+            const SizedBox(height: 10),
           ],
         );
       },

@@ -125,7 +125,7 @@ class PublicationsItemsViewModel with ChangeNotifier {
     // Applique le tri par défaut/actuel après le chargement
     _applySorting(_filteredPublications);
 
-    _mepsLanguage = _publications.values.first.first.mepsLanguage;
+    _mepsLanguage = mepsLanguage != null ? MepsLanguage.fromJson(mepsLanguage) : _publications.values.first.first.mepsLanguage;
 
     _isLoading = false;
     notifyListeners(); // Rafraîchit l'interface

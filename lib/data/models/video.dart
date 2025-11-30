@@ -22,7 +22,6 @@ class Video extends Media {
 
   Video({
     this.videoId,
-    super.mediaId,
     super.naturalKey,
     super.keySymbol,
     super.categoryKey,
@@ -59,7 +58,7 @@ class Video extends Media {
     this.subtitles,
   });
 
-  factory Video.fromJson({Map<String, dynamic>? json, MediaItem? mediaItem, bool? isFavorite}) {
+  factory Video.fromJson({Map<String, dynamic>? json, RealmMediaItem? mediaItem, bool? isFavorite}) {
     final keySymbol = json?['KeySymbol'] ?? mediaItem?.pubSymbol;
     final documentId = json?['DocumentId'] ?? mediaItem?.documentId;
     final bookNumber = json?['BookNumber'];
@@ -91,15 +90,14 @@ class Video extends Media {
       existing.firstPublished = json?['FirstPublished'] ?? mediaItem?.firstPublished ?? existing.firstPublished;
       existing.lastModified = json?['ModifiedDateTime'] ?? existing.lastModified;
       existing.isFavoriteNotifier.value = isFavorite ?? existing.isFavoriteNotifier.value;
-      existing.networkImageSqr = mediaItem?.realmImages!.squareFullSizeImageUrl ?? mediaItem?.realmImages!.squareImageUrl;
-      existing.networkImageLsr = mediaItem?.realmImages!.wideFullSizeImageUrl ?? mediaItem?.realmImages!.wideImageUrl ?? mediaItem?.realmImages!.squareFullSizeImageUrl ?? mediaItem?.realmImages!.squareImageUrl;
+      existing.networkImageSqr = mediaItem?.images!.squareFullSizeImageUrl ?? mediaItem?.images!.squareImageUrl;
+      existing.networkImageLsr = mediaItem?.images!.wideFullSizeImageUrl ?? mediaItem?.images!.wideImageUrl ?? mediaItem?.images!.squareFullSizeImageUrl ?? mediaItem?.images!.squareImageUrl;
 
       return existing;
     }
 
     final video = Video(
       videoId: json?['VideoId'] ?? -1,
-      mediaId: json?['MediaKeyId'] ?? -1,
       naturalKey: mediaItem?.languageAgnosticNaturalKey,
       keySymbol: keySymbol,
       documentId: documentId,
@@ -114,8 +112,8 @@ class Video extends Media {
       bitRate: (json?['BitRate'] ?? 0).toDouble(),
       duration: (json?['Duration'] ?? mediaItem?.duration ?? 0).toDouble(),
       imagePath: json?['ImagePath'] ?? '',
-      networkImageSqr: mediaItem?.realmImages!.squareFullSizeImageUrl ?? mediaItem?.realmImages!.squareImageUrl,
-      networkImageLsr: mediaItem?.realmImages!.wideFullSizeImageUrl ?? mediaItem?.realmImages!.wideImageUrl ?? mediaItem?.realmImages!.squareFullSizeImageUrl ?? mediaItem?.realmImages!.squareImageUrl,
+      networkImageSqr: mediaItem?.images!.squareFullSizeImageUrl ?? mediaItem?.images!.squareImageUrl,
+      networkImageLsr: mediaItem?.images!.wideFullSizeImageUrl ?? mediaItem?.images!.wideImageUrl ?? mediaItem?.images!.squareFullSizeImageUrl ?? mediaItem?.images!.squareImageUrl,
       checkSum: json?['Checksum'],
       fileSize: json?['FileSize'],
       filePath: json?['FilePath'],

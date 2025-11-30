@@ -48,65 +48,75 @@ class WordsSuggestionsModel {
     }
   }
 
-  // -------------------------------------------------------------------
-  // MÉTHODE OPTIMISÉE : Utilise le cache et crée des SuggestionItem
-  // -------------------------------------------------------------------
   Future<void> fetchSuggestions(String text) async {
     final int requestId = ++_latestRequestId;
 
-    if (text.isEmpty) {
+    // Si texte vide → pas de suggestion
+    if (text.trim().isEmpty) {
       if (requestId == _latestRequestId) {
         suggestionsNotifier.value = [];
       }
       return;
     }
 
-    // 1. Chargement initial du cache si nécessaire
+    // Charger le cache si nécessaire
     if (_cachedWords.isEmpty) {
       await _loadAllWords();
-
-      // Si une nouvelle requête a été lancée pendant l'attente du chargement, on abandonne.
       if (requestId != _latestRequestId) return;
-
-      // Si le chargement a échoué (cache toujours vide), on arrête.
       if (_cachedWords.isEmpty) return;
     }
 
-    String normalizedText = normalize(text);
+    // ------------------------------------------------------------
+    // 🧠 1. EXTRAIRE LES MOTS PRÉCÉDENTS + LE DERNIER MOT À CHERCHER
+    // ------------------------------------------------------------
+    List<String> parts = text.split(" ");
+    String lastWord = parts.last;
+    String prefix = parts.length > 1
+        ? parts.sublist(0, parts.length - 1).join(" ") + " "
+        : "";
 
-    // 2. Filtrer et trier les mots du cache
-    final List<String> filteredAndSortedWords = _cachedWords.where((word) {
-      // Filtrer seulement les mots qui contiennent la sous-chaîne normalisée
-      return normalize(word).contains(normalizedText);
+    // Si dernier mot vide (l’utilisateur vient d'appuyer espace)
+    if (lastWord.trim().isEmpty) {
+      suggestionsNotifier.value = [];
+      return;
+    }
+
+    String normalizedSearch = normalize(lastWord);
+
+    // ------------------------------------------------------------
+    // 🔍 2. CHERCHER UNIQUEMENT SUR LE DERNIER MOT
+    // ------------------------------------------------------------
+    final List<String> matches = _cachedWords.where((word) {
+      return normalize(word).contains(normalizedSearch);
     }).toList();
 
-    // Vérification anti-concurrence avant le tri, car le tri peut être coûteux
     if (requestId != _latestRequestId) return;
 
-    filteredAndSortedWords.sort((a, b) {
-      // Tri descendant basé sur la similarité
-      double simA = StringSimilarity.compareTwoStrings(normalize(a), normalizedText);
-      double simB = StringSimilarity.compareTwoStrings(normalize(b), normalizedText);
+    // Tri par similarité
+    matches.sort((a, b) {
+      double simA = StringSimilarity.compareTwoStrings(normalize(a), normalizedSearch);
+      double simB = StringSimilarity.compareTwoStrings(normalize(b), normalizedSearch);
       return simB.compareTo(simA);
     });
 
-    // 3. Conversion en instances de SuggestionItem
+    // ------------------------------------------------------------
+    // 🔗 3. RECONSTRUIRE LES SUGGESTIONS AVEC LE PRÉFIXE
+    // ------------------------------------------------------------
     List<SuggestionItem> newSuggestions = [];
 
-    // N'afficher qu'un nombre limité de suggestions (ex: 15)
-    for (String word in filteredAndSortedWords.take(15)) {
-      newSuggestions.add(SuggestionItem(
-        type: 'word',
-        query: word,
-        title: word,
-        image: 'magnifying_glass',
-      ));
+    for (String word in matches.take(15)) {
+      newSuggestions.add(
+        SuggestionItem(
+          type: 'word',
+          query: prefix + word, // 👉 le mot complet
+          title: prefix + word,
+          image: 'magnifying_glass',
+        ),
+      );
     }
 
-    // Dernière vérification avant de mettre à jour l'UI
     if (requestId != _latestRequestId) return;
 
-    // 4. Met à jour le ValueNotifier
     suggestionsNotifier.value = newSuggestions;
   }
 }

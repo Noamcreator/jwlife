@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/app/jwlife_app_bar.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/data/models/publication.dart';
@@ -47,7 +48,7 @@ class _ConventionItemsViewState extends State<ConventionItemsView> {
 
   void loadItems() async {
     List<Publication> pubs = await CatalogDb.instance.fetchPubsFromConventionsDays();
-    RealmResults<Category> convDaysCategories = RealmLibrary.realm.all<Category>().query("language == '${JwLifeSettings.instance.currentLanguage.value.symbol}'").query("key == 'ConvDay1' OR key == 'ConvDay2' OR key == 'ConvDay3'");
+    RealmResults<RealmCategory> convDaysCategories = RealmLibrary.realm.all<RealmCategory>().query("LanguageSymbol == '${JwLifeSettings.instance.currentLanguage.value.symbol}'").query("Key == 'ConvDay1' OR Key == 'ConvDay2' OR Key == 'ConvDay3'");
 
     setState(() {
       publications = pubs.where((element) => element.conventionReleaseDayNumber == widget.indexDay).toList();
@@ -57,21 +58,6 @@ class _ConventionItemsViewState extends State<ConventionItemsView> {
 
   @override
   Widget build(BuildContext context) {
-    // Styles partagés
-    final textStyleTitle = const TextStyle(fontSize: 20, fontWeight: FontWeight.bold);
-    final textStyleSubtitle = TextStyle(
-      fontSize: 14,
-      color: Theme.of(context).brightness == Brightness.dark
-          ? const Color(0xFFc3c3c3)
-          : const Color(0xFF626262),
-    );
-
-    final boxDecoration = BoxDecoration(
-      color: Theme.of(context).brightness == Brightness.dark
-          ? const Color(0xFF292929)
-          : Colors.white,
-    );
-
     List<dynamic> items = [];
     items.addAll(publications);
     items.addAll(medias);
@@ -108,11 +94,13 @@ class _ConventionItemsViewState extends State<ConventionItemsView> {
             spacing: 3.0,
             runSpacing: 3.0,
             children: items.map((item) {
+              String naturalKey = item;
+              String languageSymbol = JwLifeSettings.instance.currentLanguage.value.symbol;
               if(item is Publication) {
                 return RectanglePublicationItem(publication: item);
               }
               else {
-                MediaItem media = RealmLibrary.realm.all<MediaItem>().query("naturalKey == '$item'").first;
+                RealmMediaItem media = RealmLibrary.getMediaItemByNaturalKey(naturalKey, languageSymbol);
                 if(media.type == 'AUDIO') {
                   Audio audio = Audio.fromJson(mediaItem: media);
                   return RectangleMediaItemItem(media: audio);

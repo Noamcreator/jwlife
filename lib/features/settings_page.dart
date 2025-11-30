@@ -208,9 +208,7 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
 
   Future<void> _getLibraryDate() async {
     try {
-      final results = RealmLibrary.realm
-          .all<Language>()
-          .query("symbol == '${JwLifeSettings.instance.currentLanguage.value.symbol}'");
+      final results = RealmLibrary.realm.all<RealmLanguage>().query("Symbol == '${JwLifeSettings.instance.currentLanguage.value.symbol}'");
 
       final date = results.isNotEmpty ? results.first.lastModified : null;
 

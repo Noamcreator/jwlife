@@ -37,6 +37,7 @@ class CatalogDb {
     meps.Script.IsCharacterBreakable AS IsCharacterBreakable,
     meps.Script.SupportsCodeNames AS SupportsCodeNames,
     meps.Script.HasSystemDigits AS HasSystemDigits,
+    fallback.PrimaryIetfCode AS FallbackPrimaryIetfCode,
     pa.LastModified, 
     pa.CatalogedOn,
     pa.Size,
@@ -56,6 +57,7 @@ class CatalogDb {
     INNER JOIN PublicationAsset pa ON p.Id = pa.PublicationId
     INNER JOIN meps.Language ON p.MepsLanguageId = meps.Language.LanguageId
     INNER JOIN meps.Script ON meps.Language.ScriptId = meps.Script.ScriptId
+    LEFT JOIN meps.Language AS fallback ON meps.Language.PrimaryFallbackLanguageId = fallback.LanguageId
     LEFT JOIN PublicationAttributeMap pam ON p.Id = pam.PublicationId
   ''';
 
@@ -87,7 +89,7 @@ class CatalogDb {
           ) AS HasConventionReleaseDayNumber;
         ''', [JwLifeSettings.instance.currentLanguage.value.id]);
 
-      final hasConvDay = RealmLibrary.realm.all<Category>().query("language == '${JwLifeSettings.instance.currentLanguage.value.symbol}'").query("key == 'ConvDay1' OR key == 'ConvDay2' OR key == 'ConvDay3'");
+      final hasConvDay = RealmLibrary.realm.all<RealmCategory>().query("LanguageSymbol == '${JwLifeSettings.instance.currentLanguage.value.symbol}'").query("Key == 'ConvDay1' OR Key == 'ConvDay2' OR Key == 'ConvDay3'");
 
       // Convertir les résultats SQL en un Set pour une recherche rapide
       Set<int> existingIds = result1.map((e) => e['id'] as int).toSet();
@@ -138,6 +140,7 @@ class CatalogDb {
           INNER JOIN PublicationAsset pa ON p.Id = pa.PublicationId
           INNER JOIN meps.Language ON p.MepsLanguageId = meps.Language.LanguageId
           INNER JOIN meps.Script ON meps.Language.ScriptId = meps.Script.ScriptId
+          LEFT JOIN meps.Language AS fallback ON meps.Language.PrimaryFallbackLanguageId = fallback.LanguageId
           LEFT JOIN PublicationAttributeMap pam ON p.Id = pam.PublicationId
           WHERE ? BETWEEN dt.Start AND dt.End AND p.MepsLanguageId = ?
         ''', [formattedDate, JwLifeSettings.instance.currentLanguage.value.id]);
@@ -336,6 +339,7 @@ class CatalogDb {
             LIMIT 1) AS ImageSqr
           FROM Publication p
           INNER JOIN PublicationAsset pa ON p.Id = pa.PublicationId
+          LEFT JOIN meps.Language AS fallback ON meps.Language.PrimaryFallbackLanguageId = fallback.LanguageId
           LEFT JOIN PublicationAttributeMap pam ON p.Id = pam.PublicationId
           WHERE p.MepsLanguageId = ? AND LOWER(p.KeySymbol) = LOWER(?)  AND p.IssueTagNumber = ?
           LIMIT 1
@@ -367,6 +371,7 @@ class CatalogDb {
           INNER JOIN PublicationAsset pa ON p.Id = pa.PublicationId
           INNER JOIN meps.Language ON p.MepsLanguageId = meps.Language.LanguageId
           INNER JOIN meps.Script ON meps.Language.ScriptId = meps.Script.ScriptId
+          LEFT JOIN meps.Language AS fallback ON meps.Language.PrimaryFallbackLanguageId = fallback.LanguageId
           LEFT JOIN PublicationAttributeMap pam ON p.Id = pam.PublicationId
           WHERE pd.DocumentId = ? AND p.MepsLanguageId = ?
           LIMIT 1
@@ -427,6 +432,7 @@ class CatalogDb {
         meps.Script.IsCharacterBreakable AS IsCharacterBreakable,
         meps.Script.SupportsCodeNames AS SupportsCodeNames,
         meps.Script.HasSystemDigits AS HasSystemDigits,
+        fallback.PrimaryIetfCode AS FallbackPrimaryIetfCode,
         (
           SELECT ia.NameFragment 
           FROM PublicationAssetImageMap paim 
@@ -440,6 +446,7 @@ class CatalogDb {
       LEFT JOIN PublicationAttributeMap pam ON p.Id = pam.PublicationId
       INNER JOIN meps.Language ON p.MepsLanguageId = meps.Language.LanguageId
       INNER JOIN meps.Script ON meps.Language.ScriptId = meps.Script.ScriptId
+      LEFT JOIN meps.Language AS fallback ON meps.Language.PrimaryFallbackLanguageId = fallback.LanguageId
       WHERE p.MepsLanguageId = ? AND p.PublicationTypeId = ?
         $yearCondition
       GROUP BY
@@ -505,6 +512,7 @@ class CatalogDb {
               INNER JOIN Publication p ON pa.PublicationId = p.Id
               INNER JOIN meps.Language ON p.MepsLanguageId = meps.Language.LanguageId
               INNER JOIN meps.Script ON meps.Language.ScriptId = meps.Script.ScriptId
+              LEFT JOIN meps.Language AS fallback ON meps.Language.PrimaryFallbackLanguageId = fallback.LanguageId
               LEFT JOIN PublicationAttributeMap pam ON p.Id = pam.PublicationId
               WHERE pa.MepsLanguageId = ? AND ca.ListType = ?
               ORDER BY ca.SortOrder;
@@ -537,6 +545,7 @@ class CatalogDb {
           INNER JOIN PublicationAsset pa ON p.Id = pa.PublicationId
           INNER JOIN meps.Language ON p.MepsLanguageId = meps.Language.LanguageId
           INNER JOIN meps.Script ON meps.Language.ScriptId = meps.Script.ScriptId
+          LEFT JOIN meps.Language AS fallback ON meps.Language.PrimaryFallbackLanguageId = fallback.LanguageId
           LEFT JOIN PublicationAttributeMap pam ON p.Id = pam.PublicationId
           WHERE p.MepsLanguageId = ? AND (p.KeySymbol LIKE 'CA-copgm%' OR p.KeySymbol LIKE 'CA-brpgm%')
       ''', [langId]);
@@ -599,6 +608,7 @@ class CatalogDb {
           INNER JOIN Publication p ON pa.PublicationId = p.Id
           INNER JOIN meps.Language ON pa.MepsLanguageId = meps.Language.LanguageId
           INNER JOIN meps.Script ON meps.Language.ScriptId = meps.Script.ScriptId
+          LEFT JOIN meps.Language AS fallback ON meps.Language.PrimaryFallbackLanguageId = fallback.LanguageId
           LEFT JOIN PublicationAttributeMap pam ON p.Id = pam.PublicationId
           WHERE pa.MepsLanguageId = ? AND pa.ConventionReleaseDayNumber IS NOT NULL;
         ''', [JwLifeSettings.instance.currentLanguage.value.id]);

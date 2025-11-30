@@ -112,7 +112,7 @@ class _DocumentMediasViewState extends State<DocumentMediasView> {
               onPressed: (BuildContext context) {
                 String categoryKey = 'SJJMeetings';
                 String languageSymbol = widget.document.publication.mepsLanguage.symbol;
-                RealmResults<Category> category = RealmLibrary.realm.all<Category>().query("key == \$0 AND language == \$1", [categoryKey, languageSymbol]);
+                RealmResults<RealmCategory> category = RealmLibrary.realm.all<RealmCategory>().query("Key == \$0 AND LanguageSymbol == \$1", [categoryKey, languageSymbol]);
                 showPage(AudioItemsPage(category: category.first));
                             }
           ),
@@ -146,7 +146,7 @@ class _DocumentMediasViewState extends State<DocumentMediasView> {
                 itemCount: videos.length,
                 itemBuilder: (context, index) {
                   final media = videos[index];
-                  MediaItem? mediaItem = getMediaItem(media.keySymbol, media.track, media.mepsDocumentId, media.issueTagNumber, media.mepsLanguageId, isVideo: media.mimeType == 'video/mp4');
+                  RealmMediaItem? mediaItem = getMediaItem(media.keySymbol, media.track, media.mepsDocumentId, media.issueTagNumber, media.mepsLanguageId, isVideo: media.mimeType == 'video/mp4');
                   if (mediaItem == null) {
                     return Container();
                   }

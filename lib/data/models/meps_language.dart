@@ -1,6 +1,9 @@
 import 'dart:io';
+import 'dart:ui';
 
+import 'package:collection/collection.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:jwlife/core/utils/files_helper.dart';
 import 'package:sqflite/sqflite.dart';
 
@@ -22,6 +25,7 @@ class MepsLanguage {
   final bool isCharacterSpaced;
   final bool isCharacterBreakable;
   final bool hasSystemDigits;
+  final String fallbackPrimaryIetfCode;
   late String rsConf;
   late String lib;
 
@@ -38,6 +42,7 @@ class MepsLanguage {
     this.isCharacterSpaced = false,
     this.isCharacterBreakable = false,
     this.hasSystemDigits = true,
+    this.fallbackPrimaryIetfCode = 'en',
     this.rsConf = 'r1',
     this.lib = 'lp-e',
   });
@@ -55,6 +60,7 @@ class MepsLanguage {
         isCharacterSpaced = json['IsCharacterSpaced'] != null ? json['IsCharacterSpaced'] == 1 : false,
         isCharacterBreakable = json['IsCharacterBreakable'] != null ? json['IsCharacterBreakable'] == 1 : false,
         hasSystemDigits = json['HasSystemDigits'] != null ? json['HasSystemDigits'] == 1 : true,
+        fallbackPrimaryIetfCode = json['FallbackPrimaryIetfCode'] ?? 'en',
         rsConf = json['RsConf'] ?? 'r1',
         lib = json['Lib'] ?? 'lp-e';
 
@@ -135,5 +141,32 @@ class MepsLanguage {
         print(stack);
       }
     }
+  }
+
+  Locale getSafeLocale() {
+    final supported = WidgetsBinding.instance.platformDispatcher.locales;
+
+    String extractLang(String c) => c.split('-').first;
+
+    String lang = extractLang(primaryIetfCode);
+    String secureLang = extractLang(fallbackPrimaryIetfCode);
+
+    // 1️⃣ Tester le code principal
+    final matchPrimary = supported.firstWhereOrNull((loc) => loc.languageCode == lang);
+
+    if (matchPrimary != null) {
+      return matchPrimary;
+    }
+
+    // 2️⃣ Tester le secureCode
+    final matchSecure = supported.firstWhereOrNull((loc) => loc.languageCode == secureLang
+    );
+
+    if (matchSecure != null) {
+      return matchSecure;
+    }
+
+    // 3️⃣ Fallback anglais
+    return const Locale('en');
   }
 }

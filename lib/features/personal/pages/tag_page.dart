@@ -66,10 +66,9 @@ class _TagPageState extends State<TagPage> {
           IconTextButton(
             icon: Icon(JwIcons.note_plus),
             onPressed: (BuildContext context) async {
-              Note? note = await JwLifeApp.userdata.addNote("", "", 0, [_tag.id], null, null, null, null, null, null);
-              if (note != null) {
-                await showPage(NotePage(note: note));
-              }
+              final notesController = context.watch<NotesController>();
+              Note note = await notesController.addNote(tagsIds: [_tag.id]);
+              await showPage(NotePage(note: note));
             },
           ),
           IconTextButton(
@@ -94,31 +93,28 @@ class _TagPageState extends State<TagPage> {
           ),
         ],
       ),
-      body: Scrollbar(
-        interactive: true,
-        child: ReorderableListView.builder(
-          onReorder: _onReorder,
-          // Physics qui empêche les sauts
-          physics: ClampingScrollPhysics(),
-          // Padding pour éviter les problèmes de bords
-          padding: EdgeInsets.zero,
-          itemCount: _filteredNotes.length,
-          itemBuilder: (context, index) {
-            final note = _filteredNotes[index];
+      body: ReorderableListView.builder(
+        onReorder: _onReorder,
+        // Physics qui empêche les sauts
+        physics: ClampingScrollPhysics(),
+        // Padding pour éviter les problèmes de bords
+        padding: EdgeInsets.zero,
+        itemCount: _filteredNotes.length,
+        itemBuilder: (context, index) {
+          final note = _filteredNotes[index];
 
-            if (note.guid == '') {
-              return const SizedBox.shrink(key: ValueKey('note_hidden'));
-            }
+          if (note.guid == '') {
+            return const SizedBox.shrink(key: ValueKey('note_hidden'));
+          }
 
-            // Wrapping dans AutomaticKeepAliveClientMixin via un widget custom
-            return _KeepAliveNoteItem(
-              key: ValueKey('note_${note.guid}'),
-              note: note,
-              tag: _tag,
-              onUpdated: () => setState(() {}),
-            );
-          },
-        ),
+          // Wrapping dans AutomaticKeepAliveClientMixin via un widget custom
+          return _KeepAliveNoteItem(
+            key: ValueKey('note_${note.guid}'),
+            note: note,
+            tag: _tag,
+            onUpdated: () => setState(() {}),
+          );
+        },
       ),
     );
   }

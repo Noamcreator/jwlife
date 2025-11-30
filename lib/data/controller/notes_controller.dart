@@ -27,8 +27,29 @@ class NotesController extends ChangeNotifier {
     }
   }
 
-  Future<void> addNote(String guid, String title, String? userMarkGuid, int blockType, int identifier, int styleIndex, int colorIndex, {Document? document, DatedText? datedText}) async {
+  Future<Note> addNote({String? title, String? content, List<int>? tagsIds, int? styleIndex, int? colorIndex, int? blockType, int? identifier, Document? document, DatedText? datedText}) async {
+    Note note = await JwLifeApp.userdata.addNote(
+        title: title,
+        content: content,
+        tagsIds: tagsIds,
+        styleIndex: styleIndex,
+        colorIndex: colorIndex,
+        document: document,
+        blockType: blockType,
+        identifier: identifier,
+        datedText: datedText
+    );
 
+    // éviter doublon
+    if (!notes.any((n) => n.guid == note.guid)) {
+      notes = [...notes, note]; // immutable ajout
+      notifyListeners();
+    }
+
+    return note;
+  }
+
+  Future<void> addNoteWithGuid(String guid, String title, String? userMarkGuid, int blockType, int identifier, int styleIndex, int colorIndex, {Document? document, DatedText? datedText}) async {
     Note note = await JwLifeApp.userdata.addNoteToDocId(
         guid,
         title,

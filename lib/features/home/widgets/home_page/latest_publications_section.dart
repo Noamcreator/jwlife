@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:jwlife/features/home/widgets/home_page/rectangle_publication_item.dart';
-
+import '../../../../app/services/settings_service.dart';
 import '../../../../core/app_data/app_data_service.dart';
+import '../../../../core/icons.dart';
 import '../../../../core/ui/text_styles.dart';
+import '../../../../core/utils/utils_language_dialog.dart';
 import '../../../../data/models/publication.dart';
 import '../../../../i18n/i18n.dart';
 
@@ -26,11 +28,44 @@ class LatestPublicationSection extends StatelessWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              i18n().navigation_whats_new,
-              style: Theme.of(context).extension<JwLifeThemeStyles>()!.labelTitle,
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                GestureDetector(
+                  onTap: () async {
+                    //showPage(NotesTagsPage());
+                  },
+                  child: Row(
+                    children: [
+                      Text(
+                        i18n().navigation_whats_new,
+                        style: Theme.of(context).extension<JwLifeThemeStyles>()!.labelTitle
+                      ),
+                      SizedBox(width: 2),
+                      Icon(
+                        JwIcons.chevron_right,
+                        color: Theme.of(context).secondaryHeaderColor,
+                        size: 24,
+                      ),
+                    ],
+                  ),
+                ),
+                ValueListenableBuilder(
+                    valueListenable: JwLifeSettings.instance.currentLanguage,
+                    builder: (context, value, child) {
+                      return GestureDetector(
+                          onTap: () {
+                            showLanguageDialog(context);
+                          },
+                          child: Text(
+                              value.vernacular,
+                              style: TextStyle(color: Theme.of(context).primaryColor)
+                          )
+                      );
+                    }
+                )
+              ],
             ),
-            const SizedBox(height: 4),
             SizedBox(
               height: 80, // Ajuster la hauteur si besoin
               child: ListView.builder(

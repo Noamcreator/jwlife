@@ -17,6 +17,7 @@ import '../../../../data/realm/catalog.dart';
 import '../../../../data/realm/realm_library.dart';
 import '../../../../i18n/i18n.dart';
 import '../../../../i18n/localization.dart';
+import '../../widgets/responsive_categories_wrap_layout.dart';
 import 'convention_items_page.dart';
 import 'publications_items_page.dart';
 
@@ -54,7 +55,7 @@ class _PublicationSubcategoriesPageState extends State<PublicationSubcategoriesP
     List<Map<String, dynamic>> days = [];
 
     List<Publication> pubs = await CatalogDb.instance.fetchPubsFromConventionsDays();
-    RealmResults<Category> convDaysCategories = RealmLibrary.realm.all<Category>().query("language == '${JwLifeSettings.instance.currentLanguage.value.symbol}'").query("key == 'ConvDay1' OR key == 'ConvDay2' OR key == 'ConvDay3'");
+    RealmResults<RealmCategory> convDaysCategories = RealmLibrary.realm.all<RealmCategory>().query("LanguageSymbol == '${JwLifeSettings.instance.currentLanguage.value.symbol}'").query("Key == 'ConvDay1' OR Key == 'ConvDay2' OR Key == 'ConvDay3'");
 
     for(int i = 1; i < 3+1; i++) {
       if (pubs.any((element) => element.conventionReleaseDayNumber == i) || convDaysCategories.any((element) => element.key == 'ConvDay$i')) {
@@ -80,6 +81,40 @@ class _PublicationSubcategoriesPageState extends State<PublicationSubcategoriesP
 
   @override
   Widget build(BuildContext context) {
+
+    // Transforme les catégories en widgets
+    final List<Widget> subCategoriesWidgets = items.map((subCategory) {
+      int number = subCategory['Year'] ?? subCategory['Day'];
+      final ThemeData theme = Theme.of(context);
+      final bool isDark = theme.brightness == Brightness.dark;
+
+      final Color backgroundColor = isDark ? const Color(0xFF292929) : Colors.white;
+      final Color textColor = isDark ? Colors.white : Colors.grey[800]!;
+
+      return Material(
+        color: backgroundColor,
+        child: InkWell(
+            onTap: () {
+              if(widget.category.type == 'Convention') {
+                showPage(ConventionItemsView(
+                  category: widget.category,
+                  indexDay: subCategory['Day'],
+                  publications: subCategory['Publications'],
+                  medias: subCategory['Medias'],
+                ));
+              }
+              else {
+                showPage(PublicationsItemsPage(
+                  category: widget.category,
+                  year: number,
+                ));
+              }
+            },
+            child: _buildCategoryButton(context, number, textColor!)
+        ),
+      );
+    }).toList();
+
     return ValueListenableBuilder(
       valueListenable: _pageTitle,
       builder: (context, title, child) {
@@ -106,65 +141,25 @@ class _PublicationSubcategoriesPageState extends State<PublicationSubcategoriesP
               )
             ],
           ),
-          body: Directionality(
-            textDirection: JwLifeSettings.instance.currentLanguage.value.isRtl ? TextDirection.rtl : TextDirection.ltr,
-            child: ListView.builder(
-              padding: EdgeInsets.symmetric(vertical: 7.0, horizontal: 8.0),
-              itemCount: items.length,
-              itemBuilder: (context, index) {
-                int number = items[index]['Year'] ?? items[index]['Day'];
-
-                // Déterminer la couleur de fond en fonction du thème
-                Color backgroundColor = Theme.of(context).brightness == Brightness.dark ? Color(0xFF292929) : Colors.white;
-
-                // Déterminer la couleur du texte en fonction du thème
-                Color? textColor = Theme.of(context).brightness == Brightness.light ? Colors.grey[800] : Colors.white;
-
-                return Padding(
-                  padding: const EdgeInsetsGeometry.only(bottom: 2.0),
-                  child: Material(
-                    color: backgroundColor,
-                    child: InkWell(
-                      onTap: () {
-                        if(widget.category.type == 'Convention') {
-                          showPage(ConventionItemsView(
-                            category: widget.category,
-                            indexDay: items[index]['Day'],
-                            publications: items[index]['Publications'],
-                            medias: items[index]['Medias'],
-                          ));
-                        }
-                        else {
-                          showPage(PublicationsItemsPage(
-                            category: widget.category,
-                            year: number,
-                          ));
-                        }
-                      },
-                      child: _buildCategoryButton(context, number, textColor!)
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
+          body: ResponsiveCategoriesWrapLayout(
+            textDirection:
+            JwLifeSettings.instance.currentLanguage.value.isRtl ? TextDirection.rtl : TextDirection.ltr,
+            children: subCategoriesWidgets,
+          )
         );
       }
     );
   }
 
   Widget _buildCategoryButton(BuildContext context, int number, Color textColor) {
-    Locale locale = Locale(JwLifeSettings.instance.currentLanguage.value.primaryIetfCode);
+    Locale locale = JwLifeSettings.instance.currentLanguage.value.getSafeLocale();
 
-    return ListTile(
-      contentPadding: EdgeInsets.all(12.0),
-      leading: Padding(
-        padding: const EdgeInsets.only(left: 10.0),
-        child: Icon(widget.category.icon, size: 38.0, color: textColor),
-      ),
-      title: Row(
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20.0),
+      child: Row(
         children: [
-          SizedBox(width: 15.0),
+          Icon(widget.category.icon, size: 38.0, color: textColor),
+          const SizedBox(width: 25.0),
           FutureBuilder<AppLocalizations>(
             future: i18nLocale(locale),
             builder: (context, snapshot) {
