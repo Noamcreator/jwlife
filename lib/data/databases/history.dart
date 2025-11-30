@@ -503,7 +503,7 @@ class History {
                               Navigator.pop(context);
 
                               if (item["Type"] == "video") {
-                                MediaItem? mediaItem = getMediaItem(
+                                RealmMediaItem? mediaItem = getMediaItem(
                                   item["KeySymbol"],
                                   item["Track"],
                                   item["DocumentId"],
@@ -516,7 +516,7 @@ class History {
                                 video.showPlayer(mainContext);
                               }
                               else if (item["Type"] == "audio") {
-                                MediaItem? mediaItem = getAudioItem(
+                                RealmMediaItem? mediaItem = getAudioItem(
                                   item["KeySymbol"],
                                   item["Track"],
                                   item["DocumentId"],

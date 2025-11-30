@@ -174,10 +174,7 @@ class RectanglePublicationItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
-
-    final Color itemBackgroundColor =
-        backgroundColor ?? (isDarkMode ? const Color(0xFF292929) : Colors.white);
-
+    final Color itemBackgroundColor = backgroundColor ?? (isDarkMode ? const Color(0xFF292929) : Colors.white);
     final Color subtitleColor = isDarkMode ? const Color(0xFFc3c3c3) : const Color(0xFF626262);
 
     return Material(
@@ -224,7 +221,7 @@ class RectanglePublicationItem extends StatelessWidget {
                           if (publication.issueTitle.isNotEmpty)
                             Text(
                               publication.issueTitle,
-                              style: TextStyle(fontSize: height == 85 ? 11 : 10, color: subtitleColor),
+                              style: TextStyle(fontSize: height == kItemHeight ? 11 : 10, color: subtitleColor),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               textAlign: TextAlign.start, // S'assurer de l'alignement
@@ -234,7 +231,7 @@ class RectanglePublicationItem extends StatelessWidget {
                               publication.coverTitle,
                               style: TextStyle(
                                 height: 1.2,
-                                fontSize: height == 85 ? 14 : 13,
+                                fontSize: height == kItemHeight ? 14 : 13,
                                 color: Theme.of(context).secondaryHeaderColor,
                               ),
                               maxLines: 2,
@@ -247,7 +244,7 @@ class RectanglePublicationItem extends StatelessWidget {
                               publication.title,
                               style: TextStyle(
                                 height: 1.2,
-                                fontSize: height == 85 ? 14.5 : 14,
+                                fontSize: height == kItemHeight ? 14.5 : 14,
                                 color: Theme.of(context).secondaryHeaderColor,
                               ),
                               maxLines: 2,
@@ -257,7 +254,7 @@ class RectanglePublicationItem extends StatelessWidget {
                           const Spacer(),
                           Text(
                             // Le texte de référence est généralement aligné avec le reste
-                            '${formatYear(publication.year, localeCode: Locale(publication.mepsLanguage.primaryIetfCode))} · ${publication.keySymbol}',
+                            '${formatYear(publication.year, localeCode: publication.mepsLanguage.getSafeLocale())} · ${publication.keySymbol}',
                             style: TextStyle(fontSize: 11, color: subtitleColor),
                             textAlign: TextAlign.start, // S'assurer de l'alignement
                           ),

@@ -349,9 +349,8 @@ class _MediaItemItemWidgetState extends State<MediaItemItemWidget> {
   Widget _buildMediaTitle(BuildContext context) {
     String timeAgoText = '';
     if (widget.timeAgoText) {
-      DateTime firstPublished = DateTime.parse(widget.media.firstPublished ?? '');
-
-      timeAgoText = timeAgo(firstPublished);
+      DateTime? firstPublished = widget.media.firstPublished;
+      timeAgoText = firstPublished != null ? timeAgo(firstPublished) : '';
     }
 
     return Padding(

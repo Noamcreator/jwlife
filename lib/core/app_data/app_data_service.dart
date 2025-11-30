@@ -48,8 +48,8 @@ class AppDataService {
 
   // Library Page
   final publicationsCategories = ValueNotifier<List<PublicationCategory>>([]);
-  final videoCategories = ValueNotifier<Category?>(null);
-  final audioCategories = ValueNotifier<Category?>(null);
+  final videoCategories = ValueNotifier<RealmCategory?>(null);
+  final audioCategories = ValueNotifier<RealmCategory?>(null);
 
   // Workship Page
   final midweekMeetingPub = ValueNotifier<Publication?>(null);
@@ -180,6 +180,7 @@ class AppDataService {
               INNER JOIN PublicationAsset pa ON p.Id = pa.PublicationId
               INNER JOIN meps.Language ON p.MepsLanguageId = meps.Language.LanguageId
               INNER JOIN meps.Script ON meps.Language.ScriptId = meps.Script.ScriptId
+              LEFT JOIN meps.Language AS fallback ON meps.Language.PrimaryFallbackLanguageId = fallback.LanguageId
               LEFT JOIN PublicationAttributeMap pam ON p.Id = pam.PublicationId
               WHERE ? BETWEEN dt.Start AND dt.End AND p.MepsLanguageId = ?
             ''', [formattedDate, languageId]);
@@ -210,6 +211,7 @@ class AppDataService {
               INNER JOIN PublicationAsset pa ON p.Id = pa.PublicationId
               INNER JOIN meps.Language ON p.MepsLanguageId = meps.Language.LanguageId
               INNER JOIN meps.Script ON meps.Language.ScriptId = meps.Script.ScriptId
+              LEFT JOIN meps.Language AS fallback ON meps.Language.PrimaryFallbackLanguageId = fallback.LanguageId
               LEFT JOIN PublicationAttributeMap pam ON p.Id = pam.PublicationId
               GROUP BY p.KeySymbol, p.IssueTagNumber, p.MepsLanguageId
               ORDER BY TotalVisits DESC
@@ -230,6 +232,7 @@ class AppDataService {
               INNER JOIN Publication p ON pa.PublicationId = p.Id
               INNER JOIN meps.Language ON p.MepsLanguageId = meps.Language.LanguageId
               INNER JOIN meps.Script ON meps.Language.ScriptId = meps.Script.ScriptId
+              LEFT JOIN meps.Language AS fallback ON meps.Language.PrimaryFallbackLanguageId = fallback.LanguageId
               LEFT JOIN PublicationAttributeMap pam ON p.Id = pam.PublicationId
               WHERE pa.MepsLanguageId = ? AND ca.ListType = ?
               ORDER BY ca.SortOrder;
@@ -298,6 +301,7 @@ class AppDataService {
               INNER JOIN Publication p ON pa.PublicationId = p.Id
               INNER JOIN meps.Language ON p.MepsLanguageId = meps.Language.LanguageId
               INNER JOIN meps.Script ON meps.Language.ScriptId = meps.Script.ScriptId
+              LEFT JOIN meps.Language AS fallback ON meps.Language.PrimaryFallbackLanguageId = fallback.LanguageId
               LEFT JOIN PublicationAttributeMap pam ON p.Id = pam.PublicationId
               WHERE pa.MepsLanguageId = ? AND ca.ListType = ?
               ORDER BY ca.SortOrder;

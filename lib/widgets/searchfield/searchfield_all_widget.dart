@@ -243,18 +243,14 @@ class _SearchFieldAllState extends State<SearchFieldAll> {
      */
 
     // 🎵 Recherche dans les médias Realm
-    final medias = RealmLibrary.realm.all<MediaItem>().query(
-      r"title CONTAINS[c] $0 AND languageSymbol == $1",
+    final medias = RealmLibrary.realm.all<RealmMediaItem>().query(r"Title CONTAINS[c] $0 AND LanguageSymbol == $1",
       [query, JwLifeSettings.instance.currentLanguage.value.symbol],
     );
 
     if (requestId == _latestRequestId) {
       for (final media in medias.take(10)) {
 
-        final category = RealmLibrary.realm
-            .all<Category>()
-            .query(r"key == $0", [media.primaryCategory ?? ''])
-            .firstOrNull;
+        final category = RealmLibrary.realm.all<RealmCategory>().query(r"Key == $0", [media.primaryCategory ?? '']).firstOrNull;
 
         if(media.type == 'AUDIO') {
           Audio audio = Audio.fromJson(mediaItem: media);
@@ -263,7 +259,7 @@ class _SearchFieldAllState extends State<SearchFieldAll> {
             query: media,
             title: audio.title,
             image: audio.networkImageSqr,
-            subtitle: category?.localizedName ?? '',
+            subtitle: category?.name ?? '',
           ));
         }
         else {
@@ -273,7 +269,7 @@ class _SearchFieldAllState extends State<SearchFieldAll> {
             query: video,
             title: video.title,
             image: video.networkImageSqr,
-            subtitle: category?.localizedName ?? '',
+            subtitle: category?.name ?? '',
           ));
         }
       }

@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html style="overflow: hidden;">
+<meta content="text/html" charset="UTF-8">
+<meta name="viewport" content="initial-scale=1.0">
+<link rel="stylesheet" href="jw-styles.css" />
+<head>
+    <meta charset="utf-8">
+    <style>
+        :root {
+          /* =======================================
+             DÉFINITION DES COULEURS (Mode Clair)
+             ======================================= */
+
+          /* Palette de couleurs de base (RGB sans opacité) */
+          --color-yellow-rgb: 255, 243, 122;
+          --color-green-rgb: 183, 228, 146;
+          --color-blue-rgb: 152, 216, 255;
+          --color-pink-rgb: 246, 152, 188;
+          --color-orange-rgb: 255, 186, 138;
+          --color-purple-rgb: 193, 167, 226;
+          --color-red-rgb: 255, 150, 150;
+          --color-brown-rgb: 200, 175, 145;
+
+          /* Couleur de Bordure Grise */
+          --color-gray-rgb: 220, 220, 220;
+        }
+
+        /* =======================================
+           DÉFINITION DES COULEURS (Mode Sombre)
+           ======================================= */
+        .cc-theme--dark {
+          --color-yellow-rgb: 250, 217, 41;
+          --color-green-rgb: 129, 189, 79;
+          --color-blue-rgb: 95, 180, 239;
+          --color-pink-rgb: 219, 93, 141;
+          --color-orange-rgb: 255, 134, 46;
+          --color-purple-rgb: 146, 111, 189;
+          --color-red-rgb: 255, 80, 80;
+          --color-brown-rgb: 145, 100, 50;
+
+          --color-gray-rgb: 80, 80, 80;
+        }
+
+        body {
+          user-select: none;
+          font-size: {{FONT_SIZE}}px;
+          overflow: hidden;
+          -webkit-tap-highlight-color: transparent;
+        }
+
+        body.cc-theme--dark {
+          background-color: #121212;
+        }
+
+        body.cc-theme--light {
+          background-color: #ffffff;
+        }
+
+        #container {
+          display: flex;
+          transform: translateX(-100%);
+          height: 100vh;
+          backface-visibility: hidden;
+          will-change: transform; /* ➜ améliore la fluidité */
+        }
+
+        .page {
+          flex: 0 0 100%;
+          height: 100%;
+          overflow-y: auto;
+          margin: 0;
+          padding: 0;
+        }
+
+        #page-center {
+          position: relative;
+          height: 100%;
+          opacity: 0;
+          pointer-events: none;
+          transition: opacity 0.35s ease-in-out;
+        }
+
+        #page-center.visible {
+          opacity: 1;
+          pointer-events: auto;
+        }
+
+        .scroll-bar {
+          position: absolute;
+          top: 56px;
+          right: 0px;
+          width: 30px;
+          height: 55px;
+          z-index: 999;
+          left: auto;
+        }
+
+        /* 2. Surcharge RTL (à gauche) */
+        body.rtl .scroll-bar {
+          right: auto;
+          left: 0px;
+          transform: scaleX(-1);
+        }
+
+        .floating-button {
+          position: fixed;
+          inset-inline-end: 20px;
+          /* Ancien : right: 20px; */
+          right: 20px
+          left: auto;
+          width: 56px;
+          height: 56px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-family: jw-icons-external;
+          font-size: 25px;
+          cursor: pointer;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+          z-index: 9999;
+          transition: all 0.3s ease;
+          user-select: none;
+          opacity: 0;
+        }
+
+        /* 2. Surcharge RTL (à gauche) */
+        body.rtl .floating-button {
+          right: auto;
+          left: 20px;
+        }
+
+        /* Styles pour la loupe */
+        #magnifier {
+          position: fixed;
+          width: 130px;
+          height: 50px;
+          border: 3px solid #333;
+          border-radius: 8px;
+          overflow: hidden;
+          box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+          z-index: 9999;
+          pointer-events: none;
+          transition: opacity 0.2s ease;
+        }
+
+         /* Classe pour masquer l'élément */
+        .hide {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .magnifier-content {
+          position: absolute;
+          transform-origin: 0 0;
+          pointer-events: none;
+          width: 100vw;
+          height: 100vh;
+        }
+
+        /* Le contenu cloné à l'intérieur */
+        #magnifier-content > * {
+          position: absolute;
+          top: 0;
+          left: 0;
+          transform-origin: 0 0;
+          pointer-events: none;
+        }
+
+        body.cc-theme--dark #magnifier {
+          background-color: #121212;
+          border: 2px solid #ffffff;
+        }
+
+        body.cc-theme--light #magnifier {
+          background-color: #ffffff;
+          border: 2px solid #5f5a57;
+        }
+
+        .bookmark-icon {
+          position: absolute;
+          width: 23px;
+          height: 26px;
+          z-index: 999;
+        }
+
+        .note-indicator {
+          position: absolute;
+          width: 15px;
+          height: 15px;
+          z-index: 999;
+        }
+
+        .note-title:focus,
+        .note-content:focus,
+        .note-tags:focus {
+          outline: none !important;
+          box-shadow: none !important;
+          border: none !important;
+        }
+
+        ::selection {
+          background-color: rgba(66, 236, 241, 0.3) !important; /* Couleur de fond de la sélection */
+          background-size: auto 75%; /* La hauteur est de 75% de la hauteur de l'élément, la largeur est automatique */
+        }
+
+        .word.searched {
+          background-color: rgba(255, 185, 46, 0.8);
+        }
+
+        body.selection-active .word,
+        body.selection-active .punctuation,
+        body.selection-active .escape {
+          user-select: text;
+        }
+
+        a:hover, a:active, a:visited, a:focus {
+          border: none;
+          background: rgba(175, 175, 175, 0.3);
+          outline: none;
+        }
+
+        /* Style commun à la toolbar */
+        .toolbar {
+          position: absolute;
+          padding: 1px;
+          border-radius: 6px;
+          box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+          white-space: nowrap;
+          display: flex;
+          opacity: 1;
+          left: 50%;
+          transform: translateX(-50%);
+          width: max-content;
+          max-width: 100vw;
+        }
+
+        /* Thème clair */
+        body.cc-theme--light .toolbar {
+          background-color: #ffffff;
+        }
+
+        /* Thème sombre */
+        body.cc-theme--dark .toolbar {
+          background-color: #424242;
+        }
+
+        .highlight-yellow      { background-color: rgba(var(--color-yellow-rgb), 0.5); }
+        .highlight-green       { background-color: rgba(var(--color-green-rgb), 0.5); }
+        .highlight-blue        { background-color: rgba(var(--color-blue-rgb), 0.5); }
+        .highlight-pink        { background-color: rgba(var(--color-pink-rgb), 0.5); }
+        .highlight-orange      { background-color: rgba(var(--color-orange-rgb), 0.5); }
+        .highlight-purple      { background-color: rgba(var(--color-purple-rgb), 0.5); }
+        .highlight-red         { background-color: rgba(var(--color-red-rgb), 0.5); }
+        .highlight-brown       { background-color: rgba(var(--color-brown-rgb), 0.5); }
+
+        /* Définition de base commune aux deux thèmes pour le style amélioré */
+        [class*="underline-"] {
+          text-decoration: underline;
+          text-underline-offset: 0.15em;
+          text-decoration-thickness: 0.15em;
+          text-decoration-skip-ink: none;
+        }
+
+        /* L'opacité (0.85) est appliquée ici, une seule fois pour tous les thèmes/couleurs */
+        .underline-yellow { text-decoration-color: rgba(var(--color-yellow-rgb), 0.8); }
+        .underline-green { text-decoration-color: rgba(var(--color-green-rgb), 0.8); }
+        .underline-blue { text-decoration-color: rgba(var(--color-blue-rgb), 0.8); }
+        .underline-pink { text-decoration-color: rgba(var(--color-pink-rgb), 0.8); }
+        .underline-orange { text-decoration-color: rgba(var(--color-orange-rgb), 0.8); }
+        .underline-purple { text-decoration-color: rgba(var(--color-purple-rgb), 0.8); }
+        .underline-red { text-decoration-color: rgba(var(--color-red-rgb), 0.8); }
+        .underline-brown { text-decoration-color: rgba(var(--color-brown-rgb), 0.8); }
+
+        /* Application du style à toutes les classes utilisant la variable --c */
+        [class*="text-"] {
+          color: color-mix(in srgb, rgba(var(--c), 1) 80%, #555 20%);
+        }
+
+        .text-gray { --c: var(--color-gray-rgb); }
+        .text-yellow { --c: var(--color-yellow-rgb); }
+        .text-green { --c: var(--color-green-rgb); }
+        .text-blue { --c: var(--color-blue-rgb); }
+        .text-pink { --c: var(--color-pink-rgb); }
+        .text-orange { --c: var(--color-orange-rgb); }
+        .text-purple { --c: var(--color-purple-rgb); }
+        .text-red { --c: var(--color-red-rgb); }
+        .text-brown { --c: var(--color-brown-rgb); }
+
+        .cc-theme--light .note-indicator-gray      { background-color: #bfbfbf; }
+        .cc-theme--light .note-indicator-yellow    { background-color: #fff379; }
+        .cc-theme--light .note-indicator-green     { background-color: #b7e492; }
+        .cc-theme--light .note-indicator-blue      { background-color: #98d8fe; }
+        .cc-theme--light .note-indicator-pink      { background-color: #f698bc; }
+        .cc-theme--light .note-indicator-orange    { background-color: #feba89; }
+        .cc-theme--light .note-indicator-purple    { background-color: #c0a7e1; }
+        .cc-theme--light .note-indicator-red       { background-color: #ff9696; }
+        .cc-theme--light .note-indicator-brown     { background-color: #c8af91; }
+
+        .cc-theme--dark .note-indicator-gray      { background-color: #808080; }
+        .cc-theme--dark .note-indicator-yellow    { background-color: #eac600; }
+        .cc-theme--dark .note-indicator-green     { background-color: #67a332; }
+        .cc-theme--dark .note-indicator-blue      { background-color: #4ba1de; }
+        .cc-theme--dark .note-indicator-pink      { background-color: #c64677; }
+        .cc-theme--dark .note-indicator-orange    { background-color: #ea6d01; }
+        .cc-theme--dark .note-indicator-purple    { background-color: #7a57a7; }
+        .cc-theme--dark .note-indicator-red       { background-color: #ff5050; }
+        .cc-theme--dark .note-indicator-brown     { background-color: #916432; }
+
+        .cc-theme--light .note-gray      { background-color: #f1f1f1; }
+        .cc-theme--light .note-yellow    { background-color: #fffce6; }
+        .cc-theme--light .note-green     { background-color: #effbe6; }
+        .cc-theme--light .note-blue      { background-color: #e6f7ff; }
+        .cc-theme--light .note-pink      { background-color: #ffe6f0; }
+        .cc-theme--light .note-orange    { background-color: #fff0e6; }
+        .cc-theme--light .note-purple    { background-color: #f1eafa; }
+        .cc-theme--light .note-red       { background-color: #ffd6d6; }
+        .cc-theme--light .note-brown     { background-color: #F2E0CE; }
+
+        .cc-theme--dark .note-gray      { background-color: #292929; }
+        .cc-theme--dark .note-yellow    { background-color: #49400e; }
+        .cc-theme--dark .note-green     { background-color: #233315; }
+        .cc-theme--dark .note-blue      { background-color: #203646; }
+        .cc-theme--dark .note-pink      { background-color: #401f2c; }
+        .cc-theme--dark .note-orange    { background-color: #49290e; }
+        .cc-theme--dark .note-purple    { background-color: #2d2438; }
+        .cc-theme--dark .note-red       { background-color: #441a1a; }
+        .cc-theme--dark .note-brown     { background-color: #382c18; }
+    </style>
+</head>
+<body class="{{THEME}} {{DIRECTION}}">
+<div id="container">
+    <div id="page-left" class="page"></div>
+    <div id="page-center" class="page"></div>
+    <div id="page-right" class="page"></div>
+</div>
+
+<div id="magnifier" class="hide">
+    <div class="magnifier-content" id="magnifier-content"></div>
+</div>
+
+<script>
+    {{SCRIPT_CODE}}
+</script>
+</body>
+</html>

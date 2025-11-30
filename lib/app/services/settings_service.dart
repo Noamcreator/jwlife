@@ -32,6 +32,7 @@ class JwLifeSettings {
     isCharacterSpaced: false,
     isCharacterBreakable: false,
     hasSystemDigits: false,
+    fallbackPrimaryIetfCode: 'en',
     rsConf: 'r1',
     lib: 'lp-e',
   ));
@@ -75,8 +76,9 @@ class JwLifeSettings {
       isCharacterSpaced: libraryLanguage[9] == '1' ? true : false,
       isCharacterBreakable: libraryLanguage[10] == '1' ? true : false,
       hasSystemDigits: libraryLanguage[11] == '1' ? true : false,
-      rsConf: libraryLanguage[12],
-      lib: libraryLanguage[13],
+      fallbackPrimaryIetfCode: libraryLanguage[12],
+      rsConf: libraryLanguage[13],
+      lib: libraryLanguage[14],
     );
 
     notificationDownload = sharedPreferences.getDownloadNotification();

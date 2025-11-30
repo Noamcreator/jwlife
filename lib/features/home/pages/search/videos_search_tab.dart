@@ -159,7 +159,7 @@ class _VideosSearchTabState extends State<VideosSearchTab> {
   }
 
   Widget _buildVideoCard(BuildContext context, Map<String, dynamic> item) {
-    MediaItem? mediaItem = getMediaItemFromLank(item['lank'], JwLifeSettings.instance.currentLanguage.value.symbol);
+    RealmMediaItem? mediaItem = getMediaItemFromLank(item['lank'], JwLifeSettings.instance.currentLanguage.value.symbol);
 
     if (mediaItem == null) {
       return const SizedBox.shrink();
@@ -191,9 +191,9 @@ class _VideosSearchTabState extends State<VideosSearchTab> {
             Stack(
               children: [
                 ImageCachedWidget(
-                  imageUrl: mediaItem.realmImages?.wideFullSizeImageUrl ??
-                      mediaItem.realmImages?.wideImageUrl ??
-                      mediaItem.realmImages?.squareImageUrl,
+                  imageUrl: mediaItem.images?.wideFullSizeImageUrl ??
+                      mediaItem.images?.wideImageUrl ??
+                      mediaItem.images?.squareImageUrl,
                   icon: JwIcons.video,
                   height: 200,
                   width: double.infinity,

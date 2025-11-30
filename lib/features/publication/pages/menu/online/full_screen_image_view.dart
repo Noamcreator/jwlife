@@ -79,7 +79,7 @@ class _FullScreenImageViewState extends State<FullScreenImageView> {
                           String lank = uri.queryParameters['lank']!;
                           String lang = uri.queryParameters['wtlocale']!;
 
-                          MediaItem? mediaItem = getMediaItemFromLank(lank, lang);
+                          RealmMediaItem? mediaItem = getMediaItemFromLank(lank, lang);
 
                           if(mediaItem != null) {
                             Video video = Video.fromJson(mediaItem: mediaItem);

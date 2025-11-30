@@ -148,7 +148,7 @@ class Api {
       final serverETag = response.headers['etag'] as List<String>;
       final serverDate = response.headers['last-modified'] as List<String>;
 
-      final results = RealmLibrary.realm.all<Language>().query("symbol == '$languageSymbol'");
+      final results = RealmLibrary.realm.all<RealmLanguage>().query("Symbol == '$languageSymbol'");
       final language = results.isNotEmpty ? results.first : null;
 
       if (language == null || language.eTag != serverETag.first || language.lastModified != serverDate.first) {

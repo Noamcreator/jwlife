@@ -141,14 +141,14 @@ class AppSharedPreferences {
   // --- LIBRARY LANGUAGE ---
 
   List<String> getLibraryLanguage() {
+    if(_sp.getStringList(SharedPreferencesKeys.libraryLanguage.key)?.length != 15) {
+      return List<String>.from(SharedPreferencesKeys.libraryLanguage.defaultValue);
+    }
     return _sp.getStringList(SharedPreferencesKeys.libraryLanguage.key) ?? List<String>.from(SharedPreferencesKeys.libraryLanguage.defaultValue);
   }
 
   Future<void> setLibraryLanguage(dynamic selectedLanguage) async {
     if(selectedLanguage is Map<String, dynamic>) {
-      // Attention: Assurez-vous que JwLifeSettings est initialisé si vous l'utilisez ici.
-      // Dans le contexte de cette classe, il peut être préférable de passer directement l'objet MepsLanguage
-      // ou de gérer l'instance JwLifeSettings en dehors.
       JwLifeSettings.instance.currentLanguage.value = MepsLanguage.fromJson(selectedLanguage);
     }
 
@@ -165,6 +165,7 @@ class AppSharedPreferences {
       JwLifeSettings.instance.currentLanguage.value.isCharacterSpaced ? '1' : '0',
       JwLifeSettings.instance.currentLanguage.value.isCharacterBreakable ? '1' : '0',
       JwLifeSettings.instance.currentLanguage.value.hasSystemDigits ? '1' : '0',
+      JwLifeSettings.instance.currentLanguage.value.fallbackPrimaryIetfCode,
       JwLifeSettings.instance.currentLanguage.value.rsConf,
       JwLifeSettings.instance.currentLanguage.value.lib,
     ]);

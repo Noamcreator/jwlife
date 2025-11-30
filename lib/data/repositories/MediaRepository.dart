@@ -33,7 +33,7 @@ class MediaRepository {
     return _medias.values.where((p) => p.isDownloadedNotifier.value).toList();
   }
 
-  Media? getByCompositeKey(MediaItem? mediaItem) {
+  Media? getByCompositeKey(RealmMediaItem? mediaItem) {
     String keySymbol = mediaItem?.pubSymbol ?? '';
     int documentId = mediaItem?.documentId ?? 0;
     String mepsLanguage = mediaItem?.languageSymbol ?? JwLifeSettings.instance.currentLanguage.value.symbol;
@@ -44,7 +44,7 @@ class MediaRepository {
     return _medias.values.firstWhereOrNull((m) => m.keySymbol == keySymbol && m.documentId == documentId && m.mepsLanguage == mepsLanguage && m.issueTagNumber == issueTagNumber && m.track == track && m is Audio == isAudio);
   }
 
-  Media? getByCompositeKeyForDownload(MediaItem mediaItem) {
+  Media? getByCompositeKeyForDownload(RealmMediaItem mediaItem) {
     String keySymbol = mediaItem.pubSymbol ?? '';
     int documentId = mediaItem.documentId ?? 0;
     String mepsLanguage = mediaItem.languageSymbol ?? JwLifeSettings.instance.currentLanguage.value.symbol;

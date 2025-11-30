@@ -49,9 +49,7 @@ class _PublicationsItemsPageState extends State<PublicationsItemsPage> {
       _pageTitle.value = '${widget.year}';
     } else {
       // Sinon, on appelle la méthode asynchrone et on met à jour l'état
-      final title = await widget.category.getNameAsync(
-        Locale(JwLifeSettings.instance.currentLanguage.value.primaryIetfCode),
-      );
+      final title = await widget.category.getNameAsync(JwLifeSettings.instance.currentLanguage.value.getSafeLocale());
       _pageTitle.value = title;
     }
   }
@@ -311,7 +309,6 @@ class _PublicationsItemsBody extends StatelessWidget {
                 final int finalCrossAxisCount = crossAxisCount > 0 ? crossAxisCount : 1;
                 final double totalSpacing = kSpacing * (finalCrossAxisCount - 1);
                 final double itemWidth = (screenWidth - (contentPadding * 2) - totalSpacing) / finalCrossAxisCount;
-                // Hauteur fixe (85.0 + 3.0) pour l'élément RectangularPublicationItem
                 final double childAspectRatio = itemWidth / kItemHeight;
 
                 final List<Widget> slivers = [];

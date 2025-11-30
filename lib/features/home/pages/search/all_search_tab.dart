@@ -186,7 +186,7 @@ class _AllSearchTabState extends State<AllSearchTab> {
         itemCount: result['results'].length,
         itemBuilder: (context, videoIndex) {
           final item = result['results'][videoIndex];
-          MediaItem? mediaItem = getMediaItemFromLank(item['lank'], JwLifeSettings.instance.currentLanguage.value.symbol);
+          RealmMediaItem? mediaItem = getMediaItemFromLank(item['lank'], JwLifeSettings.instance.currentLanguage.value.symbol);
 
           if (mediaItem == null) return const SizedBox.shrink();
 
@@ -301,7 +301,7 @@ class _AllSearchTabState extends State<AllSearchTab> {
         itemCount: result['results'].length,
         itemBuilder: (context, audioIndex) {
           final item = result['results'][audioIndex];
-          MediaItem? mediaItem = getMediaItemFromLank(item['lank'], JwLifeSettings.instance.currentLanguage.value.symbol);
+          RealmMediaItem? mediaItem = getMediaItemFromLank(item['lank'], JwLifeSettings.instance.currentLanguage.value.symbol);
 
           if (mediaItem == null) return const SizedBox.shrink();
 

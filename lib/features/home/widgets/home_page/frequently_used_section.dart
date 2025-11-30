@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:jwlife/features/home/widgets/home_page/square_publication_item.dart';
 
 import '../../../../core/app_data/app_data_service.dart';
+import '../../../../core/icons.dart';
 import '../../../../core/ui/text_styles.dart';
 import '../../../../data/models/publication.dart';
 import '../../../../i18n/i18n.dart';
@@ -22,13 +23,25 @@ class FrequentlyUsedSection extends StatelessWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              i18n().navigation_frequently_used,
-              style: Theme.of(context)
-                  .extension<JwLifeThemeStyles>()!
-                  .labelTitle,
+            GestureDetector(
+              onTap: () async {
+                //showPage(NotesTagsPage());
+              },
+              child: Row(
+                children: [
+                  Text(
+                      i18n().navigation_frequently_used,
+                      style: Theme.of(context).extension<JwLifeThemeStyles>()!.labelTitle
+                  ),
+                  SizedBox(width: 2),
+                  Icon(
+                    JwIcons.chevron_right,
+                    color: Theme.of(context).secondaryHeaderColor,
+                    size: 24,
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 4),
             SizedBox(
               height: 120,
               child: ListView.builder(

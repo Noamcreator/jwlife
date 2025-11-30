@@ -121,7 +121,7 @@ Future<void> handleUri(JwOrgUri uri) async {
         }
       }
 
-      MediaItem? mediaItem = getMediaItemFromLank(uri.lank!, uri.wtlocale);
+      RealmMediaItem? mediaItem = getMediaItemFromLank(uri.lank!, uri.wtlocale);
 
       if (mediaItem == null) return;
 

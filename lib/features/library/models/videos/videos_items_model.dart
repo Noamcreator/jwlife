@@ -12,19 +12,19 @@ import 'package:jwlife/data/models/video.dart';
 import '../../../../core/utils/utils_video.dart';
 
 class VideoItemsModel extends ChangeNotifier {
-  final Category initialCategory;
+  final RealmCategory initialCategory;
 
-  late Category? _category;
-  Category? get category => _category;
+  late RealmCategory? _category;
+  RealmCategory? get category => _category;
 
-  late Language _language;
-  Language get language => _language;
+  late RealmLanguage _language;
+  RealmLanguage get language => _language;
 
-  List<Category> _subcategories = [];
+  List<RealmCategory> _subcategories = [];
   // Contient la liste complète non filtrée
 
-  List<Category> _filteredVideos = [];
-  List<Category> get filteredVideos => _filteredVideos; // La liste affichée
+  List<RealmCategory> _filteredVideos = [];
+  List<RealmCategory> get filteredVideos => _filteredVideos; // La liste affichée
 
   final Map<String, List<String>> _filteredMediaMap = {};
   Map<String, List<String>> get filteredMediaMap => _filteredMediaMap;
@@ -53,34 +53,30 @@ class VideoItemsModel extends ChangeNotifier {
 
   // --- Logique de Données / Métier ---
 
-  Media getMediaFromKey(String mediaKey) {
+  Media getMediaFromKey(String naturalKey) {
     // Accès à l'objet Realm MediaItem
-    final mediaItem = RealmLibrary.realm
-        .all<MediaItem>()
-        .query("naturalKey == '$mediaKey'")
-        .first;
+
+    final mediaItem = RealmLibrary.getMediaItemByNaturalKey(naturalKey, initialCategory.languageSymbol!);
 
     // Convertit le modèle Realm en modèle métier (Audio/Video)
-    return mediaItem.type == 'AUDIO'
-        ? Audio.fromJson(mediaItem: mediaItem)
-        : Video.fromJson(mediaItem: mediaItem);
+    return mediaItem.type == 'AUDIO' ? Audio.fromJson(mediaItem: mediaItem) : Video.fromJson(mediaItem: mediaItem);
   }
 
   void loadItems({String? symbol}) async {
-    symbol ??= initialCategory.language;
+    symbol ??= initialCategory.languageSymbol;
 
     RealmLibrary.realm.refresh();
     // Récupère les informations sur la langue
-    Language? lang = RealmLibrary.realm.all<Language>().query("symbol == '$symbol'").firstOrNull;
+    RealmLanguage? lang = RealmLibrary.realm.all<RealmLanguage>().query("Symbol == '$symbol'").firstOrNull;
     if(lang == null) return;
 
     // Récupère la catégorie spécifique à la langue
-    _category = RealmLibrary.realm.all<Category>().query("key == '${initialCategory.key}' AND language == '$symbol'").firstOrNull;
+    _category = RealmLibrary.realm.all<RealmCategory>().query("Key == '${initialCategory.key}' AND LanguageSymbol == '$symbol'").firstOrNull;
 
     _language = lang;
 
     // Utilisation de .toList() pour la liste des sous-catégories
-    _subcategories = _category?.subcategories.toList() ?? [];
+    _subcategories = _category?.subCategories.toList() ?? [];
     _filteredVideos = _subcategories;
 
     notifyListeners();
@@ -97,12 +93,9 @@ class VideoItemsModel extends ChangeNotifier {
 
       // Filtre les médias dans chaque sous-catégorie
       for (var subCategory in _subcategories) {
-        final filteredMediaKeys = subCategory.media.where((mediaKey) {
+        final filteredNaturalKeys = subCategory.media.where((naturalKey) {
           try {
-            final mediaItem = RealmLibrary.realm
-                .all<MediaItem>()
-                .query("naturalKey == '$mediaKey'")
-                .first;
+            final mediaItem = RealmLibrary.getMediaItemByNaturalKey(naturalKey, subCategory.languageSymbol!);
 
             if (mediaItem.title == null) return false;
 
@@ -114,8 +107,8 @@ class VideoItemsModel extends ChangeNotifier {
         }).toList();
 
         // Ajoute la sous-catégorie si elle contient des médias filtrés
-        if (filteredMediaKeys.isNotEmpty) {
-          _filteredMediaMap[subCategory.key!] = filteredMediaKeys;
+        if (filteredNaturalKeys.isNotEmpty) {
+          _filteredMediaMap[subCategory.key!] = filteredNaturalKeys;
           _filteredVideos.add(subCategory);
         }
       }
@@ -183,7 +176,7 @@ class VideoItemsModel extends ChangeNotifier {
   void playAllMediaRandomly(BuildContext context) {
     List<String> allMediaKeys = [];
     // Collecte toutes les clés de médias de toutes les sous-catégories
-    for (Category category in _subcategories) {
+    for (RealmCategory category in _subcategories) {
       allMediaKeys.addAll(category.media);
     }
 

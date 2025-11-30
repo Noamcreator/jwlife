@@ -11,7 +11,7 @@ import '../../../../i18n/i18n.dart';
 import '../../models/videos/videos_items_model.dart';
 
 class VideoItemsPage extends StatelessWidget {
-  final Category category;
+  final RealmCategory category;
 
   const VideoItemsPage({super.key, required this.category});
 
@@ -63,7 +63,7 @@ class VideoItemsPage extends StatelessWidget {
 
   PreferredSizeWidget _buildRegularAppBar(VideoItemsModel model) {
     return JwLifeAppBar(
-      title: model.category?.localizedName ?? '',
+      title: model.category?.name ?? '',
       subTitle: model.language.vernacular,
       actions: [
         IconTextButton(
@@ -124,7 +124,7 @@ class VideoItemsPage extends StatelessWidget {
                   children: [
                     Expanded(
                       child: Text(
-                        subCategory.localizedName!,
+                        subCategory.name!,
                         style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
                         overflow: TextOverflow.ellipsis,
                         maxLines: 1,

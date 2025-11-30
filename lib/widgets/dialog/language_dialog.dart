@@ -1,22 +1,29 @@
 import 'dart:io';
 import 'dart:async';
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/files_helper.dart';
 import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/data/databases/history.dart';
+import 'package:jwlife/data/models/media.dart';
+import 'package:jwlife/data/repositories/MediaRepository.dart';
 import 'package:sqflite/sqflite.dart';
 import '../../app/services/settings_service.dart';
+import '../../data/models/audio.dart';
+import '../../data/models/video.dart';
 import '../../i18n/i18n.dart';
 
 class LanguageDialog extends StatefulWidget {
   final Map<String, dynamic> languagesListJson;
   final String? selectedLanguageSymbol;
+  final Media? media;
 
   const LanguageDialog({
     super.key,
     this.languagesListJson = const {},
     this.selectedLanguageSymbol,
+    this.media,
   });
 
   @override
@@ -28,7 +35,8 @@ class _LanguageDialogState extends State<LanguageDialog> {
   final TextEditingController _searchController = TextEditingController();
   List<Map<String, dynamic>> _allLanguagesList = [];
   List<Map<String, dynamic>> _filteredLanguagesList = [];
-  List<Map<String, dynamic>> _recommendedLanguages = []; // Renommé de _favoriteLanguages
+  List<Map<String, dynamic>> _recommendedLanguages = [
+  ]; // Renommé de _favoriteLanguages
   Database? database;
   Timer? _debounce;
 
@@ -79,25 +87,23 @@ class _LanguageDialogState extends State<LanguageDialog> {
         s.IsRTL,
         s.IsCharacterSpaced,
         s.IsCharacterBreakable,
-        s.HasSystemDigits
+        s.HasSystemDigits,
+        fallback.PrimaryIetfCode AS FallbackPrimaryIetfCode
       FROM Language l
       INNER JOIN Script s ON l.ScriptId = s.ScriptId
-      LEFT JOIN LocalizedLanguageName lln_src 
-        ON l.LanguageId = lln_src.TargetLanguageId 
-        AND lln_src.SourceLanguageId = (SELECT LanguageId FROM Language WHERE PrimaryIetfCode = ?)
+      LEFT JOIN LocalizedLanguageName lln_src ON l.LanguageId = lln_src.TargetLanguageId AND lln_src.SourceLanguageId = (SELECT LanguageId FROM Language WHERE PrimaryIetfCode = ?)
       LEFT JOIN LanguageName ln_src ON lln_src.LanguageNameId = ln_src.LanguageNameId
-      LEFT JOIN LocalizedLanguageName lln_fallback 
-        ON l.LanguageId = lln_fallback.TargetLanguageId 
-        AND lln_fallback.SourceLanguageId = l.PrimaryFallbackLanguageId
+      LEFT JOIN LocalizedLanguageName lln_fallback ON l.LanguageId = lln_fallback.TargetLanguageId AND lln_fallback.SourceLanguageId = l.PrimaryFallbackLanguageId
       LEFT JOIN LanguageName ln_fallback ON lln_fallback.LanguageNameId = ln_fallback.LanguageNameId
-      WHERE l.VernacularName IS NOT '' 
-        AND (ln_src.Name IS NOT NULL OR (ln_src.Name IS NULL AND ln_fallback.Name IS NOT NULL))
+      LEFT JOIN Language fallback ON l.PrimaryFallbackLanguageId = fallback.LanguageId
+      WHERE l.VernacularName IS NOT '' AND (ln_src.Name IS NOT NULL OR (ln_src.Name IS NULL AND ln_fallback.Name IS NOT NULL))
       ORDER BY Name COLLATE NOCASE;
     ''', [JwLifeSettings.instance.locale.languageCode]);
 
     // Si widget.languagesListJson est fourni, filtrer et mapper les résultats
     if (widget.languagesListJson.isNotEmpty) {
-      response = response.where((language) => widget.languagesListJson.keys.contains(language['Symbol']))
+      response = response.where((language) =>
+          widget.languagesListJson.keys.contains(language['Symbol']))
           .map((language) {
         return {
           'LanguageId': language['LanguageId'],
@@ -119,11 +125,14 @@ class _LanguageDialogState extends State<LanguageDialog> {
     }
 
     // Obtenir la liste des langues les plus utilisées
-    List<Map<String, dynamic>> mostUsedLanguages = await getUpdatedMostUsedLanguages(selectedLanguage!, response);
+    List<Map<String,
+        dynamic>> mostUsedLanguages = await getUpdatedMostUsedLanguages(
+        selectedLanguage!, response);
 
     // Identifier les langues recommandées (sélectionnée + plus utilisées)
     _recommendedLanguages = response.where((lang) {
-      return isRecommended(lang, mostUsedLanguages); // isRecommended est l'ancien isFavorite
+      return isRecommended(
+          lang, mostUsedLanguages); // isRecommended est l'ancien isFavorite
     }).toList();
 
     // Trier la liste complète (qui est déjà triée par la requête SQL)
@@ -137,7 +146,9 @@ class _LanguageDialogState extends State<LanguageDialog> {
     });
   }
 
-  Future<List<Map<String, dynamic>>> getUpdatedMostUsedLanguages(String selectedLanguageSymbol, List<Map<String, dynamic>> allLanguages) async {
+  Future<List<Map<String, dynamic>>> getUpdatedMostUsedLanguages(
+      String selectedLanguageSymbol,
+      List<Map<String, dynamic>> allLanguages) async {
     List<Map<String, dynamic>> mostUsedLanguages =
     await History.getMostUsedLanguages();
     List<Map<String, dynamic>> mostUsedLanguagesList =
@@ -174,8 +185,7 @@ class _LanguageDialogState extends State<LanguageDialog> {
 
   bool isRecommended( // Renommé de isFavorite
       Map<String, dynamic> language,
-      List<Map<String, dynamic>> mostUsedLanguages,
-      ) {
+      List<Map<String, dynamic>> mostUsedLanguages,) {
     return language['Symbol'] == selectedLanguage ||
         mostUsedLanguages.any(
               (lang) => lang['MepsLanguageId'] == language['LanguageId'],
@@ -188,12 +198,15 @@ class _LanguageDialogState extends State<LanguageDialog> {
     // 1. Filtrer la liste complète (_allLanguagesList)
     final filtered = _allLanguagesList.where((lang) {
       final name = normalize(lang['Name']?.toString() ?? '');
-      final vernacularName = normalize(lang['VernacularName']?.toString() ?? '');
+      final vernacularName = normalize(
+          lang['VernacularName']?.toString() ?? '');
       return name.contains(searchTerm) || vernacularName.contains(searchTerm);
     }).toList();
 
     // 2. Déterminer les langues recommandées parmi les résultats filtrés
-    final recommendedSymbols = _recommendedLanguages.map((l) => l['Symbol']).toSet();
+    final recommendedSymbols = _recommendedLanguages
+        .map((l) => l['Symbol'])
+        .toSet();
 
     // 3. Appliquer le tri : Recommandé, puis Alphabetique.
     filtered.sort((a, b) {
@@ -243,7 +256,7 @@ class _LanguageDialogState extends State<LanguageDialog> {
     final combinedLanguages = _filteredLanguagesList.map((language) {
       return {
         ...language,
-        'isRecommended': recommendedSymbols.contains(language['Symbol']), // Utilisation de isRecommended
+        'isRecommended': recommendedSymbols.contains(language['Symbol']),
       };
     }).toList();
 
@@ -267,7 +280,8 @@ class _LanguageDialogState extends State<LanguageDialog> {
             Divider(color: dividerColor),
 
             Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 10, vertical: 8),
                 child: Row(
                   children: [
                     Icon(JwIcons.magnifying_glass, color: hintColor),
@@ -314,29 +328,47 @@ class _LanguageDialogState extends State<LanguageDialog> {
 
                   bool showOtherLanguagesHeader = !isRecommended && (index == 0 || combinedLanguages[index - 1]['isRecommended'] as bool);
 
+                  Media? media;
+                  if(widget.media != null) {
+                    media = MediaRepository().getAllMedias().firstWhereOrNull((media) => media.naturalKey == widget.media!.naturalKey && media.mepsLanguage == lank);
+                    media ??= widget.media is Video ? Video(
+                      naturalKey: widget.media!.naturalKey,
+                      mepsLanguage: lank,
+                    ) : Audio(
+                      naturalKey: widget.media!.naturalKey,
+                      mepsLanguage: lank,
+                    );
+                  }
+
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       if (showRecommendedHeader)
                         Padding(
-                          padding: const EdgeInsets.only(left: 25, bottom: 8, top: 5),
+                          padding: const EdgeInsets.only(
+                              left: 25, bottom: 8, top: 5),
                           child: Text(
                             i18n().label_languages_recommended, // Nouveau titre
                             style: TextStyle(
                               fontSize: 20,
-                              color: Theme.of(context).secondaryHeaderColor,
+                              color: Theme
+                                  .of(context)
+                                  .secondaryHeaderColor,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
                         ),
                       if (showOtherLanguagesHeader)
                         Padding(
-                          padding: const EdgeInsets.only(left: 25, bottom: 8, top: 10),
+                          padding: const EdgeInsets.only(
+                              left: 25, bottom: 8, top: 10),
                           child: Text(
                             i18n().label_languages_more,
                             style: TextStyle(
                               fontSize: 20,
-                              color: Theme.of(context).secondaryHeaderColor,
+                              color: Theme
+                                  .of(context)
+                                  .secondaryHeaderColor,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -351,31 +383,122 @@ class _LanguageDialogState extends State<LanguageDialog> {
                         child: Container(
                           color: selectedLanguage == languageData['Symbol'] ? Theme.of(context).brightness == Brightness.dark ? const Color(0xFF626262) : const Color(0xFFf0f0f0) : null,
                           padding: const EdgeInsets.only(left: 40, right: 5, top: 5, bottom: 5),
-                          child: Row(
+                          child: Stack(
                             children: [
-                              if(selectedLanguage == languageData['Symbol'])
-                              // Montrer quelque chose qui indeic une sorte de bar
-                                Container(
-                                  width: 3,
-                                  height: 20,
-                                  color: Theme.of(context).primaryColor,
-                                ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(translatedName, style: const TextStyle(fontSize: 16)),
-                                    Text(
-                                      title.isNotEmpty ? title : vernacularName,
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        color: subtitleColor,
-                                      ),
+                              Row(
+                                children: [
+                                  if(selectedLanguage == languageData['Symbol'])
+                                  // Montrer quelque chose qui indeic une sorte de bar
+                                    Container(
+                                      width: 3,
+                                      height: 20,
+                                      color: Theme
+                                          .of(context)
+                                          .primaryColor,
                                     ),
-                                  ],
-                                ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment
+                                          .start,
+                                      children: [
+                                        Text(translatedName,
+                                            style: const TextStyle(
+                                                fontSize: 16)),
+                                        Text(
+                                          title.isNotEmpty
+                                              ? title
+                                              : vernacularName,
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            color: subtitleColor,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 40), // pour laisser la place au bouton
+                                ],
                               ),
+
+                              if(media != null)
+                                ValueListenableBuilder(
+                                    valueListenable: media.isDownloadingNotifier,
+                                    builder: (context, isDownloading, _) {
+                                      // --- 1. Mode Téléchargement en cours (Annuler) ---
+                                      if (isDownloading) {
+                                        return Positioned(
+                                          bottom: -4,
+                                          right: -8,
+                                          height: 40,
+                                          child: IconButton(
+                                            padding: EdgeInsets.zero,
+                                            onPressed: () => media!.cancelDownload(context),
+                                            icon: const Icon(
+                                              JwIcons.x,
+                                              color: Color(0xFF9d9d9d),
+                                            ),
+                                          ),
+                                        );
+                                      }
+
+                                      return ValueListenableBuilder(
+                                          valueListenable: media!.isDownloadedNotifier,
+                                          builder: (context, isDownloaded, child) {
+                                            if (!isDownloaded || media!.hasUpdate()) {
+                                              return Positioned(
+                                                right: 0,
+                                                top: 0,
+                                                bottom: 0,
+                                                child: IconButton(
+                                                  padding: EdgeInsets.zero,
+                                                  onPressed: () {
+                                                    if (media!.hasUpdate()) {
+                                                      //media.update(context);
+                                                    }
+                                                    else {
+                                                      final RenderBox renderBox = context.findRenderObject() as RenderBox;
+                                                      final Offset tapPosition = renderBox.localToGlobal(Offset.zero) + renderBox.size.center(Offset.zero);
+
+                                                      media.download(context, tapPosition: tapPosition);
+                                                    }
+                                                  },
+                                                  icon: Icon(
+                                                    media!.hasUpdate() ? JwIcons.arrows_circular : JwIcons.cloud_arrow_down,
+                                                    size: media.hasUpdate() ? 20 : 24,
+                                                    color: const Color(0xFF9d9d9d),
+                                                  ),
+                                                ),
+                                              );
+                                            }
+
+                                            return ValueListenableBuilder<bool>(
+                                              valueListenable: media!.isFavoriteNotifier,
+                                              builder: (context, isFavorite, _) {
+                                                if (isFavorite) {
+                                                  return const Positioned(
+                                                    right: 7,
+                                                    top: 0,
+                                                    bottom: 0,
+                                                    child: Icon(
+                                                      JwIcons.star, // Assurez-vous que JwIcons.star existe ou utilisez Icons.star
+                                                      color: Color(0xFF9d9d9d),
+                                                    ),
+                                                  );
+                                                } else {
+                                                  return const SizedBox.shrink();
+                                                }
+                                              },
+                                            );
+                                          }
+                                      );
+                                    }
+                                ),
+
+                              if (media != null)
+                                _buildProgressBar(media),
                             ],
                           ),
                         ),
@@ -395,7 +518,9 @@ class _LanguageDialogState extends State<LanguageDialog> {
                     fontFamily: 'Roboto',
                     letterSpacing: 1,
                     fontWeight: FontWeight.bold,
-                    color: Theme.of(context).primaryColor,
+                    color: Theme
+                        .of(context)
+                        .primaryColor,
                   ),
                 ),
                 onPressed: () {
@@ -406,6 +531,35 @@ class _LanguageDialogState extends State<LanguageDialog> {
           ],
         ),
       ),
+    );
+  }
+
+  // Extrait la logique de la barre de progression
+  Widget _buildProgressBar(Media media) {
+    return ValueListenableBuilder<bool>(
+      valueListenable: media.isDownloadingNotifier,
+      builder: (context, isDownloading, _) {
+        return isDownloading
+            ? Positioned(
+          bottom: 0,
+          right: 0,
+          left: 10, // Décalage basé sur la taille de l'image
+          height: 2,
+          child: ValueListenableBuilder<double>(
+            valueListenable: media.progressNotifier,
+            builder: (context, progress, _) {
+              return LinearProgressIndicator(
+                value: progress == -1 ? null : progress,
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  Theme.of(context).primaryColor,
+                ),
+                backgroundColor: const Color(0xFFbdbdbd),
+                minHeight: 2,
+              );
+            },
+          ),
+        ) : const SizedBox.shrink();
+      },
     );
   }
 }

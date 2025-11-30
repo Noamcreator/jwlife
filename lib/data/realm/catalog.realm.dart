@@ -1,299 +1,322 @@
 part of 'catalog.dart';
 
-// dart format width=80
-// GENERATED CODE - DO NOT MODIFY BY HAND
-
-// **************************************************************************
-// RealmObjectGenerator
-// **************************************************************************
-
-// coverage:ignore-file
-// ignore_for_file: type=lint
-class Category extends _Category
-    with RealmEntity, RealmObjectBase, RealmObject {
-  Category({
-    String? key,
-    String? localizedName,
-    String? type,
-    Iterable<String> media = const [],
-    Iterable<Category> subcategories = const [],
-    Images? persistedImages,
-    String? language,
-  }) {
-    RealmObjectBase.set(this, 'key', key);
-    RealmObjectBase.set(this, 'localizedName', localizedName);
-    RealmObjectBase.set(this, 'type', type);
-    RealmObjectBase.set<RealmList<String>>(
-      this,
-      'media',
-      RealmList<String>(media),
-    );
-    RealmObjectBase.set<RealmList<Category>>(
-      this,
-      'subcategories',
-      RealmList<Category>(subcategories),
-    );
-    RealmObjectBase.set(this, 'persistedImages', persistedImages);
-    RealmObjectBase.set(this, 'language', language);
-  }
-
-  Category._();
-
-  @override
-  String? get key => RealmObjectBase.get<String>(this, 'key') as String?;
-  @override
-  set key(String? value) => RealmObjectBase.set(this, 'key', value);
-
-  @override
-  String? get localizedName =>
-      RealmObjectBase.get<String>(this, 'localizedName') as String?;
-  @override
-  set localizedName(String? value) =>
-      RealmObjectBase.set(this, 'localizedName', value);
-
-  @override
-  String? get type => RealmObjectBase.get<String>(this, 'type') as String?;
-  @override
-  set type(String? value) => RealmObjectBase.set(this, 'type', value);
-
-  @override
-  RealmList<String> get media =>
-      RealmObjectBase.get<String>(this, 'media') as RealmList<String>;
-  @override
-  set media(covariant RealmList<String> value) =>
-      throw RealmUnsupportedSetError();
-
-  @override
-  RealmList<Category> get subcategories =>
-      RealmObjectBase.get<Category>(this, 'subcategories')
-          as RealmList<Category>;
-  @override
-  set subcategories(covariant RealmList<Category> value) =>
-      throw RealmUnsupportedSetError();
-
-  @override
-  Images? get persistedImages =>
-      RealmObjectBase.get<Images>(this, 'persistedImages') as Images?;
-  @override
-  set persistedImages(covariant Images? value) =>
-      RealmObjectBase.set(this, 'persistedImages', value);
-
-  @override
-  String? get language =>
-      RealmObjectBase.get<String>(this, 'language') as String?;
-  @override
-  set language(String? value) => RealmObjectBase.set(this, 'language', value);
-
-  @override
-  Stream<RealmObjectChanges<Category>> get changes =>
-      RealmObjectBase.getChanges<Category>(this);
-
-  @override
-  Stream<RealmObjectChanges<Category>> changesFor([List<String>? keyPaths]) =>
-      RealmObjectBase.getChangesFor<Category>(this, keyPaths);
-
-  @override
-  Category freeze() => RealmObjectBase.freezeObject<Category>(this);
-
-  EJsonValue toEJson() {
-    return <String, dynamic>{
-      'key': key.toEJson(),
-      'localizedName': localizedName.toEJson(),
-      'type': type.toEJson(),
-      'media': media.toEJson(),
-      'subcategories': subcategories.toEJson(),
-      'persistedImages': persistedImages.toEJson(),
-      'language': language.toEJson(),
-    };
-  }
-
-  static EJsonValue _toEJson(Category value) => value.toEJson();
-  static Category _fromEJson(EJsonValue ejson) {
-    if (ejson is! Map<String, dynamic>) return raiseInvalidEJson(ejson);
-    return Category(
-      key: fromEJson(ejson['key']),
-      localizedName: fromEJson(ejson['localizedName']),
-      type: fromEJson(ejson['type']),
-      media: fromEJson(ejson['media']),
-      subcategories: fromEJson(ejson['subcategories']),
-      persistedImages: fromEJson(ejson['persistedImages']),
-      language: fromEJson(ejson['language']),
-    );
-  }
-
-  static final schema = () {
-    RealmObjectBase.registerFactory(Category._);
-    register(_toEJson, _fromEJson);
-    return const SchemaObject(ObjectType.realmObject, Category, 'Category', [
-      SchemaProperty('key', RealmPropertyType.string, optional: true),
-      SchemaProperty('localizedName', RealmPropertyType.string, optional: true),
-      SchemaProperty('type', RealmPropertyType.string, optional: true),
-      SchemaProperty(
-        'media',
-        RealmPropertyType.string,
-        collectionType: RealmCollectionType.list,
-      ),
-      SchemaProperty(
-        'subcategories',
-        RealmPropertyType.object,
-        linkTarget: 'Category',
-        collectionType: RealmCollectionType.list,
-      ),
-      SchemaProperty(
-        'persistedImages',
-        RealmPropertyType.object,
-        optional: true,
-        linkTarget: 'Images',
-      ),
-      SchemaProperty('language', RealmPropertyType.string, optional: true),
-    ]);
-  }();
-
-  @override
-  SchemaObject get objectSchema => RealmObjectBase.getSchema(this) ?? schema;
-}
-
-class Images extends _Images with RealmEntity, RealmObjectBase, RealmObject {
-  Images({
+class RealmImages extends _RealmImages with RealmEntity, RealmObjectBase, RealmObject {
+  RealmImages({
     String? squareImageUrl,
     String? squareFullSizeImageUrl,
     String? wideImageUrl,
     String? wideFullSizeImageUrl,
     String? extraWideImageUrl,
     String? extraWideFullSizeImageUrl,
-    String? pathCache,
   }) {
-    RealmObjectBase.set(this, 'squareImageUrl', squareImageUrl);
-    RealmObjectBase.set(this, 'squareFullSizeImageUrl', squareFullSizeImageUrl);
-    RealmObjectBase.set(this, 'wideImageUrl', wideImageUrl);
-    RealmObjectBase.set(this, 'wideFullSizeImageUrl', wideFullSizeImageUrl);
-    RealmObjectBase.set(this, 'extraWideImageUrl', extraWideImageUrl);
-    RealmObjectBase.set(
-      this,
-      'extraWideFullSizeImageUrl',
-      extraWideFullSizeImageUrl,
-    );
-    RealmObjectBase.set(this, 'pathCache', pathCache);
+    RealmObjectBase.set(this, 'SquareImageUrl', squareImageUrl);
+    RealmObjectBase.set(this, 'SquareFullSizeImageUrl', squareFullSizeImageUrl);
+    RealmObjectBase.set(this, 'WideImageUrl', wideImageUrl);
+    RealmObjectBase.set(this, 'WideFullSizeImageUrl', wideFullSizeImageUrl);
+    RealmObjectBase.set(this, 'ExtraWideImageUrl', extraWideImageUrl);
+    RealmObjectBase.set(this, 'ExtraWideFullSizeImageUrl', extraWideFullSizeImageUrl);
   }
 
-  Images._();
+  RealmImages._();
 
   @override
-  String? get squareImageUrl =>
-      RealmObjectBase.get<String>(this, 'squareImageUrl') as String?;
+  String? get squareImageUrl => RealmObjectBase.get<String>(this, 'SquareImageUrl') as String?;
   @override
-  set squareImageUrl(String? value) =>
-      RealmObjectBase.set(this, 'squareImageUrl', value);
+  set squareImageUrl(String? value) => RealmObjectBase.set(this, 'SquareImageUrl', value);
 
   @override
-  String? get squareFullSizeImageUrl =>
-      RealmObjectBase.get<String>(this, 'squareFullSizeImageUrl') as String?;
+  String? get squareFullSizeImageUrl => RealmObjectBase.get<String>(this, 'SquareFullSizeImageUrl') as String?;
   @override
-  set squareFullSizeImageUrl(String? value) =>
-      RealmObjectBase.set(this, 'squareFullSizeImageUrl', value);
+  set squareFullSizeImageUrl(String? value) => RealmObjectBase.set(this, 'SquareFullSizeImageUrl', value);
 
   @override
-  String? get wideImageUrl =>
-      RealmObjectBase.get<String>(this, 'wideImageUrl') as String?;
+  String? get wideImageUrl => RealmObjectBase.get<String>(this, 'WideImageUrl') as String?;
   @override
-  set wideImageUrl(String? value) =>
-      RealmObjectBase.set(this, 'wideImageUrl', value);
+  set wideImageUrl(String? value) => RealmObjectBase.set(this, 'WideImageUrl', value);
 
   @override
-  String? get wideFullSizeImageUrl =>
-      RealmObjectBase.get<String>(this, 'wideFullSizeImageUrl') as String?;
+  String? get wideFullSizeImageUrl => RealmObjectBase.get<String>(this, 'WideFullSizeImageUrl') as String?;
   @override
-  set wideFullSizeImageUrl(String? value) =>
-      RealmObjectBase.set(this, 'wideFullSizeImageUrl', value);
+  set wideFullSizeImageUrl(String? value) => RealmObjectBase.set(this, 'WideFullSizeImageUrl', value);
 
   @override
-  String? get extraWideImageUrl =>
-      RealmObjectBase.get<String>(this, 'extraWideImageUrl') as String?;
+  String? get extraWideImageUrl => RealmObjectBase.get<String>(this, 'ExtraWideImageUrl') as String?;
   @override
-  set extraWideImageUrl(String? value) =>
-      RealmObjectBase.set(this, 'extraWideImageUrl', value);
+  set extraWideImageUrl(String? value) => RealmObjectBase.set(this, 'ExtraWideImageUrl', value);
 
   @override
-  String? get extraWideFullSizeImageUrl =>
-      RealmObjectBase.get<String>(this, 'extraWideFullSizeImageUrl') as String?;
+  String? get extraWideFullSizeImageUrl => RealmObjectBase.get<String>(this, 'ExtraWideFullSizeImageUrl') as String?;
   @override
-  set extraWideFullSizeImageUrl(String? value) =>
-      RealmObjectBase.set(this, 'extraWideFullSizeImageUrl', value);
+  set extraWideFullSizeImageUrl(String? value) => RealmObjectBase.set(this, 'ExtraWideFullSizeImageUrl', value);
 
   @override
-  String? get pathCache =>
-      RealmObjectBase.get<String>(this, 'pathCache') as String?;
-  @override
-  set pathCache(String? value) => RealmObjectBase.set(this, 'pathCache', value);
+  Stream<RealmObjectChanges<RealmImages>> get changes => RealmObjectBase.getChanges<RealmImages>(this);
 
   @override
-  Stream<RealmObjectChanges<Images>> get changes =>
-      RealmObjectBase.getChanges<Images>(this);
+  Stream<RealmObjectChanges<RealmImages>> changesFor([
+    List<String>? keyPaths,
+  ]) => RealmObjectBase.getChangesFor<RealmImages>(this, keyPaths);
 
   @override
-  Stream<RealmObjectChanges<Images>> changesFor([List<String>? keyPaths]) =>
-      RealmObjectBase.getChangesFor<Images>(this, keyPaths);
-
-  @override
-  Images freeze() => RealmObjectBase.freezeObject<Images>(this);
+  RealmImages freeze() => RealmObjectBase.freezeObject<RealmImages>(this);
 
   EJsonValue toEJson() {
     return <String, dynamic>{
-      'squareImageUrl': squareImageUrl.toEJson(),
-      'squareFullSizeImageUrl': squareFullSizeImageUrl.toEJson(),
-      'wideImageUrl': wideImageUrl.toEJson(),
-      'wideFullSizeImageUrl': wideFullSizeImageUrl.toEJson(),
-      'extraWideImageUrl': extraWideImageUrl.toEJson(),
-      'extraWideFullSizeImageUrl': extraWideFullSizeImageUrl.toEJson(),
-      'pathCache': pathCache.toEJson(),
+      'SquareImageUrl': squareImageUrl.toEJson(),
+      'SquareFullSizeImageUrl': squareFullSizeImageUrl.toEJson(),
+      'WideImageUrl': wideImageUrl.toEJson(),
+      'WideFullSizeImageUrl': wideFullSizeImageUrl.toEJson(),
+      'ExtraWideImageUrl': extraWideImageUrl.toEJson(),
+      'ExtraWideFullSizeImageUrl': extraWideFullSizeImageUrl.toEJson(),
     };
   }
 
-  static EJsonValue _toEJson(Images value) => value.toEJson();
-  static Images _fromEJson(EJsonValue ejson) {
+  static EJsonValue _toEJson(RealmImages value) => value.toEJson();
+  static RealmImages _fromEJson(EJsonValue ejson) {
     if (ejson is! Map<String, dynamic>) return raiseInvalidEJson(ejson);
-    return Images(
-      squareImageUrl: fromEJson(ejson['squareImageUrl']),
-      squareFullSizeImageUrl: fromEJson(ejson['squareFullSizeImageUrl']),
-      wideImageUrl: fromEJson(ejson['wideImageUrl']),
-      wideFullSizeImageUrl: fromEJson(ejson['wideFullSizeImageUrl']),
-      extraWideImageUrl: fromEJson(ejson['extraWideImageUrl']),
-      extraWideFullSizeImageUrl: fromEJson(ejson['extraWideFullSizeImageUrl']),
-      pathCache: fromEJson(ejson['pathCache']),
+    return RealmImages(
+      squareImageUrl: fromEJson(ejson['SquareImageUrl']),
+      squareFullSizeImageUrl: fromEJson(ejson['SquareFullSizeImageUrl']),
+      wideImageUrl: fromEJson(ejson['WideImageUrl']),
+      wideFullSizeImageUrl: fromEJson(ejson['WideFullSizeImageUrl']),
+      extraWideImageUrl: fromEJson(ejson['ExtraWideImageUrl']),
+      extraWideFullSizeImageUrl: fromEJson(ejson['ExtraWideFullSizeImageUrl']),
     );
   }
 
   static final schema = () {
-    RealmObjectBase.registerFactory(Images._);
+    RealmObjectBase.registerFactory(RealmImages._);
     register(_toEJson, _fromEJson);
-    return const SchemaObject(ObjectType.realmObject, Images, 'Images', [
-      SchemaProperty(
-        'squareImageUrl',
-        RealmPropertyType.string,
-        optional: true,
-      ),
-      SchemaProperty(
-        'squareFullSizeImageUrl',
-        RealmPropertyType.string,
-        optional: true,
-      ),
-      SchemaProperty('wideImageUrl', RealmPropertyType.string, optional: true),
-      SchemaProperty(
-        'wideFullSizeImageUrl',
-        RealmPropertyType.string,
-        optional: true,
-      ),
-      SchemaProperty(
-        'extraWideImageUrl',
-        RealmPropertyType.string,
-        optional: true,
-      ),
-      SchemaProperty(
-        'extraWideFullSizeImageUrl',
-        RealmPropertyType.string,
-        optional: true,
-      ),
-      SchemaProperty('pathCache', RealmPropertyType.string, optional: true),
+    return const SchemaObject(
+      ObjectType.realmObject,
+      RealmImages,
+      'Images',
+      [
+        SchemaProperty('SquareImageUrl', RealmPropertyType.string, optional: true),
+        SchemaProperty('SquareFullSizeImageUrl', RealmPropertyType.string, optional: true),
+        SchemaProperty('WideImageUrl', RealmPropertyType.string, optional: true),
+        SchemaProperty('WideFullSizeImageUrl', RealmPropertyType.string, optional: true),
+        SchemaProperty('ExtraWideImageUrl', RealmPropertyType.string, optional: true),
+        SchemaProperty('ExtraWideFullSizeImageUrl', RealmPropertyType.string, optional: true),
+      ],
+    );
+  }();
+
+  @override
+  SchemaObject get objectSchema => RealmObjectBase.getSchema(this) ?? schema;
+}
+
+class RealmMediaItem extends _RealmMediaItem with RealmEntity, RealmObjectBase, RealmObject {
+  RealmMediaItem(
+    String? compoundKey,
+    double duration,
+    DateTime firstPublished,
+    bool isConventionRelease, {
+    int? documentId,
+    int? issueDate,
+    String? languageAgnosticNaturalKey,
+    String? languageSymbol,
+    String? naturalKey,
+    Iterable<String> checksums = const [],
+    RealmImages? images,
+    String? type,
+    String? remoteType,
+    String? primaryCategory,
+    String? pubSymbol,
+    String? title,
+    int? track,
+  }) {
+    RealmObjectBase.set(this, 'CompoundKey', compoundKey);
+    RealmObjectBase.set(this, 'DocumentId', documentId);
+    RealmObjectBase.set(this, 'Duration', duration);
+    RealmObjectBase.set(this, 'FirstPublished', firstPublished);
+    RealmObjectBase.set(this, 'IsConventionRelease', isConventionRelease);
+    RealmObjectBase.set(this, 'IssueDate', issueDate);
+    RealmObjectBase.set(this, 'LanguageAgnosticNaturalKey', languageAgnosticNaturalKey);
+    RealmObjectBase.set(this, 'LanguageSymbol', languageSymbol);
+    RealmObjectBase.set(this, 'NaturalKey', naturalKey);
+    RealmObjectBase.set<RealmList<String>>(this, 'Checksums', RealmList<String>(checksums));
+    RealmObjectBase.set(this, 'Images', images);
+    RealmObjectBase.set(this, 'Type', type);
+    RealmObjectBase.set(this, 'RemoteType', remoteType);
+    RealmObjectBase.set(this, 'PrimaryCategory', primaryCategory);
+    RealmObjectBase.set(this, 'PubSymbol', pubSymbol);
+    RealmObjectBase.set(this, 'Title', title);
+    RealmObjectBase.set(this, 'Track', track);
+  }
+
+  RealmMediaItem._();
+
+  @override
+  String? get compoundKey => RealmObjectBase.get<String>(this, 'CompoundKey') as String?;
+  @override
+  set compoundKey(String? value) => RealmObjectBase.set(this, 'CompoundKey', value);
+
+  @override
+  int? get documentId => RealmObjectBase.get<int>(this, 'DocumentId') as int?;
+  @override
+  set documentId(int? value) => RealmObjectBase.set(this, 'DocumentId', value);
+
+  @override
+  double get duration => RealmObjectBase.get<double>(this, 'Duration') as double;
+  @override
+  set duration(double value) => RealmObjectBase.set(this, 'Duration', value);
+
+  @override
+  DateTime get firstPublished => RealmObjectBase.get<DateTime>(this, 'FirstPublished') as DateTime;
+  @override
+  set firstPublished(DateTime value) => RealmObjectBase.set(this, 'FirstPublished', value);
+
+  @override
+  bool get isConventionRelease => RealmObjectBase.get<bool>(this, 'IsConventionRelease') as bool;
+  @override
+  set isConventionRelease(bool value) => RealmObjectBase.set(this, 'IsConventionRelease', value);
+
+  @override
+  int? get issueDate => RealmObjectBase.get<int>(this, 'IssueDate') as int?;
+  @override
+  set issueDate(int? value) => RealmObjectBase.set(this, 'IssueDate', value);
+
+  @override
+  String? get languageAgnosticNaturalKey => RealmObjectBase.get<String>(this, 'LanguageAgnosticNaturalKey') as String?;
+  @override
+  set languageAgnosticNaturalKey(String? value) => RealmObjectBase.set(this, 'LanguageAgnosticNaturalKey', value);
+
+  @override
+  String? get languageSymbol => RealmObjectBase.get<String>(this, 'LanguageSymbol') as String?;
+  @override
+  set languageSymbol(String? value) => RealmObjectBase.set(this, 'LanguageSymbol', value);
+
+  @override
+  String? get naturalKey => RealmObjectBase.get<String>(this, 'NaturalKey') as String?;
+  @override
+  set naturalKey(String? value) => RealmObjectBase.set(this, 'NaturalKey', value);
+
+  @override
+  RealmList<String> get checksums => RealmObjectBase.get<String>(this, 'Checksums') as RealmList<String>;
+  @override
+  set checksums(covariant RealmList<String> value) => throw RealmUnsupportedSetError();
+
+  @override
+  RealmImages? get images => RealmObjectBase.get<RealmImages>(this, 'Images') as RealmImages?;
+  @override
+  set images(covariant RealmImages? value) => RealmObjectBase.set(this, 'Images', value);
+
+  @override
+  String? get type => RealmObjectBase.get<String>(this, 'Type') as String?;
+  @override
+  set type(String? value) => RealmObjectBase.set(this, 'Type', value);
+
+  @override
+  String? get remoteType => RealmObjectBase.get<String>(this, 'RemoteType') as String?;
+  @override
+  set remoteType(String? value) => RealmObjectBase.set(this, 'RemoteType', value);
+
+  @override
+  String? get primaryCategory => RealmObjectBase.get<String>(this, 'PrimaryCategory') as String?;
+  @override
+  set primaryCategory(String? value) => RealmObjectBase.set(this, 'PrimaryCategory', value);
+
+  @override
+  String? get pubSymbol => RealmObjectBase.get<String>(this, 'PubSymbol') as String?;
+  @override
+  set pubSymbol(String? value) => RealmObjectBase.set(this, 'PubSymbol', value);
+
+  @override
+  String? get title => RealmObjectBase.get<String>(this, 'Title') as String?;
+  @override
+  set title(String? value) => RealmObjectBase.set(this, 'Title', value);
+
+  @override
+  int? get track => RealmObjectBase.get<int>(this, 'Track') as int?;
+  @override
+  set track(int? value) => RealmObjectBase.set(this, 'Track', value);
+
+  @override
+  Stream<RealmObjectChanges<RealmMediaItem>> get changes => RealmObjectBase.getChanges<RealmMediaItem>(this);
+
+  @override
+  Stream<RealmObjectChanges<RealmMediaItem>> changesFor([List<String>? keyPaths]) => RealmObjectBase.getChangesFor<RealmMediaItem>(this, keyPaths);
+
+  @override
+  RealmMediaItem freeze() => RealmObjectBase.freezeObject<RealmMediaItem>(this);
+
+  EJsonValue toEJson() {
+    return <String, dynamic>{
+      'CompoundKey': compoundKey.toEJson(),
+      'DocumentId': documentId.toEJson(),
+      'Duration': duration.toEJson(),
+      'FirstPublished': firstPublished.toEJson(),
+      'IsConventionRelease': isConventionRelease.toEJson(),
+      'IssueDate': issueDate.toEJson(),
+      'LanguageAgnosticNaturalKey': languageAgnosticNaturalKey.toEJson(),
+      'LanguageSymbol': languageSymbol.toEJson(),
+      'NaturalKey': naturalKey.toEJson(),
+      'Checksums': checksums.toEJson(),
+      'Images': images.toEJson(),
+      'Type': type.toEJson(),
+      'RemoteType': remoteType.toEJson(),
+      'PrimaryCategory': primaryCategory.toEJson(),
+      'PubSymbol': pubSymbol.toEJson(),
+      'Title': title.toEJson(),
+      'Track': track.toEJson(),
+    };
+  }
+
+  static EJsonValue _toEJson(RealmMediaItem value) => value.toEJson();
+  static RealmMediaItem _fromEJson(EJsonValue ejson) {
+    if (ejson is! Map<String, dynamic>) return raiseInvalidEJson(ejson);
+    return switch (ejson) {
+      {
+        'CompoundKey': EJsonValue compoundKey,
+        'Duration': EJsonValue duration,
+        'FirstPublished': EJsonValue firstPublished,
+        'IsConventionRelease': EJsonValue isConventionRelease,
+      } =>
+        RealmMediaItem(
+          fromEJson(ejson['CompoundKey']),
+          fromEJson(duration),
+          fromEJson(firstPublished),
+          fromEJson(isConventionRelease),
+          documentId: fromEJson(ejson['DocumentId']),
+          issueDate: fromEJson(ejson['IssueDate']),
+          languageAgnosticNaturalKey: fromEJson(ejson['LanguageAgnosticNaturalKey']),
+          languageSymbol: fromEJson(ejson['LanguageSymbol']),
+          naturalKey: fromEJson(ejson['NaturalKey']),
+          checksums: fromEJson(ejson['Checksums']),
+          images: fromEJson(ejson['Images']),
+          type: fromEJson(ejson['Type']),
+          remoteType: fromEJson(ejson['RemoteType']),
+          primaryCategory: fromEJson(ejson['PrimaryCategory']),
+          pubSymbol: fromEJson(ejson['PubSymbol']),
+          title: fromEJson(ejson['Title']),
+          track: fromEJson(ejson['Track']),
+        ),
+      _ => raiseInvalidEJson(ejson),
+    };
+  }
+
+  static final schema = () {
+    RealmObjectBase.registerFactory(RealmMediaItem._);
+    register(_toEJson, _fromEJson);
+    return const SchemaObject(ObjectType.realmObject, RealmMediaItem, 'MediaItem', [
+      SchemaProperty('CompoundKey', RealmPropertyType.string, optional: true, primaryKey: true),
+      SchemaProperty('DocumentId', RealmPropertyType.int, optional: true),
+      SchemaProperty('Duration', RealmPropertyType.double),
+      SchemaProperty('FirstPublished', RealmPropertyType.timestamp),
+      SchemaProperty('IsConventionRelease', RealmPropertyType.bool),
+      SchemaProperty('IssueDate', RealmPropertyType.int, optional: true),
+      SchemaProperty('LanguageAgnosticNaturalKey', RealmPropertyType.string, optional: true),
+      SchemaProperty('LanguageSymbol', RealmPropertyType.string, optional: true),
+      SchemaProperty('NaturalKey', RealmPropertyType.string, optional: true),
+      SchemaProperty('Checksums', RealmPropertyType.string, collectionType: RealmCollectionType.list),
+      SchemaProperty('Images', RealmPropertyType.object, optional: true, linkTarget: 'Images'),
+      SchemaProperty('Type', RealmPropertyType.string, optional: true),
+      SchemaProperty('RemoteType', RealmPropertyType.string, optional: true),
+      SchemaProperty('PrimaryCategory', RealmPropertyType.string, optional: true),
+      SchemaProperty('PubSymbol', RealmPropertyType.string, optional: true),
+      SchemaProperty('Title', RealmPropertyType.string, optional: true),
+      SchemaProperty('Track', RealmPropertyType.int, optional: true),
     ]);
   }();
 
@@ -301,405 +324,247 @@ class Images extends _Images with RealmEntity, RealmObjectBase, RealmObject {
   SchemaObject get objectSchema => RealmObjectBase.getSchema(this) ?? schema;
 }
 
-class Language extends _Language
-    with RealmEntity, RealmObjectBase, RealmObject {
-  Language(
+class RealmLanguage extends _RealmLanguage with RealmEntity, RealmObjectBase, RealmObject {
+  RealmLanguage(
     String? symbol, {
     String? locale,
     String? vernacular,
     String? name,
+    bool? isLanguagePair,
     bool? isSignLanguage,
     bool? isRtl,
     String? eTag,
     String? lastModified,
   }) {
-    RealmObjectBase.set(this, 'symbol', symbol);
-    RealmObjectBase.set(this, 'locale', locale);
-    RealmObjectBase.set(this, 'vernacular', vernacular);
-    RealmObjectBase.set(this, 'name', name);
-    RealmObjectBase.set(this, 'isSignLanguage', isSignLanguage);
-    RealmObjectBase.set(this, 'isRtl', isRtl);
-    RealmObjectBase.set(this, 'eTag', eTag);
-    RealmObjectBase.set(this, 'lastModified', lastModified);
+    RealmObjectBase.set(this, 'Symbol', symbol);
+    RealmObjectBase.set(this, 'Locale', locale);
+    RealmObjectBase.set(this, 'Vernacular', vernacular);
+    RealmObjectBase.set(this, 'Name', name);
+    RealmObjectBase.set(this, 'IsLanguagePair', isLanguagePair);
+    RealmObjectBase.set(this, 'IsSignLanguage', isSignLanguage);
+    RealmObjectBase.set(this, 'IsRtl', isRtl);
+    RealmObjectBase.set(this, 'ETag', eTag);
+    RealmObjectBase.set(this, 'LastModified', lastModified);
   }
 
-  Language._();
+  RealmLanguage._();
 
   @override
-  String? get symbol => RealmObjectBase.get<String>(this, 'symbol') as String?;
+  String? get symbol => RealmObjectBase.get<String>(this, 'Symbol') as String?;
   @override
-  set symbol(String? value) => RealmObjectBase.set(this, 'symbol', value);
+  set symbol(String? value) => RealmObjectBase.set(this, 'Symbol', value);
 
   @override
-  String? get locale => RealmObjectBase.get<String>(this, 'locale') as String?;
+  String? get locale => RealmObjectBase.get<String>(this, 'Locale') as String?;
   @override
-  set locale(String? value) => RealmObjectBase.set(this, 'locale', value);
+  set locale(String? value) => RealmObjectBase.set(this, 'Locale', value);
 
   @override
-  String? get vernacular =>
-      RealmObjectBase.get<String>(this, 'vernacular') as String?;
+  String? get vernacular => RealmObjectBase.get<String>(this, 'Vernacular') as String?;
   @override
-  set vernacular(String? value) =>
-      RealmObjectBase.set(this, 'vernacular', value);
+  set vernacular(String? value) => RealmObjectBase.set(this, 'Vernacular', value);
 
   @override
-  String? get name => RealmObjectBase.get<String>(this, 'name') as String?;
+  String? get name => RealmObjectBase.get<String>(this, 'Name') as String?;
   @override
-  set name(String? value) => RealmObjectBase.set(this, 'name', value);
+  set name(String? value) => RealmObjectBase.set(this, 'Name', value);
 
   @override
-  bool? get isSignLanguage =>
-      RealmObjectBase.get<bool>(this, 'isSignLanguage') as bool?;
+  bool? get isLanguagePair => RealmObjectBase.get<bool>(this, 'IsLanguagePair') as bool?;
   @override
-  set isSignLanguage(bool? value) =>
-      RealmObjectBase.set(this, 'isSignLanguage', value);
+  set isLanguagePair(bool? value) => RealmObjectBase.set(this, 'IsLanguagePair', value);
 
   @override
-  bool? get isRtl => RealmObjectBase.get<bool>(this, 'isRtl') as bool?;
+  bool? get isSignLanguage => RealmObjectBase.get<bool>(this, 'IsSignLanguage') as bool?;
   @override
-  set isRtl(bool? value) => RealmObjectBase.set(this, 'isRtl', value);
+  set isSignLanguage(bool? value) => RealmObjectBase.set(this, 'IsSignLanguage', value);
 
   @override
-  String? get eTag => RealmObjectBase.get<String>(this, 'eTag') as String?;
+  bool? get isRtl => RealmObjectBase.get<bool>(this, 'IsRtl') as bool?;
   @override
-  set eTag(String? value) => RealmObjectBase.set(this, 'eTag', value);
+  set isRtl(bool? value) => RealmObjectBase.set(this, 'IsRtl', value);
 
   @override
-  String? get lastModified =>
-      RealmObjectBase.get<String>(this, 'lastModified') as String?;
+  String? get eTag => RealmObjectBase.get<String>(this, 'ETag') as String?;
   @override
-  set lastModified(String? value) =>
-      RealmObjectBase.set(this, 'lastModified', value);
+  set eTag(String? value) => RealmObjectBase.set(this, 'ETag', value);
 
   @override
-  Stream<RealmObjectChanges<Language>> get changes =>
-      RealmObjectBase.getChanges<Language>(this);
+  String? get lastModified => RealmObjectBase.get<String>(this, 'LastModified') as String?;
+  @override
+  set lastModified(String? value) => RealmObjectBase.set(this, 'LastModified', value);
 
   @override
-  Stream<RealmObjectChanges<Language>> changesFor([List<String>? keyPaths]) =>
-      RealmObjectBase.getChangesFor<Language>(this, keyPaths);
+  Stream<RealmObjectChanges<RealmLanguage>> get changes => RealmObjectBase.getChanges<RealmLanguage>(this);
 
   @override
-  Language freeze() => RealmObjectBase.freezeObject<Language>(this);
+  Stream<RealmObjectChanges<RealmLanguage>> changesFor([
+    List<String>? keyPaths,
+  ]) => RealmObjectBase.getChangesFor<RealmLanguage>(this, keyPaths);
+
+  @override
+  RealmLanguage freeze() => RealmObjectBase.freezeObject<RealmLanguage>(this);
 
   EJsonValue toEJson() {
     return <String, dynamic>{
-      'symbol': symbol.toEJson(),
-      'locale': locale.toEJson(),
-      'vernacular': vernacular.toEJson(),
-      'name': name.toEJson(),
-      'isSignLanguage': isSignLanguage.toEJson(),
-      'isRtl': isRtl.toEJson(),
-      'eTag': eTag.toEJson(),
-      'lastModified': lastModified.toEJson(),
+      'Symbol': symbol.toEJson(),
+      'Locale': locale.toEJson(),
+      'Vernacular': vernacular.toEJson(),
+      'Name': name.toEJson(),
+      'IsLanguagePair': isLanguagePair.toEJson(),
+      'IsSignLanguage': isSignLanguage.toEJson(),
+      'IsRtl': isRtl.toEJson(),
+      'ETag': eTag.toEJson(),
+      'LastModified': lastModified.toEJson(),
     };
   }
 
-  static EJsonValue _toEJson(Language value) => value.toEJson();
-  static Language _fromEJson(EJsonValue ejson) {
+  static EJsonValue _toEJson(RealmLanguage value) => value.toEJson();
+  static RealmLanguage _fromEJson(EJsonValue ejson) {
     if (ejson is! Map<String, dynamic>) return raiseInvalidEJson(ejson);
     return switch (ejson) {
-      {'symbol': EJsonValue symbol} => Language(
-        fromEJson(ejson['symbol']),
-        locale: fromEJson(ejson['locale']),
-        vernacular: fromEJson(ejson['vernacular']),
-        name: fromEJson(ejson['name']),
-        isSignLanguage: fromEJson(ejson['isSignLanguage']),
-        isRtl: fromEJson(ejson['isRtl']),
-        eTag: fromEJson(ejson['eTag']),
-        lastModified: fromEJson(ejson['lastModified']),
+      {'Symbol': EJsonValue Symbol} => RealmLanguage(
+        fromEJson(ejson['Symbol']),
+        locale: fromEJson(ejson['Locale']),
+        vernacular: fromEJson(ejson['Vernacular']),
+        name: fromEJson(ejson['Name']),
+        isLanguagePair: fromEJson(ejson['IsLanguagePair']),
+        isSignLanguage: fromEJson(ejson['IsSignLanguage']),
+        isRtl: fromEJson(ejson['IsRtl']),
+        eTag: fromEJson(ejson['ETag']),
+        lastModified: fromEJson(ejson['LastModified']),
       ),
       _ => raiseInvalidEJson(ejson),
     };
   }
 
   static final schema = () {
-    RealmObjectBase.registerFactory(Language._);
+    RealmObjectBase.registerFactory(RealmLanguage._);
     register(_toEJson, _fromEJson);
-    return const SchemaObject(ObjectType.realmObject, Language, 'Language', [
-      SchemaProperty(
-        'symbol',
-        RealmPropertyType.string,
-        optional: true,
-        primaryKey: true,
-      ),
-      SchemaProperty('locale', RealmPropertyType.string, optional: true),
-      SchemaProperty('vernacular', RealmPropertyType.string, optional: true),
-      SchemaProperty('name', RealmPropertyType.string, optional: true),
-      SchemaProperty('isSignLanguage', RealmPropertyType.bool, optional: true),
-      SchemaProperty('isRtl', RealmPropertyType.bool, optional: true),
-      SchemaProperty('eTag', RealmPropertyType.string, optional: true),
-      SchemaProperty('lastModified', RealmPropertyType.string, optional: true),
-    ]);
+    return const SchemaObject(
+      ObjectType.realmObject,
+      RealmLanguage,
+      'Language',
+      [
+        SchemaProperty('Symbol', RealmPropertyType.string, optional: true, primaryKey: true),
+        SchemaProperty('Locale', RealmPropertyType.string, optional: true),
+        SchemaProperty('Vernacular', RealmPropertyType.string, optional: true),
+        SchemaProperty('Name', RealmPropertyType.string, optional: true),
+        SchemaProperty('IsLanguagePair', RealmPropertyType.bool, optional: true),
+        SchemaProperty('IsSignLanguage', RealmPropertyType.bool, optional: true),
+        SchemaProperty('IsRtl', RealmPropertyType.bool, optional: true),
+        SchemaProperty('ETag', RealmPropertyType.string, optional: true),
+        SchemaProperty('LastModified', RealmPropertyType.string, optional: true),
+      ],
+    );
   }();
 
   @override
   SchemaObject get objectSchema => RealmObjectBase.getSchema(this) ?? schema;
 }
 
-class MediaItem extends _MediaItem
-    with RealmEntity, RealmObjectBase, RealmObject {
-  MediaItem(
-    String? compoundKey, {
-    String? naturalKey,
-    String? languageAgnosticNaturalKey,
+class RealmCategory extends _RealmCategory with RealmEntity, RealmObjectBase, RealmObject {
+  RealmCategory({
+    String? key,
+    String? name,
     String? type,
-    String? primaryCategory,
-    String? title,
-    String? firstPublished,
-    Iterable<String> checksums = const [],
-    double? duration,
-    String? pubSymbol,
+    RealmImages? images,
+    Iterable<String> media = const [],
+    Iterable<RealmCategory> subCategories = const [],
     String? languageSymbol,
-    Images? realmImages,
-    int? documentId,
-    int? issueDate,
-    int? track,
-    bool? isConventionRelease,
   }) {
-    RealmObjectBase.set(this, 'compoundKey', compoundKey);
-    RealmObjectBase.set(this, 'naturalKey', naturalKey);
-    RealmObjectBase.set(
-      this,
-      'languageAgnosticNaturalKey',
-      languageAgnosticNaturalKey,
-    );
-    RealmObjectBase.set(this, 'type', type);
-    RealmObjectBase.set(this, 'primaryCategory', primaryCategory);
-    RealmObjectBase.set(this, 'title', title);
-    RealmObjectBase.set(this, 'firstPublished', firstPublished);
-    RealmObjectBase.set<RealmList<String>>(
-      this,
-      'checksums',
-      RealmList<String>(checksums),
-    );
-    RealmObjectBase.set(this, 'duration', duration);
-    RealmObjectBase.set(this, 'pubSymbol', pubSymbol);
-    RealmObjectBase.set(this, 'languageSymbol', languageSymbol);
-    RealmObjectBase.set(this, 'realmImages', realmImages);
-    RealmObjectBase.set(this, 'documentId', documentId);
-    RealmObjectBase.set(this, 'issueDate', issueDate);
-    RealmObjectBase.set(this, 'track', track);
-    RealmObjectBase.set(this, 'isConventionRelease', isConventionRelease);
+    RealmObjectBase.set(this, 'Key', key);
+    RealmObjectBase.set(this, 'Name', name);
+    RealmObjectBase.set(this, 'Type', type);
+    RealmObjectBase.set(this, 'Images', images);
+    RealmObjectBase.set<RealmList<String>>(this, 'Media', RealmList<String>(media));
+    RealmObjectBase.set<RealmList<RealmCategory>>(this, 'Subcategories', RealmList<RealmCategory>(subCategories));
+    RealmObjectBase.set(this, 'LanguageSymbol', languageSymbol);
   }
 
-  MediaItem._();
+  RealmCategory._();
 
   @override
-  String? get compoundKey =>
-      RealmObjectBase.get<String>(this, 'compoundKey') as String?;
+  String? get key => RealmObjectBase.get<String>(this, 'Key') as String?;
   @override
-  set compoundKey(String? value) =>
-      RealmObjectBase.set(this, 'compoundKey', value);
+  set key(String? value) => RealmObjectBase.set(this, 'Key', value);
 
   @override
-  String? get naturalKey =>
-      RealmObjectBase.get<String>(this, 'naturalKey') as String?;
+  String? get type => RealmObjectBase.get<String>(this, 'Type') as String?;
   @override
-  set naturalKey(String? value) =>
-      RealmObjectBase.set(this, 'naturalKey', value);
+  set type(String? value) => RealmObjectBase.set(this, 'Type', value);
+  
+  @override
+  String? get name => RealmObjectBase.get<String>(this, 'Name') as String?;
+  @override
+  set name(String? value) => RealmObjectBase.set(this, 'Name', value);
 
   @override
-  String? get languageAgnosticNaturalKey =>
-      RealmObjectBase.get<String>(this, 'languageAgnosticNaturalKey')
-          as String?;
+  RealmImages? get images => RealmObjectBase.get<RealmImages>(this, 'Images') as RealmImages?;
   @override
-  set languageAgnosticNaturalKey(String? value) =>
-      RealmObjectBase.set(this, 'languageAgnosticNaturalKey', value);
+  set images(covariant RealmImages? value) => RealmObjectBase.set(this, 'Images', value);
 
   @override
-  String? get type => RealmObjectBase.get<String>(this, 'type') as String?;
+  RealmList<String> get media => RealmObjectBase.get<String>(this, 'Media') as RealmList<String>;
   @override
-  set type(String? value) => RealmObjectBase.set(this, 'type', value);
+  set media(covariant RealmList<String> value) => throw RealmUnsupportedSetError();
 
   @override
-  String? get primaryCategory =>
-      RealmObjectBase.get<String>(this, 'primaryCategory') as String?;
+  RealmList<RealmCategory> get subCategories => RealmObjectBase.get<RealmCategory>(this, 'Subcategories') as RealmList<RealmCategory>;
   @override
-  set primaryCategory(String? value) =>
-      RealmObjectBase.set(this, 'primaryCategory', value);
+  set subCategories(covariant RealmList<RealmCategory> value) => throw RealmUnsupportedSetError();
 
   @override
-  String? get title => RealmObjectBase.get<String>(this, 'title') as String?;
+  String? get languageSymbol => RealmObjectBase.get<String>(this, 'LanguageSymbol') as String?;
   @override
-  set title(String? value) => RealmObjectBase.set(this, 'title', value);
+  set languageSymbol(String? value) => RealmObjectBase.set(this, 'LanguageSymbol', value);
 
   @override
-  String? get firstPublished =>
-      RealmObjectBase.get<String>(this, 'firstPublished') as String?;
-  @override
-  set firstPublished(String? value) =>
-      RealmObjectBase.set(this, 'firstPublished', value);
+  Stream<RealmObjectChanges<RealmCategory>> get changes => RealmObjectBase.getChanges<RealmCategory>(this);
 
   @override
-  RealmList<String> get checksums =>
-      RealmObjectBase.get<String>(this, 'checksums') as RealmList<String>;
-  @override
-  set checksums(covariant RealmList<String> value) =>
-      throw RealmUnsupportedSetError();
+  Stream<RealmObjectChanges<RealmCategory>> changesFor([List<String>? keyPaths]) => RealmObjectBase.getChangesFor<RealmCategory>(this, keyPaths);
 
   @override
-  double? get duration =>
-      RealmObjectBase.get<double>(this, 'duration') as double?;
-  @override
-  set duration(double? value) => RealmObjectBase.set(this, 'duration', value);
-
-  @override
-  String? get pubSymbol =>
-      RealmObjectBase.get<String>(this, 'pubSymbol') as String?;
-  @override
-  set pubSymbol(String? value) => RealmObjectBase.set(this, 'pubSymbol', value);
-
-  @override
-  String? get languageSymbol =>
-      RealmObjectBase.get<String>(this, 'languageSymbol') as String?;
-  @override
-  set languageSymbol(String? value) =>
-      RealmObjectBase.set(this, 'languageSymbol', value);
-
-  @override
-  Images? get realmImages =>
-      RealmObjectBase.get<Images>(this, 'realmImages') as Images?;
-  @override
-  set realmImages(covariant Images? value) =>
-      RealmObjectBase.set(this, 'realmImages', value);
-
-  @override
-  int? get documentId => RealmObjectBase.get<int>(this, 'documentId') as int?;
-  @override
-  set documentId(int? value) => RealmObjectBase.set(this, 'documentId', value);
-
-  @override
-  int? get issueDate => RealmObjectBase.get<int>(this, 'issueDate') as int?;
-  @override
-  set issueDate(int? value) => RealmObjectBase.set(this, 'issueDate', value);
-
-  @override
-  int? get track => RealmObjectBase.get<int>(this, 'track') as int?;
-  @override
-  set track(int? value) => RealmObjectBase.set(this, 'track', value);
-
-  @override
-  bool? get isConventionRelease =>
-      RealmObjectBase.get<bool>(this, 'isConventionRelease') as bool?;
-  @override
-  set isConventionRelease(bool? value) =>
-      RealmObjectBase.set(this, 'isConventionRelease', value);
-
-  @override
-  Stream<RealmObjectChanges<MediaItem>> get changes =>
-      RealmObjectBase.getChanges<MediaItem>(this);
-
-  @override
-  Stream<RealmObjectChanges<MediaItem>> changesFor([List<String>? keyPaths]) =>
-      RealmObjectBase.getChangesFor<MediaItem>(this, keyPaths);
-
-  @override
-  MediaItem freeze() => RealmObjectBase.freezeObject<MediaItem>(this);
+  RealmCategory freeze() => RealmObjectBase.freezeObject<RealmCategory>(this);
 
   EJsonValue toEJson() {
     return <String, dynamic>{
-      'compoundKey': compoundKey.toEJson(),
-      'naturalKey': naturalKey.toEJson(),
-      'languageAgnosticNaturalKey': languageAgnosticNaturalKey.toEJson(),
-      'type': type.toEJson(),
-      'primaryCategory': primaryCategory.toEJson(),
-      'title': title.toEJson(),
-      'firstPublished': firstPublished.toEJson(),
-      'checksums': checksums.toEJson(),
-      'duration': duration.toEJson(),
-      'pubSymbol': pubSymbol.toEJson(),
-      'languageSymbol': languageSymbol.toEJson(),
-      'realmImages': realmImages.toEJson(),
-      'documentId': documentId.toEJson(),
-      'issueDate': issueDate.toEJson(),
-      'track': track.toEJson(),
-      'isConventionRelease': isConventionRelease.toEJson(),
+      'Key': key.toEJson(),
+      'Type': type.toEJson(),
+      'Name': name.toEJson(),
+      'Images': images.toEJson(),
+      'Media': media.toEJson(),
+      'Subcategories': subCategories.toEJson(),
+      'LanguageSymbol': languageSymbol.toEJson(),
     };
   }
 
-  static EJsonValue _toEJson(MediaItem value) => value.toEJson();
-  static MediaItem _fromEJson(EJsonValue ejson) {
+  static EJsonValue _toEJson(RealmCategory value) => value.toEJson();
+  static RealmCategory _fromEJson(EJsonValue ejson) {
     if (ejson is! Map<String, dynamic>) return raiseInvalidEJson(ejson);
-    return switch (ejson) {
-      {'compoundKey': EJsonValue compoundKey} => MediaItem(
-        fromEJson(ejson['compoundKey']),
-        naturalKey: fromEJson(ejson['naturalKey']),
-        languageAgnosticNaturalKey: fromEJson(
-          ejson['languageAgnosticNaturalKey'],
-        ),
-        type: fromEJson(ejson['type']),
-        primaryCategory: fromEJson(ejson['primaryCategory']),
-        title: fromEJson(ejson['title']),
-        firstPublished: fromEJson(ejson['firstPublished']),
-        checksums: fromEJson(ejson['checksums']),
-        duration: fromEJson(ejson['duration']),
-        pubSymbol: fromEJson(ejson['pubSymbol']),
-        languageSymbol: fromEJson(ejson['languageSymbol']),
-        realmImages: fromEJson(ejson['realmImages']),
-        documentId: fromEJson(ejson['documentId']),
-        issueDate: fromEJson(ejson['issueDate']),
-        track: fromEJson(ejson['track']),
-        isConventionRelease: fromEJson(ejson['isConventionRelease']),
-      ),
-      _ => raiseInvalidEJson(ejson),
-    };
+    return RealmCategory(
+      key: fromEJson(ejson['Key']),
+      type: fromEJson(ejson['Type']),
+      name: fromEJson(ejson['Name']),
+      images: fromEJson(ejson['Images']),
+      media: fromEJson(ejson['Media']),
+      subCategories: fromEJson(ejson['Subcategories']),
+      languageSymbol: fromEJson(ejson['LanguageSymbol']),
+    );
   }
 
   static final schema = () {
-    RealmObjectBase.registerFactory(MediaItem._);
+    RealmObjectBase.registerFactory(RealmCategory._);
     register(_toEJson, _fromEJson);
-    return const SchemaObject(ObjectType.realmObject, MediaItem, 'MediaItem', [
-      SchemaProperty(
-        'compoundKey',
-        RealmPropertyType.string,
-        optional: true,
-        primaryKey: true,
-      ),
-      SchemaProperty('naturalKey', RealmPropertyType.string, optional: true),
-      SchemaProperty(
-        'languageAgnosticNaturalKey',
-        RealmPropertyType.string,
-        optional: true,
-      ),
-      SchemaProperty('type', RealmPropertyType.string, optional: true),
-      SchemaProperty(
-        'primaryCategory',
-        RealmPropertyType.string,
-        optional: true,
-      ),
-      SchemaProperty('title', RealmPropertyType.string, optional: true),
-      SchemaProperty(
-        'firstPublished',
-        RealmPropertyType.string,
-        optional: true,
-      ),
-      SchemaProperty(
-        'checksums',
-        RealmPropertyType.string,
-        collectionType: RealmCollectionType.list,
-      ),
-      SchemaProperty('duration', RealmPropertyType.double, optional: true),
-      SchemaProperty('pubSymbol', RealmPropertyType.string, optional: true),
-      SchemaProperty(
-        'languageSymbol',
-        RealmPropertyType.string,
-        optional: true,
-      ),
-      SchemaProperty(
-        'realmImages',
-        RealmPropertyType.object,
-        optional: true,
-        linkTarget: 'Images',
-      ),
-      SchemaProperty('documentId', RealmPropertyType.int, optional: true),
-      SchemaProperty('issueDate', RealmPropertyType.int, optional: true),
-      SchemaProperty('track', RealmPropertyType.int, optional: true),
-      SchemaProperty(
-        'isConventionRelease',
-        RealmPropertyType.bool,
-        optional: true,
-      ),
+    return const SchemaObject(ObjectType.realmObject, RealmCategory, 'Category', [
+      SchemaProperty('Key', RealmPropertyType.string, optional: true),
+      SchemaProperty('Type', RealmPropertyType.string, optional: true),
+      SchemaProperty('Name', RealmPropertyType.string, optional: true),
+      SchemaProperty('Images', RealmPropertyType.object, optional: true, linkTarget: 'Images'),
+      SchemaProperty('Media', RealmPropertyType.string, collectionType: RealmCollectionType.list),
+      SchemaProperty('Subcategories', RealmPropertyType.object, linkTarget: 'Category', collectionType: RealmCollectionType.list),
+      SchemaProperty('LanguageSymbol', RealmPropertyType.string, optional: true),
     ]);
   }();
 

@@ -11,7 +11,6 @@ import '../../core/utils/utils_media.dart';
 import '../../i18n/i18n.dart';
 
 abstract class Media {
-  int? mediaId;
   String? naturalKey;
   String? keySymbol;
   int? documentId;
@@ -29,12 +28,14 @@ abstract class Media {
   int? fileSize;
   String? filePath;
   int? source;
-  String? firstPublished;
+  DateTime? firstPublished;
   String? lastModified;
   String? timeStamp;
   String? imagePath;
   String? networkImageSqr;
+  String? networkFullSizeImageSqr;
   String? networkImageLsr;
+  String? networkFullSizeImageLsr;
 
   /* Media */
   String? fileUrl;
@@ -48,7 +49,6 @@ abstract class Media {
   final ValueNotifier<bool> isFavoriteNotifier;
 
   Media({
-    this.mediaId,
     this.naturalKey,
     this.keySymbol,
     this.documentId,

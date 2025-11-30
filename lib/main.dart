@@ -12,6 +12,8 @@ import 'app/services/file_handler_service.dart';
 import 'app/services/global_key_service.dart';
 import 'app/services/notification_service.dart';
 import 'core/uri/jworg_uri.dart';
+import 'core/webview/html_template_service.dart';
+import 'data/realm/realm_library.dart';
 
 // Constante pour le préfixe SharedPreferences
 const String _kSharedPrefsPrefix = 'jwlife.';
@@ -25,10 +27,7 @@ Future<void> _initializeServices() async {
     InAppWebViewController.setWebContentsDebuggingEnabled(true);
   }
 
-  SystemChrome.setEnabledSystemUIMode(
-    SystemUiMode.manual,
-    overlays: [SystemUiOverlay.top, SystemUiOverlay.bottom],
-  );
+  SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge, overlays: [SystemUiOverlay.top, SystemUiOverlay.bottom]);
 
   // 2. Configuration et Initialisation des Services
   SharedPreferences.setPrefix(_kSharedPrefsPrefix); // Fait une seule fois
@@ -39,8 +38,12 @@ Future<void> _initializeServices() async {
     NotificationService().initNotification(),
     // Initialisation du service de fichiers
     FileHandlerService().initialize(),
+    // Initialisation des templates HTML
+    HtmlTemplateService().initialize(),
     // Initialisation des configurations de l'application
     JwLifeSettings.instance.init(),
+    // Initialisation de la base de données Realm
+    RealmLibrary.init()
   ]);
 
   // 3. Configuration de Just Audio Background (nécessite d'être après ensureInitialized)

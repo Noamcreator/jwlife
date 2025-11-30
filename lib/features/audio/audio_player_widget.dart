@@ -173,7 +173,7 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
     int? issueTagNumber = _currentExtras?['issueTagNumber'];
     String? mepsLanguage = _currentExtras?['mepsLanguage'];
 
-    realm.MediaItem? mediaItem = getMediaItem(keySymbol, track, mepsDocumentId, issueTagNumber, mepsLanguage);
+    realm.RealmMediaItem? mediaItem = getMediaItem(keySymbol, track, mepsDocumentId, issueTagNumber, mepsLanguage);
 
     return GestureDetector(
       onTap: () {
@@ -775,7 +775,7 @@ class _FullAudioViewState extends State<FullAudioView> {
     int? issueTagNumber = _currentExtras?['issueTagNumber'];
     String? mepsLanguage = _currentExtras?['mepsLanguage'];
 
-    realm.MediaItem? mediaItem = getMediaItem(keySymbol, track, mepsDocumentId, issueTagNumber, mepsLanguage);
+    realm.RealmMediaItem? mediaItem = getMediaItem(keySymbol, track, mepsDocumentId, issueTagNumber, mepsLanguage);
     Audio audio = Audio.fromJson(mediaItem: mediaItem);
     return AppPage(
       isWebview: true,

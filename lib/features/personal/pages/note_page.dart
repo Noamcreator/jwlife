@@ -438,9 +438,10 @@ class _NotePageState extends State<NotePage> {
               PopupMenuItem(
                 child: ListTile(
                   title: Text(i18n().action_delete),
-                  onTap: () async {
-                    _notesController.removeNote(_note.guid);
+                  onTap: () {
                     Navigator.pop(context);
+                    GlobalKeyService.jwLifePageKey.currentState?.handleBack(context);
+                    _notesController.removeNote(_note.guid);
                   },
                 ),
               ),
@@ -532,7 +533,7 @@ class _NotePageState extends State<NotePage> {
                       spacing: 12,
                       runSpacing: 4,
                       crossAxisAlignment: WrapCrossAlignment.start,
-                      children: context.watch<NotesController>().notes.firstWhere((note) => note.guid == _note.guid).tagsId.map<Widget>((tagId) {
+                      children: (context.watch<NotesController>().notes.firstWhereOrNull((note) => note.guid == _note.guid)?.tagsId ?? []).map<Widget>((tagId) {
                         Tag? tag = context.watch<TagsController>().tags.firstWhereOrNull((tag) => tag.id == tagId);
                         if (tag == null) return SizedBox.shrink();
                         return Chip(

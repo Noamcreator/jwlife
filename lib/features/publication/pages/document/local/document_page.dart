@@ -41,6 +41,7 @@ import '../../../../../app/services/settings_service.dart';
 import '../../../../../core/uri/jworg_uri.dart';
 import '../../../../../core/shared_preferences/shared_preferences_utils.dart';
 import '../../../../../core/utils/utils_language_dialog.dart';
+import '../../../../../core/webview/html_template_service.dart';
 import '../../../../../core/webview/webview_javascript.dart';
 import '../../../../../core/webview/webview_utils.dart';
 import '../../../../../data/controller/notes_controller.dart';
@@ -160,9 +161,19 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
   void dispose() {
     _streamSequenceStateSubscription.cancel();
     _streamSequencePositionSubscription.cancel();
-    _notesController.removeListener(_updateNotesListener);
+    //_notesController.removeListener(_updateNotesListener);
     _tagsController.removeListener(_updateTagsListener);
     super.dispose();
+  }
+
+  @override
+  void reassemble() {
+    super.reassemble();
+    if (kDebugMode) {
+      HtmlTemplateService().reload().then((_) {
+        setState(() {});
+      });
+    }
   }
 
   Future<void> init() async {
@@ -191,29 +202,37 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
       widget.publication.fetchAudios().then((value) {
         controlsKey.currentState?.refreshWidget();
 
-        Document doc = widget.publication.documentsManager!.getDocumentFromMepsDocumentId(widget.mepsDocumentId);
-
-        List<Map<String, dynamic>> audioMarkersJson = [];
-
-        if(doc.isBibleChapter()) {
-          if (widget.publication.audiosNotifier.value.isNotEmpty) {
-            final audio = widget.publication.audiosNotifier.value.firstWhereOrNull((a) => a.bookNumber == doc.bookNumber && a.track == doc.chapterNumberBible);
-            if (audio != null && audio.markers.isNotEmpty) {
-              audioMarkersJson = audio.markers.map((m) => m.toJson()).toList();
-            }
-          }
+        Document? doc;
+        if(widget.bookNumber != null && widget.chapterNumber != null) {
+          doc = widget.publication.documentsManager!.documents.firstWhereOrNull((document) => document.bookNumber == widget.bookNumber && document.chapterNumberBible == widget.chapterNumber);
         }
         else {
-          if (widget.publication.audiosNotifier.value.isNotEmpty) {
-            final audio = widget.publication.audiosNotifier.value.firstWhereOrNull((a) => a.documentId == doc.mepsDocumentId);;
-            if (audio != null && audio.markers.isNotEmpty) {
-              audioMarkersJson = audio.markers.map((m) => m.toJson()).toList();
-            }
-          }
+          doc = widget.publication.documentsManager!.documents.firstWhereOrNull((document) => document.mepsDocumentId == widget.mepsDocumentId);
         }
 
-        if(!_isLoadingData) {
-          _controller.evaluateJavascript(source: "updateAudios($audioMarkersJson, ${widget.publication.documentsManager!.getIndexFromMepsDocumentId(widget.mepsDocumentId)});");
+        if(doc != null) {
+          List<Map<String, dynamic>> audioMarkersJson = [];
+
+          if(doc.isBibleChapter()) {
+            if (widget.publication.audiosNotifier.value.isNotEmpty) {
+              final audio = widget.publication.audiosNotifier.value.firstWhereOrNull((a) => a.bookNumber == doc!.bookNumber && a.track == doc!.chapterNumberBible);
+              if (audio != null && audio.markers.isNotEmpty) {
+                audioMarkersJson = audio.markers.map((m) => m.toJson()).toList();
+              }
+            }
+          }
+          else {
+            if (widget.publication.audiosNotifier.value.isNotEmpty) {
+              final audio = widget.publication.audiosNotifier.value.firstWhereOrNull((a) => a.documentId == doc!.mepsDocumentId);
+              if (audio != null && audio.markers.isNotEmpty) {
+                audioMarkersJson = audio.markers.map((m) => m.toJson()).toList();
+              }
+            }
+          }
+
+          if(!_isLoadingData) {
+            _controller.evaluateJavascript(source: "updateAudios($audioMarkersJson, ${widget.publication.documentsManager!.getIndexFromMepsDocumentId(widget.mepsDocumentId)});");
+          }
         }
       });
     }
@@ -838,7 +857,7 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
                       int blockIdentifier = args[0]['BlockIdentifier'];
                       int colorIndex = args[0]['ColorIndex'];
 
-                      await _notesController.addNote(
+                      await _notesController.addNoteWithGuid(
                           guid,
                           title,
                           userMarkGuid,
@@ -1345,7 +1364,7 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
                         langwritten = await MepsLanguage.fromId(langId);
                       }
 
-                      MediaItem? mediaItem = getMediaItem(pub, track, docId, issue, langwritten);
+                      RealmMediaItem? mediaItem = getMediaItem(pub, track, docId, issue, langwritten);
 
                       if(mediaItem != null) {
                         Video video = Video.fromJson(mediaItem: mediaItem);
@@ -1451,7 +1470,7 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
                         }
                       }
 
-                      MediaItem? mediaItem = getMediaItemFromLank(jwOrgUri.lank!, jwOrgUri.wtlocale);
+                      RealmMediaItem? mediaItem = getMediaItemFromLank(jwOrgUri.lank!, jwOrgUri.wtlocale);
 
                       if (mediaItem == null) return NavigationActionPolicy.ALLOW;
 
@@ -1485,7 +1504,7 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
                   return NavigationActionPolicy.ALLOW;
                 },
                 onLoadStop: (controller, url) {
-                  _notesController.addListener(_updateNotesListener);
+                  //_notesController.addListener(_updateNotesListener);
                   _tagsController.addListener(_updateTagsListener);
                 }
             )
@@ -1496,6 +1515,7 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
           !_isLoadingData ? Container()
               : ControlsOverlay(key: controlsKey,
               publication: widget.publication,
+              notesController: _notesController,
               handleBackPress: handleBackPress,
               jumpToPage: _jumpToPage,
               jumpToParagraph: _jumpToParagraph,
@@ -1553,10 +1573,11 @@ class ControlsOverlay extends StatefulWidget {
   final Publication publication;
   final Function() handleBackPress;
   final Function(int page) jumpToPage;
+  final NotesController notesController;
   final Function(int beginParagraphOrdinal, int endParagraphOrdinal) jumpToParagraph;
   final Function(int beginVerseOrdinal, int endVerseOrdinal) jumpToVerse;
 
-  const ControlsOverlay({super.key, required this.publication, required this.handleBackPress, required this.jumpToPage, required this.jumpToParagraph, required this.jumpToVerse});
+  const ControlsOverlay({super.key, required this.publication, required this.notesController, required this.handleBackPress, required this.jumpToPage, required this.jumpToParagraph, required this.jumpToVerse});
 
   @override
   _ControlsOverlayState createState() => _ControlsOverlayState();
@@ -1784,17 +1805,9 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
                     text: i18n().action_add_a_note,
                     icon: const Icon(JwIcons.note_plus),
                     onPressed: (anchorContext) async {
-                      String title = widget.publication.documentsManager!.getCurrentDocument().title;
+                      String title = widget.publication.documentsManager!.getCurrentDocument().getDisplayTitle();
                       Document document = widget.publication.documentsManager!.getCurrentDocument();
-
-                      var note = await JwLifeApp.userdata.addNote(
-                          title, '', 0, [], document.mepsDocumentId,
-                          document.bookNumber,
-                          document.chapterNumberBible,
-                          widget.publication.issueTagNumber,
-                          widget.publication.keySymbol,
-                          widget.publication.mepsLanguage.id, blockType: 0, blockIdentifier: null
-                      );
+                      await widget.notesController.addNote(title: title, document: document);
                     },
                   ),
                   if(widget.publication.documentsManager!.getCurrentDocument().hasMediaLinks)

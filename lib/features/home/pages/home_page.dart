@@ -51,6 +51,7 @@ class HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final horizontalPadding = (screenWidth * 0.03).clamp(8.0, 40.0);
+    const double sizeDivider = 10;
 
     return AppPage(
       appBar: HomeAppBar(
@@ -74,7 +75,7 @@ class HomePageState extends State<HomePage> {
               const AlertsBanner(),
               const DailyTextWidget(),
               const ArticlesWidget(),
-              const SizedBox(height: 20),
+              const SizedBox(height: 30),
               Padding(
                 padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
                 child: Column(
@@ -86,10 +87,13 @@ class HomePageState extends State<HomePage> {
                       },
                     ),
                     const FrequentlyUsedSection(),
+                    const SizedBox(height: sizeDivider),
                     const ToolboxSection(),
+                    const SizedBox(height: sizeDivider),
                     const LatestPublicationSection(),
                     const SizedBox(height: 4),
                     const LatestMediasSection(),
+                    const SizedBox(height: sizeDivider),
                     const OnlineSection(),
                     const SizedBox(height: 25),
                   ],

@@ -9,7 +9,7 @@ class SharedPreferencesKeys {
 
   // Langue
   static const locale = _PrefKey('locale', 'en');
-  static const libraryLanguage = _PrefKey('library_language', ['0', 'E', 'English', 'en', '0', 'ROMAN', 'Roman', '0', '0', '0', '0', '1', 'r1', 'lp-e']);
+  static const libraryLanguage = _PrefKey('library_language', ['0', 'E', 'English', 'en', '0', 'ROMAN', 'Roman', '0', '0', '0', '0', '1', 'en', 'r1', 'lp-e']);
 
   // Version
   static const lastCatalogRevision = _PrefKey('last_catalog_revision', 0);

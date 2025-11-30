@@ -12,11 +12,11 @@ import 'package:jwlife/core/api/api.dart';
 import 'package:jwlife/core/utils/utils_language_dialog.dart';
 
 class AudioItemsModel extends ChangeNotifier {
-  final Category initialCategory;
+  final RealmCategory initialCategory;
 
   // --- Propriétés (État) ---
-  Category? _category;
-  Category get category => _category ?? initialCategory;
+  RealmCategory? _category;
+  RealmCategory get category => _category ?? initialCategory;
 
   String _categoryName = '';
   String get categoryName => _categoryName;
@@ -25,7 +25,7 @@ class AudioItemsModel extends ChangeNotifier {
   String get language => _language;
 
   String? _selectedLanguageSymbol;
-  String get selectedLanguageSymbol => _selectedLanguageSymbol ?? initialCategory.language!;
+  String get selectedLanguageSymbol => _selectedLanguageSymbol ?? initialCategory.languageSymbol!;
 
   List<Audio> _allAudios = [];
   List<Audio> get allAudios => _allAudios; // Liste complète
@@ -42,25 +42,22 @@ class AudioItemsModel extends ChangeNotifier {
   // --- Logique de Chargement et de Données ---
 
   void loadItems({String? symbol}) async {
-    symbol ??= initialCategory.language;
+    symbol ??= initialCategory.languageSymbol;
     _selectedLanguageSymbol = symbol;
 
     RealmLibrary.realm.refresh();
-    Language? lang = RealmLibrary.realm.all<Language>().query("symbol == '$symbol'").firstOrNull;
+    RealmLanguage? lang = RealmLibrary.realm.all<RealmLanguage>().query("Symbol == '$symbol'").firstOrNull;
     if(lang == null) return;
 
     // Récupérer la catégorie mise à jour (peut-être dans une autre langue)
-    _category = RealmLibrary.realm
-        .all<Category>()
-        .query("key == '${initialCategory.key}' AND language == '$symbol'")
-        .firstOrNull ?? initialCategory;
+    _category = RealmLibrary.realm.all<RealmCategory>().query("Key == '${initialCategory.key}' AND LanguageSymbol == '$symbol'").firstOrNull ?? initialCategory;
 
-    _categoryName = _category?.localizedName ?? initialCategory.localizedName!;
+    _categoryName = _category?.name ?? initialCategory.name!;
     _language = lang.vernacular!;
 
     // Conversion des clés média en objets Audio
-    _allAudios = _category!.media.map((key) {
-      return Audio.fromJson(mediaItem: RealmLibrary.realm.all<MediaItem>().query("naturalKey == '$key'").first);
+    _allAudios = _category!.media.map((naturalKey) {
+      return Audio.fromJson(mediaItem: RealmLibrary.getMediaItemByNaturalKey(naturalKey, lang.symbol!));
     }).toList();
 
     _filteredAudios = List.from(_allAudios);

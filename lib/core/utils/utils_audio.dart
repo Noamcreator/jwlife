@@ -43,21 +43,21 @@ void showAudioPlayerPublicationLink(BuildContext context, Publication publicatio
   }
 }
 
-MediaItem? getAudioItem(String? keySymbol, int? track, int? documentId, int? issueTagNumber, int? mepsLanguageId) {
+RealmMediaItem? getAudioItem(String? keySymbol, int? track, int? documentId, int? issueTagNumber, int? mepsLanguageId) {
   String languageSymbol = JwLifeSettings.instance.currentLanguage.value.symbol;
   var queryParts = <String>[];
-  if (keySymbol != null && keySymbol != '') queryParts.add("pubSymbol == '$keySymbol'");
-  if (track != null && track != 0) queryParts.add("track == '$track'");
-  if (documentId != null && documentId != 0) queryParts.add("documentId == '$documentId'");
-  if (issueTagNumber != null && issueTagNumber != 0) queryParts.add("issueDate == '$issueTagNumber'");
-  if (mepsLanguageId != null) queryParts.add("languageSymbol == '$languageSymbol'");
+  if (keySymbol != null && keySymbol != '') queryParts.add("PubSymbol == '$keySymbol'");
+  if (track != null && track != 0) queryParts.add("Track == '$track'");
+  if (documentId != null && documentId != 0) queryParts.add("DocumentId == '$documentId'");
+  if (issueTagNumber != null && issueTagNumber != 0) queryParts.add("IssueDate == '$issueTagNumber'");
+  if (mepsLanguageId != null) queryParts.add("LanguageSymbol == '$languageSymbol'");
 
   if (queryParts.isEmpty) return null;
 
   queryParts.add("type == 'AUDIO'");
   String query = queryParts.join(" AND ");
 
-  return RealmLibrary.realm.all<MediaItem>().query(query).firstOrNull;
+  return RealmLibrary.realm.all<RealmMediaItem>().query(query).firstOrNull;
 }
 
 PopupMenuItem getAudioShareItem(Audio audio) {
@@ -115,7 +115,7 @@ PopupMenuItem getAudioLanguagesItem(BuildContext context, Audio audio) {
         final response = await Api.httpGetWithHeaders(link, responseType: ResponseType.json);
         if (response.statusCode == 200) {
 
-          showLanguageDialog(context, languagesListJson: response.data['languages']).then((language) async {
+          showLanguageDialog(context, languagesListJson: response.data['languages'], media: audio).then((language) async {
             String link = 'https://b.jw-cdn.org/apis/mediator/v1/media-items/${language['Symbol']}/${audio.naturalKey}';
             print(link);
 
