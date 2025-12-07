@@ -88,6 +88,26 @@ String formatDuration(double duration) {
   return formattedTime;
 }
 
+String formatTs(double position, double duration) {
+  DateTime referenceTime = DateTime(0, 0, 0);
+
+  int positionSeconds = position.toInt();
+  DateTime timePosition = referenceTime.add(Duration(seconds: positionSeconds));
+
+  int totalSeconds = duration.toInt();
+  DateTime timeDuration = referenceTime.add(Duration(seconds: totalSeconds));
+
+  // Définir le format en fonction de la durée totale.
+  String formatPattern = 'H:mm:ss';
+
+  // Utiliser DateFormat pour localiser le format
+  final formatter = DateFormat(formatPattern, 'en');
+
+  String formattedTime = '${formatter.format(timePosition)} - ${formatter.format(timeDuration)}';
+
+  return formattedTime;
+}
+
 DateTime formatDateTime(String isoString) {
   // Convertir la chaîne ISO 8601 en objet DateTime
   DateTime dateTime = DateTime.parse(isoString).toLocal();

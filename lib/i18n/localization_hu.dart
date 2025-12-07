@@ -3126,4 +3126,10 @@ class AppLocalizationsHu extends AppLocalizations {
 
   @override
   String get action_blocking_horizontally_mode => 'Vízszintes blokkolás';
+
+  @override
+  String get action_qr_code => 'QR kód generálása';
+
+  @override
+  String get action_scan_qr_code => 'QR-kód beolvasása';
 }

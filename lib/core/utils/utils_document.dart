@@ -11,11 +11,14 @@ import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/core/utils/utils_audio.dart';
 import 'package:jwlife/core/utils/webview_data.dart';
+import 'package:jwlife/data/databases/mepsunit.dart';
+import 'package:jwlife/data/models/meps_language.dart';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/repositories/PublicationRepository.dart';
 import 'package:jwlife/data/databases/catalog.dart';
 import 'package:jwlife/data/models/userdata/bookmark.dart';
 import 'package:jwlife/core/utils/utils_dialog.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../app/jwlife_app.dart';
 import '../../app/services/settings_service.dart';
@@ -24,6 +27,7 @@ import '../../features/publication/pages/document/data/models/document.dart';
 import '../../features/publication/pages/menu/local/publication_menu_view.dart';
 import '../../i18n/i18n.dart';
 import '../shared_preferences/shared_preferences_utils.dart';
+import '../uri/jworg_uri.dart';
 
 bool hideDialog = false;
 
@@ -237,6 +241,17 @@ Future<void> showDocumentView(BuildContext context, int mepsDocId, int currentLa
       publication = await CatalogDb.instance.searchPubFromMepsDocumentId(mepsDocId, currentLanguageId);
       if (publication != null) {
         await showDownloadPublicationDialog(context, publication, mepsDocId: mepsDocId, startParagraphId: startParagraphId, endParagraphId: endParagraphId, textTag: textTag, wordsSelected: wordsSelected);
+      }
+      else {
+        String? symbol = await Mepsunit.getMepsLanguageSymbolFromId(currentLanguageId);
+        String uri = JwOrgUri.document(
+            wtlocale: symbol ?? '',
+            docid: mepsDocId,
+            par: startParagraphId?.toString()
+        ).toString();
+
+
+        await launchUrl(Uri.parse(uri));
       }
     }
   }

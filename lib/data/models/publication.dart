@@ -226,7 +226,7 @@ class Publication {
     this.category = category;
   }
 
-  void shareLink() {
+  String shareLink({hide = false}) {
     String uri = JwOrgUri.publication(
        wtlocale: mepsLanguage.symbol,
        pub: keySymbol,
@@ -234,9 +234,11 @@ class Publication {
     ).toString();
 
     // Partager le lien
-    SharePlus.instance.share(
-        ShareParams(title: getTitle(), uri: Uri.tryParse(uri))
-    );
+    if(!hide) {
+      SharePlus.instance.share(ShareParams(title: getTitle(), uri: Uri.tryParse(uri)));
+    }
+
+    return uri;
   }
 
   Future<void> notifyDownload(String title) async {

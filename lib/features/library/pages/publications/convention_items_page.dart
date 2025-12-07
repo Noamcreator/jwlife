@@ -94,12 +94,12 @@ class _ConventionItemsViewState extends State<ConventionItemsView> {
             spacing: 3.0,
             runSpacing: 3.0,
             children: items.map((item) {
-              String naturalKey = item;
               String languageSymbol = JwLifeSettings.instance.currentLanguage.value.symbol;
               if(item is Publication) {
                 return RectanglePublicationItem(publication: item);
               }
               else {
+                String naturalKey = item;
                 RealmMediaItem media = RealmLibrary.getMediaItemByNaturalKey(naturalKey, languageSymbol);
                 if(media.type == 'AUDIO') {
                   Audio audio = Audio.fromJson(mediaItem: media);

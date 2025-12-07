@@ -5,6 +5,7 @@ import 'package:jwlife/features/home/pages/search/notes_search_tab.dart';
 import 'package:jwlife/features/home/pages/search/search_model.dart';
 import 'package:jwlife/features/home/pages/search/verses_search_tab.dart';
 import 'package:jwlife/features/home/pages/search/wikipedia_search_tab.dart';
+import 'package:jwlife/features/home/pages/search/wol_search_tab.dart';
 import 'package:jwlife/widgets/slide_indexed_stack.dart';
 
 import '../../../../app/app_page.dart';
@@ -37,6 +38,7 @@ class _SearchPageState extends State<SearchPage> {
 
   final List<String> tabs = [
     'TOUT',
+    'WOL',
     'PUBLICATIONS',
     'VIDÉOS',
     'AUDIOS',
@@ -116,6 +118,7 @@ class _SearchPageState extends State<SearchPage> {
         index: currentTab,
         builders: [
               (context) => AllSearchTab(model: _searchModel),
+              (context) => WolSearchTab(model: _searchModel),
               (context) => PublicationsSearchTab(model: _searchModel),
               (context) => VideosSearchTab(model: _searchModel),
               (context) => AudioSearchTab(model: _searchModel),

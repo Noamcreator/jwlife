@@ -22,6 +22,7 @@ class SearchModel {
   List<WikipediaArticle> wikipediaArticles = [];
 
   List<Map<String, dynamic>> allSearch = [];
+  List<Map<String, dynamic>> wolSearch = [];
   List<Map<String, dynamic>> publications = [];
   List<Map<String, dynamic>> videos = [];
   List<Map<String, dynamic>> audios = [];
@@ -34,6 +35,7 @@ class SearchModel {
 
   void clear() {
     wikipediaArticles = [];
+    wolSearch = [];
     allSearch = [];
     publications = [];
     videos = [];
@@ -109,6 +111,47 @@ class SearchModel {
     return [];
   }
 
+  Future<List<Map<String, dynamic>>> _fetchWolData() async {
+    final queryParams = {'q': query, 'r': 'occ', 'p': 'par'};
+    final url = Uri.https(
+      'wol.jw.org',
+      '/wol/s/${JwLifeSettings.instance.currentLanguage.value.rsConf}/${JwLifeSettings.instance.currentLanguage.value.lib}',
+      queryParams,
+    );
+
+    printTime('url: $url');
+
+    try {
+      final response = await Api.httpGetWithHeadersUri(url);
+
+      if (response.statusCode == 200) {
+        final results = (response.data['items'] as List).map<Map<String, dynamic>>((item) {
+          return {
+            'url': item['url'] ?? '',
+            'caption': item['caption'] ?? '',
+            'content': item['content'] ?? '',
+            'documentImageUrl': item['documentImageUrl'] ?? '',
+            'articleClasses': item['articleClasses'] ?? [],
+            'reference': item['reference'] ?? '',
+            'hideThumbnailImage': item['hideThumbnailImage'] ?? '',
+            'englishSymbol': item['englishSymbol'] ?? '',
+            'occurrenceCounts': item['occurrenceCounts'] ?? 0,
+          };
+        }).toList();
+
+        return results;
+      }
+      else {
+        printTime('Erreur de requête HTTP: ${response.statusCode}');
+      }
+    }
+    catch (e) {
+      printTime('Erreur lors de la récupération des données de l\'API: $e');
+    }
+
+    return [];
+  }
+
   Future<List<WikipediaArticle>> fetchWikipedia() async {
     if (wikipediaArticles.isNotEmpty) return wikipediaArticles;
     return await WikipediaApi.getWikipediaSummary(query);
@@ -118,6 +161,11 @@ class SearchModel {
   Future<List<Map<String, dynamic>>> fetchAllSearch() async {
     if (allSearch.isNotEmpty) return allSearch;
     return await _fetchData('all');
+  }
+
+  Future<List<Map<String, dynamic>>> fetchWolSearch() async {
+    if (wolSearch.isNotEmpty) return wolSearch;
+    return await _fetchWolData();
   }
 
   Future<List<Map<String, dynamic>>> fetchPublications() async {
@@ -163,6 +211,7 @@ class SearchModel {
   }
 
   Future<List<Map<String, dynamic>>> _fetchVerseFromPublication(Publication publication, int verseId) async {
+
     DocumentsManager? documentsManager = publication.documentsManager;
     Database db = documentsManager != null ? documentsManager.database : await openDatabase(publication.databasePath!);
 
@@ -194,18 +243,13 @@ class SearchModel {
           d.Title AS DocumentTitle,
           d.Content,
           d.MepsDocumentId,
-          p.Title AS PublicationTitle,
-          p.KeySymbol,
-          p.Year,
-          p.MepsLanguageIndex,
-          p.IssueTagNumber,
           dp.BeginPosition,
           dp.EndPosition,
           m.FilePath
         FROM BibleCitation bc
         LEFT JOIN Document d ON bc.DocumentId = d.DocumentId
-        LEFT JOIN Publication p ON d.PublicationId = p.PublicationId
-        LEFT JOIN DocumentParagraph dp ON dp.DocumentId = bc.DocumentId AND dp.ParagraphIndex = bc.ParagraphOrdinal
+        LEFT JOIN DocumentParagraph dp ON dp.DocumentId = bc.DocumentId 
+          AND dp.ParagraphIndex = bc.ParagraphOrdinal
         LEFT JOIN (
           SELECT dm.DocumentId, m.FilePath
           FROM DocumentMultimedia dm
@@ -215,35 +259,35 @@ class SearchModel {
         ) m ON m.DocumentId = bc.DocumentId
         WHERE ? BETWEEN bc.FirstBibleVerseId AND bc.LastBibleVerseId
       ''', [verseId]);
-      }
-      else {
+      } else {
         results = await db.rawQuery('''
         SELECT 
           bc.*,
           d.Title AS DocumentTitle,
           d.Content,
           d.MepsDocumentId,
-          p.Title AS PublicationTitle,
-          p.KeySymbol,
-          p.Year,
-          p.MepsLanguageIndex,
-          p.IssueTagNumber,
           dp.BeginPosition,
           dp.EndPosition
         FROM BibleCitation bc
         LEFT JOIN Document d ON bc.DocumentId = d.DocumentId
-        LEFT JOIN Publication p ON d.PublicationId = p.PublicationId
-        LEFT JOIN DocumentParagraph dp ON dp.DocumentId = bc.DocumentId AND dp.ParagraphIndex = bc.ParagraphOrdinal
+        LEFT JOIN DocumentParagraph dp ON dp.DocumentId = bc.DocumentId 
+          AND dp.ParagraphIndex = bc.ParagraphOrdinal
         WHERE ? BETWEEN bc.FirstBibleVerseId AND bc.LastBibleVerseId
       ''', [verseId]);
       }
 
       if (documentsManager == null) await db.close();
     } catch (e) {
-      // Log error if needed
+      // Log si besoin
     }
 
-    return results;
+    // 🔥 Ajoute l'objet Publication dans chaque map
+    return results.map((row) {
+      return {
+        ...row,
+        "publication": publication,
+      };
+    }).toList();
   }
 
   Future<List<Map<String, dynamic>>> fetchImages() async {

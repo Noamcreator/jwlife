@@ -3078,4 +3078,10 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get action_blocking_horizontally_mode => 'حظر أفقي';
+
+  @override
+  String get action_qr_code => 'إنشاء رمز QR';
+
+  @override
+  String get action_scan_qr_code => 'مسح رمز QR ضوئيًا';
 }

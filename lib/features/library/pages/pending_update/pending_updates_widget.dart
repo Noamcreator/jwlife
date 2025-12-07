@@ -337,6 +337,7 @@ class _PendingUpdatesWidgetState extends State<PendingUpdatesWidget> {
               itemBuilder: (BuildContext context) {
                 return [
                   getPubShareMenuItem(publication),
+                  getPubQrCodeMenuItem(context, publication),
                   getPubLanguagesItem(context, i18n().label_languages_more, publication),
                   getPubFavoriteItem(publication),
                   getPubDownloadItem(context, publication),

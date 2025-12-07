@@ -48,6 +48,7 @@ class HomeSquareMediaItemItem extends StatelessWidget {
                         icon: const Icon(Icons.more_horiz, color: Colors.white, shadows: [Shadow(color: Colors.black, blurRadius: 20)]),
                         itemBuilder: (context) => media is Audio ? [
                           getAudioShareItem(media as Audio),
+                          getAudioQrCode(context, media as Audio),
                           getAudioAddPlaylistItem(context, media as Audio),
                           getAudioLanguagesItem(context, media as Audio),
                           getAudioFavoriteItem(media as Audio),
@@ -57,6 +58,7 @@ class HomeSquareMediaItemItem extends StatelessWidget {
                         ]
                             : media is Video ? [
                           getVideoShareItem(media as Video),
+                          getVideoQrCode(context, media as Video),
                           getVideoAddPlaylistItem(context, media as Video),
                           getVideoLanguagesItem(context, media as Video),
                           getVideoFavoriteItem(media as Video),

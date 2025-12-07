@@ -839,8 +839,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get label_icon_download_publication => 'Télécharger la publication';
 
   @override
-  String get label_icon_extracted_content =>
-      'Publications données en référence';
+  String get label_icon_extracted_content => 'Extrait de publication';
 
   @override
   String get label_icon_footnotes => 'Notes';
@@ -3150,4 +3149,10 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get action_blocking_horizontally_mode => 'Blocage Horizontal';
+
+  @override
+  String get action_qr_code => 'Générer un code QR';
+
+  @override
+  String get action_scan_qr_code => 'Scanner un Code QR';
 }

@@ -41,9 +41,6 @@ class JwLifeSettings {
 
   Future<void> init() async {
     final sharedPreferences = AppSharedPreferences.instance;
-
-    await sharedPreferences.initialize();
-
     final theme = sharedPreferences.getTheme();
     final themeMod = theme == 'dark' ? ThemeMode.dark : theme == 'light' ? ThemeMode.light : ThemeMode.system;
 
@@ -62,7 +59,7 @@ class JwLifeSettings {
     lightData = AppTheme.getLightTheme(lightColor);
     darkData = AppTheme.getDarkTheme(darkColor);
     
-    List<String> libraryLanguage = sharedPreferences.getLibraryLanguage();
+    List<String> libraryLanguage = await sharedPreferences.getLibraryLanguage();
     currentLanguage.value = MepsLanguage(
       id: int.parse(libraryLanguage[0]),
       symbol: libraryLanguage[1],

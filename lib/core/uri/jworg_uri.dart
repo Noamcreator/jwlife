@@ -35,10 +35,28 @@ class JwOrgUri {
   static int _expandIssue(String? raw) {
     if (raw == null || raw.isEmpty) return 0;
 
-    if (raw.length < 8) {
-      return int.parse(raw.padRight(8, '0'));
+    // Étape 1 : Nettoyer la chaîne. On retire tous les caractères non numériques,
+    // ce qui gère '1983-12-15' -> '19831215'
+    String cleanRaw = raw.replaceAll(RegExp(r'[^0-9]'), '');
+
+    if (cleanRaw.isEmpty) return 0;
+
+    if (cleanRaw.length < 8) {
+      // Étape 2 : Si la chaîne nettoyée est courte (ex: "202510"), on pad.
+      // Résultat : 20251000
+      return int.parse(cleanRaw.padRight(8, '0'));
     }
-    return 0;
+
+    // Étape 3 (Correction Logique) : Si la chaîne nettoyée a 8 chiffres ou plus
+    // (ex: "19831215"), on prend les 8 premiers pour le parsing.
+    // **NOTE** : Votre code original retournait 0 ici. Cette correction
+    // suppose que vous voulez parsez la date si elle est complète.
+    try {
+      return int.parse(cleanRaw.substring(0, 8));
+    } catch (e) {
+      // En cas d'erreur de parsing (très peu probable ici), on retourne 0
+      return 0;
+    }
   }
 
   /// Réduit si fin "00" (ex: 20251000 → 202510), ou null si 0

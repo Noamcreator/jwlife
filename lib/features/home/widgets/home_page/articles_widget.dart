@@ -230,7 +230,7 @@ class ArticlesWidgetState extends State<ArticlesWidget> {
         ),
         textStyle: const TextStyle(fontSize: 22),
       ),
-      child: Text(buttonText!, style: const TextStyle(color: Colors.white)),
+      child: Text(buttonText!, style: const TextStyle(color: Colors.white, fontSize: 22)),
     );
   }
 }

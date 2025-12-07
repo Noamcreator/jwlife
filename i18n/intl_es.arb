@@ -907,5 +907,7 @@
   "action_congregations": "Asambleas Locales",
   "action_meeting_management": "Planificación de Reuniones",
   "action_brothers_and_sisters": "Hermanos y Hermanas",
-  "action_blocking_horizontally_mode": "Bloqueo Horizontal"
+  "action_blocking_horizontally_mode": "Bloqueo Horizontal",
+  "action_qr_code": "Generar un código QR",
+  "action_scan_qr_code": "Escanear un Código QR"
 }

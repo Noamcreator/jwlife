@@ -3090,4 +3090,10 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get action_blocking_horizontally_mode => 'حالت مسدودسازی افقی';
+
+  @override
+  String get action_qr_code => 'تولید کد QR';
+
+  @override
+  String get action_scan_qr_code => 'اسکن کد QR';
 }

@@ -226,4 +226,5 @@ class JwIcons {
   static const IconData highlighter = IconData(0xE6DC, fontFamily: _kFontFam);
   static const IconData underline_pencil = IconData(0xE6DD, fontFamily: _kFontFam);
   static const IconData color_text = IconData(0xE6DE, fontFamily: _kFontFam);
+  static const IconData qr_code = IconData(0xE6DF, fontFamily: _kFontFam);
 }

@@ -1,5 +1,10 @@
+import 'dart:io';
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
+import 'package:jwlife/core/utils/files_helper.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sqflite/sqflite.dart';
 import '../../app/services/settings_service.dart';
 import '../../data/models/meps_language.dart';
 import '../../i18n/localization.dart';
@@ -140,16 +145,61 @@ class AppSharedPreferences {
 
   // --- LIBRARY LANGUAGE ---
 
-  List<String> getLibraryLanguage() {
-    if(_sp.getStringList(SharedPreferencesKeys.libraryLanguage.key)?.length != 15) {
-      return List<String>.from(SharedPreferencesKeys.libraryLanguage.defaultValue);
+  Future<List<String>> getLibraryLanguage() async {
+
+    Future<dynamic> getMepsLanguage() async {
+      Locale systemLocale = ui.PlatformDispatcher.instance.locale;
+
+      File mepsFile = await getMepsUnitDatabaseFile();
+      Database mepsDb = await openReadOnlyDatabase(mepsFile.path);
+
+      List<Map<String, dynamic>> results = await mepsDb.rawQuery("""
+        SELECT 
+          L.*,
+      
+          S.InternalName AS ScriptInternalName,
+          S.DisplayName AS ScriptDisplayName,
+          S.IsBidirectional,
+          S.IsRTL,
+          S.IsCharacterSpaced,
+          S.IsCharacterBreakable,
+          S.SupportsCodeNames,
+          S.HasSystemDigits,
+      
+          F.PrimaryIetfCode AS FallbackPrimaryIetfCode
+      FROM Language AS L
+      INNER JOIN Script AS S ON L.ScriptId = S.ScriptId
+      LEFT JOIN Language AS F ON L.PrimaryFallbackLanguageId = F.LanguageId
+      WHERE L.PrimaryIetfCode = ?
+      LIMIT 1;
+      """, [systemLocale.languageCode]);
+
+      return results.first;
     }
+
+    if(_sp.getStringList(SharedPreferencesKeys.libraryLanguage.key)?.length != 15) {
+      dynamic mepsLanguage = await getMepsLanguage();
+      await setLibraryLanguage(mepsLanguage);
+
+      return _sp.getStringList(SharedPreferencesKeys.libraryLanguage.key) ?? List<String>.from(SharedPreferencesKeys.libraryLanguage.defaultValue);
+    }
+
+    if(_sp.getStringList(SharedPreferencesKeys.libraryLanguage.key) != null) {
+      return _sp.getStringList(SharedPreferencesKeys.libraryLanguage.key)!;
+    }
+
+    dynamic mepsLanguage = await getMepsLanguage();
+    await setLibraryLanguage(mepsLanguage);
+
     return _sp.getStringList(SharedPreferencesKeys.libraryLanguage.key) ?? List<String>.from(SharedPreferencesKeys.libraryLanguage.defaultValue);
   }
 
   Future<void> setLibraryLanguage(dynamic selectedLanguage) async {
     if(selectedLanguage is Map<String, dynamic>) {
       JwLifeSettings.instance.currentLanguage.value = MepsLanguage.fromJson(selectedLanguage);
+    }
+    else {
+      return;
     }
 
     await _sp.setStringList(SharedPreferencesKeys.libraryLanguage.key, [

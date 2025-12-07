@@ -22,6 +22,7 @@ import '../../data/models/publication.dart';
 import '../../data/models/publication_category.dart';
 import '../../data/models/userdata/note.dart';
 import '../../data/repositories/PublicationRepository.dart';
+import '../../i18n/i18n.dart';
 import '../utils/files_helper.dart';
 
 /*
@@ -48,7 +49,7 @@ import '../utils/files_helper.dart';
 
      */
 
-Future<Map<String, dynamic>> fetchVerses(Publication publication, String link) async {
+Future<Map<String, dynamic>> fetchVerses(String link) async {
   List<String> linkSplit = link.split('/');
   String verses = linkSplit.last;
 
@@ -246,7 +247,11 @@ Future<Map<String, dynamic>?> fetchExtractPublication(BuildContext context, Stri
     List<Map<String, dynamic>> extractItems = [];
 
     for (var extract in response) {
-      Publication? refPub = await CatalogDb.instance.searchPub(extract['UndatedSymbol'], int.parse(extract['IssueTagNumber']), extract['MepsLanguageIndex']);
+      int issueTagNumber = int.parse(extract['IssueTagNumber']);
+      String keySymbol = issueTagNumber != 0 ? extract['UniqueEnglishSymbol'] : extract['UniqueEnglishSymbol'];
+      int mepsLanguageIndex = extract['MepsLanguageIndex'];
+
+      Publication? refPub = await CatalogDb.instance.searchPub(keySymbol, issueTagNumber, mepsLanguageIndex);
 
       var doc = parse(extract['Caption']);
       String caption = doc.querySelector('.etitle')?.text ?? '';
@@ -309,7 +314,7 @@ Future<Map<String, dynamic>?> fetchExtractPublication(BuildContext context, Stri
 
     return {
       'items': extractItems,
-      'title': 'Extrait de publication',
+      'title': i18n().label_icon_extracted_content,
     };
   }
   else {
@@ -354,97 +359,150 @@ Future<Map<String, dynamic>?> fetchExtractPublication(BuildContext context, Stri
   }
 }
 
-Future<Map<String, dynamic>?> fetchGuideVerse(BuildContext context, Publication publication, String guideVerseId) async {
-  Publication? guideVersePub = await CatalogDb.instance.searchPub('rsg19', 0, JwLifeSettings.instance.currentLanguage.value.id);
-  if(guideVersePub == null) return null;
+Future<Map<String, dynamic>?> fetchGuideVerse(BuildContext context, String guideVerseId) async {
+  Publication? guideVersePub = PublicationRepository().getPublicationWithMepsLanguageId(
+    'rsg19',
+    0,
+    JwLifeSettings.instance.currentLanguage.value.id,
+  );
+  if (guideVersePub == null) return null;
 
   Database? guideVersePubDb;
-  if(guideVersePub.documentsManager == null) {
-    guideVersePubDb = await openDatabase(guideVersePub.databasePath!);
-  }
-  else {
+  if (guideVersePub.documentsManager == null) {
+    guideVersePubDb = await openReadOnlyDatabase(guideVersePub.databasePath!);
+  } else {
     guideVersePubDb = guideVersePub.documentsManager!.database;
   }
 
+  // -- Récupération brute des extraits --
   List<Map<String, dynamic>> response = await guideVersePubDb.rawQuery('''
     SELECT 
       Extract.*,
       RefPublication.*
     FROM Extract
-    LEFT JOIN RefPublication ON Extract.RefPublicationId = RefPublication.RefPublicationId
+    LEFT JOIN RefPublication 
+      ON Extract.RefPublicationId = RefPublication.RefPublicationId
     WHERE ExtractId = $guideVerseId
   ''');
 
-  if (response.isNotEmpty) {
-    List<Map<String, dynamic>> extractItems = [];
+  if (response.isEmpty) return null;
 
-    for (var extract in response) {
-      Publication? refPub = await CatalogDb.instance.searchPub(extract['UndatedSymbol'], int.parse(extract['IssueTagNumber']), extract['MepsLanguageIndex']);
+  // --------------------------------------------------------------------
+  // 1) Construire les listes pour lancer UNE SEULE recherche
+  // --------------------------------------------------------------------
+  List<String> keySymbols = [];
+  List<int> issueTagNumbers = [];
+  List<int> languageIndexes = [];
 
-      var doc = parse(extract['Caption']);
-      String caption = doc.querySelector('.etitle')?.text ?? '';
+  for (var extract in response) {
+    int issueTagNumber = int.tryParse(extract['IssueTagNumber'].toString()) ?? 0;
+    String keySymbol = extract['UniqueEnglishSymbol'];
+    int mepsLanguageIndex = extract['MepsLanguageIndex'];
 
-      String image = refPub?.imageSqr ?? refPub?.networkImageSqr ?? '';
-      if (image.isNotEmpty) {
-        if(image.startsWith('https')) {
-          image = (await TilesCache().getOrDownloadImage(image))!.file.path;
-        }
-      }
-      if (refPub == null || refPub.imageSqr == null) {
-        String type = PublicationCategory.all.firstWhere((element) => element.type == extract['PublicationType']).image;
-        bool isDark = Theme.of(context).brightness == Brightness.dark;
-        String path = isDark ? 'assets/images/${type}_gray.png' : 'assets/images/$type.png';
-        image = '/android_asset/flutter_assets/$path';
-      }
+    keySymbols.add(keySymbol);
+    issueTagNumbers.add(issueTagNumber);
+    languageIndexes.add(mepsLanguageIndex);
+  }
 
-      /// Décoder le contenu
-      final decodedHtml = decodeBlobContent(extract['Content'] as Uint8List, guideVersePub.hash!);
+  // --------------------------------------------------------------------
+  // 2) Effectuer une seule recherche multi-publications
+  // --------------------------------------------------------------------
+  List<Publication> pubs = await CatalogDb.instance.searchPubs(
+    keySymbols,
+    issueTagNumbers,
+    languageIndexes,
+  );
 
-      int? extractMepsDocumentId = extract['RefMepsDocumentId'];
-      int? firstParagraphId = extract['RefBeginParagraphOrdinal'];
-      int? lastParagraphId = extract['RefEndParagraphOrdinal'];
+  // Indexation pour lookup rapide
+  Map<String, Publication> pubsByKey = {};
+  for (var p in pubs) {
+    final key = "${p.keySymbol}_${p.issueTagNumber}_${p.mepsLanguage.id}";
+    pubsByKey[key] = p;
+  }
 
-      List<BlockRange> blockRanges = [];
-      List<Map<String, dynamic>> notes = [];
-      if (extractMepsDocumentId != null) {
-        blockRanges = await JwLifeApp.userdata.getBlockRangesFromDocumentId(extractMepsDocumentId, extract['MepsLanguageIndex'], startParagraph: firstParagraphId, endParagraph: lastParagraphId);
-        notes = await JwLifeApp.userdata.getNotesFromDocumentId(extractMepsDocumentId, extract['MepsLanguageIndex'], startParagraph: firstParagraphId, endParagraph: lastParagraphId);
+  // --------------------------------------------------------------------
+  // 3) Construire les items à retourner
+  // --------------------------------------------------------------------
+  List<Map<String, dynamic>> extractItems = [];
 
-        if(publication.documentsManager == null) {
-          //publication.datedTextManager!.getCurrentDatedText().extractedNotes.clear();
-          //publication.datedTextManager!.getCurrentDatedText().extractedNotes.addAll(notes.map((item) => Map<String, dynamic>.from(item)).toList());
-        }
-        else {
-          //publication.documentsManager!.getCurrentDocument().extractedNotes.clear();
-          //publication.documentsManager!.getCurrentDocument().extractedNotes.addAll(notes.map((item) => Map<String, dynamic>.from(item)).toList());
-        }
-      }
+  for (var extract in response) {
+    int issueTagNumber = int.tryParse(extract['IssueTagNumber'].toString()) ?? 0;
+    String keySymbol = extract['UniqueEnglishSymbol'];
+    int mepsLanguageIndex = extract['MepsLanguageIndex'];
 
-      dynamic article = {
-        'type': 'publication',
-        'content': decodedHtml,
-        'className': "publicationCitation html5 pub-${extract['UndatedSymbol']} docId-$extractMepsDocumentId docClass-${extract['RefMepsDocumentClass']} jwac showRuby ml-${refPub?.mepsLanguage.symbol} ms-${refPub?.mepsLanguage.internalScriptName} dir-${refPub?.mepsLanguage.isRtl ?? false ? 'rtl' : 'ltr'} layout-reading layout-sidebar",
-        'subtitle': caption,
-        'imageUrl': image,
-        'mepsDocumentId': extractMepsDocumentId ?? -1,
-        'mepsLanguageId': extract['MepsLanguageIndex'],
-        'startParagraphId': firstParagraphId,
-        'endParagraphId': lastParagraphId,
-        'publicationTitle': refPub == null ? extract['ShortTitle'] : refPub.getShortTitle(),
-        'highlights': blockRanges,
-        'notes': notes
-      };
+    final lookupKey = "${keySymbol}_${issueTagNumber}_$mepsLanguageIndex";
+    Publication? refPub = pubsByKey[lookupKey];
 
-      // Ajouter l'élément document à la liste versesItems
-      extractItems.add(article);
+    // Caption
+    var doc = parse(extract['Caption']);
+    String caption = doc.querySelector('.etitle')?.text ?? '';
+
+    // Image
+    String image = refPub?.imageSqr ?? refPub?.networkImageSqr ?? '';
+    if (image.isNotEmpty && image.startsWith('https')) {
+      image = (await TilesCache().getOrDownloadImage(image))!.file.path;
     }
 
-    return {
-      'items': extractItems,
-      'title': 'Extrait de publication',
-    };
+    if (refPub == null || refPub.imageSqr == null) {
+      String type = PublicationCategory.all
+          .firstWhere((e) => e.type == extract['PublicationType'])
+          .image;
+      bool isDark = Theme.of(context).brightness == Brightness.dark;
+      String path = isDark ? 'assets/images/${type}_gray.png' : 'assets/images/$type.png';
+      image = '/android_asset/flutter_assets/$path';
+    }
+
+    // Décodage contenu
+    final decodedHtml = decodeBlobContent(
+      extract['Content'] as Uint8List,
+      guideVersePub.hash!,
+    );
+
+    // BlockRanges + Notes
+    int? extractMepsDocumentId = extract['RefMepsDocumentId'];
+    int? firstParagraphId = extract['RefBeginParagraphOrdinal'];
+    int? lastParagraphId = extract['RefEndParagraphOrdinal'];
+
+    List<BlockRange> blockRanges = [];
+    List<Map<String, dynamic>> notes = [];
+
+    if (extractMepsDocumentId != null) {
+      blockRanges = await JwLifeApp.userdata.getBlockRangesFromDocumentId(
+        extractMepsDocumentId,
+        mepsLanguageIndex,
+        startParagraph: firstParagraphId,
+        endParagraph: lastParagraphId,
+      );
+
+      notes = await JwLifeApp.userdata.getNotesFromDocumentId(
+        extractMepsDocumentId,
+        mepsLanguageIndex,
+        startParagraph: firstParagraphId,
+        endParagraph: lastParagraphId,
+      );
+    }
+
+    extractItems.add({
+      'type': 'publication',
+      'content': decodedHtml,
+      'className':
+      "publicationCitation html5 pub-${extract['UndatedSymbol']} docId-$extractMepsDocumentId docClass-${extract['RefMepsDocumentClass']} jwac showRuby ml-${refPub?.mepsLanguage.symbol} ms-${refPub?.mepsLanguage.internalScriptName} dir-${refPub?.mepsLanguage.isRtl ?? false ? 'rtl' : 'ltr'} layout-reading layout-sidebar",
+      'subtitle': caption,
+      'imageUrl': image,
+      'mepsDocumentId': extractMepsDocumentId ?? -1,
+      'mepsLanguageId': mepsLanguageIndex,
+      'startParagraphId': firstParagraphId,
+      'endParagraphId': lastParagraphId,
+      'publicationTitle': refPub?.getShortTitle() ?? extract['ShortTitle'],
+      'highlights': blockRanges,
+      'notes': notes,
+    });
   }
-  return null;
+
+  return {
+    'items': extractItems,
+    'title': 'Extrait de publication',
+  };
 }
 
 Future<Map<String, dynamic>> fetchFootnote(BuildContext context, Publication publication, String footNoteId, {String? bibleVerseId}) async {
@@ -462,17 +520,19 @@ Future<Map<String, dynamic>> fetchFootnote(BuildContext context, Publication pub
     response = await publication.documentsManager!.database.rawQuery(
         '''
           SELECT Footnote.* FROM Footnote
-          LEFT JOIN Document ON Footnote.DocumentId = Document.DocumentId
-          WHERE Document.MepsDocumentId = ? AND FootnoteIndex = ?
+          INNER JOIN Document ON Footnote.DocumentId = Document.DocumentId
+          WHERE Document.MepsDocumentId = ? AND Footnote.FootnoteIndex = ?
         ''',
         [publication.documentsManager!.getCurrentDocument().mepsDocumentId, footNoteId]);
   }
   else {
     response = await publication.documentsManager!.database.rawQuery(
         '''
-          SELECT * FROM Footnote WHERE DocumentId = ? AND FootnoteIndex = ?
+          SELECT Footnote.* FROM Footnote 
+          INNER JOIN Document ON Footnote.DocumentId = Document.DocumentId
+          WHERE Document.MepsDocumentId = ? AND Footnote.FootnoteIndex = ?
         ''',
-        [publication.documentsManager!.selectedDocumentIndex, footNoteId]);
+        [publication.documentsManager!.getCurrentDocument().mepsDocumentId, footNoteId]);
 
   }
 
@@ -480,10 +540,7 @@ Future<Map<String, dynamic>> fetchFootnote(BuildContext context, Publication pub
     final footNote = response.first;
 
     /// Décoder le contenu
-    final decodedHtml = decodeBlobContent(
-        footNote['Content'] as Uint8List,
-        publication.hash!
-    );
+    final decodedHtml = decodeBlobContent(footNote['Content'] as Uint8List, publication.hash!);
 
     return {
       'type': 'note',
@@ -525,10 +582,7 @@ Future<Map<String, dynamic>> fetchVersesReference(BuildContext context, Publicat
     for (var verse in response) {
       String htmlContent = '';
 
-      String label = verse['Label'].replaceAllMapped(
-        RegExp(r'<span class="cl">(.*?)<\/span>'),
-            (match) => '<span class="cl"><strong>${match.group(1)}</strong> </span>',
-      );
+      String label = verse['Label'].replaceAllMapped(RegExp(r'<span class="cl">(.*?)<\/span>'), (match) => '<span class="cl"><strong>${match.group(1)}</strong> </span>');
 
 
       htmlContent += label;
@@ -1012,12 +1066,11 @@ Future<List<Map<String, dynamic>>> fetchVerseResearchGuide(
 
             for (var extract in responseExtracts) {
 
-              // 5. Remplacer l'appel individuel à searchPub par la recherche dans la Map
-              final String undatedSymbol = extract['UndatedSymbol']?.toString() ?? '';
-              final int issueTagNumber = int.tryParse(extract['IssueTagNumber']?.toString() ?? '') ?? 0;
-              final dynamic mepsLanguageIndex = extract['MepsLanguageIndex'];
+              int issueTagNumber = int.tryParse(extract['IssueTagNumber']?.toString() ?? '') ?? 0;
+              String keySymbol = issueTagNumber != 0 ? extract['UniqueEnglishSymbol'] : extract['UniqueEnglishSymbol'];
+              int mepsLanguageIndex = extract['MepsLanguageIndex'];
 
-              final String refKey = '$undatedSymbol-$issueTagNumber-$mepsLanguageIndex';
+              final String refKey = '$keySymbol-$issueTagNumber-$mepsLanguageIndex';
               Publication? refPub = refPubsMap[refKey]; // Accès rapide à la publication
 
               // ... (Reste du traitement, non modifié) ...
@@ -1072,7 +1125,7 @@ Future<List<Map<String, dynamic>>> fetchVerseResearchGuide(
               extractItems.add({
                 'type': 'publication',
                 'content': decodedHtml,
-                'className': "publicationCitation html5 pub-$undatedSymbol docId-$extractMepsDocumentId docClass-${extract['RefMepsDocumentClass']} jwac showRuby ml-${refPub?.mepsLanguage.symbol ?? publication.mepsLanguage.symbol} ms-${refPub?.mepsLanguage.internalScriptName ?? publication.mepsLanguage.internalScriptName} dir-${(refPub?.mepsLanguage.isRtl ?? publication.mepsLanguage.isRtl) ? 'rtl' : 'ltr'} layout-reading layout-sidebar",
+                'className': "publicationCitation html5 pub-$keySymbol docId-$extractMepsDocumentId docClass-${extract['RefMepsDocumentClass']} jwac showRuby ml-${refPub?.mepsLanguage.symbol ?? publication.mepsLanguage.symbol} ms-${refPub?.mepsLanguage.internalScriptName ?? publication.mepsLanguage.internalScriptName} dir-${(refPub?.mepsLanguage.isRtl ?? publication.mepsLanguage.isRtl) ? 'rtl' : 'ltr'} layout-reading layout-sidebar",
                 'subtitle': caption,
                 'imageUrl': image,
                 'mepsDocumentId': extractMepsDocumentId ?? -1,

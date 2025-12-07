@@ -3116,4 +3116,10 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get action_blocking_horizontally_mode => 'Горизонтальная блокировка';
+
+  @override
+  String get action_qr_code => 'Сгенерировать QR-код';
+
+  @override
+  String get action_scan_qr_code => 'Сканировать QR-код';
 }

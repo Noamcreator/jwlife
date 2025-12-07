@@ -67,6 +67,7 @@ class HomeSquarePublicationItem extends StatelessWidget {
                                 },
                                 itemBuilder: (context) => [
                                   getPubShareMenuItem(publication),
+                                  getPubQrCodeMenuItem(context, publication),
                                   getPubLanguagesItem(context, i18n().label_languages_more, publication),
                                   getPubFavoriteItem(publication),
                                   getPubDownloadItem(context, publication),

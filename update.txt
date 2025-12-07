@@ -647,7 +647,7 @@ Bonne aseemblée à vous
 - Mise à jour de flutter_svg de 2.2.2 à 2.2.3.
 
 
-📢 Mise à jour – v1.2.1 (26/11/2025)
+📢 Mise à jour – 1.2.1 (26/11/2025)
 
 🚀 Nouvelles Fonctionnalités
 
@@ -694,3 +694,101 @@ Exemple : si le S-34 existe uniquement en français, il ne sera pas affiché en 
 - Harmonisation des systèmes de gestion multilingue (numérotation, RTL, attributs de publications, surlignage).
 
 - Amélioration de la logique interne reliant audio, publications et langues disponibles.
+
+
+📢 Mise à jour – v1.2.2 (07/12/2025)
+
+🚀 Nouvelles Fonctionnalités
+📖 Bible
+- Possibilité d’ouvrir trois versions de la Bible :
+-Traduction du monde nouveau
+-Bible avec notes et références
+-Bible Interlinear
+
+📝 Notes
+Ajout de la création de notes depuis le WebView via le bouton Ajouter une note.
+Ajout de la création de notes depuis :
+-la page des notes
+-la page des catégories
+
+🌐 Langues & Téléchargements
+Ajout du nuage de téléchargement dans Autres langues pour télécharger une vidéo en un clic.
+
+🔥 Développement
+Activation du Hot Reload en mode debug sur le WebView (HTML/JS rechargés instantanément).
+
+🌍 Affichage multilingue
+Ajout de l’affichage du texte en langue pour imiter JW Library dans :
+Panoplie d’enseignement
+Nouveautés
+(changement de langue pas encore disponible)
+
+🧩 Améliorations de l’expérience
+📚 Navigation & Recherche
+Les catégories et sous-catégories s’adaptent automatiquement à la taille de l’écran.
+Les mots recherchés dans une publication s’affichent désormais à la suite.
+Système de langue de secours automatique si la langue demandée est trop rare.
+Correction de la recherche des versets.
+Ajout d’un onglet WOL pour rechercher dans la bibliothèque en ligne.
+Les extraits de publication en arabe recherchent désormais les bons symboles.
+
+🎧 Médias
+Images des vidéos et audios plus petites.
+Meilleure gestion des audios dans les menus des publications : mise à jour ciblée sans recharger toute la page.
+Correction : les vidéos/audio en autre langue se lancent correctement.
+
+🔗 Liens & QR Code
+Ajout d’un QR Code sous Envoyer le lien pour faciliter le partage en prédication.
+Ajout d’un lecteur de QR Code intégré dans l’app :
+-permet d’ouvrir un contenu précis
+-fonctionne entre deux appareils JW Life
+-fonctionne aussi avec les QR du site ou publications papier
+-Les liens avant 1990 fonctionnent correctement avec QR ou liens.
+
+Si l’app est ouverte avec un lien JW non reconnu, il s’ouvre dans une page Internet.
+
+🎨 Interface & Design
+📁 Catégories & Accueil
+Hauteur des catégories/items réduite pour correspondre au style JW Library.
+Plus grand espacement entre les sections de la page d’accueil.
+
+📝 Notes
+Vue des notes entièrement revue :
+-design proche de JW Library
+-plus de texte visible
+-navigation plus naturelle
+
+📜 Textes et Police
+Correction de l’alignement des versets de l’ancienne traduction.
+Police ajustée pour les textes Flutter incluant du HTML (plus de stretch).
+Police des labels des tabs harmonisée avec le reste de l’app.
+
+🗓️ Divers
+Dans la page du Culte, la semaine actuelle affiche : Cette semaine.
+
+⚙️ Optimisation
+📂 Base de données & Fichiers
+Base des médias entièrement revue → mediator.realm (structure JW Library récente).
+Externalisation complète du HTML/CSS/JS dans des fichiers séparés.
+Ces fichiers sont désormais chargés en cache au démarrage → meilleures performances.
+Meilleure lecture des données WOL lors de la récupération des infos de langue.
+
+🧠 Performance générale
+Aucune double mise à jour au démarrage (bug corrigé).
+Lancement plus rapide même avec peu de réseau.
+Quand les audios sont trouvés, seule la section concernée est actualisée.
+
+🐞 Corrections & Stabilité
+📝 Notes
+Correction d’un bug lors de la suppression d’une note en pleine page.
+
+📖 Bible
+Correction du décalage des versets dans l’ancienne traduction lors du clic.
+
+🌐 WebView
+Correction d’un bug lorsqu’on redimensionne un dialog (taille réinitialisée correctement).
+Augmentation de la zone du bouton pour redimensionner le dialog.
+
+📦 Mises à Jour Techniques
+Mise à jour device_info_plus : 12.2.0 → 12.3.0
+Mise à jour Flutter : 3.38.3 → 3.38.4

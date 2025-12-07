@@ -88,18 +88,22 @@ class DatedText {
     context.read<BlockRangesController>().loadBlockRanges(blockRanges);
   }
 
-  void share({int? id}) {
+  String share({int? id, hide = false}) {
     String uri = JwOrgUri.dailyText(
         wtlocale: publication.mepsLanguage.symbol,
         date: firstDateOffset.toString()
     ).toString();
 
-    SharePlus.instance.share(
-      ShareParams(
-        title: getTitle(),
-        uri: Uri.tryParse(uri),
-      ),
-    );
+    if(!hide) {
+      SharePlus.instance.share(
+        ShareParams(
+          title: getTitle(),
+          uri: Uri.tryParse(uri),
+        ),
+      );
+    }
+
+    return uri;
   }
 
   String getTitle() {

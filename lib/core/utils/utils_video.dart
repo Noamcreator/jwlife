@@ -11,6 +11,7 @@ import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/core/utils/utils_language_dialog.dart';
 import 'package:jwlife/core/utils/utils_playlist.dart';
 import 'package:jwlife/data/models/video.dart' hide Subtitles;
+import 'package:qr_flutter/qr_flutter.dart';
 import 'package:realm/realm.dart';
 
 import 'package:share_plus/share_plus.dart';
@@ -21,6 +22,7 @@ import '../../data/realm/realm_library.dart';
 import '../../features/video/subtitles.dart';
 import '../../features/video/subtitles_view.dart';
 import '../../i18n/i18n.dart';
+import '../../widgets/qr_code_dialog.dart';
 import '../api/api.dart';
 import 'common_ui.dart';
 
@@ -81,6 +83,27 @@ PopupMenuItem getVideoShareItem(Video video) {
   );
 }
 
+PopupMenuItem getVideoQrCode(BuildContext context, Video video) {
+  return PopupMenuItem(
+    child: Row(
+      children: [
+        Icon(JwIcons.qr_code),
+        SizedBox(width: 8),
+        Text(i18n().action_qr_code),
+      ],
+    ),
+    onTap: () {
+      String uri = JwOrgUri.mediaItem(
+        wtlocale: video.mepsLanguage!,
+        lank: video.naturalKey!,
+      ).toString();
+
+      String? imagePath = video.isDownloadedNotifier.value ? video.imagePath ?? video.networkImageSqr ?? video.networkFullSizeImageSqr : video.networkImageSqr ?? video.networkFullSizeImageSqr;
+      showQrCodeDialog(context, video.title, uri, imagePath: imagePath);
+    },
+  );
+}
+
 PopupMenuItem getVideoAddPlaylistItem(BuildContext context, Video video) {
   return PopupMenuItem(
     child: Row(
@@ -114,10 +137,9 @@ PopupMenuItem getVideoLanguagesItem(BuildContext context, Video video) {
           showLanguageDialog(context, languagesListJson: response.data['languages'], media: video).then((language) async {
             if (language != null) {
               String link = 'https://b.jw-cdn.org/apis/mediator/v1/media-items/${language['Symbol']}/${video.naturalKey}';
-              final response = await Api.httpGetWithHeaders(link);
+              final response = await Api.httpGetWithHeaders(link, responseType: ResponseType.json);
               if (response.statusCode == 200) {
-                final jsonFile = response.data;
-                final jsonData = json.decode(jsonFile);
+                final jsonData = response.data;
 
                 final videoMap = {
                   'KeySymbol': video.keySymbol,

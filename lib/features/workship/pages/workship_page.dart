@@ -29,6 +29,7 @@ import '../../../core/utils/utils_language_dialog.dart';
 import '../../../data/databases/history.dart';
 import '../../../data/models/audio.dart';
 import '../../../data/models/userdata/congregation.dart';
+import '../../../widgets/qr_code_dialog.dart';
 import '../../../widgets/responsive_appbar_actions.dart';
 import '../../congregation/pages/congregations_page.dart';
 import '../../publication/pages/document/data/models/document.dart';
@@ -100,28 +101,60 @@ class WorkShipPageState extends State<WorkShipPage> with TickerProviderStateMixi
 
   int getWeekOfYear(DateTime date) {
     final firstDayOfYear = DateTime(date.year, 1, 1);
-    final daysPassed = date
-        .difference(firstDayOfYear)
-        .inDays;
+    final daysPassed = date.difference(firstDayOfYear).inDays;
     return (daysPassed / 7).ceil();
   }
 
   String formatWeekRange(DateTime date) {
-    DateTime firstDayOfWeek = date.subtract(Duration(days: date.weekday - 1));
-    DateTime lastDayOfWeek = firstDayOfWeek.add(const Duration(days: 6));
+    // Fonction pour normaliser une date en supprimant l'heure
+    DateTime normalize(DateTime d) => DateTime(d.year, d.month, d.day);
 
-    String day1 = DateFormat('d', JwLifeSettings.instance.locale.languageCode).format(
-        firstDayOfWeek);
-    String day2 = DateFormat('d', JwLifeSettings.instance.locale.languageCode).format(
-        lastDayOfWeek);
-    String month1 = DateFormat('MMMM', JwLifeSettings.instance.locale.languageCode)
+    // Normalisation de la date reçue
+    date = normalize(date);
+
+    // Déterminer la semaine associée à "date"
+    DateTime firstDayOfWeek = normalize(
+        date.subtract(Duration(days: date.weekday - 1)));
+    DateTime lastDayOfWeek = normalize(
+        firstDayOfWeek.add(const Duration(days: 6)));
+
+    // Déterminer la semaine actuelle
+    final now = normalize(DateTime.now());
+    DateTime currentWeekStart = normalize(
+        now.subtract(Duration(days: now.weekday - 1)));
+    DateTime currentWeekEnd = normalize(
+        currentWeekStart.add(const Duration(days: 6)));
+
+    // Formatage jours/mois
+    String day1 = DateFormat('d', JwLifeSettings.instance.locale.languageCode)
         .format(firstDayOfWeek);
-    String month2 = DateFormat('MMMM', JwLifeSettings.instance.locale.languageCode)
+    String day2 = DateFormat('d', JwLifeSettings.instance.locale.languageCode)
+        .format(lastDayOfWeek);
+    String month1 =
+    DateFormat('MMMM', JwLifeSettings.instance.locale.languageCode)
+        .format(firstDayOfWeek);
+    String month2 =
+    DateFormat('MMMM', JwLifeSettings.instance.locale.languageCode)
         .format(lastDayOfWeek);
 
-    return month1 == month2 ? i18n().label_date_range_one_month(
-        day1, day2, month1) : i18n().label_date_range_two_months(
-        day1, day2, month1, month2);
+    // Texte formaté
+    String base = month1 == month2
+        ? i18n().label_date_range_one_month(day1, day2, month1)
+        : i18n().label_date_range_two_months(day1, day2, month1, month2);
+
+    // Vérification : est-ce la semaine actuelle ?
+    bool isThisWeek =
+        firstDayOfWeek.isAtSameMomentAs(currentWeekStart) ||
+            (firstDayOfWeek.isAfter(currentWeekStart) &&
+                lastDayOfWeek.isBefore(currentWeekEnd)) ||
+            lastDayOfWeek.isAtSameMomentAs(currentWeekEnd);
+
+    // Ajout du label "Cette semaine"
+    if (isThisWeek) {
+      return "$base • ${i18n().labels_this_week}";
+    }
+
+    return base;
   }
 
   void _showPublicTalksDialog() async {
@@ -332,6 +365,18 @@ class WorkShipPageState extends State<WorkShipPage> with TickerProviderStateMixi
                   ShareParams(title: formatWeekRange(_dateOfMeetingValue.value),
                       uri: Uri.tryParse(uri))
               );
+            },
+          ),
+          IconTextButton(
+            text: i18n().action_qr_code,
+            icon: const Icon(JwIcons.qr_code),
+            onPressed: (anchorContext) {
+              String uri = JwOrgUri.meetings(
+                  wtlocale: JwLifeSettings.instance.currentLanguage.value.symbol,
+                  date: convertDateTimeToIntDate(_dateOfMeetingValue.value).toString()
+              ).toString();
+
+              showQrCodeDialog(context, formatWeekRange(_dateOfMeetingValue.value), uri);
             },
           ),
           IconTextButton(
@@ -1190,7 +1235,25 @@ class WorkShipPageState extends State<WorkShipPage> with TickerProviderStateMixi
                                         ? Colors.white
                                         : Colors.black))
                               ]), onTap: () {
-                                midweekPub.documentsManager?.getDocumentFromMepsDocumentId(midweekMeeting['MepsDocumentId']).share(false);
+                                midweekPub.documentsManager?.getDocumentFromMepsDocumentId(midweekMeeting['MepsDocumentId']).share();
+                              }),
+                              PopupMenuItem(child: Row(children: [
+                                Icon(JwIcons.qr_code, color: Theme
+                                    .of(context)
+                                    .brightness == Brightness.dark
+                                    ? Colors.white
+                                    : Colors.black),
+                                const SizedBox(width: 8.0),
+                                Text(i18n().action_qr_code,
+                                    style: TextStyle(color: Theme
+                                        .of(context)
+                                        .brightness == Brightness.dark ? Colors
+                                        .white : Colors.black))
+                              ]), onTap: () {
+                                String? uri = midweekPub.documentsManager?.getDocumentFromMepsDocumentId(midweekMeeting['MepsDocumentId']).share(hide: true);
+                                if(uri != null) {
+                                  showQrCodeDialog(context, midweekMeeting['Title'], uri);
+                                }
                               }),
                             ];
                             if (audio != null && audio.fileSize !=
@@ -1369,10 +1432,25 @@ class WorkShipPageState extends State<WorkShipPage> with TickerProviderStateMixi
                                         .brightness == Brightness.dark ? Colors
                                         .white : Colors.black))
                               ]), onTap: () {
-                                weekendPub.documentsManager
-                                    ?.getDocumentFromMepsDocumentId(
-                                    weekendMeeting['MepsDocumentId']).share(
-                                    false);
+                                weekendPub.documentsManager?.getDocumentFromMepsDocumentId(weekendMeeting['MepsDocumentId']).share();
+                              }),
+                              PopupMenuItem(child: Row(children: [
+                                Icon(JwIcons.qr_code, color: Theme
+                                    .of(context)
+                                    .brightness == Brightness.dark
+                                    ? Colors.white
+                                    : Colors.black),
+                                const SizedBox(width: 8.0),
+                                Text(i18n().action_qr_code,
+                                    style: TextStyle(color: Theme
+                                        .of(context)
+                                        .brightness == Brightness.dark ? Colors
+                                        .white : Colors.black))
+                              ]), onTap: () {
+                                String? uri = weekendPub.documentsManager?.getDocumentFromMepsDocumentId(weekendMeeting['MepsDocumentId']).share(hide: true);
+                                if(uri != null) {
+                                  showQrCodeDialog(context, weekendMeeting['Title'], uri);
+                                }
                               }),
                             ];
                             if (audio != null && audio.fileSize !=

@@ -4,6 +4,7 @@ import 'dart:ui';
 import 'package:collection/collection.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 import 'package:jwlife/core/utils/files_helper.dart';
 import 'package:sqflite/sqflite.dart';
 
@@ -11,6 +12,7 @@ import '../../app/services/settings_service.dart';
 import '../../core/api/api.dart';
 import '../../core/shared_preferences/shared_preferences_utils.dart';
 import '../../core/utils/utils.dart';
+import '../../i18n/localization.dart';
 
 class MepsLanguage {
   final int id;
@@ -89,67 +91,60 @@ class MepsLanguage {
   }
 
   Future<void> loadWolInfo() async {
-    if(JwLifeSettings.instance.currentLanguage.value.rsConf.isEmpty || JwLifeSettings.instance.currentLanguage.value.lib.isEmpty) {
-      final wolLink = 'https://wol.jw.org/wol/finder?wtlocale=${JwLifeSettings.instance.currentLanguage.value.symbol}';
-      printTime('WOL link: $wolLink');
+    final wolLink = 'https://wol.jw.org/wol/finder?wtlocale=$symbol';
+    printTime('WOL link: $wolLink');
 
-      try {
-        final headers = Api.getHeaders();
+    try {
+      final headers = Api.getHeaders();
 
-        final response = await Api.dio.get(
-          wolLink,
-          options: Options(
-            headers: headers,
-            followRedirects: false, // Bloque la redirection automatique
-            maxRedirects: 0,
-            validateStatus: (status) => true,
-          ),
-        );
+      final response = await Api.dio.get(
+        wolLink,
+        options: Options(
+          headers: headers,
+          followRedirects: false, // Bloque la redirection automatique
+          maxRedirects: 0,
+          validateStatus: (status) => true,
+        ),
+      );
 
-        // Afficher tous les headers de la réponse
-        printTime('All headers: ${response.headers}');
+      // Gestion des codes de redirection (301, 302, 307, 308)
+      if ([301, 302, 307, 308].contains(response.statusCode)) {
+        final location = response.headers.value('location');
+        if (location != null && location.isNotEmpty) {
+          // Analyse de l'URL de redirection
+          final parts = location.split('/');
+          if (parts.length >= 6) {
+            final rCode = parts[4];
+            final lpCode = parts[5];
+            printTime('rCode: $rCode');
+            printTime('lpCode: $lpCode');
 
-        // Gestion des codes de redirection (301, 302, 307, 308)
-        if ([301, 302, 307, 308].contains(response.statusCode)) {
-          final location = response.headers.value('location');
-          if (location != null && location.isNotEmpty) {
-            // Analyse de l'URL de redirection
-            final parts = location.split('/');
-            if (parts.length >= 6) {
-              final rCode = parts[4];
-              final lpCode = parts[5];
-              printTime('rCode: $rCode');
-              printTime('lpCode: $lpCode');
+            JwLifeSettings.instance.currentLanguage.value.setRsConf(rCode);
+            JwLifeSettings.instance.currentLanguage.value.setLib(lpCode);
 
-              JwLifeSettings.instance.currentLanguage.value.setRsConf(rCode);
-              JwLifeSettings.instance.currentLanguage.value.setLib(lpCode);
-
-              AppSharedPreferences.instance.setLibraryLanguage(JwLifeSettings.instance.currentLanguage);
-            }
-          } else {
-            printTime('No location header found in redirect response');
+            AppSharedPreferences.instance.setLibraryLanguage(JwLifeSettings.instance.currentLanguage);
           }
-        } else if (response.statusCode == 200) {
-          printTime('Direct response (no redirect)');
-          // Traitement si pas de redirection
         } else {
-          printTime('Unexpected status code: ${response.statusCode}');
+          printTime('No location header found in redirect response');
         }
-
-      } catch (e, stack) {
-        printTime('Error loading WOL info: $e');
-        print(stack);
+      } else if (response.statusCode == 200) {
+        printTime('Direct response (no redirect)');
+        // Traitement si pas de redirection
+      } else {
+        printTime('Unexpected status code: ${response.statusCode}');
       }
+
+    } catch (e, stack) {
+      printTime('Error loading WOL info: $e');
+      print(stack);
     }
   }
 
   Locale getSafeLocale() {
-    final supported = WidgetsBinding.instance.platformDispatcher.locales;
+    final supported = AppLocalizations.supportedLocales;
 
-    String extractLang(String c) => c.split('-').first;
-
-    String lang = extractLang(primaryIetfCode);
-    String secureLang = extractLang(fallbackPrimaryIetfCode);
+    String lang = primaryIetfCode;
+    String secureLang = fallbackPrimaryIetfCode;
 
     // 1️⃣ Tester le code principal
     final matchPrimary = supported.firstWhereOrNull((loc) => loc.languageCode == lang);

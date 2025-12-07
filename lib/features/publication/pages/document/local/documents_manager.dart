@@ -19,7 +19,7 @@ class DocumentsManager {
   // Méthode privée pour initialiser la base de données
   Future<void> initializeDatabaseAndData() async {
     try {
-      database = await openDatabase(publication.databasePath!);
+      database = await openReadOnlyDatabase(publication.databasePath!);
       await fetchDocuments();
     }
     catch (e) {

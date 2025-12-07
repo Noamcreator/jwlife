@@ -907,5 +907,7 @@
   "action_congregations": "地方集会",
   "action_meeting_management": "集会の計画",
   "action_brothers_and_sisters": "兄弟姉妹",
-  "action_blocking_horizontally_mode": "水平方向のブロック"
+  "action_blocking_horizontally_mode": "水平方向のブロック",
+  "action_qr_code": "QRコードを生成",
+  "action_scan_qr_code": "QRコードをスキャン"
 }

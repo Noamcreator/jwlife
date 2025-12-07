@@ -907,5 +907,7 @@
   "action_congregations": "Plaatselijke Gemeenten",
   "action_meeting_management": "Vergaderingplanning",
   "action_brothers_and_sisters": "Broeders en Zusters",
-  "action_blocking_horizontally_mode": "Horizontale Blokkeren"
+  "action_blocking_horizontally_mode": "Horizontale Blokkeren",
+  "action_qr_code": "Genereer een QR-code",
+  "action_scan_qr_code": "Scan een QR-code"
 }

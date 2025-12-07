@@ -7,6 +7,10 @@ import '../utils/utils.dart';
 Future<void> fetchAlertsList(MepsLanguage language) async {
   printTime("fetchAlertInfo");
 
+  if(Api.currentJwToken.isEmpty) {
+    await Api.fetchCurrentJwToken();
+  }
+
   // Préparer les paramètres de requête pour l'URL
   final queryParams = {
     'type': 'news',

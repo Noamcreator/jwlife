@@ -85,12 +85,11 @@ class PublicationRepository {
   }
 
   Publication? getPublicationWithMepsLanguageId(String keySymbol, int issueTagNumber, int mepsLanguageId) {
-    final key = '${keySymbol}_${issueTagNumber}_$mepsLanguageId';
-    return _publications[key];
+    return _publications.values.firstWhereOrNull((p) => (p.symbol == keySymbol || p.keySymbol == keySymbol) && p.issueTagNumber == issueTagNumber && p.mepsLanguage.id == mepsLanguageId);
   }
 
   Publication? getPublicationWithSymbol(String keySymbol, int issueTagNumber, String mepsLanguageSymbol) {
-    return _publications.values.firstWhereOrNull((p) => p.keySymbol == keySymbol && p.issueTagNumber == issueTagNumber && p.mepsLanguage.symbol == mepsLanguageSymbol);
+    return _publications.values.firstWhereOrNull((p) => (p.symbol == keySymbol || p.keySymbol == keySymbol) && p.issueTagNumber == issueTagNumber && p.mepsLanguage.symbol == mepsLanguageSymbol);
   }
 
   /// (Optionnel) Vérifie si une publication est déjà enregistrée

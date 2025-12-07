@@ -3100,4 +3100,10 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get action_blocking_horizontally_mode => 'Yatay Kilitleme';
+
+  @override
+  String get action_qr_code => 'Bir QR kodu oluştur';
+
+  @override
+  String get action_scan_qr_code => 'Bir QR Kodu Tarayın';
 }

@@ -11,6 +11,8 @@ import 'app/services/audio_service/just_audio_background.dart';
 import 'app/services/file_handler_service.dart';
 import 'app/services/global_key_service.dart';
 import 'app/services/notification_service.dart';
+import 'app/startup/copy_assets.dart';
+import 'core/shared_preferences/shared_preferences_utils.dart';
 import 'core/uri/jworg_uri.dart';
 import 'core/webview/html_template_service.dart';
 import 'data/realm/realm_library.dart';
@@ -31,6 +33,11 @@ Future<void> _initializeServices() async {
 
   // 2. Configuration et Initialisation des Services
   SharedPreferences.setPrefix(_kSharedPrefsPrefix); // Fait une seule fois
+
+  final sharedPreferences = AppSharedPreferences.instance;
+  await sharedPreferences.initialize();
+
+  await CopyAssets.copy();
 
   // Exécutions en parallèle (si possible) pour améliorer le temps de démarrage
   await Future.wait([

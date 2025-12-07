@@ -3094,4 +3094,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get action_blocking_horizontally_mode => 'Horizontal Blocking';
+
+  @override
+  String get action_qr_code => 'Generate a QR code';
+
+  @override
+  String get action_scan_qr_code => 'Scan a QR Code';
 }

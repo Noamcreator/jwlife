@@ -907,5 +907,7 @@
   "action_congregations": "Поместные Собрания",
   "action_meeting_management": "Планирование встреч",
   "action_brothers_and_sisters": "Братья и Сёстры",
-  "action_blocking_horizontally_mode": "Горизонтальная блокировка"
+  "action_blocking_horizontally_mode": "Горизонтальная блокировка",
+  "action_qr_code": "Сгенерировать QR-код",
+  "action_scan_qr_code": "Сканировать QR-код"
 }

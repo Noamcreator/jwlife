@@ -907,5 +907,7 @@
   "action_congregations": "جماعات محلی",
   "action_meeting_management": "برنامه‌ریزی جلسات",
   "action_brothers_and_sisters": "برادران و خواهران",
-  "action_blocking_horizontally_mode": "حالت مسدودسازی افقی"
+  "action_blocking_horizontally_mode": "حالت مسدودسازی افقی",
+  "action_qr_code": "تولید کد QR",
+  "action_scan_qr_code": "اسکن کد QR"
 }

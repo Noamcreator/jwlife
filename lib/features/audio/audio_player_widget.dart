@@ -401,6 +401,7 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
                                     if (mediaItem != null) {
                                       Audio audio = Audio.fromJson(mediaItem: mediaItem);
                                       items.add(getAudioShareItem(audio));
+                                      items.add(getAudioQrCode(context, audio));
                                       items.add(getAudioAddPlaylistItem(context, audio));
                                     }
 
@@ -811,6 +812,7 @@ class _FullAudioViewState extends State<FullAudioView> {
                           icon: Icon(JwIcons.three_dots_horizontal, color: Colors.white),
                           itemBuilder: (context) => [
                             getAudioShareItem(audio),
+                            getAudioQrCode(context, audio),
                             getAudioAddPlaylistItem(context, audio),
                             getAudioLanguagesItem(context, audio),
                             getAudioFavoriteItem(audio),

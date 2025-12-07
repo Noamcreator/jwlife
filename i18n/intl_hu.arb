@@ -907,5 +907,7 @@
   "action_congregations": "Helyi Gyülekezetek",
   "action_meeting_management": "Összejövetel-tervezés",
   "action_brothers_and_sisters": "Testvérek",
-  "action_blocking_horizontally_mode": "Vízszintes blokkolás"
+  "action_blocking_horizontally_mode": "Vízszintes blokkolás",
+  "action_qr_code": "QR kód generálása",
+  "action_scan_qr_code": "QR-kód beolvasása"
 }

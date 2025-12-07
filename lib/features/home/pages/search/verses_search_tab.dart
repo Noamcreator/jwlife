@@ -29,172 +29,337 @@ class _VersesSearchTabState extends State<VersesSearchTab> {
 
   @override
   Widget build(BuildContext context) {
-    return AppPage(
-      body: FutureBuilder<List<Map<String, dynamic>>?>(
-        future: widget.model.fetchVerses(), // appel async
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          } else if (snapshot.hasError) {
-            return Center(child: Text('Erreur : ${snapshot.error}'));
-          } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return const Center(child: Text('Aucun résultat trouvé.'));
-          }
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
-          final results = snapshot.data;
+    return FutureBuilder<List<Map<String, dynamic>>?>(
+      future: widget.model.fetchVerses(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Center(
+            child: CircularProgressIndicator(
+              strokeWidth: 2.5,
+              valueColor: AlwaysStoppedAnimation<Color>(
+                isDark ? Colors.blue[300]! : Colors.blue[700]!,
+              ),
+            ),
+          );
+        } else if (snapshot.hasError) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.error_outline_rounded,
+                    size: 48,
+                    color: isDark ? Colors.grey[600] : Colors.grey[400],
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Une erreur est survenue',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                      color: isDark ? Colors.grey[300] : Colors.grey[700],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '${snapshot.error}',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: isDark ? Colors.grey[500] : Colors.grey[500],
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          );
+        } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.search_off_rounded,
+                    size: 64,
+                    color: isDark ? Colors.grey[700] : Colors.grey[300],
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Aucun résultat trouvé',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: isDark ? Colors.grey[300] : Colors.grey[700],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Essayez avec d\'autres termes de recherche',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: isDark ? Colors.grey[500] : Colors.grey[500],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
 
-          if (results == null) {
-            return Center(
-              child: Text("La recherche « ${widget.model.query} » n'est pas un verset valide"),
-            );
-          }
+        final results = snapshot.data;
 
-          if (results.isEmpty) {
-            return const Center(
-              child: Text('Aucun verset trouvé'),
-            );
-          }
+        if (results == null) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.info_outline_rounded,
+                    size: 64,
+                    color: isDark ? Colors.grey[600] : Colors.grey[400],
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    "La recherche « ${widget.model.query} » n'est pas un verset valide",
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: isDark ? Colors.grey[300] : Colors.grey[700],
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
 
-          /*
-          results.sort((a, b) {
-            final yearA = a['Year'] ?? 0;
-            final yearB = b['Year'] ?? 0;
-            return yearB.compareTo(yearA);
-          });
+        if (results.isEmpty) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.search_off_rounded,
+                    size: 64,
+                    color: isDark ? Colors.grey[700] : Colors.grey[300],
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Aucun verset trouvé',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: isDark ? Colors.grey[300] : Colors.grey[700],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
 
-           */
+        return ListView.separated(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          separatorBuilder: (context, index) => Divider(
+            height: 10,
+            thickness: 1,
+            color: isDark ? Colors.grey[850] : Colors.grey[200],
+          ),
+          itemCount: results.length,
+          itemBuilder: (context, index) {
+            final item = results[index];
 
-          // Affichage de la liste
-          return ListView.builder(
-            padding: const EdgeInsets.all(10.0),
-            itemCount: results.length,
-            itemBuilder: (context, index) {
-              final item = results[index];
+            String paragraphText = '';
+            final beginPosition = item['BeginPosition'];
+            final endPosition = item['EndPosition'];
+            final publication = item['publication'] as Publication;
 
-              String paragraphText = '';
-              final beginPosition = item['BeginPosition'];
-              final endPosition = item['EndPosition'];
+            if (beginPosition != null && endPosition != null) {
+              final documentBlob = decodeBlobParagraph(item['Content'], publication.hash!);
+              final paragraphBlob = documentBlob.sublist(beginPosition, endPosition);
+              final paragraphHtml = utf8.decode(paragraphBlob);
+              paragraphText = parse(paragraphHtml).body?.text ?? '';
+            }
 
-              printTime('KeySymbol: ${item['Symbol']}, Year: ${item['Year']}, MepsLanguageIndex: ${item['MepsLanguageIndex']}, IssueTagNumber: ${item['IssueTagNumber']}');
-
-              if (beginPosition != null && endPosition != null) {
-                // Décoder le contenu HTML
-                final documentBlob = decodeBlobParagraph(item['Content'], getPublicationHash(item['MepsLanguageIndex'], item['Symbol'], item['Year'], int.parse(item['IssueTagNumber'])));
-                final paragraphBlob = documentBlob.sublist(beginPosition, endPosition);
-
-                // Extraire le fragment du HTML normalisé
-                final paragraphHtml = utf8.decode(paragraphBlob);
-
-                // Si vous avez besoin d'un texte brut après, utilisez parse
-                paragraphText = parse(paragraphHtml).body?.text ?? '';
-              }
-
-              Publication? downloadPub = PublicationRepository().getPublicationWithMepsLanguageId(item['Symbol'], int.parse(item['IssueTagNumber']), item['MepsLanguageIndex']);
-
-              return item['Content'] == null || downloadPub == null ? null : GestureDetector(
+            return item['Content'] == null
+                ? const SizedBox.shrink()
+                : Material(
+              color: Colors.transparent,
+              child: InkWell(
                 onTap: () async {
-                  showDocumentView(context, item['MepsDocumentId'], item['MepsLanguageIndex'], startParagraphId: item['ParagraphOrdinal'], endParagraphId: item['ParagraphOrdinal']);
+                  showDocumentView(
+                    context,
+                    item['MepsDocumentId'],
+                    publication.mepsLanguage.id,
+                    startParagraphId: item['ParagraphOrdinal'],
+                    endParagraphId: item['ParagraphOrdinal'],
+                  );
                 },
-                child: Card(
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? const Color(0xFF292929)
-                      : Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(0)),
-                  margin: const EdgeInsets.symmetric(vertical: 5),
-                  child: Padding(
-                    padding: const EdgeInsets.all(13),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        item['FilePath'] != null
-                            ? Row(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // ---------------------------------------
+                      //     EN-TÊTE : Titre du document + Image
+                      // ---------------------------------------
+                      if (item['FilePath'] != null)
+                        Row(
                           children: [
-                            Image.file(File('${downloadPub.path}/${item['FilePath']}'), height: 60, width: 60),
-                            const SizedBox(width: 10),
+                            Container(
+                              width: 50,
+                              height: 50,
+                              decoration: BoxDecoration(
+                                color: isDark ? Colors.grey[850] : Colors.grey[100],
+                                borderRadius: BorderRadius.circular(4),
+                                border: Border.all(
+                                  color: isDark ? Colors.grey[800]! : Colors.grey[200]!,
+                                  width: 1,
+                                ),
+                              ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(4),
+                                child: Image.file(
+                                  File('${publication.path}/${item['FilePath']}'),
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
                             Expanded(
                               child: Text(
                                 item['DocumentTitle'],
                                 style: TextStyle(
-                                  color: Theme.of(context).brightness == Brightness.dark
-                                      ? const Color(0xFFa0b9e2)
+                                  color: isDark
+                                      ? const Color(0xFF9AB5E0)
                                       : const Color(0xFF4a6da7),
-                                  fontSize: 20,
+                                  fontSize: 15,
                                   fontWeight: FontWeight.w600,
+                                  letterSpacing: -0.1,
                                 ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
                           ],
-                        ) : Text(
+                        )
+                      else
+                        Text(
                           item['DocumentTitle'],
                           style: TextStyle(
-                            color: Theme.of(context).brightness == Brightness.dark
-                                ? const Color(0xFFa0b9e2)
+                            color: isDark
+                                ? const Color(0xFF9AB5E0)
                                 : const Color(0xFF4a6da7),
-                            fontSize: 20,
+                            fontSize: 15,
                             fontWeight: FontWeight.w600,
+                            letterSpacing: -0.1,
                           ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        const SizedBox(height: 10),
-                        Text(
-                          paragraphText,
-                          style: const TextStyle(fontSize: 17),
+
+                      const SizedBox(height: 12),
+
+                      // ---------------------------------------
+                      //     TEXTE DU PARAGRAPHE
+                      // ---------------------------------------
+                      Text(
+                        paragraphText,
+                        style: TextStyle(
+                          fontSize: 15,
+                          height: 1.5,
+                          color: isDark ? Colors.grey[200] : Colors.grey[800],
+                          letterSpacing: -0.1,
                         ),
-                        // ajoute une ligne entre les deux pour separer
-                        Divider(
-                          height: 20,
-                          thickness: 1,
-                          color: Colors.grey[800],
-                        ),
-                        Row(
-                          children: [
-                            ImageCachedWidget(
-                              imageUrl: downloadPub.imageSqr,
-                              icon: downloadPub.category.icon,
-                              height: 45,
-                              width: 45,
+                      ),
+
+                      const SizedBox(height: 14),
+
+                      // ---------------------------------------
+                      //     PIED : Infos de la publication
+                      // ---------------------------------------
+                      Row(
+                        children: [
+                          Container(
+                            width: 42,
+                            height: 42,
+                            decoration: BoxDecoration(
+                              color: isDark ? Colors.grey[850] : Colors.grey[100],
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(
+                                color: isDark ? Colors.grey[800]! : Colors.grey[200]!,
+                                width: 1,
+                              ),
                             ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    downloadPub.category.getName(),
-                                    style: TextStyle(
-                                      color: Colors.grey[600],
-                                      fontSize: 9,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 1),
-                                  Text(
-                                    downloadPub.getTitle(),
-                                    style: TextStyle(
-                                      color: Colors.grey[400],
-                                      fontSize: 11,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 1),
-                                  Text(
-                                    '${downloadPub.keySymbol} - ${downloadPub.year}',
-                                    style: TextStyle(
-                                      color: Colors.grey[600],
-                                      fontSize: 9,
-                                    ),
-                                  ),
-                                ],
-                              )
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(4),
+                              child: ImageCachedWidget(
+                                imageUrl: publication.imageSqr,
+                                icon: publication.category.icon,
+                                height: 42,
+                                width: 42,
+                                fit: BoxFit.cover,
+                              ),
                             ),
-                          ],
-                        ),
-                      ],
-                    ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  publication.category.getName(),
+                                  style: TextStyle(
+                                    color: isDark ? Colors.grey[500] : Colors.grey[600],
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w500,
+                                    letterSpacing: 0.2,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  publication.getTitle(),
+                                  style: TextStyle(
+                                    color: isDark ? Colors.grey[300] : Colors.grey[700],
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w500,
+                                    letterSpacing: -0.1,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  '${publication.keySymbol} - ${publication.year}',
+                                  style: TextStyle(
+                                    color: isDark ? Colors.grey[500] : Colors.grey[600],
+                                    fontSize: 11,
+                                    letterSpacing: 0.1,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
-              );
-            },
-          );
-        },
-      ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }

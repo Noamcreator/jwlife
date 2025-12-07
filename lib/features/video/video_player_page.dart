@@ -5,10 +5,12 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:jwlife/core/icons.dart';
+import 'package:jwlife/core/uri/jworg_uri.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/data/models/video.dart' hide Subtitles;
 import 'package:jwlife/data/databases/history.dart';
+import 'package:jwlife/widgets/qr_code_dialog.dart';
 
 import 'package:share_plus/share_plus.dart';
 import 'package:video_player/video_player.dart';
@@ -1366,7 +1368,7 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
               _startControlsTimer();
             },
             constraints: const BoxConstraints(minWidth: 2.0),
-            offset: const Offset(30, -300),
+            offset: const Offset(30, -350),
             popUpAnimationStyle: AnimationStyle(
               curve: Curves.fastLinearToSlowEaseIn,
               duration: const Duration(milliseconds: 200),
@@ -1377,9 +1379,20 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
               PopupMenuItem(
                 onTap: () {
                   Future.delayed(Duration.zero, () {
-                    final uri = Uri.parse('https://www.jw.org/finder?srcid=jwlshare&wtlocale=${widget.video.mepsLanguage}&lank=${widget.video.naturalKey}');
-                    SharePlus.instance.share(
-                        ShareParams(title: widget.video.title, uri: uri)
+                    // Convertir l'entier en String pour l'URL
+                    String ts = formatTs(_positionNotifier.value, _duration.inSeconds.toDouble());
+
+                    // Construction de l'URI
+                    String uri = JwOrgUri.mediaItem(
+                        wtlocale: widget.video.mepsLanguage!,
+                        lank: widget.video.naturalKey!,
+                        ts: ts // Ici, ts = "124"
+                    ).toString();
+
+                    // Partage
+                    SharePlus.instance.share(ShareParams(
+                        title: widget.video.title,
+                        uri: Uri.parse(uri))
                     );
                   });
                 },
@@ -1388,6 +1401,23 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
                     const Icon(JwIcons.share),
                     const SizedBox(width: 10),
                     Text(i18n().action_open_in_share),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                onTap: () {
+                  Future.delayed(Duration.zero, () {
+                    String ts = formatTs(_positionNotifier.value, _duration.inSeconds.toDouble());
+
+                    JwOrgUri uri = JwOrgUri.mediaItem(wtlocale: widget.video.mepsLanguage!, lank: widget.video.naturalKey!, ts: ts);
+                    showQrCodeDialog(context, widget.video.title, uri.toString());
+                  });
+                },
+                child: Row(
+                  children: [
+                    const Icon(JwIcons.qr_code),
+                    const SizedBox(width: 10),
+                    Text(i18n().action_qr_code),
                   ],
                 ),
               ),

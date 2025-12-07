@@ -1603,8 +1603,10 @@ function showToolbar(paragraphs, pid, selector, hasAudio, type) {
                 query: pid
             })],
             ['&#xE6A3;', () => callHandler('share', {
-                id: pid,
-                isBible: true
+                id: pid
+            })],
+            ['&#xE6DF;', () => callHandler('qrCode', {
+                id: pid
             })],
         ];
     } else {
@@ -1616,8 +1618,10 @@ function showToolbar(paragraphs, pid, selector, hasAudio, type) {
                 isBible: false
             })],
             ['&#xE6A3;', () => callHandler('share', {
-                id: pid,
-                isBible: false
+                id: pid
+            })],
+            ['&#xE6DF;', () => callHandler('qrCode', {
+                id: pid
             })],
             ['&#xE651;', () => callHandler('copyText', {
                 text: paragraph.innerText

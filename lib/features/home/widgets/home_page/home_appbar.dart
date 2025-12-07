@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:jwlife/app/jwlife_app_bar.dart';
 import 'package:jwlife/core/app_data/app_data_service.dart';
+import 'package:jwlife/core/uri/jworg_uri.dart';
+import 'package:jwlife/core/uri/utils_uri.dart';
 import 'package:jwlife/core/utils/utils_language_dialog.dart';
 import 'package:jwlife/widgets/responsive_appbar_actions.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../../../../app/services/settings_service.dart';
 import '../../../../core/icons.dart';
@@ -10,6 +13,7 @@ import '../../../../core/shared_preferences/shared_preferences_utils.dart';
 import '../../../../core/ui/text_styles.dart';
 import '../../../../data/databases/history.dart';
 import '../../../../i18n/i18n.dart';
+import '../../../../widgets/qr_code_dialog.dart';
 import '../../../../widgets/searchfield/searchfield_all_widget.dart';
 
 class HomeAppBar extends StatefulWidget implements PreferredSizeWidget {
@@ -41,6 +45,23 @@ class _HomeAppBarState extends State<HomeAppBar> {
 
   void onOpenHistory(BuildContext context) {
     History.showHistoryDialog(context);
+  }
+
+  Future<void> onOpenQrScanner(BuildContext context) async {
+    final Barcode? result = await showQrCodeScanner(context);
+
+    if (result != null) {
+      // Le code a été scanné avec succès
+      final String? scannedData = result.rawValue;
+      print('Code QR scanné : $scannedData');
+
+      JwOrgUri uri = JwOrgUri.parse(scannedData!);
+      handleUri(uri);
+    }
+    else {
+      // L'utilisateur a annulé le scanner
+      print('Scanner annulé.');
+    }
   }
 
   void onOpenLanguageDialog(BuildContext context) async {
@@ -87,10 +108,16 @@ class _HomeAppBarState extends State<HomeAppBar> {
           onPressed: onOpenLanguageDialog,
         ),
         IconTextButton(
+          icon: const Icon(JwIcons.qr_code),
+          onPressed: onOpenQrScanner,
+          text: i18n().action_scan_qr_code,
+        ),
+        IconTextButton(
           icon: const Icon(JwIcons.gear),
           onPressed: (BuildContext context) {
             widget.onOpenSettings();
           },
+          text: i18n().action_settings,
         ),
       ],
     );

@@ -322,6 +322,7 @@ class _RectanglePlaylistItemItemState extends State<RectanglePlaylistItemItem> {
                         if (media != null && media is Video) {
                           items.addAll([
                             getVideoShareItem(media),
+                            getVideoQrCode(context, media),
                             getVideoAddPlaylistItem(context, media),
                             getVideoLanguagesItem(context, media),
                             getVideoFavoriteItem(media),
@@ -335,6 +336,7 @@ class _RectanglePlaylistItemItemState extends State<RectanglePlaylistItemItem> {
                         if (media != null && media is Audio) {
                           items.addAll([
                             getAudioShareItem(media),
+                            getAudioQrCode(context, media),
                             getAudioAddPlaylistItem(context, media),
                             getAudioLanguagesItem(context, media),
                             getAudioFavoriteItem(media),

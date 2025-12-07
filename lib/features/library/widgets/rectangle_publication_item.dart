@@ -162,6 +162,7 @@ class RectanglePublicationItem extends StatelessWidget {
           icon: const Icon(Icons.more_horiz, color: Color(0xFF9d9d9d)),
           itemBuilder: (context) => [
             getPubShareMenuItem(publication),
+            getPubQrCodeMenuItem(context, publication),
             getPubLanguagesItem(context, i18n().label_languages_more, publication),
             getPubFavoriteItem(publication),
             getPubDownloadItem(context, publication),

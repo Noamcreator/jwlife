@@ -156,6 +156,7 @@ class RectangleMediaItemItem extends StatelessWidget {
               : media is Video
               ? [
             getVideoShareItem(media as Video),
+            getVideoQrCode(context, media as Video),
             getVideoAddPlaylistItem(context, media as Video),
             getVideoLanguagesItem(context, media as Video),
             getVideoFavoriteItem(media as Video),

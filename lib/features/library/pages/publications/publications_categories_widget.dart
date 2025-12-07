@@ -86,13 +86,15 @@ class PublicationsCategoriesWidget extends StatelessWidget {
   }
 
   Widget _buildCategoryButtonSync(BuildContext context, PublicationCategory category, Color textColor) {
+    final iconColor = Theme.of(context).brightness == Brightness.dark ? Color(0xFFC0C0C0) : Color(0xFF4F4F4F);
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20.0),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Icon(category.icon, size: 38.0, color: textColor),
-          const SizedBox(width: 20.0),
+          Icon(category.icon, size: 38.0, color: iconColor),
+          const SizedBox(width: 25.0),
           Expanded(
             child: Text(
               category.getName(),

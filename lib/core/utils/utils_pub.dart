@@ -15,6 +15,8 @@ import 'package:jwlife/data/models/publication.dart';
 import '../../app/services/global_key_service.dart';
 import '../../features/publication/widgets/audio_download_content.dart';
 import '../../i18n/i18n.dart';
+import '../../widgets/qr_code_dialog.dart';
+import '../uri/jworg_uri.dart';
 import 'utils_dialog.dart';
 import '../api/api.dart';
 
@@ -29,6 +31,28 @@ PopupMenuItem getPubShareMenuItem(Publication publication) {
     ),
     onTap: () async {
       publication.shareLink();
+    },
+  );
+}
+
+PopupMenuItem getPubQrCodeMenuItem(BuildContext context, Publication publication) {
+  return PopupMenuItem(
+    child: Row(
+      children: [
+        Icon(JwIcons.qr_code),
+        SizedBox(width: 8),
+        Text(i18n().action_qr_code),
+      ],
+    ),
+    onTap: () async {
+      String uri = JwOrgUri.publication(
+          wtlocale: publication.mepsLanguage.symbol,
+          pub: publication.keySymbol,
+          issue: publication.issueTagNumber
+      ).toString();
+
+      String? imagePath = publication.isDownloadedNotifier.value ? publication.imageSqr ?? publication.networkImageSqr : publication.networkImageSqr;
+      showQrCodeDialog(context, publication.getTitle(), uri, imagePath: imagePath);
     },
   );
 }

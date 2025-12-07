@@ -23,64 +23,161 @@ class _BibleSearchTabState extends State<BibleSearchTab> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return FutureBuilder<List<Map<String, dynamic>>>(
-      future: widget.model.fetchBible(), // appel async
+      future: widget.model.fetchBible(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+          return Center(
+            child: CircularProgressIndicator(
+              strokeWidth: 2.5,
+              valueColor: AlwaysStoppedAnimation<Color>(
+                isDark ? Colors.blue[300]! : Colors.blue[700]!,
+              ),
+            ),
+          );
         } else if (snapshot.hasError) {
-          return Center(child: Text('Erreur : ${snapshot.error}'));
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.error_outline_rounded,
+                    size: 48,
+                    color: isDark ? Colors.grey[600] : Colors.grey[400],
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Une erreur est survenue',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                      color: isDark ? Colors.grey[300] : Colors.grey[700],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '${snapshot.error}',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: isDark ? Colors.grey[500] : Colors.grey[500],
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          );
         } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return const Center(child: Text('Aucun résultat trouvé.'));
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.search_off_rounded,
+                    size: 64,
+                    color: isDark ? Colors.grey[700] : Colors.grey[300],
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Aucun résultat trouvé',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: isDark ? Colors.grey[300] : Colors.grey[700],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Essayez avec d\'autres termes de recherche',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: isDark ? Colors.grey[500] : Colors.grey[500],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
         }
 
         final results = snapshot.data!;
 
-        return ListView.builder(
-          padding: const EdgeInsets.all(10.0),
+        return ListView.separated(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          separatorBuilder: (context, index) => const SizedBox(height: 12),
           itemCount: results.length,
           itemBuilder: (context, index) {
             final item = results[index];
 
-            return GestureDetector(
-              onTap: () async {
-                String itemString = item['lank']; // "bv-62004016_nwtsty"
-                String itemString2 = itemString.split("-")[1].split("_")[0]; // "62004016"
+            return Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () async {
+                  String itemString = item['lank'];
+                  String itemString2 = itemString.split("-")[1].split("_")[0];
 
-                int bookNumber = int.parse(itemString2.substring(0, 2));  // 62
-                int chapterNumber = int.parse(itemString2.substring(2, 5));  // 4
-                int verseNumber = int.parse(itemString2.substring(5, 8));  // 16
+                  int bookNumber = int.parse(itemString2.substring(0, 2));
+                  int chapterNumber = int.parse(itemString2.substring(2, 5));
+                  int verseNumber = int.parse(itemString2.substring(5, 8));
 
-                List<String> wordsSelected = widget.model.query.split(' ');
-                showChapterView(context, 'nwtsty', JwLifeSettings.instance.currentLanguage.value.id, bookNumber, chapterNumber, firstVerseNumber: verseNumber, lastVerseNumber: verseNumber, wordsSelected: wordsSelected);
-              },
-              child: Card(
-                  color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF292929) : Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                  margin: const EdgeInsets.symmetric(vertical: 5),
-                  child: Padding(
-                    padding: const EdgeInsets.all(13),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        TextHtmlWidget(
-                          text: item['title'],
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 18,
-                            color: Theme.of(context).brightness == Brightness.dark
-                                ? const Color(0xFFa0b9e2)
-                                : const Color(0xFF4a6da7),
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        TextHtmlWidget(
-                          text: item['snippet'],
-                          style: const TextStyle(fontSize: 18),
-                        ),
-                      ],
+                  List<String> wordsSelected = widget.model.query.split(' ');
+                  showChapterView(
+                    context,
+                    'nwtsty',
+                    JwLifeSettings.instance.currentLanguage.value.id,
+                    bookNumber,
+                    chapterNumber,
+                    firstVerseNumber: verseNumber,
+                    lastVerseNumber: verseNumber,
+                    wordsSelected: wordsSelected,
+                  );
+                },
+                borderRadius: BorderRadius.circular(8),
+                child: Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: isDark ? Colors.grey[800]! : Colors.grey[200]!,
+                      width: 1,
                     ),
-                  )
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Référence biblique (titre)
+                      TextHtmlWidget(
+                        text: item['title'],
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                          color: isDark ? const Color(0xFF9AB5E0) : const Color(0xFF4a6da7),
+                          letterSpacing: -0.1,
+                        ),
+                      ),
+
+                      const SizedBox(height: 10),
+
+                      // Snippet du verset
+                      TextHtmlWidget(
+                        text: item['snippet'],
+                        style: TextStyle(
+                          fontSize: 16,
+                          height: 1.5,
+                          color: isDark ? Colors.grey[200] : Colors.grey[800],
+                          letterSpacing: -0.1,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             );
           },

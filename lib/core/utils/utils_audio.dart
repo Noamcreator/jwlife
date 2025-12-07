@@ -21,6 +21,7 @@ import '../../app/services/settings_service.dart';
 import '../../features/audio/lyrics_page.dart';
 import '../../features/video/subtitles.dart';
 import '../../i18n/i18n.dart';
+import '../../widgets/qr_code_dialog.dart';
 import '../api/api.dart';
 import '../uri/jworg_uri.dart';
 import 'common_ui.dart';
@@ -81,6 +82,27 @@ PopupMenuItem getAudioShareItem(Audio audio) {
           uri: Uri.parse(uri),
         ),
       );
+    },
+  );
+}
+
+PopupMenuItem getAudioQrCode(BuildContext context, Audio audio) {
+  return PopupMenuItem(
+    child: Row(
+      children: [
+        Icon(JwIcons.qr_code),
+        SizedBox(width: 8),
+        Text(i18n().action_qr_code),
+      ],
+    ),
+    onTap: () {
+      String uri = JwOrgUri.mediaItem(
+          wtlocale: audio.mepsLanguage!,
+          lank: audio.naturalKey!
+      ).toString();
+
+      String? imagePath = audio.isDownloadedNotifier.value ? audio.imagePath ?? audio.networkImageSqr ?? audio.networkFullSizeImageSqr : audio.networkImageSqr ?? audio.networkFullSizeImageSqr;
+      showQrCodeDialog(context, audio.title, uri, imagePath: imagePath);
     },
   );
 }

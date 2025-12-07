@@ -39,6 +39,7 @@ import '../../../data/realm/catalog.dart';
 import '../../../i18n/i18n.dart';
 import '../../../widgets/dialog/publication_dialogs.dart';
 import '../../../core/utils/utils_dialog.dart';
+import '../../../widgets/qr_code_dialog.dart';
 import '../../../widgets/responsive_appbar_actions.dart';
 import '../../personal/pages/tag_page.dart';
 import '../../publication/pages/document/local/dated_text_manager.dart';
@@ -635,7 +636,7 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
                       controller.addJavaScriptHandler(
                         handlerName: 'fetchVerses',
                         callback: (args) async {
-                          Map<String, dynamic>? verses = await fetchVerses(widget.publication, args[0]);
+                          Map<String, dynamic>? verses = await fetchVerses(args[0]);
                           return verses;
                         },
                       );
@@ -643,7 +644,7 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
                       controller.addJavaScriptHandler(
                         handlerName: 'fetchGuideVerse',
                         callback: (args) async {
-                          Map<String, dynamic>? extractPublication = await fetchGuideVerse(context, widget.publication, args[0]);
+                          Map<String, dynamic>? extractPublication = await fetchGuideVerse(context, args[0]);
                           if (extractPublication != null) {
                             return extractPublication;
                           }
@@ -785,6 +786,17 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
                           final int id = arg['id'];
 
                           widget.publication.datedTextManager!.getCurrentDatedText().share(id: id);
+                        },
+                      );
+
+                      controller.addJavaScriptHandler(
+                        handlerName: 'qrCode',
+                        callback: (args) async {
+                          final arg = args[0];
+                          final int id = arg['id'];
+
+                          String uri = widget.publication.datedTextManager!.getCurrentDatedText().share(id: id, hide: true);
+                          showQrCodeDialog(context, widget.publication.datedTextManager!.getCurrentDatedText().getTitle(), uri);
                         },
                       );
 
@@ -1120,9 +1132,17 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
                     ),
                     IconTextButton(
                       text: i18n().action_open_in_share,
-                      icon: Icon(JwIcons.share),
+                      icon: const Icon(JwIcons.share),
                       onPressed: (anchorContext) {
                         widget.publication.datedTextManager!.getCurrentDatedText().share();
+                      },
+                    ),
+                    IconTextButton(
+                      text: i18n().action_qr_code,
+                      icon: const Icon(JwIcons.qr_code),
+                      onPressed: (anchorContext) {
+                        String uri = widget.publication.datedTextManager!.getCurrentDatedText().share(hide: true);
+                        showQrCodeDialog(context, widget.publication.datedTextManager!.getCurrentDatedText().getTitle(), uri);
                       },
                     ),
                     IconTextButton(

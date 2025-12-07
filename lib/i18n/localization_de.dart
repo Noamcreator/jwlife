@@ -3124,4 +3124,10 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get action_blocking_horizontally_mode => 'Horizontale Blockierung';
+
+  @override
+  String get action_qr_code => 'QR-Code generieren';
+
+  @override
+  String get action_scan_qr_code => 'QR-Code scannen';
 }

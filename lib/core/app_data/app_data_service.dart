@@ -10,7 +10,9 @@ import 'package:jwlife/core/app_data/meetings_pubs_service.dart';
 import 'package:jwlife/data/databases/catalog.dart';
 import 'package:jwlife/data/models/media.dart';
 import 'package:jwlife/data/models/meps_language.dart';
+import 'package:sqflite_common/sqlite_api.dart';
 
+import '../../app/startup/auto_update.dart';
 import '../../data/databases/mepsunit.dart';
 import '../../data/models/publication.dart';
 import '../../app/jwlife_app.dart';
@@ -19,6 +21,7 @@ import '../../data/realm/catalog.dart';
 import '../../data/realm/realm_library.dart';
 import '../../features/publication/pages/document/data/models/document.dart';
 import '../../i18n/i18n.dart';
+import '../utils/assets_downloader.dart';
 import '../utils/common_ui.dart';
 import '../utils/files_helper.dart';
 import '../utils/utils.dart';
@@ -92,7 +95,9 @@ class AppDataService {
       return;
     }
 
-    showBottomMessage(i18n().label_update_available);
+    if (!first) {
+      showBottomMessage(i18n().label_update_available);
+    }
 
     isRefreshing.value = true;
 
@@ -134,7 +139,6 @@ class AppDataService {
   Future<void> loadAllContentData({MepsLanguage? language, bool first = true, bool library = true}) async {
     MepsLanguage currentLanguage = language ?? JwLifeSettings.instance.currentLanguage.value;
 
-    final database = CatalogDb.instance.database;
     final String publicationSelectQuery = CatalogDb.publicationSelectQuery;
     final String publicationQuery = CatalogDb.publicationQuery;
 
@@ -145,20 +149,26 @@ class AppDataService {
       favorites.value = await JwLifeApp.userdata.fetchFavorites();
     }
 
-    // On affiche la page principal !
-    GlobalKeyService.jwLifeAppKey.currentState!.finishInitialized();
-
-    refreshContent(first: language != null || first);
-
     final mepsFile = await getMepsUnitDatabaseFile();
-    final historyFile = await getHistoryDatabaseFile();
 
-    if (allFilesExist([mepsFile, historyFile])) {
+    final catalogFile = await getCatalogDatabaseFile();
+    bool isCatalogFileExist = catalogFile.existsSync();
+
+    final historyFile = await getHistoryDatabaseFile();
+    bool isHistoryFileExist = historyFile.existsSync();
+
+    await CatalogDb.instance.init(catalogFile);
+
+    if (isCatalogFileExist) {
+      late Database database = CatalogDb.instance.database;
+
       try {
         // ATTACH et requêtes dans la transaction
         await database.transaction((txn) async {
           await txn.execute("ATTACH DATABASE '${mepsFile.path}' AS meps");
-          await txn.execute("ATTACH DATABASE '${historyFile.path}' AS history");
+          if(isHistoryFileExist) {
+            await txn.execute("ATTACH DATABASE '${historyFile.path}' AS history");
+          }
 
           String formattedDate = DateTime.now().toIso8601String().split('T').first;
           final languageId = currentLanguage.id;
@@ -198,9 +208,12 @@ class AppDataService {
             }
           }
 
+          // On affiche la page principal !
+          GlobalKeyService.jwLifeAppKey.currentState!.finishInitialized();
+
           printTime('End: Dated Publications');
 
-          if(first) {
+          if(first && isHistoryFileExist) {
             printTime('Start: Recent Publications');
             result2 = await txn.rawQuery('''
               SELECT DISTINCT
@@ -310,29 +323,47 @@ class AppDataService {
           AppDataService.instance.otherMeetingsPublications.value = result5.map((pub) => Publication.fromJson(pub)).toList();
 
           await txn.execute("DETACH DATABASE meps");
-          await txn.execute("DETACH DATABASE history");
+
+          if(isHistoryFileExist) {
+            await txn.execute("DETACH DATABASE history");
+          }
         });
       }
       catch (e) {
         printTime('Error loading PublicationsInHomePage: $e');
       }
+    }
+    else {
+      GlobalKeyService.jwLifeAppKey.currentState!.finishInitialized();
+    }
 
-      GlobalKeyService.jwLifePageKey.currentState!.loadAllNavigator();
+    if(library) {
+      refreshContent(first: language != null || first);
+    }
 
+    if(isCatalogFileExist) {
       CatalogDb.instance.updateCatalogCategories();
       RealmLibrary.updateLibraryCategories();
 
-      await refreshMeetingsPubs();
+      await refreshMeetingsPubs(pubs: [?midweekMeetingPub.value, ?weekendMeetingPub.value]);
       refreshPublicTalks();
-
-      await Mepsunit.loadBibleCluesInfo();
-
-      CatalogDb.instance.fetchAssemblyPublications();
-
-      currentLanguage.loadWolInfo();
     }
-    else {
-      printTime('Catalog file does not exist');
+
+    await Mepsunit.loadBibleCluesInfo();
+
+    GlobalKeyService.jwLifePageKey.currentState!.loadAllNavigator();
+
+    if(isCatalogFileExist) {
+      await CatalogDb.instance.fetchAssemblyPublications();
+    }
+
+    currentLanguage.loadWolInfo();
+
+    // Étape 4 : Vérification de la connexion et mise à jour (performance)
+    final isConnected = await hasInternetConnection();
+    if (isConnected) {
+      JwLifeAutoUpdater.checkAndUpdate();
+      AssetsDownload.download();
     }
   }
 }

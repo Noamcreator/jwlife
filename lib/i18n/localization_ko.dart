@@ -3008,4 +3008,10 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get action_blocking_horizontally_mode => '수평 차단';
+
+  @override
+  String get action_qr_code => 'QR 코드 생성';
+
+  @override
+  String get action_scan_qr_code => 'QR 코드 스캔';
 }

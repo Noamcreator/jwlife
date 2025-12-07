@@ -907,5 +907,7 @@
   "action_congregations": "지방회",
   "action_meeting_management": "집회 계획",
   "action_brothers_and_sisters": "형제 자매",
-  "action_blocking_horizontally_mode": "수평 차단"
+  "action_blocking_horizontally_mode": "수평 차단",
+  "action_qr_code": "QR 코드 생성",
+  "action_scan_qr_code": "QR 코드 스캔"
 }

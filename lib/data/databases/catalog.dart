@@ -61,8 +61,7 @@ class CatalogDb {
     LEFT JOIN PublicationAttributeMap pam ON p.Id = pam.PublicationId
   ''';
 
-  Future<void> init() async {
-    File catalogFile = await getCatalogDatabaseFile();
+  Future<void> init(File catalogFile) async {
     if(await catalogFile.exists()) {
       database = await openReadOnlyDatabase(catalogFile.path);
     }
@@ -200,7 +199,7 @@ class CatalogDb {
           SELECT
             $publicationQuery
           $languageRequest 
-          AND LOWER(p.KeySymbol) = LOWER(?) 
+          ${issueTagNumber != 0 ? 'AND LOWER(p.Symbol) = LOWER(?)' : 'AND LOWER(p.KeySymbol) = LOWER(?)'}
           AND p.IssueTagNumber = ?
           LIMIT 1
         ''', [language, keySymbol, issueTagNumber]);
@@ -384,6 +383,38 @@ class CatalogDb {
       }
     }
     return null;
+  }
+
+  /// Rechercher une publication par mepsDocumentId et la langue.
+  Future<Publication?> searchPubNoMepsFromMepsDocumentId(int mepsDocumentId, int mepsLanguageId) async {
+    try {
+      final publications = await database.rawQuery('''
+          SELECT DISTINCT
+           p.*,
+           pa.LastModified, 
+           pa.CatalogedOn,
+           pa.Size,
+           pa.ExpandedSize,
+           pa.SchemaVersion,
+           pam.PublicationAttributeId,
+           (SELECT ia.NameFragment 
+            FROM PublicationAssetImageMap paim 
+            JOIN ImageAsset ia ON paim.ImageAssetId = ia.Id 
+            WHERE paim.PublicationAssetId = pa.Id  AND (ia.Width = 270 AND ia.Height = 270)
+            LIMIT 1) AS ImageSqr
+          FROM PublicationDocument pd
+          INNER JOIN Publication p ON pd.PublicationId = p.Id
+          INNER JOIN PublicationAsset pa ON p.Id = pa.PublicationId
+          LEFT JOIN PublicationAttributeMap pam ON p.Id = pam.PublicationId
+          WHERE pd.DocumentId = ? AND p.MepsLanguageId = ?
+          LIMIT 1
+        ''', [mepsDocumentId, mepsLanguageId]);
+
+      return publications.isNotEmpty ? Publication.fromJson(publications.first) : null;
+    }
+    catch (e) {
+      return null;
+    }
   }
 
   /// Charge les publications d'une catégorie

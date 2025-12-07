@@ -29,16 +29,14 @@ import '../features/audio/audio_player_model.dart';
 import '../features/home/pages/daily_text_page.dart';
 import '../features/publication/pages/document/local/document_page.dart';
 import '../i18n/localization.dart';
-import '../widgets/webview_manager.dart';
 import 'jwlife_page.dart';
-import 'startup/copy_assets.dart';
 
 class _JwLifePageContainer extends StatelessWidget {
   const _JwLifePageContainer();
 
   @override
   Widget build(BuildContext context) {
-    return Stack(children: [WebViewManager.instance.preloaderWidget(), JwLifePage(key: GlobalKeyService.jwLifePageKey)]);
+    return JwLifePage(key: GlobalKeyService.jwLifePageKey);
   }
 }
 
@@ -199,7 +197,6 @@ class JwLifeAppState extends State<JwLifeApp> {
 
     // Étape 2 : Initialisation asynchrone et parallèle (performance)
     await Future.wait([
-      CopyAssets.copy(),
       JwLifeApp.pubCollections.init(),
       JwLifeApp.mediaCollections.init(),
       TilesCache().init(),
@@ -207,15 +204,6 @@ class JwLifeAppState extends State<JwLifeApp> {
 
     // Étape 3 : Initialisation séquentielle des données utilisateur et catalogue
     await JwLifeApp.userdata.init();
-    await CatalogDb.instance.init();
-
-    // Étape 4 : Vérification de la connexion et mise à jour (performance)
-    final isConnected = await hasInternetConnection();
-    if (isConnected) {
-      await Api.fetchCurrentJwToken();
-      JwLifeAutoUpdater.checkAndUpdate();
-      AssetsDownload.download();
-    }
 
     // Calculer la Brightness effective pour le web view.
     final isDark = _themeMode == ThemeMode.system ? MediaQuery.of(context).platformBrightness == Brightness.dark : _themeMode == ThemeMode.dark;

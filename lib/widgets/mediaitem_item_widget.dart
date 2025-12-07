@@ -291,6 +291,7 @@ class _MediaItemItemWidgetState extends State<MediaItemItemWidget> {
           return widget.media is Audio
               ? [
             getAudioShareItem(widget.media as Audio),
+            getAudioQrCode(context, widget.media as Audio),
             getAudioAddPlaylistItem(context, widget.media as Audio),
             getAudioLanguagesItem(context, widget.media as Audio),
             getAudioFavoriteItem(widget.media as Audio),
@@ -299,6 +300,7 @@ class _MediaItemItemWidgetState extends State<MediaItemItemWidget> {
             getCopyLyricsItem(widget.media as Audio),
           ] : [
             getVideoShareItem(widget.media as Video),
+            getVideoQrCode(context, widget.media as Video),
             getVideoAddPlaylistItem(context, widget.media as Video),
             getVideoLanguagesItem(context, widget.media as Video),
             getVideoFavoriteItem(widget.media as Video),

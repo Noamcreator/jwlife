@@ -331,6 +331,7 @@ class _AudioItemsPageState extends State<AudioItemsPage> {
                           padding: EdgeInsets.zero,
                           itemBuilder: (context) => [
                             getAudioShareItem(audio),
+                            getAudioQrCode(context, audio),
                             getAudioAddPlaylistItem(context, audio),
                             getAudioLanguagesItem(context, audio),
                             getAudioFavoriteItem(audio),

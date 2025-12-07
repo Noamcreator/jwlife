@@ -29,6 +29,7 @@ import 'package:jwlife/data/realm/catalog.dart';
 import 'package:jwlife/features/home/pages/search/search_page.dart';
 import 'package:jwlife/widgets/dialog/publication_dialogs.dart';
 import 'package:jwlife/core/utils/utils_dialog.dart';
+import 'package:jwlife/widgets/qr_code_dialog.dart';
 import 'package:jwlife/widgets/responsive_appbar_actions.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:provider/provider.dart';
@@ -956,7 +957,7 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
                   controller.addJavaScriptHandler(
                     handlerName: 'fetchVerses',
                     callback: (args) async {
-                      Map<String, dynamic>? verses = await fetchVerses(widget.publication, args[0]);
+                      Map<String, dynamic>? verses = await fetchVerses(args[0]);
                       return verses;
                     },
                   );
@@ -964,7 +965,7 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
                   controller.addJavaScriptHandler(
                     handlerName: 'fetchGuideVerse',
                     callback: (args) async {
-                      Map<String, dynamic>? extractPublication = await fetchGuideVerse(context, widget.publication, args[0]);
+                      Map<String, dynamic>? extractPublication = await fetchGuideVerse(context, args[0]);
                       if (extractPublication != null) {
                         return extractPublication;
                       }
@@ -1205,11 +1206,21 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
                     handlerName: 'share',
                     callback: (args) async {
                       final arg = args[0];
-
-                      final bool isBible = arg['isBible'];
                       final int id = arg['id'];
 
-                      widget.publication.documentsManager!.getCurrentDocument().share(isBible, id: id);
+                      widget.publication.documentsManager!.getCurrentDocument().share(id: id);
+                    },
+                  );
+
+                  // Gestionnaire pour les modifications des champs de formulaire
+                  controller.addJavaScriptHandler(
+                    handlerName: 'qrCode',
+                    callback: (args) async {
+                      final arg = args[0];
+                      final int id = arg['id'];
+
+                      String uri = widget.publication.documentsManager!.getCurrentDocument().share(id: id, hide: true);
+                      showQrCodeDialog(context, widget.publication.documentsManager!.getCurrentDocument().getDisplayTitle(), uri);
                     },
                   );
 
@@ -1836,7 +1847,15 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
                     text: i18n().action_open_in_share,
                     icon: const Icon(JwIcons.share),
                     onPressed: (anchorContext) {
-                      widget.publication.documentsManager!.getCurrentDocument().share(widget.publication.documentsManager!.getCurrentDocument().isBibleChapter());
+                      widget.publication.documentsManager!.getCurrentDocument().share();
+                    },
+                  ),
+                  IconTextButton(
+                    text: i18n().action_qr_code,
+                    icon: const Icon(JwIcons.qr_code),
+                    onPressed: (anchorContext) {
+                      String uri = widget.publication.documentsManager!.getCurrentDocument().share(hide: true);
+                      showQrCodeDialog(context, widget.publication.documentsManager!.getCurrentDocument().getDisplayTitle(), uri);
                     },
                   ),
                   if (widget.publication.documentsManager!.getCurrentDocument().svgs.isNotEmpty)

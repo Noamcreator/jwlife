@@ -17,8 +17,8 @@ void refreshPublicTalks() {
 }
 
 Future<void> refreshMeetingsPubs({List<Publication>? pubs, DateTime? date}) async {
-  Publication? midweekMeetingPub = pubs?.firstWhereOrNull((pub) => pub.keySymbol.contains('mwb')) ?? AppDataService.instance.midweekMeetingPub.value;
-  Publication? weekendMeetingPub = pubs?.firstWhereOrNull((pub) => pub.keySymbol.contains(RegExp(r'(?<!m)w'))) ?? AppDataService.instance.weekendMeetingPub.value;
+  Publication? midweekMeetingPub = pubs?.firstWhereOrNull((pub) => pub.keySymbol.contains('mwb'));
+  Publication? weekendMeetingPub = pubs?.firstWhereOrNull((pub) => pub.keySymbol.contains(RegExp(r'(?<!m)w')));
 
   if(midweekMeetingPub != AppDataService.instance.midweekMeetingPub.value) {
     AppDataService.instance.midweekMeetingPub.value = midweekMeetingPub;
@@ -34,7 +34,7 @@ Future<void> refreshMeetingsPubs({List<Publication>? pubs, DateTime? date}) asyn
     midweekListener = () async {
       if (midweekMeetingPub.isDownloadedNotifier.value) {
         midweekMeetingPub.isDownloadedNotifier.removeListener(midweekListener);
-        await refreshMeetingsPubs(); // relance propre
+        await refreshMeetingsPubs(pubs: pubs); // relance propre
       }
     };
 
@@ -57,7 +57,7 @@ Future<void> refreshMeetingsPubs({List<Publication>? pubs, DateTime? date}) asyn
     weekendListener = () async {
       if (weekendMeetingPub.isDownloadedNotifier.value) {
         weekendMeetingPub.isDownloadedNotifier.removeListener(weekendListener);
-        await refreshMeetingsPubs(); // relance propre
+        await refreshMeetingsPubs(pubs: pubs); // relance propre
       }
     };
 

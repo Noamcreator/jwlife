@@ -51,4 +51,30 @@ class Mepsunit {
     }
     return null;
   }
+
+  static Future<String?> getMepsLanguageSymbolFromId(int mepsLanguageId) async {
+    final mepsFile = await getMepsUnitDatabaseFile();
+
+    if (allFilesExist([mepsFile])) {
+      final mepsUnit = await openReadOnlyDatabase(mepsFile.path);
+
+      try {
+        final result = await mepsUnit.rawQuery('''
+          SELECT Symbol
+          FROM Language
+          WHERE LanguageId = ?
+        ''', [mepsLanguageId]);
+
+        if(result.isEmpty) {
+          return null;
+        }
+
+        return result.first['Symbol'] as String;
+      }
+      finally {
+        await mepsUnit.close();
+      }
+    }
+    return null;
+  }
 }

@@ -46,7 +46,8 @@ class AppTheme {
       tabBarTheme: TabBarThemeData(
         tabAlignment: TabAlignment.start,
         indicatorSize: TabBarIndicatorSize.tab,
-        labelStyle: TextStyle(fontSize: 15, fontFamily: 'NotoSansBold'),
+        //labelStyle: TextStyle(fontSize: 15, fontFamily: 'NotoSansBold'),
+        labelStyle: TextStyle(fontSize: 15, letterSpacing: 1.0, fontWeight: FontWeight.bold),
         unselectedLabelStyle: TextStyle(fontSize: 15, letterSpacing: 1.0),
         labelColor: primaryColor,
         unselectedLabelColor: const Color(0xFF4f4f4f),
@@ -182,7 +183,8 @@ class AppTheme {
         tabBarTheme: TabBarThemeData(
           tabAlignment: TabAlignment.start,
           indicatorSize: TabBarIndicatorSize.tab,
-          labelStyle: TextStyle(fontSize: 15, fontFamily: 'NotoSansBold'),
+          //labelStyle: TextStyle(fontSize: 15, fontFamily: 'NotoSansBold'),
+          labelStyle: TextStyle(fontSize: 15, letterSpacing: 1.0, fontWeight: FontWeight.bold),
           unselectedLabelStyle: TextStyle(fontSize: 15, letterSpacing: 1.0),
           labelColor: primaryColor,
           unselectedLabelColor: const Color(0xffffffff),

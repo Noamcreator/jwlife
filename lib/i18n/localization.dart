@@ -1672,7 +1672,7 @@ abstract class AppLocalizations {
   /// No description provided for @label_icon_extracted_content.
   ///
   /// In fr, this message translates to:
-  /// **'Publications données en référence'**
+  /// **'Extrait de publication'**
   String get label_icon_extracted_content;
 
   /// No description provided for @label_icon_footnotes.
@@ -5588,6 +5588,18 @@ abstract class AppLocalizations {
   /// In fr, this message translates to:
   /// **'Blocage Horizontal'**
   String get action_blocking_horizontally_mode;
+
+  /// No description provided for @action_qr_code.
+  ///
+  /// In fr, this message translates to:
+  /// **'Générer un code QR'**
+  String get action_qr_code;
+
+  /// No description provided for @action_scan_qr_code.
+  ///
+  /// In fr, this message translates to:
+  /// **'Scanner un Code QR'**
+  String get action_scan_qr_code;
 }
 
 class _AppLocalizationsDelegate

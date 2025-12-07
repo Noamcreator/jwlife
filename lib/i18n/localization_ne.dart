@@ -3097,4 +3097,10 @@ class AppLocalizationsNe extends AppLocalizations {
 
   @override
   String get action_blocking_horizontally_mode => 'तेर्सो अवरोध';
+
+  @override
+  String get action_qr_code => 'QR कोड उत्पन्न गर्नुहोस्';
+
+  @override
+  String get action_scan_qr_code => 'QR कोड स्क्यान गर्नुहोस्';
 }

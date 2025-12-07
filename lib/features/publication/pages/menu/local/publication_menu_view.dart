@@ -23,13 +23,13 @@ import 'package:jwlife/widgets/responsive_appbar_actions.dart';
 import 'package:jwlife/widgets/searchfield/searchfield_widget.dart';
 
 import '../../../../../app/app_page.dart';
-import '../../../../../app/services/global_key_service.dart';
 import '../../../../../app/services/settings_service.dart';
 import '../../../../../core/ui/app_dimens.dart';
 import '../../../../../core/shared_preferences/shared_preferences_utils.dart';
 import '../../../../../core/utils/utils_language_dialog.dart';
 import '../../../../../core/utils/utils_pub.dart';
 import '../../../../../i18n/i18n.dart';
+import '../../../../../widgets/qr_code_dialog.dart';
 import '../../../../bible/pages/bible_chapter_page.dart';
 import '../../../models/menu/local/menu_list_item.dart';
 import '../../../models/menu/local/publication_menu_model.dart';
@@ -88,8 +88,7 @@ class PublicationMenuViewState extends State<PublicationMenuView> with SingleTic
       });
     }
 
-    await _model.initAudio();
-    setState(() {});
+    _model.initAudio();
   }
 
   @override
@@ -120,7 +119,7 @@ class PublicationMenuViewState extends State<PublicationMenuView> with SingleTic
     final isRTL = widget.publication.mepsLanguage.isRtl;
     String subtitle = item.subTitle.replaceAll('​', '');
     bool showSubTitle = item.subTitle.isNotEmpty && subtitle != item.title;
-    // Utilise firstWhereOrNull pour gérer le cas où audios est introuvable
+
     Audio? audio = widget.publication.audiosNotifier.value.firstWhereOrNull((audio) => audio.documentId == item.mepsDocumentId);
 
     // ✅ CORRECTION 1: Sécurisation du chemin de l'image de l'article (widget.publications.path!)
@@ -210,22 +209,29 @@ class PublicationMenuViewState extends State<PublicationMenuView> with SingleTic
                 // Positionnement absolu : Right pour LTR, Left pour RTL.
                 right: isRTL ? null : -8,
                 left: isRTL ? -8 : null,
-                child: PopupMenuButton(
-                  // On utilise padding: EdgeInsets.zero pour annuler l'espace par défaut autour de l'icône
-                  padding: EdgeInsets.zero,
-                  icon: Icon(Icons.more_horiz, color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF8e8e8e) : const Color(0xFF757575)),
-                  itemBuilder: (context) {
-                    List<PopupMenuEntry> items = [
-                      PopupMenuItem(child: Row(children: [Icon(JwIcons.share, color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black), const SizedBox(width: 8.0), Text(i18n().action_open_in_share, style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black))]), onTap: () { widget.publication.documentsManager?.getDocumentFromMepsDocumentId(item.mepsDocumentId).share(false); }),
-                    ];
-                    if (audio != null && audio.fileSize != null) { // Ajout de la vérification audio.fileSize != null
-                      items.add(PopupMenuItem(child: Row(children: [Icon(JwIcons.cloud_arrow_down, color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black), const SizedBox(width: 8.0), ValueListenableBuilder<bool>(valueListenable: audio.isDownloadingNotifier, builder: (context, isDownloading, child) { return Text(isDownloading ? i18n().message_download_in_progress : audio.isDownloadedNotifier.value ? i18n().action_remove_audio_size(formatFileSize(audio.fileSize!)) : i18n().action_download_audio_size(formatFileSize(audio.fileSize!)), style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black)); }),]), onTap: () { if (audio.isDownloadedNotifier.value) { audio.remove(context); } else { audio.download(context); } }),
-                      );
-                      items.add(PopupMenuItem(child: Row(children: [Icon(JwIcons.headphones__simple, color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black), const SizedBox(width: 8.0), Text(i18n().action_play_audio, style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black))]), onTap: () { int index = widget.publication.audiosNotifier.value.indexWhere((audio) => audio.documentId == item.mepsDocumentId); if (index != -1) { showAudioPlayerPublicationLink(context, widget.publication, index); } }),
-                      );
-                    }
-                    return items;
-                  },
+                child: ValueListenableBuilder(
+                  valueListenable: widget.publication.audiosNotifier,
+                  builder: (context, value, child) {
+                    Audio? audio = value.firstWhereOrNull((audio) => audio.documentId == item.mepsDocumentId);
+                    return PopupMenuButton(
+                      // On utilise padding: EdgeInsets.zero pour annuler l'espace par défaut autour de l'icône
+                      padding: EdgeInsets.zero,
+                      icon: Icon(Icons.more_horiz, color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF8e8e8e) : const Color(0xFF757575)),
+                      itemBuilder: (context) {
+                        List<PopupMenuEntry> items = [
+                          PopupMenuItem(child: Row(children: [Icon(JwIcons.share, color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black), const SizedBox(width: 8.0), Text(i18n().action_open_in_share, style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black))]), onTap: () { widget.publication.documentsManager?.getDocumentFromMepsDocumentId(item.mepsDocumentId).share(hide: true); }),
+                          PopupMenuItem(child: Row(children: [Icon(JwIcons.qr_code, color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black), const SizedBox(width: 8.0), Text(i18n().action_qr_code, style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black))]), onTap: () { String? uri = widget.publication.documentsManager?.getDocumentFromMepsDocumentId(item.mepsDocumentId).share(); if(uri != null) {showQrCodeDialog(context, item.title, uri);}}),
+                        ];
+                        if (audio != null && audio.fileSize != null) { // Ajout de la vérification audio.fileSize != null
+                          items.add(PopupMenuItem(child: Row(children: [Icon(JwIcons.cloud_arrow_down, color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black), const SizedBox(width: 8.0), ValueListenableBuilder<bool>(valueListenable: audio.isDownloadingNotifier, builder: (context, isDownloading, child) { return Text(isDownloading ? i18n().message_download_in_progress : audio.isDownloadedNotifier.value ? i18n().action_remove_audio_size(formatFileSize(audio.fileSize!)) : i18n().action_download_audio_size(formatFileSize(audio.fileSize!)), style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black)); }),]), onTap: () { if (audio.isDownloadedNotifier.value) { audio.remove(context); } else { audio.download(context); } }),
+                          );
+                          items.add(PopupMenuItem(child: Row(children: [Icon(JwIcons.headphones__simple, color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black), const SizedBox(width: 8.0), Text(i18n().action_play_audio, style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black))]), onTap: () { int index = widget.publication.audiosNotifier.value.indexWhere((audio) => audio.documentId == item.mepsDocumentId); if (index != -1) { showAudioPlayerPublicationLink(context, widget.publication, index); } }),
+                          );
+                        }
+                        return items;
+                      },
+                    );
+                  }
                 ),
               ),
 
@@ -1010,6 +1016,7 @@ class PublicationMenuViewState extends State<PublicationMenuView> with SingleTic
           IconTextButton(text: i18n().action_download_media, icon: const Icon(JwIcons.cloud_arrow_down), onPressed: (anchorContext) { showDownloadMediasDialog(context, widget.publication); }),
           IconTextButton(text: i18n().action_history, icon: const Icon(JwIcons.arrow_circular_left_clock), onPressed: (anchorContext) { History.showHistoryDialog(context); }),
           IconTextButton(text: i18n().action_open_in_share, icon: const Icon(JwIcons.share), onPressed: (anchorContext) { widget.publication.shareLink(); }),
+          IconTextButton(text: i18n().action_qr_code, icon: const Icon(JwIcons.qr_code), onPressed: (anchorContext) { String uri = widget.publication.shareLink(hide: true); showQrCodeDialog(context, widget.publication.getTitle(), uri); }),
         ],
       ),
       body: Directionality(textDirection: textDirection, child: _buildPublication()),

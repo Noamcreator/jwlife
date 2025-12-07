@@ -25,7 +25,9 @@ class TextHtmlWidget extends StatelessWidget {
       overflow: overflow ?? TextOverflow.clip,
       textAlign: textAlign ?? TextAlign.start,
       text: TextSpan(
-        style: style,
+        style: style.copyWith(
+          fontFamily: 'Roboto',
+        ),
         children: _parseHtml(context, text, style),
       ),
     );
@@ -104,9 +106,11 @@ class TextHtmlWidget extends StatelessWidget {
                   : const Color(0xFFfff9bb),
             )
                 : newStyle.copyWith(fontWeight: FontWeight.bold);
-          } else if (tag == 'em') {
+          }
+          else if (tag == 'em') {
             newStyle = newStyle.copyWith(fontStyle: FontStyle.italic);
-          } else if (tag == 'span' && classAttr == 'altsize') {
+          }
+          else if (tag == 'span' && classAttr == 'altsize') {
             newStyle = newStyle.copyWith(
               fontSize: (newStyle.fontSize ?? 14) * 0.8,
             );

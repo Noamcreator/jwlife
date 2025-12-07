@@ -19,6 +19,7 @@ import '../../../app/services/settings_service.dart';
 import '../../../core/utils/utils_document.dart';
 import '../../../data/models/userdata/bookmark.dart';
 import '../../../i18n/i18n.dart';
+import '../../../widgets/qr_code_dialog.dart';
 import '../models/bible_chapter_model.dart';
 import 'bible_book_medias_page.dart';
 
@@ -170,6 +171,15 @@ class _BibleChapterPageState extends State<BibleChapterPage> {
                   uri: Uri.tryParse(_controller.getShareUri()),
                 ),
               );
+            },
+          ),
+          IconTextButton(
+            text: i18n().action_qr_code,
+            icon: Icon(JwIcons.qr_code),
+            onPressed: (anchorContext) {
+              Uri? uri = Uri.tryParse(_controller.getShareUri());
+              String title = currentBook.bookInfo['BookName'];
+              showQrCodeDialog(context, title, uri.toString());
             },
           ),
         ],

@@ -320,15 +320,10 @@ class Document {
     return content;
   }
 
-  void share(bool isBible, {int? id}) {
-    String uri;
+  String share({int? id, hide = false}) {
+    String uri = '';
 
-    if (isBible) {
-      // Vérifie que les propriétés nécessaires sont bien définies
-      if (!isBibleChapter()) {
-        throw Exception('bookNumber et chapterNumberBible doivent être définis.');
-      }
-
+    if (isBibleChapter()) {
       final int bookNum = bookNumber!;
       final int chapterNum = chapterNumberBible!;
       final int verseNum = id ?? 0;
@@ -353,12 +348,16 @@ class Document {
       ).toString();
     }
 
-    SharePlus.instance.share(
-      ShareParams(
-        title: title,
-        uri: Uri.tryParse(uri),
-      ),
-    );
+    if(!hide) {
+      SharePlus.instance.share(
+        ShareParams(
+          title: title,
+          uri: Uri.tryParse(uri),
+        ),
+      );
+    }
+
+    return uri;
   }
 
   String getDisplayTitle() {

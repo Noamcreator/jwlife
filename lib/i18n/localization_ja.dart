@@ -2997,4 +2997,10 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get action_blocking_horizontally_mode => '水平方向のブロック';
+
+  @override
+  String get action_qr_code => 'QRコードを生成';
+
+  @override
+  String get action_scan_qr_code => 'QRコードをスキャン';
 }

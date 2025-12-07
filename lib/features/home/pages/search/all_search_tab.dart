@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/utils_audio.dart';
 import 'package:jwlife/core/utils/utils_document.dart';
 import 'package:jwlife/core/utils/utils_video.dart';
@@ -30,14 +31,15 @@ class _AllSearchTabState extends State<AllSearchTab> {
     super.initState();
   }
 
-  // Hauteur fixe raisonnable pour les versets/snippets.
-  static const double _verseListHeight = 180.0;
+  static const double _verseListHeight = 160.0;
 
   Widget _buildVerseList(dynamic result) {
-    // Rétablissement de la hauteur fixe pour une performance optimale et des contraintes claires.
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return SizedBox(
       height: _verseListHeight,
       child: ListView.builder(
+        padding: const EdgeInsets.symmetric(horizontal: 12),
         scrollDirection: Axis.horizontal,
         itemCount: result['results'].length,
         itemBuilder: (context, verseIndex) {
@@ -49,65 +51,57 @@ class _AllSearchTabState extends State<AllSearchTab> {
 
               printTime('Item tapped: $itemString2');
 
-              // Le verset est toujours les 3 derniers chiffres
               int verseNumber = int.parse(itemString2.substring(itemString2.length - 3));
-
-              // La partie qui reste contient le livre et le chapitre
               String remainingString = itemString2.substring(0, itemString2.length - 3);
-
-              // Le chapitre est les 3 derniers chiffres de la partie restante
               int chapterNumber = int.parse(remainingString.substring(remainingString.length - 3));
-
-              // Le livre est le reste de la chaîne
               int bookNumber = int.parse(remainingString.substring(0, remainingString.length - 3));
 
               List<String> wordsSelected = widget.model.query.split(' ');
               showChapterView(context, 'nwtsty', JwLifeSettings.instance.currentLanguage.value.id, bookNumber, chapterNumber, firstVerseNumber: verseNumber, lastVerseNumber: verseNumber, wordsSelected: wordsSelected);
             },
             child: Container(
-                width: 250,
-                margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF292929) : Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      spreadRadius: 1,
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
+              width: 240,
+              margin: const EdgeInsets.only(right: 12, top: 4, bottom: 4),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: isDark ? Colors.grey[800]! : Colors.grey[200]!,
+                  width: 1,
+                ),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    TextHtmlWidget(
+                      text: item['title'].replaceAll("&nbsp;", " "),
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                        color: isDark ? const Color(0xFF9AB5E0) : const Color(0xFF4a6da7),
+                        letterSpacing: -0.1,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 8),
+                    Expanded(
+                      child: TextHtmlWidget(
+                        text: item['snippet'],
+                        style: TextStyle(
+                          fontSize: 14,
+                          height: 1.4,
+                          color: isDark ? Colors.grey[300] : Colors.grey[800],
+                        ),
+                        maxLines: 4,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                   ],
                 ),
-                child: Padding(
-                  padding: const EdgeInsets.all(13),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      TextHtmlWidget(
-                        text: item['title'].replaceAll("&nbsp;", " "),
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 18,
-                          color: Theme.of(context).brightness == Brightness.dark
-                              ? const Color(0xFFa0b9e2)
-                              : const Color(0xFF4a6da7),
-                        ),
-                        maxLines: 1, // Limite pour le titre
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 10),
-                      // Le snippet prend le reste de l'espace. La hauteur totale est maintenant fixée par _verseListHeight.
-                      // MaxLines est fixé pour s'assurer que le snippet ne dépasse pas et ne cause pas de débordement interne.
-                      TextHtmlWidget(
-                        text: item['snippet'],
-                        style: TextStyle(fontSize: 16, color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black),
-                        maxLines: 4, // Définir un nombre max de lignes
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                )
+              ),
             ),
           );
         },
@@ -116,10 +110,12 @@ class _AllSearchTabState extends State<AllSearchTab> {
   }
 
   Widget _buildIndexList(dynamic result) {
-    // Hauteur fixée à 110 (comme dans le code original)
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return SizedBox(
-      height: 110,
+      height: 90,
       child: ListView.builder(
+        padding: const EdgeInsets.symmetric(horizontal: 12),
         scrollDirection: Axis.horizontal,
         itemCount: result['results'].length,
         itemBuilder: (context, publicationIndex) {
@@ -135,37 +131,29 @@ class _AllSearchTabState extends State<AllSearchTab> {
               }
             },
             child: Container(
-              width: 250,
-              margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              width: 240,
+              margin: const EdgeInsets.only(right: 12, top: 4, bottom: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               decoration: BoxDecoration(
-                color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF292929) : Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    spreadRadius: 1,
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
+                color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: isDark ? Colors.grey[800]! : Colors.grey[200]!,
+                  width: 1,
+                ),
               ),
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      item['title'],
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                        color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFFa3b9e3) : const Color(0xFF516da8),
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
+              child: Center(
+                child: Text(
+                  item['title'],
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 15,
+                    color: isDark ? const Color(0xFF9AB5E0) : const Color(0xFF516da8),
+                    letterSpacing: -0.1,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
                 ),
               ),
             ),
@@ -175,13 +163,15 @@ class _AllSearchTabState extends State<AllSearchTab> {
     );
   }
 
-  // Hauteur fixée à 250 (comme dans le code original)
-  static const double _mediaListHeight = 250.0;
+  static const double _mediaListHeight = 220.0;
 
   Widget _buildVideosList(dynamic result) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return SizedBox(
       height: _mediaListHeight,
       child: ListView.builder(
+        padding: const EdgeInsets.symmetric(horizontal: 12),
         scrollDirection: Axis.horizontal,
         itemCount: result['results'].length,
         itemBuilder: (context, videoIndex) {
@@ -196,19 +186,15 @@ class _AllSearchTabState extends State<AllSearchTab> {
               video.showPlayer(context);
             },
             child: Container(
-              width: 250,
-              margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              width: 220,
+              margin: const EdgeInsets.only(right: 12, top: 4, bottom: 4),
               decoration: BoxDecoration(
-                color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF292929) : Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    spreadRadius: 1,
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
+                color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: isDark ? Colors.grey[800]! : Colors.grey[200]!,
+                  width: 1,
+                ),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -216,20 +202,20 @@ class _AllSearchTabState extends State<AllSearchTab> {
                   Stack(
                     children: [
                       ClipRRect(
-                        borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                        borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
                         child: Image.network(
                           item['image']['url'],
                           width: double.infinity,
-                          height: 150,
+                          height: 124,
                           fit: BoxFit.cover,
                         ),
                       ),
                       Positioned.fill(
                         child: Container(
                           decoration: BoxDecoration(
-                            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                            borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
                             gradient: LinearGradient(
-                              colors: [Colors.transparent, Colors.black.withOpacity(0.6)],
+                              colors: [Colors.transparent, Colors.black.withOpacity(0.4)],
                               begin: Alignment.topCenter,
                               end: Alignment.bottomCenter,
                             ),
@@ -237,51 +223,65 @@ class _AllSearchTabState extends State<AllSearchTab> {
                         ),
                       ),
                       Positioned(
-                        top: 12,
-                        left: 12,
+                        bottom: 8,
+                        left: 8,
                         child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                          padding: const EdgeInsets.symmetric(vertical: 3, horizontal: 7),
                           decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.6),
-                            borderRadius: BorderRadius.circular(20),
+                            color: Colors.black.withOpacity(0.75),
+                            borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(
                             item['duration'],
                             style: const TextStyle(
                               color: Colors.white,
-                              fontSize: 14,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
                             ),
                           ),
                         ),
                       ),
                       Positioned(
-                        top: 10,
-                        right: 10,
-                        child: PopupMenuButton(
-                          icon: const Icon(Icons.more_vert, color: Colors.white, size: 30),
-                          itemBuilder: (context) => [
-                            getVideoShareItem(video),
-                            getVideoAddPlaylistItem(context, video),
-                            getVideoLanguagesItem(context, video),
-                            getVideoFavoriteItem(video),
-                            getVideoDownloadItem(context, video),
-                            getShowSubtitlesItem(context, video),
-                            getCopySubtitlesItem(context, video),
-                          ],
+                        top: 8,
+                        right: 8,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.5),
+                            shape: BoxShape.circle,
+                          ),
+                          child: PopupMenuButton(
+                            padding: EdgeInsets.zero,
+                            icon: const Icon(Icons.more_vert, color: Colors.white, size: 22),
+                            itemBuilder: (context) => [
+                              getVideoShareItem(video),
+                              getVideoQrCode(context, video),
+                              getVideoAddPlaylistItem(context, video),
+                              getVideoLanguagesItem(context, video),
+                              getVideoFavoriteItem(video),
+                              getVideoDownloadItem(context, video),
+                              getShowSubtitlesItem(context, video),
+                              getCopySubtitlesItem(context, video),
+                            ],
+                          ),
                         ),
                       ),
                     ],
                   ),
-                  Padding(
-                    padding: const EdgeInsets.all(12.0),
-                    child: Text(
-                      item['title'],
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.all(10),
+                      child: Text(
+                        item['title'],
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                          color: isDark ? Colors.white : Colors.black87,
+                          height: 1.3,
+                          letterSpacing: -0.1,
+                        ),
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ],
@@ -294,9 +294,12 @@ class _AllSearchTabState extends State<AllSearchTab> {
   }
 
   Widget _buildAudioList(dynamic result) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return SizedBox(
       height: _mediaListHeight,
       child: ListView.builder(
+        padding: const EdgeInsets.symmetric(horizontal: 12),
         scrollDirection: Axis.horizontal,
         itemCount: result['results'].length,
         itemBuilder: (context, audioIndex) {
@@ -312,19 +315,15 @@ class _AllSearchTabState extends State<AllSearchTab> {
               audio.showPlayer(context);
             },
             child: Container(
-              width: 250,
-              margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              width: 220,
+              margin: const EdgeInsets.only(right: 12, top: 4, bottom: 4),
               decoration: BoxDecoration(
-                color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF292929) : Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    spreadRadius: 1,
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
+                color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: isDark ? Colors.grey[800]! : Colors.grey[200]!,
+                  width: 1,
+                ),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -332,20 +331,20 @@ class _AllSearchTabState extends State<AllSearchTab> {
                   Stack(
                     children: [
                       ClipRRect(
-                        borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                        borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
                         child: Image.network(
                           item['image']['url'],
                           width: double.infinity,
-                          height: 150,
+                          height: 124,
                           fit: BoxFit.cover,
                         ),
                       ),
                       Positioned.fill(
                         child: Container(
                           decoration: BoxDecoration(
-                            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                            borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
                             gradient: LinearGradient(
-                              colors: [Colors.transparent, Colors.black.withOpacity(0.6)],
+                              colors: [Colors.transparent, Colors.black.withOpacity(0.4)],
                               begin: Alignment.topCenter,
                               end: Alignment.bottomCenter,
                             ),
@@ -353,51 +352,65 @@ class _AllSearchTabState extends State<AllSearchTab> {
                         ),
                       ),
                       Positioned(
-                        top: 12,
-                        left: 12,
+                        bottom: 8,
+                        left: 8,
                         child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                          padding: const EdgeInsets.symmetric(vertical: 3, horizontal: 7),
                           decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.6),
-                            borderRadius: BorderRadius.circular(20),
+                            color: Colors.black.withOpacity(0.75),
+                            borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(
                             item['duration'],
                             style: const TextStyle(
                               color: Colors.white,
-                              fontSize: 14,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
                             ),
                           ),
                         ),
                       ),
                       Positioned(
-                        top: 10,
-                        right: 10,
-                        child: PopupMenuButton(
-                          icon: const Icon(Icons.more_vert, color: Colors.white, size: 30),
-                          itemBuilder: (context) => [
-                            getAudioShareItem(audio),
-                            getAudioAddPlaylistItem(context, audio),
-                            getAudioLanguagesItem(context, audio),
-                            getAudioFavoriteItem(audio),
-                            getAudioDownloadItem(context, audio),
-                            getAudioLyricsItem(context, audio),
-                            getCopyLyricsItem(audio),
-                          ],
+                        top: 8,
+                        right: 8,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.5),
+                            shape: BoxShape.circle,
+                          ),
+                          child: PopupMenuButton(
+                            padding: EdgeInsets.zero,
+                            icon: const Icon(Icons.more_vert, color: Colors.white, size: 22),
+                            itemBuilder: (context) => [
+                              getAudioShareItem(audio),
+                              getAudioQrCode(context, audio),
+                              getAudioAddPlaylistItem(context, audio),
+                              getAudioLanguagesItem(context, audio),
+                              getAudioFavoriteItem(audio),
+                              getAudioDownloadItem(context, audio),
+                              getAudioLyricsItem(context, audio),
+                              getCopyLyricsItem(audio),
+                            ],
+                          ),
                         ),
                       ),
                     ],
                   ),
-                  Padding(
-                    padding: const EdgeInsets.all(12.0),
-                    child: Text(
-                      item['title'],
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.all(10),
+                      child: Text(
+                        item['title'],
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                          color: isDark ? Colors.white : Colors.black87,
+                          height: 1.3,
+                          letterSpacing: -0.1,
+                        ),
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ],
@@ -409,13 +422,15 @@ class _AllSearchTabState extends State<AllSearchTab> {
     );
   }
 
-  // Hauteur fixée à 200 (comme dans le code original)
-  static const double _publicationListHeight = 200.0;
+  static const double _publicationListHeight = 130.0;
 
   Widget _buildPublicationsList(dynamic result) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return SizedBox(
       height: _publicationListHeight,
       child: ListView.builder(
+        padding: const EdgeInsets.symmetric(horizontal: 12),
         scrollDirection: Axis.horizontal,
         itemCount: result['results'].length,
         itemBuilder: (context, publicationIndex) {
@@ -457,63 +472,70 @@ class _AllSearchTabState extends State<AllSearchTab> {
               }
             },
             child: Container(
-              width: 300,
-              margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              width: 280,
+              margin: const EdgeInsets.only(right: 12, top: 4, bottom: 4),
               decoration: BoxDecoration(
-                color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF292929) : Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    spreadRadius: 1,
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
+                color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: isDark ? Colors.grey[800]! : Colors.grey[200]!,
+                  width: 1,
+                ),
               ),
               child: Row(
                 children: [
                   ClipRRect(
-                    borderRadius: const BorderRadius.horizontal(left: Radius.circular(16)),
+                    borderRadius: const BorderRadius.horizontal(left: Radius.circular(8)),
                     child: item['image']['url'] != null && item['image']['url'] != ''
                         ? Image.network(
                       item['image']['url'],
-                      width: 100,
+                      width: 70,
                       height: double.infinity,
                       fit: BoxFit.cover,
                     )
                         : Container(
-                      width: 100,
+                      width: 70,
                       height: double.infinity,
-                      color: Colors.grey,
+                      color: isDark ? Colors.grey[800] : Colors.grey[300],
+                      child: Icon(
+                        Icons.menu_book_rounded,
+                        color: isDark ? Colors.grey[600] : Colors.grey[400],
+                        size: 28,
+                      ),
                     ),
                   ),
                   Expanded(
                     child: Padding(
-                      padding: const EdgeInsets.all(16.0),
+                      padding: const EdgeInsets.all(12),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           TextHtmlWidget(
                             text: item['title'],
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                              color: isDark ? Colors.white : Colors.black87,
+                              height: 1.3,
+                              letterSpacing: -0.1,
                             ),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                           ),
-                          const SizedBox(height: 8),
-                          TextHtmlWidget(
-                            text: item['context'],
-                            style: TextStyle(
-                              color: Theme.of(context).hintColor,
-                              fontSize: 14,
+                          if (item['context'] != null && item['context'].toString().isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            TextHtmlWidget(
+                              text: item['context'],
+                              style: TextStyle(
+                                color: isDark ? Colors.grey[400] : Colors.grey[600],
+                                fontSize: 12,
+                                height: 1.3,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
                             ),
-                            maxLines: 3,
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                          ],
                         ],
                       ),
                     ),
@@ -528,94 +550,109 @@ class _AllSearchTabState extends State<AllSearchTab> {
   }
 
   Widget _buildArticlesList(dynamic result) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: Column(
         children: result['results'].map<Widget>((article) {
-          return GestureDetector(
-            onTap: () {
-              if (article['links'] != null && article['links']['wol'] != null) {
-                String lank = article['lank'];
-                int docId = int.parse(lank.replaceAll("pa-", ""));
-                List<String> wordsSelected = widget.model.query.split(' ');
-                showDocumentView(context, docId, JwLifeSettings.instance.currentLanguage.value.id, wordsSelected: wordsSelected);
-              }
-              else {
-                launchUrl(Uri.parse(article['links']['jw.org']!), mode: LaunchMode.externalApplication);
-              }
-            },
-            child: Container(
-              margin: const EdgeInsets.symmetric(vertical: 8),
-              decoration: BoxDecoration(
-                color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF292929) : Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    spreadRadius: 1,
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start, // Alignement en haut pour le Row
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: article['image'] != null && article['image']['url'] != null ? ImageCachedWidget(
-                        imageUrl: article['image']['url'],
-                        width: 80,
-                        height: 80,
-                        fit: BoxFit.cover,
-                      ) : Container(
-                        width: 80,
-                        height: 80,
-                        color: Colors.grey,
+          return Container(
+            margin: const EdgeInsets.only(bottom: 1),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () {
+                  if (article['links'] != null && article['links']['wol'] != null) {
+                    String lank = article['lank'];
+                    int docId = int.parse(lank.replaceAll("pa-", ""));
+                    List<String> wordsSelected = widget.model.query.split(' ');
+                    showDocumentView(context, docId, JwLifeSettings.instance.currentLanguage.value.id, wordsSelected: wordsSelected);
+                  } else {
+                    launchUrl(Uri.parse(article['links']['jw.org']!), mode: LaunchMode.externalApplication);
+                  }
+                },
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 12),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 72,
+                        height: 72,
+                        decoration: BoxDecoration(
+                          color: isDark ? Colors.grey[850] : Colors.grey[100],
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(
+                            color: isDark ? Colors.grey[800]! : Colors.grey[200]!,
+                            width: 1,
+                          ),
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(4),
+                          child: article['image'] != null && article['image']['url'] != null
+                              ? ImageCachedWidget(
+                            imageUrl: article['image']['url'],
+                            width: 72,
+                            height: 72,
+                            fit: BoxFit.cover,
+                          )
+                              : Center(
+                            child: Icon(
+                              JwIcons.article,
+                              color: isDark ? Colors.grey[600] : Colors.grey[400],
+                              size: 32,
+                            ),
+                          ),
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          if (article['context'] != null && article['context'].isNotEmpty)
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (article['context'] != null && article['context'].toString().isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 4),
+                                child: TextHtmlWidget(
+                                  text: article['context'],
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                    color: isDark ? Colors.grey[400] : Colors.grey[600],
+                                    letterSpacing: 0.1,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
                             TextHtmlWidget(
-                              text: article['context'],
+                              text: article['title'] ?? '',
                               style: TextStyle(
                                 fontSize: 16,
-                                color: Theme.of(context).hintColor,
+                                fontWeight: FontWeight.w600,
+                                color: isDark ? const Color(0xFF9AB5E0) : const Color(0xFF516da8),
+                                height: 1.3,
+                                letterSpacing: -0.2,
                               ),
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                             ),
-                          const SizedBox(height: 4),
-                          TextHtmlWidget(
-                            text: article['title'] ?? '',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: 4),
-                          // Retrait du TextHtmlWidget pour le snippet pour laisser le container s'adapter.
-                          // Si vous voulez le snippet, assurez-vous qu'il ne déborde pas.
-                          // Pour la proportion, on le réintègre en limitant les lignes:
-                          TextHtmlWidget(
-                            text: article['snippet'] ?? '',
-                            style: TextStyle(fontSize: 14, color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : Colors.black87),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
+                            if (article['snippet'] != null && article['snippet'].toString().isNotEmpty) ...[
+                              const SizedBox(height: 4),
+                              TextHtmlWidget(
+                                text: article['snippet'],
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: isDark ? Colors.white : Colors.black87,
+                                  height: 1.4,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -627,38 +664,114 @@ class _AllSearchTabState extends State<AllSearchTab> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return FutureBuilder<List<Map<String, dynamic>>>(
       future: widget.model.fetchAllSearch(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+          return Center(
+            child: CircularProgressIndicator(
+              strokeWidth: 2.5,
+              valueColor: AlwaysStoppedAnimation<Color>(
+                isDark ? Colors.blue[300]! : Colors.blue[700]!,
+              ),
+            ),
+          );
         } else if (snapshot.hasError) {
-          return Center(child: Text('Erreur: ${snapshot.error}'));
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.error_outline_rounded,
+                    size: 48,
+                    color: isDark ? Colors.grey[600] : Colors.grey[400],
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Une erreur est survenue',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                      color: isDark ? Colors.grey[300] : Colors.grey[700],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '${snapshot.error}',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: isDark ? Colors.grey[500] : Colors.grey[500],
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          );
         } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return const Center(child: Text('Aucun résultat trouvé.'));
-        }
-        else {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.search_off_rounded,
+                    size: 64,
+                    color: isDark ? Colors.grey[700] : Colors.grey[300],
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Aucun résultat',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: isDark ? Colors.grey[300] : Colors.grey[700],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Essayez avec d\'autres termes de recherche',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: isDark ? Colors.grey[500] : Colors.grey[500],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        } else {
           final results = snapshot.data!;
           return ListView.builder(
+            padding: const EdgeInsets.symmetric(vertical: 8),
             itemCount: results.length,
             itemBuilder: (context, index) {
               final result = results[index];
               if (result['type'] == 'group' && result['results'].isNotEmpty) {
                 return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8.0),
+                  padding: const EdgeInsets.only(top: 16, bottom: 8),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                        child: result['label'] != null && result['label'] != ''
-                            ? Text(
-                          result['label'],
-                          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                        )
-                            : const SizedBox.shrink(),
-                      ),
-                      const SizedBox(height: 8),
+                      if (result['label'] != null && result['label'] != '')
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Text(
+                            result['label'],
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w600,
+                              color: isDark ? Colors.white : Colors.black87,
+                              letterSpacing: -0.3,
+                            ),
+                          ),
+                        ),
+                      const SizedBox(height: 12),
                       if (result['layout'].contains('bible'))
                         _buildVerseList(result)
                       else if (result['layout'].contains('videos'))

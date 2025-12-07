@@ -3,6 +3,7 @@ import 'package:jwlife/widgets/responsive_appbar_actions.dart';
 
 import '../../../app/app_page.dart';
 import '../../../app/jwlife_app_bar.dart';
+import '../../../core/icons.dart';
 import '../../../i18n/i18n.dart';
 
 class PredicationPage extends StatefulWidget {
@@ -158,7 +159,7 @@ class _QuickActionsGrid extends StatelessWidget {
     final primaryColor = Theme.of(context).colorScheme.primary;
     final actions = [
       _QuickActionData('Nouveau rapport', Icons.add, primaryColor, () {}),
-      _QuickActionData('Lettres / QR', Icons.qr_code, primaryColor, () {}),
+      _QuickActionData('Lettres / QR', JwIcons.qr_code, primaryColor, () {}),
       _QuickActionData('Mes territoires', Icons.map, primaryColor, () {}),
       _QuickActionData('Historique', Icons.history, primaryColor, () {}),
     ];

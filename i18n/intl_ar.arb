@@ -907,5 +907,7 @@
   "action_congregations": "تجمعات محلية",
   "action_meeting_management": "تخطيط الاجتماعات",
   "action_brothers_and_sisters": "الإخوة والأخوات",
-  "action_blocking_horizontally_mode": "حظر أفقي"
+  "action_blocking_horizontally_mode": "حظر أفقي",
+  "action_qr_code": "إنشاء رمز QR",
+  "action_scan_qr_code": "مسح رمز QR ضوئيًا"
 }

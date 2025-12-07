@@ -1,5 +1,6 @@
 import 'package:collection/collection.dart';
 import 'package:jwlife/data/repositories/PublicationRepository.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../app/services/global_key_service.dart';
 import '../../data/databases/catalog.dart';
@@ -157,6 +158,10 @@ Future<void> handleUri(JwOrgUri uri) async {
       GlobalKeyService.workShipKey.currentState!.refreshSelectedDay(date);
 
       GlobalKeyService.jwLifePageKey.currentState!.changeNavBarIndex(3, goToFirstPage: true);
+    }
+    else {
+      // ouvrir le lien
+      await launchUrl(Uri.parse(uri.toString()));
     }
   }
   catch (e) {
