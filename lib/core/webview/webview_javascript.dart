@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:jwlife/app/services/global_key_service.dart';
 import 'package:jwlife/core/utils/utils.dart';
@@ -69,6 +70,7 @@ String createReaderHtmlShell(
     '{{COLOR_INDEX}}': webViewData.colorIndex.toString(),
     '{{STYLE_INDEX}}': webViewData.styleIndex.toString(),
     '{{IS_RTL}}': publication.mepsLanguage.isRtl.toString(),
+    '{{IS_DEBUG_MODE}}': kDebugMode.toString(),
   };
 
   replacements.forEach((key, value) {

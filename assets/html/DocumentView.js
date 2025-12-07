@@ -1,6 +1,9 @@
 let currentIndex = {{CURRENT_INDEX}};
 const maxIndex = {{MAX_INDEX}};
 
+const isDebugMode = {{IS_DEBUG_MODE}};
+const debugDispSrc = 'DocumentView.js / '
+
 let isDark = {{IS_DARK}};
 let lightPrimaryColor = '{{LIGHT_PRIMARY_COLOR}}';
 let darkPrimaryColor = '{{DARK_PRIMARY_COLOR}}';
@@ -1948,7 +1951,7 @@ function setupDragSystem(header, dialog) {
 function setupResizeSystem(handle, dialog, contentContainer) {
     let isResizing = false;
     let startX, startY, startWidth, startHeight, startTop, startLeft;
-    const MIN_WIDTH = 300;
+    const MIN_WIDTH = 200;
     const MIN_HEIGHT = MIN_RESIZE_HEIGHT;
 
     const startResize = (e) => {
@@ -2025,15 +2028,21 @@ function setupResizeSystem(handle, dialog, contentContainer) {
 
         const currentHeight = dialog.clientHeight;
 
+
+        //if (isDebugMode) window.flutter_inappwebview?.callHandler('debugDisplay', debugDispSrc + 'currentHeigh : ' + currentHeight + ' / MIN_HEIGHT : ' + MIN_HEIGHT );
+
         if (currentHeight >= MIN_HEIGHT) {
             dialog.setAttribute('data-resized-height', dialog.style.height);
             dialog.setAttribute('data-resized-width', dialog.style.width);
 
             contentContainer.style.height = '';
         } else {
-            dialog.style.height = 'fit-content';
-            dialog.removeAttribute('data-resized-height');
-            dialog.removeAttribute('data-resized-width');
+            //dialog.style.height = 'fit-content';
+            dialog.style.height = MIN_HEIGHTM;
+            //dialog.removeAttribute('data-resized-height');
+            //dialog.removeAttribute('data-resized-width');
+            dialog.setAttribute('data-resized-height', dialog.style.height);
+            dialog.setAttribute('data-resized-width', dialog.style.width);
 
             applyContentContainerStyles(dialog.getAttribute('data-type'), contentContainer, false);
         }
@@ -2730,8 +2739,8 @@ function createDialogElement(options, canGoBack, isFullscreenInit = false, scrol
             height: 20px;
             cursor: nwse-resize;
             z-index: 1001;
-            border-right: 2px solid ${isDarkTheme() ? 'rgba(255, 255, 255, 0.5)' : 'rgba(0, 0, 0, 0.5)'};
-            border-bottom: 2px solid ${isDarkTheme() ? 'rgba(255, 255, 255, 0.5)' : 'rgba(0, 0, 0, 0.5)'};
+            border-right: 4px solid ${isDarkTheme() ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.25)'};
+            border-bottom: 4px solid ${isDarkTheme() ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.25)'};
             border-bottom-right-radius: 16px;
         `;
     dialog.appendChild(resizeHandle);
@@ -5686,7 +5695,11 @@ async function onClickOnPage(article, target) {
         }
 
         if (linkClassList.contains('b')) {
+            //if (isDebugMode) window.flutter_inappwebview?.callHandler('debugDisplay', debugDispSrc + 'mid : ' + mid);
+            if (isDebugMode) console.log(debugDispSrc + 'href : ' + href);
+
             const verses = await window.flutter_inappwebview.callHandler('fetchVerses', href);
+            //if (isDebugMode) console.log(debugDispSrc + 'verses : ' + verses[0].toString());
             showVerseDialog(article, verses, href, false);
             closeToolbar();
             return;
