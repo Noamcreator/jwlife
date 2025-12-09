@@ -792,3 +792,46 @@ Augmentation de la zone du bouton pour redimensionner le dialog.
 📦 Mises à Jour Techniques
 Mise à jour device_info_plus : 12.2.0 → 12.3.0
 Mise à jour Flutter : 3.38.3 → 3.38.4
+
+
+📢 Mise à jour – v1.2.3 (09/12/2025)
+
+🚀 Nouvelles Fonctionnalités
+
+- Ajout de la possibilité d’ajouter les aides à la prononciation pour les langues chinoise et japonaise (furigana pour le japonais et pinyin pour le chinois).
+
+- Ajout des langues supplémentaires : amharique, assamais, Aymara, chinois simplifié, chinois traditionnel (Hong Kong), chinois traditionnel (Taïwan).
+
+- Ajout d’un paramètre “Transition des pages” dans les paramètres pour choisir la transition : par le bas, par la droite ou aucune.
+
+🧩 Améliorations de l'Expérience
+
+- Si aucun texte du jour n’est disponible dans la langue sélectionnée, l’application affiche le message de bienvenue.
+
+- Les publications affichées ne sont plus limitées aux 12 dernières ; seules les publications de moins de 50 jours sont prises en compte.
+
+- Si un article apparaît déjà dans la base de données mais pas en dernier, son timeStamp est mis à jour pour qu’il apparaisse en premier.
+
+- Quand on sélectionne “Autres langues” sur une publication importée, les langues disponibles de la publication importée sont affichées pour éviter un affichage à zéro.
+
+- La date du texte du jour est affichée uniquement dans les langues existantes de l'application.
+
+🎨 Interface & Design
+
+- Suppression de l’espace supplémentaire sur l’aperçu du chapitre.
+
+- Changement du dialogue pour la sélection des langues de l’application : il s’affiche maintenant comme les autres dialogues, avec une barre de recherche.
+
+⚙️ Optimisation
+
+- Optimisation de l’affichage et du tri des publications sur la page d’accueil.
+
+🐞 Corrections & Stabilité
+
+- Ajustements mineurs pour améliorer la stabilité lors de l’affichage des textes et publications.
+
+📦 Mises à Jour Techniques
+
+- Mise à jour de Gradle de 8.14.3 à 9.2.1.
+
+- Mise à jour de shared_preferences de 2.5.3 à 2.5.4.

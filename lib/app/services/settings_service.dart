@@ -10,6 +10,7 @@ class JwLifeSettings {
   JwLifeSettings._internal();
 
   ThemeMode themeMode = ThemeMode.system;
+  String pageTransition = 'default';
   ThemeData lightData = AppTheme.getLightTheme(Constants.defaultLightPrimaryColor);
   ThemeData darkData = AppTheme.getDarkTheme(Constants.defaultDarkPrimaryColor);
   Locale locale = const Locale('en');
@@ -42,6 +43,7 @@ class JwLifeSettings {
   Future<void> init() async {
     final sharedPreferences = AppSharedPreferences.instance;
     final theme = sharedPreferences.getTheme();
+    final pageTrans = sharedPreferences.getPageTransition();
     final themeMod = theme == 'dark' ? ThemeMode.dark : theme == 'light' ? ThemeMode.light : ThemeMode.system;
 
     final lightColor = sharedPreferences.getPrimaryColor(ThemeMode.light);
@@ -56,6 +58,7 @@ class JwLifeSettings {
     locale = Locale(localeCode);
 
     themeMode = themeMod;
+    pageTransition = pageTrans;
     lightData = AppTheme.getLightTheme(lightColor);
     darkData = AppTheme.getDarkTheme(darkColor);
     

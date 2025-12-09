@@ -69,9 +69,7 @@ class _PublicationsItemsPageState extends State<PublicationsItemsPage> {
         bottom: 0.0,
       ),
       child: FutureBuilder(
-        future: attribute.getNameAsync(
-          Locale(JwLifeSettings.instance.currentLanguage.value.primaryIetfCode),
-        ),
+        future: attribute.getNameAsync(JwLifeSettings.instance.currentLanguage.value.getSafeLocale()),
         builder: (context, snapshot) {
           String attributeText = attribute.getName();
           if (snapshot.connectionState == ConnectionState.done && snapshot.hasData) {

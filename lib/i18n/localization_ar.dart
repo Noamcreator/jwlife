@@ -3084,4 +3084,13 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get action_scan_qr_code => 'مسح رمز QR ضوئيًا';
+
+  @override
+  String get settings_page_transition => 'انتقال الصفحات';
+
+  @override
+  String get settings_page_transition_bottom => 'انتقال من الأسفل';
+
+  @override
+  String get settings_page_transition_right => 'انتقال من اليمين';
 }

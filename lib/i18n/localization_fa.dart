@@ -3096,4 +3096,13 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get action_scan_qr_code => 'اسکن کد QR';
+
+  @override
+  String get settings_page_transition => 'انتقال صفحه';
+
+  @override
+  String get settings_page_transition_bottom => 'انتقال از پایین';
+
+  @override
+  String get settings_page_transition_right => 'انتقال از راست';
 }

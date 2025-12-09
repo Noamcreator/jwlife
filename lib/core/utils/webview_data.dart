@@ -1,10 +1,6 @@
 import 'dart:io';
 
-import 'package:flutter/material.dart';
-import 'package:flutter_inappwebview/flutter_inappwebview.dart';
-
 import '../../app/services/global_key_service.dart';
-import '../../app/services/settings_service.dart';
 import '../../data/models/publication.dart';
 import '../../features/home/pages/daily_text_page.dart';
 import '../../features/publication/pages/document/local/document_page.dart';
@@ -22,6 +18,10 @@ class WebViewData {
   late bool isReadingMode;
   late bool isBlockingHorizontallyMode;
 
+  late bool isFuriganaActive;
+  late bool isPinyinActive;
+  late bool isYaleActive;
+
   late String webappPath;
 
   late List<String> biblesSet;
@@ -37,6 +37,10 @@ class WebViewData {
     isFullScreenMode = sharedPreferences.getFullscreenMode();
     isReadingMode = sharedPreferences.getReadingMode();
     isBlockingHorizontallyMode = sharedPreferences.getBlockingHorizontallyMode();
+
+    isFuriganaActive = sharedPreferences.getFuriganaActive();
+    isPinyinActive = sharedPreferences.getPinyinActive();
+    isYaleActive = sharedPreferences.getYaleActive();
 
     Directory filesDirectory = await getAppFilesDirectory();
     webappPath = '${filesDirectory.path}/webapp_assets';
@@ -130,6 +134,31 @@ class WebViewData {
         }
         else if (state is DailyTextPageState) {
           state.changePreparingMode(value);
+        }
+      }
+    }
+  }
+
+  void updatePronunciationGuide(bool value, String type) {
+    if(type == 'furigana') {
+      isFuriganaActive = value;
+    }
+    else if(type == 'pinyin') {
+      isPinyinActive = value;
+    }
+    else {
+      isYaleActive = value;
+    }
+
+    for (var keys in GlobalKeyService.jwLifePageKey.currentState!.webViewPageKeys) {
+      for (var key in keys) {
+        final state = key.currentState;
+
+        if (state is DocumentPageState) {
+          state.changePronunciationGuideMode(value);
+        }
+        else if (state is DailyTextPageState) {
+          state.changePronunciationGuideMode(value);
         }
       }
     }

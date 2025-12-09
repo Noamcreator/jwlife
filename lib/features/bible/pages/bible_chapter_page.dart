@@ -259,7 +259,6 @@ class _BibleChapterPageState extends State<BibleChapterPage> {
         Column(
           children: [
             if (hasCommentary && !isLargeScreen) SizedBox(height: topCompensation),
-            if (bookData.isOverview) SizedBox(height: 50),
             Expanded(
               child: bookData.isLoading
                   ? const Center(child: CircularProgressIndicator())

@@ -40,7 +40,8 @@ class DatedTextManager {
             DatedText.Content,
             Document.MepsDocumentId,
             Document.MepsLanguageIndex,
-            Document.Class
+            Document.Class,
+            Document.HasPronunciationGuide
           FROM DatedText
           INNER JOIN Document ON Document.DocumentId = DatedText.DocumentId
         """);

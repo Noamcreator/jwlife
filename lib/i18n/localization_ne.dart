@@ -3103,4 +3103,13 @@ class AppLocalizationsNe extends AppLocalizations {
 
   @override
   String get action_scan_qr_code => 'QR कोड स्क्यान गर्नुहोस्';
+
+  @override
+  String get settings_page_transition => 'पृष्ठ संक्रमण';
+
+  @override
+  String get settings_page_transition_bottom => 'तलबाट संक्रमण';
+
+  @override
+  String get settings_page_transition_right => 'दायाँबाट संक्रमण';
 }

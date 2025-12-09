@@ -345,6 +345,20 @@ String getArticleClass(Publication publication, Document document) {
   final languageSymbol = publication.mepsLanguage.symbol;
   final direction = publication.mepsLanguage.isRtl ? 'rtl' : 'ltr';
 
+  String showRuby = '';
+  if(document.hasPronunciationGuide) {
+    final languageCode = publication.mepsLanguage.primaryIetfCode;
+    if (languageCode == 'ja' && JwLifeSettings.instance.webViewData.isFuriganaActive) {
+      showRuby = 'showRuby';
+    }
+    else if (languageCode.contains('cmn') && JwLifeSettings.instance.webViewData.isPinyinActive) {
+      showRuby = 'showRuby';
+    }
+    else if (JwLifeSettings.instance.webViewData.isYaleActive) {
+      showRuby = 'showRuby';
+    }
+  }
+
   String classString = [
     type,
     'jwac',
@@ -355,7 +369,8 @@ String getArticleClass(Publication publication, Document document) {
     'ml-$languageSymbol',
     'dir-$direction',
     'layout-reading',
-    'layout-sidebar'
+    'layout-sidebar',
+    showRuby
   ].join(' ');
 
   return classString;

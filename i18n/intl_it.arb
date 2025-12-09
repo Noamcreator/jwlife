@@ -909,5 +909,8 @@
   "action_brothers_and_sisters": "Fratelli e Sorelle",
   "action_blocking_horizontally_mode": "Blocco Orizzontale",
   "action_qr_code": "Genera un codice QR",
-  "action_scan_qr_code": "Scansiona un Codice QR"
+  "action_scan_qr_code": "Scansiona un Codice QR",
+  "settings_page_transition": "Transizione pagina",
+  "settings_page_transition_bottom": "Transizione dal basso",
+  "settings_page_transition_right": "Transizione da destra"
 }

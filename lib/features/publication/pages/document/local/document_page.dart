@@ -127,7 +127,7 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
   final GlobalKey<_ControlsOverlayState> controlsKey = GlobalKey<_ControlsOverlayState>();
 
   /* LOADING */
-  bool _isLoadingData = false;
+  bool _isLoadedData = false;
 
   /* OTHER VIEW */
   bool _showDialog = false; // Variable pour contrôler la visibilité des contrôles
@@ -196,7 +196,7 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
     }
 
     setState(() {
-      _isLoadingData = true;
+      _isLoadedData = true;
     });
 
     if (widget.publication.audiosNotifier.value.isEmpty) {
@@ -231,7 +231,7 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
             }
           }
 
-          if(!_isLoadingData) {
+          if(!_isLoadedData) {
             _controller.evaluateJavascript(source: "updateAudios($audioMarkersJson, ${widget.publication.documentsManager!.getIndexFromMepsDocumentId(widget.mepsDocumentId)});");
           }
         }
@@ -241,8 +241,8 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
     _streamSequenceStateSubscription = JwLifeApp.audioPlayer.player.sequenceStateStream.listen((state) {
       if (!mounted) return;
       if (JwLifeApp.audioPlayer.isSettingPlaylist && state.currentIndex == 0) return;
-      if(!loadingKey.currentState!.isLoadingPage) return;
-      if(_isLoadingData) return;
+      if(loadingKey.currentState!.isLoadingPage) return;
+      if(!_isLoadedData) return;
 
       final currentSource = state.currentSource;
       if (currentSource is! ProgressiveAudioSource) {
@@ -312,7 +312,7 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
 
     _streamSequencePositionSubscription = JwLifeApp.audioPlayer.player.positionStream.listen((position) {
       if (!mounted) return;
-      if(!loadingKey.currentState!.isLoadingPage) return;
+      if(loadingKey.currentState!.isLoadingPage) return;
 
       if(widget.publication.documentsManager!.getCurrentDocument().isBibleChapter()) {
         if(lastBookId != null && lastChapterId != null && lastBookId == widget.publication.documentsManager!.getCurrentDocument().bookNumber && lastChapterId == widget.publication.documentsManager!.getCurrentDocument().chapterNumberBible) {
@@ -500,6 +500,10 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
     await _controller.evaluateJavascript(source: "changePreparingMode($isPreparing);");
   }
 
+  Future<void> changePronunciationGuideMode(bool isPronunciationGuideActive) async {
+    await _controller.evaluateJavascript(source: "switchPronunciationGuideMode($isPronunciationGuideActive);");
+  }
+
   Future<void> changePrimaryColor(Color lightColor, Color darkColor) async {
     final lightPrimaryColor = toHex(lightColor);
     final darkPrimaryColor = toHex(darkColor);
@@ -523,7 +527,7 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
       backgroundColor: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF111111) : Colors.white,
       body: Stack(
           children: [
-        _isLoadingData ? SafeArea(
+        _isLoadedData ? SafeArea(
             child: InAppWebView(
                 initialSettings: InAppWebViewSettings(
                   scrollBarStyle: null,
@@ -1523,7 +1527,7 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
 
            LoadingWidget(key: loadingKey),
 
-          !_isLoadingData ? Container()
+          !_isLoadedData ? Container()
               : ControlsOverlay(key: controlsKey,
               publication: widget.publication,
               notesController: _notesController,
@@ -1599,6 +1603,7 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
 
   /* MODES */
   bool _isImageMode = false;
+  bool _isPronunciationGuide = false;
 
   /* SEARCH */
   bool _isSearching = false;
@@ -1679,6 +1684,18 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
       }
     });
     _controller.evaluateJavascript(source: "switchImageMode($_isImageMode)");
+  }
+
+  Future<void> switchPronunciationGuideMode() async {
+    setState(() {
+      if (_isPronunciationGuide) {
+        _isPronunciationGuide = false;
+      }
+      else {
+        _isPronunciationGuide = true;
+      }
+    });
+    _controller.evaluateJavascript(source: "switchPronunciationGuideMode($_isPronunciationGuide)");
   }
 
   @override
@@ -1864,6 +1881,39 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
                       icon: Icon(_isImageMode ? JwIcons.outline : JwIcons.image),
                       onPressed: (anchorContext) {
                         switchImageMode();
+                      },
+                    ),
+                  if (widget.publication.documentsManager!.getCurrentDocument().hasPronunciationGuide)
+                    IconTextButton(
+                      text: widget.publication.mepsLanguage.primaryIetfCode == 'ja'
+                          ? i18n().action_display_furigana
+                          : widget.publication.mepsLanguage.primaryIetfCode.contains('cmn')
+                          ? i18n().action_display_pinyin
+                          : i18n().action_display_yale,
+                      icon: Icon(JwIcons.vernacular_text),
+                      isSwitch: widget.publication.mepsLanguage.primaryIetfCode == 'ja'
+                          ? JwLifeSettings.instance.webViewData.isFuriganaActive
+                          : widget.publication.mepsLanguage.primaryIetfCode.contains('cmn')
+                          ? JwLifeSettings.instance.webViewData.isPinyinActive
+                          : JwLifeSettings.instance.webViewData.isYaleActive,
+                      onSwitchChange: (value) async {
+                        final languageCode = widget.publication.mepsLanguage.primaryIetfCode;
+
+                        if (languageCode == 'ja' &&
+                            value != JwLifeSettings.instance.webViewData.isFuriganaActive) {
+                          await AppSharedPreferences.instance.setFuriganaActive(value);
+                          JwLifeSettings.instance.webViewData.updatePronunciationGuide(value, 'furigana');
+                          setState(() {});
+                        } else if (languageCode.contains('cmn') &&
+                            value != JwLifeSettings.instance.webViewData.isPinyinActive) {
+                          await AppSharedPreferences.instance.setPinyinActive(value);
+                          JwLifeSettings.instance.webViewData.updatePronunciationGuide(value, 'pinyin');
+                          setState(() {});
+                        } else if (value != JwLifeSettings.instance.webViewData.isYaleActive) {
+                          await AppSharedPreferences.instance.setYaleActive(value);
+                          JwLifeSettings.instance.webViewData.updatePronunciationGuide(value, 'yale');
+                          setState(() {});
+                        }
                       },
                     ),
 

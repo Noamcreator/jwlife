@@ -909,5 +909,8 @@
   "action_brothers_and_sisters": "Broers en Susters",
   "action_blocking_horizontally_mode": "Horisontale Blokkering",
   "action_qr_code": "Genereer 'n QR-kode",
-  "action_scan_qr_code": "Skandeer 'n QR-kode"
+  "action_scan_qr_code": "Skandeer 'n QR-kode",
+  "settings_page_transition": "Bladsy-oorgang",
+  "settings_page_transition_bottom": "Oorgang van onder",
+  "settings_page_transition_right": "Oorgang van regs"
 }

@@ -3127,4 +3127,13 @@ class AppLocalizationsAf extends AppLocalizations {
 
   @override
   String get action_scan_qr_code => 'Skandeer \'n QR-kode';
+
+  @override
+  String get settings_page_transition => 'Bladsy-oorgang';
+
+  @override
+  String get settings_page_transition_bottom => 'Oorgang van onder';
+
+  @override
+  String get settings_page_transition_right => 'Oorgang van regs';
 }

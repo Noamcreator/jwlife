@@ -909,5 +909,8 @@
   "action_brothers_and_sisters": "兄弟姉妹",
   "action_blocking_horizontally_mode": "水平方向のブロック",
   "action_qr_code": "QRコードを生成",
-  "action_scan_qr_code": "QRコードをスキャン"
+  "action_scan_qr_code": "QRコードをスキャン",
+  "settings_page_transition": "ページの切り替え",
+  "settings_page_transition_bottom": "下からの切り替え",
+  "settings_page_transition_right": "右からの切り替え"
 }

@@ -3014,4 +3014,13 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get action_scan_qr_code => 'QR 코드 스캔';
+
+  @override
+  String get settings_page_transition => '페이지 전환';
+
+  @override
+  String get settings_page_transition_bottom => '아래에서 전환';
+
+  @override
+  String get settings_page_transition_right => '오른쪽에서 전환';
 }

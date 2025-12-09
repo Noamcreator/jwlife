@@ -352,6 +352,32 @@ function switchImageMode(mode) {
     renderPage(pageRight, next, "right");
 }
 
+function switchPronunciationGuideMode(mode) {
+    const article = document.getElementById('article-center');
+    const articleLeft = document.getElementById('article-left');
+    const articleRight = document.getElementById('article-right');
+
+    [article, articleLeft, articleRight].forEach(el => {
+        if (!el) return; // ignore si l'élément n'existe pas
+        if (mode) {
+            el.classList.add("showRuby");
+        } else {
+            el.classList.remove("showRuby");
+        }
+    });
+
+    for (let i = 0; i < cachedPages.length; i++) {
+        let classes = cachedPages[i].className.split(' ').filter(c => c !== 'showRuby');
+        if (mode) {
+            // Ajoute showRuby uniquement si elle n'existe pas déjà
+            classes.push('showRuby');
+        }
+        // Si mode === false, showRuby a déjà été retiré par filter
+        cachedPages[i].className = classes.join(' ');
+    }
+}
+
+
 function adjustArticle(articleId, link) {
     const article = document.getElementById(articleId);
     if (!article) return;

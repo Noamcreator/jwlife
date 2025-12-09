@@ -3122,4 +3122,13 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get action_scan_qr_code => 'Сканировать QR-код';
+
+  @override
+  String get settings_page_transition => 'Переход страниц';
+
+  @override
+  String get settings_page_transition_bottom => 'Переход снизу';
+
+  @override
+  String get settings_page_transition_right => 'Переход справа';
 }

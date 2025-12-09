@@ -55,7 +55,7 @@ RealmMediaItem? getAudioItem(String? keySymbol, int? track, int? documentId, int
 
   if (queryParts.isEmpty) return null;
 
-  queryParts.add("type == 'AUDIO'");
+  queryParts.add("Type == 'AUDIO'");
   String query = queryParts.join(" AND ");
 
   return RealmLibrary.realm.all<RealmMediaItem>().query(query).firstOrNull;

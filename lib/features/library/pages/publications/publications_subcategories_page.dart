@@ -48,7 +48,7 @@ class _PublicationSubcategoriesPageState extends State<PublicationSubcategoriesP
   }
 
   Future<void> _loadTitle() async {
-    _pageTitle.value = await widget.category.getNameAsync(Locale(JwLifeSettings.instance.currentLanguage.value.primaryIetfCode));
+    _pageTitle.value = await widget.category.getNameAsync(JwLifeSettings.instance.currentLanguage.value.getSafeLocale());
   }
 
   void loadItemsDays() async {

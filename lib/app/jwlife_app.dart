@@ -87,7 +87,6 @@ class JwLifeAppState extends State<JwLifeApp> {
   // --- Gestion du Thème et de la Couleur ---
 
   void toggleTheme(ThemeMode themeMode) {
-
     JwLifeSettings.instance.themeMode = themeMode;
 
     // Calculer la Brightness effective pour le web view.

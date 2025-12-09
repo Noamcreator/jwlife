@@ -3147,4 +3147,13 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get action_scan_qr_code => 'Escanear un Código QR';
+
+  @override
+  String get settings_page_transition => 'Transición de página';
+
+  @override
+  String get settings_page_transition_bottom => 'Transición desde abajo';
+
+  @override
+  String get settings_page_transition_right => 'Transición desde la derecha';
 }

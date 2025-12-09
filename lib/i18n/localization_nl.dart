@@ -3131,4 +3131,13 @@ class AppLocalizationsNl extends AppLocalizations {
 
   @override
   String get action_scan_qr_code => 'Scan een QR-code';
+
+  @override
+  String get settings_page_transition => 'Pagina-overgang';
+
+  @override
+  String get settings_page_transition_bottom => 'Overgang van onderen';
+
+  @override
+  String get settings_page_transition_right => 'Overgang van rechts';
 }

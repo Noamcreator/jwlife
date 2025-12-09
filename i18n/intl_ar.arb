@@ -909,5 +909,8 @@
   "action_brothers_and_sisters": "الإخوة والأخوات",
   "action_blocking_horizontally_mode": "حظر أفقي",
   "action_qr_code": "إنشاء رمز QR",
-  "action_scan_qr_code": "مسح رمز QR ضوئيًا"
+  "action_scan_qr_code": "مسح رمز QR ضوئيًا",
+  "settings_page_transition": "انتقال الصفحات",
+  "settings_page_transition_bottom": "انتقال من الأسفل",
+  "settings_page_transition_right": "انتقال من اليمين"
 }

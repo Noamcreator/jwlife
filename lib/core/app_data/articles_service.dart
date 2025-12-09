@@ -192,9 +192,43 @@ Future<void> fetchArticles(MepsLanguage language) async {
     final articleId = await saveArticleToDatabase(db, newArticle);
     await saveImagesToDatabase(db, articleId, newArticle);
   }
-  else if (articles.first['Title'] != lastArticle['Title'] && articles.first['ContextTitle'] != lastArticle['ContextTitle'] && articles.first['Description'] != lastArticle['Description'] && articles.first['ButtonText'] != lastArticle['ButtonText'] && articles.first['Theme'] != lastArticle['Theme']) {
-    AppDataService.instance.articles.value.removeWhere((article) => article['Title'] == lastArticle['Title'] && article['ContextTitle'] == lastArticle['ContextTitle'] && article['Description'] == lastArticle['Description'] && article['ButtonText'] == lastArticle['ButtonText'] && article['Theme'] == lastArticle['Theme']);
-    AppDataService.instance.articles.value = [lastArticle, ...AppDataService.instance.articles.value];
+  else if (lastArticle != null) {
+    // Vérifie si l'article trouvé en BDD n'est pas identique à celui placé en premier
+    final isFirstDifferent =
+        articles.first['Title'] != lastArticle['Title'] ||
+            articles.first['ContextTitle'] != lastArticle['ContextTitle'] ||
+            articles.first['Description'] != lastArticle['Description'] ||
+            articles.first['ButtonText'] != lastArticle['ButtonText'] ||
+            articles.first['Theme'] != lastArticle['Theme'];
+
+    if (isFirstDifferent) {
+      // Nouveau timestamp car l'article revient en tête
+      final newTimestamp = DateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'")
+          .format(DateTime.now().toUtc());
+
+      // Mise à jour en DB
+      await db.update(
+        'Article',
+        {'Timestamp': newTimestamp},
+        where: 'ArticleId = ?',
+        whereArgs: [lastArticle['ArticleId']],
+      );
+
+      // Article mis à jour localement
+      final updatedArticle = Map<String, dynamic>.from(lastArticle);
+      updatedArticle['Timestamp'] = newTimestamp;
+
+      // Retirer les anciennes occurrences de cet article
+      AppDataService.instance.articles.value.removeWhere(
+            (article) => article['ArticleId'] == lastArticle['ArticleId'],
+      );
+
+      // Le mettre en premier
+      AppDataService.instance.articles.value = [
+        updatedArticle,
+        ...AppDataService.instance.articles.value
+      ];
+    }
   }
 
   await db.close();

@@ -54,6 +54,16 @@ class AppSharedPreferences {
     await _sp.setString(SharedPreferencesKeys.theme.key, theme);
   }
 
+  // --- PAGE TRANSITION ----
+
+  String getPageTransition() {
+    return _sp.getString(SharedPreferencesKeys.pageTransition.key) ?? SharedPreferencesKeys.pageTransition.defaultValue;
+  }
+
+  Future<void> setPageTransition(String pageTransition) async {
+    await _sp.setString(SharedPreferencesKeys.pageTransition.key, pageTransition);
+  }
+
   // --- COULEUR PRIMAIRE ---
 
   Color getPrimaryColor(ThemeMode theme) {
@@ -115,7 +125,7 @@ class AppSharedPreferences {
       return _sp.getString(SharedPreferencesKeys.locale.key) ?? SharedPreferencesKeys.locale.defaultValue;
     }
     Locale deviceLocale = WidgetsBinding.instance.window.locales.first;
-    if (AppLocalizations.supportedLocales.contains(Locale(deviceLocale.languageCode))) {
+    if (AppLocalizations.supportedLocales.contains(deviceLocale)) {
       return deviceLocale.languageCode;
     }
     return SharedPreferencesKeys.locale.defaultValue;
@@ -269,6 +279,32 @@ class AppSharedPreferences {
 
   Future<void> setBlockingHorizontallyMode(bool blocking) async {
     await _sp.setBool(SharedPreferencesKeys.blockingHorizontallyMode.key, blocking);
+  }
+
+  // --- PRONUNCIATION GUIDE ---
+
+  bool getFuriganaActive() {
+    return _sp.getBool(SharedPreferencesKeys.furiganaActive.key) ?? SharedPreferencesKeys.furiganaActive.defaultValue;
+  }
+
+  Future<void> setFuriganaActive(bool furigana) async {
+    await _sp.setBool(SharedPreferencesKeys.furiganaActive.key, furigana);
+  }
+
+  bool getPinyinActive() {
+    return _sp.getBool(SharedPreferencesKeys.pinyinActive.key) ?? SharedPreferencesKeys.pinyinActive.defaultValue;
+  }
+
+  Future<void> setPinyinActive(bool pinyin) async {
+    await _sp.setBool(SharedPreferencesKeys.pinyinActive.key, pinyin);
+  }
+
+  bool getYaleActive() {
+    return _sp.getBool(SharedPreferencesKeys.yaleActive.key) ?? SharedPreferencesKeys.yaleActive.defaultValue;
+  }
+
+  Future<void> setYaleActive(bool yale) async {
+    await _sp.setBool(SharedPreferencesKeys.yaleActive.key, yale);
   }
 
   // --- WEBVIEW STYLE ---

@@ -3132,4 +3132,13 @@ class AppLocalizationsHu extends AppLocalizations {
 
   @override
   String get action_scan_qr_code => 'QR-kód beolvasása';
+
+  @override
+  String get settings_page_transition => 'Oldalátmenet';
+
+  @override
+  String get settings_page_transition_bottom => 'Átmenet alulról';
+
+  @override
+  String get settings_page_transition_right => 'Átmenet jobbról';
 }

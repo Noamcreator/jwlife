@@ -288,43 +288,42 @@ class _QrCodeScannerDialogState extends State<QrCodeScannerDialog> {
             const SizedBox(height: 15),
             SizedBox(
               height: 320,
-              child: Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(10.0),
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        // Le contenu principal (Scanner ou Message d'Erreur)
-                        _buildContent(),
+              // Ligne Corrigée: Suppression de l'Expanded
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(10.0),
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      // Le contenu principal (Scanner ou Message d'Erreur)
+                      _buildContent(),
 
-                        // Bouton de Flash/Torche (uniquement si permission accordée)
-                        if (_cameraPermissionStatus.isGranted)
-                          Positioned(
-                            bottom: 25,
-                            child: IconButton(
-                              color: Colors.white,
-                              iconSize: 30,
-                              icon: ValueListenableBuilder<MobileScannerState>(
-                                valueListenable: controller,
-                                builder: (context, state, child) {
-                                  // Affiche le bouton uniquement s'il a accès à la caméra
-                                  if (state.hasCameraPermission) {
-                                    return Icon(
-                                      controller.torchEnabled ? Icons.flash_on : Icons.flash_off,
-                                      color: controller.torchEnabled ? Colors.yellow : Colors.white,
-                                    );
-                                  } else {
-                                    return const SizedBox.shrink();
-                                  }
-                                },
-                              ),
-                              onPressed: () => controller.toggleTorch(),
+                      // Bouton de Flash/Torche (uniquement si permission accordée)
+                      if (_cameraPermissionStatus.isGranted)
+                        Positioned(
+                          bottom: 25,
+                          child: IconButton(
+                            color: Colors.white,
+                            iconSize: 30,
+                            icon: ValueListenableBuilder<MobileScannerState>(
+                              valueListenable: controller,
+                              builder: (context, state, child) {
+                                // Affiche le bouton uniquement s'il a accès à la caméra
+                                if (state.hasCameraPermission) {
+                                  return Icon(
+                                    controller.torchEnabled ? Icons.flash_on : Icons.flash_off,
+                                    color: controller.torchEnabled ? Colors.yellow : Colors.white,
+                                  );
+                                } else {
+                                  return const SizedBox.shrink();
+                                }
+                              },
                             ),
+                            onPressed: () => controller.toggleTorch(),
                           ),
-                      ],
-                    ),
+                        ),
+                    ],
                   ),
                 ),
               ),

@@ -2,8 +2,9 @@
 class SharedPreferencesKeys {
   const SharedPreferencesKeys._(); // empêche l'instanciation
 
-  // Thème
+  // Apparence
   static const theme = _PrefKey('theme', 'system');
+  static const pageTransition = _PrefKey('page_transition', 'default');
   static const primaryColor = _PrefKey('primary_color', null);
   static const bibleColor = _PrefKey('bible_color', null);
 
@@ -23,6 +24,11 @@ class SharedPreferencesKeys {
   static const fullscreenMode = _PrefKey('fullscreen', true);
   static const readingMode = _PrefKey('reading', false);
   static const blockingHorizontallyMode = _PrefKey('blocking_horizontally', false);
+
+  // Prononciation guide
+  static const furiganaActive = _PrefKey('furigana_active', false);
+  static const pinyinActive = _PrefKey('pinyin_active', false);
+  static const yaleActive = _PrefKey('yale_active', false);
 
   // Style dans le webview
   static const styleIndex = _PrefKey('style_index', 0);

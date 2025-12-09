@@ -909,5 +909,8 @@
   "action_brothers_and_sisters": "Biraderler ve Hemşireler",
   "action_blocking_horizontally_mode": "Yatay Kilitleme",
   "action_qr_code": "Bir QR kodu oluştur",
-  "action_scan_qr_code": "Bir QR Kodu Tarayın"
+  "action_scan_qr_code": "Bir QR Kodu Tarayın",
+  "settings_page_transition": "Sayfa geçişi",
+  "settings_page_transition_bottom": "Alttan geçiş",
+  "settings_page_transition_right": "Sağdan geçiş"
 }

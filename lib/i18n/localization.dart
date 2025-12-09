@@ -6,7 +6,11 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/intl.dart' as intl;
 
 import 'localization_af.dart';
+import 'localization_am.dart';
 import 'localization_ar.dart';
+import 'localization_as.dart';
+import 'localization_ay.dart';
+import 'localization_az.dart';
 import 'localization_de.dart';
 import 'localization_en.dart';
 import 'localization_es.dart';
@@ -22,6 +26,7 @@ import 'localization_nl.dart';
 import 'localization_pt.dart';
 import 'localization_ru.dart';
 import 'localization_tr.dart';
+import 'localization_zh.dart';
 
 // ignore_for_file: type=lint
 
@@ -110,7 +115,11 @@ abstract class AppLocalizations {
   /// A list of this localizations delegate's supported locales.
   static const List<Locale> supportedLocales = <Locale>[
     Locale('af'),
+    Locale('am'),
     Locale('ar'),
+    Locale('as'),
+    Locale('ay'),
+    Locale('az'),
     Locale('de'),
     Locale('en'),
     Locale('es'),
@@ -126,6 +135,10 @@ abstract class AppLocalizations {
     Locale('pt'),
     Locale('ru'),
     Locale('tr'),
+    Locale('zh'),
+    Locale('zh', 'CN'),
+    Locale('zh', 'HK'),
+    Locale('zh', 'TW'),
   ];
 
   /// No description provided for @search_hint.
@@ -5600,6 +5613,24 @@ abstract class AppLocalizations {
   /// In fr, this message translates to:
   /// **'Scanner un Code QR'**
   String get action_scan_qr_code;
+
+  /// No description provided for @settings_page_transition.
+  ///
+  /// In fr, this message translates to:
+  /// **'Transition des pages'**
+  String get settings_page_transition;
+
+  /// No description provided for @settings_page_transition_bottom.
+  ///
+  /// In fr, this message translates to:
+  /// **'Transition par le bas'**
+  String get settings_page_transition_bottom;
+
+  /// No description provided for @settings_page_transition_right.
+  ///
+  /// In fr, this message translates to:
+  /// **'Transition par la droite'**
+  String get settings_page_transition_right;
 }
 
 class _AppLocalizationsDelegate
@@ -5614,7 +5645,11 @@ class _AppLocalizationsDelegate
   @override
   bool isSupported(Locale locale) => <String>[
     'af',
+    'am',
     'ar',
+    'as',
+    'ay',
+    'az',
     'de',
     'en',
     'es',
@@ -5630,6 +5665,7 @@ class _AppLocalizationsDelegate
     'pt',
     'ru',
     'tr',
+    'zh',
   ].contains(locale.languageCode);
 
   @override
@@ -5637,12 +5673,36 @@ class _AppLocalizationsDelegate
 }
 
 AppLocalizations lookupAppLocalizations(Locale locale) {
+  // Lookup logic when language+country codes are specified.
+  switch (locale.languageCode) {
+    case 'zh':
+      {
+        switch (locale.countryCode) {
+          case 'CN':
+            return AppLocalizationsZhCn();
+          case 'HK':
+            return AppLocalizationsZhHk();
+          case 'TW':
+            return AppLocalizationsZhTw();
+        }
+        break;
+      }
+  }
+
   // Lookup logic when only language code is specified.
   switch (locale.languageCode) {
     case 'af':
       return AppLocalizationsAf();
+    case 'am':
+      return AppLocalizationsAm();
     case 'ar':
       return AppLocalizationsAr();
+    case 'as':
+      return AppLocalizationsAs();
+    case 'ay':
+      return AppLocalizationsAy();
+    case 'az':
+      return AppLocalizationsAz();
     case 'de':
       return AppLocalizationsDe();
     case 'en':
@@ -5673,6 +5733,8 @@ AppLocalizations lookupAppLocalizations(Locale locale) {
       return AppLocalizationsRu();
     case 'tr':
       return AppLocalizationsTr();
+    case 'zh':
+      return AppLocalizationsZh();
   }
 
   throw FlutterError(

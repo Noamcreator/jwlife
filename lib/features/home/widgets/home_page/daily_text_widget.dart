@@ -89,6 +89,7 @@ class DailyTextWidget extends StatelessWidget {
     required String verseHtml,
   }) {
     final now = DateTime.now();
+    final locale = JwLifeSettings.instance.currentLanguage.value.getSafeLocale();
 
     return GestureDetector(
       onTap: () {
@@ -115,7 +116,7 @@ class DailyTextWidget extends StatelessWidget {
                       ? [
                     const Icon(JwIcons.calendar, size: 24),
                     const SizedBox(width: 8),
-                    Text(capitalize(DateFormat('EEEE d MMMM yyyy', JwLifeSettings.instance.currentLanguage.value.primaryIetfCode).format(now)),
+                    Text(capitalize(DateFormat('EEEE d MMMM yyyy', locale.languageCode).format(now)),
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,

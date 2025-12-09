@@ -195,6 +195,10 @@ class AppDataService {
               WHERE ? BETWEEN dt.Start AND dt.End AND p.MepsLanguageId = ?
             ''', [formattedDate, languageId]);
 
+          AppDataService.instance.dailyText.value = null;
+          AppDataService.instance.midweekMeetingPub.value = null;
+          AppDataService.instance.weekendMeetingPub.value = null;
+
           for(Publication pub in result1.map((item) => Publication.fromJson(item)).toList()) {
             if (pub.keySymbol.contains('es')) {
               AppDataService.instance.dailyText.value = pub;
@@ -291,12 +295,13 @@ class AppDataService {
 
           printTime('Start: Latest Publications');
           result3 = await txn.rawQuery('''
-              SELECT DISTINCT
+              SELECT
                 $publicationQuery
               WHERE p.MepsLanguageId = ?
-              ORDER BY pa.CatalogedOn DESC
-              LIMIT ?
-            ''', [languageId, 12]);
+                AND p.Year >= strftime('%Y', 'now')
+                AND pa.CatalogedOn >= date('now', '-50 days')
+              ORDER BY pa.CatalogedOn DESC;
+            ''', [languageId]);
 
           AppDataService.instance.latestPublications.value = result3.map((item) => Publication.fromJson(item)).toList();
           printTime('End: Latest Publications');

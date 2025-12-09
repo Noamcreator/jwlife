@@ -26,6 +26,7 @@ class DatedText {
   int mepsDocumentId;
   int mepsLanguageId;
   String classType;
+  bool hasPronunciationGuide;
   Uint8List? content;
 
   List<Map<String, dynamic>> blockRanges = [];
@@ -44,6 +45,7 @@ class DatedText {
     required this.mepsDocumentId,
     required this.mepsLanguageId,
     this.classType = '0',
+    this.hasPronunciationGuide = false,
     this.content,
   });
 
@@ -59,6 +61,7 @@ class DatedText {
       mepsDocumentId: map['MepsDocumentId'] ?? 0,
       mepsLanguageId: map['MepsLanguageIndex'] ?? 0,
       classType: map['Class'] ?? '0',
+      hasPronunciationGuide: map['HasPronunciationGuide'] == 1 ? true : false,
       content: map['Content'],
     );
   }

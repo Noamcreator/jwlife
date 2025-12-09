@@ -52,6 +52,7 @@ class SettingsPage extends StatefulWidget {
 class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClientMixin {
   // Cache des données pour éviter les recalculs
   ThemeMode _theme = JwLifeSettings.instance.themeMode;
+  String _pageTransition = 'default';
   Locale _selectedLocale = const Locale('en');
   String _selectedLocaleVernacular = 'English';
   Color? _selectedColor = Colors.blue;
@@ -103,6 +104,7 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
     final sharedPreferences = AppSharedPreferences.instance;
 
     final theme = sharedPreferences.getTheme();
+    final pageTransition = sharedPreferences.getPageTransition();
     final selectedLanguage = sharedPreferences.getLocale();
     final primaryColor = sharedPreferences.getPrimaryColor(_theme);
     final bibleColor = sharedPreferences.getBibleColor();
@@ -134,6 +136,7 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
     if (mounted) {
       setState(() {
         _theme = themeMode;
+        _pageTransition = pageTransition;
         _selectedLocale = Locale(selectedLanguage);
         _selectedColor = primaryColor;
         _bibleSelectedColor = bibleColor;
@@ -242,6 +245,17 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
     }
   }
 
+  Future<void> _updatePageTransition(String pageTransition) async {
+    if (_pageTransition != pageTransition) {
+      setState(() {
+        _pageTransition = pageTransition;
+      });
+
+      JwLifeSettings.instance.pageTransition = pageTransition;
+      AppSharedPreferences.instance.setPageTransition(pageTransition);
+    }
+  }
+
   Future<void> _updatePrimaryColor(Color color) async {
     if (_selectedColor != color) {
       setState(() {
@@ -260,8 +274,8 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
     }
   }
 
-  Future<void> _updateLocale(Locale locale, String vernacular) async {
-    if (_selectedLocale != locale) {
+  Future<void> _updateLocale(Locale? locale, String vernacular) async {
+    if (_selectedLocale != locale && locale != null) {
       setState(() {
         _selectedLocale = locale;
         _selectedLocaleVernacular = vernacular;
@@ -289,6 +303,52 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
             onChanged: (ThemeMode? value) {
               if (value != null) {
                 _updateTheme(value);
+                Navigator.of(context, rootNavigator: true).pop();
+              }
+            },
+          );
+        }).toList(),
+      ),
+      buttons: [
+        JwDialogButton(
+          label: i18n().action_cancel.toUpperCase(),
+        ),
+      ],
+    );
+  }
+
+  String getPageTransitionLabel(String mode) {
+    switch (mode) {
+      case 'default':
+        return i18n().settings_appearance_system;
+      case 'right':
+        return i18n().settings_page_transition_right;
+      case 'bottom':
+        return i18n().settings_page_transition_bottom;
+      default:
+        return i18n().settings_appearance_system;
+    }
+  }
+
+  void showPageTransitionSelectionDialog() {
+    showJwDialog(
+      context: context,
+      title: Text(
+        i18n().settings_page_transition,
+        style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+      ),
+      buttonAxisAlignment: MainAxisAlignment.end,
+      content: Column(
+        spacing: 0,
+        mainAxisAlignment: MainAxisAlignment.start,
+        children: ['default', 'right', 'bottom'].map((mode) {
+          return RadioListTile<String>(
+            title: Text(getPageTransitionLabel(mode)),
+            value: mode,
+            groupValue: _pageTransition,
+            onChanged: (String? value) {
+              if (value != null) {
+                _updatePageTransition(value);
                 Navigator.of(context, rootNavigator: true).pop();
               }
             },
@@ -367,127 +427,9 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
   }
 
   Future<void> showLanguageSelectionDialog() async {
-    try {
-      // 1. Logique de récupération des données
-      final mepsFile = await getMepsUnitDatabaseFile();
-      final database = await openDatabase(mepsFile.path);
-
-      final languageCodes = AppLocalizations.supportedLocales.map((locale) => locale.languageCode).toList();
-      final codesInClause = languageCodes.map((code) => "'$code'").join(',');
-      final selectedCode = _selectedLocale.languageCode;
-
-      final languages = await database.rawQuery('''
-    SELECT 
-      Language.VernacularName,
-      Language.PrimaryIetfCode,
-      LanguageName.Name
-    FROM Language
-    JOIN LocalizedLanguageName ON LocalizedLanguageName.TargetLanguageId = Language.LanguageId
-    JOIN LanguageName ON LocalizedLanguageName.LanguageNameId = LanguageName.LanguageNameId
-    JOIN Language SourceL ON LocalizedLanguageName.SourceLanguageId = SourceL.LanguageId
-    WHERE Language.PrimaryIetfCode IN ($codesInClause) AND SourceL.PrimaryIetfCode = '$selectedCode';
-  ''');
-
-      await database.close();
-
-      // 2. Affichage du dialogue avec le même UI
-      if (mounted) {
-        await showDialog<void>( // Utilisation de showDialog de base
-          context: context,
-          builder: (BuildContext context) {
-            // --- Structure du JwDialog reproduite ---
-            return Dialog(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(3),
-              ),
-              child: Container(
-                decoration: BoxDecoration(
-                  // Reproduit le thème clair/sombre du JwDialog
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? const Color(0xFF353535)
-                      : const Color(0xFFFFFFFF),
-                  borderRadius: BorderRadius.circular(3),
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // --- TITRE (Reproduit l'espacement et le style JwDialog) ---
-                    const SizedBox(height: 20),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 25),
-                      child: Text(
-                        i18n().settings_languages, // Votre titre d'origine
-                        style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                    const SizedBox(height: 15),
-
-                    // --- CONTENU (LA CORRECTION CLÉ) ---
-                    // 1. Utilisation de SizedBox pour fixer une hauteur maximale (ex: 350)
-                    // 2. Utilisation de ListView pour le défilement automatique
-                    SizedBox(
-                      height: 350.0, // <-- HAUTEUR MAXIMALE FIXÉE POUR ÉVITER L'OVERFLOW
-                      child: ListView.builder(
-                        shrinkWrap: true,
-                        itemCount: languages.length,
-                        itemBuilder: (context, index) {
-                          final language = languages[index];
-                          final vernacularName = language['VernacularName'] as String? ?? '';
-                          final name = language['Name'] as String? ?? '';
-                          final languageCode = language['PrimaryIetfCode'] as String? ?? '';
-                          final locale = Locale(languageCode);
-
-                          return RadioListTile<Locale>(
-                            title: Text(name),
-                            subtitle: Text(vernacularName),
-                            value: locale,
-                            groupValue: _selectedLocale,
-                            onChanged: (Locale? value) {
-                              if (value != null) {
-                                // Ferme le dialogue
-                                Navigator.of(context, rootNavigator: true).pop();
-                                _updateLocale(value, vernacularName);
-                              }
-                            },
-                          );
-                        },
-                      ),
-                    ),
-
-                    // --- BOUTONS (Reproduit le style JwDialog) ---
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 10),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.end, // buttonAxisAlignment.end
-                        children: [
-                          TextButton(
-                            onPressed: () {
-                              Navigator.of(context).pop(); // Ferme le dialogue
-                            },
-                            child: Text(
-                              i18n().action_cancel.toUpperCase(),
-                              style: TextStyle(
-                                fontFamily: 'Roboto',
-                                letterSpacing: 1,
-                                fontWeight: FontWeight.bold,
-                                color: Theme.of(context).primaryColor,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 5),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      }
-    } catch (e) {
-      // Gestion d'erreur
+    Map<String, dynamic>? languageData = await showLanguagesAppDialog(context);
+    if(languageData != null) {
+      _updateLocale(languageData['Locale'], languageData['VernacularName']);
     }
   }
 
@@ -977,6 +919,11 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
             ? i18n().settings_appearance_light
             : i18n().settings_appearance_dark,
         onTap: showThemeSelectionDialog,
+      ),
+      SettingsTile(
+        title: i18n().settings_page_transition,
+        subtitle: _pageTransition == 'default' ? i18n().settings_appearance_system : _pageTransition == 'right' ? i18n().settings_page_transition_right : i18n().settings_page_transition_bottom,
+        onTap: showPageTransitionSelectionDialog,
       ),
       SettingsColorTile(
         title: i18n().settings_main_color,

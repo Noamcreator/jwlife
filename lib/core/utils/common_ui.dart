@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:jwlife/app/services/settings_service.dart';
 import 'package:jwlife/features/home/pages/daily_text_page.dart';
 import 'package:jwlife/features/personal/pages/note_page.dart';
 import 'package:jwlife/features/publication/pages/document/local/document_page.dart';
@@ -56,7 +57,6 @@ Future<void> showPage(Widget page) async {
   GlobalKeyService.jwLifePageKey.currentState!.addPageToTab(page);
 
   final isTransparentFullscreenPage = page is VideoPlayerPage || page is PlaylistPlayerPage || page is FullScreenImagePage || page is FullAudioView;
-  final isBottomTransition = page is FullAudioView || page is NotePage;
 
   GlobalKeyService.jwLifePageKey.currentState!.toggleNavBarTransparent(isTransparentFullscreenPage);
 
@@ -75,10 +75,15 @@ Future<void> showPage(Widget page) async {
       PageRouteBuilder(
         pageBuilder: (context, animation, secondaryAnimation) => page,
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          final isBottomTransition = page is FullAudioView || page is NotePage || JwLifeSettings.instance.pageTransition == 'bottom';
+          final isRightTransition = JwLifeSettings.instance.pageTransition == 'right';
+
+          if (!isBottomTransition && !isRightTransition) {
+            return child; // Pas d'animation !
+          }
+
           // Déterminer le point de départ de la transition
-          final beginOffset = isBottomTransition
-              ? const Offset(0.0, 1.0)  // Vient du bas si true
-              : const Offset(1.0, 0.0); // Vient de la droite si false
+          final beginOffset = isBottomTransition ? const Offset(0.0, 1.0) : const Offset(1.0, 0.0); // Vient de la droite si false
 
           // La courbe de l'animation
           final curve = isBottomTransition ? Curves.easeOutCubic : Curves.easeOutQuart;

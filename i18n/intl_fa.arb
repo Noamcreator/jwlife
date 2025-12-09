@@ -909,5 +909,8 @@
   "action_brothers_and_sisters": "برادران و خواهران",
   "action_blocking_horizontally_mode": "حالت مسدودسازی افقی",
   "action_qr_code": "تولید کد QR",
-  "action_scan_qr_code": "اسکن کد QR"
+  "action_scan_qr_code": "اسکن کد QR",
+  "settings_page_transition": "انتقال صفحه",
+  "settings_page_transition_bottom": "انتقال از پایین",
+  "settings_page_transition_right": "انتقال از راست"
 }

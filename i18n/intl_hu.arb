@@ -909,5 +909,8 @@
   "action_brothers_and_sisters": "Testvérek",
   "action_blocking_horizontally_mode": "Vízszintes blokkolás",
   "action_qr_code": "QR kód generálása",
-  "action_scan_qr_code": "QR-kód beolvasása"
+  "action_scan_qr_code": "QR-kód beolvasása",
+  "settings_page_transition": "Oldalátmenet",
+  "settings_page_transition_bottom": "Átmenet alulról",
+  "settings_page_transition_right": "Átmenet jobbról"
 }

@@ -3106,4 +3106,13 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get action_scan_qr_code => 'Bir QR Kodu Tarayın';
+
+  @override
+  String get settings_page_transition => 'Sayfa geçişi';
+
+  @override
+  String get settings_page_transition_bottom => 'Alttan geçiş';
+
+  @override
+  String get settings_page_transition_right => 'Sağdan geçiş';
 }

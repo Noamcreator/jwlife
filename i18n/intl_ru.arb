@@ -909,5 +909,8 @@
   "action_brothers_and_sisters": "Братья и Сёстры",
   "action_blocking_horizontally_mode": "Горизонтальная блокировка",
   "action_qr_code": "Сгенерировать QR-код",
-  "action_scan_qr_code": "Сканировать QR-код"
+  "action_scan_qr_code": "Сканировать QR-код",
+  "settings_page_transition": "Переход страниц",
+  "settings_page_transition_bottom": "Переход снизу",
+  "settings_page_transition_right": "Переход справа"
 }

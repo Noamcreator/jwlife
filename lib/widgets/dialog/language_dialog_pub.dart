@@ -85,7 +85,6 @@ class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
     File mepsUnitFile = await getMepsUnitDatabaseFile();
 
     await database.execute('ATTACH DATABASE ? AS meps', [mepsUnitFile.path]);
-    printTime('Database meps attached');
 
     // PrimaryIetfCode de la langue source
     String sourceLanguageLocale = JwLifeSettings.instance.locale.languageCode;
@@ -137,8 +136,7 @@ class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
     // ==========================================================
     // CAS 2 : Publication avec issueTagNumber != 0
     // ==========================================================
-    else if (widget.publication != null &&
-        widget.publication!.issueTagNumber != 0) {
+    else if (widget.publication != null && widget.publication!.issueTagNumber != 0) {
       baseQuery = '''
       SELECT 
         Publication.*,
@@ -223,9 +221,31 @@ class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
 
     List<Map<String, dynamic>> languagesModifiable = List.from(response);
 
+    if(widget.publication != null) {
+      Database mepsDb = await openReadOnlyDatabase(mepsUnitFile.path);
+      for(Publication pub in PublicationRepository().getAllDownloadedPublications()) {
+        if(widget.publication!.keySymbol == pub.keySymbol && widget.publication!.issueTagNumber == pub.issueTagNumber) {
+          if(!languagesModifiable.any((l) => l['MepsLanguageId'] == pub.mepsLanguage.id)) {
+            languagesModifiable.add({
+              'LanguageSymbol': pub.mepsLanguage.symbol,
+              'LanguageName': pub.mepsLanguage.vernacular,
+              'VernacularName': pub.mepsLanguage.vernacular,
+              'KeySymbol': pub.keySymbol,
+              'IssueTagNumber': pub.issueTagNumber,
+              'MepsLanguageId': pub.mepsLanguage.id,
+              'IssueTitle': pub.issueTitle.isEmpty ? null : pub.issueTitle,
+              'ShortTitle': pub.shortTitle,
+              'Title': pub.title
+            });
+          }
+        }
+      }
+
+      await mepsDb.close();
+    }
+
     List<Map<String, dynamic>> mostUsedLanguages =
-    await getUpdatedMostUsedLanguages(
-        selectedLanguage, languagesModifiable);
+    await getUpdatedMostUsedLanguages(selectedLanguage, languagesModifiable);
 
     _recommendedLanguages = languagesModifiable.where((lang) {
       return isRecommended(lang, mostUsedLanguages);

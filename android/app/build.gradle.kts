@@ -56,6 +56,7 @@ android {
 dependencies {
     // Desugaring pour les fonctionnalités de la librairie Java 8+ sur les anciennes versions d'Android pour flutter notification
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
+    implementation("com.google.android.gms:play-services-mlkit-barcode-scanning:18.3.1")
 }
 
 flutter {

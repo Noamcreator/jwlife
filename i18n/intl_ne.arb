@@ -909,5 +909,8 @@
   "action_brothers_and_sisters": "भाइहरू र दिदीबहिनीहरू",
   "action_blocking_horizontally_mode": "तेर्सो अवरोध",
   "action_qr_code": "QR कोड उत्पन्न गर्नुहोस्",
-  "action_scan_qr_code": "QR कोड स्क्यान गर्नुहोस्"
+  "action_scan_qr_code": "QR कोड स्क्यान गर्नुहोस्",
+  "settings_page_transition": "पृष्ठ संक्रमण",
+  "settings_page_transition_bottom": "तलबाट संक्रमण",
+  "settings_page_transition_right": "दायाँबाट संक्रमण"
 }

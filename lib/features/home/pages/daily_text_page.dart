@@ -213,6 +213,10 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
     await _controller.evaluateJavascript(source: "changePreparingMode($isPreparing);");
   }
 
+  Future<void> changePronunciationGuideMode(bool isPronunciationGuideActive) async {
+    await _controller.evaluateJavascript(source: "switchPronunciationGuideMode($isPronunciationGuideActive);");
+  }
+
   Future<void> changePrimaryColor(Color lightColor, Color darkColor) async {
     final lightPrimaryColor = toHex(lightColor);
     final darkPrimaryColor = toHex(darkColor);
@@ -342,6 +346,20 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
                           final datedText = widget.publication.datedTextManager!.datedTexts[index];
                           String html = decodeBlobContent(datedText.content!, widget.publication.hash!);
 
+                          String showRuby = '';
+                          if(widget.publication.datedTextManager!.datedTexts[index].hasPronunciationGuide) {
+                            final languageCode = widget.publication.mepsLanguage.primaryIetfCode;
+                            if (languageCode == 'ja' && JwLifeSettings.instance.webViewData.isFuriganaActive) {
+                              showRuby = 'showRuby';
+                            }
+                            else if (languageCode.contains('cmn') && JwLifeSettings.instance.webViewData.isPinyinActive) {
+                              showRuby = 'showRuby';
+                            }
+                            else if (JwLifeSettings.instance.webViewData.isYaleActive) {
+                              showRuby = 'showRuby';
+                            }
+                          }
+
                           final className = [
                             'document',
                             'jwac',
@@ -353,7 +371,7 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
                             'dir-${widget.publication.mepsLanguage.isRtl ? 'rtl' : 'ltr'}',
                             'layout-reading',
                             'layout-sidebar',
-                            JwLifeSettings.instance.webViewData.theme,
+                            showRuby
                           ].join(' ');
 
                           if(loadingKey.currentState!.isLoadingFonts) {
@@ -1145,6 +1163,41 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
                         showQrCodeDialog(context, widget.publication.datedTextManager!.getCurrentDatedText().getTitle(), uri);
                       },
                     ),
+
+                    if (widget.publication.datedTextManager!.getCurrentDatedText().hasPronunciationGuide)
+                      IconTextButton(
+                        text: widget.publication.mepsLanguage.primaryIetfCode == 'ja'
+                            ? i18n().action_display_furigana
+                            : widget.publication.mepsLanguage.primaryIetfCode.contains('cmn')
+                            ? i18n().action_display_pinyin
+                            : i18n().action_display_yale,
+                        icon: Icon(JwIcons.vernacular_text),
+                        isSwitch: widget.publication.mepsLanguage.primaryIetfCode == 'ja'
+                            ? JwLifeSettings.instance.webViewData.isFuriganaActive
+                            : widget.publication.mepsLanguage.primaryIetfCode.contains('cmn')
+                            ? JwLifeSettings.instance.webViewData.isPinyinActive
+                            : JwLifeSettings.instance.webViewData.isYaleActive,
+                        onSwitchChange: (value) async {
+                          final languageCode = widget.publication.mepsLanguage.primaryIetfCode;
+
+                          if (languageCode == 'ja' &&
+                              value != JwLifeSettings.instance.webViewData.isFuriganaActive) {
+                            await AppSharedPreferences.instance.setFuriganaActive(value);
+                            JwLifeSettings.instance.webViewData.updatePronunciationGuide(value, 'furigana');
+                            setState(() {});
+                          } else if (languageCode.contains('cmn') &&
+                              value != JwLifeSettings.instance.webViewData.isPinyinActive) {
+                            await AppSharedPreferences.instance.setPinyinActive(value);
+                            JwLifeSettings.instance.webViewData.updatePronunciationGuide(value, 'pinyin');
+                            setState(() {});
+                          } else if (value != JwLifeSettings.instance.webViewData.isYaleActive) {
+                            await AppSharedPreferences.instance.setYaleActive(value);
+                            JwLifeSettings.instance.webViewData.updatePronunciationGuide(value, 'yale');
+                            setState(() {});
+                          }
+                        },
+                      ),
+
                     IconTextButton(
                       text: i18n().action_text_settings,
                       icon: const Icon(Icons.text_increase),

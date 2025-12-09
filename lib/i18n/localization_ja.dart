@@ -3003,4 +3003,13 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get action_scan_qr_code => 'QRコードをスキャン';
+
+  @override
+  String get settings_page_transition => 'ページの切り替え';
+
+  @override
+  String get settings_page_transition_bottom => '下からの切り替え';
+
+  @override
+  String get settings_page_transition_right => '右からの切り替え';
 }

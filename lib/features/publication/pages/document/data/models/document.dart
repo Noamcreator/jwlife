@@ -53,7 +53,7 @@ class Document {
   int contentLength;
   String? preferredPresentation;
   String? contentReworkedDate;
-  bool hasPrononciationGuide;
+  bool hasPronunciationGuide;
 
   /* Bible fields */
   int? bookNumber;
@@ -107,7 +107,7 @@ class Document {
     this.contentLength = 0,
     this.preferredPresentation,
     this.contentReworkedDate,
-    this.hasPrononciationGuide = false,
+    this.hasPronunciationGuide = false,
     this.multimedias = const [],
     this.bookNumber,
     this.chapterNumberBible,
@@ -155,7 +155,7 @@ class Document {
       contentLength: map['ContentLength'] ?? 0,
       preferredPresentation: map['PreferredPresentation'],
       contentReworkedDate: map['ContentReworkedDate'],
-      hasPrononciationGuide: map['HasPrononciationGuide'] == 1 ? true : false,
+      hasPronunciationGuide: map['HasPronunciationGuide'] == 1 ? true : false,
 
       /* Bible fields */
       bookNumber: map['BookNumber'],

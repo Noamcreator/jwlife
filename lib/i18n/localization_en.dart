@@ -3100,4 +3100,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get action_scan_qr_code => 'Scan a QR Code';
+
+  @override
+  String get settings_page_transition => 'Page transition';
+
+  @override
+  String get settings_page_transition_bottom => 'Transition from bottom';
+
+  @override
+  String get settings_page_transition_right => 'Transition from right';
 }
