@@ -71,13 +71,13 @@ Future<void> showPage(Widget page) async {
     GlobalKeyService.jwLifePageKey.currentState!.toggleBottomNavBarVisibility(isResizeToAvoidBottomInset ? false : true);
   }
 
+  final isBottomTransition = page is FullAudioView || page is NotePage || JwLifeSettings.instance.pageTransition == 'bottom';
+  final isRightTransition = JwLifeSettings.instance.pageTransition == 'right';
+
   await GlobalKeyService.jwLifePageKey.currentState!.getCurrentState().push(
       PageRouteBuilder(
         pageBuilder: (context, animation, secondaryAnimation) => page,
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          final isBottomTransition = page is FullAudioView || page is NotePage || JwLifeSettings.instance.pageTransition == 'bottom';
-          final isRightTransition = JwLifeSettings.instance.pageTransition == 'right';
-
           if (!isBottomTransition && !isRightTransition) {
             return child; // Pas d'animation !
           }
@@ -100,8 +100,8 @@ Future<void> showPage(Widget page) async {
           );
         },
         opaque: false,
-        transitionDuration: const Duration(milliseconds: 350),
-        reverseTransitionDuration: const Duration(milliseconds: 350),
+        transitionDuration: !isBottomTransition && !isRightTransition ? const Duration(milliseconds: 0) : const Duration(milliseconds: 350),
+        reverseTransitionDuration: !isBottomTransition && !isRightTransition ? const Duration(milliseconds: 0) : const Duration(milliseconds: 350),
       )
   );
 
