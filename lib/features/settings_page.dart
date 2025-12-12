@@ -35,11 +35,9 @@ import '../core/shared_preferences/shared_preferences_utils.dart';
 import '../core/utils/directory_helper.dart';
 import '../core/utils/files_helper.dart';
 import '../core/utils/utils.dart';
-import '../core/utils/widgets_utils.dart';
+import '../core/utils/utils_import_export.dart';
 import '../data/realm/catalog.dart';
 import '../data/realm/realm_library.dart';
-import '../data/databases/userdata.dart';
-import '../i18n/localization.dart';
 import '../widgets/settings_widget.dart';
 
 class SettingsPage extends StatefulWidget {
@@ -433,236 +431,6 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
     }
   }
 
-  // Méthodes d'import/export optimisées avec gestion d'erreur améliorée
-  Future<void> _handleImport() async {
-    try {
-      final result = await FilePicker.platform.pickFiles(type: FileType.any);
-      if (result == null) return;
-
-      final file = result.files.first;
-      final filePath = file.path ?? '';
-
-      // Validation du fichier
-      final allowedExtensions = ['jwlibrary', 'jwlife'];
-      final fileExtension = filePath.split('.').last.toLowerCase();
-
-      if (!allowedExtensions.contains(fileExtension)) {
-        await _showErrorDialog(i18n().message_file_not_supported_title, i18n().message_file_not_supported_2_extensions('.jwlibrary', '.jwlife'));
-        return;
-      }
-
-      // Validation ZIP
-      if (!await _isValidZipFile(filePath)) {
-        return;
-      }
-
-      // Récupération des infos et confirmation
-      final info = await getBackupInfo(File(filePath));
-      if (info == null) {
-        await _showErrorDialog(i18n().message_restore_failed, i18n().message_restore_failed_explanation);
-        return;
-      }
-
-      final shouldRestore = await _showRestoreConfirmation(info);
-      if (shouldRestore != true) return;
-
-      await _performRestore(File(filePath));
-    }
-    catch (e) {
-      await _showErrorDialog(i18n().message_restore_failed, i18n().message_restore_failed);
-    }
-  }
-
-  Future<void> _handleAppImport() async {
-    try {
-      final result = await FilePicker.platform.pickFiles(type: FileType.any);
-      if (result == null) return;
-
-      final file = result.files.first;
-      final filePath = file.path ?? '';
-
-      // Validation du fichier
-      final allowedExtensions = ['jwlife'];
-      final fileExtension = filePath.split('.').last.toLowerCase();
-
-      if (!allowedExtensions.contains(fileExtension)) {
-        await _showErrorDialog(i18n().message_file_not_supported_title, i18n().message_file_not_supported_1_extension('.jwlife'));
-        return;
-      }
-
-      // Validation ZIP
-      if (!await _isValidZipFile(filePath)) {
-        return;
-      }
-
-      final shouldRestore = await _showRestoreConfirmation(null);
-      if (shouldRestore != true) return;
-
-      await _performAppRestore(File(filePath));
-    } catch (e) {
-      await _showErrorDialog('Erreur', 'Une erreur est survenue lors de l\'importation.');
-    }
-  }
-
-  Future<bool> _isValidZipFile(String filePath) async {
-    try {
-      final bytes = await File(filePath).readAsBytes();
-      ZipDecoder().decodeBytes(bytes);
-      return true;
-    } catch (_) {
-      return false;
-    }
-  }
-
-  Future<void> _showErrorDialog(String title, String content) async {
-    await showJwDialog(
-      context: context,
-      titleText: title,
-      contentText: content,
-      buttons: [
-        JwDialogButton(
-          label: 'OK',
-          closeDialog: true,
-        ),
-      ],
-      buttonAxisAlignment: MainAxisAlignment.end,
-    );
-  }
-
-  Future<bool?> _showRestoreConfirmation(BackupInfo? info) async {
-    return await showJwDialog<bool>(
-      context: context,
-      titleText: i18n().action_restore_a_backup,
-      content: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 25),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              info == null ? 'Les données de votre applications seront écrasées par les nouvelles données.' : i18n().message_restore_a_backup_explanation,
-              style: TextStyle(fontSize: 16),
-            ),
-            const SizedBox(height: 15),
-            info == null  ? SizedBox.shrink() : Text(info.deviceName, style: const TextStyle(fontWeight: FontWeight.bold)),
-            info == null  ? SizedBox.shrink() : const SizedBox(height: 5),
-            info == null  ? SizedBox.shrink() : Text(timeAgo(info.lastModified)),
-          ],
-        ),
-      ),
-      buttons: [
-        JwDialogButton(
-          label: i18n().action_cancel_uppercase,
-          closeDialog: true,
-          result: false,
-        ),
-        JwDialogButton(
-          label: i18n().action_restore_uppercase,
-          closeDialog: true,
-          result: true,
-        ),
-      ],
-      buttonAxisAlignment: MainAxisAlignment.end,
-    );
-  }
-
-  Future<void> _performRestore(File file) async {
-    BuildContext? dialogContext;
-
-    showJwDialog(
-      context: context,
-      titleText: i18n().message_restore_in_progress,
-      content: Builder(
-        builder: (ctx) {
-          dialogContext = ctx;
-          return Center(
-            child: SizedBox(
-              height: 70,
-              child: getLoadingWidget(Theme.of(context).primaryColor),
-            ),
-          );
-        },
-      ),
-    );
-
-    try {
-      await JwLifeApp.userdata.importBackup(file);
-
-      if (dialogContext != null) Navigator.of(dialogContext!).pop();
-
-      await showJwDialog(
-        context: context,
-        titleText: i18n().message_restore_successful,
-        content: Center(
-          child: Icon(
-            JwIcons.check,
-            color: Theme.of(context).primaryColor,
-            size: 70,
-          ),
-        ),
-        buttons: [
-          JwDialogButton(
-            label: i18n().action_close_upper,
-            closeDialog: true,
-          ),
-        ],
-        buttonAxisAlignment: MainAxisAlignment.end,
-      );
-
-      GlobalKeyService.personalKey.currentState?.refreshUserdata();
-    }
-    catch (e) {
-      if (dialogContext != null) Navigator.of(dialogContext!).pop();
-      await _showErrorDialog(i18n().message_restore_failed, i18n().message_restore_failed);
-    }
-  }
-
-  Future<void> _performAppRestore(File file) async {
-    BuildContext? dialogContext;
-
-    showJwDialog(
-      context: context,
-      titleText: i18n().message_import_data,
-      content: Builder(
-        builder: (ctx) {
-          dialogContext = ctx;
-          return Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 25),
-            child: SizedBox(
-              height: 50,
-              child: getLoadingWidget(Theme.of(context).primaryColor),
-            ),
-          );
-        },
-      ),
-    );
-
-    try {
-      await importAppBackup(file);
-
-      if (dialogContext != null) Navigator.of(dialogContext!).pop();
-
-      await showJwDialog(
-        context: context,
-        titleText: 'Sauvegarde importée',
-        contentText: 'La sauvegarde a bien été importée.',
-        buttons: [
-          JwDialogButton(
-            label: 'OK',
-            closeDialog: true,
-          ),
-        ],
-        buttonAxisAlignment: MainAxisAlignment.end,
-      );
-
-      // redémarer l'application
-
-      if (mounted) Navigator.pop(context);
-    } catch (e) {
-      if (dialogContext != null) Navigator.of(dialogContext!).pop();
-      await _showErrorDialog('Erreur', 'Erreur lors de l\'importation de la sauvegarde.');
-    }
-  }
-
   Future<void> _showTimeSelector(BuildContext context, DateTime initialTime, Function(DateTime) onTimeSelected) async {
     final TimeOfDay? newTime = await showTimePicker(
       context: context,
@@ -966,131 +734,17 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
       SettingsTile(
         title: i18n().settings_userdata_import,
         trailing: const Icon(JwIcons.cloud_arrow_down),
-        onTap: _handleImport,
+        onTap: () => handleImport(context),
       ),
       SettingsTile(
         title: i18n().settings_userdata_export,
         trailing: const Icon(JwIcons.cloud_arrow_up),
-        onTap: () async {
-          BuildContext? dialogContext;
-
-          showJwDialog(
-            context: context,
-            titleText: i18n().message_exporting_userdata,
-            content: Builder(
-              builder: (ctx) {
-                dialogContext = ctx;
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 25),
-                  child: SizedBox(
-                    height: 50,
-                    child: getLoadingWidget(Theme.of(context).primaryColor),
-                  ),
-                );
-              },
-            ),
-          );
-
-          try {
-            final backupFile = await JwLifeApp.userdata.exportBackup();
-            if (dialogContext != null) Navigator.of(dialogContext!).pop();
-
-            if (backupFile != null) {
-              await SharePlus.instance.share(ShareParams(files: [XFile(backupFile.path)]));
-            }
-
-            if (mounted) Navigator.pop(context);
-
-            // On supprime le fichier
-            if (backupFile != null) await File(backupFile.path).delete();
-          } catch (e) {
-            if (dialogContext != null) Navigator.of(dialogContext!).pop();
-            await _showErrorDialog('Erreur', 'Erreur lors de l\'exportation.');
-          }
-        },
+        onTap: () => handleExport(context)
       ),
       SettingsTile(
         title: i18n().settings_userdata_reset,
         trailing: const Icon(JwIcons.trash),
-        onTap: () async {
-          // ÉTAPE 1: Confirmation
-          final confirm = await showJwDialog<bool>(
-            context: context,
-            titleText: i18n().message_confirm_userdata_reset_title,
-            contentText: i18n().message_confirm_userdata_reset,
-            buttons: [
-              JwDialogButton(
-                label: i18n().action_cancel_uppercase,
-                closeDialog: true,
-                result: false,
-              ),
-              JwDialogButton(
-                label: i18n().action_reset_uppercase,
-                closeDialog: true,
-                result: true,
-              ),
-            ],
-            buttonAxisAlignment: MainAxisAlignment.end,
-          );
-
-          if (confirm != true) return;
-
-          // ÉTAPE 2: Affichage du dialogue d'attente (Spinner)
-          BuildContext? dialogContext;
-          showJwDialog(
-            context: context,
-            titleText: i18n().message_userdata_reseting,
-            content: Builder(
-              builder: (ctx) {
-                // L'ASSIGNATION du Context du dialogue se fait ici.
-                dialogContext = ctx;
-                return const Center(
-                  child: SizedBox(
-                    height: 70,
-                    child: Center(child: CircularProgressIndicator()),
-                  ),
-                );
-              },
-            ),
-          );
-
-          // ÉTAPE 3: Exécution de l'opération asynchrone
-          try {
-            await JwLifeApp.userdata.deleteBackup();
-
-            // Utilisation du Context GARANTI non-null.
-            if (dialogContext != null) {
-              // Ferme le dialogue d'attente.
-              Navigator.of(dialogContext!).pop();
-
-              // Dialogue de confirmation.
-              await showJwDialog(
-                context: context,
-                titleText: i18n().message_delete_userdata_title,
-                contentText: i18n().message_delete_userdata,
-                buttons: [
-                  JwDialogButton(
-                    label: i18n().action_ok,
-                    closeDialog: true,
-                  ),
-                ],
-                buttonAxisAlignment: MainAxisAlignment.end,
-              );
-            }
-
-            // Mises à jour de l'interface
-            GlobalKeyService.personalKey.currentState?.refreshUserdata();
-          }
-          catch (e) {
-            // S'assurer de fermer le dialogue d'attente même en cas d'erreur.
-            if (dialogContext != null) {
-              Navigator.of(dialogContext!).pop();
-            }
-
-            print(e);
-            await _showErrorDialog('Erreur', 'Erreur lors de la suppression. $e');
-          }
-        },
+        onTap: () => handleResetUserdata(context)
       ),
 
       const Divider(),
@@ -1217,7 +871,7 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
           }
           catch (e) {
             if (dialogContext != null) Navigator.of(dialogContext!).pop();
-            await _showErrorDialog('Erreur', 'Erreur lors de la suppression du cache.');
+            await showErrorDialog(context, 'Erreur', 'Erreur lors de la suppression du cache.');
           }
         },
       ),

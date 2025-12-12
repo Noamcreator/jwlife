@@ -162,7 +162,6 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
   void dispose() {
     _streamSequenceStateSubscription.cancel();
     _streamSequencePositionSubscription.cancel();
-    //_notesController.removeListener(_updateNotesListener);
     _tagsController.removeListener(_updateTagsListener);
     super.dispose();
   }
@@ -197,6 +196,7 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
 
     setState(() {
       _isLoadedData = true;
+      controlsKey.currentState?.changeTitle([]);
     });
 
     if (widget.publication.audiosNotifier.value.isEmpty) {
@@ -216,7 +216,7 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
 
           if(doc.isBibleChapter()) {
             if (widget.publication.audiosNotifier.value.isNotEmpty) {
-              final audio = widget.publication.audiosNotifier.value.firstWhereOrNull((a) => a.bookNumber == doc!.bookNumber && a.track == doc!.chapterNumberBible);
+              final audio = widget.publication.audiosNotifier.value.firstWhereOrNull((a) => a.bookNumber == doc!.bookNumber && a.track == doc.chapterNumberBible);
               if (audio != null && audio.markers.isNotEmpty) {
                 audioMarkersJson = audio.markers.map((m) => m.toJson()).toList();
               }
@@ -713,6 +713,18 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
                       }
                       else if (args[1] == "up") {
                         controlsKey.currentState?.toggleOnScroll(true);
+                      }
+                    },
+                  );
+
+                  controller.addJavaScriptHandler(
+                    handlerName: 'verseClickNumber',
+                    callback: (args) async {
+                      if (args[0] == null) {
+                        controlsKey.currentState?.changeTitle([]);
+                      }
+                      else {
+                        controlsKey.currentState?.changeTitle(args[0] is List ? List<int>.from(args[0]) : []);
                       }
                     },
                   );
@@ -1525,10 +1537,9 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
             )
         ) : Container(),
 
-           LoadingWidget(key: loadingKey),
+            LoadingWidget(key: loadingKey),
 
-          !_isLoadedData ? Container()
-              : ControlsOverlay(key: controlsKey,
+            ControlsOverlay(key: controlsKey,
               publication: widget.publication,
               notesController: _notesController,
               handleBackPress: handleBackPress,
@@ -1601,6 +1612,8 @@ class ControlsOverlay extends StatefulWidget {
 class _ControlsOverlayState extends State<ControlsOverlay> {
   late InAppWebViewController _controller;
 
+  String _title = '';
+
   /* MODES */
   bool _isImageMode = false;
   bool _isPronunciationGuide = false;
@@ -1664,10 +1677,55 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
   void changePageAt(int index, bool imageMode) {
     setState(() {
       widget.publication.documentsManager!.selectedDocumentIndex = index;
+      _title = widget.publication.documentsManager!.getCurrentDocument().getDisplayTitle();
       _controlsVisible = true;
       _isImageMode = imageMode;
     });
     GlobalKeyService.jwLifePageKey.currentState!.toggleBottomNavBarVisibility(_controlsVisible);
+  }
+
+  void changeTitle(List<int> versesNumber, {String? title}) {
+    _title = title ?? widget.publication.documentsManager!.getCurrentDocument().getDisplayTitle();
+
+    if (versesNumber.isNotEmpty) {
+      final formatted = _formatVerses(versesNumber);
+      _title += ":$formatted";
+    }
+
+    setState(() {});
+  }
+
+  String _formatVerses(List<int> verses) {
+    if (verses.isEmpty) return "";
+
+    // On trie et on enlève les doublons
+    final sorted = verses.toSet().toList()..sort();
+
+    // Si un seul verset
+    if (sorted.length == 1) return "${sorted.first}";
+
+    // Vérifier si tous les versets sont consécutifs
+    bool allConsecutive = true;
+    for (int i = 0; i < sorted.length - 1; i++) {
+      if (sorted[i + 1] != sorted[i] + 1) {
+        allConsecutive = false;
+        break;
+      }
+    }
+
+    // Si consécutifs
+    if (allConsecutive) {
+      if (sorted.length == 2) {
+        // Cas: 12, 13
+        return "${sorted[0]}, ${sorted[1]}";
+      } else {
+        // Cas: 12-15
+        return "${sorted.first}-${sorted.last}";
+      }
+    }
+
+    // Sinon liste normale séparée par virgules: "12, 14, 18"
+    return sorted.join(", ");
   }
 
   void refreshWidget() {
@@ -1699,7 +1757,34 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
   }
 
   @override
+  void initState() {
+    super.initState();
+
+    final dm = widget.publication.documentsManager;
+
+    Document? current;
+    if (dm != null &&
+        dm.selectedDocumentIndex != -1 &&
+        dm.selectedDocumentIndex < dm.documents.length) {
+      current = dm.getCurrentDocument();
+    }
+
+    if(current != null) {
+      _title = current.getDisplayTitle();
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final dm = widget.publication.documentsManager;
+
+    Document? current;
+    if (dm != null &&
+        dm.selectedDocumentIndex != -1 &&
+        dm.selectedDocumentIndex < dm.documents.length) {
+      current = dm.getCurrentDocument();
+    }
+
     return Stack(
       children: [
         Positioned(
@@ -1753,99 +1838,145 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
                   }
                 )
               ) : JwLifeAppBar(
-                title: widget.publication.documentsManager!.getCurrentDocument().getDisplayTitle(),
-                subTitle: widget.publication.issueTitle.isNotEmpty ? widget.publication.issueTitle : widget.publication.shortTitle,
+                title: _title,
+                subTitle: widget.publication.getShortTitle(),
                 handleBackPress: widget.handleBackPress,
                 actions: [
-                  if (widget.publication.audiosNotifier.value.any((audio) => audio.documentId == widget.publication.documentsManager!.getCurrentDocument().mepsDocumentId) || widget.publication.audiosNotifier.value.any((audio) => audio.bookNumber == widget.publication.documentsManager!.getCurrentDocument().bookNumber && audio.track == widget.publication.documentsManager!.getCurrentDocument().chapterNumberBible))
+                  // AUDIO
+                  if (current != null &&
+                      widget.publication.audiosNotifier.value.any(
+                            (audio) =>
+                        audio.documentId == current!.mepsDocumentId ||
+                            (audio.bookNumber == current.bookNumber &&
+                                audio.track == current.chapterNumberBible),
+                      ))
                     IconTextButton(
                       text: "Écouter ou télécharger l'audio",
                       icon: Icon(JwIcons.headphones),
                       onPressed: (anchorContext) {
-                        int? index;
-                        if(widget.publication.documentsManager!.getCurrentDocument().isBibleChapter()) {
-                          index = widget.publication.audiosNotifier.value.indexWhere((audio) => audio.bookNumber == widget.publication.documentsManager!.getCurrentDocument().bookNumber && audio.track == widget.publication.documentsManager!.getCurrentDocument().chapterNumberBible);
-                        }
-                        else {
-                          index = widget.publication.audiosNotifier.value.indexWhere((audio) => audio.documentId == widget.publication.documentsManager!.getCurrentDocument().mepsDocumentId);
-                        }
-                        if (index != -1) {
-                          // Afficher un PopMenu avec Écouter l'audio ou Télécharger l'audio
+                        if (current == null) return;
 
+                        int? index;
+                        if (current.isBibleChapter()) {
+                          index = widget.publication.audiosNotifier.value.indexWhere(
+                                (audio) =>
+                            audio.bookNumber == current!.bookNumber &&
+                                audio.track == current.chapterNumberBible,
+                          );
+                        } else {
+                          index = widget.publication.audiosNotifier.value.indexWhere(
+                                (audio) =>
+                            audio.documentId == current!.mepsDocumentId,
+                          );
+                        }
+
+                        if (index != -1) {
                           showAudioPopupMenu(anchorContext, widget.publication, index);
                         }
                       },
                     ),
+
+                  // RECHERCHE
                   IconTextButton(
                     text: i18n().action_search,
                     icon: Icon(JwIcons.magnifying_glass),
                     onPressed: (anchorContext) {
-                      setState(() {
-                        _isSearching = true;
-                      });
+                      setState(() => _isSearching = true);
                     },
                   ),
+
+                  // FAVORIS
                   IconTextButton(
                     text: i18n().action_bookmarks,
                     icon: Icon(JwIcons.bookmark),
                     onPressed: (anchorContext) async {
-                      Bookmark? bookmark = await showBookmarkDialog(context, widget.publication, webViewController: _controller, mepsDocumentId: widget.publication.documentsManager!.getCurrentDocument().mepsDocumentId, bookNumber: widget.publication.documentsManager!.getCurrentDocument().bookNumber, chapterNumber: widget.publication.documentsManager!.getCurrentDocument().chapterNumber, title: widget.publication.documentsManager!.getCurrentDocument().getDisplayTitle(), snippet: '', blockType: 0, blockIdentifier: null);
-                      if (bookmark != null) {
-                        if(bookmark.location.bookNumber != null && bookmark.location.chapterNumber != null) {
-                          int page = widget.publication.documentsManager!.documents.indexWhere((doc) => doc.bookNumber == bookmark.location.bookNumber && doc.chapterNumber == bookmark.location.chapterNumber);
+                      final bm = await showBookmarkDialog(
+                        context,
+                        widget.publication,
+                        webViewController: _controller,
+                        mepsDocumentId: current!.mepsDocumentId,
+                        bookNumber: current.bookNumber,
+                        chapterNumber: current.chapterNumber,
+                        title: current.getDisplayTitle(),
+                        snippet: '',
+                        blockType: 0,
+                        blockIdentifier: null,
+                      );
 
-                          if (page != widget.publication.documentsManager!.selectedDocumentIndex) {
+                      if (bm != null) {
+                        // Cas Bible (book + chapter)
+                        if (bm.location.bookNumber != null &&
+                            bm.location.chapterNumber != null) {
+                          final page = dm!.documents.indexWhere(
+                                (doc) =>
+                            doc.bookNumber == bm.location.bookNumber &&
+                                doc.chapterNumber == bm.location.chapterNumber,
+                          );
+
+                          if (page != dm.selectedDocumentIndex) {
                             await widget.jumpToPage(page);
                           }
 
-                          if (bookmark.blockIdentifier != null) {
-                            widget.jumpToVerse(bookmark.blockIdentifier!, bookmark.blockIdentifier!);
+                          if (bm.blockIdentifier != null) {
+                            widget.jumpToVerse(bm.blockIdentifier!, bm.blockIdentifier!);
                           }
                         }
-                        else {
-                          if(bookmark.location.mepsDocumentId != widget.publication.documentsManager!.getCurrentDocument().mepsDocumentId) {
-                            int page = widget.publication.documentsManager!.documents.indexWhere((doc) => doc.mepsDocumentId == bookmark.location.mepsDocumentId);
+                        // Cas publications classiques
+                        else if (bm.location.mepsDocumentId != current.mepsDocumentId) {
+                          final page = dm!.documents.indexWhere(
+                                (doc) => doc.mepsDocumentId == bm.location.mepsDocumentId,
+                          );
 
-                            if (page != widget.publication.documentsManager!.selectedDocumentIndex) {
-                              await widget.jumpToPage(page);
-                            }
+                          if (page != dm.selectedDocumentIndex) {
+                            await widget.jumpToPage(page);
+                          }
 
-                            if (bookmark.blockIdentifier != null) {
-                              widget.jumpToParagraph(bookmark.blockIdentifier!, bookmark.blockIdentifier!);
-                            }
+                          if (bm.blockIdentifier != null) {
+                            widget.jumpToParagraph(bm.blockIdentifier!, bm.blockIdentifier!);
                           }
                         }
                       }
                     },
                   ),
+
+                  // LANGUES
                   IconTextButton(
                     text: i18n().action_languages,
                     icon: Icon(JwIcons.language),
                     onPressed: (anchorContext) async {
-                      showLanguagePubDialog(context, widget.publication).then((languagePub) async {
-                        if(languagePub != null) {
-                          showPageDocument(languagePub, widget.publication.documentsManager!.getCurrentDocument().mepsDocumentId);
+                      showLanguagePubDialog(context, widget.publication).then((languagePub) {
+                        if (languagePub != null) {
+                          showPageDocument(languagePub, current!.mepsDocumentId);
                         }
                       });
                     },
                   ),
+
+
+                  // NOTE
                   IconTextButton(
                     text: i18n().action_add_a_note,
                     icon: const Icon(JwIcons.note_plus),
                     onPressed: (anchorContext) async {
-                      String title = widget.publication.documentsManager!.getCurrentDocument().getDisplayTitle();
-                      Document document = widget.publication.documentsManager!.getCurrentDocument();
-                      await widget.notesController.addNote(title: title, document: document);
+                      await widget.notesController.addNote(
+                        title: current!.getDisplayTitle(),
+                        document: current,
+                      );
                     },
                   ),
-                  if(widget.publication.documentsManager!.getCurrentDocument().hasMediaLinks)
+
+
+                  // MÉDIAS
+                  if (current != null && current.hasMediaLinks)
                     IconTextButton(
                       text: i18n().navigation_meetings_show_media,
                       icon: const Icon(JwIcons.video_music),
                       onPressed: (anchorContext) {
-                        showPage(DocumentMediasView(document: widget.publication.documentsManager!.getCurrentDocument()));
+                        showPage(DocumentMediasView(document: current!));
                       },
                     ),
+
+                  // MENU
                   IconTextButton(
                     text: i18n().action_display_menu,
                     icon: const Icon(JwIcons.list_thumbnail),
@@ -1853,6 +1984,8 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
                       widget.publication.showMenu(context);
                     },
                   ),
+
+                  // HISTORIQUE
                   IconTextButton(
                     text: i18n().action_history,
                     icon: const Icon(JwIcons.arrow_circular_left_clock),
@@ -1860,30 +1993,44 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
                       History.showHistoryDialog(context);
                     },
                   ),
+
+                  // PARTAGER
                   IconTextButton(
                     text: i18n().action_open_in_share,
                     icon: const Icon(JwIcons.share),
                     onPressed: (anchorContext) {
-                      widget.publication.documentsManager!.getCurrentDocument().share();
+                      current!.share();
                     },
                   ),
+
+
+                  // QR CODE
                   IconTextButton(
                     text: i18n().action_qr_code,
                     icon: const Icon(JwIcons.qr_code),
                     onPressed: (anchorContext) {
-                      String uri = widget.publication.documentsManager!.getCurrentDocument().share(hide: true);
-                      showQrCodeDialog(context, widget.publication.documentsManager!.getCurrentDocument().getDisplayTitle(), uri);
+                      final uri = current!.share(hide: true);
+                      showQrCodeDialog(
+                        context,
+                        current.getDisplayTitle(),
+                        uri,
+                      );
                     },
                   ),
-                  if (widget.publication.documentsManager!.getCurrentDocument().svgs.isNotEmpty)
+
+
+                  // MODE IMAGE / TEXTE
+                  if (current != null && current.svgs.isNotEmpty)
                     IconTextButton(
-                      text: _isImageMode ? i18n().action_view_mode_text : i18n().action_view_mode_image,
+                      text: _isImageMode
+                          ? i18n().action_view_mode_text
+                          : i18n().action_view_mode_image,
                       icon: Icon(_isImageMode ? JwIcons.outline : JwIcons.image),
-                      onPressed: (anchorContext) {
-                        switchImageMode();
-                      },
+                      onPressed: (anchorContext) => switchImageMode(),
                     ),
-                  if (widget.publication.documentsManager!.getCurrentDocument().hasPronunciationGuide)
+
+                  // GUIDES DE PRONONCIATION
+                  if (current != null && current.hasPronunciationGuide)
                     IconTextButton(
                       text: widget.publication.mepsLanguage.primaryIetfCode == 'ja'
                           ? i18n().action_display_furigana
@@ -1897,85 +2044,84 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
                           ? JwLifeSettings.instance.webViewData.isPinyinActive
                           : JwLifeSettings.instance.webViewData.isYaleActive,
                       onSwitchChange: (value) async {
-                        final languageCode = widget.publication.mepsLanguage.primaryIetfCode;
+                        final lang = widget.publication.mepsLanguage.primaryIetfCode;
 
-                        if (languageCode == 'ja' &&
-                            value != JwLifeSettings.instance.webViewData.isFuriganaActive) {
+                        if (lang == 'ja') {
                           await AppSharedPreferences.instance.setFuriganaActive(value);
-                          JwLifeSettings.instance.webViewData.updatePronunciationGuide(value, 'furigana');
-                          setState(() {});
-                        } else if (languageCode.contains('cmn') &&
-                            value != JwLifeSettings.instance.webViewData.isPinyinActive) {
+                          JwLifeSettings.instance.webViewData
+                              .updatePronunciationGuide(value, 'furigana');
+                        } else if (lang.contains('cmn')) {
                           await AppSharedPreferences.instance.setPinyinActive(value);
-                          JwLifeSettings.instance.webViewData.updatePronunciationGuide(value, 'pinyin');
-                          setState(() {});
-                        } else if (value != JwLifeSettings.instance.webViewData.isYaleActive) {
+                          JwLifeSettings.instance.webViewData
+                              .updatePronunciationGuide(value, 'pinyin');
+                        } else {
                           await AppSharedPreferences.instance.setYaleActive(value);
-                          JwLifeSettings.instance.webViewData.updatePronunciationGuide(value, 'yale');
-                          setState(() {});
+                          JwLifeSettings.instance.webViewData
+                              .updatePronunciationGuide(value, 'yale');
                         }
+
+                        setState(() {});
                       },
                     ),
 
+                  // PARAMÈTRES TEXTE
                   IconTextButton(
                     text: i18n().action_text_settings,
                     icon: const Icon(Icons.text_increase),
-                    onPressed: (anchorContext) {
-                      showFontSizeDialog(context, _controller);
-                    },
+                    onPressed: (anchorContext) => showFontSizeDialog(context, _controller),
                   ),
+
+                  // MODE PLEIN ÉCRAN
                   IconTextButton(
                     text: i18n().action_full_screen,
                     icon: const Icon(JwIcons.square_stack),
                     isSwitch: JwLifeSettings.instance.webViewData.isFullScreenMode,
                     onSwitchChange: (value) async {
-                      if(value != JwLifeSettings.instance.webViewData.isFullScreenMode) {
-                        await AppSharedPreferences.instance.setFullscreenMode(value);
-                        JwLifeSettings.instance.webViewData.updateFullscreen(value);
-                        setState(() {
-
-                        });
-                      }
+                      await AppSharedPreferences.instance.setFullscreenMode(value);
+                      JwLifeSettings.instance.webViewData.updateFullscreen(value);
+                      setState(() {});
                     },
                   ),
+
+                  // MODE LECTURE
                   IconTextButton(
-                      text: i18n().action_reading_mode,
-                      icon: const Icon(JwIcons.scroll),
-                      isSwitch: JwLifeSettings.instance.webViewData.isReadingMode,
-                      onSwitchChange: (value) async {
-                        if(value != JwLifeSettings.instance.webViewData.isReadingMode) {
-                          await AppSharedPreferences.instance.setReadingMode(value);
-                          setState(() {
-                            JwLifeSettings.instance.webViewData.updateReadingMode(value);
-                          });
-                        }
-                      }
+                    text: i18n().action_reading_mode,
+                    icon: const Icon(JwIcons.scroll),
+                    isSwitch: JwLifeSettings.instance.webViewData.isReadingMode,
+                    onSwitchChange: (value) async {
+                      await AppSharedPreferences.instance.setReadingMode(value);
+                      JwLifeSettings.instance.webViewData.updateReadingMode(value);
+                      setState(() {});
+                    },
                   ),
+
+                  // BLOQUER LE DÉFILEMENT HORIZONTAL
                   IconTextButton(
-                      text: i18n().action_blocking_horizontally_mode,
-                      icon: const Icon(Icons.block),
-                      isSwitch: JwLifeSettings.instance.webViewData.isBlockingHorizontallyMode,
-                      onSwitchChange: (value) async {
-                        if(value != JwLifeSettings.instance.webViewData.isBlockingHorizontallyMode) {
-                          await AppSharedPreferences.instance.setBlockingHorizontallyMode(value);
-                          setState(() {
-                            JwLifeSettings.instance.webViewData.updatePreparingMode(value);
-                          });
-                        }
-                      }
+                    text: i18n().action_blocking_horizontally_mode,
+                    icon: const Icon(Icons.block),
+                    isSwitch:
+                    JwLifeSettings.instance.webViewData.isBlockingHorizontallyMode,
+                    onSwitchChange: (value) async {
+                      await AppSharedPreferences.instance.setBlockingHorizontallyMode(value);
+                      JwLifeSettings.instance.webViewData.updatePreparingMode(value);
+                      setState(() {});
+                    },
                   ),
-                  if(kDebugMode)
+
+                  // DEBUG HTML
+                  if (kDebugMode && current != null)
                     IconTextButton(
                       text: "Voir le html",
                       icon: const Icon(JwIcons.square_stack),
                       onPressed: (anchorContext) async {
-                        Document document = widget.publication.documentsManager!.getCurrentDocument();
-                        if(document.isBibleChapter()) {
-                          await showHtmlDialog(context, decodeBlobContent(document.chapterContent!, widget.publication.hash!));
-                        }
-                        else {
-                          await showHtmlDialog(context, decodeBlobContent(document.content!, widget.publication.hash!));
-                        }
+                        final doc = current!;
+                        final content = doc.isBibleChapter()
+                            ? doc.chapterContent!
+                            : doc.content!;
+                        await showHtmlDialog(
+                          context,
+                          decodeBlobContent(content, widget.publication.hash!),
+                        );
                       },
                     ),
                 ],

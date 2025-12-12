@@ -835,3 +835,21 @@ Mise à jour Flutter : 3.38.3 → 3.38.4
 - Mise à jour de Gradle de 8.14.3 à 9.2.1.
 
 - Mise à jour de shared_preferences de 2.5.3 à 2.5.4.
+
+
+📢 Mise à jour – v1.2.4 (11/12/2025)
+
+🛠 Améliorations et corrections
+🌐 Changement de langue : On ne vérifie plus systématiquement les mises à jour de l’application au changement de langue, seulement au démarrage.
+📖 Bible & WebView : La barre supérieure est désormais affichée dès le début. Si le titre n’est pas encore chargé, il apparaîtra une seconde plus tard. Cela évite les ruptures de barre lors du changement de page.
+
+📜 Versets bibliques :
+- Lorsqu’un verset est sélectionné, il s’affiche dans le titre, même si on l’ouvre depuis un autre document.
+- Surlignage : Récupère uniquement celui de la langue en cours.
+- Notes : Affiche toutes les notes, quelle que soit la langue ou la traduction.
+
+👤 Page Personnel :
+- Ajout des boutons Import / Export / Reset, comme sur JW Library.
+- Ajout du bouton Historique.
+
+📰 Téléchargement des publications : Lorsqu’une Tour de Garde est téléchargée depuis la page du culte alors qu’elle n’était pas déjà présente, l’application cherche automatiquement la réunion de la semaine en cours après le téléchargement.

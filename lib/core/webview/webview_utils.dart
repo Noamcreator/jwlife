@@ -212,7 +212,7 @@ Future<Map<String, dynamic>> fetchVerses(String link) async {
         'keySymbol': bible.keySymbol,
         'mepsLanguageId': bible.mepsLanguage.id,
         'highlights': blockRanges.map((blockRange) => blockRange.toMap()).toList(),
-        'notes': context.read<NotesController>().getNotesByDocument(keySymbol: bible.keySymbol, mepsLanguageId: bible.mepsLanguage.id, firstBookNumber: book1, lastBookNumber: book2, firstChapterNumber: chapter1, lastChapterNumber: chapter2, firstBlockIdentifier: verse1, lastBlockIdentifier: verse2).map((n) => n.toMap()).toList(),
+        'notes': context.read<NotesController>().getNotesByDocument(firstBookNumber: book1, lastBookNumber: book2, firstChapterNumber: chapter1, lastChapterNumber: chapter2, firstBlockIdentifier: verse1, lastBlockIdentifier: verse2).map((n) => n.toMap()).toList(),
       });
     }
 

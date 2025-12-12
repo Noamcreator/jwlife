@@ -4,6 +4,7 @@ import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'package:intl/intl.dart';
 import 'package:jwlife/app/jwlife_app_bar.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
@@ -62,7 +63,7 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
   final GlobalKey<_ControlsOverlayState> controlsKey = GlobalKey<_ControlsOverlayState>();
 
   /* LOADING */
-  bool _isLoadingData = false;
+  bool _isLoadedData = false;
 
   /* OTHER VIEW */
   bool _showDialog = false; // Variable pour contrôler la visibilité des contrôles
@@ -102,7 +103,8 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
     }
 
     setState(() {
-      _isLoadingData = true;
+      _isLoadedData = true;
+      controlsKey.currentState?.changeTitle();
     });
   }
 
@@ -240,7 +242,7 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
         backgroundColor: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF111111) : Colors.white,
         body: Stack(
             children: [
-              _isLoadingData ? SafeArea(
+              _isLoadedData ? SafeArea(
                   child:  InAppWebView(
                     initialSettings: InAppWebViewSettings(
                       verticalScrollBarEnabled: false,
@@ -953,8 +955,7 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
 
               LoadingWidget(key: loadingKey),
 
-              !_isLoadingData ? Container()
-                  : ControlsOverlay(key: controlsKey,
+              ControlsOverlay(key: controlsKey,
                   publication: widget.publication,
                   handleBackPress: handleBackPress,
                   jumpToPage: _jumpToPage,
@@ -1023,6 +1024,8 @@ class ControlsOverlay extends StatefulWidget {
 class _ControlsOverlayState extends State<ControlsOverlay> {
   late InAppWebViewController _controller;
 
+  String _title = '';
+
   bool _controlsVisible = true;
   bool _controlsVisibleSave = true;
 
@@ -1073,19 +1076,48 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
     GlobalKeyService.jwLifePageKey.currentState!.toggleBottomNavBarVisibility(_controlsVisible);
   }
 
+  void changeTitle() {
+    setState(() {
+      _title = widget.publication.datedTextManager!.getCurrentDatedText().getTitle();
+    });
+  }
+
   void refreshWidget() {
     setState(() {});
   }
 
   @override
+  void initState() {
+    super.initState();
+
+    final dm = widget.publication.datedTextManager;
+
+    DatedText? current;
+    if (dm != null &&
+        dm.selectedDatedTextIndex != -1 &&
+        dm.selectedDatedTextIndex < dm.datedTexts.length) {
+      current = dm.getCurrentDatedText();
+    }
+
+    if(current != null) {
+      _title = current.getTitle();
+    }
+    else {
+      // Formatte au format souhaité : "1 janvier 2025"
+      _title = DateFormat("d MMMM y", JwLifeSettings.instance.locale.languageCode).format(DateTime.now());
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final textStyleTitle = TextStyle(fontSize: 20, fontWeight: FontWeight.bold);
-    final textStyleSubtitle = TextStyle(
-      fontSize: 14,
-      color: Theme.of(context).brightness == Brightness.dark
-          ? const Color(0xFFc3c3c3)
-          : const Color(0xFF626262),
-    );
+    final dm = widget.publication.datedTextManager;
+
+    DatedText? current;
+    if (dm != null &&
+        dm.selectedDatedTextIndex != -1 &&
+        dm.selectedDatedTextIndex < dm.datedTexts.length) {
+      current = dm.getCurrentDatedText();
+    }
 
     return Stack(
       children: [
@@ -1096,51 +1128,56 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
             child: Visibility(
                 visible: _controlsVisible,
                 child: JwLifeAppBar(
-                  title: widget.publication.datedTextManager!.getCurrentDatedText().getTitle(),
+                  title: _title,
                   subTitle: widget.publication.shortTitle,
                   handleBackPress: widget.handleBackPress,
                   actions: [
+                    // LANGUES
                     IconTextButton(
                       text: i18n().action_languages,
                       icon: Icon(JwIcons.language),
                       onPressed: (anchorContext) async {
-                        showLanguagePubDialog(context, widget.publication).then((languagePub) async {
-                          if(languagePub != null) {
+                        showLanguagePubDialog(context, widget.publication).then((languagePub) {
+                          if (languagePub != null) {
                             languagePub.showMenu(context);
                           }
                         });
                       },
                     ),
+
+                    // SÉLECTION DU JOUR
                     IconTextButton(
                       icon: Icon(JwIcons.calendar),
                       text: i18n().label_select_a_week,
                       onPressed: (anchorContext) async {
-                        DateTime currentDate = widget.publication.datedTextManager!.getCurrentDatedText().getDate();
+                        if (current == null) return;
 
+                        DateTime currentDate = current.getDate();
                         DateTime? selectedDay = await showMonthCalendarDialog(context, currentDate);
 
                         if (selectedDay != null) {
-                          // Vérifie si on est dans la même année
                           bool sameYear = selectedDay.year == currentDate.year;
 
                           if (!sameYear) {
-                            List<Publication> dayPubs = await CatalogDb.instance.getPublicationsForTheDay(date: selectedDay);
+                            List<Publication> dayPubs =
+                            await CatalogDb.instance.getPublicationsForTheDay(date: selectedDay);
 
-                            // Si Publication a un champ 'symbol' à tester
-                            Publication? dailyTextPub = dayPubs.firstWhereOrNull((p) => p.keySymbol.contains('es'));
-
+                            Publication? dailyTextPub =
+                            dayPubs.firstWhereOrNull((p) => p.keySymbol.contains('es'));
                             if (dailyTextPub == null) return;
 
                             showDailyText(context, dailyTextPub, date: selectedDay);
-                          }
-                          else {
+                          } else {
                             int dateInt = convertDateTimeToIntDate(selectedDay);
-                            int index = widget.publication.datedTextManager!.datedTexts.indexWhere((element) => element.firstDateOffset == dateInt);
+                            final index = dm!.datedTexts.indexWhere(
+                                    (element) => element.firstDateOffset == dateInt);
                             widget.jumpToPage(index);
                           }
                         }
                       },
                     ),
+
+                    // HISTORIQUE
                     IconTextButton(
                       text: i18n().action_history,
                       icon: const Icon(JwIcons.arrow_circular_left_clock),
@@ -1148,23 +1185,28 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
                         History.showHistoryDialog(context);
                       },
                     ),
+
+                    // PARTAGER
                     IconTextButton(
                       text: i18n().action_open_in_share,
                       icon: const Icon(JwIcons.share),
                       onPressed: (anchorContext) {
-                        widget.publication.datedTextManager!.getCurrentDatedText().share();
+                        current!.share();
                       },
                     ),
+
+                    // QR CODE
                     IconTextButton(
                       text: i18n().action_qr_code,
                       icon: const Icon(JwIcons.qr_code),
                       onPressed: (anchorContext) {
-                        String uri = widget.publication.datedTextManager!.getCurrentDatedText().share(hide: true);
-                        showQrCodeDialog(context, widget.publication.datedTextManager!.getCurrentDatedText().getTitle(), uri);
+                        final uri = current!.share(hide: true);
+                        showQrCodeDialog(context, current.getTitle(), uri);
                       },
                     ),
 
-                    if (widget.publication.datedTextManager!.getCurrentDatedText().hasPronunciationGuide)
+                    // GUIDES DE PRONONCIATION
+                    if (current != null && current.hasPronunciationGuide)
                       IconTextButton(
                         text: widget.publication.mepsLanguage.primaryIetfCode == 'ja'
                             ? i18n().action_display_furigana
@@ -1178,72 +1220,67 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
                             ? JwLifeSettings.instance.webViewData.isPinyinActive
                             : JwLifeSettings.instance.webViewData.isYaleActive,
                         onSwitchChange: (value) async {
-                          final languageCode = widget.publication.mepsLanguage.primaryIetfCode;
+                          final lang = widget.publication.mepsLanguage.primaryIetfCode;
 
-                          if (languageCode == 'ja' &&
-                              value != JwLifeSettings.instance.webViewData.isFuriganaActive) {
+                          if (lang == 'ja') {
                             await AppSharedPreferences.instance.setFuriganaActive(value);
-                            JwLifeSettings.instance.webViewData.updatePronunciationGuide(value, 'furigana');
-                            setState(() {});
-                          } else if (languageCode.contains('cmn') &&
-                              value != JwLifeSettings.instance.webViewData.isPinyinActive) {
+                            JwLifeSettings.instance.webViewData
+                                .updatePronunciationGuide(value, 'furigana');
+                          } else if (lang.contains('cmn')) {
                             await AppSharedPreferences.instance.setPinyinActive(value);
-                            JwLifeSettings.instance.webViewData.updatePronunciationGuide(value, 'pinyin');
-                            setState(() {});
-                          } else if (value != JwLifeSettings.instance.webViewData.isYaleActive) {
+                            JwLifeSettings.instance.webViewData
+                                .updatePronunciationGuide(value, 'pinyin');
+                          } else {
                             await AppSharedPreferences.instance.setYaleActive(value);
-                            JwLifeSettings.instance.webViewData.updatePronunciationGuide(value, 'yale');
-                            setState(() {});
+                            JwLifeSettings.instance.webViewData
+                                .updatePronunciationGuide(value, 'yale');
                           }
+
+                          setState(() {});
                         },
                       ),
 
+                    // PARAMÈTRES TEXTE
                     IconTextButton(
                       text: i18n().action_text_settings,
                       icon: const Icon(Icons.text_increase),
-                      onPressed: (anchorContext) {
-                        showFontSizeDialog(context, _controller);
-                      },
+                      onPressed: (anchorContext) => showFontSizeDialog(context, _controller),
                     ),
+
+                    // MODE PLEIN ÉCRAN
                     IconTextButton(
                       text: i18n().action_full_screen,
                       icon: Icon(JwIcons.square_stack),
                       isSwitch: JwLifeSettings.instance.webViewData.isFullScreenMode,
                       onSwitchChange: (value) async {
-                        if(value != JwLifeSettings.instance.webViewData.isFullScreenMode) {
-                          await AppSharedPreferences.instance.setFullscreenMode(value);
-                          JwLifeSettings.instance.webViewData.updateFullscreen(value);
-                          setState(() {
-
-                          });
-                        }
+                        await AppSharedPreferences.instance.setFullscreenMode(value);
+                        JwLifeSettings.instance.webViewData.updateFullscreen(value);
+                        setState(() {});
                       },
                     ),
+
+                    // MODE LECTURE
                     IconTextButton(
-                        text: i18n().action_reading_mode,
-                        icon: Icon(JwIcons.scroll),
-                        isSwitch: JwLifeSettings.instance.webViewData.isReadingMode,
-                        onSwitchChange: (value) async {
-                          if(value != JwLifeSettings.instance.webViewData.isReadingMode) {
-                            await AppSharedPreferences.instance.setReadingMode(value);
-                            setState(() {
-                              JwLifeSettings.instance.webViewData.updateReadingMode(value);
-                            });
-                          }
-                        }
+                      text: i18n().action_reading_mode,
+                      icon: Icon(JwIcons.scroll),
+                      isSwitch: JwLifeSettings.instance.webViewData.isReadingMode,
+                      onSwitchChange: (value) async {
+                        await AppSharedPreferences.instance.setReadingMode(value);
+                        JwLifeSettings.instance.webViewData.updateReadingMode(value);
+                        setState(() {});
+                      },
                     ),
+
+                    // BLOQUER LE DÉFILEMENT HORIZONTAL
                     IconTextButton(
-                        text: i18n().action_blocking_horizontally_mode,
-                        icon: Icon(Icons.block),
-                        isSwitch: JwLifeSettings.instance.webViewData.isBlockingHorizontallyMode,
-                        onSwitchChange: (value) async {
-                          if(value != JwLifeSettings.instance.webViewData.isBlockingHorizontallyMode) {
-                            await AppSharedPreferences.instance.setBlockingHorizontallyMode(value);
-                            setState(() {
-                              JwLifeSettings.instance.webViewData.updatePreparingMode(value);
-                            });
-                          }
-                        }
+                      text: i18n().action_blocking_horizontally_mode,
+                      icon: Icon(Icons.block),
+                      isSwitch: JwLifeSettings.instance.webViewData.isBlockingHorizontallyMode,
+                      onSwitchChange: (value) async {
+                        await AppSharedPreferences.instance.setBlockingHorizontallyMode(value);
+                        JwLifeSettings.instance.webViewData.updatePreparingMode(value);
+                        setState(() {});
+                      },
                     ),
                   ],
                 )

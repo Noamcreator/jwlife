@@ -153,12 +153,12 @@ void showBottomMessage(String message) {
   showBottomMessageWithAction(message, null);
 }
 
-Future<void> showErrorDialog(BuildContext context, String message) {
+Future<void> showErrorDialog(BuildContext context, String title, String message) {
   return showDialog<void>(
     context: context,
     builder: (BuildContext context) {
       return AlertDialog(
-        title: const Text('Error'),
+        title: Text(title),
         content: Text(message),
         actions: <Widget>[
           TextButton(

@@ -245,8 +245,8 @@ class BibleChapterController {
     ).toString();
   }
 
-  String getBookTitle() {
-    return currentBook?.bookInfo['BookName'] ?? '';
+  String? getBookTitle() {
+    return currentBook?.bookInfo['BookName'];
   }
 
   void onTapChapter(int chapterNumber) {

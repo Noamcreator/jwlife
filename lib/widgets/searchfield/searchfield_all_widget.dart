@@ -300,7 +300,7 @@ class _SearchFieldAllState extends State<SearchFieldAll> {
         if (publication != null) {
           publication.showMenu(context);
         } else {
-          showErrorDialog(context, "Aucune publications ${selected.query} n'a pu être trouvée.");
+          showErrorDialog(context, i18n().message_file_missing_pub_title, "Aucune publications ${selected.query} n'a pu être trouvée.");
         }
         break;
       case 'audio' || 'video':

@@ -25,7 +25,6 @@ import '../utils/assets_downloader.dart';
 import '../utils/common_ui.dart';
 import '../utils/files_helper.dart';
 import '../utils/utils.dart';
-import '../utils/utils_database.dart';
 import 'daily_text_service.dart' show fetchVerseOfTheDay;
 
 class AppDataService {
@@ -364,11 +363,13 @@ class AppDataService {
 
     currentLanguage.loadWolInfo();
 
-    // Étape 4 : Vérification de la connexion et mise à jour (performance)
-    final isConnected = await hasInternetConnection();
-    if (isConnected) {
-      JwLifeAutoUpdater.checkAndUpdate();
-      AssetsDownload.download();
+    if(first) {
+      // Étape 4 : Vérification de la connexion et mise à jour (performance)
+      final isConnected = await hasInternetConnection();
+      if (isConnected) {
+        JwLifeAutoUpdater.checkAndUpdate();
+        AssetsDownload.download();
+      }
     }
   }
 }

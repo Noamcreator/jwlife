@@ -132,7 +132,6 @@ class NotesController extends ChangeNotifier {
       // Cas spécial Bible
       if (document.isBibleChapter()) {
         return notes.where((n) =>
-        n.location.keySymbol == document.publication.keySymbol &&
             n.location.bookNumber == document.bookNumber &&
             n.location.chapterNumber == document.chapterNumberBible
         ).toList();
@@ -154,8 +153,7 @@ class NotesController extends ChangeNotifier {
     }
 
     // --- 2) CAS : Filtrage par plages (Bible ou publication découpée) ---
-    final hasFullBibleRange = keySymbol != null &&
-        firstBookNumber != null &&
+    final hasFullBibleRange = firstBookNumber != null &&
             lastBookNumber != null &&
             firstChapterNumber != null &&
             lastChapterNumber != null &&
@@ -164,15 +162,11 @@ class NotesController extends ChangeNotifier {
 
     if (hasFullBibleRange) {
       return notes.where((n) {
-        final symbol = n.location.keySymbol ?? "";
-        final langId = n.location.mepsLanguageId ?? -1;
         final book = n.location.bookNumber ?? -1;
         final chapter = n.location.chapterNumber ?? -1;
         final block = n.blockIdentifier ?? -1;
 
-        return symbol == keySymbol &&
-            langId == mepsLanguageId &&
-            book >= firstBookNumber &&
+        return book >= firstBookNumber &&
             book <= lastBookNumber &&
             chapter >= firstChapterNumber &&
             chapter <= lastChapterNumber &&

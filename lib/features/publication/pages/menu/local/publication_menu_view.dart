@@ -325,7 +325,7 @@ class PublicationMenuViewState extends State<PublicationMenuView> with SingleTic
       return GestureDetector(
         onTap: () {
           // Note: showPage et LocalChapterBiblePage ne sont pas définis, mais conservés pour la complétude
-          showPage(BibleChapterPage(bible: widget.publication, book: bibleBookId));
+          showPage(BibleChapterPage(bible: widget.publication, book: bibleBookId, bookName: item.largeTitle));
         },
         child: Container(
           decoration: BoxDecoration(
@@ -366,7 +366,7 @@ class PublicationMenuViewState extends State<PublicationMenuView> with SingleTic
 
     return GestureDetector(
       onTap: () {
-        showPage(BibleChapterPage(bible: widget.publication, book: bibleBookId));
+        showPage(BibleChapterPage(bible: widget.publication, book: bibleBookId, bookName: item.largeTitle));
       },
       child: Container(
         decoration: BoxDecoration(
@@ -944,12 +944,6 @@ class PublicationMenuViewState extends State<PublicationMenuView> with SingleTic
   @override
   Widget build(BuildContext context) {
     super.build(context); // Appel obligatoire pour AutomaticKeepAliveClientMixin
-    final textStyleTitle = const TextStyle(fontSize: 20, fontWeight: FontWeight.bold);
-    final textStyleSubtitle = TextStyle(
-      fontSize: 14,
-      color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFFc3c3c3) : const Color(0xFF626262),
-    );
-
     final bool isRtl = widget.publication.mepsLanguage.isRtl;
     final TextDirection textDirection = isRtl ? TextDirection.rtl : TextDirection.ltr;
 
@@ -1012,7 +1006,7 @@ class PublicationMenuViewState extends State<PublicationMenuView> with SingleTic
             if(!widget.canPop) { showLanguagePubDialog(context, null).then((languageBible) async { if (languageBible != null) { String bibleKey = languageBible.getKey(); JwLifeSettings.instance.lookupBible.value = bibleKey; AppSharedPreferences.instance.setLookUpBible(bibleKey); } }); }
             else { showLanguagePubDialog(context, widget.publication).then((languagePub) async { if(languagePub != null) { languagePub.showMenu(context); } }); }
           }),
-          IconTextButton(text: "Ajouter un widget sur l'écran d'accueil", icon: const Icon(JwIcons.article), onPressed: (anchorContext) async { /* ... */ }),
+          //IconTextButton(text: "Ajouter un widget sur l'écran d'accueil", icon: const Icon(JwIcons.article), onPressed: (anchorContext) async { /* ... */ }),
           IconTextButton(text: i18n().action_download_media, icon: const Icon(JwIcons.cloud_arrow_down), onPressed: (anchorContext) { showDownloadMediasDialog(context, widget.publication); }),
           IconTextButton(text: i18n().action_history, icon: const Icon(JwIcons.arrow_circular_left_clock), onPressed: (anchorContext) { History.showHistoryDialog(context); }),
           IconTextButton(text: i18n().action_open_in_share, icon: const Icon(JwIcons.share), onPressed: (anchorContext) { widget.publication.shareLink(); }),

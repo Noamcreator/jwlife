@@ -40,7 +40,6 @@ Future<void> refreshMeetingsPubs({List<Publication>? pubs, DateTime? date}) asyn
 
     midweekMeetingPub.isDownloadedNotifier.addListener(midweekListener);
 
-
     if (midweekMeetingPub.isDownloadedNotifier.value) {
       AppDataService.instance.midweekMeeting.value = await fetchMidWeekMeeting(midweekMeetingPub, date ?? DateTime.now());
 
@@ -60,6 +59,8 @@ Future<void> refreshMeetingsPubs({List<Publication>? pubs, DateTime? date}) asyn
         await refreshMeetingsPubs(pubs: pubs); // relance propre
       }
     };
+
+    weekendMeetingPub.isDownloadedNotifier.addListener(weekendListener);
 
     if (weekendMeetingPub.isDownloadedNotifier.value) {
       AppDataService.instance.weekendMeeting.value = await fetchWeekendMeeting(weekendMeetingPub, date ?? DateTime.now());

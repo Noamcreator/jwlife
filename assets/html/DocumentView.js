@@ -900,7 +900,7 @@ async function jumpToPage(index) {
 async function jumpToIdSelector(selector, idAttr, begin, end) {
     closeToolbar();
 
-    const paragraphs = pageCenter.querySelectorAll(selector);
+    const paragraphs = Array.from(paragraphsData.values()).flatMap(item => item.paragraphs);
     if (paragraphs.length === 0) {
         console.error(`No paragraphs found for selector: ${selector}`);
         return;
@@ -916,7 +916,6 @@ async function jumpToIdSelector(selector, idAttr, begin, end) {
             }
         }
     });
-    // ---------------------------------------------------------
 
     // Helper function to extract ID (moved logic out for cleanliness)
     function getParagraphId(p, selector, idAttr) {
@@ -938,8 +937,6 @@ async function jumpToIdSelector(selector, idAttr, begin, end) {
     // --- Modification: Handle 'end' being null/undefined or -1 (if -1 is intended as a special value) ---
     let effectiveEnd = end;
     if (end === null || end === undefined || (end === -1 && begin !== -1)) {
-        // If end is null/undefined, or if it's -1 but we're not in the "show all" mode (begin also -1),
-        // set effectiveEnd to the max ID found.
         effectiveEnd = maxParagraphId;
     }
 
@@ -950,22 +947,20 @@ async function jumpToIdSelector(selector, idAttr, begin, end) {
         });
         return;
     }
-    // -----------------------------------------------------------------------------------------------------
 
     let targetParagraph = null;
     let firstParagraphId = null;
 
+    // Stockage des IDs pour Flutter
+    const selectedIds = [];
+
     paragraphs.forEach(p => {
-        // Use the helper function to get the ID
         const id = getParagraphId(p, selector, idAttr);
         if (id === null) return;
 
         if (firstParagraphId === null) {
             firstParagraphId = id;
         }
-
-        // Note: maxParagraphId (calculated earlier) now handles what 'endParagraphId' used to track,
-        // ensuring we know the absolute last ID before the loop finishes.
 
         // Use effectiveEnd for the comparison
         if (id >= begin && id <= effectiveEnd && !targetParagraph) {
@@ -975,10 +970,26 @@ async function jumpToIdSelector(selector, idAttr, begin, end) {
         p.style.opacity = (id >= begin && id <= effectiveEnd) ? '1' : '0.5';
     });
 
+    // --- Récupérer les id correspondant à begin → effectiveEnd ---
+    paragraphsData.forEach(data => {
+        const hasElement = data.paragraphs.some(p => {
+            const id = getParagraphId(p, selector, idAttr);
+            return id !== null && id >= begin && id <= effectiveEnd;
+        });
+
+        if (hasElement) {
+            selectedIds.push(data.id);
+        }
+    });
+
+    // --- ENVOI À FLUTTER ---
+    window.window.flutter_inappwebview.callHandler('verseClickNumber', selectedIds);
+
+    // --- Scroll & centrage ---
     if (targetParagraph) {
         isChangingParagraph = true;
 
-        const visibleParagraphs = Array.from(pageCenter.querySelectorAll(selector)).filter(p => p.style.opacity === '1');
+        const visibleParagraphs = paragraphs.filter(p => p.style.opacity === '1');
 
         if (visibleParagraphs.length === 0) {
             isChangingParagraph = false;
@@ -1087,6 +1098,11 @@ function restoreOpacity() {
     const selector = isBible() ? '.v' : '[data-pid]';
     const elements = pageCenter.querySelectorAll(selector);
 
+
+    if(isBible()) {
+        window.window.flutter_inappwebview.callHandler('verseClickNumber', null);
+    }
+
     // Déconnecter temporairement (optionnel)
     requestAnimationFrame(() => {
         elements.forEach(e => {
@@ -1099,13 +1115,28 @@ function dimOthers(paragraphs, selector) {
     // Convertir currents en tableau, si ce n'est pas déjà un tableau
     const paragraphsArray = Array.isArray(paragraphs) ? paragraphs : Array.from(paragraphs);
 
-    const elements = pageCenter.querySelectorAll(selector);
+    const allParagraphElements = Array.from(paragraphsData.values())
+        .flatMap(item => item.paragraphs);
 
-    elements.forEach(element => {
+    // Diminuer l'opacité des autres paragraphes
+    allParagraphElements.forEach(element => {
         element.style.opacity = paragraphsArray.includes(element) ? '1' : '0.5';
     });
-}
 
+    // === Récupérer les ID correspondants ===
+    const selectedIds = [];
+
+    // On parcourt paragraphsData et non allParagraphElements
+    paragraphsData.forEach((data) => {
+        const hasElement = data.paragraphs.some(p => paragraphsArray.includes(p));
+        if (hasElement) {
+            selectedIds.push(data.id);
+        }
+    });
+
+    // Envoyer à Flutter
+    window.window.flutter_inappwebview.callHandler('verseClickNumber', selectedIds);
+}
 function createToolbarButton(icon, onClick) {
     const button = document.createElement('button');
 

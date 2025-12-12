@@ -29,8 +29,9 @@ const double _kHeaderImageHeight = 210.0;
 class BibleChapterPage extends StatefulWidget {
   final Publication bible;
   final int book;
+  final String bookName;
 
-  const BibleChapterPage({super.key, required this.bible, required this.book});
+  const BibleChapterPage({super.key, required this.bible, required this.book, this.bookName = ''});
 
   @override
   _BibleChapterPageState createState() => _BibleChapterPageState();
@@ -69,43 +70,30 @@ class _BibleChapterPageState extends State<BibleChapterPage> {
 
   @override
   Widget build(BuildContext context) {
-    // Afficher un loader pendant l'initialisation ou si aucun livre n'est disponible
-    if (_controller.isInitialLoading || _controller.currentBook == null) {
-      return const AppPage(body: Center(child: CircularProgressIndicator()));
-    }
-
-    final currentBook = _controller.currentBook!;
+    final currentBook = _controller.currentBook;
 
     // Synchroniser le PageController après que l'état soit disponible
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _updatePageController();
     });
 
-    final hasCommentary = currentBook.bookInfo['HasCommentary'] == 1;
-
-    final textStyleSubtitle = TextStyle(
-      fontSize: 14,
-      color: hasCommentary
-          ? Colors.white
-          : Theme.of(context).brightness == Brightness.dark
-          ? const Color(0xFFc3c3c3)
-          : const Color(0xFF626262),
-    );
-
-    final titleColor = hasCommentary ? Colors.white : null;
+    final hasCommentary = currentBook?.bookInfo['HasCommentary'] == 1;
     final isLargeScreen = MediaQuery.of(context).size.width > _kMinTwoColumnWidth;
 
-    // --- Logique pour le body ---
-    Widget bodyContent;
-    if (isLargeScreen) {
-      bodyContent = Stack(
-        children: [
-          if (hasCommentary) _buildBookHeader(currentBook),
-          _buildTwoColumnLayout(currentBook),
-        ],
-      );
-    } else {
-      bodyContent = _buildMobileLayout();
+    Widget? bodyContent;
+    if(currentBook != null) {
+      // --- Logique pour le body ---
+      if (isLargeScreen) {
+        bodyContent = Stack(
+          children: [
+            if (hasCommentary) _buildBookHeader(currentBook),
+            _buildTwoColumnLayout(currentBook),
+          ],
+        );
+      }
+      else {
+        bodyContent = _buildMobileLayout();
+      }
     }
 
     return AppPage(
@@ -113,7 +101,7 @@ class _BibleChapterPageState extends State<BibleChapterPage> {
       appBar: JwLifeAppBar(
         backgroundColor: hasCommentary ? Colors.transparent : null,
         iconsColor: hasCommentary ? Colors.white : null,
-        title: !hasCommentary ? _controller.getBookTitle() : "",
+        title: !hasCommentary ? _controller.getBookTitle() ?? widget.bookName : "",
         subTitle: !hasCommentary ? widget.bible.shortTitle : null,
         actions: [
           IconTextButton(
@@ -124,7 +112,7 @@ class _BibleChapterPageState extends State<BibleChapterPage> {
           if (!isLargeScreen)
             IconTextButton(
               text: "Aperçu",
-              icon: Icon(currentBook.isOverview ? JwIcons.grid_squares : JwIcons.outline),
+              icon: Icon(currentBook?.isOverview ?? false ? JwIcons.grid_squares : JwIcons.outline),
               onPressed: (anchorContext) {_controller.toggleOverview(); },
             ),
           IconTextButton(
@@ -167,7 +155,7 @@ class _BibleChapterPageState extends State<BibleChapterPage> {
             onPressed: (anchorContext) {
               SharePlus.instance.share(
                 ShareParams(
-                  title: currentBook.bookInfo['BookName'],
+                  title: currentBook?.bookInfo['BookName'],
                   uri: Uri.tryParse(_controller.getShareUri()),
                 ),
               );
@@ -178,13 +166,13 @@ class _BibleChapterPageState extends State<BibleChapterPage> {
             icon: Icon(JwIcons.qr_code),
             onPressed: (anchorContext) {
               Uri? uri = Uri.tryParse(_controller.getShareUri());
-              String title = currentBook.bookInfo['BookName'];
+              String title = currentBook?.bookInfo['BookName'];
               showQrCodeDialog(context, title, uri.toString());
             },
           ),
         ],
       ),
-      body: bodyContent,
+      body: bodyContent ?? const Center(child: CircularProgressIndicator()),
     );
   }
 
@@ -324,7 +312,7 @@ class _BibleChapterPageState extends State<BibleChapterPage> {
 
   Widget _buildHtmlView(String html) {
     if (html.isEmpty) {
-      return const Center(child: Text('Aucun aperçu disponible'));
+      return Center(child: Text(i18n().message_no_content));
     }
 
     return InAppWebView(
@@ -440,7 +428,7 @@ class _BibleChapterPageState extends State<BibleChapterPage> {
                               alignment: Alignment.bottomRight,
                               child: TextButton(
                                 onPressed: () => Navigator.of(context).pop(),
-                                child: const Text('Fermer'),
+                                child: Text(i18n().action_close_upper),
                               ),
                             ),
                           ],
@@ -472,13 +460,13 @@ class _BibleChapterPageState extends State<BibleChapterPage> {
                 onPressed: () {
                   showPage(BibleBookMediasView(bible: widget.bible, bibleBook: bookData));
                 },
-                child: const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 16.0),
+                child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 16.0),
                     child: Row(
                       children: [
-                        Icon(JwIcons.image_stack, color: Colors.white, size: 24.0),
-                        SizedBox(width: 8),
-                        Text('Galerie multimédia', style: TextStyle(fontSize: 20.0, color: Colors.white))
+                        const Icon(JwIcons.image_stack, color: Colors.white, size: 24.0),
+                        const SizedBox(width: 8),
+                        Text(i18n().label_media_gallery, style: const TextStyle(fontSize: 20.0, color: Colors.white))
                       ],
                     )
                 )
