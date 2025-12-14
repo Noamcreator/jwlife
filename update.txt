@@ -853,3 +853,24 @@ Mise à jour Flutter : 3.38.3 → 3.38.4
 - Ajout du bouton Historique.
 
 📰 Téléchargement des publications : Lorsqu’une Tour de Garde est téléchargée depuis la page du culte alors qu’elle n’était pas déjà présente, l’application cherche automatiquement la réunion de la semaine en cours après le téléchargement.
+
+📢 Mise à jour – v1.2.5 (14/12/2025)
+
+🧩 Améliorations de l’Expérience
+Les notes de versets ouvertes via une référence se positionnent désormais automatiquement du côté correspondant à la langue :
+- à gauche pour les langues LTR,
+- à droite pour les langues RTL.
+
+Lorsqu’un surlignage est associé à une note, son orientation s’adapte correctement (droite → gauche ou gauche → droite selon la langue).
+
+Les notes affichées dans des extraits de documents sont maintenant correctement positionnées, sans décalage.
+
+🎨 Interface & Design
+Amélioration de la cohérence visuelle des notes et surlignages dans les contenus multilingues (LTR / RTL).
+
+🐞 Corrections & Stabilité
+Correction d’un bug critique empêchant le chargement des favoris au démarrage de l’application.
+
+📦 Mises à Jour Techniques
+Mise à jour de mobile_scanner : 7.1.3 → 7.1.4
+Mise à jour de Flutter : 3.38.4 → 3.38.5

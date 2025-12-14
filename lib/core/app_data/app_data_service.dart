@@ -138,15 +138,11 @@ class AppDataService {
   Future<void> loadAllContentData({MepsLanguage? language, bool first = true, bool library = true}) async {
     MepsLanguage currentLanguage = language ?? JwLifeSettings.instance.currentLanguage.value;
 
-    final String publicationSelectQuery = CatalogDb.publicationSelectQuery;
-    final String publicationQuery = CatalogDb.publicationQuery;
-
     fetchAlertsList(currentLanguage);
     fetchArticles(currentLanguage);
 
-    if(first) {
-      favorites.value = await JwLifeApp.userdata.fetchFavorites();
-    }
+    final String publicationSelectQuery = CatalogDb.publicationSelectQuery;
+    final String publicationQuery = CatalogDb.publicationQuery;
 
     final mepsFile = await getMepsUnitDatabaseFile();
 
@@ -157,6 +153,10 @@ class AppDataService {
     bool isHistoryFileExist = historyFile.existsSync();
 
     await CatalogDb.instance.init(catalogFile);
+
+    if(first) {
+      favorites.value = await JwLifeApp.userdata.fetchFavorites();
+    }
 
     if (isCatalogFileExist) {
       late Database database = CatalogDb.instance.database;

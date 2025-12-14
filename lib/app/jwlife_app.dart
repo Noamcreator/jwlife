@@ -199,10 +199,8 @@ class JwLifeAppState extends State<JwLifeApp> {
       JwLifeApp.pubCollections.init(),
       JwLifeApp.mediaCollections.init(),
       TilesCache().init(),
+      JwLifeApp.userdata.init()
     ]);
-
-    // Étape 3 : Initialisation séquentielle des données utilisateur et catalogue
-    await JwLifeApp.userdata.init();
 
     // Calculer la Brightness effective pour le web view.
     final isDark = _themeMode == ThemeMode.system ? MediaQuery.of(context).platformBrightness == Brightness.dark : _themeMode == ThemeMode.dark;

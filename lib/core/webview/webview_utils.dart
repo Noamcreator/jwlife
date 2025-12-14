@@ -146,6 +146,8 @@ Future<Map<String, dynamic>> fetchVerses(String link) async {
 
     db.close();
 
+    BuildContext context = GlobalKeyService.jwLifePageKey.currentContext!;
+
     for (var bible in PublicationRepository().getOrderBibles()) {
       Database? bibleDb;
       if(bible.documentsManager == null) {
@@ -191,34 +193,33 @@ Future<Map<String, dynamic>> fetchVerses(String link) async {
         htmlContent += decodedHtml;
       }
 
-      BuildContext context = GlobalKeyService.jwLifePageKey.currentContext!;
       List<BlockRange> blockRanges = await JwLifeApp.userdata.getBlockRangesFromChapterNumber(book1, chapter1, bible.keySymbol, bible.mepsLanguage.id, startVerse: verse1, endVerse: verse2);
       context.read<BlockRangesController>().loadBlockRanges(blockRanges);
 
       items.add({
         'type': 'verse',
         'content': htmlContent,
-        'className': "bibleCitation html5 pub-${bible.keySymbol} jwac showRuby ml-${bible.mepsLanguage.symbol} ms-${bible.mepsLanguage.internalScriptName} dir-${bible.mepsLanguage.isRtl ? 'rtl' : 'ltr'} layout-reading layout-sidebar",
+        'className': "bibleCitation html5 pub-${bible.keySymbol} jwac ml-${bible.mepsLanguage.symbol} ms-${bible.mepsLanguage.internalScriptName} dir-${bible.mepsLanguage.isRtl ? 'rtl' : 'ltr'} layout-reading layout-sidebar",
         'subtitle': bible.mepsLanguage.vernacular,
         'imageUrl': bible.imageSqr,
         'publicationTitle': bible.shortTitle,
-        'firstBookNumber': book1,
-        'lastBookNumber': book2,
-        'firstChapterNumber': chapter1,
-        'lastChapterNumber': chapter2,
-        'firstVerseNumber': verse1,
-        'lastVerseNumber': verse2,
         'audio': {},
         'keySymbol': bible.keySymbol,
         'mepsLanguageId': bible.mepsLanguage.id,
-        'highlights': blockRanges.map((blockRange) => blockRange.toMap()).toList(),
-        'notes': context.read<NotesController>().getNotesByDocument(firstBookNumber: book1, lastBookNumber: book2, firstChapterNumber: chapter1, lastChapterNumber: chapter2, firstBlockIdentifier: verse1, lastBlockIdentifier: verse2).map((n) => n.toMap()).toList(),
-      });
+        'blockRanges': blockRanges.map((blockRange) => blockRange.toMap()).toList(),
+        });
     }
 
     return {
       'items': items,
       'title': versesDisplay,
+      'firstBookNumber': book1,
+      'lastBookNumber': book2,
+      'firstChapterNumber': chapter1,
+      'lastChapterNumber': chapter2,
+      'firstVerseNumber': verse1,
+      'lastVerseNumber': verse2,
+      'notes': context.read<NotesController>().getNotesByDocument(firstBookNumber: book1, lastBookNumber: book2, firstChapterNumber: chapter1, lastChapterNumber: chapter2, firstBlockIdentifier: verse1, lastBlockIdentifier: verse2).map((n) => n.toMap()).toList(),
     };
   }
   catch (e) {
@@ -296,7 +297,7 @@ Future<Map<String, dynamic>?> fetchExtractPublication(BuildContext context, Stri
       dynamic article = {
         'type': 'publication',
         'content': decodedHtml,
-        'className': "publicationCitation html5 pub-${extract['UndatedSymbol']} docId-$extractMepsDocumentId docClass-${extract['RefMepsDocumentClass']} jwac showRuby ml-${refPub?.mepsLanguage.symbol ?? publication.mepsLanguage.symbol} ms-${refPub?.mepsLanguage.internalScriptName ?? publication.mepsLanguage.internalScriptName} dir-${refPub?.mepsLanguage.isRtl ?? publication.mepsLanguage.isRtl ? 'rtl' : 'ltr'} layout-reading layout-sidebar",
+        'className': "publicationCitation html5 pub-${extract['UndatedSymbol']} docId-$extractMepsDocumentId docClass-${extract['RefMepsDocumentClass']} jwac ml-${refPub?.mepsLanguage.symbol ?? publication.mepsLanguage.symbol} ms-${refPub?.mepsLanguage.internalScriptName ?? publication.mepsLanguage.internalScriptName} dir-${refPub?.mepsLanguage.isRtl ?? publication.mepsLanguage.isRtl ? 'rtl' : 'ltr'} layout-reading layout-sidebar",
         'subtitle': caption,
         'imageUrl': image,
         'mepsDocumentId': extractMepsDocumentId ?? -1,
@@ -304,7 +305,7 @@ Future<Map<String, dynamic>?> fetchExtractPublication(BuildContext context, Stri
         'startParagraphId': firstParagraphId,
         'endParagraphId': lastParagraphId,
         'publicationTitle': refPub == null ? extract['ShortTitle'] : refPub.getShortTitle(),
-        'highlights': blockRanges.map((blockRange) => blockRange.toMap()).toList(),
+        'blockRanges': blockRanges.map((blockRange) => blockRange.toMap()).toList(),
         'notes': context.read<NotesController>().getNotesByDocument(mepsDocumentId: extractMepsDocumentId, mepsLanguageId: extract['MepsLanguageIndex'], firstBlockIdentifier: firstParagraphId, lastBlockIdentifier: lastParagraphId).map((n) => n.toMap()).toList()
       };
 

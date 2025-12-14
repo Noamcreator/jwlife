@@ -1349,7 +1349,7 @@ function createToolbarButtonColor(styleIndex, targets, target, styleToolbar, isS
 
                         // Logique de regroupement
                         if (info.id !== currentParagraphId) {
-                            // S'il y avait un paragraphe précédent, on sauvegarde le highlight
+                            // S'il y avait un paragraphe précédent, on sauvegarde le blockRange
                             if (firstTarget && lastTarget) {
                                 // Appel : utilisation de la fonction déplacée
                                 addBlockRangeForParagraph(firstTarget, lastTarget, currentParagraphInfo, blockRangesToSend);
@@ -1379,7 +1379,7 @@ function createToolbarButtonColor(styleIndex, targets, target, styleToolbar, isS
                     window.flutter_inappwebview.callHandler('addBlockRanges', currentGuid, styleIndex, finalColorIndex, blockRangesToSend);
                     removeAllSelected();
                 } else {
-                    // --- LOGIQUE DE CHANGEMENT DE COULEUR POUR HIGHLIGHT EXISTANT ---
+                    // --- LOGIQUE DE CHANGEMENT DE COULEUR POUR LE BLOCKRANGE EXISTANT ---
                     // NOTE: 'changeBlockRangeStyle' et 'blockRangeAttr' doivent être accessibles
                     changeBlockRangeStyle(target.getAttribute(blockRangeAttr), styleIndex, colorIndex);
                 }
@@ -1433,7 +1433,7 @@ function createToolbarButtonColor(styleIndex, targets, target, styleToolbar, isS
 }
 
 function closeToolbar() {
-    const toolbars = document.querySelectorAll('.toolbar, .toolbar-highlight, .toolbar-colors');
+    const toolbars = document.querySelectorAll('.toolbar, .toolbar-blockRange, .toolbar-colors');
 
     if (toolbars.length === 0) return; // Ne rien faire s'il n'y a aucune toolbar
 
@@ -1459,11 +1459,11 @@ function removeAllSelected() {
 
 function createToolbarBase({
     targets,
-    highlightId,
+    blockRangeId,
     isSelected,
     target
 }) {
-    const toolbars = document.querySelectorAll('.toolbar, .toolbar-highlight');
+    const toolbars = document.querySelectorAll('.toolbar, .toolbar-blockRange');
 
     // Masquer les toolbars existantes
     toolbars.forEach(toolbar => toolbar.style.opacity = '0');
@@ -1474,7 +1474,7 @@ function createToolbarBase({
 
     // Ne rien faire si la bonne toolbar existe déjà
     const existing = Array.from(toolbars).find(toolbar =>
-        toolbar.getAttribute(blockRangeAttr) === highlightId ||
+        toolbar.getAttribute(blockRangeAttr) === blockRangeId ||
         toolbar.classList.contains('selected')
     );
     if (existing) return;
@@ -1514,11 +1514,11 @@ function createToolbarBase({
 
     // Créer la toolbar
     const toolbar = document.createElement('div');
-    toolbar.classList.add('toolbar', 'toolbar-highlight');
+    toolbar.classList.add('toolbar', 'toolbar-blockRange');
     if (isSelected) {
         toolbar.classList.add('selected');
     } else {
-        toolbar.setAttribute(blockRangeAttr, highlightId);
+        toolbar.setAttribute(blockRangeAttr, blockRangeId);
     }
     toolbar.style.top = `${top}px`;
     toolbar.style.left = `${left}px`;
@@ -1551,9 +1551,9 @@ function createToolbarBase({
     toolbar.appendChild(createToolbarButtonColor(2, targets, target, toolbar, isSelected));
 
     const buttons = [
-        ['&#xE681;', () => isSelected ? addNote(paragraphs[0], id, isVerse, text) : addNoteWithBlockRange(text, target, highlightId)],
-        ...(!isSelected && highlightId ? [
-            ['&#xE6C5;', () => removeBlockRange(highlightId)]
+        ['&#xE681;', () => isSelected ? addNote(paragraphs[0], id, isVerse, text) : addNoteWithBlockRange(text, target, blockRangeId)],
+        ...(!isSelected && blockRangeId ? [
+            ['&#xE6C5;', () => removeBlockRange(blockRangeId)]
         ] : []),
         ['&#xE651;', () => callHandler('copyText', {
             text
@@ -1566,13 +1566,13 @@ function createToolbarBase({
     buttons.forEach(([icon, handler]) => toolbar.appendChild(createToolbarButton(icon, handler)));
 }
 
-function showToolbarHighlight(target, highlightId) {
-    const targets = pageCenter.querySelectorAll(`[${blockRangeAttr}="${highlightId}"]`);
+function showToolbarBlockRange(target, blockRangeId) {
+    const targets = pageCenter.querySelectorAll(`[${blockRangeAttr}="${blockRangeId}"]`);
     if (targets.length === 0) return;
 
     createToolbarBase({
         targets,
-        highlightId,
+        blockRangeId,
         isSelected: false,
         target
     });
@@ -1584,7 +1584,7 @@ function showSelectedToolbar() {
 
     createToolbarBase({
         targets,
-        highlightId: null,
+        blockRangeId: null,
         isSelected: true,
         target: targets[0],
     });
@@ -1592,7 +1592,7 @@ function showSelectedToolbar() {
 
 function showToolbar(paragraphs, pid, selector, hasAudio, type) {
     const paragraph = paragraphs[0];
-    const toolbars = document.querySelectorAll('.toolbar, .toolbar-highlight, .toolbar-colors');
+    const toolbars = document.querySelectorAll('.toolbar, .toolbar-blockRange, .toolbar-colors');
 
     // Chercher la toolbar correspondante au pid
     const matchingToolbar = Array.from(toolbars).find(toolbar => toolbar.getAttribute('data-pid') === pid.toString());
@@ -1608,7 +1608,7 @@ function showToolbar(paragraphs, pid, selector, hasAudio, type) {
         return;
     }
 
-    // Ici on dim les autres si pas highlight
+    // Ici on dim les autres si pas de blockRange
     dimOthers(paragraphs, selector);
 
     const rect = paragraph.getBoundingClientRect();
@@ -3621,8 +3621,8 @@ function showVerseDialog(article, verses, href, replace) {
         href: href,
         contentRenderer: (contentContainer) => {
             verses.items.forEach((item, index) => {
-                const infoBar = document.createElement('div');
-                infoBar.style.cssText = `
+                const headerBar = document.createElement('div');
+                headerBar.style.cssText = `
                         display: flex;
                         align-items: center;
                         padding-inline: 8px;
@@ -3644,9 +3644,9 @@ function showVerseDialog(article, verses, href, replace) {
                 const textContainer = document.createElement('div');
                 textContainer.style.cssText = 'flex-grow: 1; margin-left: 8px; padding: 8px 0;';
 
-                const pubText = document.createElement('div');
-                pubText.textContent = item.publicationTitle;
-                pubText.style.cssText = `
+                const pubTitle = document.createElement('div');
+                pubTitle.textContent = item.publicationTitle;
+                pubTitle.style.cssText = `
                         font-size: 16px;
                         font-weight: 700;
                         margin-bottom: 4px;
@@ -3667,15 +3667,15 @@ function showVerseDialog(article, verses, href, replace) {
                         text-overflow: ellipsis;
                     `;
 
-                textContainer.appendChild(pubText);
+                textContainer.appendChild(pubTitle);
                 textContainer.appendChild(subtitleText);
 
-                infoBar.addEventListener('click', function() {
-                    window.flutter_inappwebview?.callHandler('openMepsDocument', item);
+                headerBar.addEventListener('click', function() {
+                    window.flutter_inappwebview?.callHandler('openMepsDocument', item, verses);
                 });
 
-                infoBar.appendChild(img);
-                infoBar.appendChild(textContainer);
+                headerBar.appendChild(img);
+                headerBar.appendChild(textContainer);
 
                 const article = document.createElement('div');
                 article.innerHTML = `<article id="verse-dialog" class="${item.className}">${item.content}</article>`;
@@ -3689,21 +3689,21 @@ function showVerseDialog(article, verses, href, replace) {
 
                 const paragraphsDataDialog = fetchAllParagraphsOfTheArticle(article);
 
-                item.highlights.forEach(h => {
-                    if (h.Identifier >= item.firstVerseNumber && h.Identifier <= item.lastVerseNumber) {
-                        addBlockRange(paragraphsDataDialog, h.BlockType, h.Identifier, h.StartToken, h.EndToken, h.UserMarkGuid, h.StyleIndex, h.ColorIndex);
+                item.blockRanges.forEach(b => {
+                    if (b.Identifier >= verses.firstVerseNumber && b.Identifier <= verses.lastVerseNumber) {
+                        addBlockRange(paragraphsDataDialog, b.BlockType, b.Identifier, b.StartToken, b.EndToken, b.UserMarkGuid, b.StyleIndex, b.ColorIndex);
                     }
                 });
 
-                item.notes.forEach(note => {
-                    if (note.BlockIdentifier >= item.firstVerseNumber && note.BlockIdentifier <= item.lastVerseNumber) {
-                        const matchingHighlight = item.highlights.find(h => h.UserMarkGuid === note.UserMarkGuid);
+                verses.notes.forEach(note => {
+                    if (note.BlockIdentifier >= verses.firstVerseNumber && note.BlockIdentifier <= verses.lastVerseNumber) {
+                        const matchingBlockRange = item.blockRanges.find(h => h.UserMarkGuid === note.UserMarkGuid);
                         const paragraphInfo = paragraphsDataDialog.get(note.BlockIdentifier)
 
                         addNoteWithGuid(
                             article,
                             paragraphInfo.paragraphs[0],
-                            matchingHighlight?.UserMarkGuid || null, // null si pas de highlight
+                            matchingBlockRange?.UserMarkGuid || null, // null si pas de highlight
                             note.Guid,
                             note.ColorIndex ?? 0,
                             true,
@@ -3712,7 +3712,7 @@ function showVerseDialog(article, verses, href, replace) {
                     }
                 });
 
-                contentContainer.appendChild(infoBar);
+                contentContainer.appendChild(headerBar);
                 contentContainer.appendChild(article);
             }); // Fin de forEach
 
@@ -3772,10 +3772,10 @@ function showVerseReferencesDialog(article, verseReferences, href) {
         href: href,
         contentRenderer: (contentContainer) => {
             verseReferences.items.forEach((item, index) => {
-                const infoBar = document.createElement('div');
+                const headerBar = document.createElement('div');
                 // CORRECTION : Utilisation des backticks (`) pour le template literal
                 // afin d'interpoler ${isDarkTheme() ? '...' : '...'}
-                infoBar.style.cssText = `
+                headerBar.style.cssText = `
                       display: flex;
                       align-items: center;
                       padding-inline: 10px;
@@ -3824,12 +3824,12 @@ function showVerseReferencesDialog(article, verseReferences, href) {
                 textContainer.appendChild(pubText);
                 textContainer.appendChild(subtitleText);
 
-                infoBar.addEventListener('click', function() {
+                headerBar.addEventListener('click', function() {
                     window.flutter_inappwebview?.callHandler('openMepsDocument', item);
                 });
 
-                infoBar.appendChild(img);
-                infoBar.appendChild(textContainer);
+                headerBar.appendChild(img);
+                headerBar.appendChild(textContainer);
 
                 const article = document.createElement('div');
                 // CORRECTION : Utilisation des backticks (`) pour le template literal
@@ -3849,7 +3849,7 @@ function showVerseReferencesDialog(article, verseReferences, href) {
                     onClickOnPage(article, event.target);
                 });
 
-                contentContainer.appendChild(infoBar);
+                contentContainer.appendChild(headerBar);
                 contentContainer.appendChild(article);
 
                 repositionAllNotes(article);
@@ -4139,8 +4139,8 @@ function showVerseInfoDialog(article, verseInfo, href) {
 
                             contentHtml += `</article>`;
                         } else if (key === 'versions') {
-                            const infoBar = document.createElement('div');
-                            infoBar.style.cssText = `
+                            const headerBar = document.createElement('div');
+                            headerBar.style.cssText = `
                       display: flex;
                       align-items: center;
                       padding-inline: 10px;
@@ -4189,12 +4189,12 @@ function showVerseInfoDialog(article, verseInfo, href) {
                             textContainer.appendChild(pubText);
                             textContainer.appendChild(subtitleText);
 
-                            infoBar.addEventListener('click', function() {
+                            headerBar.addEventListener('click', function() {
                                 window.flutter_inappwebview?.callHandler('openMepsDocument', item);
                             });
 
-                            infoBar.appendChild(img);
-                            infoBar.appendChild(textContainer);
+                            headerBar.appendChild(img);
+                            headerBar.appendChild(textContainer);
 
                             const article = document.createElement('div');
                             article.innerHTML = `<article id="verse-dialog" class="${item.className}">${item.content}</article>`;
@@ -4204,7 +4204,7 @@ function showVerseInfoDialog(article, verseInfo, href) {
                     padding-bottom: 16px;
                   `;
 
-                            dynamicContent.appendChild(infoBar);
+                            dynamicContent.appendChild(headerBar);
                             dynamicContent.appendChild(article);
                         } else if (key === 'footnotes') {
                             if (item.type === 'footnote') {
@@ -4436,7 +4436,7 @@ function handleExpand(itemId) {
 
 function showExtractPublicationDialog(article, extractData, href) {
     showDialog({
-        title: extractData.title || 'Extrait de publication',
+        title: extractData.title,
         type: 'publication',
         article: article,
         href: href,
@@ -4448,7 +4448,7 @@ function showExtractPublicationDialog(article, extractData, href) {
                         display: flex;
                         align-items: center;
                         padding-inline: 8px;
-                        padding-block: 8px;
+                        padding-block: 3px;
                         background: ${isDarkTheme() ? '#000000' : '#f1f1f1'};
                         border-bottom: 1px solid ${isDarkTheme() ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)'};
                     `;
@@ -4463,33 +4463,14 @@ function showExtractPublicationDialog(article, extractData, href) {
                             border-radius: 8px;
                             object-fit: cover;
                             margin-right: 8px;
-                            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
                         `;
                     headerBar.appendChild(img);
                 }
 
-                headerBar.addEventListener('click', function() {
-                    window.flutter_inappwebview.callHandler('openMepsDocument', {
-                        mepsDocumentId: item.mepsDocumentId,
-                        mepsLanguageId: item.mepsLanguageId,
-                        startParagraphId: item.startParagraphId,
-                        endParagraphId: item.endParagraphId
-                    });
-                });
-
                 // Conteneur des textes
                 const textContainer = document.createElement('div');
-                textContainer.style.cssText = 'flex-grow: 1;';
-
-                // Conteneur horizontal pour le titre et le sous-titre
-                const titleRow = document.createElement('div');
-                titleRow.style.cssText = `
-                      display: flex;
-                      align-items: center;
-                      gap: 8px; /* espace entre titre et sous-titre */
-                      overflow: hidden;
-                    `;
-
+                textContainer.style.cssText = 'flex-grow: 1; margin-left: 8px; padding: 8px 0;';
+                
                 // Titre de la publication
                 const pubTitle = document.createElement('div');
                 pubTitle.textContent = item.publicationTitle;
@@ -4521,8 +4502,15 @@ function showExtractPublicationDialog(article, extractData, href) {
                 } else {
                     textContainer.appendChild(pubTitle);
                 }
-
-                textContainer.appendChild(titleRow);
+                
+                headerBar.addEventListener('click', function() {
+                    window.flutter_inappwebview.callHandler('openMepsDocument', {
+                        mepsDocumentId: item.mepsDocumentId,
+                        mepsLanguageId: item.mepsLanguageId,
+                        startParagraphId: item.startParagraphId,
+                        endParagraphId: item.endParagraphId
+                    });
+                });
 
                 headerBar.appendChild(textContainer);
 
@@ -4531,37 +4519,35 @@ function showExtractPublicationDialog(article, extractData, href) {
                 article.style.cssText = `
                       position: relative;
                       padding-block: 16px;
-                      line-height: 1.7;
-                      font-size: inherit;
                     `;
 
                 wrapWordsWithSpan(article, false);
 
                 const paragraphsDataDialog = fetchAllParagraphsOfTheArticle(article);
 
-                item.highlights.forEach(h => {
-                    if ((item.startParagraphId == null || h.Identifier >= item.startParagraphId) && (item.endParagraphId == null || h.Identifier <= item.endParagraphId)) {
+                item.blockRanges.forEach(b => {
+                    if ((item.startParagraphId == null || b.Identifier >= item.startParagraphId) && (item.endParagraphId == null || b.Identifier <= item.endParagraphId)) {
                         addBlockRange(
                             paragraphsDataDialog,
-                            h.BlockType,
-                            h.Identifier,
-                            h.StartToken,
-                            h.EndToken,
-                            h.UserMarkGuid,
-                            h.StyleIndex,
-                            h.ColorIndex
+                            b.BlockType,
+                            b.Identifier,
+                            b.StartToken,
+                            b.EndToken,
+                            b.UserMarkGuid,
+                            b.StyleIndex,
+                            b.ColorIndex
                         );
                     }
                 });
 
                 item.notes.forEach(note => {
-                    const matchingHighlight = item.highlights.find(h => h.UserMarkGuid === note.UserMarkGuid);
+                    const matchingBlockRange = item.blockRanges.find(h => h.UserMarkGuid === note.UserMarkGuid);
                     const paragraphInfo = paragraphsDataDialog.get(note.BlockIdentifier)
 
                     addNoteWithGuid(
                         article,
                         paragraphInfo.paragraphs[0],
-                        matchingHighlight?.UserMarkGuid || null,
+                        matchingBlockRange?.UserMarkGuid || null,
                         note.Guid,
                         note.ColorIndex ?? 0,
                         false,
@@ -4569,21 +4555,8 @@ function showExtractPublicationDialog(article, extractData, href) {
                     );
                 });
 
-                article.addEventListener('click', async (event) => {
-                    onClickOnPage(article, event.target);
-                });
-
-                article.querySelectorAll('img').forEach(img => {
-                    img.onerror = () => {
-                        img.style.display = 'none'; // Cache l'image si elle ne charge pas
-                    }
-                });
-
-                // Assemblage
                 contentContainer.appendChild(headerBar);
                 contentContainer.appendChild(article);
-
-                repositionAllNotes(article);
 
                 // Séparateur entre les éléments (sauf le dernier)
                 if (index < extractData.items.length - 1) {
@@ -4596,6 +4569,26 @@ function showExtractPublicationDialog(article, extractData, href) {
                     contentContainer.appendChild(separator);
                 }
             });
+
+            contentContainer.addEventListener('click', async (event) => {
+                onClickOnPage(article, event.target);
+            });
+
+            contentContainer.querySelectorAll('img').forEach(img => {
+                img.onerror = () => {
+                    img.style.display = 'none';
+
+                    requestAnimationFrame(() => {
+                        requestAnimationFrame(() => {
+                            repositionAllNotes(contentContainer);
+                        });
+                    });
+                };
+
+            });
+
+            repositionAllNotes(contentContainer);
+
         }
     });
 }
@@ -4608,8 +4601,8 @@ function showVerseCommentaryDialog(article, commentaries, href) {
         href: href,
         contentRenderer: (contentContainer) => {
             commentaries.items.forEach((item, index) => {
-                const infoBar = document.createElement('div');
-                infoBar.style.cssText = `
+                const headerBar = document.createElement('div');
+                headerBar.style.cssText = `
                         display: flex;
                         align-items: center;
                         padding-inline: 10px;
@@ -4658,12 +4651,12 @@ function showVerseCommentaryDialog(article, commentaries, href) {
                 textContainer.appendChild(pubText);
                 textContainer.appendChild(subtitleText);
 
-                infoBar.addEventListener('click', function() {
+                headerBar.addEventListener('click', function() {
                     window.flutter_inappwebview?.callHandler('openMepsDocument', item);
                 });
 
-                infoBar.appendChild(img);
-                infoBar.appendChild(textContainer);
+                headerBar.appendChild(img);
+                headerBar.appendChild(textContainer);
 
                 const article = document.createElement('div');
                 article.innerHTML = `<article id="commentary-dialog" class="${item.className}">${item.content}</article>`;
@@ -4672,7 +4665,7 @@ function showVerseCommentaryDialog(article, commentaries, href) {
                       padding-bottom: 16px;
                     `;
 
-                contentContainer.appendChild(infoBar);
+                contentContainer.appendChild(headerBar);
                 contentContainer.appendChild(article);
             });
         }
@@ -5187,27 +5180,31 @@ function addBlockRange(paragraphsDataMap, blockType, blockIdentifier, startToken
 }
 
 // Les variables globales (noteAttr, blockRangeAttr, isBible, colorsList, etc.) sont présumées définies ailleurs.
-function getNotePosition(article, element, noteIndicator) {
+function getNotePosition(container, element, noteIndicator) {
+    if (!element) return;
+
     if (!element.classList.contains('word') && !element.classList.contains('punctuation')) {
         element = element.querySelector('.word, .punctuation');
     }
-
-    // Chercher un élément word/punctuation si nécessaire
-    if (!element.classList.contains('word') && !element.classList.contains('punctuation')) {
-        const found = element.querySelector('.word, .punctuation');
-        if (found) element = found;
-    }
-
     if (!element) return;
 
-    // Coordonnées relatives à l'article
-    const targetRect = element.getBoundingClientRect();
-    const articleRect = article.getBoundingClientRect();
+    // Trouver le parent positionné
+    const positionedParent = noteIndicator.offsetParent;
 
-    // Note: J'ai conservé le style d'échappement des template literals pour correspondre à votre code original.
-    const topOffset = targetRect.top - articleRect.top + article.scrollTop + (targetRect.height - 15) / 2; // 15 = noteHeight
+    // Position réelle dans le flux
+    let top = element.offsetTop;
 
-    noteIndicator.style.top = `${topOffset}px`;
+    // Remonter la hiérarchie jusqu'au parent positionné
+    let current = element.offsetParent;
+    while (current && current !== positionedParent) {
+        top += current.offsetTop;
+        current = current.offsetParent;
+    }
+
+    // Centrage vertical
+    top += (element.offsetHeight - 15) / 2;
+
+    noteIndicator.style.top = `${top}px`;
 }
 
 function repositionAllNotes(article) {
@@ -5231,9 +5228,9 @@ function repositionAllNotes(article) {
 
 function addNoteWithGuid(article, target, userMarkGuid, noteGuid, colorIndex, isBible, open) {
     if (!target) {
-        const highlightTarget = article.querySelector(`[${blockRangeAttr}="${userMarkGuid}"]`);
-        if (highlightTarget) {
-            target = isBible ? highlightTarget.closest('.v') : highlightTarget.closest('p');
+        const blockRangeTarget = article.querySelector(`[${blockRangeAttr}="${userMarkGuid}"]`);
+        if (blockRangeTarget) {
+            target = isBible ? blockRangeTarget.closest('.v') : blockRangeTarget.closest('p');
         }
     }
 
@@ -5242,6 +5239,8 @@ function addNoteWithGuid(article, target, userMarkGuid, noteGuid, colorIndex, is
     }
 
     const idAttr = isBible ? 'id' : 'data-pid';
+    const articleElement = article.querySelector('article');
+    const isRtl = articleElement.classList.contains('dir-rtl') ?? false;
 
     // Chercher le premier élément surligné si userMarkGuid est donné
     let firstBlockRangeElement = null;
@@ -5822,9 +5821,9 @@ async function onClickOnPage(article, target) {
         return;
     }
 
-    const highlightId = target.getAttribute(blockRangeAttr);
-    if (highlightId) {
-        showToolbarHighlight(target, highlightId);
+    const blockRangeId = target.getAttribute(blockRangeAttr);
+    if (blockRangeId) {
+        showToolbarBlockRange(target, blockRangeId);
         return;
     }
 
@@ -6409,7 +6408,7 @@ async function onLongPressEnd() {
 
         // Afficher la toolbar si sélection valide
         if (tempArray.length > 0) {
-            showToolbarHighlight(tempArray[0], currentGuid);
+            showToolbarBlockRange(tempArray[0], currentGuid);
         }
 
         // Construction des données à envoyer

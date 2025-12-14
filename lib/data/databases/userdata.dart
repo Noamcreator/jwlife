@@ -221,8 +221,6 @@ class Userdata {
       if (publicationsToLoad.isNotEmpty) {
         try {
           await CatalogDb.instance.database.transaction((txn) async {
-            await txn.execute("ATTACH DATABASE '${_database.path}' AS userdata");
-
             final conditions = publicationsToLoad.map((row) =>
             "(p.KeySymbol = ? AND p.IssueTagNumber = ? AND p.MepsLanguageId = ?)"
             ).join(" OR ");
@@ -262,8 +260,6 @@ class Userdata {
 
               orderedFavorites[index] = match != null ? Publication.fromJson(match, isFavorite: true) : pubRow; // fallback brut
             }
-
-            await txn.execute("DETACH DATABASE userdata");
           });
         }
         catch (e) {
@@ -3284,7 +3280,7 @@ class Userdata {
   Future<void> createDbUserdata(Database db) async {
     // Définition d'un timestamp formaté pour l'insertion initiale dans LastModified
     // (Note: La variable formattedTimestamp n'est pas définie ici, elle doit l'être dans votre contexte réel)
-    final String formattedTimestamp = DateTime.now().toIso8601String().substring(0, 19) + 'Z';
+    final String formattedTimestamp = '${DateTime.now().toIso8601String().substring(0, 19)}Z';
 
     return await db.transaction((txn) async {
 

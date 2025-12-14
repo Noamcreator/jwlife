@@ -1079,14 +1079,15 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
                               endParagraphId: endParagraphId       // Passé comme int?
                           );
                         }
-                        else if ((document['firstBookNumber'] != null && document['firstChapterNumber'] != null) || (document['bookNumber'] != null && document['chapterNumber'] != null)) {
-                          int bookNumber1 = document['firstBookNumber'] ?? document['bookNumber'];
-                          int bookNumber2 = document['lastBookNumber'] ?? bookNumber1;
-                          int chapterNumber1 = document['firstChapterNumber'] ?? document['chapterNumber'];
-                          int chapterNumber2 = document['lastChapterNumber'] ?? chapterNumber1;
+                        else if (document['type'] != null && document['type'] == 'verse') {
+                          Map<String, dynamic> verse = args[1];
+                          int bookNumber1 = verse['firstBookNumber'] ?? verse['bookNumber'];
+                          int bookNumber2 = verse['lastBookNumber'] ?? bookNumber1;
+                          int chapterNumber1 = verse['firstChapterNumber'] ?? verse['chapterNumber'];
+                          int chapterNumber2 = verse['lastChapterNumber'] ?? chapterNumber1;
 
-                          int? firstVerseNumber = document['firstVerseNumber'] ?? document['verseNumber'];
-                          int? lastVerseNumber = document['lastVerseNumber'] ?? firstVerseNumber;
+                          int? firstVerseNumber = verse['firstVerseNumber'] ?? verse['verseNumber'];
+                          int? lastVerseNumber = verse['lastVerseNumber'] ?? firstVerseNumber;
 
                           if(widget.publication.documentsManager!.documents.any((doc) => doc.bookNumber == bookNumber1 && doc.chapterNumber == chapterNumber1)) {
                             if (bookNumber1 != widget.publication.documentsManager!.getCurrentDocument().bookNumber || chapterNumber1 != widget.publication.documentsManager!.getCurrentDocument().chapterNumber) {

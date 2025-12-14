@@ -724,15 +724,15 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
                                   endParagraphId: endParagraphId
                               );
                             }
-                            else if ((document['firstBookNumber'] != null && document['firstChapterNumber'] != null) || (document['bookNumber'] != null && document['chapterNumber'] != null)) {
-                              int bookNumber1 = document['firstBookNumber'] ?? document['bookNumber'];
-                              int bookNumber2 = document['lastBookNumber'] ?? bookNumber1;
-                              int chapterNumber1 = document['firstChapterNumber'] ?? document['chapterNumber'];
-                              int chapterNumber2 = document['lastChapterNumber'] ?? chapterNumber1;
+                            else if (document['type'] != null && document['type'] == 'verse') {
+                              Map<String, dynamic> verse = args[1];
+                              int bookNumber1 = verse['firstBookNumber'] ?? verse['bookNumber'];
+                              int bookNumber2 = verse['lastBookNumber'] ?? bookNumber1;
+                              int chapterNumber1 = verse['firstChapterNumber'] ?? verse['chapterNumber'];
+                              int chapterNumber2 = verse['lastChapterNumber'] ?? chapterNumber1;
 
-                              int? firstVerseNumber = document['firstVerseNumber'] ?? document['verseNumber'];
-                              int? lastVerseNumber = document['lastVerseNumber'] ?? firstVerseNumber;
-
+                              int? firstVerseNumber = verse['firstVerseNumber'] ?? verse['verseNumber'];
+                              int? lastVerseNumber = verse['lastVerseNumber'] ?? firstVerseNumber;
 
                               await showChapterView(
                                 context,
