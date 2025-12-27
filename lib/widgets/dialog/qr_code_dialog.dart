@@ -5,10 +5,10 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
-import '../core/assets.dart';
-import '../core/ui/app_dimens.dart';
-import '../data/databases/tiles_cache.dart';
-import '../i18n/i18n.dart';
+import '../../core/assets.dart';
+import '../../core/ui/app_dimens.dart';
+import '../../data/databases/tiles_cache.dart';
+import '../../i18n/i18n.dart';
 
 Future<T?> showQrCodeDialog<T>(
     BuildContext context,
@@ -106,7 +106,7 @@ class _QrCodeDialogState extends State<QrCodeDialog> {
                   size: 250,
                   embeddedImage: _imageFile != null ? FileImage(_imageFile!) : const AssetImage(Assets.iconsNavJworg),
                   embeddedImageStyle: QrEmbeddedImageStyle(
-                    size: const Size(kItemHeight / 1.2, kItemHeight / 1.2),
+                    size: const Size(kSquareItemHeight / 1.2, kSquareItemHeight / 1.2),
                   ),
                   errorCorrectionLevel: QrErrorCorrectLevel.M,
                 ),

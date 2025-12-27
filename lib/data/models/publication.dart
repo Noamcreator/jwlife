@@ -2,14 +2,13 @@ import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import 'package:async/async.dart';
-import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/core/utils/utils_jwpub.dart';
 import 'package:jwlife/data/models/publication_attribute.dart';
 import 'package:jwlife/data/models/publication_category.dart';
 import 'package:jwlife/data/models/meps_language.dart';
-import 'package:jwlife/features/publication/pages/document/local/dated_text_manager.dart';
+import 'package:jwlife/features/document/local/dated_text_manager.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../core/app_data/app_data_service.dart';
@@ -21,9 +20,9 @@ import '../../core/app_data/meetings_pubs_service.dart';
 import '../../core/uri/jworg_uri.dart';
 import '../../core/shared_preferences/shared_preferences_utils.dart';
 import '../../core/utils/utils_document.dart';
+import '../../features/document/local/documents_manager.dart';
 import '../../features/publication/models/menu/local/words_suggestions_model.dart';
-import '../../features/publication/pages/document/local/documents_manager.dart';
-import '../../features/publication/pages/menu/local/publication_menu_view.dart';
+import '../../features/publication/pages/local/publication_menu_view.dart';
 import '../../i18n/i18n.dart';
 import '../databases/catalog.dart';
 import '../repositories/PublicationRepository.dart';
@@ -123,10 +122,10 @@ class Publication {
         isDownloadedNotifier = isDownloadedNotifier ?? ValueNotifier(false),
         isFavoriteNotifier = isFavoriteNotifier ?? ValueNotifier(false);
 
-  factory Publication.fromJson(Map<String, dynamic> json, {bool? isFavorite}) {
+  factory Publication.fromJson(Map<String, dynamic> json, {bool? isFavorite, MepsLanguage? currentLanguage}) {
     final keySymbol = json['KeySymbol'] ?? json['UndatedSymbol'] ?? '';
     final issueTagNumber = json['IssueTagNumber'] ?? 0;
-    final mepsLanguageId = json['MepsLanguageId'] ?? 0;
+    final mepsLanguageId = json['MepsLanguageId'] as int? ?? currentLanguage?.id ?? 0;
 
     // Recherche dans le repository une publications existante
     Publication? existing = PublicationRepository().getPublicationWithMepsLanguageId(keySymbol, issueTagNumber, mepsLanguageId);
@@ -155,7 +154,7 @@ class Publication {
       return existing;
     }
 
-    MepsLanguage mepsLanguage = json['LanguageSymbol'] != null ? MepsLanguage.fromJson(json) : JwLifeSettings.instance.currentLanguage.value;
+    MepsLanguage mepsLanguage = currentLanguage ?? (json['LanguageSymbol'] != null ? MepsLanguage.fromJson(json) : JwLifeSettings.instance.currentLanguage.value);
 
     // Sinon, en créer une nouvelle
     Publication publication = Publication(
@@ -364,7 +363,7 @@ class Publication {
           isDownloadedNotifier.value = true;
 
           if (category.id == 1) {
-            GlobalKeyService.bibleKey.currentState?.refreshBiblePage();
+            GlobalKeyService.bibleKey.currentState?.goToTheBooksTab();
           }
 
           progressNotifier.value = 1.0;

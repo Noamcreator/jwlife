@@ -28,7 +28,7 @@ import 'package:jwlife/data/models/userdata/bookmark.dart';
 import 'package:jwlife/data/models/userdata/tag.dart';
 import 'package:jwlife/data/models/video.dart';
 import 'package:jwlife/data/repositories/PublicationRepository.dart';
-import 'package:jwlife/features/publication/pages/document/data/models/dated_text.dart';
+import 'package:jwlife/features/document/data/models/dated_text.dart';
 import 'package:jwlife/core/utils/utils_dialog.dart';
 import 'package:mime/mime.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -39,7 +39,7 @@ import 'package:path/path.dart' as path;
 import 'package:uuid/uuid.dart';
 
 import '../../core/utils/utils_video.dart';
-import '../../features/publication/pages/document/data/models/document.dart';
+import '../../features/document/data/models/document.dart';
 import '../../i18n/i18n.dart';
 import '../controller/block_ranges_controller.dart';
 import '../models/audio.dart';
@@ -198,7 +198,7 @@ class Userdata {
               isVideo: false
           );
 
-          orderedFavorites[i] = Audio.fromJson(mediaItem: mediaItem);
+          orderedFavorites[i] = Audio.fromJson(mediaItem: mediaItem, isFavorite: true);
         }
         else if (type == 3) {
           final mediaItem = getMediaItem(
@@ -210,7 +210,7 @@ class Userdata {
               isVideo: true
           );
 
-          orderedFavorites[i] = Video.fromJson(mediaItem: mediaItem);
+          orderedFavorites[i] = Video.fromJson(mediaItem: mediaItem, isFavorite: true);
         }
         else {
           orderedFavorites[i] = row; // fallback brut
@@ -939,39 +939,53 @@ class Userdata {
     }
   }
 
-  Future<List<BlockRange>> getBlockRangesFromChapterNumber(int bookId, int chapterId, String keySymbol, int mepsLanguageId, {int? startVerse, int? endVerse}) async {
+  Future<List<BlockRange>> getBlockRangesFromChapterNumber(
+      int bookId,
+      int firstChapterNumber, // Renommé pour plus de clarté
+      int endChapterNumber,
+      String keySymbol,
+      int mepsLanguageId,
+      {int? startVerse, int? endVerse}
+      ) async {
     try {
-      List<dynamic> arguments = [bookId, chapterId, keySymbol, mepsLanguageId];
-      String whereClause = 'WHERE Location.BookNumber = ? AND Location.ChapterNumber = ? AND Location.KeySymbol = ? AND Location.MepsLanguage = ?';
+      // Utilisation de BETWEEN pour inclure tous les chapitres de la plage
+      List<dynamic> arguments = [bookId, firstChapterNumber, endChapterNumber, keySymbol, mepsLanguageId];
 
-      // 1. Ajouter le filtre de début de verset (Identifier >= startVerse)
+      String whereClause = '''
+      WHERE Location.BookNumber = ? 
+      AND Location.ChapterNumber BETWEEN ? AND ? 
+      AND Location.KeySymbol = ? 
+      AND Location.MepsLanguage = ?
+    ''';
+
       if (startVerse != null) {
         whereClause += ' AND BlockRange.Identifier >= ?';
         arguments.add(startVerse);
       }
 
-      // 2. Ajouter le filtre de fin de verset (Identifier <= endVerse)
+      // 2. Filtrer par verset de fin
       if (endVerse != null) {
         whereClause += ' AND BlockRange.Identifier <= ?';
         arguments.add(endVerse);
       }
 
-      // La requête SQL complète avec la clause WHERE construite dynamiquement
       String sqlQuery = '''
-        SELECT BlockRange.*, UserMark.*, Location.* -- AJOUT DE 'SELECT' ICI
+        SELECT BlockRange.*, UserMark.*, Location.*
         FROM Location
         INNER JOIN UserMark ON Location.LocationId = UserMark.LocationId
         INNER JOIN BlockRange ON UserMark.UserMarkId = BlockRange.UserMarkId
         $whereClause
-    '''; // Notez que les triples guillemets incluent le 'SELECT'
+        ORDER BY Location.ChapterNumber ASC, BlockRange.Identifier ASC
+      ''';
 
       List<Map<String, dynamic>> blockRanges = await _database.rawQuery(sqlQuery, arguments);
 
       return blockRanges.map((blockRange) => BlockRange.fromMap(blockRange)).toList();
 
-    } catch (e) {
+    }
+    catch (e) {
       printTime('Error: $e');
-      throw Exception('Failed to load block ranges for the given DocumentId and MepsLanguage.');
+      throw Exception('Failed to load block ranges for the chapters $firstChapterNumber to $endChapterNumber');
     }
   }
 

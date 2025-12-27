@@ -3093,4 +3093,28 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get settings_page_transition_right => 'انتقال من اليمين';
+
+  @override
+  String get label_research_all => 'الكل';
+
+  @override
+  String get label_research_wol => 'WOL';
+
+  @override
+  String get label_research_bible => 'الكتاب المقدس';
+
+  @override
+  String get label_research_verses => 'آيات';
+
+  @override
+  String get label_research_images => 'صور';
+
+  @override
+  String get label_research_notes => 'ملاحظات';
+
+  @override
+  String get label_research_inputs_fields => 'حقول';
+
+  @override
+  String get label_research_wikipedia => 'ويكيبيديا';
 }

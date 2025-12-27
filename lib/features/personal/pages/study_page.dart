@@ -11,6 +11,7 @@ import 'package:jwlife/features/personal/pages/playlists_page.dart';
 import 'package:provider/provider.dart';
 
 
+import '../../../core/ui/app_dimens.dart';
 import '../../../core/utils/utils_tag_dialogs.dart';
 import '../../../data/controller/notes_controller.dart';
 import '../../../data/controller/tags_controller.dart';
@@ -333,16 +334,16 @@ class StudyTabViewState extends State<StudyTabView> {
                         showPage(TagPage(tag: tag));
                       },
                       style: ButtonStyle(
-                        minimumSize: MaterialStateProperty.all<Size>(Size(0, 16)),
-                        padding: MaterialStateProperty.all<EdgeInsetsGeometry>(
+                        minimumSize: WidgetStateProperty.all<Size>(Size(0, 16)),
+                        padding: WidgetStateProperty.all<EdgeInsetsGeometry>(
                           EdgeInsets.symmetric(horizontal: 14, vertical: 5),
                         ),
-                        backgroundColor: MaterialStateProperty.all<Color>(
+                        backgroundColor: WidgetStateProperty.all<Color>(
                           Theme.of(context).brightness == Brightness.dark
                               ? Color(0xFF292929)
                               : Color(0xFFd8d8d8),
                         ),
-                        shape: MaterialStateProperty.all<RoundedRectangleBorder>(
+                        shape: WidgetStateProperty.all<RoundedRectangleBorder>(
                           RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(16),
                           ),
@@ -459,7 +460,7 @@ class StudyTabViewState extends State<StudyTabView> {
                           initPlaylist();
                         },
                         child: SizedBox(
-                          height: 80,
+                          height: kSquareItemHeight,
                           child: Stack(
                             children: [
                               Row(
@@ -470,8 +471,8 @@ class StudyTabViewState extends State<StudyTabView> {
                                       future: playlist.getThumbnailFile(),
                                       builder: (context, snapshot) {
                                         final placeholder = Container(
-                                          height: 80,
-                                          width: 80,
+                                          height: kSquareItemHeight,
+                                          width: kSquareItemHeight,
                                           color: Colors.grey.shade300,
                                         );
 
@@ -481,16 +482,16 @@ class StudyTabViewState extends State<StudyTabView> {
 
                                         if (snapshot.hasError || snapshot.data == null) {
                                           return Container(
-                                            height: 80,
-                                            width: 80,
+                                            height: kSquareItemHeight,
+                                            width: kSquareItemHeight,
                                             color: Colors.grey,
                                           );
                                         }
 
                                         return Image.file(
                                           snapshot.data!,
-                                          height: 80,
-                                          width: 80,
+                                          height: kSquareItemHeight,
+                                          width: kSquareItemHeight,
                                           fit: BoxFit.cover,
                                         );
                                       },
@@ -498,10 +499,9 @@ class StudyTabViewState extends State<StudyTabView> {
                                   ),
                                   Expanded(
                                     child: Padding(
-                                      padding: EdgeInsets.only(
-                                        left: 6.0,
-                                        right: 25.0,
-                                        // publication.issueTitle remplacé par playlist.name.isNotEmpty pour éviter l'erreur
+                                      padding: EdgeInsetsDirectional.only(
+                                        start: 6.0,
+                                        end: 25.0,
                                         top: 4.0,
                                         bottom: 2.0,
                                       ),
@@ -527,16 +527,16 @@ class StudyTabViewState extends State<StudyTabView> {
                               ),
 
                               // Menu contextuel
-                              Positioned(
-                                top: -5,
-                                right: -10,
+                              PositionedDirectional(
+                                top: -10,
+                                end: -5,
                                 child: PopupMenuButton(
                                   popUpAnimationStyle: AnimationStyle.lerp(
                                     const AnimationStyle(curve: Curves.ease),
                                     const AnimationStyle(curve: Curves.ease),
                                     0.5,
                                   ),
-                                  icon: const Icon(Icons.more_vert, color: Color(0xFF9d9d9d)),
+                                  icon: const Icon(Icons.more_horiz, color: Color(0xFF9d9d9d)),
                                   itemBuilder: (context) => [
                                     PopupMenuItem(
                                       child: Row(

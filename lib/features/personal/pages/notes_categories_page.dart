@@ -1,10 +1,10 @@
 import 'package:diacritic/diacritic.dart';
 import 'package:flutter/material.dart';
 import 'dart:async';
-import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/app/jwlife_app_bar.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
+import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/core/utils/utils_tag_dialogs.dart';
 import 'package:jwlife/data/controller/tags_controller.dart';
 import 'package:jwlife/data/databases/history.dart';
@@ -58,7 +58,7 @@ class _NotesTagsPageState extends State<NotesTagsPage> {
     return AppPage(
         appBar: JwLifeAppBar(
           title: i18n().navigation_notes_and_tag,
-          subTitle: i18n().label_tags_and_notes(filteredTags.length, filteredNotes.length),
+          subTitle: i18n().label_tags_and_notes(formatNumber(filteredTags.length), formatNumber(filteredNotes.length)),
           actions: [
             IconTextButton(
               icon: Icon(JwIcons.note_plus),
@@ -143,7 +143,6 @@ class _NotesTagsPageState extends State<NotesTagsPage> {
                     ),
                   ),
                   cursorColor: Colors.grey, // couleur du curseur si tu veux
-                  style: TextStyle(color: Colors.white), // texte blanc si fond noir
                 ),
               ),
             ),
@@ -161,11 +160,11 @@ class _NotesTagsPageState extends State<NotesTagsPage> {
                           await showPage(TagPage(tag: category));
                         },
                         style: ButtonStyle(
-                          minimumSize: MaterialStateProperty.all<Size>(Size(0, 30)),
-                          padding: MaterialStateProperty.all<EdgeInsetsGeometry>(
+                          minimumSize: WidgetStateProperty.all<Size>(Size(0, 30)),
+                          padding: WidgetStateProperty.all<EdgeInsetsGeometry>(
                             EdgeInsets.symmetric(horizontal: 20),
                           ),
-                          backgroundColor: MaterialStateProperty.all<Color>(
+                          backgroundColor: WidgetStateProperty.all<Color>(
                             Theme.of(context).brightness == Brightness.dark
                                 ? Color(0xFF292929)
                                 : Color(0xFFd8d8d8),
@@ -191,11 +190,11 @@ class _NotesTagsPageState extends State<NotesTagsPage> {
                           });
                         },
                         style: ButtonStyle(
-                          minimumSize: MaterialStateProperty.all<Size>(Size(0, 30)),
-                          padding: MaterialStateProperty.all<EdgeInsetsGeometry>(
+                          minimumSize: WidgetStateProperty.all<Size>(Size(0, 30)),
+                          padding: WidgetStateProperty.all<EdgeInsetsGeometry>(
                             EdgeInsets.symmetric(horizontal: 20),
                           ),
-                          backgroundColor: MaterialStateProperty.all<Color>(
+                          backgroundColor: WidgetStateProperty.all<Color>(
                             Theme.of(context).brightness == Brightness.dark
                                 ? Color(0xFF3d3d3d)
                                 : Color(0xFFc8c8c8),
@@ -207,7 +206,7 @@ class _NotesTagsPageState extends State<NotesTagsPage> {
                             Text(
                               showAllCategories
                                   ? i18n().action_collapse
-                                  : i18n().label_all_tags(filteredTags.length),
+                                  : i18n().label_all_tags(formatNumber(filteredTags.length)),
                               style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.bold,

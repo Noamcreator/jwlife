@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import 'package:async/async.dart';
 import 'package:jwlife/app/services/settings_service.dart';
+import 'package:jwlife/data/realm/catalog.dart';
+import 'package:jwlife/data/realm/realm_library.dart';
+import 'package:realm/realm.dart';
 
 import '../../app/services/global_key_service.dart';
 import '../../app/services/notification_service.dart';
@@ -224,5 +227,9 @@ abstract class Media {
     }
 
     return lastModDate.isAfter(pubDate);
+  }
+
+  String getCategoryName() {
+    return RealmLibrary.realm.all<RealmCategory>().query("Key == '$categoryKey' AND LanguageSymbol == '$mepsLanguage'").firstOrNull?.name ?? categoryKey;
   }
 }

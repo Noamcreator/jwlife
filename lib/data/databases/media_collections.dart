@@ -70,10 +70,6 @@ class MediaCollections {
     return audios.firstWhereOrNull((element) => element.keySymbol == keySymbol && element.documentId == documentId && element.mepsLanguage == mepsLanguage && element.issueTagNumber == issueTagNumber && element.track == track);
   }
 
-  List<Audio> getAudiosFromCategory(RealmCategory category) {
-    return audios.where((element) => element.categoryKey == category.key).toList();
-  }
-
   List<Audio> getAudiosFromPub(Publication publication) {
     String keySymbol = publication.keySymbol;
     int issueTagNumber = publication.issueTagNumber;

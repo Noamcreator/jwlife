@@ -4,8 +4,8 @@ import 'package:jwlife/features/publication/models/menu/local/words_suggestions_
 import 'package:sqflite/sqflite.dart';
 
 import '../../../../../core/utils/files_helper.dart';
-import '../../../pages/document/data/models/document.dart';
-import '../../../pages/document/local/documents_manager.dart';
+import '../../../../document/data/models/document.dart';
+import '../../../../document/local/documents_manager.dart';
 import 'menu_list_item.dart';
 
 class PublicationMenuModel {

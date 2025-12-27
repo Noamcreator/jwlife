@@ -52,7 +52,7 @@ class AudiosCategoriesWidget extends StatelessWidget {
             child: ImageCachedWidget(
               imageUrl: category.images!.extraWideImageUrl,
               icon: JwIcons.headphones__simple,
-              height: kItemHeight,
+              height: kSquareItemHeight,
               fit: BoxFit.fill,
             ),
           ),

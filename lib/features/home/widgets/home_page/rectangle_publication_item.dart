@@ -157,6 +157,7 @@ class HomeRectanglePublicationItem extends StatelessWidget {
       end: -7, // Utilisé au lieu de 'right'
       child: RepaintBoundary(
         child: PopupMenuButton(
+          useRootNavigator: true,
           icon: const Icon(Icons.more_horiz_rounded, color: Color(0xFF9d9d9d)),
           itemBuilder: (context) => [
             getPubShareMenuItem(publication),

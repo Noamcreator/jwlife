@@ -1,4 +1,3 @@
-import 'dart:convert';
 
 import 'package:collection/collection.dart';
 import 'package:dio/dio.dart';
@@ -17,11 +16,12 @@ import 'package:realm/realm.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:jwlife/app/jwlife_app.dart';
 
+import '../../app/services/global_key_service.dart';
 import '../../app/services/settings_service.dart';
 import '../../features/audio/lyrics_page.dart';
 import '../../features/video/subtitles.dart';
 import '../../i18n/i18n.dart';
-import '../../widgets/qr_code_dialog.dart';
+import '../../widgets/dialog/qr_code_dialog.dart';
 import '../api/api.dart';
 import '../uri/jworg_uri.dart';
 import 'common_ui.dart';
@@ -235,12 +235,15 @@ PopupMenuItem getAudioLyricsItem(BuildContext context, Audio audio, {String quer
       ],
     ),
     onTap: () async {
-      String link = 'https://www.jw.org/finder?wtlocale=${audio.mepsLanguage}&lank=${audio.naturalKey}';
+      if(await hasInternetConnection(context: context)) {
+        String link = 'https://www.jw.org/finder?wtlocale=${audio.mepsLanguage}&lank=${audio.naturalKey}';
 
-      showPage(LyricsPage(
-          audioJwPage: link,
-          query: query
-      ));
+        showPage(LyricsPage(
+            audioJwPage: link,
+            query: query,
+            mepsLanguage: audio.mepsLanguage
+        ));
+      }
     },
   );
 }
@@ -255,12 +258,14 @@ PopupMenuItem getCopyLyricsItem(Audio audio) {
       ],
     ),
     onTap: () async {
-      String link = 'https://b.jw-cdn.org/apis/mediator/v1/media-items/${audio.mepsLanguage}/${audio.naturalKey}';
-      final response = await Api.httpGetWithHeaders(link, responseType: ResponseType.json);
-      if (response.statusCode == 200) {
-        Subtitles subtitles = Subtitles();
-        await subtitles.loadSubtitles(response.data['media'][0]);
-        Clipboard.setData(ClipboardData(text: subtitles.toString()));
+      if(await hasInternetConnection(context: GlobalKeyService.jwLifePageKey.currentContext!)) {
+        String link = 'https://b.jw-cdn.org/apis/mediator/v1/media-items/${audio.mepsLanguage}/${audio.naturalKey}';
+        final response = await Api.httpGetWithHeaders(link, responseType: ResponseType.json);
+        if (response.statusCode == 200) {
+          Subtitles subtitles = Subtitles();
+          await subtitles.loadSubtitles(response.data['media'][0]);
+          Clipboard.setData(ClipboardData(text: subtitles.toString()));
+        }
       }
     },
   );

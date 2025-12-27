@@ -3046,4 +3046,28 @@ class AppLocalizationsAm extends AppLocalizations {
 
   @override
   String get settings_page_transition_right => 'ሽግግር ከቀኝ';
+
+  @override
+  String get label_research_all => 'ሁሉንም';
+
+  @override
+  String get label_research_wol => 'WOL';
+
+  @override
+  String get label_research_bible => 'መጽሐፍ ቅዱስ';
+
+  @override
+  String get label_research_verses => 'ጥቅሶች';
+
+  @override
+  String get label_research_images => 'ምስሎች';
+
+  @override
+  String get label_research_notes => 'ማስታወሻዎች';
+
+  @override
+  String get label_research_inputs_fields => 'መስኮች';
+
+  @override
+  String get label_research_wikipedia => 'ውክፔዲያ';
 }

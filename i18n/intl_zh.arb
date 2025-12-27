@@ -3,5 +3,13 @@
   "placeholder": "",
   "action_playlist_end_freeze": "",
   "settings_page_transition_bottom": "",
-  "settings_page_transition_right": ""
+  "settings_page_transition_right": "",
+  "label_research_all": "",
+  "label_research_wol": "",
+  "label_research_bible": "",
+  "label_research_verses": "",
+  "label_research_images": "",
+  "label_research_notes": "",
+  "label_research_inputs_fields": "",
+  "label_research_wikipedia": ""
 }

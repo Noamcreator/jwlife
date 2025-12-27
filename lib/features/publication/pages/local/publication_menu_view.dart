@@ -10,14 +10,15 @@ import 'package:jwlife/core/utils/html_styles.dart';
 import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/core/utils/utils_audio.dart';
 import 'package:jwlife/core/utils/utils_document.dart';
+import 'package:jwlife/core/utils/widgets_utils.dart';
 import 'package:jwlife/data/models/audio.dart';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/databases/history.dart';
 import 'package:jwlife/data/models/userdata/bookmark.dart';
 import 'package:jwlife/features/publication/models/menu/local/bible_color_group.dart';
-import 'package:jwlife/features/publication/pages/document/data/models/multimedia.dart';
-import 'package:jwlife/features/publication/pages/document/local/full_screen_image_page.dart';
-import 'package:jwlife/features/publication/pages/menu/local/publication_search_view.dart';
+import 'package:jwlife/features/document/data/models/multimedia.dart';
+import 'package:jwlife/features/image/pages/full_screen_image_page.dart';
+import 'package:jwlife/features/publication/pages/local/publication_search_view.dart';
 import 'package:jwlife/widgets/dialog/publication_dialogs.dart';
 import 'package:jwlife/widgets/responsive_appbar_actions.dart';
 import 'package:jwlife/widgets/searchfield/searchfield_widget.dart';
@@ -29,12 +30,12 @@ import '../../../../../core/shared_preferences/shared_preferences_utils.dart';
 import '../../../../../core/utils/utils_language_dialog.dart';
 import '../../../../../core/utils/utils_pub.dart';
 import '../../../../../i18n/i18n.dart';
-import '../../../../../widgets/qr_code_dialog.dart';
-import '../../../../bible/pages/bible_chapter_page.dart';
-import '../../../models/menu/local/menu_list_item.dart';
-import '../../../models/menu/local/publication_menu_model.dart';
-import '../../../models/menu/local/tab_items.dart';
-import '../../../models/menu/local/words_suggestions_model.dart';
+import '../../../../widgets/dialog/qr_code_dialog.dart';
+import '../../../bible/pages/bible_chapter_page.dart';
+import '../../models/menu/local/menu_list_item.dart';
+import '../../models/menu/local/publication_menu_model.dart';
+import '../../models/menu/local/tab_items.dart' show TabWithItems;
+import '../../models/menu/local/words_suggestions_model.dart';
 
 const double breakpointMedium = 530.0;
 const double breakpointLarge = 800.0;
@@ -101,7 +102,7 @@ class PublicationMenuViewState extends State<PublicationMenuView> with SingleTic
     if(_tabController != null) {
       // Assure que l'index 1 existe avant d'animer
       if (_model.tabsWithItems.length > 1) {
-        _tabController!.animateTo(1);
+        _tabController!.animateTo(_model.initialTabIndex);
         _scrollController.animateTo(
           0.0,
           duration: const Duration(milliseconds: 100),
@@ -110,10 +111,6 @@ class PublicationMenuViewState extends State<PublicationMenuView> with SingleTic
       }
     }
   }
-
-  // -----------------------------------------------------------------------------
-  // Fonctions de construction des items
-  // -----------------------------------------------------------------------------
 
   Widget _buildNameItem(BuildContext context, bool showImage, ListItem item) {
     final isRTL = widget.publication.mepsLanguage.isRtl;
@@ -179,11 +176,9 @@ class PublicationMenuViewState extends State<PublicationMenuView> with SingleTic
                       // 1B. Texte Expansé (il prendra tout l'espace restant)
                       Expanded(
                         child: Padding(
-                          // Ajuster le padding : si LTR, padding à gauche. Si RTL, padding à droite.
-                          // On retire aussi l'espace pour le PopupMenuButton
-                          padding: EdgeInsets.only(
-                            left: isRTL ? 30.0 : imageSpacing,
-                            right: isRTL ? imageSpacing : 30.0,
+                          padding: EdgeInsetsDirectional.only(
+                            start: imageSpacing,
+                            end: 30.0,
                             top: 4.0, // Petit ajustement vertical pour le texte
                           ),
                           child: Column(
@@ -201,20 +196,15 @@ class PublicationMenuViewState extends State<PublicationMenuView> with SingleTic
                 },
               ),
 
-              // 2. PopupMenuButton Positioned :
-              // Il sera positionné dans le coin supérieur Droit (LTR) ou Gauche (RTL) du Stack.
-              // Le `top: -4.0` ou une valeur similaire permet de compenser le Padding interne par défaut.
-              Positioned(
-                top: -10.0, // Ajuste vers le haut pour compenser le Padding vertical de 4.0
-                // Positionnement absolu : Right pour LTR, Left pour RTL.
-                right: isRTL ? null : -8,
-                left: isRTL ? -8 : null,
+              PositionedDirectional(
+                top: -10.0,
+                end: -8,
                 child: ValueListenableBuilder(
                   valueListenable: widget.publication.audiosNotifier,
                   builder: (context, value, child) {
                     Audio? audio = value.firstWhereOrNull((audio) => audio.documentId == item.mepsDocumentId);
                     return PopupMenuButton(
-                      // On utilise padding: EdgeInsets.zero pour annuler l'espace par défaut autour de l'icône
+                      useRootNavigator: true,
                       padding: EdgeInsets.zero,
                       icon: Icon(Icons.more_horiz, color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF8e8e8e) : const Color(0xFF757575)),
                       itemBuilder: (context) {
@@ -243,10 +233,11 @@ class PublicationMenuViewState extends State<PublicationMenuView> with SingleTic
                     if (isDownloading) {
                       const positionOffset = 65.0; // Largeur de l'image (60.0) + un petit espace
 
-                      return Positioned(
+                      return Positioned.directional(
+                        textDirection: isRTL ? TextDirection.rtl : TextDirection.ltr,
                         bottom: 0,
-                        left: isRTL ? null : showImage ? positionOffset : 0,
-                        right: isRTL ? (showImage ? positionOffset : 0) : 40.0,
+                        start: showImage ? positionOffset : 0,
+                        end: 40.0,
                         child: ValueListenableBuilder<double>(
                           valueListenable: audio.progressNotifier,
                           builder: (context, progress, child) {
@@ -285,8 +276,8 @@ class PublicationMenuViewState extends State<PublicationMenuView> with SingleTic
                 alignment: Alignment.center,
                 decoration: const BoxDecoration(color: Color(0xFF757575)),
                 child: Text(
-                  items[index].dataType == 'number' ? items[index].displayTitle ?? '' : items[index].title,
-                  style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                  items[index].dataType == 'number' ? items[index].displayTitle : items[index].title,
+                  style: const TextStyle(color: Colors.white, fontSize: 20),
                 ),
               ),
             );
@@ -395,8 +386,8 @@ class PublicationMenuViewState extends State<PublicationMenuView> with SingleTic
 
             // Indicateur d'Audio (le plus à droite)
             if (hasAudio)
-              Positioned(
-                right: 4.0, // Toujours le plus à droite
+              PositionedDirectional(
+                end: 4.0, // Toujours le plus à droite
                 top: 4,
                 child: Center(
                   child: Icon(
@@ -410,8 +401,8 @@ class PublicationMenuViewState extends State<PublicationMenuView> with SingleTic
 
             // Indicateur de Commentaire (positionné à droite, à côté de l'Audio si présent)
             if (hasCommentary)
-              Positioned(
-                right: commentaryRightPosition, // Position ajustée
+              PositionedDirectional(
+                end: commentaryRightPosition, // Position ajustée
                 top: 4,
                 child: Center(
                   child: Icon(
@@ -688,7 +679,7 @@ class PublicationMenuViewState extends State<PublicationMenuView> with SingleTic
 
   Widget _buildPublication() {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return getLoadingWidget(Theme.of(context).primaryColor);
     }
 
     if (_model.tabsWithItems.isEmpty) {

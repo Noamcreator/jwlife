@@ -81,9 +81,9 @@ class MepsLanguage {
     Database database = await openDatabase(mepsFile.path, readOnly: true);
 
     List<Map<String, dynamic>> results = await database.query(
-      'Language',
-      where: 'LanguageId = ?',
-      whereArgs: [mepsLanguageId]);
+        'Language',
+        where: 'LanguageId = ?',
+        whereArgs: [mepsLanguageId]);
 
     await database.close();
 
@@ -94,49 +94,51 @@ class MepsLanguage {
     final wolLink = 'https://wol.jw.org/wol/finder?wtlocale=$symbol';
     printTime('WOL link: $wolLink');
 
-    try {
-      final headers = Api.getHeaders();
+    if(await hasInternetConnection()) {
+      try {
+        final headers = Api.getHeaders();
 
-      final response = await Api.dio.get(
-        wolLink,
-        options: Options(
-          headers: headers,
-          followRedirects: false, // Bloque la redirection automatique
-          maxRedirects: 0,
-          validateStatus: (status) => true,
-        ),
-      );
+        final response = await Api.dio.get(
+          wolLink,
+          options: Options(
+            headers: headers,
+            followRedirects: false, // Bloque la redirection automatique
+            maxRedirects: 0,
+            validateStatus: (status) => true,
+          ),
+        );
 
-      // Gestion des codes de redirection (301, 302, 307, 308)
-      if ([301, 302, 307, 308].contains(response.statusCode)) {
-        final location = response.headers.value('location');
-        if (location != null && location.isNotEmpty) {
-          // Analyse de l'URL de redirection
-          final parts = location.split('/');
-          if (parts.length >= 6) {
-            final rCode = parts[4];
-            final lpCode = parts[5];
-            printTime('rCode: $rCode');
-            printTime('lpCode: $lpCode');
+        // Gestion des codes de redirection (301, 302, 307, 308)
+        if ([301, 302, 307, 308].contains(response.statusCode)) {
+          final location = response.headers.value('location');
+          if (location != null && location.isNotEmpty) {
+            // Analyse de l'URL de redirection
+            final parts = location.split('/');
+            if (parts.length >= 6) {
+              final rCode = parts[4];
+              final lpCode = parts[5];
+              printTime('rCode: $rCode');
+              printTime('lpCode: $lpCode');
 
-            JwLifeSettings.instance.currentLanguage.value.setRsConf(rCode);
-            JwLifeSettings.instance.currentLanguage.value.setLib(lpCode);
+              JwLifeSettings.instance.currentLanguage.value.setRsConf(rCode);
+              JwLifeSettings.instance.currentLanguage.value.setLib(lpCode);
 
-            AppSharedPreferences.instance.setLibraryLanguage(JwLifeSettings.instance.currentLanguage);
+              AppSharedPreferences.instance.setLibraryLanguage(JwLifeSettings.instance.currentLanguage);
+            }
+          } else {
+            printTime('No location header found in redirect response');
           }
+        } else if (response.statusCode == 200) {
+          printTime('Direct response (no redirect)');
+          // Traitement si pas de redirection
         } else {
-          printTime('No location header found in redirect response');
+          printTime('Unexpected status code: ${response.statusCode}');
         }
-      } else if (response.statusCode == 200) {
-        printTime('Direct response (no redirect)');
-        // Traitement si pas de redirection
-      } else {
-        printTime('Unexpected status code: ${response.statusCode}');
-      }
 
-    } catch (e, stack) {
-      printTime('Error loading WOL info: $e');
-      print(stack);
+      } catch (e, stack) {
+        printTime('Error loading WOL info: $e');
+        print(stack);
+      }
     }
   }
 

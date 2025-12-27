@@ -9,10 +9,9 @@ import 'package:jwlife/widgets/responsive_appbar_actions.dart';
 import '../../../app/app_page.dart';
 import '../../../core/utils/common_ui.dart';
 import '../../../i18n/i18n.dart';
-import '../../publication/pages/document/data/models/multimedia.dart';
-import '../../publication/pages/document/local/full_screen_image_page.dart';
+import '../../document/data/models/multimedia.dart';
+import '../../image/pages/full_screen_image_page.dart';
 import '../models/bible_chapter_model.dart';
-
 
 class BibleBookMediasView extends StatefulWidget {
   final Publication bible;

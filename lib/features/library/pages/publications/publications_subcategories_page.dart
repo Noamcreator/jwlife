@@ -12,6 +12,7 @@ import '../../../../app/app_page.dart';
 import '../../../../app/services/settings_service.dart';
 import '../../../../core/ui/text_styles.dart';
 import '../../../../core/utils/utils_language_dialog.dart';
+import '../../../../data/models/meps_language.dart';
 import '../../../../data/models/publication.dart';
 import '../../../../data/realm/catalog.dart';
 import '../../../../data/realm/realm_library.dart';
@@ -34,6 +35,7 @@ class _PublicationSubcategoriesPageState extends State<PublicationSubcategoriesP
   List<Map<String, dynamic>> items = [];
 
   final _pageTitle = ValueNotifier<String>('');
+  final _mepsLanguage = ValueNotifier<MepsLanguage>(JwLifeSettings.instance.currentLanguage.value);
 
   @override
   void initState() {
@@ -48,14 +50,17 @@ class _PublicationSubcategoriesPageState extends State<PublicationSubcategoriesP
   }
 
   Future<void> _loadTitle() async {
-    _pageTitle.value = await widget.category.getNameAsync(JwLifeSettings.instance.currentLanguage.value.getSafeLocale());
+    _pageTitle.value = await widget.category.getNameAsync(_mepsLanguage.value.getSafeLocale());
   }
 
-  void loadItemsDays() async {
+  Future<void> loadItemsDays({Map<String, dynamic>? mepsLanguage}) async {
     List<Map<String, dynamic>> days = [];
 
-    List<Publication> pubs = await CatalogDb.instance.fetchPubsFromConventionsDays();
-    RealmResults<RealmCategory> convDaysCategories = RealmLibrary.realm.all<RealmCategory>().query("LanguageSymbol == '${JwLifeSettings.instance.currentLanguage.value.symbol}'").query("Key == 'ConvDay1' OR Key == 'ConvDay2' OR Key == 'ConvDay3'");
+    String mepsLanguageSymbol = mepsLanguage?['Symbol'] ?? JwLifeSettings.instance.currentLanguage.value.symbol;
+    _mepsLanguage.value = mepsLanguage != null ? MepsLanguage.fromJson(mepsLanguage) : JwLifeSettings.instance.currentLanguage.value;
+
+    List<Publication> pubs = await CatalogDb.instance.fetchPubsFromConventionsDays(_mepsLanguage.value);
+    RealmResults<RealmCategory> convDaysCategories = RealmLibrary.realm.all<RealmCategory>().query("LanguageSymbol == '$mepsLanguageSymbol'").query("Key == 'ConvDay1' OR Key == 'ConvDay2' OR Key == 'ConvDay3'");
 
     for(int i = 1; i < 3+1; i++) {
       if (pubs.any((element) => element.conventionReleaseDayNumber == i) || convDaysCategories.any((element) => element.key == 'ConvDay$i')) {
@@ -72,8 +77,12 @@ class _PublicationSubcategoriesPageState extends State<PublicationSubcategoriesP
     });
   }
 
-  Future<void> loadItemsYears({int? mepsLanguageId}) async {
+  Future<void> loadItemsYears({Map<String, dynamic>? mepsLanguage}) async {
+    int mepsLanguageId = mepsLanguage?['LanguageId'] ?? JwLifeSettings.instance.currentLanguage.value.id;
+    _mepsLanguage.value = mepsLanguage != null ? MepsLanguage.fromJson(mepsLanguage) : JwLifeSettings.instance.currentLanguage.value;
+
     final years = await CatalogDb.instance.getItemsYearInCategory(widget.category.id, mepsLanguageId: mepsLanguageId);
+
     setState(() {
       items = years;
     });
@@ -98,6 +107,7 @@ class _PublicationSubcategoriesPageState extends State<PublicationSubcategoriesP
               if(widget.category.type == 'Convention') {
                 showPage(ConventionItemsView(
                   category: widget.category,
+                  mepsLanguage: _mepsLanguage.value,
                   indexDay: subCategory['Day'],
                   publications: subCategory['Publications'],
                   medias: subCategory['Medias'],
@@ -106,11 +116,12 @@ class _PublicationSubcategoriesPageState extends State<PublicationSubcategoriesP
               else {
                 showPage(PublicationsItemsPage(
                   category: widget.category,
-                  year: number,
+                    mepsLanguage: _mepsLanguage.value,
+                  year: number
                 ));
               }
             },
-            child: _buildCategoryButton(context, number, textColor!)
+            child: _buildCategoryButton(context, number, textColor)
         ),
       );
     }).toList();
@@ -121,7 +132,7 @@ class _PublicationSubcategoriesPageState extends State<PublicationSubcategoriesP
         return AppPage(
           appBar: JwLifeAppBar(
             title: title,
-            subTitleWidget: ValueListenableBuilder(valueListenable: JwLifeSettings.instance.currentLanguage, builder: (context, value, child) {
+            subTitleWidget: ValueListenableBuilder(valueListenable: _mepsLanguage, builder: (context, value, child) {
               return Text(value.vernacular, style: Theme.of(context).extension<JwLifeThemeStyles>()!.appBarSubTitle);
             }),
             actions: [
@@ -132,19 +143,29 @@ class _PublicationSubcategoriesPageState extends State<PublicationSubcategoriesP
               IconTextButton(
                 icon: const Icon(JwIcons.language),
                 onPressed: (BuildContext context) {
-                  showLanguageDialog(context).then((language) async {
+                  showLanguageDialog(context, selectedLanguageSymbol: _mepsLanguage.value.symbol).then((language) async {
                     if (language != null) {
-                      loadItemsYears(mepsLanguageId: language['LanguageId']);
+                      if(widget.category.type == 'Convention') {
+                        await loadItemsDays(mepsLanguage: language);
+                      }
+                      else {
+                        await loadItemsYears(mepsLanguage: language);
+                      }
+                      _loadTitle();
                     }
                   });
                 },
               )
             ],
           ),
-          body: ResponsiveCategoriesWrapLayout(
-            textDirection:
-            JwLifeSettings.instance.currentLanguage.value.isRtl ? TextDirection.rtl : TextDirection.ltr,
-            children: subCategoriesWidgets,
+          body: ValueListenableBuilder(
+            valueListenable: _mepsLanguage,
+            builder: (context, value, child) {
+              return ResponsiveCategoriesWrapLayout(
+                textDirection: _mepsLanguage.value.isRtl ? TextDirection.rtl : TextDirection.ltr,
+                children: subCategoriesWidgets,
+              );
+            }
           )
         );
       }
@@ -152,7 +173,7 @@ class _PublicationSubcategoriesPageState extends State<PublicationSubcategoriesP
   }
 
   Widget _buildCategoryButton(BuildContext context, int number, Color textColor) {
-    Locale locale = JwLifeSettings.instance.currentLanguage.value.getSafeLocale();
+    Locale locale = _mepsLanguage.value.getSafeLocale();
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20.0),
@@ -168,7 +189,7 @@ class _PublicationSubcategoriesPageState extends State<PublicationSubcategoriesP
 
               if (snapshot.connectionState == ConnectionState.done && snapshot.hasData) {
                 final loc = snapshot.data!;
-                titleText = widget.category.type == 'Convention' ? loc.label_convention_day(formatNumber(number)) : formatYear(number, localeCode: locale);
+                titleText = widget.category.type == 'Convention' ? loc.label_convention_day(formatNumber(number, localeCode: locale.languageCode)) : formatYear(number, localeCode: locale);
               }
 
               return Text(titleText, style: TextStyle(color: textColor));

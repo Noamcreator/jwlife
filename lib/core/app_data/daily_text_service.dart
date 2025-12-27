@@ -12,7 +12,11 @@ import '../utils/utils_jwpub.dart';
 import 'app_data_service.dart';
 
 Future<Map<String, dynamic>?> getDatedDocumentForToday(Publication publication) async {
-  Database datedDocumentDb = await openReadOnlyDatabase(publication.databasePath!);
+  Database datedDocumentDb = publication.datedTextManager != null ? publication.datedTextManager!.database : await openReadOnlyDatabase(publication.databasePath!);
+
+  if(!datedDocumentDb.isOpen && publication.datedTextManager != null ) {
+    publication.datedTextManager!.database = await openReadOnlyDatabase(publication.databasePath!);
+  }
 
   String today = DateFormat('yyyyMMdd').format(DateTime.now());
 
@@ -33,7 +37,7 @@ Future<Map<String, dynamic>?> getDatedDocumentForToday(Publication publication) 
     WHERE DT.FirstDateOffset <= ? AND DT.LastDateOffset >= ?;
     ''', [today, today]);
 
-  datedDocumentDb.close();
+  if(publication.datedTextManager == null) datedDocumentDb.close();
 
   return response.first;
 }

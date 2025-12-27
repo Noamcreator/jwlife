@@ -13,7 +13,7 @@ import '../../../../core/shared_preferences/shared_preferences_utils.dart';
 import '../../../../core/ui/text_styles.dart';
 import '../../../../data/databases/history.dart';
 import '../../../../i18n/i18n.dart';
-import '../../../../widgets/qr_code_dialog.dart';
+import '../../../../widgets/dialog/qr_code_dialog.dart';
 import '../../../../widgets/searchfield/searchfield_all_widget.dart';
 
 class HomeAppBar extends StatefulWidget implements PreferredSizeWidget {

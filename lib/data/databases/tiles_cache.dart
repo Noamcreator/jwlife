@@ -68,9 +68,10 @@ class TilesCache {
       await file.writeAsBytes(response.data);
 
       if (await file.exists()) {
-        await _addImageToDatabase(filename, file);
+        _addImageToDatabase(filename, file);
         return Tile(fileName: filename, file: file);
-      } else {
+      }
+      else {
         throw Exception('Échec de la sauvegarde de l\'image sur le stockage local.');
       }
     } else {

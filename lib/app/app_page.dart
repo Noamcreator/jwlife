@@ -8,6 +8,7 @@ class AppPage extends StatelessWidget {
   final Widget body;
   final bool isWebview;
   final bool extendBodyBehindAppBar;
+  final Widget? floatingActionButton;
 
   const AppPage({
     super.key,
@@ -16,6 +17,7 @@ class AppPage extends StatelessWidget {
     required this.body,
     this.isWebview = false,
     this.extendBodyBehindAppBar = false,
+    this.floatingActionButton,
   });
 
   @override
@@ -58,6 +60,13 @@ class AppPage extends StatelessWidget {
                       left: 0,
                       right: 0,
                       child: appBar!,
+                    ),
+
+                  if (floatingActionButton != null)
+                    PositionedDirectional(
+                      bottom: kBottomNavigationBarHeight + 16,
+                      end: 16,
+                      child: floatingActionButton!,
                     ),
                 ],
               ),

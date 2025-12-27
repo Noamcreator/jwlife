@@ -161,7 +161,7 @@ class History {
       whereArgs: [bible.keySymbol, bibleBook, bibleChapter, bible.mepsLanguage.id, "chapter"],
     );
 
-    String lastDisplayTitle = startVerse == null && endVerse == null ? "$displayTitle $bibleChapter" : JwLifeApp.bibleCluesInfo.getVerses(bibleBook, bibleChapter, startVerse ?? 0, bibleBook, bibleChapter, endVerse ?? 0);
+    String lastDisplayTitle = startVerse == null && endVerse == null ? displayTitle : JwLifeApp.bibleCluesInfo.getVerses(bibleBook, bibleChapter, startVerse ?? 0, bibleBook, bibleChapter, endVerse ?? 0);
 
     if (existing.isNotEmpty) {
       await db.update(

@@ -52,22 +52,21 @@ class BibleCluesInfo {
     );
   }
 
-  String getVerse(int book, int chapter, int verse, {bool isAbbreviation = false}) {
-    return getVerses(book, chapter, verse, book, chapter, verse, isAbbreviation: isAbbreviation);
+  String getVerse(int book, int chapter, int verse, {String? localeCode, bool isAbbreviation = false}) {
+    return getVerses(book, chapter, verse, book, chapter, verse, isAbbreviation: isAbbreviation, localeCode: localeCode);
   }
 
-  String getVerses(int book1, int chapter1, int verse1, int book2, int chapter2, int verse2, {bool isAbbreviation = false}) {
-
+  String getVerses(int book1, int chapter1, int verse1, int book2, int chapter2, int verse2, {String? localeCode, bool isAbbreviation = false}) {
     // Formatage des chiffres pour la locale (format '0' pour les entiers)
-    final String formattedChapter1 = formatNumber(chapter1, format: '0');
-    final String formattedChapter2 = formatNumber(chapter2, format: '0');
+    final String formattedChapter1 = formatNumber(chapter1, format: '0', localeCode: localeCode);
+    final String formattedChapter2 = formatNumber(chapter2, format: '0', localeCode: localeCode);
 
     // Formatage du verset 1 (sauf s'il est égal à 0)
     String formattedVerse1Text;
     if (verse1 == 0) {
       formattedVerse1Text = superscriptionFullText;
     } else {
-      formattedVerse1Text = formatNumber(verse1, format: '0');
+      formattedVerse1Text = formatNumber(verse1, format: '0', localeCode: localeCode);
     }
 
     // Formatage du verset 2 (sauf s'il est égal à 0)
@@ -75,7 +74,7 @@ class BibleCluesInfo {
     if (verse2 == 0) {
       formattedVerse2Text = superscriptionFullText;
     } else {
-      formattedVerse2Text = formatNumber(verse2, format: '0');
+      formattedVerse2Text = formatNumber(verse2, format: '0', localeCode: localeCode);
     }
 
     BibleBookName bookName = bibleBookNames.elementAt(book1 - 1);

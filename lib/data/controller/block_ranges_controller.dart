@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:jwlife/data/models/userdata/block_range.dart';
 
 import '../../app/jwlife_app.dart';
-import '../../features/publication/pages/document/data/models/dated_text.dart';
-import '../../features/publication/pages/document/data/models/document.dart';
+import '../../features/document/data/models/dated_text.dart';
+import '../../features/document/data/models/document.dart';
 
 class BlockRangesController extends ChangeNotifier {
   List<BlockRange> blockRanges = [];

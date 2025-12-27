@@ -3136,4 +3136,28 @@ class AppLocalizationsAf extends AppLocalizations {
 
   @override
   String get settings_page_transition_right => 'Oorgang van regs';
+
+  @override
+  String get label_research_all => 'ALLES';
+
+  @override
+  String get label_research_wol => 'WOL';
+
+  @override
+  String get label_research_bible => 'BYBEL';
+
+  @override
+  String get label_research_verses => 'VERSE';
+
+  @override
+  String get label_research_images => 'PRENTE';
+
+  @override
+  String get label_research_notes => 'NOTAS';
+
+  @override
+  String get label_research_inputs_fields => 'VELDE';
+
+  @override
+  String get label_research_wikipedia => 'WIKIPEDIA';
 }

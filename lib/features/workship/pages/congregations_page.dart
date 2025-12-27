@@ -342,83 +342,97 @@ class _CongregationsPageState extends State<CongregationsPage> {
               itemCount: _congregations.length,
               itemBuilder: (context, index) {
                 final congregation = _congregations[index];
+                final isDark = Theme.of(context).brightness == Brightness.dark;
+
+                final midweekTime = DateFormat("HH:mm").parse(congregation.midweekTime!);
+                final hourMidweekStr = DateFormat("HH", JwLifeSettings.instance.locale.languageCode).format(midweekTime);
+                final minuteMidweekStr = DateFormat("mm", JwLifeSettings.instance.locale.languageCode).format(midweekTime);
+
+                final weekendTime = DateFormat("HH:mm").parse(congregation.weekendTime!);
+                final hourWeekendStr = DateFormat("HH", JwLifeSettings.instance.locale.languageCode).format(weekendTime);
+                final minuteWeekendStr = DateFormat("mm", JwLifeSettings.instance.locale.languageCode).format(weekendTime);
+
                 return GestureDetector(
-                  onTap: () async {
-                    _showEditDialog(congregation);
-                  },
+                  onTap: () => _showEditDialog(congregation),
                   child: Container(
-                    margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
-                    padding: const EdgeInsets.all(16),
+                    margin: const EdgeInsets.only(bottom: 1),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
                     decoration: BoxDecoration(
-                      color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF1f1f1f) : Colors.white,
-                      borderRadius: BorderRadius.circular(8),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.grey.withOpacity(0.3),
-                          blurRadius: 5,
-                          offset: const Offset(0, 3),
+                      color: isDark ? const Color(0xFF000000) : Colors.white,
+                      border: Border(
+                        bottom: BorderSide(
+                          color: isDark ? Colors.white10 : Colors.black12,
+                          width: 0.5,
                         ),
-                      ],
+                      ),
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.center,
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          congregation.name,
-                          style: const TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 10),
-                        Text(
-                          congregation.address!,
-                          style: const TextStyle(fontSize: 16),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          "Horaires des réunions :",
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
+                        // L'icône demandée
+                        Padding(
+                          padding: EdgeInsets.only(top: 4),
+                          child: Icon(
+                            JwIcons.kingdom_hall,
+                            size: 35,
+                            color: isDark ? Colors.white70 : Colors.black54,
                           ),
                         ),
-                        const SizedBox(height: 5),
-                        Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              "${_getLocalizedWeekday(congregation.weekendWeekday!)}: ${congregation.weekendTime}",
-                              style: const TextStyle(fontSize: 16),
-                              textAlign: TextAlign.center,
-                            ),
-                            Text(
-                              "${_getLocalizedWeekday(congregation.midweekWeekday!)}: ${congregation.midweekTime}",
-                              style: const TextStyle(fontSize: 16),
-                              textAlign: TextAlign.center,
-                            ),
-                          ],
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                congregation.name.toUpperCase(),
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: isDark ? Colors.white70 : Colors.black54,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                i18n().label_date_next_meeting(_getLocalizedWeekday(congregation.midweekWeekday!), hourMidweekStr, minuteMidweekStr),
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: isDark ? Colors.white : Colors.black,
+                                ),
+                              ),
+                              Text(
+                                i18n().label_date_next_meeting(_getLocalizedWeekday(congregation.weekendWeekday!), hourWeekendStr, minuteWeekendStr),
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: isDark ? Colors.white : Colors.black,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                congregation.address ?? "",
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: isDark ? Colors.white54 : Colors.black45,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                        const SizedBox(height: 20),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            IconButton(
-                              icon: const Icon(Icons.location_on, color: Colors.blue),
-                              onPressed: () {
-                                String url = 'https://www.google.com/maps/dir/?api=1&destination=${congregation.latitude},${congregation.longitude}&travelmode=driving';
+
+                        // Le bouton Menu Popup
+                        PopupMenuButton<String>(
+                          icon: const Icon(Icons.more_horiz, color: Colors.white54),
+                          color: isDark ? const Color(0xFF2A2A2A) : Colors.white,
+                          onSelected: (value) async {
+                            switch (value) {
+                              case 'go':
+                                String url = 'https://www.google.com/maps/search/?api=1&query=${congregation.latitude},${congregation.longitude}';
                                 launchUrl(Uri.parse(url));
-                              },
-                            ),
-                            IconButton(
-                              icon: const Icon(JwIcons.arrows_circular, color: Colors.deepPurple),
-                              onPressed: () => _updateCongregation(congregation),
-                            ),
-                            IconButton(
-                              icon: const Icon(JwIcons.trash, color: Colors.red),
-                              onPressed: () async {
+                                break;
+                              case 'update':
+                                _updateCongregation(congregation);
+                                break;
+                              case 'delete':
                                 try {
                                   final guid = congregation.guid;
                                   await JwLifeApp.userdata.deleteCongregation(guid);
@@ -426,9 +440,35 @@ class _CongregationsPageState extends State<CongregationsPage> {
                                     _congregations.removeWhere((item) => item.guid == guid);
                                   });
                                 } catch (e) {
-                                  debugPrint('Erreur lors de la suppression : $e');
+                                  debugPrint('Erreur : $e');
                                 }
-                              },
+                                break;
+                            }
+                          },
+                          itemBuilder: (BuildContext context) => [
+                            PopupMenuItem(
+                              value: 'go',
+                              child: ListTile(
+                                leading: Icon(Icons.location_on, color: Theme.of(context).primaryColor),
+                                title: const Text('Y aller'),
+                                contentPadding: EdgeInsets.zero,
+                              ),
+                            ),
+                            PopupMenuItem(
+                              value: 'update',
+                              child: ListTile(
+                                leading: Icon(JwIcons.arrows_circular, color: Theme.of(context).primaryColor),
+                                title: const Text('Actualiser'),
+                                contentPadding: EdgeInsets.zero,
+                              ),
+                            ),
+                            PopupMenuItem(
+                              value: 'delete',
+                              child: ListTile(
+                                leading: Icon(JwIcons.trash, color: Theme.of(context).primaryColor),
+                                title: const Text('Supprimer'),
+                                contentPadding: EdgeInsets.zero,
+                              ),
                             ),
                           ],
                         ),
@@ -440,8 +480,7 @@ class _CongregationsPageState extends State<CongregationsPage> {
             ),
           )
         ],
-      )
-        /*
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           setState(() {
@@ -450,8 +489,27 @@ class _CongregationsPageState extends State<CongregationsPage> {
         },
         child: const Icon(JwIcons.plus),
       ),
+    );
+  }
 
-         */
+  Widget _buildActionItem({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 22),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+          ),
+        ],
+      ),
     );
   }
 }

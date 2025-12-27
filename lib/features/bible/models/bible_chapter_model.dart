@@ -9,8 +9,8 @@ import 'package:jwlife/core/utils/utils_jwpub.dart';
 
 import '../../../core/uri/jworg_uri.dart';
 import '../../../core/utils/common_ui.dart';
+import '../../document/local/documents_manager.dart';
 import '../../publication/models/menu/local/words_suggestions_model.dart';
-import '../../publication/pages/document/local/documents_manager.dart';
 
 // Classe pour encapsuler les données d'un livre
 class BibleBook {

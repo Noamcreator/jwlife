@@ -912,5 +912,13 @@
   "action_scan_qr_code": "مسح رمز QR ضوئيًا",
   "settings_page_transition": "انتقال الصفحات",
   "settings_page_transition_bottom": "انتقال من الأسفل",
-  "settings_page_transition_right": "انتقال من اليمين"
+  "settings_page_transition_right": "انتقال من اليمين",
+  "label_research_all": "الكل",
+  "label_research_wol": "WOL",
+  "label_research_bible": "الكتاب المقدس",
+  "label_research_verses": "آيات",
+  "label_research_images": "صور",
+  "label_research_notes": "ملاحظات",
+  "label_research_inputs_fields": "حقول",
+  "label_research_wikipedia": "ويكيبيديا"
 }

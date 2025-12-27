@@ -13,7 +13,7 @@ import 'package:jwlife/core/utils/utils_jwpub.dart';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/databases/catalog.dart';
 import 'package:jwlife/features/home/pages/search/search_page.dart';
-import 'package:jwlife/features/publication/pages/document/data/models/dated_text.dart';
+import 'package:jwlife/features/document/data/models/dated_text.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 
@@ -40,10 +40,10 @@ import '../../../data/realm/catalog.dart';
 import '../../../i18n/i18n.dart';
 import '../../../widgets/dialog/publication_dialogs.dart';
 import '../../../core/utils/utils_dialog.dart';
-import '../../../widgets/qr_code_dialog.dart';
+import '../../../widgets/dialog/qr_code_dialog.dart';
 import '../../../widgets/responsive_appbar_actions.dart';
+import '../../document/local/dated_text_manager.dart';
 import '../../personal/pages/tag_page.dart';
-import '../../publication/pages/document/local/dated_text_manager.dart';
 
 class DailyTextPage extends StatefulWidget {
   final Publication publication;
@@ -416,7 +416,7 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
                           String query = args[0] as String;
 
                           List<dynamic> dynamicTags = args[1] as List<dynamic>;
-                          List<int> tagsId = dynamicTags.where((e) => e is int).cast<int>().toList();
+                          List<int> tagsId = dynamicTags.whereType<int>().cast<int>().toList();
                           return getFilteredTags(query, tagsId).map((t) => t.toMap()).toList();
                         },
                       );
@@ -656,7 +656,7 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
                       controller.addJavaScriptHandler(
                         handlerName: 'fetchVerses',
                         callback: (args) async {
-                          Map<String, dynamic>? verses = await fetchVerses(args[0]);
+                          Map<String, dynamic>? verses = await fetchVerses(args[0], widget.publication);
                           return verses;
                         },
                       );
@@ -1121,10 +1121,10 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
 
     return Stack(
       children: [
-        Positioned(
+        PositionedDirectional(
             top: 0,
-            left: 0,
-            right: 0,
+            start: 0,
+            end: 0,
             child: Visibility(
                 visible: _controlsVisible,
                 child: JwLifeAppBar(

@@ -912,5 +912,13 @@
   "action_scan_qr_code": "QR-Code scannen",
   "settings_page_transition": "Seitenübergang",
   "settings_page_transition_bottom": "Übergang von unten",
-  "settings_page_transition_right": "Übergang von rechts"
+  "settings_page_transition_right": "Übergang von rechts",
+  "label_research_all": "ALLE",
+  "label_research_wol": "WOL",
+  "label_research_bible": "BIBEL",
+  "label_research_verses": "VERSE",
+  "label_research_images": "BILDER",
+  "label_research_notes": "NOTIZEN",
+  "label_research_inputs_fields": "FELDER",
+  "label_research_wikipedia": "WIKIPEDIA"
 }

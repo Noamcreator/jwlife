@@ -1,13 +1,10 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // Pour SystemChrome
-import 'package:jwlife/core/utils/common_ui.dart'; // Pour showPage
-// Audio utilities (non spécifié, donc omis)
-import 'package:jwlife/core/utils/utils_video.dart'; // Video utilities (à adapter si nécessaire)
+import 'package:jwlife/core/utils/common_ui.dart';
+import 'package:jwlife/core/utils/utils_video.dart';
 import 'package:jwlife/data/models/media.dart';
 import 'package:jwlife/data/models/audio.dart';
 import 'package:jwlife/data/models/video.dart';
@@ -20,10 +17,9 @@ import '../../../app/services/global_key_service.dart';
 import '../../../core/api/api.dart';
 import '../../../core/utils/utils.dart';
 import '../../../data/models/userdata/playlist_item.dart';
-// Durée maximale entre deux taps pour détecter un double-tap.
+
 const Duration _doubleTapTimeout = Duration(milliseconds: 300);
 
-// --- PLAYLIST PLAYER ---
 // --- PLAYLIST PLAYER ---
 class PlaylistPlayerPage extends StatefulWidget {
   final List<PlaylistItem> items;
@@ -56,7 +52,7 @@ class _PlaylistPlayerPageState extends State<PlaylistPlayerPage> {
 
   Duration _duration = Duration.zero;
   Timer? _controlsTimer;
-  bool _isFullScreen = false;
+  final bool _isFullScreen = false;
 
   bool _isImageMedia = false;
 
@@ -537,7 +533,7 @@ class _PlaylistPlayerPageState extends State<PlaylistPlayerPage> {
                         color: Colors.black.withOpacity(0.5),
                       ),
                       child: IconButton(
-                        iconSize: 75.0,
+                        iconSize: 50.0,
                         padding: const EdgeInsets.all(2),
                         icon: Icon(displayIcon, color: Colors.white),
                         onPressed: _togglePlayPause,
@@ -648,126 +644,128 @@ class _PlaylistPlayerPageState extends State<PlaylistPlayerPage> {
   Widget _buildBottomControls(BuildContext context, PlaylistItem item, {required bool controlsVisible, required bool isTimeBasedMedia}) {
     final isReady = (_videoController?.value.isInitialized ?? false) || _isImageMedia;
 
-    return AnimatedOpacity(
-      duration: const Duration(milliseconds: 150),
-      opacity: controlsVisible ? 1.0 : 0.0,
-      child: Align(
-        alignment: Alignment.bottomCenter,
-        child: Container(
-          padding: const EdgeInsets.only(bottom: 65),
-          color: Colors.transparent,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Slider
-              if (isTimeBasedMedia)
-                ValueListenableBuilder<double>(
-                  valueListenable: _positionNotifier,
-                  builder: (context, position, child) {
-                    return SliderTheme(
-                      data: const SliderThemeData(
-                        padding: EdgeInsets.symmetric(horizontal: 10),
-                        trackHeight: 2.0,
-                        thumbShape: RoundSliderThumbShape(enabledThumbRadius: 6.0),
-                      ),
-                      child: Slider(
-                        value: position.clamp(0.0, _duration.inSeconds.toDouble()),
-                        min: 0.0,
-                        max: _duration.inSeconds.toDouble(),
-                        onChanged: isReady ? (double newValue) {
-                          _positionNotifier.value = newValue;
-                        } : null,
-                        onChangeStart: isReady ? (double newValue) {
-                          _isPositionSeeking = true;
-                        } : null,
-                        onChangeEnd: isReady ? (double newValue) {
-                          if (_isImageMedia) {
+    return SafeArea(
+      child: AnimatedOpacity(
+        duration: const Duration(milliseconds: 150),
+        opacity: controlsVisible ? 1.0 : 0.0,
+        child: Align(
+          alignment: Alignment.bottomCenter,
+          child: Container(
+            padding: const EdgeInsets.only(bottom: 55),
+            color: Colors.transparent,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Slider
+                if (isTimeBasedMedia)
+                  ValueListenableBuilder<double>(
+                    valueListenable: _positionNotifier,
+                    builder: (context, position, child) {
+                      return SliderTheme(
+                        data: const SliderThemeData(
+                          padding: EdgeInsets.symmetric(horizontal: 10),
+                          trackHeight: 2.0,
+                          thumbShape: RoundSliderThumbShape(enabledThumbRadius: 6.0),
+                        ),
+                        child: Slider(
+                          value: position.clamp(0.0, _duration.inSeconds.toDouble()),
+                          min: 0.0,
+                          max: _duration.inSeconds.toDouble(),
+                          onChanged: isReady ? (double newValue) {
                             _positionNotifier.value = newValue;
-                            _isPositionSeeking = false;
-                            _startControlsTimer();
-
-                            if (_isPlayingNotifier.value) {
-                              _imagePlaybackTimer?.cancel();
-                              _imagePlaybackTimer = Timer.periodic(const Duration(milliseconds: 100), _imageListener);
+                          } : null,
+                          onChangeStart: isReady ? (double newValue) {
+                            _isPositionSeeking = true;
+                          } : null,
+                          onChangeEnd: isReady ? (double newValue) {
+                            if (_isImageMedia) {
+                              _positionNotifier.value = newValue;
+                              _isPositionSeeking = false;
+                              _startControlsTimer();
+      
+                              if (_isPlayingNotifier.value) {
+                                _imagePlaybackTimer?.cancel();
+                                _imagePlaybackTimer = Timer.periodic(const Duration(milliseconds: 100), _imageListener);
+                              }
+                            } else {
+                              _videoController?.seekTo(Duration(seconds: newValue.toInt()));
+                              _isPositionSeeking = false;
+                              _startControlsTimer();
                             }
-                          } else {
-                            _videoController?.seekTo(Duration(seconds: newValue.toInt()));
-                            _isPositionSeeking = false;
-                            _startControlsTimer();
-                          }
-                        } : null,
-                        activeColor: Theme.of(context).primaryColor,
-                        inactiveColor: Colors.white.withOpacity(0.5),
-                      ),
-                    );
-                  },
-                ),
-
-              Row(
-                children: [
-                  // Play/Pause et Affichage du temps
-                  if (isTimeBasedMedia)
-                    ...[
-                      ValueListenableBuilder<bool>(
-                        valueListenable: _isPlayingNotifier,
-                        builder: (context, isPlaying, child) {
-                          return IconButton(
-                            padding: EdgeInsets.zero,
-                            icon: Icon(
-                              isPlaying ? JwIcons.pause : JwIcons.play,
-                              color: isReady ? Colors.white : Colors.grey[600],
-                            ),
-                            onPressed: isReady ? _togglePlayPause : null,
-                          );
-                        },
-                      ),
-                      IconButton(
-                        icon: const Icon(JwIcons.triangle_to_bar_left, color: Colors.white),
-                        disabledColor: Colors.grey[800],
-                        onPressed: _currentIndex == 0 ? null : _previousItem,
-                      ),
-                      IconButton(
-                        icon: const Icon(JwIcons.triangle_to_bar_right, color: Colors.white),
-                        disabledColor: Colors.grey[800],
-                        onPressed: _currentIndex == widget.items.length - 1 ? null : _nextItem,
-                      ),
-                      ValueListenableBuilder<double>(
-                        valueListenable: _positionNotifier,
-                        builder: (context, position, child) {
-                          return Text(
-                            "${formatDuration(position)} / ${formatDuration(_duration.inSeconds.toDouble())}",
-                            style: TextStyle(color: isReady ? Colors.white : Colors.grey[600]),
-                          );
-                        },
-                      ),
-                    ]
-                  else
-                  // Pour les images SANS durée
-                    Padding(
-                      padding: const EdgeInsets.only(left: 16.0),
-                      child: Text(item.label ?? 'Image', style: const TextStyle(color: Colors.white)),
-                    ),
-
-                  const Spacer(),
-
-                  // Les autres boutons
-                  IconButton(
-                    icon: Icon(JwIcons.caption_crossed, color: isReady ? Colors.white : Colors.grey[600]),
-                    onPressed: isReady ? () {} : null,
-                  ),
-                  IconButton(
-                    icon: Icon(JwIcons.sound, color: isReady ? Colors.white : Colors.grey[600]),
-                    onPressed: isReady ? () {} : null,
-                  ),
-                  IconButton(
-                    icon: Icon(_isFullScreen ? JwIcons.arrows_inward : JwIcons.arrows_outward, color: Colors.white),
-                    onPressed: () {
-                      GlobalKeyService.jwLifePageKey.currentState?.handleBack(context);
+                          } : null,
+                          activeColor: Theme.of(context).primaryColor,
+                          inactiveColor: Colors.white.withOpacity(0.5),
+                        ),
+                      );
                     },
                   ),
-                ],
-              ),
-            ],
+      
+                Row(
+                  children: [
+                    // Play/Pause et Affichage du temps
+                    if (isTimeBasedMedia)
+                      ...[
+                        ValueListenableBuilder<bool>(
+                          valueListenable: _isPlayingNotifier,
+                          builder: (context, isPlaying, child) {
+                            return IconButton(
+                              padding: EdgeInsets.zero,
+                              icon: Icon(
+                                isPlaying ? JwIcons.pause : JwIcons.play,
+                                color: isReady ? Colors.white : Colors.grey[600],
+                              ),
+                              onPressed: isReady ? _togglePlayPause : null,
+                            );
+                          },
+                        ),
+                        IconButton(
+                          icon: const Icon(JwIcons.triangle_to_bar_left, color: Colors.white),
+                          disabledColor: Colors.grey[800],
+                          onPressed: _currentIndex == 0 ? null : _previousItem,
+                        ),
+                        IconButton(
+                          icon: const Icon(JwIcons.triangle_to_bar_right, color: Colors.white),
+                          disabledColor: Colors.grey[800],
+                          onPressed: _currentIndex == widget.items.length - 1 ? null : _nextItem,
+                        ),
+                        ValueListenableBuilder<double>(
+                          valueListenable: _positionNotifier,
+                          builder: (context, position, child) {
+                            return Text(
+                              "${formatDuration(position)} / ${formatDuration(_duration.inSeconds.toDouble())}",
+                              style: TextStyle(color: isReady ? Colors.white : Colors.grey[600]),
+                            );
+                          },
+                        ),
+                      ]
+                    else
+                    // Pour les images SANS durée
+                      Padding(
+                        padding: const EdgeInsets.only(left: 16.0),
+                        child: Text(item.label ?? 'Image', style: const TextStyle(color: Colors.white)),
+                      ),
+      
+                    const Spacer(),
+      
+                    // Les autres boutons
+                    IconButton(
+                      icon: Icon(JwIcons.caption_crossed, color: isReady ? Colors.white : Colors.grey[600]),
+                      onPressed: isReady ? () {} : null,
+                    ),
+                    IconButton(
+                      icon: Icon(JwIcons.sound, color: isReady ? Colors.white : Colors.grey[600]),
+                      onPressed: isReady ? () {} : null,
+                    ),
+                    IconButton(
+                      icon: Icon(_isFullScreen ? JwIcons.arrows_inward : JwIcons.arrows_outward, color: Colors.white),
+                      onPressed: () {
+                        GlobalKeyService.jwLifePageKey.currentState?.handleBack(context);
+                      },
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -896,6 +894,7 @@ class _PlaylistPlayerPageState extends State<PlaylistPlayerPage> {
         _isDragging = false;
       },
       child: AppPage(
+        isWebview: true,
         backgroundColor: const Color(0xFF121212),
         body: Stack(
           children: [

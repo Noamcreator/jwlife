@@ -912,5 +912,13 @@
   "action_scan_qr_code": "এটা QR কোড স্কেন কৰক",
   "settings_page_transition": "পৃষ্ঠাৰ পৰিৱৰ্তন",
   "settings_page_transition_bottom": "তলৰ পৰা পৰিৱৰ্তন",
-  "settings_page_transition_right": "সোঁফালৰ পৰা পৰিৱৰ্তন"
+  "settings_page_transition_right": "সোঁফালৰ পৰা পৰিৱৰ্তন",
+  "label_research_all": "সকলো",
+  "label_research_wol": "WOL",
+  "label_research_bible": "বাইবেল",
+  "label_research_verses": "পদবোৰ",
+  "label_research_images": "ছবি",
+  "label_research_notes": "টোকা",
+  "label_research_inputs_fields": "ক্ষেত্ৰসমূহ",
+  "label_research_wikipedia": "উইকিপিডিয়া"
 }

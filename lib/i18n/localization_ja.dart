@@ -3012,4 +3012,28 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get settings_page_transition_right => '右からの切り替え';
+
+  @override
+  String get label_research_all => 'すべて';
+
+  @override
+  String get label_research_wol => 'WOL';
+
+  @override
+  String get label_research_bible => '聖書';
+
+  @override
+  String get label_research_verses => '節';
+
+  @override
+  String get label_research_images => '画像';
+
+  @override
+  String get label_research_notes => 'ノート';
+
+  @override
+  String get label_research_inputs_fields => 'フィールド';
+
+  @override
+  String get label_research_wikipedia => 'ウィキペディア';
 }

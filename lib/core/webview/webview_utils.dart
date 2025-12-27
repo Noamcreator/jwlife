@@ -49,156 +49,135 @@ import '../utils/files_helper.dart';
 
      */
 
-Future<Map<String, dynamic>> fetchVerses(String link) async {
-  List<String> linkSplit = link.split('/');
-  String verses = linkSplit.last;
+// 1. On compile les Regex une seule fois (en dehors de la fonction)
+final RegExp _clRegex = RegExp(r'<span class="cl">(.*?)<\/span>');
+final RegExp _vlRegex = RegExp(r'<span class="vl">(.*?)<\/span>');
 
-  String bibleInfoName = linkSplit[linkSplit.length - 2];
+Future<Map<String, dynamic>> fetchVerses(String link, Publication publication) async {
+  final List<String> linkSplit = link.split('/');
+  final String verses = linkSplit.last;
 
-  int book1 = int.parse(verses.split('-').first.split(':')[0]);
-  int chapter1 = int.parse(verses.split('-').first.split(':')[1]);
-  int verse1 = int.parse(verses.split('-').first.split(':')[2]);
+  final parts = verses.split('-');
+  final startParts = parts.first.split(':');
+  final endParts = parts.last.split(':');
 
-  int book2 = int.parse(verses.split('-').last.split(':')[0]);
-  int chapter2 = int.parse(verses.split('-').last.split(':')[1]);
-  int verse2 = int.parse(verses.split('-').last.split(':')[2]);
+  final int book1 = int.parse(startParts[0]);
+  final int chapter1 = int.parse(startParts[1]);
+  final int verse1 = int.parse(startParts[2]);
 
-  String versesDisplay = JwLifeApp.bibleCluesInfo.getVerses(book1, chapter1, verse1, book2, chapter2, verse2);
+  final int book2 = int.parse(endParts[0]);
+  final int chapter2 = int.parse(endParts[1]);
+  final int verse2 = int.parse(endParts[2]);
 
-  List<Map<String, dynamic>> items = [];
-  File mepsFile = await getMepsUnitDatabaseFile();
+  final String versesDisplay = JwLifeApp.bibleCluesInfo.getVerses(
+      book1, chapter1, verse1, book2, chapter2, verse2,
+      localeCode: publication.mepsLanguage.primaryIetfCode
+  );
 
   try {
-    Database db = await openDatabase(mepsFile.path);
-    List<Map<String, dynamic>> versesIds = await db.rawQuery("""
-      SELECT
-        (
-          SELECT
-            FirstBibleVerseId +
-            CASE
-                WHEN EXISTS (
-                    SELECT 1 FROM BibleSuperscriptionLocation
-                    WHERE BookNumber = ? AND ChapterNumber = ?
-                ) THEN
-                    CASE
-                        WHEN ? = 0 OR ? = 1 THEN 0
-                        ELSE (? - FirstOrdinal) + 1
-                    END
-                ELSE (? - FirstOrdinal)
-            END
-          FROM BibleRange
-          INNER JOIN BibleInfo ON BibleRange.BibleInfoId = BibleInfo.BibleInfoId
-          WHERE BibleInfo.Name = 'NWTR' AND BookNumber = ? AND ChapterNumber = ?
-        ) AS NewFirstVerseId,
-    
-        (
-          SELECT 
-            FirstBibleVerseId + (? - FirstOrdinal) + 
-            CASE 
-              WHEN EXISTS (
-                SELECT 1 FROM BibleSuperscriptionLocation
-                WHERE BookNumber = ? AND ChapterNumber = ?
-              ) AND ? > 0 THEN 1 ELSE 0
-            END
-          FROM BibleRange
-          INNER JOIN BibleInfo ON BibleRange.BibleInfoId = BibleInfo.BibleInfoId
-          WHERE BibleInfo.Name = 'NWTR' AND BookNumber = ? AND ChapterNumber = ?
-        ) AS NewLastVerseId,
-    
-        (
-          SELECT
-            FirstBibleVerseId +
-            CASE
-                WHEN EXISTS (
-                    SELECT 1 FROM BibleSuperscriptionLocation
-                    WHERE BookNumber = ? AND ChapterNumber = ?
-                ) THEN
-                    CASE
-                        WHEN ? = 0 OR ? = 1 THEN 0
-                        ELSE (? - FirstOrdinal) + 1
-                    END
-                ELSE (? - FirstOrdinal)
-            END
-          FROM BibleRange
-          INNER JOIN BibleInfo ON BibleRange.BibleInfoId = BibleInfo.BibleInfoId
-          WHERE BibleInfo.Name = 'NWT' AND BookNumber = ? AND ChapterNumber = ?
-        ) AS OldFirstVerseId,
-    
-        (
-          SELECT 
-            FirstBibleVerseId + (? - FirstOrdinal) + 
-            CASE 
-              WHEN EXISTS (
-                SELECT 1 FROM BibleSuperscriptionLocation
-                WHERE BookNumber = ? AND ChapterNumber = ?
-              ) AND ? > 0 THEN 1 ELSE 0
-            END
-          FROM BibleRange
-          INNER JOIN BibleInfo ON BibleRange.BibleInfoId = BibleInfo.BibleInfoId
-          WHERE BibleInfo.Name = 'NWT' AND BookNumber = ? AND ChapterNumber = ?
-        ) AS OldLastVerseId;
-    """, [
-      book1, chapter1, verse1, verse1, verse1, verse1, book1, chapter1,
-      verse2, book2, chapter2, verse2, book2, chapter2,
-      book1, chapter1, verse1, verse1, verse1, verse1, book1, chapter1,
-      verse2, book2, chapter2, verse2, book2, chapter2,
-    ]);
+    final File mepsFile = await getMepsUnitDatabaseFile();
+    final Database db = await openDatabase(mepsFile.path, readOnly: true);
 
-    db.close();
+    // SQL Corrigé : On sélectionne les chapitres de manière linéaire
+    // (Book * 1000 + Chapter) permet de créer un index unique croissant pour comparer facilement
+    final List<Map<String, dynamic>> rangeData = await db.rawQuery("""
+      SELECT BibleInfo.Name, BookNumber, ChapterNumber, FirstBibleVerseId, FirstOrdinal,
+      EXISTS (SELECT 1 FROM BibleSuperscriptionLocation bsl WHERE bsl.BookNumber = BibleRange.BookNumber AND bsl.ChapterNumber = BibleRange.ChapterNumber) as hasSup
+      FROM BibleRange
+      INNER JOIN BibleInfo ON BibleRange.BibleInfoId = BibleInfo.BibleInfoId
+      WHERE BibleInfo.Name IN ('NWTR', 'NWT') 
+      AND (BookNumber * 1000 + ChapterNumber) BETWEEN (? * 1000 + ?) AND (? * 1000 + ?)
+      ORDER BY BookNumber, ChapterNumber
+    """, [book1, chapter1, book2, chapter2]);
 
-    BuildContext context = GlobalKeyService.jwLifePageKey.currentContext!;
+    await db.close();
 
-    for (var bible in PublicationRepository().getOrderBibles()) {
-      Database? bibleDb;
-      if(bible.documentsManager == null) {
-        bibleDb = await openDatabase(bible.databasePath!);
-      }
-      else {
-        bibleDb = bible.documentsManager!.database;
-      }
+    // Préparation des segments
+    Map<String, List<List<int>>> bibleSegments = {'NWT': [], 'NWTR': []};
 
-      bool isNewWorldTranslation = bible.keySymbol.contains('nwt');
-      int firstVerseId = isNewWorldTranslation ? versesIds.first['NewFirstVerseId'] : versesIds.first['OldFirstVerseId'];
-      int lastVerseId = isNewWorldTranslation ? versesIds.first['NewLastVerseId'] : versesIds.first['OldLastVerseId'];
+    for (var type in ['NWT', 'NWTR']) {
+      final chapters = rangeData.where((e) => e['Name'] == type).toList();
+      for (int i = 0; i < chapters.length; i++) {
+        final c = chapters[i];
+        final bNum = c['BookNumber'];
+        final cNum = c['ChapterNumber'];
 
-      List<Map<String, dynamic>> results = await bibleDb.rawQuery("""
-        SELECT *
-        FROM BibleVerse
-        WHERE BibleVerseId BETWEEN ? AND ?
-      """, [firstVerseId, lastVerseId]);
+        // Verset de début : verse1 si c'est le premier chapitre, sinon l'ordinal min
+        int vStart = (bNum == book1 && cNum == chapter1) ? verse1 : c['FirstOrdinal'];
 
-      String htmlContent = '';
-      for (Map<String, dynamic> row in results) {
-        String label = row['Label'].replaceAllMapped(
-          RegExp(r'<span class="cl">(.*?)<\/span>'),
-              (match) => '<span class="cl"><strong>${match.group(1)}</strong> </span>',
-        );
+        // Verset de fin : verse2 si c'est le dernier chapitre, sinon un nombre élevé (999)
+        int vEnd = (bNum == book2 && cNum == chapter2) ? verse2 : 999;
 
-        htmlContent += label;
+        int base = c['FirstBibleVerseId'];
+        int firstOrd = c['FirstOrdinal'];
+        bool hasSup = c['hasSup'] == 1;
 
-        String decodedHtml = decodeBlobContent(
-          row['Content'] as Uint8List,
-          bible.hash!,
-        );
+        // Calcul ID de début (logique FirstVerse)
+        int startId = hasSup
+            ? ((vStart == 0 || vStart == 1) ? base : base + (vStart - firstOrd) + 1)
+            : base + (vStart - firstOrd);
 
-        if (label.isEmpty) {
-          // row['BeginParagraphOrdinal'] te donne ton pid
-          final pid = row['BeginParagraphOrdinal'];
-
-          // on encapsule dans un <p>
-          decodedHtml =
-          '<p id="p$pid" data-pid="$pid" class="sw">$decodedHtml</p>';
+        // Calcul ID de fin (logique LastVerse)
+        int endId;
+        if (vEnd == 999) {
+          endId = (i < chapters.length - 1) ? chapters[i + 1]['FirstBibleVerseId'] - 1 : startId + 150;
+        } else {
+          endId = hasSup
+              ? (vEnd == 0 ? base : vEnd == 1 ? base + 1 : base + (vEnd - firstOrd) + 1)
+              : base + (vEnd - firstOrd);
         }
 
-        htmlContent += decodedHtml;
+        bibleSegments[type]!.add([startId, endId]);
+      }
+    }
+
+    final bibles = PublicationRepository().getOrderBibles();
+    final items = await Future.wait(bibles.map((bible) async {
+      Database? bibleDb = bible.documentsManager?.database ?? await openDatabase(bible.databasePath!, readOnly: true);
+
+      final String typeKey = bible.keySymbol.contains('nwt') ? 'NWTR' : 'NWT';
+      final List<List<int>> segments = bibleSegments[typeKey] ?? [];
+
+      final StringBuffer htmlBuffer = StringBuffer();
+      final String langCode = bible.mepsLanguage.primaryIetfCode;
+
+      for (final range in segments) {
+        final List<Map<String, dynamic>> verses = await bibleDb.rawQuery(
+            "SELECT Label, Content, BeginParagraphOrdinal FROM BibleVerse WHERE BibleVerseId BETWEEN ? AND ? ORDER BY BibleVerseId",
+            [range[0], range[1]]
+        );
+
+        for (final verse in verses) {
+          String label = verse['Label'] ?? '';
+          if (label.isNotEmpty) {
+            label = label.replaceAllMapped(_clRegex, (m) =>
+            '<span class="cl"><strong>${formatNumber(int.parse(m.group(1)!), localeCode: langCode)}</strong> </span>'
+            ).replaceAllMapped(_vlRegex, (m) =>
+            '<span class="vl">${formatNumber(int.parse(m.group(1)!), localeCode: langCode)}</span>'
+            );
+          }
+          htmlBuffer.write(label);
+          if (verse['Content'] != null) {
+            String decoded = decodeBlobContent(verse['Content'] as Uint8List, bible.hash!);
+            if (label.isEmpty) {
+              final pid = verse['BeginParagraphOrdinal'];
+              htmlBuffer.write('<p id="p$pid" data-pid="$pid" class="sw">$decoded</p>');
+            }
+            else {
+              htmlBuffer.write(decoded);
+            }
+          }
+        }
       }
 
-      List<BlockRange> blockRanges = await JwLifeApp.userdata.getBlockRangesFromChapterNumber(book1, chapter1, bible.keySymbol, bible.mepsLanguage.id, startVerse: verse1, endVerse: verse2);
-      context.read<BlockRangesController>().loadBlockRanges(blockRanges);
+      final blockRanges = await JwLifeApp.userdata.getBlockRangesFromChapterNumber(
+          book1, chapter1, chapter2, bible.keySymbol, bible.mepsLanguage.id,
+          startVerse: verse1, endVerse: verse2
+      );
 
-      items.add({
+      return {
         'type': 'verse',
-        'content': htmlContent,
+        'content': htmlBuffer.toString(),
         'className': "bibleCitation html5 pub-${bible.keySymbol} jwac ml-${bible.mepsLanguage.symbol} ms-${bible.mepsLanguage.internalScriptName} dir-${bible.mepsLanguage.isRtl ? 'rtl' : 'ltr'} layout-reading layout-sidebar",
         'subtitle': bible.mepsLanguage.vernacular,
         'imageUrl': bible.imageSqr,
@@ -206,10 +185,11 @@ Future<Map<String, dynamic>> fetchVerses(String link) async {
         'audio': {},
         'keySymbol': bible.keySymbol,
         'mepsLanguageId': bible.mepsLanguage.id,
-        'blockRanges': blockRanges.map((blockRange) => blockRange.toMap()).toList(),
-        });
-    }
+        'blockRanges': blockRanges.map((br) => br.toMap()).toList(),
+      };
+    }));
 
+    final context = GlobalKeyService.jwLifePageKey.currentContext!;
     return {
       'items': items,
       'title': versesDisplay,
@@ -219,15 +199,14 @@ Future<Map<String, dynamic>> fetchVerses(String link) async {
       'lastChapterNumber': chapter2,
       'firstVerseNumber': verse1,
       'lastVerseNumber': verse2,
-      'notes': context.read<NotesController>().getNotesByDocument(firstBookNumber: book1, lastBookNumber: book2, firstChapterNumber: chapter1, lastChapterNumber: chapter2, firstBlockIdentifier: verse1, lastBlockIdentifier: verse2).map((n) => n.toMap()).toList(),
+      'notes': context.read<NotesController>().getNotesByDocument(
+          firstBookNumber: book1, lastBookNumber: book2,
+          firstChapterNumber: chapter1, lastChapterNumber: chapter2,
+          firstBlockIdentifier: verse1, lastBlockIdentifier: verse2
+      ).map((n) => n.toMap()).toList(),
     };
-  }
-  catch (e) {
-    printTime('Error fetching verses: $e');
-    return {
-      'items': [],
-      'title': versesDisplay,
-    };
+  } catch (e) {
+    return {'items': [], 'title': versesDisplay};
   }
 }
 
@@ -249,7 +228,7 @@ Future<Map<String, dynamic>?> fetchExtractPublication(BuildContext context, Stri
 
     for (var extract in response) {
       int issueTagNumber = int.parse(extract['IssueTagNumber']);
-      String keySymbol = issueTagNumber != 0 ? extract['UniqueEnglishSymbol'] : extract['UniqueEnglishSymbol'];
+      String keySymbol = issueTagNumber != 0 ? extract['Symbol'] : extract['UniqueEnglishSymbol'];
       int mepsLanguageIndex = extract['MepsLanguageIndex'];
 
       Publication? refPub = await CatalogDb.instance.searchPub(keySymbol, issueTagNumber, mepsLanguageIndex);
@@ -340,7 +319,7 @@ Future<Map<String, dynamic>?> fetchExtractPublication(BuildContext context, Stri
       if(publication.documentsManager!.documents.any((doc) => doc.mepsDocumentId == mepsDocumentId)) {
         if (mepsDocumentId != publication.documentsManager!.getCurrentDocument().mepsDocumentId) {
           int index = publication.documentsManager!.getIndexFromMepsDocumentId(mepsDocumentId);
-          jumpToPage(index);
+          await jumpToPage(index);
         }
 
         // Appeler _jumpToParagraph uniquement si un paragraphe est présent
@@ -495,7 +474,7 @@ Future<Map<String, dynamic>?> fetchGuideVerse(BuildContext context, String guide
       'startParagraphId': firstParagraphId,
       'endParagraphId': lastParagraphId,
       'publicationTitle': refPub?.getShortTitle() ?? extract['ShortTitle'],
-      'highlights': blockRanges,
+      'blockRanges': blockRanges,
       'notes': notes,
     });
   }
@@ -581,37 +560,47 @@ Future<Map<String, dynamic>> fetchVersesReference(BuildContext context, Publicat
 
     // Process each verse in the response
     for (var verse in response) {
-      String htmlContent = '';
+      int book = verse['BookNumber'];
+      int chapter = verse['ChapterNumber'];
+      int verseNumber = verse['VerseNumber'];
 
-      String label = verse['Label'].replaceAllMapped(RegExp(r'<span class="cl">(.*?)<\/span>'), (match) => '<span class="cl"><strong>${match.group(1)}</strong> </span>');
-
-
-      htmlContent += label;
-
-      String decodedHtml = decodeBlobContent(
-        verse['Content'] as Uint8List,
-        publication.hash!,
-      );
-
-      if (label.isEmpty) {
-        // row['BeginParagraphOrdinal'] te donne ton pid
-        final pid = verse['BeginParagraphOrdinal'];
-
-        // on encapsule dans un <p>
-        decodedHtml =
-        '<p id="p$pid" data-pid="$pid" class="sw">$decodedHtml</p>';
-      }
-
-      htmlContent += decodedHtml;
+      final String langCode = publication.mepsLanguage.primaryIetfCode;
 
       String verseDisplay = JwLifeApp.bibleCluesInfo.getVerses(
-          verse['BookNumber'], verse['ChapterNumber'], verse['VerseNumber'],
-          verse['BookNumber'], verse['ChapterNumber'], verse['VerseNumber']
+          book, chapter, verseNumber,
+          book, chapter, verseNumber,
+          localeCode: langCode
+      );
+
+      final StringBuffer htmlBuffer = StringBuffer();
+      String label = verse['Label'] ?? '';
+      if(label.isNotEmpty) {
+        label = label.replaceAllMapped(_clRegex, (m) =>
+        '<span class="cl"><strong>${formatNumber(int.parse(m.group(1)!), localeCode: langCode)}</strong> </span>'
+        ).replaceAllMapped(_vlRegex, (m) =>
+        '<span class="vl">${formatNumber(int.parse(m.group(1)!), localeCode: langCode)}</span>'
+        );
+      }
+      htmlBuffer.write(label);
+      if (verse['Content'] != null) {
+        String decoded = decodeBlobContent(verse['Content'] as Uint8List, publication.hash!);
+        if (label.isEmpty) {
+          final pid = verse['BeginParagraphOrdinal'];
+          htmlBuffer.write('<p id="p$pid" data-pid="$pid" class="sw">$decoded</p>');
+        }
+        else {
+          htmlBuffer.write(decoded);
+        }
+      }
+
+      final blockRanges = await JwLifeApp.userdata.getBlockRangesFromChapterNumber(
+          book, chapter, chapter, publication.keySymbol, publication.mepsLanguage.id,
+          startVerse: verseNumber, endVerse: verseNumber
       );
 
       versesItems.add({
         'type': 'verse',
-        'content': htmlContent,
+        'content': htmlBuffer.toString(),
         'className': "bibleCitation html5 pub-${publication.keySymbol} jwac showRuby ml-${publication.mepsLanguage.symbol} ms-${publication.mepsLanguage.internalScriptName} dir-${publication.mepsLanguage.isRtl ? 'rtl' : 'ltr'} layout-reading layout-sidebar",
         'subtitle': publication.mepsLanguage.vernacular,
         'imageUrl': publication.imageSqr,
@@ -623,6 +612,12 @@ Future<Map<String, dynamic>> fetchVersesReference(BuildContext context, Publicat
         'lastVerseNumber': verse['VerseNumber'],
         'mepsLanguageId': publication.mepsLanguage.id,
         'verse': verse['ElementNumber'],
+        'blockRanges': blockRanges.map((br) => br.toMap()).toList(),
+        'notes': context.read<NotesController>().getNotesByDocument(
+            firstBookNumber: verse['BookNumber'], lastBookNumber: verse['BookNumber'],
+            firstChapterNumber: verse['ChapterNumber'], lastChapterNumber: verse['ChapterNumber'],
+            firstBlockIdentifier: verse['VerseNumber'], lastBlockIdentifier: verse['VerseNumber']
+        ).map((n) => n.toMap()).toList(),
       });
     }
 
@@ -672,8 +667,7 @@ Future<Map<String, dynamic>> fetchCommentaries(BuildContext context, Publication
   }
 
   try {
-    List<Map<String, dynamic>> response =
-    await publication.documentsManager!.database.rawQuery('''
+    List<Map<String, dynamic>> response = await publication.documentsManager!.database.rawQuery('''
       SELECT
         Label, 
         Content, 
@@ -883,22 +877,37 @@ Future<List<Map<String, dynamic>>> fetchOtherVerseVersion(BuildContext context, 
         bibleDb.close();
       }
 
-      String htmlContent = '';
-      String label = results.first['Label'].replaceAllMapped(
-        RegExp(r'<span class="cl">(.*?)<\/span>'),
-            (match) => '<span class="cl"><strong>${match.group(1)}</strong> </span>',
-      );
+      final String langCode = bible.mepsLanguage.primaryIetfCode;
 
-      htmlContent += label;
-      final decodedHtml = decodeBlobContent(
-        results.first['Content'] as Uint8List,
-        bible.hash!,
+      final StringBuffer htmlBuffer = StringBuffer();
+      String label = results.first['Label'] ?? '';
+      if(label.isNotEmpty) {
+        label = label.replaceAllMapped(_clRegex, (m) =>
+        '<span class="cl"><strong>${formatNumber(int.parse(m.group(1)!), localeCode: langCode)}</strong> </span>'
+        ).replaceAllMapped(_vlRegex, (m) =>
+        '<span class="vl">${formatNumber(int.parse(m.group(1)!), localeCode: langCode)}</span>'
+        );
+      }
+      htmlBuffer.write(label);
+      if (results.first['Content'] != null) {
+        String decoded = decodeBlobContent(results.first['Content'] as Uint8List, bible.hash!);
+        if (label.isEmpty) {
+          final pid = results.first['BeginParagraphOrdinal'];
+          htmlBuffer.write('<p id="p$pid" data-pid="$pid" class="sw">$decoded</p>');
+        }
+        else {
+          htmlBuffer.write(decoded);
+        }
+      }
+
+      final blockRanges = await JwLifeApp.userdata.getBlockRangesFromChapterNumber(
+          book, chapter, chapter, bible.keySymbol, bible.mepsLanguage.id,
+          startVerse: verse, endVerse: verse
       );
-      htmlContent += decodedHtml;
 
       versesTranslations.add({
         'type': 'verse',
-        'content': htmlContent,
+        'content': htmlBuffer.toString(),
         'className': "bibleCitation html5 pub-${bible.keySymbol} jwac showRuby ml-${bible.mepsLanguage.symbol} ms-${bible.mepsLanguage.internalScriptName} dir-${bible.mepsLanguage.isRtl ? 'rtl' : 'ltr'} layout-reading layout-sidebar",
         'subtitle': bible.mepsLanguage.vernacular,
         'imageUrl': bible.imageSqr,
@@ -910,8 +919,12 @@ Future<List<Map<String, dynamic>>> fetchOtherVerseVersion(BuildContext context, 
         'lastVerseNumber': verse,
         'audio': {},
         'mepsLanguageId': bible.mepsLanguage.id,
-        //'highlights': publication.documentsManager!.getCurrentDocument().blockRanges,
-        //'notes': publication.documentsManager!.getCurrentDocument()
+        'blockRanges': blockRanges.map((br) => br.toMap()).toList(),
+        'notes': context.read<NotesController>().getNotesByDocument(
+            firstBookNumber: book, lastBookNumber: book,
+            firstChapterNumber: chapter, lastChapterNumber: chapter,
+            firstBlockIdentifier: verse, lastBlockIdentifier: verse
+        ).map((n) => n.toMap()).toList(),
       });
     }
     return versesTranslations;
@@ -994,7 +1007,7 @@ Future<List<Map<String, dynamic>>> fetchVerseResearchGuide(
         final List<String> uniqueXtids = uniqueXtidHrefList.map((ref) => ref['xtid']!).toList();
         final String placeholders = List.filled(uniqueXtids.length, '?').join(', ');
 
-        List<Map<String, dynamic>> allResponseExtracts = await db!.rawQuery('''
+        List<Map<String, dynamic>> allResponseExtracts = await db.rawQuery('''
           SELECT
             Extract.*, 
             RefPublication.*
@@ -1134,7 +1147,7 @@ Future<List<Map<String, dynamic>>> fetchVerseResearchGuide(
                 'startParagraphId': firstParagraphId,
                 'endParagraphId': lastParagraphId,
                 'publicationTitle': refPub == null ? extract['ShortTitle']?.toString() ?? '' : refPub.getShortTitle(),
-                'highlights': blockRanges.map((b) => b.toMap()).toList(),
+                'blockRanges': blockRanges.map((b) => b.toMap()).toList(),
                 'notes': notes.map((n) => n.toMap()).toList(),
               });
             }
@@ -1144,8 +1157,7 @@ Future<List<Map<String, dynamic>>> fetchVerseResearchGuide(
         if (extractItems.isNotEmpty) {
           verseCommentariesByPub.add({
             'type': 'guide',
-            'items': extractItems,
-            'className': "document html5 layout-reading layout-sidebar",
+            'items': extractItems
           });
         }
 
@@ -1232,62 +1244,69 @@ Future<List<Map<String, dynamic>>> fetchVerseFootnotes(BuildContext context, Pub
       }
 
       // ÉTAPE 2: Traitement et construction des éléments pour chaque groupe
-      groupedCitations.forEach((blockNumber, versesInGroup) {
+      groupedCitations.forEach((blockNumber, verses) async {
         // NOUVEAU : Liste pour stocker les détails de chaque verset
         List<Map<String, dynamic>> verseDetailsList = [];
 
         // Déterminer les informations communes pour le groupe (on prend le premier verset)
-        final firstVerse = versesInGroup.first;
+        final firstVerse = verses.first;
 
         // Pour les références de versets, on veut l'étendue (ex: Jn 3:16-17)
         final firstV = firstVerse['VerseNumber'] as int;
-        final lastV = versesInGroup.last['VerseNumber'] as int;
+        final lastV = verses.last['VerseNumber'] as int;
         final bookN = firstVerse['BookNumber'] as int;
         final chapterN = firstVerse['ChapterNumber'] as int;
 
         String verseDisplay = JwLifeApp.bibleCluesInfo.getVerses(
             bookN, chapterN, firstV,
-            bookN, chapterN, lastV
+            bookN, chapterN, lastV, localeCode: publication.mepsLanguage.primaryIetfCode
         );
 
+        final StringBuffer htmlBuffer = StringBuffer();
+        final String langCode = publication.mepsLanguage.primaryIetfCode;
 
         // Parcourir tous les versets du groupe pour combiner leur contenu HTML
-        for (var verse in versesInGroup) {
-          String htmlContent = '';
-
-          // --- Traitement et préparation du HTML ---
-          String label = verse['Label'].replaceAllMapped(
-            RegExp(r'<span class="cl">(.*?)<\/span>'),
-                (match) => '<span class="cl"><strong>${match.group(1)}</strong> </span>',
-          );
-          htmlContent += label;
-
-          String decodedHtml = decodeBlobContent(
-            verse['Content'] as Uint8List,
-            publication.hash!,
-          );
-
-          final pid = verse['BeginParagraphOrdinal']; // À ajuster si la clé n'est pas dans la requête
-
-          if (label.isEmpty) {
-            decodedHtml =
-            '<p id="p$pid" data-pid="$pid" class="sw">$decodedHtml</p>';
+        for (var verse in verses) {
+          String label = verse['Label'] ?? '';
+          if (label.isNotEmpty) {
+            label = label.replaceAllMapped(_clRegex, (m) =>
+            '<span class="cl"><strong>${formatNumber(int.parse(m.group(1)!), localeCode: langCode)}</strong> </span>'
+            ).replaceAllMapped(_vlRegex, (m) =>
+            '<span class="vl">${formatNumber(int.parse(m.group(1)!), localeCode: langCode)}</span>'
+            );
+          }
+          htmlBuffer.write(label);
+          if (verse['Content'] != null) {
+            String decoded = decodeBlobContent(verse['Content'] as Uint8List, publication.hash!);
+            if (label.isEmpty) {
+              final pid = verse['BeginParagraphOrdinal'];
+              htmlBuffer.write('<p id="p$pid" data-pid="$pid" class="sw">$decoded</p>');
+            }
+            else {
+              htmlBuffer.write(decoded);
+            }
           }
 
-          htmlContent += decodedHtml;
-          // ----------------------------------------
+          final blockRanges = await JwLifeApp.userdata.getBlockRangesFromChapterNumber(
+              bookN, chapterN, chapterN, publication.keySymbol, publication.mepsLanguage.id,
+              startVerse: firstV, endVerse: lastV
+          );
 
-          // NOUVEAU : Construire l'objet détaillé pour ce verset
           verseDetailsList.add({
             'bookNumber': bookN,
             'chapterNumber': chapterN,
             'firstVerseNumber': firstV,
             'lastVerseNumber': lastV,
-            'bookDisplay': JwLifeApp.bibleCluesInfo.getVerse(bookN, chapterN, verse['VerseNumber'], isAbbreviation: true),
-            'bibleVerseDisplay': JwLifeApp.bibleCluesInfo.getVerse(bookN, chapterN, verse['VerseNumber']),
-            'content': htmlContent, // Contenu HTML du verset individuel
+            'bookDisplay': JwLifeApp.bibleCluesInfo.getVerse(bookN, chapterN, verse['VerseNumber'], isAbbreviation: true, localeCode: publication.mepsLanguage.primaryIetfCode),
+            'bibleVerseDisplay': JwLifeApp.bibleCluesInfo.getVerse(bookN, chapterN, verse['VerseNumber'], localeCode: publication.mepsLanguage.primaryIetfCode),
+            'content': htmlBuffer.toString(), // Contenu HTML du verset individuel
             'label': label,
-            // Vous pouvez ajouter d'autres champs si nécessaire, comme 'BeginParagraphOrdinal'
+            'blockRanges': blockRanges.map((br) => br.toMap()).toList(),
+            'notes': context.read<NotesController>().getNotesByDocument(
+                firstBookNumber: bookN, lastBookNumber: bookN,
+                firstChapterNumber: chapterN, lastChapterNumber: chapterN,
+                firstBlockIdentifier: firstV, lastBlockIdentifier: lastV
+            ).map((n) => n.toMap()).toList(),
           });
         }
 

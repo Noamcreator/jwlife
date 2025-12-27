@@ -912,5 +912,13 @@
   "action_scan_qr_code": "扫描二维码",
   "settings_page_transition": "页面过渡",
   "settings_page_transition_bottom": "从底部过渡",
-  "settings_page_transition_right": "从右侧过渡"
+  "settings_page_transition_right": "从右侧过渡",
+  "label_research_all": "全部",
+  "label_research_wol": "WOL",
+  "label_research_bible": "圣经",
+  "label_research_verses": "经文",
+  "label_research_images": "图片",
+  "label_research_notes": "笔记",
+  "label_research_inputs_fields": "字段",
+  "label_research_wikipedia": "维基百科"
 }

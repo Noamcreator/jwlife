@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:jwlife/core/ui/app_dimens.dart'; // Importe kItemHeight et kSpacing
+import 'package:jwlife/core/ui/app_dimens.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/data/models/media.dart';
@@ -7,7 +7,7 @@ import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/features/library/widgets/rectangle_mediaItem_item.dart';
 import 'package:jwlife/i18n/i18n.dart';
 
-import '../../../publication/pages/menu/local/publication_menu_view.dart';
+import '../../../publication/pages/local/publication_menu_view.dart';
 import '../../models/downloads/download_model.dart';
 import '../../widgets/rectangle_publication_item.dart';
 
@@ -62,7 +62,7 @@ class _DownloadWidgetState extends State<DownloadWidget> {
     final isTwoColumn = screenWidth > 800;
 
     // 🥳 UTILISE kItemHeight pour tous les éléments
-    const double itemHeight = kItemHeight;
+    const double itemHeight = kSquareItemHeight;
     final int crossAxisCount = isTwoColumn ? 2 : 1;
 
     // Recalculer la largeur de l'élément pour garantir l'aspect ratio correct

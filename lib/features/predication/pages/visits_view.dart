@@ -193,7 +193,7 @@ class _VisitsViewState extends State<VisitsView> {
                         // ComboBox pour choisir un document
                         if (documents.isNotEmpty)
                           DropdownButtonFormField<Map<String, dynamic>>(
-                            value: _selectedDocument,
+                            initialValue: _selectedDocument,
                             decoration: InputDecoration(labelText: 'Document'),
                             items: documents.map((document) {
                               return DropdownMenuItem<Map<String, dynamic>>(

@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
+import 'package:jwlife/app/jwlife_app_bar.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
+import 'package:jwlife/data/models/userdata/congregation.dart';
 
 import '../../../app/app_page.dart';
+import '../../../app/jwlife_app.dart';
 import 'contact_editor_page.dart';
 
 class BrothersAndSistersPage extends StatefulWidget {
@@ -14,89 +17,44 @@ class BrothersAndSistersPage extends StatefulWidget {
 }
 
 class _BrothersAndSistersPageState extends State<BrothersAndSistersPage> {
-  List<Map<String, dynamic>> _congregations = [];
-  List<Map<String, dynamic>> _brothersAndSisters = [];
+  List<Congregation> _congregations = [];
+  final List<Map<String, dynamic>> _brothersAndSisters = [];
   bool _isLoading = true;
   String? _selectedCongregationId;
 
   @override
   void initState() {
     super.initState();
-    _fetchCongregationsFromFirestore();
+    _fetchCongregationsFromDatabase();
   }
 
-  Future<void> _fetchCongregationsFromFirestore() async {
-    /*
+  Future<void> _fetchCongregationsFromDatabase() async {
+    setState(() => _isLoading = true);
+
     try {
-      CollectionReference congregationCollection = await getCongregationCollection();
-      final querySnapshot = await congregationCollection.get();
+      // Récupérer les données depuis la base SQLite
+      final fetchedCongregations = await JwLifeApp.userdata.getCongregations();
+
+      // Tri par nom (champ 'Name' dans ta table)
+      fetchedCongregations.sort((a, b) {
+        final nameA = (a.name).toString().toLowerCase();
+        final nameB = (b.name).toString().toLowerCase();
+        return nameA.compareTo(nameB);
+      });
 
       setState(() {
-        _congregations = querySnapshot.docs.map((doc) {
-          final data = doc.data() as Map<String, dynamic>;
-          return {
-            ...data,
-            'id': doc.id,
-          };
-        }).toList();
-        _congregations.sort((a, b) {
-          String nameA = a['name']?.toString().toLowerCase() ?? '';
-          String nameB = b['name']?.toString().toLowerCase() ?? '';
-          return nameA.compareTo(nameB);
-        });
-
-
+        _congregations = fetchedCongregations;
       });
-    } catch (e) {
+    } catch (e, stackTrace) {
       debugPrint('Erreur lors du chargement des congrégations : $e');
-    } finally {
+      debugPrintStack(stackTrace: stackTrace);
+    }
+    finally {
       setState(() {
         _isLoading = false;
       });
     }
-
-     */
   }
-
-  Future<void> _loadSelectedCongregation() async {
-    /*
-    try {
-      // Récupérer la référence de l'utilisateur
-      CollectionReference usersRef = FirebaseFirestore.instance.collection('users');
-      DocumentSnapshot userDoc = await usersRef.doc("utilisateur_id_unique").get(); // Remplace par l'ID réel
-
-      if (userDoc.exists && userDoc.data() != null) {
-        setState(() {
-          _selectedCongregationId = userDoc['selected_congregation'];
-        });
-
-        // Charger les frères et sœurs après avoir récupéré la congrégation
-        _fetchBrothersAndSisters();
-      }
-    } catch (e) {
-      debugPrint("Erreur lors du chargement de la congrégation : $e");
-    }
-
-     */
-  }
-
-
-
-  /*
-  Future<void> _saveSelectedCongregation(String congregationId) async {
-    if (congregationId.isNotEmpty) {
-      try {
-        CollectionReference congregationCollection = await getCongregationCollection();
-
-        final docRef = await congregationCollection.add(data);
-        debugPrint('Congrégation enregistrée avec succès.');
-      } catch (e) {
-        debugPrint('Erreur lors de l\'enregistrement : $e');
-      }
-    }
-  }
-
-   */
 
   // Méthode pour importer des contacts
   Future<void> _importContacts() async {
@@ -233,6 +191,9 @@ class _BrothersAndSistersPageState extends State<BrothersAndSistersPage> {
   @override
   Widget build(BuildContext context) {
     return AppPage(
+      appBar: JwLifeAppBar(
+        title: 'Frères et Soeurs',
+      ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : Column(
@@ -248,8 +209,8 @@ class _BrothersAndSistersPageState extends State<BrothersAndSistersPage> {
                 value: _selectedCongregationId,
                 items: _congregations.map((congregation) {
                   return DropdownMenuItem<String>(
-                    value: congregation['id'],
-                    child: Text(congregation['name']),
+                    value: congregation.guid,
+                    child: Text(congregation.name),
                   );
                 }).toList(),
                 onChanged: (value) {
@@ -436,6 +397,12 @@ class _BrothersAndSistersPageState extends State<BrothersAndSistersPage> {
           ),
         ],
       ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          _importContacts();
+        },
+        child: const Icon(JwIcons.plus),
+      )
     );
   }
 }

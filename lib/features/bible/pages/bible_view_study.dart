@@ -53,7 +53,7 @@ class _BibleViewState extends State<BibleView> {
 
             // Process each node in the verse to extract text and special characters
             List<dynamic> verseParts = [];
-            nodes.forEach((node) {
+            for (var node in nodes) {
               if (node is html.Element) {
                 if (node.localName == 'a' && node.classes.contains('b')) {
                   // Handle special characters "*", "+"
@@ -79,7 +79,7 @@ class _BibleViewState extends State<BibleView> {
                   'isClickable': false,
                 });
               }
-            });
+            }
 
             return {'number': verseNumber, 'parts': verseParts};
           }).toList();

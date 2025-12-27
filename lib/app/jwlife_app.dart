@@ -1,20 +1,15 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:jwlife/core/app_data/app_data_service.dart';
 import 'package:jwlife/app/services/global_key_service.dart';
 import 'package:jwlife/app/services/settings_service.dart';
-import 'package:jwlife/app/startup/auto_update.dart';
 import 'package:jwlife/app/startup/splash_screen.dart';
 import 'package:jwlife/core/bible_clues_info.dart';
-import 'package:jwlife/core/api/api.dart';
 import 'package:jwlife/core/constants.dart';
 import 'package:jwlife/core/ui/theme.dart';
-import 'package:jwlife/core/utils/assets_downloader.dart';
 import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/data/controller/block_ranges_controller.dart';
 import 'package:jwlife/data/controller/tags_controller.dart';
-import 'package:jwlife/data/databases/catalog.dart';
 import 'package:jwlife/data/databases/media_collections.dart';
 import 'package:jwlife/data/databases/pub_collections.dart';
 import 'package:jwlife/data/models/publication_attribute.dart';
@@ -26,8 +21,8 @@ import '../core/shared_preferences/shared_preferences_utils.dart';
 import '../data/controller/notes_controller.dart';
 import '../data/databases/tiles_cache.dart';
 import '../features/audio/audio_player_model.dart';
+import '../features/document/local/document_page.dart';
 import '../features/home/pages/daily_text_page.dart';
-import '../features/publication/pages/document/local/document_page.dart';
 import '../i18n/localization.dart';
 import 'jwlife_page.dart';
 
@@ -141,7 +136,7 @@ class JwLifeAppState extends State<JwLifeApp> {
     await AppSharedPreferences.instance.setBibleColor(color);
 
     // Mise à jour de la page Bible si elle est affichée
-    GlobalKeyService.bibleKey.currentState?.refreshBiblePage();
+    GlobalKeyService.bibleKey.currentState?.goToTheBooksTab();
   }
 
   void changeLocale(Locale locale) {

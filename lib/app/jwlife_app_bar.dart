@@ -45,13 +45,13 @@ class JwLifeAppBar extends StatelessWidget implements PreferredSizeWidget {
           handleBackPress?.call() ?? GlobalKeyService.jwLifePageKey.currentState?.handleBack(context);
         },
       ) : null,
-      title: subTitle != null || subTitleWidget != null ? Column(
+      title: titleWidget ?? (subTitle != null || subTitleWidget != null ? Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           titleWidget ?? Text(title, style: textStyleTitle),
           subTitleWidget ?? Text(subTitle!, style: textStyleSubtitle),
         ],
-      ) : Text(title, style: textStyleTitle),
+      ) : Text(title, style: textStyleTitle)),
       titleSpacing: canPopState ? 0.0 : null,
       actions: actions != null ? [ResponsiveAppBarActions(allActions: actions!, canPop: canPopState, iconsColor: iconsColor)] : null,
     );

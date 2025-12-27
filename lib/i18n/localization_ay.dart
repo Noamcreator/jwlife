@@ -3158,4 +3158,28 @@ class AppLocalizationsAy extends AppLocalizations {
 
   @override
   String get settings_page_transition_right => 'Hacia la derecha transición';
+
+  @override
+  String get label_research_all => 'TAQI';
+
+  @override
+  String get label_research_wol => 'WOL';
+
+  @override
+  String get label_research_bible => 'BIBLIA';
+
+  @override
+  String get label_research_verses => 'T\'AQA QILLQANAKA';
+
+  @override
+  String get label_research_images => 'JAMUQNAKA';
+
+  @override
+  String get label_research_notes => 'QILLQANAKA';
+
+  @override
+  String get label_research_inputs_fields => 'YATIYÄWINAKA';
+
+  @override
+  String get label_research_wikipedia => 'WIKIPEDIA';
 }

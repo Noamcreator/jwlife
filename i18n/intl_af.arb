@@ -912,5 +912,13 @@
   "action_scan_qr_code": "Skandeer 'n QR-kode",
   "settings_page_transition": "Bladsy-oorgang",
   "settings_page_transition_bottom": "Oorgang van onder",
-  "settings_page_transition_right": "Oorgang van regs"
+  "settings_page_transition_right": "Oorgang van regs",
+  "label_research_all": "ALLES",
+  "label_research_wol": "WOL",
+  "label_research_bible": "BYBEL",
+  "label_research_verses": "VERSE",
+  "label_research_images": "PRENTE",
+  "label_research_notes": "NOTAS",
+  "label_research_inputs_fields": "VELDE",
+  "label_research_wikipedia": "WIKIPEDIA"
 }

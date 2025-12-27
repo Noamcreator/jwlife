@@ -53,7 +53,7 @@ class FrequentlyUsedSection extends StatelessWidget {
 
                   return Padding(
                     padding: const EdgeInsets.only(right: 2.0),
-                    child: HomeSquarePublicationItem(pub: publication),
+                    child: HomeSquarePublicationItem(publication: publication),
                   );
                 },
               ),

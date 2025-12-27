@@ -912,5 +912,13 @@
   "action_scan_qr_code": "Сканировать QR-код",
   "settings_page_transition": "Переход страниц",
   "settings_page_transition_bottom": "Переход снизу",
-  "settings_page_transition_right": "Переход справа"
+  "settings_page_transition_right": "Переход справа",
+  "label_research_all": "ВСЕ",
+  "label_research_wol": "WOL",
+  "label_research_bible": "БИБЛИЯ",
+  "label_research_verses": "СТИХИ",
+  "label_research_images": "ИЗОБРАЖЕНИЯ",
+  "label_research_notes": "ЗАМЕТКИ",
+  "label_research_inputs_fields": "ПОЛЯ",
+  "label_research_wikipedia": "ВИКИПЕДИЯ"
 }

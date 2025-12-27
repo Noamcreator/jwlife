@@ -6,6 +6,7 @@ import 'package:jwlife/core/utils/widgets_utils.dart';
 import 'package:jwlife/data/databases/history.dart';
 import 'package:jwlife/features/library/pages/pending_update/pending_updates_widget.dart';
 import 'package:jwlife/features/library/pages/publications/publications_categories_widget.dart';
+import 'package:jwlife/features/library/pages/search_library_page.dart';
 import 'package:jwlife/features/library/pages/videos/videos_categories_widget.dart';
 import 'package:jwlife/i18n/i18n.dart';
 import 'package:jwlife/widgets/responsive_appbar_actions.dart';
@@ -13,6 +14,7 @@ import '../../../app/app_page.dart';
 import '../../../app/services/settings_service.dart';
 import '../../../core/shared_preferences/shared_preferences_utils.dart';
 import '../../../core/ui/text_styles.dart';
+import '../../../core/utils/common_ui.dart';
 import '../../../core/utils/utils_language_dialog.dart';
 import 'audios/audios_categories_widget.dart';
 import 'downloads/downloads_widget.dart';
@@ -141,6 +143,10 @@ class LibraryPageState extends State<LibraryPage> with TickerProviderStateMixin 
           return Text(value.vernacular, style: Theme.of(context).extension<JwLifeThemeStyles>()!.appBarSubTitle);
         }),
         actions: [
+          IconTextButton(
+              icon: const Icon(JwIcons.magnifying_glass),
+              onPressed: (buildContext) => showPage(SearchLibraryPage())
+          ),
           IconTextButton(
             icon: const Icon(JwIcons.language),
             onPressed: _onLanguagePressed,

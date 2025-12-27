@@ -912,5 +912,13 @@
   "action_scan_qr_code": "Bir QR Kodu Tarayın",
   "settings_page_transition": "Sayfa geçişi",
   "settings_page_transition_bottom": "Alttan geçiş",
-  "settings_page_transition_right": "Sağdan geçiş"
+  "settings_page_transition_right": "Sağdan geçiş",
+  "label_research_all": "HEPSİ",
+  "label_research_wol": "WOL",
+  "label_research_bible": "KUTSAL KİTAP",
+  "label_research_verses": "AYETLER",
+  "label_research_images": "RESİMLER",
+  "label_research_notes": "NOTLAR",
+  "label_research_inputs_fields": "ALANLAR",
+  "label_research_wikipedia": "VİKİPEDİ"
 }

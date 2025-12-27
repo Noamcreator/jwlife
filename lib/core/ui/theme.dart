@@ -65,6 +65,11 @@ class AppTheme {
       ),
       floatingActionButtonTheme: FloatingActionButtonThemeData(
         backgroundColor: primaryColor,
+        foregroundColor: Colors.white,
+        shape: const CircleBorder(),
+        elevation: 0,
+        hoverElevation: 0,
+        disabledElevation: 0,
       ),
       switchTheme: SwitchThemeData(
         padding: EdgeInsets.zero,
@@ -202,6 +207,11 @@ class AppTheme {
         ),
         floatingActionButtonTheme: FloatingActionButtonThemeData(
           backgroundColor: primaryColor,
+          foregroundColor: Color(0xFF333333),
+          shape: const CircleBorder(),
+          elevation: 0,
+          hoverElevation: 0,
+          disabledElevation: 0,
         ),
         switchTheme: SwitchThemeData(
           padding: EdgeInsets.zero,

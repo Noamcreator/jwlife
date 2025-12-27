@@ -10,7 +10,7 @@ import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/data/models/video.dart' hide Subtitles;
 import 'package:jwlife/data/databases/history.dart';
-import 'package:jwlife/widgets/qr_code_dialog.dart';
+import 'package:jwlife/widgets/dialog/qr_code_dialog.dart';
 
 import 'package:share_plus/share_plus.dart';
 import 'package:video_player/video_player.dart';
@@ -1187,7 +1187,7 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
                       child: Align(
                         alignment: Alignment.bottomCenter,
                         child: Container(
-                          padding: const EdgeInsets.only(bottom: 50),
+                          padding: const EdgeInsets.only(bottom: 55),
                           color: Colors.transparent,
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
@@ -1537,6 +1537,7 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
         }
         else {
           String link = 'https://b.jw-cdn.org/apis/mediator/v1/media-items/${widget.video.mepsLanguage}/${widget.video.naturalKey}';
+          print(link);
           final response = await Api.httpGetWithHeaders(link, responseType: ResponseType.json);
           if (response.statusCode == 200) {
             jsonData = response.data['media'][0];

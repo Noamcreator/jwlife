@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:math';
 import 'dart:ui' as ui;
 
 import 'package:connectivity_plus/connectivity_plus.dart';
@@ -23,17 +22,9 @@ String normalize(String s) {
 
 String formatNumber(num number, {String? format, String? localeCode}) {
   BuildContext context = GlobalKeyService.jwLifePageKey.currentContext!;
-  String locale = localeCode ?? Localizations.localeOf(context).toString();
+  String locale = localeCode?.toString() ?? Localizations.localeOf(context).toString();
 
-  NumberFormat formatter;
-
-  if (format != null) {
-    formatter = NumberFormat(format, locale);
-  } else {
-    formatter = NumberFormat.decimalPattern(locale);
-  }
-
-  return formatter.format(number);
+  return DateFormat.y(locale).format(DateTime(number.toInt()));
 }
 
 String formatYear(num number, {Locale? localeCode}) {
@@ -134,38 +125,38 @@ Duration parseDuration(String startTime) {
   return Duration.zero;
 }
 
-String formatFileSize(int bytes) {
+String formatFileSize(int bytes, {String? localeCode}) {
   const int KB = 1024;
   const int MB = 1024 * KB;
   const int GB = 1024 * MB;
   const int TB = 1024 * GB;
 
   // Définir le format pour les décimales (ex: 4.2 MB)
-  const String DECIMAL_FORMAT = '0';
+  const String decimalFormat = '0';
 
   if (bytes < KB) {
     // Octets (ne nécessite pas formatNumber)
-    final String formattedBy = formatNumber(bytes, format: '0');
+    final String formattedBy = formatNumber(bytes, format: '0', localeCode: localeCode);
     return i18n().label_units_storage_bytes(formattedBy);
   } else if (bytes < MB) {
     // KiloOctets (KB). Pour les KB, on garde l'entier par simplicité, comme dans l'original.
     final int roundedKb = (bytes / KB).floor();
-    final String formattedKb = formatNumber(roundedKb, format: DECIMAL_FORMAT);
+    final String formattedKb = formatNumber(roundedKb, format: decimalFormat, localeCode: localeCode);
     return i18n().label_units_storage_kb(formattedKb);
   } else if (bytes < GB) {
     // MégaOctets (MB). Utilisation de formatNumber pour la décimale.
     final double mb = bytes / MB;
-    final String formattedMb = formatNumber(mb, format: DECIMAL_FORMAT);
+    final String formattedMb = formatNumber(mb, format: decimalFormat, localeCode: localeCode);
     return i18n().label_units_storage_mb(formattedMb);
   } else if (bytes < TB) {
     // GigaOctets (GB). Utilisation de formatNumber pour la décimale.
     final double gb = bytes / GB;
-    final String formattedGb = formatNumber(gb, format: DECIMAL_FORMAT);
+    final String formattedGb = formatNumber(gb, format: decimalFormat, localeCode: localeCode);
     return i18n().label_units_storage_gb(formattedGb);
   } else {
     // TéraOctets (TB). Utilisation de formatNumber pour la décimale.
     final double tb = bytes / TB;
-    final String formattedTb = formatNumber(tb, format: DECIMAL_FORMAT);
+    final String formattedTb = formatNumber(tb, format: decimalFormat, localeCode: localeCode);
     return i18n().label_units_storage_tb(formattedTb);
   }
 }
@@ -184,7 +175,7 @@ String timeAgo(DateTime dateTime, {DateTime? dateTimeCompare}) {
   final Duration diff = nowDateTime.difference(dateTime);
 
   // Nous utiliserons ce format pour les nombres entiers (ex: 5 minutes)
-  const String INTEGER_FORMAT = '0';
+  const String integerFormat = '0';
 
   // Si futur
   if (diff.isNegative) return i18n().label_whats_new_multiple_seconds_ago;
@@ -195,32 +186,32 @@ String timeAgo(DateTime dateTime, {DateTime? dateTimeCompare}) {
     final minutes = diff.inMinutes;
     if (minutes == 1) return i18n().label_whats_new_1_minute_ago;
     // Utilisation de formatNumber
-    final String formattedMinutes = formatNumber(minutes, format: INTEGER_FORMAT);
+    final String formattedMinutes = formatNumber(minutes, format: integerFormat);
     return i18n().label_whats_new_multiple_minutes_ago(formattedMinutes);
   } else if (diff.inHours < 24) {
     final hours = diff.inHours;
     if (hours == 1) return i18n().label_whats_new_1_hour_ago;
     // Utilisation de formatNumber
-    final String formattedHours = formatNumber(hours, format: INTEGER_FORMAT);
+    final String formattedHours = formatNumber(hours, format: integerFormat);
     return i18n().label_whats_new_multiple_hours_ago(formattedHours);
   } else if (diff.inDays < 30) {
     final days = diff.inDays;
     if (days == 0) return i18n().label_whats_new_today;
     if (days == 1) return i18n().label_whats_new_1_day_ago;
     // Utilisation de formatNumber
-    final String formattedDays = formatNumber(days, format: INTEGER_FORMAT);
+    final String formattedDays = formatNumber(days, format: integerFormat);
     return i18n().label_whats_new_multiple_days_ago(formattedDays);
   } else if (diff.inDays < 365) {
     final months = (diff.inDays / 30).floor();
     if (months == 1) return i18n().label_whats_new_1_month_ago;
     // Utilisation de formatNumber
-    final String formattedMonths = formatNumber(months, format: INTEGER_FORMAT);
+    final String formattedMonths = formatNumber(months, format: integerFormat);
     return i18n().label_whats_new_multiple_months_ago(formattedMonths);
   } else {
     final years = (diff.inDays / 365).floor();
     if (years == 1) return i18n().label_whats_new_1_year_ago;
     // Utilisation de formatNumber
-    final String formattedYears = formatNumber(years, format: INTEGER_FORMAT);
+    final String formattedYears = formatNumber(years, format: integerFormat);
     return i18n().label_whats_new_multiple_year_ago(formattedYears);
   }
 }

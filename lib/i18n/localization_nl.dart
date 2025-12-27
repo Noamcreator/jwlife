@@ -3140,4 +3140,28 @@ class AppLocalizationsNl extends AppLocalizations {
 
   @override
   String get settings_page_transition_right => 'Overgang van rechts';
+
+  @override
+  String get label_research_all => 'ALLE';
+
+  @override
+  String get label_research_wol => 'WOL';
+
+  @override
+  String get label_research_bible => 'BIJBEL';
+
+  @override
+  String get label_research_verses => 'VERZEN';
+
+  @override
+  String get label_research_images => 'AFBEELDINGEN';
+
+  @override
+  String get label_research_notes => 'NOTITIES';
+
+  @override
+  String get label_research_inputs_fields => 'VELDEN';
+
+  @override
+  String get label_research_wikipedia => 'WIKIPEDIA';
 }

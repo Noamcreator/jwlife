@@ -173,7 +173,7 @@ class Document {
       await loadUserdata();
     }
     if (isBibleChapter()) {
-      History.insertBibleChapter(displayTitle, publication, bookNumber!, chapterNumber!, startBlockIdentifier, endBlockIdentifier);
+      History.insertBibleChapter(getDisplayTitle(), publication, bookNumber!, chapterNumber!, startBlockIdentifier, endBlockIdentifier);
     }
     else {
       if (!hasAlreadyBeenRead) {
@@ -235,7 +235,7 @@ class Document {
     try {
       // Récupérer les données de la base
       List<Map<String, dynamic>> response = await database.rawQuery('''
-        SELECT Multimedia.*
+        SELECT DISTINCT Multimedia.*
         FROM Document
         INNER JOIN DocumentMultimedia ON Document.DocumentId = DocumentMultimedia.DocumentId
         INNER JOIN Multimedia ON DocumentMultimedia.MultimediaId = Multimedia.MultimediaId
@@ -257,7 +257,7 @@ class Document {
 
     if(isBibleChapter()) {
       results = await Future.wait([
-        JwLifeApp.userdata.getBlockRangesFromChapterNumber(bookNumber!, chapterNumberBible!, publication.keySymbol, mepsLanguageId),
+        JwLifeApp.userdata.getBlockRangesFromChapterNumber(bookNumber!, chapterNumberBible!, chapterNumberBible!, publication.keySymbol, mepsLanguageId),
         JwLifeApp.userdata.getBookmarksFromChapterNumber(bookNumber!, chapterNumberBible!, publication.keySymbol),
       ]);
 
@@ -361,7 +361,7 @@ class Document {
   }
 
   String getDisplayTitle() {
-    return isBibleChapter() ? '$displayTitle $chapterNumber' : displayTitle.isNotEmpty ? displayTitle.trim() : title;
+    return isBibleChapter() ? '$displayTitle ${formatNumber(chapterNumber ?? 0, localeCode: publication.mepsLanguage.primaryIetfCode)}' : displayTitle.isNotEmpty ? displayTitle.trim() : title;
   }
 
   bool isBibleChapter() {

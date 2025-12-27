@@ -19,7 +19,7 @@ import '../../app/jwlife_app.dart';
 import '../../data/models/publication_category.dart';
 import '../../data/realm/catalog.dart';
 import '../../data/realm/realm_library.dart';
-import '../../features/publication/pages/document/data/models/document.dart';
+import '../../features/document/data/models/document.dart';
 import '../../i18n/i18n.dart';
 import '../utils/assets_downloader.dart';
 import '../utils/common_ui.dart';
@@ -136,13 +136,15 @@ class AppDataService {
 
   // Chargement rapide et progressif pour HomePage
   Future<void> loadAllContentData({MepsLanguage? language, bool first = true, bool library = true}) async {
-    MepsLanguage currentLanguage = language ?? JwLifeSettings.instance.currentLanguage.value;
+    MepsLanguage mepsLanguage = language ?? JwLifeSettings.instance.currentLanguage.value;
 
-    fetchAlertsList(currentLanguage);
-    fetchArticles(currentLanguage);
+    fetchAlertsList(mepsLanguage);
+    fetchArticles(mepsLanguage);
 
     final String publicationSelectQuery = CatalogDb.publicationSelectQuery;
     final String publicationQuery = CatalogDb.publicationQuery;
+
+    final String publicationMepsSelectQuery = CatalogDb.publicationMepsSelectQuery;
 
     final mepsFile = await getMepsUnitDatabaseFile();
 
@@ -164,13 +166,8 @@ class AppDataService {
       try {
         // ATTACH et requêtes dans la transaction
         await database.transaction((txn) async {
-          await txn.execute("ATTACH DATABASE '${mepsFile.path}' AS meps");
-          if(isHistoryFileExist) {
-            await txn.execute("ATTACH DATABASE '${historyFile.path}' AS history");
-          }
-
           String formattedDate = DateTime.now().toIso8601String().split('T').first;
-          final languageId = currentLanguage.id;
+          final languageId = mepsLanguage.id;
 
           // Exécution des requêtes EN SÉRIE, pas en parallèle
           List<Map<String, Object?>> result1 = [];
@@ -187,9 +184,6 @@ class AppDataService {
               FROM DatedText dt
               INNER JOIN Publication p ON dt.PublicationId = p.Id
               INNER JOIN PublicationAsset pa ON p.Id = pa.PublicationId
-              INNER JOIN meps.Language ON p.MepsLanguageId = meps.Language.LanguageId
-              INNER JOIN meps.Script ON meps.Language.ScriptId = meps.Script.ScriptId
-              LEFT JOIN meps.Language AS fallback ON meps.Language.PrimaryFallbackLanguageId = fallback.LanguageId
               LEFT JOIN PublicationAttributeMap pam ON p.Id = pam.PublicationId
               WHERE ? BETWEEN dt.Start AND dt.End AND p.MepsLanguageId = ?
             ''', [formattedDate, languageId]);
@@ -198,7 +192,7 @@ class AppDataService {
           AppDataService.instance.midweekMeetingPub.value = null;
           AppDataService.instance.weekendMeetingPub.value = null;
 
-          for(Publication pub in result1.map((item) => Publication.fromJson(item)).toList()) {
+          for(Publication pub in result1.map((item) => Publication.fromJson(item, currentLanguage: mepsLanguage)).toList()) {
             if (pub.keySymbol.contains('es')) {
               AppDataService.instance.dailyText.value = pub;
               fetchVerseOfTheDay();
@@ -216,12 +210,17 @@ class AppDataService {
 
           printTime('End: Dated Publications');
 
+          await txn.execute("ATTACH DATABASE '${mepsFile.path}' AS meps");
+          if(isHistoryFileExist) {
+            await txn.execute("ATTACH DATABASE '${historyFile.path}' AS history");
+          }
+
           if(first && isHistoryFileExist) {
             printTime('Start: Recent Publications');
             result2 = await txn.rawQuery('''
               SELECT DISTINCT
                 SUM(hp.VisitCount) AS TotalVisits,
-                $publicationSelectQuery
+                $publicationMepsSelectQuery
               FROM history.History hp
               INNER JOIN Publication p ON p.KeySymbol = hp.KeySymbol AND p.IssueTagNumber = hp.IssueTagNumber AND p.MepsLanguageId = hp.MepsLanguageId
               INNER JOIN PublicationAsset pa ON p.Id = pa.PublicationId
@@ -238,6 +237,8 @@ class AppDataService {
             printTime('End: Recent Publications');
           }
 
+          await txn.execute("DETACH DATABASE meps");
+
           printTime('Start: ToolBox Pubs');
           result4 = await txn.rawQuery('''
               SELECT DISTINCT
@@ -246,9 +247,6 @@ class AppDataService {
               FROM CuratedAsset ca
               INNER JOIN PublicationAsset pa ON ca.PublicationAssetId = pa.Id
               INNER JOIN Publication p ON pa.PublicationId = p.Id
-              INNER JOIN meps.Language ON p.MepsLanguageId = meps.Language.LanguageId
-              INNER JOIN meps.Script ON meps.Language.ScriptId = meps.Script.ScriptId
-              LEFT JOIN meps.Language AS fallback ON meps.Language.PrimaryFallbackLanguageId = fallback.LanguageId
               LEFT JOIN PublicationAttributeMap pam ON p.Id = pam.PublicationId
               WHERE pa.MepsLanguageId = ? AND ca.ListType = ?
               ORDER BY ca.SortOrder;
@@ -267,7 +265,7 @@ class AppDataService {
               else if (result4.any((e) => e['SortOrder'] == availableTeachingToolBoxInt[i])) {
                 final pub = result4.firstWhereOrNull((e) => e['SortOrder'] == availableTeachingToolBoxInt[i]);
                 if (pub != null) {
-                  teachingToolboxPublications.add(Publication.fromJson(pub));
+                  teachingToolboxPublications.add(Publication.fromJson(pub, currentLanguage: mepsLanguage));
                 }
               }
             }
@@ -278,7 +276,7 @@ class AppDataService {
               else if (result4.any((e) => e['SortOrder'] == availableTeachingToolBoxTractsInt[i])) {
                 final pub = result4.firstWhereOrNull((e) => e['SortOrder'] == availableTeachingToolBoxTractsInt[i]);
                 if (pub != null) {
-                  teachingToolboxTractsPublications.add(Publication.fromJson(pub));
+                  teachingToolboxTractsPublications.add(Publication.fromJson(pub, currentLanguage: mepsLanguage));
                 }
               }
             }
@@ -302,7 +300,7 @@ class AppDataService {
               ORDER BY pa.CatalogedOn DESC;
             ''', [languageId]);
 
-          AppDataService.instance.latestPublications.value = result3.map((item) => Publication.fromJson(item)).toList();
+          AppDataService.instance.latestPublications.value = result3.map((item) => Publication.fromJson(item, currentLanguage: mepsLanguage)).toList();
           printTime('End: Latest Publications');
 
           if(library) {
@@ -316,17 +314,12 @@ class AppDataService {
               FROM CuratedAsset ca
               INNER JOIN PublicationAsset pa ON ca.PublicationAssetId = pa.Id
               INNER JOIN Publication p ON pa.PublicationId = p.Id
-              INNER JOIN meps.Language ON p.MepsLanguageId = meps.Language.LanguageId
-              INNER JOIN meps.Script ON meps.Language.ScriptId = meps.Script.ScriptId
-              LEFT JOIN meps.Language AS fallback ON meps.Language.PrimaryFallbackLanguageId = fallback.LanguageId
               LEFT JOIN PublicationAttributeMap pam ON p.Id = pam.PublicationId
               WHERE pa.MepsLanguageId = ? AND ca.ListType = ?
               ORDER BY ca.SortOrder;
             ''', [languageId, 0]);
 
-          AppDataService.instance.otherMeetingsPublications.value = result5.map((pub) => Publication.fromJson(pub)).toList();
-
-          await txn.execute("DETACH DATABASE meps");
+          AppDataService.instance.otherMeetingsPublications.value = result5.map((pub) => Publication.fromJson(pub, currentLanguage: mepsLanguage)).toList();
 
           if(isHistoryFileExist) {
             await txn.execute("DETACH DATABASE history");
@@ -358,13 +351,12 @@ class AppDataService {
     GlobalKeyService.jwLifePageKey.currentState!.loadAllNavigator();
 
     if(isCatalogFileExist) {
-      await CatalogDb.instance.fetchAssemblyPublications();
+      await CatalogDb.instance.fetchAssemblyPublications(mepsLanguage);
     }
 
-    currentLanguage.loadWolInfo();
+    mepsLanguage.loadWolInfo();
 
     if(first) {
-      // Étape 4 : Vérification de la connexion et mise à jour (performance)
       final isConnected = await hasInternetConnection();
       if (isConnected) {
         JwLifeAutoUpdater.checkAndUpdate();

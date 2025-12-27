@@ -201,11 +201,11 @@ class JwIcons {
   static const IconData toolbox = IconData(0xE6C3, fontFamily: _kFontFam);
   static const IconData tract_stack = IconData(0xE6C4, fontFamily: _kFontFam);
   static const IconData trash = IconData(0xE6C5, fontFamily: _kFontFam);
-  static const IconData triangle_double_left = IconData(0xE6C6, fontFamily: _kFontFam);
-  static const IconData triangle_double_right = IconData(0xE6C7, fontFamily: _kFontFam);
-  static const IconData triangle_to_bar_left = IconData(0xE6C8, fontFamily: _kFontFam);
-  static const IconData triangle_to_bar_right = IconData(0xE6C9, fontFamily: _kFontFam);
-  static const IconData triangles_left_right = IconData(0xE6CA, fontFamily: _kFontFam);
+  static const IconData triangle_double_left = IconData(0xE6C6, fontFamily: _kFontFam, matchTextDirection: true);
+  static const IconData triangle_double_right = IconData(0xE6C7, fontFamily: _kFontFam, matchTextDirection: true);
+  static const IconData triangle_to_bar_left = IconData(0xE6C8, fontFamily: _kFontFam, matchTextDirection: true);
+  static const IconData triangle_to_bar_right = IconData(0xE6C9, fontFamily: _kFontFam, matchTextDirection: true);
+  static const IconData triangles_left_right = IconData(0xE6CA, fontFamily: _kFontFam, matchTextDirection: true);
   static const IconData tv = IconData(0xE6CB, fontFamily: _kFontFam);
   static const IconData ungroup = IconData(0xE6CC, fontFamily: _kFontFam);
   static const IconData vernacular_text = IconData(0xE6CD, fontFamily: _kFontFam);

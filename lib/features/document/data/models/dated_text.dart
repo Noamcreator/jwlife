@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/core/uri/jworg_uri.dart';
@@ -11,7 +12,6 @@ import 'package:share_plus/share_plus.dart';
 import 'package:sqflite/sqflite.dart';
 
 import '../../../../../../app/services/global_key_service.dart';
-import '../../../../../../app/services/settings_service.dart';
 import '../../../../../../data/controller/block_ranges_controller.dart';
 import '../../../../../../data/models/userdata/block_range.dart';
 
@@ -115,8 +115,8 @@ class DatedText {
     // Parse la date depuis le format aaaammjj
     DateTime parsedDate = DateTime.parse(dateString);
 
-    // Formatte au format souhaité : "1 janvier 2025"
-    String formattedDate = DateFormat("d MMMM y", JwLifeSettings.instance.locale.languageCode).format(parsedDate);
+    String locale = publication.mepsLanguage.getSafeLocale().languageCode;
+    String formattedDate = DateFormat("d MMMM y", locale).format(parsedDate);
 
     return formattedDate;
   }

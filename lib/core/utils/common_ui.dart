@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:jwlife/app/services/settings_service.dart';
 import 'package:jwlife/features/home/pages/daily_text_page.dart';
 import 'package:jwlife/features/personal/pages/note_page.dart';
-import 'package:jwlife/features/publication/pages/document/local/document_page.dart';
-import 'package:jwlife/features/publication/pages/document/local/full_screen_image_page.dart';
+import 'package:jwlife/features/document/local/document_page.dart';
+import 'package:jwlife/features/image/pages/full_screen_image_page.dart';
 import 'package:jwlife/features/video/video_player_page.dart';
 
 import '../../app/services/global_key_service.dart';

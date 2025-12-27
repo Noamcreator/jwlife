@@ -4,6 +4,7 @@ import 'package:collection/collection.dart';
 import 'package:jwlife/core/app_data/app_data_service.dart';
 import 'package:jwlife/core/utils/files_helper.dart';
 import 'package:jwlife/core/utils/utils_database.dart';
+import 'package:jwlife/data/models/meps_language.dart';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/models/publication_attribute.dart';
 import 'package:jwlife/data/realm/realm_library.dart';
@@ -22,22 +23,8 @@ class CatalogDb {
 
   late Database database;
 
-  /// Requête SQL pour récupérer les publications et leurs métadonnées.
   static final String publicationSelectQuery = '''
     p.*,
-    meps.Language.Symbol AS LanguageSymbol, 
-    meps.Language.VernacularName AS LanguageVernacularName, 
-    meps.Language.PrimaryIetfCode AS LanguagePrimaryIetfCode,
-    meps.Language.IsSignLanguage AS IsSignLanguage,
-    meps.Script.InternalName AS ScriptInternalName,
-    meps.Script.DisplayName AS ScriptDisplayName,
-    meps.Script.IsBidirectional AS IsBidirectional,
-    meps.Script.IsRTL AS IsRTL,
-    meps.Script.IsCharacterSpaced AS IsCharacterSpaced,
-    meps.Script.IsCharacterBreakable AS IsCharacterBreakable,
-    meps.Script.SupportsCodeNames AS SupportsCodeNames,
-    meps.Script.HasSystemDigits AS HasSystemDigits,
-    fallback.PrimaryIetfCode AS FallbackPrimaryIetfCode,
     pa.LastModified, 
     pa.CatalogedOn,
     pa.Size,
@@ -55,10 +42,32 @@ class CatalogDb {
     $publicationSelectQuery
     FROM Publication p
     INNER JOIN PublicationAsset pa ON p.Id = pa.PublicationId
+    LEFT JOIN PublicationAttributeMap pam ON p.Id = pam.PublicationId
+  ''';
+
+  /// Requête SQL pour récupérer les publications et leurs métadonnées.
+  static final String publicationMepsSelectQuery = '''
+    meps.Language.Symbol AS LanguageSymbol, 
+    meps.Language.VernacularName AS LanguageVernacularName, 
+    meps.Language.PrimaryIetfCode AS LanguagePrimaryIetfCode,
+    meps.Language.IsSignLanguage AS IsSignLanguage,
+    meps.Script.InternalName AS ScriptInternalName,
+    meps.Script.DisplayName AS ScriptDisplayName,
+    meps.Script.IsBidirectional AS IsBidirectional,
+    meps.Script.IsRTL AS IsRTL,
+    meps.Script.IsCharacterSpaced AS IsCharacterSpaced,
+    meps.Script.IsCharacterBreakable AS IsCharacterBreakable,
+    meps.Script.SupportsCodeNames AS SupportsCodeNames,
+    meps.Script.HasSystemDigits AS HasSystemDigits,
+    fallback.PrimaryIetfCode AS FallbackPrimaryIetfCode,
+    $publicationSelectQuery
+  ''';
+
+  static final String publicationMepsQuery = '''
+    $publicationQuery
     INNER JOIN meps.Language ON p.MepsLanguageId = meps.Language.LanguageId
     INNER JOIN meps.Script ON meps.Language.ScriptId = meps.Script.ScriptId
     LEFT JOIN meps.Language AS fallback ON meps.Language.PrimaryFallbackLanguageId = fallback.LanguageId
-    LEFT JOIN PublicationAttributeMap pam ON p.Id = pam.PublicationId
   ''';
 
   Future<void> init(File catalogFile) async {
@@ -119,40 +128,31 @@ class CatalogDb {
     }
   }
 
-  Future<List<Publication>> getPublicationsForTheDay({DateTime? date}) async {
+  Future<List<Publication>> getPublicationsForTheDay({DateTime? date, MepsLanguage? mepsLanguage}) async {
     // Obtenez la date du jour au format AAAA-mm-jj
     String formattedDate = '';
     date ??= DateTime.now();
     formattedDate = "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
 
-    final mepsFile = await getMepsUnitDatabaseFile();
+    MepsLanguage language = mepsLanguage ?? JwLifeSettings.instance.currentLanguage.value;
 
-    if (allFilesExist([mepsFile])) {
-      await attachDatabases(database, {'meps': mepsFile.path});
-
-      try {
-        final result = await database.rawQuery('''
+    try {
+      final result = await database.rawQuery('''
           SELECT DISTINCT
             $publicationSelectQuery
           FROM DatedText dt
           INNER JOIN Publication p ON dt.PublicationId = p.Id
           INNER JOIN PublicationAsset pa ON p.Id = pa.PublicationId
-          INNER JOIN meps.Language ON p.MepsLanguageId = meps.Language.LanguageId
-          INNER JOIN meps.Script ON meps.Language.ScriptId = meps.Script.ScriptId
-          LEFT JOIN meps.Language AS fallback ON meps.Language.PrimaryFallbackLanguageId = fallback.LanguageId
           LEFT JOIN PublicationAttributeMap pam ON p.Id = pam.PublicationId
           WHERE ? BETWEEN dt.Start AND dt.End AND p.MepsLanguageId = ?
-        ''', [formattedDate, JwLifeSettings.instance.currentLanguage.value.id]);
+        ''', [formattedDate, language.id]);
 
-        await detachDatabases(database, ['meps']);
-
-        return result.map((e) => Publication.fromJson(e)).toList();
-      }
-      catch (e) {
-        printTime('Error getPublicationsForTheDay: $e');
-      }
+      return result.map((e) => Publication.fromJson(e, currentLanguage: language)).toList();
     }
-    return [];
+    catch (e) {
+      printTime('Error getPublicationsForTheDay: $e');
+      return [];
+    }
   }
 
   Future<List<Map<String, dynamic>>> getAllAvailableBibleBookFromPub(int languageId, String keySymbol, int issueTagNumber) async {
@@ -197,12 +197,12 @@ class CatalogDb {
 
         final publications = await database.rawQuery('''
           SELECT
-            $publicationQuery
+            $publicationMepsQuery
           $languageRequest 
-          ${issueTagNumber != 0 ? 'AND LOWER(p.Symbol) = LOWER(?)' : 'AND LOWER(p.KeySymbol) = LOWER(?)'}
+          AND (LOWER(p.Symbol) = LOWER(?) OR LOWER(p.KeySymbol) = LOWER(?))
           AND p.IssueTagNumber = ?
           LIMIT 1
-        ''', [language, keySymbol, issueTagNumber]);
+        ''', [language, keySymbol, keySymbol, issueTagNumber]);
 
         return publications.isNotEmpty ? Publication.fromJson(publications.first) : null;
       }
@@ -281,16 +281,17 @@ class CatalogDb {
         // Exécute la requête sur la base de données
         final publications = await database.rawQuery('''
         SELECT
-          $publicationQuery
+          $publicationMepsQuery
         $languageRequest 
-        AND LOWER(p.KeySymbol) IN ($keySymbolPlaceholders) 
+        AND (LOWER(p.KeySymbol) IN ($keySymbolPlaceholders) OR LOWER(p.Symbol) IN ($keySymbolPlaceholders))
         AND p.IssueTagNumber IN ($issueTagNumberPlaceholders)
       ''', sqlArguments);
 
         // Ajoute les publications trouvées en base de données à la liste des résultats
         foundPubs.addAll(publications.map((json) => Publication.fromJson(json)).toList());
 
-      } finally {
+      }
+      finally {
         await detachDatabases(database, ['meps']);
       }
     }
@@ -298,7 +299,6 @@ class CatalogDb {
     // Retourne la liste complète (trouvées dans le Repository + trouvées en DB)
     return foundPubs;
   }
-
 
   Future<String?> getKeySymbolFromCatalogue(String symbol, int issueTagNumber, int mepsLanguageId) async {
     try {
@@ -324,22 +324,7 @@ class CatalogDb {
     try {
       final publications = await database.rawQuery('''
           SELECT DISTINCT
-           p.*,
-           pa.LastModified, 
-           pa.CatalogedOn,
-           pa.Size,
-           pa.ExpandedSize,
-           pa.SchemaVersion,
-           pam.PublicationAttributeId,
-           (SELECT ia.NameFragment 
-            FROM PublicationAssetImageMap paim 
-            JOIN ImageAsset ia ON paim.ImageAssetId = ia.Id 
-            WHERE paim.PublicationAssetId = pa.Id  AND (ia.Width = 270 AND ia.Height = 270)
-            LIMIT 1) AS ImageSqr
-          FROM Publication p
-          INNER JOIN PublicationAsset pa ON p.Id = pa.PublicationId
-          LEFT JOIN meps.Language AS fallback ON meps.Language.PrimaryFallbackLanguageId = fallback.LanguageId
-          LEFT JOIN PublicationAttributeMap pam ON p.Id = pam.PublicationId
+           $publicationQuery
           WHERE p.MepsLanguageId = ? AND LOWER(p.KeySymbol) = LOWER(?)  AND p.IssueTagNumber = ?
           LIMIT 1
           ''', [mepsLanguageId, pubSymbol, issueTagNumber]);
@@ -364,7 +349,7 @@ class CatalogDb {
 
         final publications = await database.rawQuery('''
           SELECT DISTINCT
-            $publicationSelectQuery
+            $publicationMepsSelectQuery
           FROM PublicationDocument pd
           INNER JOIN Publication p ON pd.PublicationId = p.Id
           INNER JOIN PublicationAsset pa ON p.Id = pa.PublicationId
@@ -386,31 +371,16 @@ class CatalogDb {
   }
 
   /// Rechercher une publication par mepsDocumentId et la langue.
-  Future<Publication?> searchPubNoMepsFromMepsDocumentId(int mepsDocumentId, int mepsLanguageId) async {
+  Future<Publication?> searchPubNoMepsFromMepsDocumentId(int mepsDocumentId, MepsLanguage mepsLanguage) async {
     try {
       final publications = await database.rawQuery('''
           SELECT DISTINCT
-           p.*,
-           pa.LastModified, 
-           pa.CatalogedOn,
-           pa.Size,
-           pa.ExpandedSize,
-           pa.SchemaVersion,
-           pam.PublicationAttributeId,
-           (SELECT ia.NameFragment 
-            FROM PublicationAssetImageMap paim 
-            JOIN ImageAsset ia ON paim.ImageAssetId = ia.Id 
-            WHERE paim.PublicationAssetId = pa.Id  AND (ia.Width = 270 AND ia.Height = 270)
-            LIMIT 1) AS ImageSqr
-          FROM PublicationDocument pd
-          INNER JOIN Publication p ON pd.PublicationId = p.Id
-          INNER JOIN PublicationAsset pa ON p.Id = pa.PublicationId
-          LEFT JOIN PublicationAttributeMap pam ON p.Id = pam.PublicationId
+           $publicationQuery
           WHERE pd.DocumentId = ? AND p.MepsLanguageId = ?
           LIMIT 1
-        ''', [mepsDocumentId, mepsLanguageId]);
+        ''', [mepsDocumentId, mepsLanguage]);
 
-      return publications.isNotEmpty ? Publication.fromJson(publications.first) : null;
+      return publications.isNotEmpty ? Publication.fromJson(publications.first, currentLanguage: mepsLanguage) : null;
     }
     catch (e) {
       return null;
@@ -418,19 +388,11 @@ class CatalogDb {
   }
 
   /// Charge les publications d'une catégorie
-  Future<Map<List<PublicationAttribute>, List<Publication>>> getPublicationsFromCategory(int category, {int? year, int? mepsLanguageId}) async {
-    final mepsFile = await getMepsUnitDatabaseFile();
-
-    if (!allFilesExist([mepsFile])) {
-      return {};
-    }
-
+  Future<Map<List<PublicationAttribute>, List<Publication>>> getPublicationsFromCategory(int category, MepsLanguage mepsLanguage, {int? year}) async {
     try {
-      await database.execute("ATTACH DATABASE '${mepsFile.path}' AS meps");
-
       // Paramètres dynamiques
       final queryParams = <dynamic>[
-        mepsLanguageId ?? JwLifeSettings.instance.currentLanguage.value.id,
+        mepsLanguage.id,
         category,
       ];
 
@@ -443,60 +405,32 @@ class CatalogDb {
 
       // Requête SQL
       final result = await database.rawQuery('''
-      SELECT DISTINCT
-        p.*,
-        pa.LastModified, 
-        pa.CatalogedOn,
-        pa.Size,
-        pa.ExpandedSize,
-        pa.SchemaVersion,
-        GROUP_CONCAT(DISTINCT pam.PublicationAttributeId) AS PublicationAttributeIds,
-        meps.Language.Symbol AS LanguageSymbol, 
-        meps.Language.VernacularName AS LanguageVernacularName, 
-        meps.Language.PrimaryIetfCode AS LanguagePrimaryIetfCode,
-        meps.Language.IsSignLanguage AS IsSignLanguage,
-        meps.Script.InternalName AS ScriptInternalName,
-        meps.Script.DisplayName AS ScriptDisplayName,
-        meps.Script.IsBidirectional AS IsBidirectional,
-        meps.Script.IsRTL AS IsRTL,
-        meps.Script.IsCharacterSpaced AS IsCharacterSpaced,
-        meps.Script.IsCharacterBreakable AS IsCharacterBreakable,
-        meps.Script.SupportsCodeNames AS SupportsCodeNames,
-        meps.Script.HasSystemDigits AS HasSystemDigits,
-        fallback.PrimaryIetfCode AS FallbackPrimaryIetfCode,
-        (
-          SELECT ia.NameFragment 
-          FROM PublicationAssetImageMap paim 
-          JOIN ImageAsset ia ON paim.ImageAssetId = ia.Id 
-          WHERE paim.PublicationAssetId = pa.Id
-            AND ((ia.Width = 270 AND ia.Height = 270) OR (ia.Width = 100 AND ia.Height = 100))
-          LIMIT 1
-        ) AS ImageSqr
-      FROM Publication p
-      INNER JOIN PublicationAsset pa ON p.Id = pa.PublicationId
-      LEFT JOIN PublicationAttributeMap pam ON p.Id = pam.PublicationId
-      INNER JOIN meps.Language ON p.MepsLanguageId = meps.Language.LanguageId
-      INNER JOIN meps.Script ON meps.Language.ScriptId = meps.Script.ScriptId
-      LEFT JOIN meps.Language AS fallback ON meps.Language.PrimaryFallbackLanguageId = fallback.LanguageId
-      WHERE p.MepsLanguageId = ? AND p.PublicationTypeId = ?
-        $yearCondition
-      GROUP BY
-        p.Id
-      ORDER BY p.Id;
-    ''', queryParams);
+        SELECT DISTINCT
+          $publicationSelectQuery,
+          GROUP_CONCAT(DISTINCT pam.PublicationAttributeId) AS PublicationAttributeIds
+        FROM Publication p
+        INNER JOIN PublicationAsset pa ON p.Id = pa.PublicationId
+        LEFT JOIN PublicationAttributeMap pam ON p.Id = pam.PublicationId
+        WHERE p.MepsLanguageId = ? AND p.PublicationTypeId = ?
+          $yearCondition
+        GROUP BY
+          p.Id
+        ORDER BY p.Id;
+      ''', queryParams);
 
       // Groupement par attribut
       final Map<List<PublicationAttribute>, List<Publication>> groupedByCategory = {};
       for (final publication in result) {
-        final pub = Publication.fromJson(publication);
+        final pub = Publication.fromJson(publication, currentLanguage: mepsLanguage);
         groupedByCategory.putIfAbsent(pub.attributes, () => []).add(pub);
       }
 
       return groupedByCategory;
     }
-    finally {
-      await database.execute("DETACH DATABASE meps");
+    catch (e) {
+      printTime('Error getPublicationsFromCategory: $e');
     }
+    return {};
   }
 
   Future<List<Map<String, dynamic>>> getItemsYearInCategory(int category, {int? mepsLanguageId}) async {
@@ -520,137 +454,106 @@ class CatalogDb {
      return [];
   }
 
-  Future<void> fetchOtherMeetingsPubs() async {
-    final mepsFile = await getMepsUnitDatabaseFile();
-
-    List<Publication> otherMeetingsPublications = [];
-
-
-    if (allFilesExist([mepsFile])) {
-      await attachDatabases(database, {'meps': mepsFile.path});
-
-      final languageId = JwLifeSettings.instance.currentLanguage.value.id;
-
-      otherMeetingsPublications.clear();
-
-      try {
-        final results = await database.rawQuery('''
-              SELECT DISTINCT
-                ca.SortOrder,
-                $publicationSelectQuery
-              FROM CuratedAsset ca
-              INNER JOIN PublicationAsset pa ON ca.PublicationAssetId = pa.Id
-              INNER JOIN Publication p ON pa.PublicationId = p.Id
-              INNER JOIN meps.Language ON p.MepsLanguageId = meps.Language.LanguageId
-              INNER JOIN meps.Script ON meps.Language.ScriptId = meps.Script.ScriptId
-              LEFT JOIN meps.Language AS fallback ON meps.Language.PrimaryFallbackLanguageId = fallback.LanguageId
-              LEFT JOIN PublicationAttributeMap pam ON p.Id = pam.PublicationId
-              WHERE pa.MepsLanguageId = ? AND ca.ListType = ?
-              ORDER BY ca.SortOrder;
-            ''', [languageId, 0]);
-
-        AppDataService.instance.otherMeetingsPublications.value = results.map((pub) => Publication.fromJson(pub)).toList();
-      }
-      finally {
-        await detachDatabases(database, ['meps']);
-      }
-    }
-  }
-
-  Future<void> fetchAssemblyPublications() async {
-    final mepsFile = await getMepsUnitDatabaseFile();
-
+  Future<void> fetchAssemblyPublications(MepsLanguage mepsLanguage) async {
     List<Publication> assembliesPublications = [];
 
-    if (allFilesExist([mepsFile])) {
-      try {
-        await attachDatabases(database, {'meps': mepsFile.path});
-
-        final langId = JwLifeSettings.instance.currentLanguage.value.id;
-
-        // Récupération de toutes les publications d'assemblée de circonscription
-        final allCircuitAssemblies = await database.rawQuery('''
+    try {
+      // Récupération de toutes les publications d'assemblée de circonscription
+      final allCircuitAssemblies = await database.rawQuery('''
           SELECT
-            $publicationSelectQuery
-          FROM Publication p
-          INNER JOIN PublicationAsset pa ON p.Id = pa.PublicationId
-          INNER JOIN meps.Language ON p.MepsLanguageId = meps.Language.LanguageId
-          INNER JOIN meps.Script ON meps.Language.ScriptId = meps.Script.ScriptId
-          LEFT JOIN meps.Language AS fallback ON meps.Language.PrimaryFallbackLanguageId = fallback.LanguageId
-          LEFT JOIN PublicationAttributeMap pam ON p.Id = pam.PublicationId
+            $publicationQuery
           WHERE p.MepsLanguageId = ? AND (p.KeySymbol LIKE 'CA-copgm%' OR p.KeySymbol LIKE 'CA-brpgm%')
-      ''', [langId]);
+      ''', [mepsLanguage.id]);
 
-        // Groupement et tri en Dart pour émuler ROW_NUMBER()
-        final Map<String, List<Map<String, Object?>>> grouped = {};
-        for (var pub in allCircuitAssemblies) {
-          final keySymbol = pub['KeySymbol']?.toString() ?? '';
-          final groupKey = keySymbol.startsWith('CA-copgm')
-              ? 'CA-copgm'
-              : keySymbol.startsWith('CA-brpgm')
-              ? 'CA-brpgm'
-              : 'other';
-          grouped.putIfAbsent(groupKey, () => []).add(pub);
-        }
+      // Groupement et tri en Dart pour émuler ROW_NUMBER()
+      final Map<String, List<Map<String, Object?>>> grouped = {};
+      for (var pub in allCircuitAssemblies) {
+        final keySymbol = pub['KeySymbol']?.toString() ?? '';
+        final groupKey = keySymbol.startsWith('CA-copgm')
+            ? 'CA-copgm'
+            : keySymbol.startsWith('CA-brpgm')
+            ? 'CA-brpgm'
+            : 'other';
+        grouped.putIfAbsent(groupKey, () => []).add(pub);
+      }
 
-        final circuitAssemblies = grouped.entries
-            .map((entry) => entry.value
-          ..sort((a, b) => (b['Year'] as int).compareTo(a['Year'] as int)))
-            .map((sortedList) => sortedList.first)
-            .toList();
+      final circuitAssemblies = grouped.entries
+          .map((entry) => entry.value
+        ..sort((a, b) => (b['Year'] as int).compareTo(a['Year'] as int)))
+          .map((sortedList) => sortedList.first)
+          .toList();
 
-        // Dernière publication d’assemblée régionale
-        final convention = await database.rawQuery('''
+      // Dernière publication d’assemblée régionale
+      final convention = await database.rawQuery('''
         SELECT
           $publicationQuery
         WHERE p.MepsLanguageId = ? AND p.KeySymbol LIKE 'CO-pgm%'
         ORDER BY p.Year DESC
         LIMIT 1;
-      ''', [langId]);
+      ''', [mepsLanguage.id]);
 
-        // Fusion et transformation en objets Publication
-        for (var publication in [...circuitAssemblies, ...convention]) {
-          final pub = Publication.fromJson(publication);
-          assembliesPublications.add(pub);
-        }
+      // Fusion et transformation en objets Publication
+      for (var publication in [...circuitAssemblies, ...convention]) {
+        final pub = Publication.fromJson(publication, currentLanguage: mepsLanguage);
+        assembliesPublications.add(pub);
       }
-      finally {
-        AppDataService.instance.conventionPub.value = assembliesPublications.firstWhereOrNull((element) => element.keySymbol.contains('CO-pgm'));
-        AppDataService.instance.circuitCoPub.value = assembliesPublications.firstWhereOrNull((element) => element.keySymbol.contains('CA-copgm'));
-        AppDataService.instance.circuitBrPub.value = assembliesPublications.firstWhereOrNull((element) => element.keySymbol.contains('CA-brpgm'));
-        await detachDatabases(database, ['meps']);
-      }
+
+      AppDataService.instance.conventionPub.value = assembliesPublications.firstWhereOrNull((element) => element.keySymbol.contains('CO-pgm'));
+      AppDataService.instance.circuitCoPub.value = assembliesPublications.firstWhereOrNull((element) => element.keySymbol.contains('CA-copgm'));
+      AppDataService.instance.circuitBrPub.value = assembliesPublications.firstWhereOrNull((element) => element.keySymbol.contains('CA-brpgm'));
+    }
+    catch (e) {
+      printTime('Error fetchAssemblyPublications: $e');
     }
   }
 
   /// Rechercher les publications des assemblées régionales
-  Future<List<Publication>> fetchPubsFromConventionsDays() async {
-    final mepsFile = await getMepsUnitDatabaseFile();
-
-    if (allFilesExist([mepsFile])) {
-      await attachDatabases(database, {'meps': mepsFile.path});
-
-      try {
-        final publications = await database.rawQuery('''
+  Future<List<Publication>> fetchPubsFromConventionsDays(MepsLanguage mepsLanguage) async {
+    try {
+      final publications = await database.rawQuery('''
           SELECT
           $publicationSelectQuery,
           pa.ConventionReleaseDayNumber
           FROM PublicationAsset pa
           INNER JOIN Publication p ON pa.PublicationId = p.Id
-          INNER JOIN meps.Language ON pa.MepsLanguageId = meps.Language.LanguageId
-          INNER JOIN meps.Script ON meps.Language.ScriptId = meps.Script.ScriptId
-          LEFT JOIN meps.Language AS fallback ON meps.Language.PrimaryFallbackLanguageId = fallback.LanguageId
           LEFT JOIN PublicationAttributeMap pam ON p.Id = pam.PublicationId
           WHERE pa.MepsLanguageId = ? AND pa.ConventionReleaseDayNumber IS NOT NULL;
-        ''', [JwLifeSettings.instance.currentLanguage.value.id]);
+        ''', [mepsLanguage.id]);
 
-        return publications.map((pub) => Publication.fromJson(pub)).toList();
-      }
-      finally {
-        await detachDatabases(database, ['meps']);
-      }
+      return publications.map((pub) => Publication.fromJson(pub)).toList();
     }
-    return [];
+    catch (e) {
+      printTime('Error fetchPubsFromConventionsDays: $e');
+      return [];
+    }
+  }
+
+  Future<List<Publication>> fetchPubs(String query, MepsLanguage mepsLanguage) async {
+    try {
+      final searchQuery = '%$query%';
+
+      final List<Map<String, dynamic>> results = await database.rawQuery('''
+        SELECT DISTINCT
+          $publicationQuery
+        WHERE p.MepsLanguageId = ? 
+        AND (p.Title LIKE ? OR p.KeySymbol LIKE ? OR p.Symbol LIKE ? OR p.Year LIKE ?)
+        ORDER BY p.Year DESC;
+      ''', [
+        mepsLanguage.id,
+        searchQuery,
+        searchQuery,
+        searchQuery,
+        searchQuery
+      ]);
+
+      // Transformation de la liste de Maps en liste d'objets Publication
+      return results.map((json) => Publication.fromJson(json, currentLanguage: mepsLanguage)).toList();
+
+    }
+    catch (e) {
+      print('Erreur lors de la recherche : $e');
+      return [];
+    }
   }
 
   Future<String> getCatalogDate() async {

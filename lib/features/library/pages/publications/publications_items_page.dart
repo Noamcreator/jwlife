@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:jwlife/app/jwlife_app_bar.dart';
 
 import 'package:jwlife/core/icons.dart';
+import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/data/databases/history.dart';
+import 'package:jwlife/data/models/meps_language.dart';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/models/publication_category.dart';
 import 'package:jwlife/features/library/widgets/rectangle_publication_item.dart';
@@ -18,9 +20,10 @@ import '../../models/publications/publication_items_model.dart';
 
 class PublicationsItemsPage extends StatefulWidget {
   final PublicationCategory category;
+  final MepsLanguage mepsLanguage;
   final int? year;
 
-  const PublicationsItemsPage({super.key, required this.category, this.year});
+  const PublicationsItemsPage({super.key, required this.category, required this.mepsLanguage, this.year});
 
   @override
   _PublicationsItemsPageState createState() => _PublicationsItemsPageState();
@@ -35,21 +38,25 @@ class _PublicationsItemsPageState extends State<PublicationsItemsPage> {
   @override
   void initState() {
     super.initState();
-    _loadTitle();
     _model = PublicationsItemsViewModel(
       category: widget.category,
       year: widget.year,
+      mepsLanguage: widget.mepsLanguage
     );
+    _loadTitle();
     _model.loadItems();
   }
 
   Future<void> _loadTitle() async {
+    MepsLanguage mepsLanguage = _model.mepsLanguage ?? widget.mepsLanguage;
+
     // Si l'année est fournie, le titre est synchrone (pas besoin d'attendre)
     if (widget.year != null) {
-      _pageTitle.value = '${widget.year}';
-    } else {
+      _pageTitle.value = formatYear(widget.year!, localeCode: mepsLanguage.getSafeLocale());
+    }
+    else {
       // Sinon, on appelle la méthode asynchrone et on met à jour l'état
-      final title = await widget.category.getNameAsync(JwLifeSettings.instance.currentLanguage.value.getSafeLocale());
+      final title = await widget.category.getNameAsync(mepsLanguage.getSafeLocale());
       _pageTitle.value = title;
     }
   }
@@ -69,7 +76,7 @@ class _PublicationsItemsPageState extends State<PublicationsItemsPage> {
         bottom: 0.0,
       ),
       child: FutureBuilder(
-        future: attribute.getNameAsync(JwLifeSettings.instance.currentLanguage.value.getSafeLocale()),
+        future: attribute.getNameAsync(_model.mepsLanguage!.getSafeLocale()),
         builder: (context, snapshot) {
           String attributeText = attribute.getName();
           if (snapshot.connectionState == ConnectionState.done && snapshot.hasData) {
@@ -135,7 +142,7 @@ class _PublicationsItemsPageState extends State<PublicationsItemsPage> {
                 ),
               ) : JwLifeAppBar(
                 title: title,
-                subTitle: _model.mepsLanguage.vernacular,
+                subTitle: _model.mepsLanguage?.vernacular ?? widget.mepsLanguage.vernacular,
                 actions: [
                   IconTextButton(
                     icon: const Icon(JwIcons.magnifying_glass),
@@ -149,9 +156,10 @@ class _PublicationsItemsPageState extends State<PublicationsItemsPage> {
                     icon: const Icon(JwIcons.language),
                     text: i18n().action_languages,
                     onPressed: (anchorContext) async {
-                      showLanguageDialog(context, selectedLanguageSymbol: _model.selectedLanguageSymbol).then((language) async {
+                      showLanguageDialog(context, selectedLanguageSymbol: _model.currentMepsLanguage?.symbol ?? widget.mepsLanguage.symbol).then((language) async {
                         if (language != null) {
-                          _model.loadItems(mepsLanguage: language);
+                          await _model.loadItems(mepsLanguageMap: language);
+                          _loadTitle();
                         }
                       });
                     },
@@ -211,15 +219,15 @@ class _PublicationsItemsPageState extends State<PublicationsItemsPage> {
                           elevation: 8.0,
                           items: menuItems,
                           initialValue: null,
-                          position: RelativeRect.fromLTRB(
-                            _model.mepsLanguage.isRtl ? 10 : MediaQuery.of(context).size.width - 210, // left
-                            40, // top
-                            _model.mepsLanguage.isRtl ? MediaQuery.of(context).size.width - 210 : 10, // right
-                            0, // bottom
+                          position: RelativeRect.fromDirectional(
+                            textDirection: Directionality.of(context),
+                            start: MediaQuery.of(context).size.width - 210,
+                            top: 40,
+                            end: 10,
+                            bottom: 0,
                           ),
                         ).then((res) {
                           if (res != null) {
-                            // 'res' sera maintenant une chaîne comme 'title_asc', 'year_desc', etc.
                             _model.sortPublications(res);
                           }
                         });
@@ -238,6 +246,7 @@ class _PublicationsItemsPageState extends State<PublicationsItemsPage> {
               // Le corps utilise un widget dédié pour le défilement
               body: _PublicationsItemsBody(
                 viewModel: _model,
+                mepsLanguage: widget.mepsLanguage,
                 buildCategoryHeader: _buildCategoryHeader,
               ),
             );
@@ -252,18 +261,19 @@ class _PublicationsItemsPageState extends State<PublicationsItemsPage> {
 
 class _PublicationsItemsBody extends StatelessWidget {
   final PublicationsItemsViewModel viewModel;
+  final MepsLanguage? mepsLanguage;
   final Widget Function(BuildContext, PublicationAttribute) buildCategoryHeader;
 
   const _PublicationsItemsBody({
     required this.viewModel,
+    required this.mepsLanguage,
     required this.buildCategoryHeader,
   });
 
   @override
   Widget build(BuildContext context) {
-    // ListenableBuilder englobe uniquement la partie du corps qui dépend des publications
     return Directionality(
-        textDirection: viewModel.mepsLanguage.isRtl ? TextDirection.rtl : TextDirection.ltr,
+        textDirection: viewModel.mepsLanguage?.isRtl ?? mepsLanguage?.isRtl ?? JwLifeSettings.instance.currentLanguage.value.isRtl ? TextDirection.rtl : TextDirection.ltr,
         child: ListenableBuilder(
           listenable: viewModel,
           builder: (context, child) {
@@ -307,7 +317,7 @@ class _PublicationsItemsBody extends StatelessWidget {
                 final int finalCrossAxisCount = crossAxisCount > 0 ? crossAxisCount : 1;
                 final double totalSpacing = kSpacing * (finalCrossAxisCount - 1);
                 final double itemWidth = (screenWidth - (contentPadding * 2) - totalSpacing) / finalCrossAxisCount;
-                final double childAspectRatio = itemWidth / kItemHeight;
+                final double childAspectRatio = itemWidth / kSquareItemHeight;
 
                 final List<Widget> slivers = [];
 

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../data/models/tile.dart';
 import 'package:jwlife/data/databases/tiles_cache.dart';
-import 'dart:io';
 
 class ImageCachedWidget extends StatefulWidget {
   final String? imageUrl;
@@ -47,7 +46,8 @@ class _ImageCachedWidgetState extends State<ImageCachedWidget> {
   void _loadImage() {
     if (widget.imageUrl == null || widget.imageUrl!.isEmpty) {
       _imageFuture = Future.value(null);
-    } else {
+    }
+    else {
       _imageFuture = TilesCache().getOrDownloadImage(widget.imageUrl!).then((tile) {
         if (tile != null && mounted) {
           // Préchargement léger pour éviter le jank
@@ -96,7 +96,7 @@ class _ImageCachedWidgetState extends State<ImageCachedWidget> {
     final placeholder = _buildPlaceholder(isDark);
 
     // Fonction utilitaire pour gérer les valeurs Infinity/NaN et calculer la dimension du cache
-    int? _getCacheDimension(double? dimension) {
+    int? getCacheDimension(double? dimension) {
       // Retourne null si la dimension est nulle, infinie ou NaN
       if (dimension == null || dimension.isInfinite || dimension.isNaN) {
         return null;
@@ -105,8 +105,8 @@ class _ImageCachedWidgetState extends State<ImageCachedWidget> {
       return (dimension * pixelRatio).toInt();
     }
 
-    final int? cacheW = _getCacheDimension(widget.width);
-    final int? cacheH = _getCacheDimension(widget.height);
+    final int? cacheW = getCacheDimension(widget.width);
+    final int? cacheH = getCacheDimension(widget.height);
     // -------------------------------------------------------------------------
 
     return FutureBuilder<Tile?>(
@@ -114,11 +114,19 @@ class _ImageCachedWidgetState extends State<ImageCachedWidget> {
       builder: (context, snapshot) {
         final file = snapshot.data?.file;
         if (snapshot.connectionState != ConnectionState.done || file == null) {
-          return SizedBox(
-            width: widget.width,
-            height: widget.height,
-            child: placeholder,
-          );
+          if(widget.animation) {
+            return SizedBox(
+              width: widget.width,
+              height: widget.height,
+              child: placeholder,
+            );
+          }
+          else {
+            return SizedBox(
+              width: widget.width,
+              height: widget.height,
+            );
+          }
         }
 
         return Image.file(

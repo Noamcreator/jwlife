@@ -18,8 +18,8 @@ import '../../core/utils/widgets_utils.dart';
 import '../../data/databases/catalog.dart';
 import '../../data/databases/userdata.dart';
 import '../../data/models/userdata/playlist.dart';
-import '../../features/publication/pages/menu/local/publication_menu_view.dart';
 import '../../core/utils/utils_dialog.dart';
+import '../../features/publication/pages/local/publication_menu_view.dart';
 import '../../i18n/i18n.dart';
 
 class FileHandlerService {
@@ -216,7 +216,7 @@ class FileHandlerService {
 
     } catch (e) {
       print('Erreur lors du traitement du fichier JW Library: $e');
-      throw e;
+      rethrow;
     }
   }
 
@@ -236,7 +236,7 @@ class FileHandlerService {
 
     } catch (e) {
       print('Erreur lors du traitement du fichier JW Playlist: $e');
-      throw e;
+      rethrow;
     }
   }
 
@@ -256,7 +256,7 @@ class FileHandlerService {
 
     } catch (e) {
       print('Erreur lors du traitement du fichier JW Publication: $e');
-      throw e;
+      rethrow;
     }
   }
 

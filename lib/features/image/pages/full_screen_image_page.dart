@@ -12,7 +12,7 @@ import 'package:jwlife/widgets/image_cached_widget.dart';
 import '../../../../../app/app_page.dart';
 import '../../../../../app/services/global_key_service.dart';
 import '../../../../../data/models/video.dart';
-import '../data/models/multimedia.dart';
+import '../../document/data/models/multimedia.dart';
 
 class FullScreenImagePage extends StatefulWidget {
   final Publication publication;
@@ -90,14 +90,18 @@ class _FullScreenImagePageState extends State<FullScreenImagePage> {
 
   @override
   Widget build(BuildContext context) {
+    TextDirection textDirection = widget.publication.mepsLanguage.isRtl ? TextDirection.rtl : TextDirection.ltr;
+
     return AppPage(
       isWebview: true,
       backgroundColor: const Color(0xFF101010),
       body: Stack(
         children: [
           PhotoViewGallery.builder(
+            reverse: widget.publication.mepsLanguage.isRtl,
             pageController: _pageController,
             itemCount: _multimedias.length,
+            wantKeepAlive: true,
             backgroundDecoration: const BoxDecoration(color: Color(0xFF101010)),
             builder: (context, index) {
               Multimedia media = _multimedias[index];
@@ -137,8 +141,7 @@ class _FullScreenImagePageState extends State<FullScreenImagePage> {
                           fit: BoxFit.cover,
                           animation: false,
                         ),
-                        const Icon(JwIcons.play_circle,
-                            size: 80, color: Colors.white70),
+                        const Icon(JwIcons.play_circle, size: 80, color: Colors.white70),
                       ],
                     ),
                   ),
@@ -186,15 +189,15 @@ class _FullScreenImagePageState extends State<FullScreenImagePage> {
           ValueListenableBuilder<bool>(
             valueListenable: _controlsVisible,
             builder: (context, controlsVisible, child) {
-              return controlsVisible ? _buildThumbnailList() : const SizedBox();
+              return controlsVisible ? _buildThumbnailList(textDirection) : const SizedBox();
             },
           ),
 
           // Bouton description
-          _buildFloatingDescriptionButton(),
+          _buildFloatingDescriptionButton(textDirection),
 
           // Texte de description
-          _buildDescription(),
+          _buildDescription(textDirection),
         ],
       ),
     );
@@ -229,7 +232,7 @@ class _FullScreenImagePageState extends State<FullScreenImagePage> {
     ),
   );
 
-  Widget _buildFloatingDescriptionButton() {
+  Widget _buildFloatingDescriptionButton(TextDirection textDirection) {
     if (_multimedias[_currentIndex].label.isEmpty) {
       return const SizedBox();
     }
@@ -242,21 +245,18 @@ class _FullScreenImagePageState extends State<FullScreenImagePage> {
         if (!controlsVisible) {
           return const SizedBox();
         }
-        return Positioned(
+        return Positioned.directional(
+          textDirection: textDirection,
           bottom: bottomOffset,
-          right: 16.0,
+          end: 16.0,
           child: ValueListenableBuilder<bool>(
             valueListenable: _descriptionVisible,
             builder: (context, visible, _) {
               return FloatingActionButton(
-                shape: const RoundedRectangleBorder(
-                    borderRadius: BorderRadius.all(Radius.circular(30))),
                 onPressed: () => _descriptionVisible.value = !visible,
                 backgroundColor: Theme.of(context).primaryColor,
-                child: Icon(
-                  visible ? JwIcons.image : JwIcons.gem,
-                  color: Colors.white,
-                ),
+                foregroundColor: Color(0xFF333333),
+                child: Icon(visible ? JwIcons.image : JwIcons.gem),
               );
             },
           ),
@@ -265,7 +265,7 @@ class _FullScreenImagePageState extends State<FullScreenImagePage> {
     );
   }
 
-  Widget _buildDescription() {
+  Widget _buildDescription(TextDirection textDirection) {
     final double bottom = isPortrait(context)
         ? MediaQuery.of(context).size.height / 4
         : MediaQuery.of(context).size.height / 2.5;
@@ -277,10 +277,11 @@ class _FullScreenImagePageState extends State<FullScreenImagePage> {
           valueListenable: _descriptionVisible,
           builder: (context, descriptionVisible, _) {
             if (!descriptionVisible || !controlsVisible) return const SizedBox();
-            return Positioned(
+            return Positioned.directional(
+              textDirection: textDirection,
               bottom: bottom,
-              left: 0,
-              right: 0,
+              start: 0,
+              end: 0,
               child: AnimatedOpacity(
                 opacity: descriptionVisible ? 1 : 0,
                 duration: const Duration(milliseconds: 250),
@@ -304,78 +305,80 @@ class _FullScreenImagePageState extends State<FullScreenImagePage> {
     );
   }
 
-  Widget _buildThumbnailList() => SafeArea(
-    child: Align(
-      alignment: Alignment.bottomCenter,
-      child: Padding(
-        padding: const EdgeInsets.only(bottom: kBottomNavigationBarHeight + 10),
-        child: SizedBox(
-          height: 80,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            controller: _scrollController,
-            itemCount: _multimedias.length,
-            itemBuilder: (context, index) {
-              final media = _multimedias[index];
-              bool isVideo = media.mimeType == 'video/mp4';
+  Widget _buildThumbnailList(TextDirection textDirection) => SafeArea(
+    child: Directionality(
+      textDirection: textDirection,
+      child: Align(
+        alignment: Alignment.bottomCenter,
+        child: Padding(
+          padding: const EdgeInsets.only(bottom: kBottomNavigationBarHeight + 10),
+          child: SizedBox(
+            height: 80,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              controller: _scrollController,
+              itemCount: _multimedias.length,
+              itemBuilder: (context, index) {
+                final media = _multimedias[index];
+                bool isVideo = media.mimeType == 'video/mp4';
 
-              RealmMediaItem? mediaItem;
-              if (isVideo) {
-                String? pub = media.keySymbol;
-                int? track = media.track;
-                int? documentId = media.mepsDocumentId;
-                int? issueTagNumber = media.issueTagNumber;
-                int? mepsLanguageId = media.mepsLanguageId;
+                RealmMediaItem? mediaItem;
+                if (isVideo) {
+                  String? pub = media.keySymbol;
+                  int? track = media.track;
+                  int? documentId = media.mepsDocumentId;
+                  int? issueTagNumber = media.issueTagNumber;
+                  int? mepsLanguageId = media.mepsLanguageId;
 
-                mediaItem = getMediaItem(
-                    pub,
-                    track,
-                    documentId,
-                    issueTagNumber,
-                    mepsLanguageId,
-                    isVideo: true
-                );
-              }
+                  mediaItem = getMediaItem(
+                      pub,
+                      track,
+                      documentId,
+                      issueTagNumber,
+                      mepsLanguageId,
+                      isVideo: true
+                  );
+                }
 
-              final isSelected = index == _currentIndex;
+                final isSelected = index == _currentIndex;
 
-              return GestureDetector(
-                onTap: () => _pageController.jumpToPage(index),
-                child: Container(
-                  width: isSelected ? 80 : 60,
-                  margin: EdgeInsets.symmetric(horizontal: 5),
-                  child: Align(
-                    alignment: Alignment.center,
-                    child: Container(
-                        width: isSelected ? 80 : 60,
-                        height: isSelected ? 80 : 60,
-                        decoration: BoxDecoration(
-                          border: isSelected ? Border.all(color: Colors.white, width: 2) : null,
-                          borderRadius: BorderRadius.circular(0),
-                        ),
-                        child: Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(0),
-                              child: mediaItem != null ? ImageCachedWidget(
-                                imageUrl:
-                                mediaItem.images?.squareFullSizeImageUrl ??
-                                    mediaItem.images?.squareImageUrl ??
-                                    mediaItem.images?.wideFullSizeImageUrl ?? mediaItem.images?.wideImageUrl,
-                                icon: JwIcons.video,
-                                fit: BoxFit.cover,
-                                animation: false,
-                              ) : Image.file(File('${widget.publication.path}/${media.filePath}'), fit: BoxFit.cover),
-                            ),
-                            isVideo ? Icon(JwIcons.play_circle, color: Colors.white, size: 30) : Container(),
-                          ],
-                        )
+                return GestureDetector(
+                  onTap: () => _pageController.jumpToPage(index),
+                  child: Container(
+                    width: isSelected ? 80 : 60,
+                    margin: EdgeInsets.symmetric(horizontal: 5),
+                    child: Align(
+                      alignment: Alignment.center,
+                      child: Container(
+                          width: isSelected ? 80 : 60,
+                          height: isSelected ? 80 : 60,
+                          decoration: BoxDecoration(
+                            border: isSelected ? Border.all(color: Colors.white, width: 2) : null,
+                            borderRadius: BorderRadius.circular(0),
+                          ),
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(0),
+                                child: mediaItem != null ? ImageCachedWidget(
+                                  imageUrl:
+                                  mediaItem.images?.squareFullSizeImageUrl ??
+                                      mediaItem.images?.squareImageUrl ??
+                                      mediaItem.images?.wideFullSizeImageUrl ?? mediaItem.images?.wideImageUrl,
+                                  icon: JwIcons.video,
+                                  fit: BoxFit.cover
+                                ) : Image.file(File('${widget.publication.path}/${media.filePath}'), fit: BoxFit.cover),
+                              ),
+                              isVideo ? Icon(JwIcons.play_circle, color: Colors.white, size: 30) : Container(),
+                            ],
+                          )
+                      ),
                     ),
                   ),
-                ),
-              );
-            },
+                );
+              },
+            ),
           ),
         ),
       ),

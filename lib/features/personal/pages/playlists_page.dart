@@ -8,6 +8,8 @@ import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/features/personal/pages/playlist_page.dart';
 import 'package:jwlife/widgets/responsive_appbar_actions.dart';
 import '../../../app/app_page.dart';
+import '../../../core/ui/app_dimens.dart';
+import '../../../core/utils/utils.dart';
 import '../../../core/utils/utils_playlist.dart';
 import '../../../core/utils/utils_tag_dialogs.dart';
 import '../../../data/models/userdata/playlist.dart';
@@ -47,7 +49,7 @@ class _PlaylistsPageState extends State<PlaylistsPage> {
     return AppPage(
       appBar: JwLifeAppBar(
         title: i18n().navigation_playlists,
-        subTitle: i18n().label_playlist_items(filteredPlaylists.length),
+        subTitle: i18n().label_playlist_items(formatNumber(filteredPlaylists.length)),
         actions: [
           IconTextButton(
             icon: Icon(JwIcons.plus),
@@ -121,8 +123,8 @@ class _PlaylistsPageState extends State<PlaylistsPage> {
                                             future: playlist.getThumbnailFile(),
                                             builder: (context, snapshot) {
                                               final placeholder = Container(
-                                                height: 80,
-                                                width: 80,
+                                                height: kSquareItemHeight,
+                                                width: kSquareItemHeight,
                                                 color: Colors.grey.shade300,
                                               );
 
@@ -132,16 +134,16 @@ class _PlaylistsPageState extends State<PlaylistsPage> {
 
                                               if (snapshot.hasError || snapshot.data == null) {
                                                 return Container(
-                                                  height: 80,
-                                                  width: 80,
+                                                  height: kSquareItemHeight,
+                                                  width: kSquareItemHeight,
                                                   color: Colors.grey,
                                                 );
                                               }
 
                                               return Image.file(
                                                 snapshot.data!,
-                                                height: 80,
-                                                width: 80,
+                                                height: kSquareItemHeight,
+                                                width: kSquareItemHeight,
                                                 fit: BoxFit.cover,
                                               );
                                             },
@@ -149,9 +151,9 @@ class _PlaylistsPageState extends State<PlaylistsPage> {
                                         ),
                                         Expanded(
                                           child: Padding(
-                                            padding: EdgeInsets.only(
-                                              left: 6.0,
-                                              right: 25.0,
+                                            padding: EdgeInsetsDirectional.only(
+                                              start: 6.0,
+                                              end: 25.0,
                                               top: 4.0,
                                               bottom: 2.0,
                                             ),
@@ -177,16 +179,16 @@ class _PlaylistsPageState extends State<PlaylistsPage> {
                                     ),
 
                                     // Menu contextuel
-                                    Positioned(
-                                      top: -5,
-                                      right: -10,
+                                    PositionedDirectional(
+                                      top: -10,
+                                      end: -5,
                                       child: PopupMenuButton(
                                         popUpAnimationStyle: AnimationStyle.lerp(
                                           const AnimationStyle(curve: Curves.ease),
                                           const AnimationStyle(curve: Curves.ease),
                                           0.5,
                                         ),
-                                        icon: const Icon(Icons.more_vert, color: Color(0xFF9d9d9d)),
+                                        icon: const Icon(Icons.more_horiz, color: Color(0xFF9d9d9d)),
                                         itemBuilder: (context) => [
                                           PopupMenuItem(
                                             child: Row(

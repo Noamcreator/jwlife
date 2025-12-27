@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
@@ -196,48 +195,47 @@ Future<String?> _showOnlineVideoDialog(BuildContext context, Video video, dynami
 
 // Fonction pour afficher le dialogue de téléchargement
 Future<String?> showDocumentDialog(BuildContext context, String? pub, String? docId, String? track, String langwritten, String fileformat) async {
-  final connectivityResult = await (Connectivity().checkConnectivity());
+  if(await hasInternetConnection(context: context)) {
+    final queryParams = <String, String>{
+      if (pub != null) 'pub': pub,
+      if (docId != null) 'docid': docId,
+      'fileformat': fileformat,
+      if (track != null) 'track': track,
+      'langwritten': langwritten,
+      'output': 'json',
+      'alllangs': '0',
+    };
 
-  final queryParams = <String, String>{
-    if (pub != null) 'pub': pub,
-    if (docId != null) 'docid': docId,
-    'fileformat': fileformat,
-    if (track != null) 'track': track,
-    'langwritten': langwritten,
-    'output': 'json',
-    'alllangs': '0',
-  };
+    printTime("queryParams: $queryParams");
 
-  printTime("queryParams: $queryParams");
+    // Construire l'URL avec Uri.https
+    final url = Uri.https('b.jw-cdn.org', '/apis/pub-media/GETPUBMEDIALINKS', queryParams);
 
-  // Construire l'URL avec Uri.https
-  final url = Uri.https('b.jw-cdn.org', '/apis/pub-media/GETPUBMEDIALINKS', queryParams);
+    printTime("url: $url");
 
-  printTime("url: $url");
+    try {
+      // Effectuer la requête HTTP
+      final response = await Api.httpGetWithHeadersUri(url, responseType: ResponseType.json);
 
-  try {
-    // Effectuer la requête HTTP
-    final response = await Api.httpGetWithHeadersUri(url, responseType: ResponseType.json);
-
-    // Vérifier si la requête a réussi (code 200)
-    if (response.statusCode == 200) {
-      _showPdfDialog(context, connectivityResult, response.data, langwritten);
+      // Vérifier si la requête a réussi (code 200)
+      if (response.statusCode == 200) {
+        _showPdfDialog(context, response.data, langwritten);
+      }
+      else {
+        // Si la requête échoue, afficher un message d'erreur
+        printTime("Erreur lors de la récupération des données: ${response.statusCode}");
+      }
     }
-    else {
-      // Si la requête échoue, afficher un message d'erreur
-      printTime("Erreur lors de la récupération des données: ${response.statusCode}");
+    catch (e) {
+      // Gérer les erreurs liées à la requête HTTP
+      printTime("Erreur de connexion ou de requête: $e");
+      // Vous pouvez afficher un message d'erreur ou de débogage
     }
   }
-  catch (e) {
-    // Gérer les erreurs liées à la requête HTTP
-    printTime("Erreur de connexion ou de requête: $e");
-    // Vous pouvez afficher un message d'erreur ou de débogage
-  }
-
   return '';
 }
 
-Future<String?> _showPdfDialog(BuildContext context, List<ConnectivityResult> connectivityResult, dynamic jsonData, String langwritten) async {
+Future<String?> _showPdfDialog(BuildContext context, dynamic jsonData, String langwritten) async {
   dynamic file = jsonData['files'][langwritten]['PDF'][0];
 
   return showJwDialog<String>(

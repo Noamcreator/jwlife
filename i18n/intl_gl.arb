@@ -912,5 +912,13 @@
   "action_scan_qr_code": "Escanear un Código QR",
   "settings_page_transition": "Transición de páxina",
   "settings_page_transition_bottom": "Transición dende abaixo",
-  "settings_page_transition_right": "Transición dende a dereita"
+  "settings_page_transition_right": "Transición dende a dereita",
+  "label_research_all": "TODO",
+  "label_research_wol": "WOL",
+  "label_research_bible": "BIBLIA",
+  "label_research_verses": "VERSÍCULOS",
+  "label_research_images": "IMAXES",
+  "label_research_notes": "NOTAS",
+  "label_research_inputs_fields": "CAMPOS",
+  "label_research_wikipedia": "WIKIPEDIA"
 }

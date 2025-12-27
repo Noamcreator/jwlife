@@ -14,7 +14,7 @@ import 'package:path/path.dart' as path;
 
 import '../../../../core/app_data/meetings_pubs_service.dart';
 import '../../../../core/utils/common_ui.dart';
-import '../../../publication/pages/menu/local/publication_menu_view.dart';
+import '../../../publication/pages/local/publication_menu_view.dart';
 
 class DownloadPageModel with ChangeNotifier {
   bool _isLoading = true;

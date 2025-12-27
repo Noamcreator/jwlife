@@ -2,8 +2,8 @@ import 'dart:io';
 
 import '../../app/services/global_key_service.dart';
 import '../../data/models/publication.dart';
+import '../../features/document/local/document_page.dart';
 import '../../features/home/pages/daily_text_page.dart';
-import '../../features/publication/pages/document/local/document_page.dart';
 import '../shared_preferences/shared_preferences_utils.dart';
 import 'directory_helper.dart';
 

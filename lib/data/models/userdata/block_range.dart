@@ -48,7 +48,8 @@ class BlockRange {
       'EndToken': endToken,
       'ColorIndex': colorIndex,
       'StyleIndex': styleIndex,
-      'Version': version
+      'Version': version,
+      'Location': location.toMap(),
     };
   }
 

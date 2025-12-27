@@ -181,8 +181,7 @@ class _LanguagesAppDialogState extends State<LanguagesAppDialog> {
             Divider(color: dividerColor),
 
             Padding(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 10, vertical: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                 child: Row(
                   children: [
                     Icon(JwIcons.magnifying_glass, color: hintColor),
@@ -233,7 +232,7 @@ class _LanguagesAppDialogState extends State<LanguagesAppDialog> {
                         },
                         child: Container(
                           color: selectedLocale == languageData['Locale'] ? Theme.of(context).brightness == Brightness.dark ? const Color(0xFF626262) : const Color(0xFFf0f0f0) : null,
-                          padding: const EdgeInsets.only(left: 40, right: 5, top: 5, bottom: 5),
+                          padding: const EdgeInsetsDirectional.only(start: 40, end: 5, top: 5, bottom: 5),
                           child: Stack(
                             children: [
                               Row(
@@ -243,24 +242,15 @@ class _LanguagesAppDialogState extends State<LanguagesAppDialog> {
                                     Container(
                                       width: 3,
                                       height: 20,
-                                      color: Theme
-                                          .of(context)
-                                          .primaryColor,
+                                      color: Theme.of(context).primaryColor,
                                     ),
                                   const SizedBox(width: 8),
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment
-                                          .start,
+                                      crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-                                        Text(translatedName,
-                                            style: const TextStyle(
-                                                fontSize: 16)),
-                                        Text(vernacularName,
-                                          style: TextStyle(
-                                            fontSize: 14,
-                                            color: subtitleColor,
-                                          ),
+                                        Text(translatedName, style: const TextStyle(fontSize: 16)),
+                                        Text(vernacularName, style: TextStyle(fontSize: 14, color: subtitleColor),
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
                                         ),
@@ -281,7 +271,7 @@ class _LanguagesAppDialogState extends State<LanguagesAppDialog> {
             ),
             Divider(color: dividerColor),
             Align(
-              alignment: Alignment.centerRight,
+              alignment: AlignmentDirectional.centerEnd,
               child: TextButton(
                 child: Text(
                   i18n().action_done_uppercase,
@@ -289,9 +279,7 @@ class _LanguagesAppDialogState extends State<LanguagesAppDialog> {
                     fontFamily: 'Roboto',
                     letterSpacing: 1,
                     fontWeight: FontWeight.bold,
-                    color: Theme
-                        .of(context)
-                        .primaryColor,
+                    color: Theme.of(context).primaryColor,
                   ),
                 ),
                 onPressed: () {

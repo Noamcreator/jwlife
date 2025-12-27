@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:jwlife/core/utils/utils_document.dart';
+import 'package:jwlife/data/repositories/PublicationRepository.dart';
 
-import '../../../../app/app_page.dart' show AppPage;
 import '../../../../app/services/settings_service.dart';
 import '../../../../core/utils/html_styles.dart';
+import '../../../../data/models/publication.dart';
 import 'search_model.dart';
 
 class BibleSearchTab extends StatefulWidget {
@@ -126,10 +127,14 @@ class _BibleSearchTabState extends State<BibleSearchTab> {
                   int chapterNumber = int.parse(itemString2.substring(2, 5));
                   int verseNumber = int.parse(itemString2.substring(5, 8));
 
+                  final publications = PublicationRepository().getAllDownloadedPublications().where((pub) => pub.category.id == 1 && pub.mepsLanguage.symbol == JwLifeSettings.instance.currentLanguage.value.symbol).toList();
+
+                  Publication? latestBible = publications.isEmpty ? null : publications.reduce((a, b) => a.year > b.year ? a : b);
+
                   List<String> wordsSelected = widget.model.query.split(' ');
                   showChapterView(
                     context,
-                    'nwtsty',
+                    latestBible?.keySymbol ?? 'nwtsty',
                     JwLifeSettings.instance.currentLanguage.value.id,
                     bookNumber,
                     chapterNumber,

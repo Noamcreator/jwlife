@@ -11,7 +11,7 @@ class AboutMePage extends StatefulWidget {
 }
 
 class _AboutMePageState extends State<AboutMePage> {
-  Map<String, dynamic> _me = {};
+  final Map<String, dynamic> _me = {};
 
   // Contrôleurs pour les informations de l'utilisateur
   final TextEditingController _nameController = TextEditingController();
@@ -35,7 +35,7 @@ class _AboutMePageState extends State<AboutMePage> {
     {'id': 1, 'value': 'Homme'},
     {'id': 2, 'value': 'Femme'}
   ];
-  List<Map<String, dynamic>> _assemblyOptions = []; // Remplissez cette liste avec vos données
+  final List<Map<String, dynamic>> _assemblyOptions = []; // Remplissez cette liste avec vos données
   final List<Map<String, dynamic>> _groupOptions = []; // Remplissez cette liste avec vos données
   final List<Map<String, dynamic>> _roleOptions = [
     {'id': 1, 'value': 'Ancien'},
@@ -205,7 +205,7 @@ class _AboutMePageState extends State<AboutMePage> {
             // Bouton de sauvegarde
             ElevatedButton(
               style: ButtonStyle(
-                shape: MaterialStateProperty.all<RoundedRectangleBorder>(RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0))),
+                shape: WidgetStateProperty.all<RoundedRectangleBorder>(RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0))),
               ),
               onPressed: _saveUserData,
               child: Text('Enregistrer'),
@@ -281,7 +281,7 @@ class _AboutMePageState extends State<AboutMePage> {
           filled: true,
           fillColor: Theme.of(context).primaryColor.withOpacity(0.1),
         ),
-        value: options.firstWhere((option) => option['id'] == selectedId, orElse: () => options.first),
+        initialValue: options.firstWhere((option) => option['id'] == selectedId, orElse: () => options.first),
         items: options.map((option) {
           return DropdownMenuItem<Map<String, dynamic>>(
             value: option,

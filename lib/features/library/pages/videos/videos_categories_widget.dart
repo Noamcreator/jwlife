@@ -52,7 +52,7 @@ class VideosCategoriesWidget extends StatelessWidget {
             child: ImageCachedWidget(
               imageUrl: category.images!.extraWideImageUrl,
               icon: JwIcons.video,
-              height: kItemHeight,
+              height: kSquareItemHeight,
               fit: BoxFit.fill,
             ),
           ),

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/app/jwlife_app_bar.dart';
 import 'package:jwlife/core/icons.dart';
+import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/core/utils/utils_tag_dialogs.dart';
 
 import 'package:jwlife/features/personal/pages/playlist_player.dart';
@@ -155,19 +156,10 @@ class _PlaylistPageState extends State<PlaylistPage> {
 
   @override
   Widget build(BuildContext context) {
-    final textStyleTitle =
-    const TextStyle(fontSize: 20, fontWeight: FontWeight.bold);
-    final textStyleSubtitle = TextStyle(
-      fontSize: 14,
-      color: Theme.of(context).brightness == Brightness.dark
-          ? const Color(0xFFc3c3c3)
-          : const Color(0xFF626262),
-    );
-
     return AppPage(
       appBar: JwLifeAppBar(
         title: _playlist.name,
-        subTitle: '${i18n().label_playlist_items(_filteredPlaylistItem.length)} · ${i18n().label_duration(getPlaylistDuration(_filteredPlaylistItem))}',
+        subTitle: '${i18n().label_playlist_items(formatNumber(_filteredPlaylistItem.length))} · ${i18n().label_duration(getPlaylistDuration(_filteredPlaylistItem))}',
         actions: [
           IconTextButton(
             icon: const Icon(JwIcons.pencil),
@@ -287,9 +279,6 @@ class _PlaylistPageState extends State<PlaylistPage> {
   }
 
   String getPlaylistDuration(List<PlaylistItem> filteredPlaylistItem) {
-    // Utilisez un BigInt ou un double pour la somme initiale si les ticks sont très grands,
-    // mais une simple addition suffit souvent si Flutter gère bien les grands entiers (64-bit).
-    // Nous utiliserons un int (64-bit) pour le total des ticks.
     int totalTicks = 0;
 
     // 1. Calcul de la durée totale en Ticks
@@ -297,13 +286,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
       totalTicks += item.durationTicks ?? item.baseDurationTicks ?? 0;
     }
 
-    // Si la durée est zéro, on retourne 0:00
-    if (totalTicks == 0) {
-      return '0:00';
-    }
-
-    // 2. Conversion en secondes (division par 10^7 pour les 100-nanoseconde ticks)
-    // Utiliser la division entière (~) pour rester en entier, car nous ne voulons pas des ms ici.
+    // 2. Conversion en secondes
     final int totalSeconds = totalTicks ~/ 10000000;
 
     // 3. Conversion en Heures, Minutes, Secondes
@@ -314,16 +297,19 @@ class _PlaylistPageState extends State<PlaylistPage> {
 
     // 4. Formatage en String
 
-    // Les secondes et minutes (si format H:MM:SS) doivent toujours avoir deux chiffres (ex: 05, 12)
-    final String secondsStr = seconds.toString().padLeft(2, '0');
+    // On applique formatNumber sur les INT d'abord,
+    // puis on gère le padding sur le résultat textuel.
+    final String secondsStr = formatNumber(seconds).padLeft(2, formatNumber(0));
 
     if (hours > 0) {
-      // Format H:MM:SS (ex: 1:25:00)
-      final String minutesStr = minutes.toString().padLeft(2, '0');
-      return '$hours:$minutesStr:$secondsStr';
+      // Format H:MM:SS
+      final String minutesStr = formatNumber(minutes).padLeft(2, formatNumber(0));
+      final String hoursStr = formatNumber(hours);
+
+      return '$hoursStr:$minutesStr:$secondsStr';
     } else {
-      // Format M:SS (ex: 1:15)
-      final String minutesStr = totalMinutes.toString(); // Pas de padLeft pour les minutes
+      // Format M:SS
+      final String minutesStr = formatNumber(totalMinutes);
       return '$minutesStr:$secondsStr';
     }
   }
@@ -339,7 +325,6 @@ class _KeepAlivePlaylistItemItem extends StatefulWidget {
   final Function(PlaylistItem) onDelete;
 
   const _KeepAlivePlaylistItemItem({
-    super.key,
     required this.item,
     required this.items,
     required this.onDelete,

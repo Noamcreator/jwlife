@@ -3114,4 +3114,28 @@ class AppLocalizationsAs extends AppLocalizations {
 
   @override
   String get settings_page_transition_right => 'সোঁফালৰ পৰা পৰিৱৰ্তন';
+
+  @override
+  String get label_research_all => 'সকলো';
+
+  @override
+  String get label_research_wol => 'WOL';
+
+  @override
+  String get label_research_bible => 'বাইবেল';
+
+  @override
+  String get label_research_verses => 'পদবোৰ';
+
+  @override
+  String get label_research_images => 'ছবি';
+
+  @override
+  String get label_research_notes => 'টোকা';
+
+  @override
+  String get label_research_inputs_fields => 'ক্ষেত্ৰসমূহ';
+
+  @override
+  String get label_research_wikipedia => 'উইকিপিডিয়া';
 }

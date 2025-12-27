@@ -8,19 +8,20 @@ import '../../../core/utils/utils_video.dart'; // Fonctions de menu Video
 import '../../../data/models/media.dart';
 import '../../../data/models/audio.dart';
 import '../../../data/models/video.dart';
-import '../../../data/repositories/MediaRepository.dart';
 import '../../../widgets/image_cached_widget.dart';
 
 class RectangleMediaItemItem extends StatelessWidget {
   final Media media;
   final Color? backgroundColor;
-  final double height; // Rendre la hauteur modifiable, mais garder 80 par défaut
+  final double height;
+  final bool searchWidget;
 
   const RectangleMediaItemItem({
     super.key,
     required this.media,
     this.backgroundColor,
-    this.height = kItemHeight,
+    this.height = kSquareItemHeight,
+    this.searchWidget = false
   });
 
   // Extrait la logique de la barre de progression
@@ -29,10 +30,10 @@ class RectangleMediaItemItem extends StatelessWidget {
       valueListenable: media.isDownloadingNotifier,
       builder: (context, isDownloading, _) {
         return isDownloading
-            ? Positioned(
+            ? PositionedDirectional(
           bottom: 0,
-          right: 0,
-          left: leftOffset, // Décalage basé sur la taille de l'image
+          end: 0,
+          start: leftOffset, // Décalage basé sur la taille de l'image
           height: 2,
           child: ValueListenableBuilder<double>(
             valueListenable: media.progressNotifier,
@@ -59,9 +60,9 @@ class RectangleMediaItemItem extends StatelessWidget {
       builder: (context, isDownloading, _) {
         // --- 1. Mode Téléchargement en cours (Annuler) ---
         if (isDownloading) {
-          return Positioned(
+          return PositionedDirectional(
             bottom: -4,
-            right: -8,
+            end: -8,
             height: 40,
             child: IconButton(
               padding: EdgeInsets.zero,
@@ -79,9 +80,9 @@ class RectangleMediaItemItem extends StatelessWidget {
           valueListenable: media.isDownloadedNotifier,
           builder: (context, isDownloaded, _) {
             if (!isDownloaded || media.hasUpdate()) {
-              return Positioned(
+              return PositionedDirectional(
                 bottom: 0,
-                right: -5,
+                end: -5,
                 height: 40,
                 child: IconButton(
                   padding: EdgeInsets.zero,
@@ -110,9 +111,9 @@ class RectangleMediaItemItem extends StatelessWidget {
               valueListenable: media.isFavoriteNotifier,
               builder: (context, isFavorite, _) {
                 if (isFavorite) {
-                  return const Positioned(
+                  return const PositionedDirectional(
                     bottom: -4,
-                    right: 2,
+                    end: 2,
                     height: 40,
                     child: Icon(
                       JwIcons.star, // Assurez-vous que JwIcons.star existe ou utilisez Icons.star
@@ -132,11 +133,12 @@ class RectangleMediaItemItem extends StatelessWidget {
 
   // Extrait le menu contextuel (const)
   Widget _buildPopupMenu(BuildContext context) {
-    return Positioned(
+    return PositionedDirectional(
       top: -13,
-      right: -7,
+      end: -7,
       child: RepaintBoundary(
         child: PopupMenuButton(
+          useRootNavigator: true,
           popUpAnimationStyle: AnimationStyle.lerp(
             const AnimationStyle(curve: Curves.ease),
             const AnimationStyle(curve: Curves.ease),
@@ -207,13 +209,24 @@ class RectangleMediaItemItem extends StatelessWidget {
                   // Texte
                   Expanded(
                     child: Padding(
-                      // Ajustement des paddings
-                      padding: const EdgeInsets.only(left: 6.0, right: 25.0, top: 4.0, bottom: 2.0),
+                      padding: EdgeInsetsDirectional.only(
+                          start: 6.0,
+                          end: 25.0,
+                          top: searchWidget ? 2.0 : 4.0,
+                          bottom: 2.0
+                      ),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Titre (toujours affiché)
+                          if(searchWidget)
+                            Text(
+                              media.getCategoryName(),
+                              style: TextStyle(fontSize: 12, color: subtitleColor),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.start, // S'assurer de l'alignement
+                            ),
                           Text(
                             media.title,
                             style: TextStyle(
@@ -225,7 +238,6 @@ class RectangleMediaItemItem extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                           ),
                           const Spacer(),
-                          // Date + keySymbol
                           Text(
                             '${formatYear(formatDateTime(media.lastModified ?? media.firstPublished.toString()).year)} · ${media.keySymbol}',
                             style: TextStyle(fontSize: 11, color: subtitleColor),
@@ -240,9 +252,9 @@ class RectangleMediaItemItem extends StatelessWidget {
               // --- Éléments Positionnés ---
 
               // Affichage de la durée (comme le bandeau de l'original)
-              Positioned(
+              PositionedDirectional(
                 top: 0,
-                left: 0,
+                start: 0,
                 child: Container(
                   color: Colors.black.withOpacity(0.8),
                   padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.2),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/databases/catalog.dart';
 import 'package:jwlife/features/home/pages/search/search_model.dart';
@@ -187,7 +188,7 @@ class _PublicationsSearchTabState extends State<PublicationsSearchTab> {
                           )
                               : Center(
                             child: Icon(
-                              Icons.menu_book_rounded,
+                              JwIcons.book_stack,
                               color: isDark ? Colors.grey[600] : Colors.grey[400],
                               size: 36,
                             ),
@@ -206,7 +207,7 @@ class _PublicationsSearchTabState extends State<PublicationsSearchTab> {
                           children: [
                             // Titre de la publication
                             Text(
-                              item['title'],
+                              item['title'].replaceAll('&nbsp;', ' '),
                               style: TextStyle(
                                 fontWeight: FontWeight.w600,
                                 fontSize: 16,
@@ -241,9 +242,10 @@ class _PublicationsSearchTabState extends State<PublicationsSearchTab> {
                       //     MENU ACTIONS (à droite)
                       // ---------------------------------------
                       PopupMenuButton<String>(
+                        useRootNavigator: true,
                         padding: EdgeInsets.zero,
                         icon: Icon(
-                          Icons.more_vert,
+                          Icons.more_horiz,
                           color: isDark ? Colors.grey[400] : Colors.grey[600],
                           size: 22,
                         ),

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:jwlife/core/utils/utils_document.dart';
 import 'package:jwlife/data/models/publication.dart';
@@ -45,12 +46,9 @@ class _ImagesSearchTabState extends State<ImagesSearchTab> {
             spacing: 10,
             runSpacing: 10,
             children: images.map((item) {
-              Publication downloadPub = PublicationRepository()
-                  .getAllDownloadedPublications()
-                  .firstWhere((pub) =>
-              pub.keySymbol == item['KeySymbol'] &&
-                  pub.year == item['Year'] &&
-                  pub.mepsLanguage.id == item['MepsLanguageIndex']);
+              Publication? downloadPub = PublicationRepository().getAllDownloadedPublications().firstWhereOrNull((pub) => pub.keySymbol == item['KeySymbol'] && pub.year == item['Year'] && pub.mepsLanguage.id == item['MepsLanguageIndex']);
+
+              if (downloadPub == null) return const SizedBox();
 
               final filePath = item['FilePath'];
               final label = item['Label'] ?? 'Sans titre';

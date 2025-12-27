@@ -912,5 +912,13 @@
   "action_scan_qr_code": "QR कोड स्क्यान गर्नुहोस्",
   "settings_page_transition": "पृष्ठ संक्रमण",
   "settings_page_transition_bottom": "तलबाट संक्रमण",
-  "settings_page_transition_right": "दायाँबाट संक्रमण"
+  "settings_page_transition_right": "दायाँबाट संक्रमण",
+  "label_research_all": "सबै",
+  "label_research_wol": "WOL",
+  "label_research_bible": "बाइबल",
+  "label_research_verses": "पदहरू",
+  "label_research_images": "तस्बिरहरू",
+  "label_research_notes": "नोटहरू",
+  "label_research_inputs_fields": "क्षेत्रहरू",
+  "label_research_wikipedia": "विकिपीडिया"
 }

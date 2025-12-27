@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:jwlife/core/ui/app_dimens.dart';
 import 'package:jwlife/data/models/media.dart';
-import 'package:jwlife/data/repositories/MediaRepository.dart';
 
 import '../../../../core/icons.dart';
 import '../../../../core/ui/text_styles.dart';
@@ -14,8 +13,9 @@ import '../../../../widgets/image_cached_widget.dart';
 
 class HomeSquareMediaItemItem extends StatelessWidget {
   final Media media;
+  final bool favorite;
 
-  const HomeSquareMediaItemItem({super.key, required this.media});
+  const HomeSquareMediaItemItem({super.key, required this.media, this.favorite = false});
 
   @override
   Widget build(BuildContext context) {
@@ -41,10 +41,11 @@ class HomeSquareMediaItemItem extends StatelessWidget {
                         width: kSquareItemHeight,
                       ),
                     ),
-                    Positioned(
+                    PositionedDirectional(
                       top: -13,
-                      right: -7,
+                      end: -7,
                       child: PopupMenuButton(
+                        useRootNavigator: true,
                         icon: const Icon(Icons.more_horiz, color: Colors.white, shadows: [Shadow(color: Colors.black, blurRadius: 20)]),
                         itemBuilder: (context) => media is Audio ? [
                           getAudioShareItem(media as Audio),
@@ -69,9 +70,9 @@ class HomeSquareMediaItemItem extends StatelessWidget {
                       ),
                     ),
 
-                    Positioned(
+                    PositionedDirectional(
                       top: 0,
-                      left: 0,
+                      start: 0,
                       child: Container(
                         color: Colors.black.withOpacity(0.85),
                         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
@@ -93,9 +94,9 @@ class HomeSquareMediaItemItem extends StatelessWidget {
                       valueListenable: media.isDownloadingNotifier,
                       builder: (context, isDownloading, _) {
                         if (isDownloading) {
-                          return Positioned(
+                          return PositionedDirectional(
                             bottom: -4,
-                            right: -8,
+                            end: -8,
                             height: 40,
                             child: IconButton(
                               padding: EdgeInsets.zero,
@@ -115,9 +116,9 @@ class HomeSquareMediaItemItem extends StatelessWidget {
                           valueListenable: media.isDownloadedNotifier,
                           builder: (context, isDownloaded, _) {
                             if (!isDownloaded) {
-                              return Positioned(
+                              return PositionedDirectional(
                                 bottom: -4,
-                                right: -5,
+                                end: -5,
                                 height: 40,
                                 child: IconButton(
                                   padding: EdgeInsets.zero,
@@ -136,9 +137,9 @@ class HomeSquareMediaItemItem extends StatelessWidget {
                               );
                             }
                             else if (media.hasUpdate()) {
-                              return Positioned(
+                              return PositionedDirectional(
                                 bottom: -4,
-                                right: -8,
+                                end: -8,
                                 height: 40,
                                 child: IconButton(
                                   padding: EdgeInsets.zero,
@@ -158,10 +159,10 @@ class HomeSquareMediaItemItem extends StatelessWidget {
                             return ValueListenableBuilder<bool>(
                               valueListenable: media.isFavoriteNotifier,
                               builder: (context, isFavorite, _) {
-                                if (isFavorite) {
-                                  return Positioned(
+                                if (isFavorite && !favorite) {
+                                  return PositionedDirectional(
                                     bottom: -4,
-                                    right: 2,
+                                    end: 2,
                                     height: 40,
                                     child: const Icon(
                                       JwIcons.star,
@@ -182,9 +183,9 @@ class HomeSquareMediaItemItem extends StatelessWidget {
                       },
                     ),
                     // Barre de progression
-                    Positioned(
+                    PositionedDirectional(
                       bottom: 0,
-                      right: 0,
+                      end: 0,
                       height: 2,
                       width: 80,
                       child: ValueListenableBuilder<bool>(

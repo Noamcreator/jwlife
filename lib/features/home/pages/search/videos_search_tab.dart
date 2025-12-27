@@ -211,9 +211,9 @@ class _VideosSearchTabState extends State<VideosSearchTab> {
                     ),
                   ),
                 ),
-                Positioned(
+                PositionedDirectional(
                   top: 0,
-                  left: 0,
+                  start: 0,
                   child: Container(
                     padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
                     decoration: BoxDecoration(
@@ -230,7 +230,7 @@ class _VideosSearchTabState extends State<VideosSearchTab> {
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          formatDuration(mediaItem.duration!),
+                          formatDuration(mediaItem.duration),
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 16,
@@ -240,10 +240,11 @@ class _VideosSearchTabState extends State<VideosSearchTab> {
                     ),
                   ),
                 ),
-                Positioned(
+                PositionedDirectional(
                   top: 5,
-                  right: 5,
+                  end: 5,
                   child: PopupMenuButton(
+                    useRootNavigator: true,
                     icon: const Icon(Icons.more_horiz, color: Colors.white, size: 30),
                     itemBuilder: (context) => [
                       getVideoShareItem(video),

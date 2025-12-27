@@ -136,7 +136,7 @@ class ToolboxSection extends StatelessWidget {
       return HomeSquareMediaItemItem(media: item);
     }
     else if (item is Publication) {
-      return HomeSquarePublicationItem(pub: item, toolbox: true);
+      return HomeSquarePublicationItem(publication: item, toolbox: true);
     }
     return const SizedBox(width: 20);
   }

@@ -426,7 +426,7 @@ class _PublicationMenuState extends State<PublicationMenu> with SingleTickerProv
             return GestureDetector(
               onTap: () {
                 printTime('Grid card clicked: ${gridCard['title']}');
-                ScrollController _scrollController = ScrollController();
+                ScrollController scrollController = ScrollController();
 
                 /*
                 showPage(PagesDocumentView(

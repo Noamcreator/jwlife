@@ -3164,4 +3164,28 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get settings_page_transition_right => 'Transition par la droite';
+
+  @override
+  String get label_research_all => 'TOUT';
+
+  @override
+  String get label_research_wol => 'WOL';
+
+  @override
+  String get label_research_bible => 'BIBLE';
+
+  @override
+  String get label_research_verses => 'VERSETS';
+
+  @override
+  String get label_research_images => 'IMAGES';
+
+  @override
+  String get label_research_notes => 'NOTES';
+
+  @override
+  String get label_research_inputs_fields => 'CHAMPS';
+
+  @override
+  String get label_research_wikipedia => 'WIKIPÉDIA';
 }

@@ -19,7 +19,7 @@ Future<void> fetchArticles(MepsLanguage language) async {
 
   final db = await openDatabase(
     articlesDbFile.path,
-    version: 2,
+    version: 1,
     onCreate: (db, version) async {
       await db.execute('''
         CREATE TABLE Article (
@@ -32,7 +32,8 @@ Future<void> fetchArticles(MepsLanguage language) async {
           Content TEXT,
           ButtonText TEXT,
           Theme TEXT,
-          LanguageSymbol TEXT
+          LanguageSymbol TEXT,
+          HasVideo INTEGER
         )
       ''');
       await db.execute('''
@@ -45,6 +46,13 @@ Future<void> fetchArticles(MepsLanguage language) async {
         )
       ''');
     },
+    onDowngrade: (db, oldVersion, newVersion) {
+      if(oldVersion == 2 && newVersion == 1) {
+        db.execute('''
+          ALTER TABLE Article ADD COLUMN HasVideo INTEGER DEFAULT 0
+        ''');
+      }
+    }
   );
 
   printTime('fetchArticleInHomePage request start');
@@ -68,171 +76,180 @@ Future<void> fetchArticles(MepsLanguage language) async {
 
   printTime('fetchArticleInHomePage request end');
 
-  final response = await Api.httpGetWithHeaders('https://jw.org/${language.primaryIetfCode}');
+  if(await hasInternetConnection()) {
+    final response = await Api.httpGetWithHeaders('https://jw.org/${language.primaryIetfCode}');
 
-  if (response.statusCode != 200) {
-    throw Exception('Failed to load content');
-  }
-
-  printTime("fetchArticleInHomePage document start");
-
-  final document = html_parser.parse(response.data);
-
-  final html.Element? firstBillboard = document.querySelector('.billboard');
-
-  // Fonction pour récupérer l'URL à partir d'une classe interne
-  String getImageUrlFromFirst(String className) {
-    if (firstBillboard == null) return '';
-
-    // Utilisation de .attributes['style'] pour récupérer la chaîne de style
-    final String style = firstBillboard.querySelector('$className .billboard-media-image')?.attributes['style'] ?? '';
-
-    // L'expression régulière est correcte pour extraire l'URL entre les parenthèses de url(...)
-    final RegExp regExp = RegExp(r'url\(([^)]+)\)');
-    final Match? match = regExp.firstMatch(style);
-
-    // Utilise le group(1) (ce qui est entre les parenthèses)
-    return match?.group(1) ?? '';
-  }
-
-  // Fonction pour déterminer le thème de couleur
-  String getThemeFromBillboard(html.Element? element) {
-    if (element == null) return '';
-    final String classes = element.attributes['class'] ?? '';
-    final classList = classes.split(' ');
-
-    // Cherche une classe qui correspond au thème
-    for (final c in classList) {
-      if (c != 'billboard')  {
-        return c;
-      }
+    if (response.statusCode != 200) {
+      throw Exception('Failed to load content');
     }
 
-    return '';
-  }
+    printTime("fetchArticleInHomePage document start");
 
-  // Extraction des infos uniquement dans le premier billboard
+    final document = html_parser.parse(response.data);
 
-  // 1. Titre du contexte
-  final String contextTitle = firstBillboard
-      ?.querySelector('.contextTitle')
-      ?.text
-      .trim() ?? '';
+    final html.Element? firstBillboard = document.querySelector('.billboard');
 
-  // 2. Titre de l'article
-  final String title = firstBillboard
-      ?.querySelector('.billboardTitle a')
-      ?.text
-      .trim() ?? '';
+    // Fonction pour récupérer l'URL à partir d'une classe interne
+    String getImageUrlFromFirst(String className) {
+      if (firstBillboard == null) return '';
 
-  // 3. Description (CORRIGÉ : le sélecteur a été ajusté à '.billboardDescription p')
-  final String description = firstBillboard
-      ?.querySelector('.billboardDescription p') // Anciennement : .bodyTxt .p2
-      ?.text
-      .trim() ?? '';
+      // Utilisation de .attributes['style'] pour récupérer la chaîne de style
+      final String style = firstBillboard.querySelector('$className .billboard-media-image')?.attributes['style'] ?? '';
 
-  // 4. Lien
-  final String link = firstBillboard
-      ?.querySelector('.billboardTitle a')
-      ?.attributes['href'] ?? '';
+      // L'expression régulière est correcte pour extraire l'URL entre les parenthèses de url(...)
+      final RegExp regExp = RegExp(r'url\(([^)]+)\)');
+      final Match? match = regExp.firstMatch(style);
 
-  // 5. Texte du bouton
-  final String buttonText = firstBillboard
-      ?.querySelector('.billboardButton .buttonText')
-      ?.text
-      .trim() ?? '';
+      // Utilise le group(1) (ce qui est entre les parenthèses)
+      return match?.group(1) ?? '';
+    }
 
-  // 6. Thème
-  final String theme = getThemeFromBillboard(firstBillboard);
+    // Fonction pour déterminer le thème de couleur
+    String getThemeFromBillboard(html.Element? element) {
+      if (element == null) return '';
+      final String classes = element.attributes['class'] ?? '';
+      final classList = classes.split(' ');
 
-  // 7. URLs des images
-  //final String imageUrlLss = getImageUrlFromFirst('.lss');
-  final String imageUrlLsr = getImageUrlFromFirst('.lsr');
-  final String imageUrlPnr = getImageUrlFromFirst('.pnr');
+      // Cherche une classe qui correspond au thème
+      for (final c in classList) {
+        if (c != 'billboard')  {
+          return c;
+        }
+      }
 
-  final lastArticle = articles.firstWhereOrNull((article) =>
+      return '';
+    }
+
+    // Extraction des infos uniquement dans le premier billboard
+
+    // 1. Titre du contexte
+    final String contextTitle = firstBillboard
+        ?.querySelector('.contextTitle')
+        ?.text
+        .trim() ?? '';
+
+    // 2. Titre de l'article
+    final String title = firstBillboard
+        ?.querySelector('.billboardTitle a')
+        ?.text
+        .trim() ?? '';
+
+    // 3. Description (CORRIGÉ : le sélecteur a été ajusté à '.billboardDescription p')
+    final String description = firstBillboard
+        ?.querySelector('.billboardDescription p') // Anciennement : .bodyTxt .p2
+        ?.text
+        .trim() ?? '';
+
+    // 4. Lien
+    final String link = firstBillboard
+        ?.querySelector('.billboardTitle a')
+        ?.attributes['href'] ?? '';
+
+    // 5. Texte du bouton
+    final String buttonText = firstBillboard
+        ?.querySelector('.billboardButton .buttonText')
+        ?.text
+        .trim() ?? '';
+
+    // Correction : On vérifie si l'élément existe (!= null)
+    final int hasVideo = firstBillboard?.querySelector('.hasVideo') != null ? 1 : 0;
+
+    // 6. Thème
+    final String theme = getThemeFromBillboard(firstBillboard);
+
+    // 7. URLs des images
+    //final String imageUrlLss = getImageUrlFromFirst('.lss');
+    final String imageUrlLsr = getImageUrlFromFirst('.lsr');
+    final String imageUrlPnr = getImageUrlFromFirst('.pnr');
+
+    final lastArticle = articles.firstWhereOrNull((article) =>
     article['Title'] == title &&
         article['ContextTitle'] == contextTitle &&
         article['Description'] == description &&
         article['ButtonText'] == buttonText &&
-        article['Theme'] == theme,
-  );
+        article['Theme'] == theme &&
+        article['HasVideo'] == hasVideo,
+    );
 
-  if (articles.isEmpty || lastArticle == null) {
-    final appTileDirectory = await getAppTileDirectory();
+    if (articles.isEmpty || lastArticle == null) {
+      final appTileDirectory = await getAppTileDirectory();
 
-    // Télécharger les images en parallèle
-    final futures = [
-      downloadAndSaveImage(imageUrlLsr, appTileDirectory),
-      downloadAndSaveImage(imageUrlPnr, appTileDirectory),
-    ];
-    final results = await Future.wait(futures);
-    final imagePathLsr = results[0];
-    final imagePathPnr = results[1];
-
-    final fullLink = 'https://www.jw.org$link';
-
-    final newArticle = {
-      'ContextTitle': contextTitle,
-      'Title': title,
-      'Description': description,
-      'Timestamp': DateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'").format(DateTime.now().toUtc()),
-      'Link': fullLink,
-      'Content': '',
-      'ButtonText': buttonText,
-      'Theme': theme,
-      'LanguageSymbol': language.symbol,
-      'ImagePathLsr': imagePathLsr,
-      'ImagePathPnr': imagePathPnr,
-    };
-
-    AppDataService.instance.articles.value = [newArticle, ...AppDataService.instance.articles.value];
-
-    // Enregistrement en base
-    final articleId = await saveArticleToDatabase(db, newArticle);
-    await saveImagesToDatabase(db, articleId, newArticle);
-  }
-  else if (lastArticle != null) {
-    // Vérifie si l'article trouvé en BDD n'est pas identique à celui placé en premier
-    final isFirstDifferent =
-        articles.first['Title'] != lastArticle['Title'] ||
-            articles.first['ContextTitle'] != lastArticle['ContextTitle'] ||
-            articles.first['Description'] != lastArticle['Description'] ||
-            articles.first['ButtonText'] != lastArticle['ButtonText'] ||
-            articles.first['Theme'] != lastArticle['Theme'];
-
-    if (isFirstDifferent) {
-      // Nouveau timestamp car l'article revient en tête
-      final newTimestamp = DateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'")
-          .format(DateTime.now().toUtc());
-
-      // Mise à jour en DB
-      await db.update(
-        'Article',
-        {'Timestamp': newTimestamp},
-        where: 'ArticleId = ?',
-        whereArgs: [lastArticle['ArticleId']],
-      );
-
-      // Article mis à jour localement
-      final updatedArticle = Map<String, dynamic>.from(lastArticle);
-      updatedArticle['Timestamp'] = newTimestamp;
-
-      // Retirer les anciennes occurrences de cet article
-      AppDataService.instance.articles.value.removeWhere(
-            (article) => article['ArticleId'] == lastArticle['ArticleId'],
-      );
-
-      // Le mettre en premier
-      AppDataService.instance.articles.value = [
-        updatedArticle,
-        ...AppDataService.instance.articles.value
+      // Télécharger les images en parallèle
+      final futures = [
+        downloadAndSaveImage(imageUrlLsr, appTileDirectory),
+        downloadAndSaveImage(imageUrlPnr, appTileDirectory),
       ];
-    }
-  }
+      final results = await Future.wait(futures);
+      final imagePathLsr = results[0];
+      final imagePathPnr = results[1];
 
-  await db.close();
-  printTime("fetchArticleInHomePage end");
+      final fullLink = 'https://www.jw.org$link';
+
+      final newArticle = {
+        'ContextTitle': contextTitle,
+        'Title': title,
+        'Description': description,
+        'Timestamp': DateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'").format(DateTime.now().toUtc()),
+        'Link': fullLink,
+        'Content': '',
+        'ButtonText': buttonText,
+        'Theme': theme,
+        'LanguageSymbol': language.symbol,
+        'ImagePathLsr': imagePathLsr,
+        'ImagePathPnr': imagePathPnr,
+        'HasVideo': hasVideo,
+      };
+
+      AppDataService.instance.articles.value = [newArticle, ...AppDataService.instance.articles.value];
+
+      // Enregistrement en base
+      final articleId = await saveArticleToDatabase(db, newArticle);
+      await saveImagesToDatabase(db, articleId, newArticle);
+    }
+    else {
+      // Vérifie si l'article trouvé en BDD n'est pas identique à celui placé en premier
+      final isFirstDifferent =
+          articles.first['Title'] != lastArticle['Title'] ||
+              articles.first['ContextTitle'] != lastArticle['ContextTitle'] ||
+              articles.first['Description'] != lastArticle['Description'] ||
+              articles.first['ButtonText'] != lastArticle['ButtonText'] ||
+              articles.first['Theme'] != lastArticle['Theme'] ||
+              articles.first['HasVideo'] != lastArticle['HasVideo'];
+
+      if (isFirstDifferent) {
+        // Nouveau timestamp car l'article revient en tête
+        final newTimestamp = DateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'")
+            .format(DateTime.now().toUtc());
+
+        // Mise à jour en DB
+        await db.update(
+          'Article',
+          {'Timestamp': newTimestamp},
+          where: 'ArticleId = ?',
+          whereArgs: [lastArticle['ArticleId']],
+        );
+
+        // Article mis à jour localement
+        final updatedArticle = Map<String, dynamic>.from(lastArticle);
+        updatedArticle['Timestamp'] = newTimestamp;
+
+        // Retirer les anciennes occurrences de cet article
+        AppDataService.instance.articles.value.removeWhere(
+              (article) => article['ArticleId'] == lastArticle['ArticleId'],
+        );
+
+        // Le mettre en premier
+        AppDataService.instance.articles.value = [
+          updatedArticle,
+          ...AppDataService.instance.articles.value
+        ];
+      }
+    }
+
+
+    await db.close();
+    printTime("fetchArticleInHomePage end");
+  }
 }
 
 // Enregistre un article et retourne son id
@@ -247,6 +264,7 @@ Future<int> saveArticleToDatabase(Database db, Map<String, dynamic> article) {
     'ButtonText': article['ButtonText'],
     'Theme': article['Theme'],
     'LanguageSymbol': article['LanguageSymbol'],
+    'HasVideo': article['HasVideo'],
   });
 }
 

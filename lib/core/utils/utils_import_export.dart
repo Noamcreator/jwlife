@@ -82,11 +82,10 @@ Future<void> handleExport(BuildContext context) async {
       await SharePlus.instance.share(ShareParams(files: [XFile(backupFile.path)]));
     }
 
-    if (context.mounted) Navigator.pop(context);
-
     // On supprime le fichier
     if (backupFile != null) await File(backupFile.path).delete();
-  } catch (e) {
+  }
+  catch (e) {
     if (dialogContext != null) Navigator.of(dialogContext!).pop();
     await showErrorDialog(context, 'Erreur', 'Erreur lors de l\'exportation.');
   }

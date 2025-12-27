@@ -10,6 +10,7 @@ import 'package:jwlife/widgets/slide_indexed_stack.dart';
 
 import '../../../../app/app_page.dart';
 import '../../../../app/services/global_key_service.dart';
+import '../../../../i18n/i18n.dart';
 import '../../../../widgets/searchfield/searchfield_all_widget.dart';
 import 'all_search_tab.dart';
 import 'audios_search_tab.dart';
@@ -37,17 +38,17 @@ class _SearchPageState extends State<SearchPage> {
   int currentTab = 0;
 
   final List<String> tabs = [
-    'TOUT',
-    'WOL',
-    'PUBLICATIONS',
-    'VIDÉOS',
-    'AUDIOS',
-    'BIBLE',
-    'VERSETS',
-    'IMAGES',
-    'NOTES',
-    'CHAMPS',
-    'WIKIPEDIA',
+    i18n().label_research_all,
+    i18n().label_research_wol,
+    i18n().navigation_publications_uppercase,
+    i18n().pub_type_videos_uppercase,
+    i18n().pub_type_audio_programs_uppercase,
+    i18n().label_research_bible,
+    i18n().label_research_verses,
+    i18n().label_research_images,
+    i18n().label_research_notes,
+    i18n().label_research_inputs_fields,
+    i18n().label_research_wikipedia
   ];
 
   @override

@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:jwlife/app/jwlife_app.dart';
+import 'package:jwlife/core/ui/app_dimens.dart';
 import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/core/utils/utils_audio.dart';
 import 'package:jwlife/core/utils/utils_video.dart'; // Ajout de l'import manquant
@@ -19,7 +20,6 @@ import '../../../data/repositories/MediaRepository.dart';
 import '../../../i18n/i18n.dart';
 import '../pages/playlist_player.dart';
 
-// 1. Convertir en StatefulWidget
 class RectanglePlaylistItemItem extends StatefulWidget {
   final List<PlaylistItem> items;
   final PlaylistItem item;
@@ -31,12 +31,7 @@ class RectanglePlaylistItemItem extends StatefulWidget {
   State<RectanglePlaylistItemItem> createState() => _RectanglePlaylistItemItemState();
 }
 
-// 2. Créer l'état
 class _RectanglePlaylistItemItemState extends State<RectanglePlaylistItemItem> {
-  // Le widget n'a pas accès directement à 'item', utiliser 'widget.item' à la place.
-  // Déplacer les fonctions ici, ou adapter pour utiliser 'widget.item'.
-
-  // La fonction buildEndAction est maintenant utilisée pour générer les items du menu.
   List<PopupMenuItem<int>> buildEndAction(BuildContext context) {
     return [
       PopupMenuItem(
@@ -112,6 +107,7 @@ class _RectanglePlaylistItemItemState extends State<RectanglePlaylistItemItem> {
     }
 
     return PopupMenuButton<int>(
+      useRootNavigator: true,
       itemBuilder: buildEndAction,
       onSelected: (int newValue) async {
         // Mettre à jour la valeur dans la base de données
@@ -186,7 +182,7 @@ class _RectanglePlaylistItemItemState extends State<RectanglePlaylistItemItem> {
           showPlaylistPlayer(widget.items, startIndex: widget.items.indexOf(widget.item));
         },
         child: SizedBox(
-          height: 80,
+          height: kSquareItemHeight,
           child: Stack(
             children: [
               Row(
@@ -194,12 +190,11 @@ class _RectanglePlaylistItemItemState extends State<RectanglePlaylistItemItem> {
                   ClipRRect(
                     borderRadius: BorderRadius.circular(2.0),
                     child: FutureBuilder<File?>(
-                      // Utiliser widget.item
                       future: widget.item.getThumbnailFile(),
                       builder: (context, snapshot) {
                         final placeholder = Container(
-                          height: 80,
-                          width: 80,
+                          height: kSquareItemHeight,
+                          width: kSquareItemHeight,
                           color: Colors.grey.shade300,
                         );
 
@@ -209,16 +204,16 @@ class _RectanglePlaylistItemItemState extends State<RectanglePlaylistItemItem> {
 
                         if (snapshot.hasError || snapshot.data == null) {
                           return Container(
-                            height: 80,
-                            width: 80,
+                            height: kSquareItemHeight,
+                            width: kSquareItemHeight,
                             color: Colors.grey,
                           );
                         }
 
                         return Image.file(
                           snapshot.data!,
-                          height: 80,
-                          width: 80,
+                          height: kSquareItemHeight,
+                          width: kSquareItemHeight,
                           fit: BoxFit.cover,
                         );
                       },
@@ -226,7 +221,7 @@ class _RectanglePlaylistItemItemState extends State<RectanglePlaylistItemItem> {
                   ),
                   Expanded(
                     child: Padding(
-                      padding: const EdgeInsets.only(left: 6.0, right: 25.0, top: 3.0, bottom: 3.0),
+                      padding: const EdgeInsetsDirectional.only(start: 6.0, end: 25.0, top: 3.0, bottom: 3.0),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween, // Espace entre le haut et le bas
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -247,12 +242,13 @@ class _RectanglePlaylistItemItemState extends State<RectanglePlaylistItemItem> {
               ),
 
               // Menu contextuel
-              Positioned(
-                  top: -5,
-                  right: -10,
+              PositionedDirectional(
+                  top: -10,
+                  end: -5,
                   child: RepaintBoundary(
                     child: PopupMenuButton(
-                      icon: const Icon(Icons.more_vert, color: Color(0xFF9d9d9d)),
+                      useRootNavigator: true,
+                      icon: const Icon(Icons.more_horiz, color: Color(0xFF9d9d9d)),
                       itemBuilder: (context) {
                         final items = <PopupMenuEntry>[
                           PopupMenuItem(
@@ -353,9 +349,9 @@ class _RectanglePlaylistItemItemState extends State<RectanglePlaylistItemItem> {
               ),
 
               if((widget.item.durationTicks != null && widget.item.durationTicks != 40000000) || widget.item.baseDurationTicks != null)
-                Positioned(
+                PositionedDirectional(
                   top: 0,
-                  left: 0,
+                  start: 0,
                   child: Container(
                     color: Colors.black.withOpacity(0.8),
                     padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.2),

@@ -345,8 +345,7 @@ class _LanguageDialogState extends State<LanguageDialog> {
                     children: [
                       if (showRecommendedHeader)
                         Padding(
-                          padding: const EdgeInsets.only(
-                              left: 25, bottom: 8, top: 5),
+                          padding: const EdgeInsetsDirectional.only(start: 25, bottom: 8, top: 5),
                           child: Text(
                             i18n().label_languages_recommended, // Nouveau titre
                             style: TextStyle(
@@ -360,8 +359,7 @@ class _LanguageDialogState extends State<LanguageDialog> {
                         ),
                       if (showOtherLanguagesHeader)
                         Padding(
-                          padding: const EdgeInsets.only(
-                              left: 25, bottom: 8, top: 10),
+                          padding: const EdgeInsetsDirectional.only(start: 25, bottom: 8, top: 10),
                           child: Text(
                             i18n().label_languages_more,
                             style: TextStyle(
@@ -382,7 +380,7 @@ class _LanguageDialogState extends State<LanguageDialog> {
                         },
                         child: Container(
                           color: selectedLanguage == languageData['Symbol'] ? Theme.of(context).brightness == Brightness.dark ? const Color(0xFF626262) : const Color(0xFFf0f0f0) : null,
-                          padding: const EdgeInsets.only(left: 40, right: 5, top: 5, bottom: 5),
+                          padding: const EdgeInsetsDirectional.only(start: 40, end: 5, top: 5, bottom: 5),
                           child: Stack(
                             children: [
                               Row(
@@ -399,8 +397,7 @@ class _LanguageDialogState extends State<LanguageDialog> {
                                   const SizedBox(width: 8),
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment
-                                          .start,
+                                      crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
                                         Text(translatedName,
                                             style: const TextStyle(
@@ -429,9 +426,9 @@ class _LanguageDialogState extends State<LanguageDialog> {
                                     builder: (context, isDownloading, _) {
                                       // --- 1. Mode Téléchargement en cours (Annuler) ---
                                       if (isDownloading) {
-                                        return Positioned(
+                                        return PositionedDirectional(
                                           bottom: -4,
-                                          right: -8,
+                                          end: -8,
                                           height: 40,
                                           child: IconButton(
                                             padding: EdgeInsets.zero,
@@ -448,8 +445,8 @@ class _LanguageDialogState extends State<LanguageDialog> {
                                           valueListenable: media!.isDownloadedNotifier,
                                           builder: (context, isDownloaded, child) {
                                             if (!isDownloaded || media!.hasUpdate()) {
-                                              return Positioned(
-                                                right: 0,
+                                              return PositionedDirectional(
+                                                end: 0,
                                                 top: 0,
                                                 bottom: 0,
                                                 child: IconButton(
@@ -475,11 +472,11 @@ class _LanguageDialogState extends State<LanguageDialog> {
                                             }
 
                                             return ValueListenableBuilder<bool>(
-                                              valueListenable: media!.isFavoriteNotifier,
+                                              valueListenable: media.isFavoriteNotifier,
                                               builder: (context, isFavorite, _) {
                                                 if (isFavorite) {
-                                                  return const Positioned(
-                                                    right: 7,
+                                                  return PositionedDirectional(
+                                                    end: 7,
                                                     top: 0,
                                                     bottom: 0,
                                                     child: Icon(
@@ -510,7 +507,7 @@ class _LanguageDialogState extends State<LanguageDialog> {
             ),
             Divider(color: dividerColor),
             Align(
-              alignment: Alignment.centerRight,
+              alignment: AlignmentDirectional.centerEnd,
               child: TextButton(
                 child: Text(
                   i18n().action_done_uppercase,
@@ -540,10 +537,10 @@ class _LanguageDialogState extends State<LanguageDialog> {
       valueListenable: media.isDownloadingNotifier,
       builder: (context, isDownloading, _) {
         return isDownloading
-            ? Positioned(
+            ? PositionedDirectional(
           bottom: 0,
-          right: 0,
-          left: 10, // Décalage basé sur la taille de l'image
+          end: 0,
+          start: 10,
           height: 2,
           child: ValueListenableBuilder<double>(
             valueListenable: media.progressNotifier,

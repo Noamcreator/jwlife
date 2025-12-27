@@ -27,8 +27,8 @@ class SplashScreen extends StatelessWidget {
               color: Colors.white,
               child: SvgPicture.asset(
                 Assets.assetsIconsJwLife, // Assurez-vous que cette référence est correcte
-                width: 150,
-                height: 150,
+                width: 130,
+                height: 130,
                 // Applique la couleur principale du thème au SVG
                 colorFilter: ColorFilter.mode(primaryColor, BlendMode.srcIn),
               ),
@@ -39,7 +39,7 @@ class SplashScreen extends StatelessWidget {
             // --- INDICATEUR DE PROGRESSION ---
             SizedBox(
               height: 3,
-              width: 150, // Doit correspondre à la largeur du logo pour l'alignement
+              width: 130, // Doit correspondre à la largeur du logo pour l'alignement
               child: LinearProgressIndicator(
                 // Couleur de la barre de progression
                   valueColor: AlwaysStoppedAnimation<Color>(primaryColor),

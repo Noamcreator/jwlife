@@ -12,7 +12,6 @@ import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/core/utils/utils_audio.dart';
 import 'package:jwlife/core/utils/webview_data.dart';
 import 'package:jwlife/data/databases/mepsunit.dart';
-import 'package:jwlife/data/models/meps_language.dart';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/repositories/PublicationRepository.dart';
 import 'package:jwlife/data/databases/catalog.dart';
@@ -22,9 +21,9 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../app/jwlife_app.dart';
 import '../../app/services/settings_service.dart';
-import '../../features/publication/pages/document/data/models/document.dart';
+import '../../features/document/data/models/document.dart';
 
-import '../../features/publication/pages/menu/local/publication_menu_view.dart';
+import '../../features/publication/pages/local/publication_menu_view.dart';
 import '../../i18n/i18n.dart';
 import '../shared_preferences/shared_preferences_utils.dart';
 import '../uri/jworg_uri.dart';
@@ -392,7 +391,7 @@ Future<void> showFontSizeDialog(BuildContext context, InAppWebViewController? co
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Taille de police', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                      Text(i18n().action_text_settings, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                       SizedBox(height: 20),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween, // Éloigne les éléments
@@ -450,65 +449,6 @@ Future<void> showFontSizeDialog(BuildContext context, InAppWebViewController? co
     },
   );
 }
-
-/*
-Future<bool> showFullscreenDialog(BuildContext context) async {
-  bool isFullscreen = await getFullscreenMode();
-  bool? result = await showDialog<bool>(
-    context: context,
-    barrierDismissible: false, // Empêche la fermeture en cliquant en dehors
-    builder: (BuildContext context) {
-      return Dialog(
-        child: StatefulBuilder(
-          builder: (BuildContext context, StateSetter setState) {
-            return Container(
-              width: double.infinity,
-              padding: EdgeInsets.all(20),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween, // Éloigne les éléments
-                    children: [
-                      Text('Plein écran', style: TextStyle(fontSize: 18)),
-                      Switch(
-                        value: isFullscreen,
-                        onChanged: (value) {
-                          setState(() {
-                            isFullscreen = value;
-                          });
-                        },
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: 20),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: TextButton(
-                      child: Text('FERMER', style: TextStyle(
-                          fontFamily: 'Roboto',
-                          letterSpacing: 1,
-                          fontWeight: FontWeight.bold,
-                          color: Theme.of(context).primaryColor),
-                      ),
-                      onPressed: () {
-                        Navigator.of(context).pop(isFullscreen);
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-        ),
-      );
-    },
-  );
-
-  return result ?? isFullscreen; // Retourne la dernière valeur connue si l'utilisateur ferme sans appuyer sur "FERMER"
-}
-
- */
 
 Future<void> showHtmlDialog(BuildContext context, String html) async {
   TextEditingController htmlController = TextEditingController(text: html);

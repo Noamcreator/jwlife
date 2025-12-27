@@ -3141,4 +3141,28 @@ class AppLocalizationsHu extends AppLocalizations {
 
   @override
   String get settings_page_transition_right => 'Átmenet jobbról';
+
+  @override
+  String get label_research_all => 'MIND';
+
+  @override
+  String get label_research_wol => 'WOL';
+
+  @override
+  String get label_research_bible => 'BIBLIA';
+
+  @override
+  String get label_research_verses => 'VERSEK';
+
+  @override
+  String get label_research_images => 'KÉPEK';
+
+  @override
+  String get label_research_notes => 'JEGYZETEK';
+
+  @override
+  String get label_research_inputs_fields => 'MEZŐK';
+
+  @override
+  String get label_research_wikipedia => 'WIKIPÉDIA';
 }

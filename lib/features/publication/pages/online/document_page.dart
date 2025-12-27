@@ -13,7 +13,6 @@ import '../../../../../core/api/api.dart';
 import '../../../../../core/utils/utils.dart';
 import '../../../../../i18n/i18n.dart';
 import 'publication_media_items_view.dart';
-import 'publication_svg_view.dart';
 
 class PagesDocumentView extends StatefulWidget {
   final Map<String, dynamic> publication;
@@ -34,7 +33,7 @@ class _PagesDocumentViewState extends State<PagesDocumentView> {
   double _textSize = 22.0;
   html_dom.Document document = html_dom.Document();
   dynamic _pubJson = {};
-  List<Map<String, String>> _images = [];
+  final List<Map<String, String>> _images = [];
   bool _showNotes = false;
   bool _showVerseDialog = false;
   bool _imageMode = false;
@@ -333,7 +332,7 @@ class _PagesDocumentViewState extends State<PagesDocumentView> {
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : _imageMode ? PublicationSvgView(svgUrls: svgUrls) : _showNotes ? Container()
+          : _showNotes ? Container()
           : PageView.builder(
         controller: PageController(initialPage: _currentIndex),
         onPageChanged: _onPageChanged,

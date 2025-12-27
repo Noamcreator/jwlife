@@ -47,7 +47,7 @@ class TextHtmlWidget extends StatelessWidget {
 
     final List<InlineSpan> spans = [];
 
-    input = input.replaceAll('&nbsp;', ' ');
+    input = input.replaceAll('&nbsp;', ' ').replaceAll('&rlm;&rlm;', '');
 
     int index = 0;
     while (index < input.length) {

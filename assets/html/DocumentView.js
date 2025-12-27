@@ -2,7 +2,6 @@ let currentIndex = {{CURRENT_INDEX}};
 const maxIndex = {{MAX_INDEX}};
 
 const isDebugMode = {{IS_DEBUG_MODE}};
-const debugDispSrc = 'DocumentView.js / '
 
 let isDark = {{IS_DARK}};
 let lightPrimaryColor = '{{LIGHT_PRIMARY_COLOR}}';
@@ -35,14 +34,14 @@ const pageRight = document.getElementById("page-right");
 const magnifier = document.getElementById('magnifier');
 const magnifierContent = document.getElementById('magnifier-content');
 
-let imageMode = true;
+let imageMode = false;
 
 let cachedPages = {};
 let scrollTopPages = {};
 
 let isChangingParagraph = false;
 
-const bookmarkAssets = Array.from({length: 10}, (_, i) => `bookmarks/$theme/bookmark${i + 1}.png`);
+let bookmarkAssets = Array.from({length: 10}, (_, i) => `bookmarks/${isDark ? 'dark' : 'light'}/bookmark${i + 1}.png`);
 
 const handleLeft = `images/handle_left.png`;
 const handleRight = `images/handle_right.png`;
@@ -100,9 +99,13 @@ const STYLE = {
 };
 
 const blockRangeAttr = 'block-range-id';
-const noteBlockRangeAttr = 'note-block-range-id';
-
 const noteAttr = 'note-id';
+
+const noteBlockRangeAttr = 'note-block-range-id';
+const noteBlockIdAttr = 'note-block-id';
+const notePubClassAttr = 'note-pub-class';
+const noteMlClassAttr = 'note-ml-class';
+const noteDocIdClassAttr = 'note-doc-id-class';
 
 let currentStyleIndex = {{STYLE_INDEX}};
 
@@ -215,6 +218,8 @@ function changeTheme(isDarkMode) {
     isDark = isDarkMode;
     document.body.classList.remove('cc-theme--dark', 'cc-theme--light');
     document.body.classList.add(isDarkMode ? 'cc-theme--dark' : 'cc-theme--light');
+
+    bookmarkAssets = Array.from({length: 10}, (_, i) => `bookmarks/${isDarkMode ? 'dark' : 'light'}/bookmark${i + 1}.png`);
 }
 
 function isDarkTheme() {
@@ -266,46 +271,69 @@ async function fetchPage(index) {
     return page;
 }
 
-async function loadImageSvg(article, svgPath) {
+function loadImageSvg(pageElement, svgPaths) {
     const colorBackground = isDarkTheme() ? '#202020' : '#ecebe7';
 
-    // Supprimer un ancien container si déjà présent
-    const existingSvgContainer = article.querySelector('#svg-container');
-    if (existingSvgContainer) {
-        existingSvgContainer.remove();
+    const existingContainer = pageElement.querySelector('.svg-wrapper-container');
+    if (existingContainer) {
+        existingContainer.remove();
     }
 
-    // Création du conteneur
     const svgContainer = document.createElement('div');
-    svgContainer.id = 'svg-container';
-    svgContainer.style.position = 'absolute';
-    svgContainer.style.width = '100%';
-    svgContainer.style.height = '100%';
-    svgContainer.style.zIndex = '10';
-    svgContainer.style.backgroundColor = colorBackground;
-    svgContainer.style.display = 'flex';
-    svgContainer.style.alignItems = 'center';
-    svgContainer.style.justifyContent = 'center';
+    svgContainer.className = 'svg-wrapper-container';
+    Object.assign(svgContainer.style, {
+        position: 'relative',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: '100%',
+        width: '100%',
+        backgroundColor: colorBackground,
+        boxSizing: 'border-box',
+        overflow: 'hidden',
+        padding: `${APPBAR_FIXED_HEIGHT + 5}px 5px ${BOTTOMNAVBAR_FIXED_HEIGHT + 5}px 5px`
+    });
 
-    // Container interne type "carte"
     const innerBox = document.createElement('div');
-    innerBox.style.backgroundColor = '#ffffff';
-    innerBox.style.height = '65%';
-    innerBox.style.boxShadow = '0 4px 10px rgba(0,0,0,0.2)';
-    innerBox.style.display = 'flex';
-    innerBox.style.alignItems = 'center';
-    innerBox.style.justifyContent = 'center';
+    innerBox.className = 'zoomable-content';
+    innerBox.dataset.scale = '1';
+    innerBox.dataset.translateX = '0';
+    innerBox.dataset.translateY = '0';
+    
+    Object.assign(innerBox.style, {
+        backgroundColor: '#ffffff',
+        width: '100%',
+        height: 'auto',
+        boxShadow: '0 4px 10px rgba(0,0,0,0.2)',
+        lineHeight: '0',
+        display: 'flex',
+        flexDirection: 'column',
+        transition: 'none',
+        touchAction: 'pan-y', // <--- IMPORTANT: Autorise le scroll vertical natif
+        transformOrigin: 'center top', // <--- Zoom à partir du haut
+        willChange: 'transform, width'
+    });
 
-    // Image en base64
-    const svgImage = document.createElement('img');
-    svgImage.src = 'file://' + svgPath;
-    svgImage.style.width = '100%';
-    svgImage.style.height = '100%';
-    svgImage.style.objectFit = 'contain';
+    const pathsArray = typeof svgPaths === 'string' ? svgPaths.split(',') : svgPaths;
 
-    innerBox.appendChild(svgImage);
+    pathsArray.forEach(path => {
+        if (path.trim() === "") return;
+        const svgImage = document.createElement('img');
+        svgImage.src = 'file://' + path;
+        Object.assign(svgImage.style, {
+            width: '100%',
+            height: 'auto',
+            display: 'block',
+            objectFit: 'contain',
+            pointerEvents: 'none',
+            userSelect: 'none'
+        });
+        innerBox.appendChild(svgImage);
+    });
+
     svgContainer.appendChild(innerBox);
-    article.appendChild(svgContainer);
+    pageElement.appendChild(svgContainer);
 }
 
 function switchImageMode(mode) {
@@ -314,42 +342,41 @@ function switchImageMode(mode) {
     const prev = cachedPages[currentIndex - 1];
     const next = cachedPages[currentIndex + 1];
 
-    function renderPage(container, item, position) {
-        if (item.preferredPresentation === 'image' && imageMode) {
-            container.innerHTML = ""; // vider avant de charger
-            loadImageSvg(container, item.svgs);
+    function renderPage(page, item, position) {
+        if (!item) return; // Sécurité si la page n'existe pas
 
-            // Désactiver le zoom
-            let viewport = document.querySelector('meta[name="viewport"]');
-            if (!viewport) {
-                viewport = document.createElement('meta');
-                viewport.name = 'viewport';
-                document.head.appendChild(viewport);
-            }
-            viewport.content = 'width=device-width, initial-scale=1.0';
-        } else {
-            container.innerHTML = `<article id="article-${position}" class="${item.className}">${item.html}</article>`;
+        const isImageMode = item.preferredPresentation === 'text' ? imageMode : !imageMode;
+
+        if (isImageMode && item.svgs && item.svgs.length > 0) {
+            page.innerHTML = "";
+            removeFloatingButton();
+            loadImageSvg(page, item.svgs); // item.svgs peut être [path1, path2]
+        }
+        else {
+            page.innerHTML = `<article id="article-${position}" class="${item.className}">${item.html}</article>`;
             adjustArticle(`article-${position}`, item.link);
             addVideoCover(`article-${position}`);
 
-            // Désactiver le zoom
-            let viewport = document.querySelector('meta[name="viewport"]');
-            if (!viewport) {
-                viewport = document.createElement('meta');
-                viewport.name = 'viewport';
-                document.head.appendChild(viewport);
-            }
-            viewport.content = 'width=device-width, initial-scale=1.0, user-scalable=no';
+            if(position === "center") {
+                showFloatingButton();
 
-            wrapWordsWithSpan(container, false);
-            paragraphsData = fetchAllParagraphsOfTheArticle(article);
-            loadUserdata();
+                const article = document.getElementById("article-center");
+                wrapWordsWithSpan(article, isBible());
+                paragraphsData = fetchAllParagraphsOfTheArticle(article);
+                loadUserdata();
+            }
         }
     }
 
+    // On réinitialise l'affichage pour les 3 conteneurs
     renderPage(pageCenter, curr, "center");
     renderPage(pageLeft, prev, "left");
     renderPage(pageRight, next, "right");
+
+    // Reset visuel du container
+    container.style.transition = "none";
+    container.style.transform = "translateX(-100%)";
+    void container.offsetWidth; // Force le reflow
 }
 
 function switchPronunciationGuideMode(mode) {
@@ -786,34 +813,33 @@ function isInvisibleChar(char) {
     );
 }
 
-// Fonction pour charger une page de manière optimisée
 async function loadIndexPage(index, isFirst) {
     const curr = await fetchPage(index);
-    const isImageMode = curr.preferredPresentation === 'image' && imageMode
-    if (isImageMode) {
+    const isImageMode = curr.preferredPresentation === 'text' ? imageMode : !imageMode;
+    
+    // On vide le contenu texte précédent pour éviter les superpositions
+    pageCenter.innerHTML = ''; 
+
+    if (isImageMode && curr.svgs && curr.svgs.length > 0) {
         loadImageSvg(pageCenter, curr.svgs);
     } else {
         pageCenter.innerHTML = `<article id="article-center" class="${curr.className}">${curr.html}</article>`;
-
         adjustArticle('article-center', curr.link);
         addVideoCover('article-center');
 
-        // Désactiver le zoom
-        let viewport = document.querySelector('meta[name="viewport"]');
-        if (!viewport) {
-            viewport = document.createElement('meta');
-            viewport.name = 'viewport';
-            document.head.appendChild(viewport);
+        if(isFirst) {
+            // Initialiser le FAB au chargement
+            showFloatingButton();
         }
-        viewport.content = 'width=device-width, initial-scale=1.0, user-scalable=no';
     }
 
+    // Animation reset
     container.style.transition = "none";
     container.style.transform = "translateX(-100%)";
     void container.offsetWidth;
     container.style.transition = "transform 0.3s ease-in-out";
 
-    if (!isFirst && !isImageMode) {
+    if (!isFirst && !isImageMode || !curr.svgs || curr.svgs.length === 0) {
         const article = document.getElementById("article-center");
         wrapWordsWithSpan(article, isBible());
         paragraphsData = fetchAllParagraphsOfTheArticle(article);
@@ -823,21 +849,26 @@ async function loadIndexPage(index, isFirst) {
 async function loadPrevAndNextPages(index) {
     const prev = await fetchPage(index - 1);
     const next = await fetchPage(index + 1);
+    
+    const isImageModePrev = prev.preferredPresentation === 'text' ? imageMode : !imageMode;
+    const isImageModeNext = next.preferredPresentation === 'text' ? imageMode : !imageMode;
 
-    if (prev.preferredPresentation === 'image' && imageMode) {
+    // Page de Gauche
+    pageLeft.innerHTML = '';
+    if (isImageModePrev && prev.svgs && prev.svgs.length > 0) {
         loadImageSvg(pageLeft, prev.svgs);
     } else {
         pageLeft.innerHTML = `<article id="article-left" class="${prev.className}">${prev.html}</article>`;
         adjustArticle('article-left', prev.link);
-        addVideoCover('article-left');
     }
 
-    if (next.preferredPresentation === 'image' && imageMode) {
+    // Page de Droite
+    pageRight.innerHTML = '';
+    if (isImageModeNext && next.svgs && next.svgs.length > 0) {
         loadImageSvg(pageRight, next.svgs);
     } else {
         pageRight.innerHTML = `<article id="article-right" class="${next.className}">${next.html}</article>`;
         adjustArticle('article-right', next.link);
-        addVideoCover('article-right');
     }
 }
 
@@ -983,7 +1014,9 @@ async function jumpToIdSelector(selector, idAttr, begin, end) {
     });
 
     // --- ENVOI À FLUTTER ---
-    window.window.flutter_inappwebview.callHandler('verseClickNumber', selectedIds);
+    if(isBible()) {
+        window.window.flutter_inappwebview.callHandler('verseClickNumber', selectedIds);
+    }
 
     // --- Scroll & centrage ---
     if (targetParagraph) {
@@ -1063,7 +1096,7 @@ function selectWords(words, jumpToWord) {
     });
 
     // Récupérer tous les éléments avec la classe 'word'
-    const wordElements = pageCenter.querySelectorAll('.word');
+    const wordElements = getAllWords();
 
     const normalizedSearchWords = words.map(w => w.toLowerCase());
 
@@ -1071,8 +1104,17 @@ function selectWords(words, jumpToWord) {
 
     // Ajouter la classe 'searched' aux éléments correspondants
     wordElements.forEach(element => {
-        const wordText = element.textContent.trim().toLowerCase();
-        const isMatch = normalizedSearchWords.some(searchWord => wordText.includes(searchWord));
+        let wordText = element.textContent.trim().toLowerCase();
+
+        if (wordText.includes("'")) {
+            wordText = wordText.split("'")[1];
+        }
+        if (wordText.includes("’")) {
+            wordText = wordText.split("’")[1];
+        }
+
+        const isMatch = normalizedSearchWords.some(searchWord => wordText === searchWord.toLowerCase());
+
         if (isMatch) {
             element.classList.add('searched');
             if (!firstMatchedElement) {
@@ -1090,6 +1132,7 @@ function selectWords(words, jumpToWord) {
     }
 }
 
+// Détecte si la page actuelle (pageCenter) est un chapitre biblique ou un document
 function isBible() {
     return cachedPages[currentIndex]['isBibleChapter'];
 }
@@ -1135,8 +1178,11 @@ function dimOthers(paragraphs, selector) {
     });
 
     // Envoyer à Flutter
-    window.window.flutter_inappwebview.callHandler('verseClickNumber', selectedIds);
+    if(isBible()) {
+        window.window.flutter_inappwebview.callHandler('verseClickNumber', selectedIds);
+    }
 }
+
 function createToolbarButton(icon, onClick) {
     const button = document.createElement('button');
 
@@ -1674,6 +1720,14 @@ function showToolbar(paragraphs, pid, selector, hasAudio, type) {
                 id: pid,
                 isBible: false
             })],
+            ['&#xE68E;', () => callHandler('visit', {
+                id: pid,
+                isBible: false
+            })],
+            ['&#xE68F;', () => callHandler('bibleStudy', {
+                id: pid,
+                isBible: false
+            })],
             ['&#xE6A3;', () => callHandler('share', {
                 id: pid
             })],
@@ -1760,10 +1814,8 @@ function showToolbar(paragraphs, pid, selector, hasAudio, type) {
 }
 
 async function fetchVerseInfo(paragraph, pid) {
-    const verseInfo = await window.flutter_inappwebview.callHandler('fetchVerseInfo', {
-        id: pid
-    });
-    showVerseInfoDialog(pageCenter, verseInfo, 'verse-info-$pid');
+    const verseInfo = await window.flutter_inappwebview.callHandler('fetchVerseInfo', {id: pid});
+    showVerseInfoDialog(pageCenter, verseInfo, 'verse-info-$pid', pid, false);
     closeToolbar();
 }
 
@@ -1772,7 +1824,6 @@ const PADDING_CONTENT_VERTICAL = 0; // 16px top + 16px bottom padding dans conte
 const MIN_RESIZE_HEIGHT = 150; // Hauteur minimale de redimensionnement
 
 function applyDialogStyles(type, dialog, isFullscreen, savedPosition = null) {
-    const isDark = isDarkTheme();
     const backgroundColor = type == 'note' ? null : (isDarkTheme() ? '#121212' : '#ffffff');
 
     const baseStyles = `
@@ -1784,7 +1835,7 @@ function applyDialogStyles(type, dialog, isFullscreen, savedPosition = null) {
         `;
 
     if (isFullscreen) {
-        const bottomOffset = BOTTOMNAVBAR_FIXED_HEIGHT + (audioPlayerVisible ? AUDIO_PLAYER_HEIGHT : 0);
+        const bottomOffset = type == 'note' ? 0 : BOTTOMNAVBAR_FIXED_HEIGHT + (audioPlayerVisible ? AUDIO_PLAYER_HEIGHT : 0);
 
         dialog.classList.add('fullscreen');
         // ✅ CORRECTION: S'assurer que le positionnement est basé sur top/bottom/left/right et non translate
@@ -1796,7 +1847,7 @@ function applyDialogStyles(type, dialog, isFullscreen, savedPosition = null) {
                 bottom: ${bottomOffset}px;
                 width: 100vw;
                 height: calc(100vh - ${APPBAR_FIXED_HEIGHT + bottomOffset}px);
-                transform: none !important; /* Annuler toute transformation */
+                transform: none !important;
                 margin: 0;
                 border-radius: 0px;
             `;
@@ -1804,7 +1855,8 @@ function applyDialogStyles(type, dialog, isFullscreen, savedPosition = null) {
         if (resizeHandle) resizeHandle.style.display = 'none';
 
         window.flutter_inappwebview?.callHandler('showFullscreenDialog', true);
-    } else {
+    } 
+    else {
         dialog.classList.remove('fullscreen');
         const resizeHandle = dialog.querySelector('.resize-handle');
         if (resizeHandle) resizeHandle.style.display = 'block';
@@ -1849,7 +1901,8 @@ function applyDialogStyles(type, dialog, isFullscreen, savedPosition = null) {
                 dialog.style.width = '85%';
             }
 
-        } else {
+        } 
+        else {
             // Position de base (centrée)
             dialog.style.top = '50%';
             dialog.style.left = '50%';
@@ -1894,7 +1947,8 @@ function setupFullscreenToggle(type, fullscreenButton, dialog, contentContainer)
             const rect = dialog.getBoundingClientRect();
             dialog.setAttribute('data-resized-width', `${rect.width}px`);
             dialog.setAttribute('data-resized-height', `${rect.height}px`);
-        } else {
+        } 
+        else {
             // Retirer les attributs de taille lors du retour du fullscreen
             dialog.removeAttribute('data-resized-width');
             dialog.removeAttribute('data-resized-height');
@@ -1912,7 +1966,8 @@ function setupFullscreenToggle(type, fullscreenButton, dialog, contentContainer)
             }
 
             globalFullscreenPreference = false;
-        } else {
+        } 
+        else {
             // Entrer en fullscreen
             applyDialogStyles(type, dialog, true);
             applyContentContainerStyles(type, contentContainer, true);
@@ -1926,9 +1981,31 @@ function setupFullscreenToggle(type, fullscreenButton, dialog, contentContainer)
             globalFullscreenPreference = true;
         }
 
-        setTimeout(() => {
-            contentContainer.scrollTop = currentScroll;
-        }, 10);
+        if(type === 'note') {
+            setTimeout(() => {
+                // Appeler autoResizeTitle s'il s'agit d'une note
+                const titleElement = dialog.querySelector('.note-title');
+                const textElement = dialog.querySelector('.note-content');
+                    
+                if (titleElement) {
+                    titleElement.style.height = 'auto';
+                    titleElement.style.height = titleElement.scrollHeight + 'px';
+                }
+                if (textElement) {
+                    textElement.style.height = 'auto';
+                    textElement.style.height = textElement.scrollHeight + 'px';
+                }
+                
+                contentContainer.scrollTop = currentScroll;
+            }, 20);
+        }
+        else {
+            setTimeout(() => {
+                contentContainer.scrollTop = currentScroll;
+            }, 10);
+
+            optimizedResize(contentContainer);
+        }
     };
 }
 
@@ -2006,10 +2083,7 @@ function setupDragSystem(header, dialog) {
     header.addEventListener('touchstart', startDrag);
 }
 
-// ===========================================
-// FONCTION: Système de redimensionnement (CORRIGÉ POUR LA HAUTEUR)
-// ===========================================
-function setupResizeSystem(handle, dialog, contentContainer) {
+function setupResizeSystem(type, handle, dialog, contentContainer) {
     let isResizing = false;
     let startX, startY, startWidth, startHeight, startTop, startLeft;
     const MIN_WIDTH = 200;
@@ -2042,7 +2116,6 @@ function setupResizeSystem(handle, dialog, contentContainer) {
         contentContainer.style.maxHeight = `${Math.max(0, initialContentMaxHeight)}px`;
         contentContainer.style.height = `${Math.max(0, initialContentMaxHeight)}px`;
         contentContainer.style.overflowY = 'auto';
-
 
         document.addEventListener('mousemove', resize);
         document.addEventListener('mouseup', stopResize);
@@ -2079,6 +2152,25 @@ function setupResizeSystem(handle, dialog, contentContainer) {
         const contentMaxHeight = newHeight - HEADER_HEIGHT - PADDING_CONTENT_VERTICAL;
         contentContainer.style.maxHeight = `${Math.max(0, contentMaxHeight)}px`;
         contentContainer.style.height = `${Math.max(0, contentMaxHeight)}px`;
+
+        if(type === 'note') {
+            setTimeout(() => {
+                // Appeler autoResizeTitle s'il s'agit d'une note
+                const titleElement = dialog.querySelector('.note-title');
+                const textElement = dialog.querySelector('.note-content');
+                    
+                if (titleElement) {
+                    titleElement.style.height = 'auto';
+                    titleElement.style.height = titleElement.scrollHeight + 'px';
+                }
+                if (textElement) {
+                    textElement.style.height = 'auto';
+                    textElement.style.height = textElement.scrollHeight + 'px';
+                }
+            }, 20); // 50ms suffit généralement pour le layout
+        }
+
+        optimizedResize(contentContainer);
     };
 
     const stopResize = () => {
@@ -2088,9 +2180,6 @@ function setupResizeSystem(handle, dialog, contentContainer) {
         dialog.style.maxWidth = '600px';
 
         const currentHeight = dialog.clientHeight;
-
-
-        //if (isDebugMode) window.flutter_inappwebview?.callHandler('debugDisplay', debugDispSrc + 'currentHeigh : ' + currentHeight + ' / MIN_HEIGHT : ' + MIN_HEIGHT );
 
         if (currentHeight >= MIN_HEIGHT) {
             dialog.setAttribute('data-resized-height', dialog.style.height);
@@ -2345,9 +2434,6 @@ async function createNotesDashboardContent(container, opt) {
         return;
     }
 
-    // -----------------------------------------
-    // 🔥 TRIER LES NOTES PAR BlockIdentifier
-    // -----------------------------------------
     const sortedNotes = [...notes].sort((a, b) => {
         const A = a.BlockIdentifier || '';
         const B = b.BlockIdentifier || '';
@@ -2356,9 +2442,6 @@ async function createNotesDashboardContent(container, opt) {
         return (a.Guid || "").localeCompare(b.Guid || "");
     });
 
-    // -----------------------------------------
-    // 🔥 CRÉER L'INDEX EN HAUT (CARRÉS)
-    // -----------------------------------------
     const indexContainer = document.createElement('div');
     indexContainer.style.display = 'flex';
     indexContainer.style.flexWrap = 'wrap';
@@ -2402,9 +2485,6 @@ async function createNotesDashboardContent(container, opt) {
         }
     });
 
-    // -----------------------------------------
-    // 🔥 AFFICHAGE DES NOTES PAR GROUPES
-    // -----------------------------------------
     let lastBlockIdentifier = null;
 
     sortedNotes.forEach(note => {
@@ -2444,9 +2524,6 @@ async function createNotesDashboardContent(container, opt) {
     });
 }
 
-/**
- * Initialise le dialogue de base
- */
 function initializeBaseDialog() {
     if (baseDialog) return;
 
@@ -2503,7 +2580,6 @@ function closeDialog() {
 }
 
 function removeCurrentDialog() {
-    // Correction: On ne peut pas retirer le baseDialog (index 0)
     if (currentDialogIndex <= 0 || dialogHistory.length === 0) return;
 
     const dialogData = dialogHistory[currentDialogIndex];
@@ -2518,8 +2594,8 @@ function removeCurrentDialog() {
 
     if (currentDialogIndex >= 0) {
         showDialogFromHistory(dialogHistory[currentDialogIndex]);
-    } else {
-        // Cela ne devrait jamais arriver car le baseDialog est toujours le premier
+    } 
+    else {
         window.flutter_inappwebview?.callHandler('showFullscreenDialog', false);
         window.flutter_inappwebview?.callHandler('showDialog', false);
         showFloatingButton();
@@ -2530,10 +2606,7 @@ function removeCurrentDialog() {
 function removeDialogByNoteGuid(noteGuid) {
     if (!noteGuid) return false;
 
-    const dialogIndex = dialogHistory.findIndex(item =>
-        item.type === 'note' &&
-        item.options?.noteData?.noteGuid === noteGuid
-    );
+    const dialogIndex = dialogHistory.findIndex(item => item.type === 'note' && item.options?.noteData?.noteGuid === noteGuid);
 
     if (dialogIndex === -1) return false;
 
@@ -2553,11 +2626,13 @@ function removeDialogByNoteGuid(noteGuid) {
     if (dialogIndex === currentDialogIndex + 1 && dialogHistory.length > 0) {
         if (currentDialogIndex >= 0) {
             showDialogFromHistory(dialogHistory[currentDialogIndex]);
-        } else {
+        } 
+        else {
             window.flutter_inappwebview?.callHandler('showFullscreenDialog', false);
             window.flutter_inappwebview?.callHandler('showDialog', false);
         }
-    } else if (dialogHistory.length === 0) {
+    } 
+    else if (dialogHistory.length === 0) {
         currentDialogIndex = -1;
         window.flutter_inappwebview?.callHandler('showFullscreenDialog', false);
         window.flutter_inappwebview?.callHandler('showDialog', false);
@@ -2567,7 +2642,6 @@ function removeDialogByNoteGuid(noteGuid) {
 }
 
 function goBackDialog() {
-    // Correction: On ne peut reculer que si l'index actuel est > 0 (pour éviter le baseDialog)
     if (currentDialogIndex > 0 && dialogHistory.length > 1) {
         const currentDialog = dialogHistory[currentDialogIndex];
         const dialogElement = document.getElementById(currentDialog.dialogId);
@@ -2584,8 +2658,6 @@ function goBackDialog() {
         const previousDialog = dialogHistory[currentDialogIndex];
         showDialogFromHistory(previousDialog);
 
-        // Mettre à jour la capacité de reculer pour le nouveau dialogue actuel
-        // C'est true si l'index actuel > 0 (c'est-à-dire s'il n'est pas le baseDialog)
         previousDialog.canGoBack = currentDialogIndex > 0;
         return true;
     }
@@ -2601,15 +2673,13 @@ function showDialogFromHistory(historyItem) {
     if (existingDialog) {
         dialog = existingDialog;
         dialog.style.display = 'block';
-    } else {
-        // Note: Ici, on passe le 'canGoBack' de l'historique
+    } 
+    else {
         dialog = createDialogElement(historyItem.options, historyItem.canGoBack, globalFullscreenPreference, 0, historyItem.dialogId);
         document.body.appendChild(dialog);
     }
 
-    if (typeof applyDialogStyles === 'function') {
-        applyDialogStyles(historyItem.type, dialog, globalFullscreenPreference);
-    }
+    applyDialogStyles(historyItem.type, dialog, globalFullscreenPreference);
 
     if (historyItem.type === 'note' && typeof getNoteClass === 'function') {
         const noteClass = getNoteClass(historyItem.options.noteData.colorIndex, false);
@@ -2628,7 +2698,6 @@ function showDialogFromHistory(historyItem) {
 function showDialog(options) {
     if (!baseDialog) initializeBaseDialog();
 
-    // 1. Assurer que le baseDialog est le premier élément si on ouvre un nouveau dialogue
     if (dialogHistory.length === 0) {
         dialogHistory.push(baseDialog);
         currentDialogIndex = 0;
@@ -2636,13 +2705,10 @@ function showDialog(options) {
 
     updateFloatingButtonForClose();
 
-    // CHAÎNE LITTÉRALE : ${options.noteData.noteGuid}
-    const currentUniqueKey = options.href ||
-        (options.type === 'note' && options.noteData?.noteGuid ? `noteGuid-${options.noteData.noteGuid}` : null);
+    const currentUniqueKey = options.href || (options.type === 'note' && options.noteData?.noteGuid ? `noteGuid-${options.noteData.noteGuid}` : null);
 
     let existingDialogIndex = -1;
 
-    // 2. Vérifier l'existence (en ignorant le baseDialog à l'index 0)
     if (currentUniqueKey) {
         existingDialogIndex = dialogHistory.findIndex((item, index) => {
             // Ne jamais considérer le baseDialog (index 0) pour la réactivation/remplacement
@@ -2654,7 +2720,6 @@ function showDialog(options) {
         });
     }
 
-    // 3. Logique de Remplacement (`replace: true`)
     if (existingDialogIndex !== -1 && options.replace === true) {
         const dialogToRemove = dialogHistory[existingDialogIndex];
         const dialogElement = document.getElementById(dialogToRemove.dialogId);
@@ -2673,11 +2738,7 @@ function showDialog(options) {
             // L'élément supprimé était avant le dernier, on décale l'index
             currentDialogIndex--;
         }
-
-        // Maintenant, on ajoute le nouveau dialogue à la fin de l'historique, comme d'habitude.
-        // On continue au point 5.
     }
-    // 4. Logique de Réactivation d'un dialogue existant
     else if (existingDialogIndex !== -1) {
         const existingHistoryItem = dialogHistory[existingDialogIndex];
 
@@ -2700,22 +2761,17 @@ function showDialog(options) {
         return showDialogFromHistory(existingHistoryItem);
     }
 
-    // 5. Création et Ajout d'un Nouveau Dialogue
-
     dialogIdCounter++;
     // CHAÎNE LITTÉRALE : ${dialogIdCounter}
     const newDialogId = `customDialog-${dialogIdCounter}`;
 
     const newHistoryItem = {
         options: options,
-        // Correction: canGoBack est true si on n'est pas le baseDialog (donc s'il y a plus d'un élément au total)
         canGoBack: dialogHistory.length > 0,
         type: options.type || 'default',
         dialogId: newDialogId,
     };
 
-    // Si on était sur le baseDialog et qu'on ouvre un nouveau dialogue,
-    // on doit d'abord masquer le baseDialog pour ne pas avoir deux dialogues actifs
     if (currentDialogIndex === 0) {
         hideAllDialogs();
     }
@@ -2747,9 +2803,7 @@ function createDialogElement(options, canGoBack, isFullscreenInit = false, scrol
     dialog.style.display = 'block';
 
     const header = createHeader(options, isDarkTheme(), dialog, isFullscreen, canGoBack);
-    if (typeof setupDragSystem === 'function') {
-        setupDragSystem(header.element, dialog);
-    }
+    setupDragSystem(header.element, dialog);
 
     const contentContainer = document.createElement('div');
     contentContainer.id = 'contentContainer';
@@ -2776,14 +2830,7 @@ function createDialogElement(options, canGoBack, isFullscreenInit = false, scrol
         contentContainer.scrollTop = scrollTopInit;
     }, 10);
 
-    if (typeof setupFullscreenToggle === 'function') {
-        setupFullscreenToggle(
-            options.type,
-            header.fullscreenButton,
-            dialog,
-            contentContainer
-        );
-    }
+    setupFullscreenToggle(options.type, header.fullscreenButton, dialog, contentContainer);
 
     dialog.appendChild(header.element);
     dialog.appendChild(contentContainer);
@@ -2806,17 +2853,13 @@ function createDialogElement(options, canGoBack, isFullscreenInit = false, scrol
         `;
     dialog.appendChild(resizeHandle);
 
-    if (typeof setupResizeSystem === 'function') {
-        setupResizeSystem(resizeHandle, dialog, contentContainer);
-    }
+    setupResizeSystem(options.type, resizeHandle, dialog, contentContainer);
     return dialog;
 }
 
 function restoreLastDialog() {
     if (!lastClosedDialog) return;
 
-    // Correction: Si l'historique est vide, on restaure l'historique complet,
-    // en s'assurant que le baseDialog est le premier.
     if (dialogHistory.length === 0) {
         dialogHistory = lastClosedDialog.fullHistory;
         currentDialogIndex = lastClosedDialog.historyIndex;
@@ -2829,9 +2872,8 @@ function restoreLastDialog() {
         currentDialogIndex = Math.max(0, currentDialogIndex);
 
         showDialogFromHistory(dialogHistory[currentDialogIndex]);
-    } else {
-        // Si l'historique est déjà ouvert, on ouvre juste le dernier dialogue fermé
-        // (il sera ajouté au-dessus de l'historique existant)
+    } 
+    else {
         showDialog(lastClosedDialog.options);
     }
 
@@ -2842,9 +2884,6 @@ function restoreLastDialog() {
     window.flutter_inappwebview?.callHandler('showDialog', true);
 }
 
-/**
- * Affiche le baseDialog lorsque l'historique est vide.
- */
 function showBaseDialog() {
     if (!baseDialog) initializeBaseDialog();
 
@@ -2859,7 +2898,6 @@ function showBaseDialog() {
 
     updateFloatingButtonForClose();
 }
-// ... (Reste des fonctions utilitaires inchangé, à l'exception des chaînes littérales que je ne peux pas garantir)
 
 function createFloatingButton() {
     let floatingButton = document.getElementById('dialogFloatingButton');
@@ -2873,7 +2911,7 @@ function createFloatingButton() {
     floatingButton.id = 'dialogFloatingButton';
     floatingButton.innerHTML = DIAMOND;
     // Positionnement dynamique
-    floatingButton.style.bottom = `${BOTTOMNAVBAR_FIXED_HEIGHT + (audioPlayerVisible ? AUDIO_PLAYER_HEIGHT : 0) + 25}px`;
+    floatingButton.style.bottom = `${BOTTOMNAVBAR_FIXED_HEIGHT + (audioPlayerVisible ? AUDIO_PLAYER_HEIGHT : 0) + 15}px`;
 
     // Couleur du texte ou icône
     floatingButton.style.color = isDark ? '#333333' : '#ffffff';
@@ -2898,7 +2936,8 @@ function showFloatingButton() {
             floatingButton.innerHTML = DIALOG_ICONS['base'];
             floatingButton.onclick = showBaseDialog;
         }
-    } else {
+    } 
+    else {
         // Le dialogue est actif, le FAB sert à fermer
         updateFloatingButtonForClose();
         return;
@@ -2907,7 +2946,8 @@ function showFloatingButton() {
     // Animation d'apparition
     if (controlsVisible) {
         floatingButton.style.opacity = '1';
-    } else {
+    } 
+    else {
         floatingButton.style.opacity = '0';
     }
 }
@@ -2916,15 +2956,14 @@ function updateFloatingButtonForClose() {
     const floatingButton = createFloatingButton();
 
     if (dialogHistory.length > 0) {
-        // Le FAB sert à Fermer/Revenir à la base, même si c'est le baseDialog qui est affiché.
-        // C'est la fonction closeDialog qui gère l'effacement de l'historique.
         floatingButton.innerHTML = ARROW_BACK;
         floatingButton.onclick = closeDialog;
 
         if (controlsVisible) {
             floatingButton.style.opacity = '1';
         }
-    } else {
+    } 
+    else {
         hideFloatingButton();
     }
 }
@@ -2936,14 +2975,14 @@ function hideFloatingButton() {
     }
 }
 
-// =============================================================================
-// V. Initialisation
-// =============================================================================
+function removeFloatingButton() {
+    const floatingButton = document.getElementById('dialogFloatingButton');
+    if (floatingButton) {
+        floatingButton.remove();
+    }
+}
 
-// Initialiser le FAB au chargement
-showFloatingButton();
-
-async function openNoteDialog(noteGuid, userMarkGuid) {
+async function openNoteDialog(noteGuid) {
     const note = await window.flutter_inappwebview.callHandler('getNoteByGuid', noteGuid);
 
     if (!note) {
@@ -3012,30 +3051,27 @@ function createNoteContent(contentContainer, options) {
             border: none;
             outline: none;
             resize: none;
-            font-size: 20px;
+            font-size: 1.2em;
             font-weight: bold;
             line-height: 1.3;
             background: transparent;
             color: inherit;
-            padding: 4px 0;
-            /* Le titre ne doit pas défiler, il doit s'étendre verticalement jusqu'à ce que overflow:hidden le coupe s'il n'y a pas assez de place,
-               mais comme nous désactivons l'auto-resize, il agira comme un textarea classique (qui scroll en interne s'il ne peut pas grandir) */
             overflow: hidden;
+            padding: 8px 0;
             width: 100%;
             box-sizing: border-box;
             display: block;
-            margin-bottom: 12px;
         `;
 
     const autoResizeTitle = () => {
         const initialScrollTop = contentContainer.scrollTop;
+        titleElement.rows = 1;
         titleElement.style.height = 'auto';
         titleElement.style.height = titleElement.scrollHeight + 'px';
         contentContainer.scrollTop = initialScrollTop; // Tente de maintenir la position
     };
 
     titleElement.addEventListener('input', () => {
-        // L'utilisateur a demandé de ne PAS auto-réajuster le titre.
         autoResizeTitle();
         saveChanges();
     });
@@ -3045,7 +3081,7 @@ function createNoteContent(contentContainer, options) {
     separator1.style.cssText = `
             height: 1px;
             background: ${isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.08)'};
-            margin: 12px 0;
+            margin: 4px 0;
         `;
 
     // 📄 CONTENU
@@ -3061,17 +3097,16 @@ function createNoteContent(contentContainer, options) {
             line-height: 1.5;
             background: transparent;
             color: inherit;
-            overflow: hidden; /* Important : le conteneur parent (contentContainer) gère le scroll */
+            overflow: hidden;
             padding: 8px 0;
             width: 100%;
             box-sizing: border-box;
             display: block;
-            margin-bottom: 12px;
-            min-height: 200px;
         `;
 
     const autoResizeContent = () => {
         const initialScrollTop = contentContainer.scrollTop;
+        contentElement.rows = 1;
         contentElement.style.height = 'auto';
         contentElement.style.height = contentElement.scrollHeight + 'px';
         contentContainer.scrollTop = initialScrollTop; // Tente de maintenir la position
@@ -3087,7 +3122,7 @@ function createNoteContent(contentContainer, options) {
     separator2.style.cssText = `
             height: 1px;
             background: ${isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.08)'};
-            margin: 12px 0;
+            margin: 4px 0;
         `;
 
     // 🏷️ GESTION DES TAGS
@@ -3102,15 +3137,12 @@ function createNoteContent(contentContainer, options) {
         tagElement.style.cssText = `
                 display: inline-flex;
                 align-items: center;
-                background: ${isDark ? '#4a4a4a' : 'rgba(52, 152, 219, 0.1)'};
-                color: ${isDark ? '#fff' : '#2c3e50'};
-                padding: 6px 10px;
+                background: ${isDark ? '#4a4a4a' : 'rgba(210, 210, 210, 0.4)'};
+                color: inherit;
+                padding: 8px 12px;
                 border-radius: 20px;
-                font-size: 14px;
-                font-weight: 500;
+                font-size: 0.8em;
                 white-space: nowrap;
-                box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-                border: 1px solid ${isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0, 0, 0, 0.1)'};
                 cursor: pointer;
             `;
 
@@ -3120,15 +3152,13 @@ function createNoteContent(contentContainer, options) {
         tagElement.appendChild(text);
 
         const closeBtn = document.createElement('span');
-        closeBtn.textContent = '×';
+        closeBtn.classList.add('tag-close-btn', 'jwf-jw-icons-external', 'jwi-x');
         closeBtn.style.cssText = `
-                margin-left: 6px;
+                margin-left: 8px;
                 cursor: pointer;
-                font-weight: bold;
                 color: ${isDark ? '#e0e0e0' : 'inherit'};
-                font-size: 18px;
+                font-size: 1.4em;
                 line-height: 1;
-                padding: 0 2px;
             `;
 
         closeBtn.onclick = (e) => {
@@ -3174,7 +3204,6 @@ function createNoteContent(contentContainer, options) {
             gap: 8px;
             padding: 12px 0;
             padding-bottom: 20px;
-            min-height: auto;
         `;
 
     // Charger les tags existants
@@ -3197,7 +3226,6 @@ function createNoteContent(contentContainer, options) {
             display: flex;
             align-items: center;
             gap: 10px;
-            min-width: 150px;
             position: relative;
         `;
 
@@ -3208,9 +3236,8 @@ function createNoteContent(contentContainer, options) {
     tagInput.style.cssText = `
             border: none;
             outline: none;
-            font-size: 14px;
+            font-size: 0.8em;
             flex: 1;
-            min-width: 100px;
             padding: 4px;
             background: transparent;
             color: inherit;
@@ -3223,13 +3250,12 @@ function createNoteContent(contentContainer, options) {
     suggestionsList.style.cssText = `
             position: fixed;
             z-index: 100001; /* Z-index élevé pour être au premier plan */
-            background: ${isDark ? '#333' : 'rgba(255, 255, 255, 0.95)'};
-            border: 1px solid ${isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'};
+            background: ${isDark ? '#333' : 'rgba(255, 255, 255, 1)'};
             border-radius: 8px;
             box-shadow: 0 4px 16px rgba(0,0,0,0.15);
             backdrop-filter: blur(10px);
-            max-height: 250px;
-            overflow-y: auto;
+            max-height: 290px; /* Limite la hauteur à environ 7 éléments */
+            overflow-y: auto;  /* Active le scroll vertical */
             -webkit-overflow-scrolling: touch;
             overscroll-behavior: contain;
             display: none;
@@ -3290,10 +3316,10 @@ function createNoteContent(contentContainer, options) {
             const addNew = document.createElement('div');
             addNew.textContent = `Ajouter la catégorie: "${value}"`;
             addNew.style.cssText = `
-                    padding: 12px 16px;
+                    padding: 10px 14px;
                     cursor: pointer;
-                    font-size: 14px;
-                    color: ${isDark ? '#fff' : '#2c3e50'};
+                    font-size: 0.8em;
+                    color: inherit;
                     border-bottom: ${filteredTags.length > 0 ? '1px solid ' + (isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)') : 'none'};
                     white-space: nowrap;
                     user-select: none;
@@ -3316,10 +3342,10 @@ function createNoteContent(contentContainer, options) {
             const item = document.createElement('div');
             item.textContent = tag.Name;
             item.style.cssText = `
-                    padding: 12px 16px;
+                    padding: 8px 12px;
                     cursor: pointer;
-                    font-size: 14px;
-                    color: ${isDark ? '#fff' : '#2c3e50'};
+                    font-size: 0.8em;
+                    color: inherit;
                     transition: background-color 0.2s ease;
                     white-space: nowrap;
                     user-select: none;
@@ -3355,7 +3381,6 @@ function createNoteContent(contentContainer, options) {
         suggestionsList.style.bottom = 'auto'; // Force la position sous l'élément
 
         suggestionsList.style.left = `${rect.left}px`;
-        suggestionsList.style.width = `${Math.max(250, tagInput.offsetWidth)}px`;
 
         // Suppression de la logique de basculement au-dessus, comme demandé
     };
@@ -3366,6 +3391,7 @@ function createNoteContent(contentContainer, options) {
         try {
             const filteredTags = await window.flutter_inappwebview.callHandler('getFilteredTags', value, currentTagIds);
             showSuggestions(filteredTags, value);
+            tagsContainer.style.paddingBottom = '100px';
         } catch (error) {
             console.error('Erreur lors de la récupération des tags filtrés', error);
         }
@@ -3376,6 +3402,8 @@ function createNoteContent(contentContainer, options) {
         try {
             const filteredTags = await window.flutter_inappwebview.callHandler('getFilteredTags', value, currentTagIds);
             showSuggestions(filteredTags, value);
+            // mettre un padding plus grand en bas du contentContainer pour éviter que la liste de suggestions soit coupée
+            tagsContainer.style.paddingBottom = '100px';
         } catch (error) {
             console.error('Erreur lors de la récupération des tags filtrés', error);
         }
@@ -3393,6 +3421,7 @@ function createNoteContent(contentContainer, options) {
             if (document.activeElement !== tagInput) {
                 suggestionsList.style.display = 'none';
             }
+            tagsContainer.style.paddingBottom = '20px';
         }, 200);
     });
 
@@ -3427,9 +3456,9 @@ function createNoteContent(contentContainer, options) {
     }
 
     noteContentWrapper.appendChild(titleElement);
-    noteContentWrapper.appendChild(separator1);
+    //noteContentWrapper.appendChild(separator1);
     noteContentWrapper.appendChild(contentElement);
-    noteContentWrapper.appendChild(separator2);
+    //noteContentWrapper.appendChild(separator2);
     noteContentWrapper.appendChild(tagsContainer);
 
     // Le contentContainer est le conteneur de défilement du dialogue
@@ -3482,14 +3511,12 @@ function createOptionsMenu(noteGuid, popup, isDark) {
     optionsMenu.className = 'options-menu';
     optionsMenu.style.cssText = `
             position: absolute;
-            width: 200px;
-            background: ${isDark ? 'rgba(30, 30, 30, 0.95)' : 'rgba(255, 255, 255, 0.95)'};
+            background: ${isDark ? 'rgba(30, 30, 30, 1)' : 'rgba(255, 255, 255, 1)'};
             border-radius: 8px;
             box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
             display: none;
             flex-direction: column;
             z-index: 2000;
-            backdrop-filter: blur(10px);
             border: 1px solid ${isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'};
             padding: 5px 0;
         `;
@@ -3499,7 +3526,7 @@ function createOptionsMenu(noteGuid, popup, isDark) {
     deleteBtn.className = 'menu-item';
     deleteBtn.innerHTML = '🗑 Supprimer la note';
     deleteBtn.style.cssText = `
-            padding: 10px 15px;
+            padding: 8px 12px;
             cursor: pointer;
             transition: background-color 0.2s ease;
             color: ${isDark ? '#fff' : '#333'};
@@ -3620,65 +3647,88 @@ function showVerseDialog(article, verses, href, replace) {
         replace: replace,
         href: href,
         contentRenderer: (contentContainer) => {
-            verses.items.forEach((item, index) => {
+            verses.items.forEach((verseItem) => {
                 const headerBar = document.createElement('div');
                 headerBar.style.cssText = `
                         display: flex;
                         align-items: center;
-                        padding-inline: 8px;
-                        padding-block: 3px;
                         background: ${isDarkTheme() ? '#000000' : '#f1f1f1'};
-                        border-bottom: 1px solid ${isDarkTheme() ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)'};
                     `;
 
                 const img = document.createElement('img');
-                img.src = 'file://' + item.imageUrl;
+                img.src = 'file://' + verseItem.imageUrl;
                 img.style.cssText = `
-                        height: 50px;
-                        width: 50px;
-                        border-radius: 8px;
+                        height: 45px;
+                        width: 45px;
                         object-fit: cover;
-                        margin-right: 8px;
+                        margin-right: 10px;
+                        user-select: none;
                     `;
 
                 const textContainer = document.createElement('div');
-                textContainer.style.cssText = 'flex-grow: 1; margin-left: 8px; padding: 8px 0;';
+                textContainer.style.cssText = 'flex-grow: 1;';
 
                 const pubTitle = document.createElement('div');
-                pubTitle.textContent = item.publicationTitle;
+                pubTitle.textContent = verseItem.publicationTitle;
                 pubTitle.style.cssText = `
-                        font-size: 16px;
+                        font-size: 14px;
                         font-weight: 700;
-                        margin-bottom: 4px;
+                        margin-top: 2px;
+                        margin-bottom: 2px;
+                        color: ${isDarkTheme() ? '#ffffff' : '#333333'};
                         line-height: 1.3;
                         white-space: nowrap;
                         overflow: hidden;
                         text-overflow: ellipsis;
+                        user-select: none;
                     `;
 
                 const subtitleText = document.createElement('div');
-                subtitleText.textContent = item.subtitle;
+                subtitleText.textContent = verseItem.subtitle;
                 subtitleText.style.cssText = `
                         font-size: 12px;
-                        opacity: 0.8;
+                        opacity: 0.9;
                         line-height: 1.4;
                         white-space: nowrap;
                         overflow: hidden;
                         text-overflow: ellipsis;
+                        user-select: none;
                     `;
 
-                textContainer.appendChild(pubTitle);
-                textContainer.appendChild(subtitleText);
+                // 1. Configurer le conteneur parent pour qu'il aligne les éléments horizontalement
+                textContainer.style.display = 'flex';
+                textContainer.style.alignItems = 'center'; // Aligne verticalement l'icône et le texte
+                textContainer.style.justifyContent = 'space-between'; // Pousse l'icône à l'extrémité droite
+
+                // 2. Créer un wrapper pour les textes (pour qu'ils restent empilés à gauche)
+                const textWrapper = document.createElement('div');
+                textWrapper.style.overflow = 'hidden'; // Important pour l'ellipse du texte
+                textWrapper.appendChild(pubTitle);
+                textWrapper.appendChild(subtitleText);
+
+                // 3. Création de l'icône
+                const icon = document.createElement('span');
+                icon.innerHTML = '&#xE63A;'; // Utilisation de innerHTML pour l'entité HTML
+                icon.style.fontFamily = 'jw-icons-external';
+                icon.style.fontSize = '20px';
+                icon.style.marginLeft = '10px'; // Petit espace entre le texte et l'icône
+                icon.style.marginRight = '5px';
+                icon.style.flexShrink = '0';   // Empêche l'icône de s'écraser si le texte est long
+                icon.style.userSelect = 'none';
+
+                // 4. Assemblage final
+                textContainer.appendChild(textWrapper);
+                textContainer.appendChild(icon);
 
                 headerBar.addEventListener('click', function() {
-                    window.flutter_inappwebview?.callHandler('openMepsDocument', item, verses);
+                    window.flutter_inappwebview?.callHandler('openMepsDocument', verseItem, verses);
                 });
 
                 headerBar.appendChild(img);
                 headerBar.appendChild(textContainer);
 
                 const article = document.createElement('div');
-                article.innerHTML = `<article id="verse-dialog" class="${item.className}">${item.content}</article>`;
+                article.innerHTML = `<article id="verse-dialog" class="${verseItem.className}">${verseItem.content}</article>`;
                 article.style.cssText = `
                       position: relative;
                       padding-top: 10px;
@@ -3687,29 +3737,47 @@ function showVerseDialog(article, verses, href, replace) {
 
                 wrapWordsWithSpan(article, true);
 
-                const paragraphsDataDialog = fetchAllParagraphsOfTheArticle(article);
+                const paragraphsDataDialog = fetchAllParagraphsOfTheArticle(article, true);
 
-                item.blockRanges.forEach(b => {
-                    if (b.Identifier >= verses.firstVerseNumber && b.Identifier <= verses.lastVerseNumber) {
-                        addBlockRange(paragraphsDataDialog, b.BlockType, b.Identifier, b.StartToken, b.EndToken, b.UserMarkGuid, b.StyleIndex, b.ColorIndex);
+                verseItem.blockRanges.forEach(b => {
+                    const chapterNumber = b.Location?.ChapterNumber ?? null;
+
+                    const paragraphInfo = [...paragraphsDataDialog.values()].find(p =>
+                        p.chapterId === chapterNumber &&
+                        p.id === b.Identifier
+                    );
+
+                    if (!paragraphInfo || !paragraphInfo.paragraphs?.length) {
+                        return;
                     }
+                    addBlockRange(paragraphInfo, b.StartToken, b.EndToken, b.UserMarkGuid, b.StyleIndex, b.ColorIndex);
                 });
 
                 verses.notes.forEach(note => {
-                    if (note.BlockIdentifier >= verses.firstVerseNumber && note.BlockIdentifier <= verses.lastVerseNumber) {
-                        const matchingBlockRange = item.blockRanges.find(h => h.UserMarkGuid === note.UserMarkGuid);
-                        const paragraphInfo = paragraphsDataDialog.get(note.BlockIdentifier)
+                    const matchingBlockRange = verseItem.blockRanges.find(
+                        b => b.UserMarkGuid === note.UserMarkGuid
+                    );
 
-                        addNoteWithGuid(
-                            article,
-                            paragraphInfo.paragraphs[0],
-                            matchingBlockRange?.UserMarkGuid || null, // null si pas de highlight
-                            note.Guid,
-                            note.ColorIndex ?? 0,
-                            true,
-                            false
-                        );
+                    const chapterNumber = note.Location?.ChapterNumber ?? null;
+
+                    const paragraphInfo = [...paragraphsDataDialog.values()].find(p =>
+                        p.chapterId === chapterNumber &&
+                        p.id === note.BlockIdentifier
+                    );
+
+                    if (!paragraphInfo || !paragraphInfo.paragraphs?.length) {
+                        return;
                     }
+
+                    addNoteWithGuid(
+                        article,
+                        paragraphInfo.paragraphs[0],
+                        matchingBlockRange?.UserMarkGuid ?? null,
+                        note.Guid,
+                        note.ColorIndex ?? 0,
+                        true,
+                        false
+                    );
                 });
 
                 contentContainer.appendChild(headerBar);
@@ -3726,10 +3794,9 @@ function showVerseDialog(article, verses, href, replace) {
 
             customizeButton.style.cssText = `
                     display: block;
-                    padding: 8px 25px;
-                    margin: 16px auto 20px; /* marge supérieure + inférieure */
+                    padding: 6px 30px;
+                    margin: 16px auto 20px;
                     border: none;
-                    border-radius: 8px;
                     cursor: pointer;
                     font-size: 16px;
                     text-align: center;
@@ -3778,36 +3845,35 @@ function showVerseReferencesDialog(article, verseReferences, href) {
                 headerBar.style.cssText = `
                       display: flex;
                       align-items: center;
-                      padding-inline: 10px;
-                      padding-block: 6px;
                       background: ${isDarkTheme() ? '#000000' : '#f1f1f1'};
-                      border-bottom: 1px solid ${isDarkTheme() ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)'};
                   `;
 
                 const img = document.createElement('img');
                 img.src = 'file://' + item.imageUrl;
                 img.style.cssText = `
-                      height: 50px;
-                      width: 50px;
-                      border-radius: 8px;
+                      height: 45px;
+                      width: 45px;
                       object-fit: cover;
-                      margin-right: 8px;
-                      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+                      margin-right: 10px;
+                      user-select: none;
                   `;
 
                 const textContainer = document.createElement('div');
-                textContainer.style.cssText = 'flex-grow: 1; margin-left: 8px; padding: 8px 0;';
+                textContainer.style.cssText = 'flex-grow: 1;';
 
-                const pubText = document.createElement('div');
-                pubText.textContent = item.publicationTitle;
-                pubText.style.cssText = `
-                      font-size: 16px;
+                const pubTitle = document.createElement('div');
+                pubTitle.textContent = item.publicationTitle;
+                pubTitle.style.cssText = `
+                      font-size: 14px;
                       font-weight: 700;
-                      margin-bottom: 4px;
+                      margin-top: 2px;
+                      margin-bottom: 2px;
+                      color: ${isDarkTheme() ? '#ffffff' : '#333333'};
                       line-height: 1.3;
                       white-space: nowrap;
                       overflow: hidden;
                       text-overflow: ellipsis;
+                      user-select: none;
                   `;
 
                 const subtitleText = document.createElement('div');
@@ -3819,11 +3885,34 @@ function showVerseReferencesDialog(article, verseReferences, href) {
                       white-space: nowrap;
                       overflow: hidden;
                       text-overflow: ellipsis;
+                      user-select: none;
                   `;
 
-                textContainer.appendChild(pubText);
-                textContainer.appendChild(subtitleText);
+                // 1. Configurer le conteneur parent pour qu'il aligne les éléments horizontalement
+                textContainer.style.display = 'flex';
+                textContainer.style.alignItems = 'center'; // Aligne verticalement l'icône et le texte
+                textContainer.style.justifyContent = 'space-between'; // Pousse l'icône à l'extrémité droite
 
+                // 2. Créer un wrapper pour les textes (pour qu'ils restent empilés à gauche)
+                const textWrapper = document.createElement('div');
+                textWrapper.style.overflow = 'hidden'; // Important pour l'ellipse du texte
+                textWrapper.appendChild(pubTitle);
+                textWrapper.appendChild(subtitleText);
+
+                // 3. Création de l'icône
+                const icon = document.createElement('span');
+                icon.innerHTML = '&#xE63A;'; // Utilisation de innerHTML pour l'entité HTML
+                icon.style.fontFamily = 'jw-icons-external';
+                icon.style.fontSize = '20px';
+                icon.style.marginLeft = '10px'; // Petit espace entre le texte et l'icône
+                icon.style.marginRight = '5px';
+                icon.style.flexShrink = '0';   // Empêche l'icône de s'écraser si le texte est long
+                icon.style.userSelect = 'none';
+
+                // 4. Assemblage final
+                textContainer.appendChild(textWrapper);
+                textContainer.appendChild(icon);
+                
                 headerBar.addEventListener('click', function() {
                     window.flutter_inappwebview?.callHandler('openMepsDocument', item);
                 });
@@ -3843,37 +3932,72 @@ function showVerseReferencesDialog(article, verseReferences, href) {
 
                 wrapWordsWithSpan(article, true);
 
-                const paragraphsDataDialog = fetchAllParagraphsOfTheArticle(article);
+                const paragraphsDataDialog = fetchAllParagraphsOfTheArticle(article, true);
 
-                article.addEventListener('click', async (event) => {
-                    onClickOnPage(article, event.target);
+                item.blockRanges.forEach(b => {
+                    const chapterNumber = b.Location?.ChapterNumber ?? null;
+
+                    const paragraphInfo = [...paragraphsDataDialog.values()].find(p =>
+                        p.chapterId === chapterNumber &&
+                        p.id === b.Identifier
+                    );
+
+                    if (!paragraphInfo || !paragraphInfo.paragraphs?.length) {
+                        return;
+                    }
+                    addBlockRange(paragraphInfo, b.StartToken, b.EndToken, b.UserMarkGuid, b.StyleIndex, b.ColorIndex);
+                });
+
+                item.notes.forEach(note => {
+                    const matchingBlockRange = item.blockRanges.find(
+                        b => b.UserMarkGuid === note.UserMarkGuid
+                    );
+
+                    const chapterNumber = note.Location?.ChapterNumber ?? null;
+
+                    const paragraphInfo = [...paragraphsDataDialog.values()].find(p =>
+                        p.chapterId === chapterNumber &&
+                        p.id === note.BlockIdentifier
+                    );
+
+                    if (!paragraphInfo || !paragraphInfo.paragraphs?.length) {
+                        return;
+                    }
+
+                    addNoteWithGuid(
+                        article,
+                        paragraphInfo.paragraphs[0],
+                        matchingBlockRange?.UserMarkGuid ?? null,
+                        note.Guid,
+                        note.ColorIndex ?? 0,
+                        true,
+                        false
+                    );
                 });
 
                 contentContainer.appendChild(headerBar);
                 contentContainer.appendChild(article);
 
-                repositionAllNotes(article);
+                contentContainer.addEventListener('click', async (event) => {
+                    onClickOnPage(contentContainer, event.target);
+                });
+
+                repositionAllNotes(contentContainer);
             });
         }
     });
 }
 
-/**
- * Compteur global pour assurer l'unicité des ID à travers les multiples
- * ouvertures de dialogue.
- */
 let globalIdCounter = 0;
 
-function showVerseInfoDialog(article, verseInfo, href) {
+function showVerseInfoDialog(article, verseInfo, href, pid, replace) {
     showDialog({
         title: verseInfo.title,
         type: 'verse-info',
         article: article,
+        replace: replace,
         href: href,
         contentRenderer: (contentContainer) => {
-
-            // Définir les onglets et leurs icônes.
-            // On ajoute une propriété 'label' pour les messages d'erreur.
             const tabsDefinition = [{
                     key: 'commentary',
                     iconClass: 'jwi-bible-speech-balloon',
@@ -3922,10 +4046,10 @@ function showVerseInfoDialog(article, verseInfo, href) {
                 // Crée l'en-tête d'onglets
                 const tabBar = document.createElement('div');
                 tabBar.style.cssText = `
-            display: flex;
-            border-bottom: 1px solid ${isDarkTheme() ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)'};
-            background-color: ${isDarkTheme() ? '#111' : '#f9f9f9'};
-        `;
+                    display: flex;
+                    border-bottom: 1px solid ${isDarkTheme() ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)'};
+                    background-color: ${isDarkTheme() ? '#111' : '#f9f9f9'};
+                `;
 
                 // Crée les boutons d'onglets basés sur le tableau filtré.
                 const tabButtons = filteredTabs.map(({
@@ -3935,15 +4059,15 @@ function showVerseInfoDialog(article, verseInfo, href) {
                     const btn = document.createElement('button');
                     btn.classList.add('jwf-jw-icons-external', iconClass);
                     btn.style.cssText = `
-                flex: 1;
-                padding: 10px;
-                border: none;
-                background: none;
-                cursor: pointer;
-                font-size: 30px;
-                color: ${isDarkTheme() ? '#fff' : '#000'};
-                border-bottom: 2px solid ${key === currentTab ? (isDarkTheme() ? '#fff' : '#000') : 'transparent'};
-            `;
+                        flex: 1;
+                        padding: 10px;
+                        border: none;
+                        background: none;
+                        cursor: pointer;
+                        font-size: 30px;
+                        color: ${isDarkTheme() ? '#fff' : '#000'};
+                        border-bottom: 2px solid ${key === currentTab ? (isDarkTheme() ? '#fff' : '#000') : 'transparent'};
+                    `;
 
                     btn.addEventListener('click', () => {
                         currentTab = key;
@@ -3963,7 +4087,6 @@ function showVerseInfoDialog(article, verseInfo, href) {
 
             // Conteneur pour le contenu dynamique
             const dynamicContent = document.createElement('div');
-            dynamicContent.style.padding = '10px';
             contentContainer.appendChild(dynamicContent);
 
             /**
@@ -3977,10 +4100,10 @@ function showVerseInfoDialog(article, verseInfo, href) {
                     const emptyDiv = document.createElement('div');
                     emptyDiv.textContent = "Aucun contenu disponible.";
                     emptyDiv.style.cssText = `
-                padding: 15px;
-                font-style: italic;
-                opacity: 0.7;
-            `;
+                        padding: 15px;
+                        font-style: italic;
+                        opacity: 0.7;
+                    `;
                     dynamicContent.appendChild(emptyDiv);
                     return;
                 }
@@ -3994,20 +4117,21 @@ function showVerseInfoDialog(article, verseInfo, href) {
                         const articleDiv = document.createElement('div');
                         articleDiv.id = 'verse-info-dialog-id';
                         let contentHtml = '';
+                        let isLast = items.indexOf(item) === items.length - 1;
 
                         if (key === 'medias') {
                             contentHtml = `
-                    <div id="verse-info-dialog" class="mediaItem ${item.isVideo ? 'hasVideo' : ''}">
-                      <div class="mediaImgWrapper">
-                        <img class="${item.isVideo ? 'video' : 'image'}" src="${item.imagePath}">
-                      </div>
-                      <div class="mediaBody">
-                        <a class="mediaTitle">
-                          ${item.label}
-                        </a>
-                      </div>
-                    </div>
-                  `;
+                                <div id="verse-info-dialog" class="mediaItem ${item.isVideo ? 'hasVideo' : ''}">
+                                <div class="mediaImgWrapper">
+                                    <img class="${item.isVideo ? 'video' : 'image'}" src="${item.imagePath}">
+                                </div>
+                                <div class="mediaBody">
+                                    <a class="mediaTitle">
+                                    ${item.label}
+                                    </a>
+                                </div>
+                                </div>
+                            `;
 
                             articleDiv.addEventListener("click", event => {
                                 event.preventDefault();
@@ -4015,7 +4139,8 @@ function showVerseInfoDialog(article, verseInfo, href) {
                                     window.flutter_inappwebview.callHandler('onVideoClick', item.href);
                                 } else {}
                             });
-                        } else if (key === 'notes') {
+                        } 
+                        else if (key === 'notes') {
                             const noteData = {
                                 noteGuid: item.Guid,
                                 title: item.Title,
@@ -4039,155 +4164,154 @@ function showVerseInfoDialog(article, verseInfo, href) {
 
                                 articleDiv.appendChild(noteElement);
                             }
-                        } else if (key === 'guide') {
-
-                            articleDiv.id = 'verse-info-dialog-guide-id';
-                            contentHtml = `<article id="verse-info-dialog" style="display: flex; flex-direction: column; gap: 8px;">`;
-
-                            const backgroundColor = isDarkTheme() ? '#000000' : '#f1f1f1';
-                            const color = isDarkTheme() ? '#000000' : '#f1f1f1';
-
-                            // Écris Tous les articles de guide avec une balise a
-                            item.items.forEach((guideItem) => {
-
-                                // *** Utilisation du compteur global pour l'ID ***
+                        } 
+                        else if (key === 'guide') {
+                            // --- VERSION FULL DOM CORRIGÉE POUR GUIDE ---
+                            const container = document.createElement('article');
+                            container.style.cssText = "display: flex; flex-direction: column; gap: 4px;";
+                            
+                            item.items.forEach(guideItem => {
                                 const itemId = `guide-item-${globalIdCounter++}`;
+                                const tempArticle = document.createElement('article');
+                                tempArticle.className = guideItem.className || '';
+                                tempArticle.innerHTML = guideItem.content || '';
+                                
+                                // Sécurité classList : on ne traite que si le contenu existe
+                                try {
+                                    wrapWordsWithSpan(tempArticle, false);
+                                    const pData = fetchAllParagraphsOfTheArticle(tempArticle);
+                                    if (guideItem.blockRanges) {
+                                        guideItem.blockRanges.forEach(b => {
+                                            const pInfo = pData.get(b.Identifier);
+                                            // LA CORRECTION EST ICI : vérification du paragraphe avant classList
+                                            if (pInfo && pInfo.paragraphs && pInfo.paragraphs[0]) {
+                                                addBlockRange(pInfo, b.StartToken, b.EndToken, b.UserMarkGuid, b.StyleIndex, b.ColorIndex);
+                                            }
+                                        });
+                                    }
 
-                                const color = guideItem.color || '#1e855c';
+                                    if(guideItem.notes) {
+                                        guideItem.notes.forEach(note => {
+                                            const matchingBlockRange = item.blockRanges.find(b => b.UserMarkGuid === note.UserMarkGuid);
+                                            const paragraphInfo = pData.get(note.BlockIdentifier);
 
-                                // Style pour le carré ou l'icône
-                                const iconStyle = `
-                      width: 40px;
-                      height: 40px;
-                      margin-right: 12px;
-                      flex-shrink: 0;
-                      display: flex;
-                      justify-content: center;
-                      align-items: center;
-                      overflow: hidden;
-                      background-color: ${guideItem.imageUrl ? 'transparent' : color};
-                      border-radius: 2px;
-                    `;
+                                            addNoteWithGuid(
+                                                tempArticle, 
+                                                paragraphInfo.paragraphs[0],
+                                                matchingBlockRange?.UserMarkGuid ?? null,
+                                                note.Guid,
+                                                note.ColorIndex ?? 0,
+                                                false,
+                                                false
+                                            );
+                                        });
+                                    }
+                                } 
+                                catch(e) { console.error("Erreur guide DOM", e); }
 
-                                // Générer l'icône/le carré
-                                const iconHtml = guideItem.imageUrl ? `<img src="${guideItem.imageUrl}" style="max-width: 100%; max-height: 100%; object-fit: cover;">` : '';
+                                const row = document.createElement('div');
+                                row.id = itemId;
+                                row.setAttribute('data-content-html-processed', tempArticle.outerHTML);
+                                row.style.cssText = `display: flex; align-items: center; background-color: ${isDarkTheme() ? '#000' : '#f1f1f1'}; cursor: pointer;`;
+                                
+                                row.innerHTML = `
+                                    <div style="width: 45px; height: 45px; margin-right: 10px; flex-shrink: 0; background-color: ${guideItem.color || '#ccc'}">
+                                        ${guideItem.imageUrl ? `<img src="${guideItem.imageUrl}" style="width:100%; height:100%; object-fit:cover;">` : ''}
+                                    </div>
+                                    <div style="flex: 1; overflow: hidden;">
+                                        <div style="font-size:14px; font-weight:bold; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:${isDarkTheme()?'#fff':'#000'}">${guideItem.publicationTitle}</div>
+                                        <div style="font-size:12px; opacity:0.8; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:${isDarkTheme()?'#fff':'#000'}">${guideItem.subtitle}</div>
+                                    </div>
+                                    <span style="font-family:jw-icons-external; font-size:20px; margin-left: 10px; margin-right: 5px; user-select:none;" data-expansion-button="true" data-item-id="${itemId}">&#xE639;</span>
+                                `;
 
-                                // Échapper le contenu avant de le stocker dans data-content-html
-                                const contentToStore = `<article id='extract-content' class='${guideItem.className || ''}'>${guideItem.content || ''}</article>`;
-                                const encodedContent = contentToStore
-                                    .replace(/"/g, '&quot;')
-                                    .replace(/</g, '&lt;')
-                                    .replace(/>/g, '&gt;')
-                                    .replace(/'/g, '&#39;');
+                                const expandArea = document.createElement('div');
+                                expandArea.id = `content-expand-${itemId}`;
+                                expandArea.style.display = 'none';
+                                expandArea.addEventListener('click', async (event) => {
+                                    onClickOnPage(expandArea, event.target);
+                                });
 
-                                // Style du bouton d'expansion (logo)
-                                const expandButtonStyle = `
-                      font-family: jw-icons-external;
-                      color: #999999;
-                      font-size: 1.1em;
-                      cursor: pointer;
-                      margin-left: 10px;
-                      flex-shrink: 0;
-                    `;
-
-                                // LOGIQUE DE CLIC FLUTTER/MEPS :
-                                const flutterCall = `
-                      window.flutter_inappwebview.callHandler('openMepsDocument', {
-                        mepsDocumentId: '${guideItem.mepsDocumentId}',
-                        mepsLanguageId: '${guideItem.mepsLanguageId}',
-                        startParagraphId: '${guideItem.startParagraphId}',
-                        endParagraphId: '${guideItem.endParagraphId}'
-                      });
-                      return false; // Empêche le comportement de lien par défaut
-                    `;
-
-                                const mainLinkOnClick = guideItem.mepsDocumentId ? `onclick="${flutterCall}"` : '';
-
-
-                                // Générer le HTML (SANS ONCLICK sur le bouton d'expansion)
-                                contentHtml += `
-                      <div id="${itemId}" ${mainLinkOnClick} data-content-html="${encodedContent}"
-                         style="text-decoration: none; color: inherit; display: block; background-color: ${backgroundColor}; border-radius: 4px;">
-
-                        <div style="display: flex; align-items: center; padding: 8px 12px;">
-
-                          <div style="${iconStyle}">
-                            ${iconHtml}
-                          </div>
-
-                          <div style="flex-grow: 1; display: flex; flex-direction: column; justify-content: center;">
-                            <div style="font-weight: bold; font-size: 0.8em; line-height: 1.3;">
-                              ${guideItem.publicationTitle || ''}
-                            </div>
-                            <div style="font-size: 0.65em; line-height: 1.4; opacity: 0.8;">
-                              ${guideItem.subtitle || ''}
-                            </div>
-                          </div>
-
-                          <div style="${expandButtonStyle}"
-                               data-expansion-button="true"
-                               data-state="closed"
-                               data-item-id="${itemId}">
-                            &#xE639;
-                          </div>
-                        </div>
-                      </div>
-
-                      <div id="content-expand-${itemId}" style="display: none; padding: 0; margin: 0; color: #ffffff;"></div>
-                    `;
+                                row.addEventListener('click', (e) => {
+                                    if (e.target.closest('[data-expansion-button]')) {
+                                        e.stopPropagation();
+                                        handleExpand(itemId);
+                                    } else {
+                                        window.flutter_inappwebview.callHandler('openMepsDocument', guideItem);
+                                    }
+                                });
+                                container.append(row, expandArea);
                             });
-
-                            contentHtml += `</article>`;
-                        } else if (key === 'versions') {
+                            dynamicContent.appendChild(container);
+                        }
+                        else if (key === 'versions') {
                             const headerBar = document.createElement('div');
                             headerBar.style.cssText = `
-                      display: flex;
-                      align-items: center;
-                      padding-inline: 10px;
-                      padding-block: 6px;
-                      background: ${isDarkTheme() ? '#000000' : '#f1f1f1'};
-                      border-bottom: 1px solid ${isDarkTheme() ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)'};
-                  `;
+                                display: flex;
+                                align-items: center;
+                                background: ${isDarkTheme() ? '#000000' : '#f1f1f1'};
+                            `;
 
                             const img = document.createElement('img');
                             img.src = 'file://' + item.imageUrl;
                             img.style.cssText = `
-                      height: 50px;
-                      width: 50px;
-                      border-radius: 8px;
-                      object-fit: cover;
-                      margin-right: 8px;
-                      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-                  `;
+                                height: 45px;
+                                width: 45px;
+                                object-fit: cover;
+                                margin-right: 10px;
+                                user-select: none;
+                            `;
 
                             const textContainer = document.createElement('div');
-                            textContainer.style.cssText = 'flex-grow: 1; margin-left: 8px; padding: 8px 0;';
+                            textContainer.style.cssText = 'flex-grow: 1;';
 
-                            const pubText = document.createElement('div');
-                            pubText.textContent = item.publicationTitle;
-                            pubText.style.cssText = `
-                      font-size: 15px;
-                      font-weight: 700;
-                      margin-bottom: 4px;
-                      line-height: 1.3;
-                      white-space: nowrap;
-                      overflow: hidden;
-                      text-overflow: ellipsis;
-                  `;
+                            const pubTitle = document.createElement('div');
+                            pubTitle.textContent = item.publicationTitle;
+                            pubTitle.style.cssText = `
+                                font-size: 14px;
+                                font-weight: 700;
+                                margin-top: 2px;
+                                margin-bottom: 2px;
+                                color: ${isDarkTheme() ? '#ffffff' : '#333333'};
+                                line-height: 1.3;
+                                white-space: nowrap;
+                                overflow: hidden;
+                                text-overflow: ellipsis;
+                                user-select: none;
+                            `;
 
                             const subtitleText = document.createElement('div');
                             subtitleText.textContent = item.subtitle;
                             subtitleText.style.cssText = `
-                      font-size: 12px;
-                      opacity: 0.8;
-                      line-height: 1.4;
-                      white-space: nowrap;
-                      overflow: hidden;
-                      text-overflow: ellipsis;
-                  `;
+                                font-size: 12px;
+                                opacity: 0.9;
+                                line-height: 1.4;
+                                white-space: nowrap;
+                                overflow: hidden;
+                                text-overflow: ellipsis;
+                                user-select: none;
+                            `;
 
-                            textContainer.appendChild(pubText);
-                            textContainer.appendChild(subtitleText);
+                            textContainer.style.display = 'flex';
+                            textContainer.style.alignItems = 'center'; // Aligne verticalement l'icône et le texte
+                            textContainer.style.justifyContent = 'space-between'; // Pousse l'icône à l'extrémité droite
+
+                            const textWrapper = document.createElement('div');
+                            textWrapper.style.overflow = 'hidden'; // Important pour l'ellipse du texte
+                            textWrapper.appendChild(pubTitle);
+                            textWrapper.appendChild(subtitleText);
+
+                            const icon = document.createElement('span');
+                            icon.innerHTML = '&#xE63A;'; // Utilisation de innerHTML pour l'entité HTML
+                            icon.style.fontFamily = 'jw-icons-external';
+                            icon.style.fontSize = '20px';
+                            icon.style.marginLeft = '10px'; // Petit espace entre le texte et l'icône
+                            icon.style.marginRight = '5px';
+                            icon.style.flexShrink = '0';   // Empêche l'icône de s'écraser si le texte est long
+                            icon.style.userSelect = 'none';
+
+                            textContainer.appendChild(textWrapper);
+                            textContainer.appendChild(icon);
 
                             headerBar.addEventListener('click', function() {
                                 window.flutter_inappwebview?.callHandler('openMepsDocument', item);
@@ -4199,25 +4323,113 @@ function showVerseInfoDialog(article, verseInfo, href) {
                             const article = document.createElement('div');
                             article.innerHTML = `<article id="verse-dialog" class="${item.className}">${item.content}</article>`;
                             article.style.cssText = `
-                    position: relative;
-                    padding-top: 10px;
-                    padding-bottom: 16px;
-                  `;
+                                position: relative;
+                                padding-top: 10px;
+                                padding-bottom: 16px;
+                            `;
+
+                            wrapWordsWithSpan(article, true);
+
+                            const paragraphsDataDialog = fetchAllParagraphsOfTheArticle(article, true);
+
+                            item.blockRanges.forEach(b => {
+                                const chapterNumber = b.Location?.ChapterNumber ?? null;
+
+                                const paragraphInfo = [...paragraphsDataDialog.values()].find(p =>
+                                    p.chapterId === chapterNumber &&
+                                    p.id === b.Identifier
+                                );
+
+                                if (!paragraphInfo || !paragraphInfo.paragraphs?.length) {
+                                    return;
+                                }
+                                addBlockRange(paragraphInfo, b.StartToken, b.EndToken, b.UserMarkGuid, b.StyleIndex, b.ColorIndex);
+                            });
+
+                            item.notes.forEach(note => {
+                                const matchingBlockRange = item.blockRanges.find(
+                                    h => h.UserMarkGuid === note.UserMarkGuid
+                                );
+
+                                const chapterNumber = note.Location?.ChapterNumber ?? null;
+
+                                const paragraphInfo = [...paragraphsDataDialog.values()].find(p =>
+                                    p.chapterId === chapterNumber &&
+                                    p.id === note.BlockIdentifier
+                                );
+
+                                if (!paragraphInfo || !paragraphInfo.paragraphs?.length) {
+                                    return;
+                                }
+
+                                addNoteWithGuid(
+                                    article,
+                                    paragraphInfo.paragraphs[0],
+                                    matchingBlockRange?.UserMarkGuid ?? null,
+                                    note.Guid,
+                                    note.ColorIndex ?? 0,
+                                    true,
+                                    false
+                                );
+                            });
 
                             dynamicContent.appendChild(headerBar);
                             dynamicContent.appendChild(article);
-                        } else if (key === 'footnotes') {
+
+                            if(isLast) {
+                                // CRÉATION DU BOUTON "PERSONNALISER"
+                                const customizeButton = document.createElement('button');
+                                customizeButton.textContent = 'Personnaliser';
+
+                                // Détermination des couleurs selon le thème
+                                const bgColor = isDarkTheme() ? '#8e8e8e' : '#757575';
+                                const textColor = isDarkTheme() ? 'black' : 'white';
+
+                                customizeButton.style.cssText = `
+                                        display: block;
+                                        padding: 6px 30px;
+                                        margin: 16px auto 20px; /* marge supérieure + inférieure */
+                                        border: none;
+                                        cursor: pointer;
+                                        font-size: 16px;
+                                        text-align: center;
+                                        background-color: ${bgColor};
+                                        color: ${textColor};
+                                        transition: background-color 0.2s ease;
+                                        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+                                    `;
+
+                                // Ajouter le listener quand on clique sur le bouton
+                                customizeButton.addEventListener('click', async () => {
+                                    const hasChanges = await window.flutter_inappwebview.callHandler('openCustomizeVersesDialog');
+
+                                    // 2. Vérification si des changements ont eu lieu AVANT de recharger les versets
+                                    if (hasChanges === true) {
+                                        const verseInfo = await window.flutter_inappwebview.callHandler('fetchVerseInfo', {id: pid});
+                                        showVerseInfoDialog(pageCenter, verseInfo, 'verse-info-$pid', true);
+                                    } 
+                                    else {
+                                        console.log("Aucun changement de version, les versets ne sont pas rechargés.");
+                                    }
+                                });
+
+                                // Ajout du bouton au bas du contentContainer
+                                dynamicContent.appendChild(customizeButton);
+                            }
+                        } 
+                        else if (key === 'footnotes') {
                             if (item.type === 'footnote') {
                                 const letter = getFootnoteLetter(items.indexOf(item) + 1);
                                 contentHtml = `
-                          <div id="footnote${item.footnoteIndex}" data-fnid="${item.footnoteIndex}" class="fcc fn-ref ${item.className}">
-                              <p>
-                              <a href="#footnotesource${item.footnoteIndex}" class="fn-symbol">${letter}</a>
-                              ${item.content}
-                              </p>
-                          </div>
-                      `;
-                            } else if (item.type === 'versesReference') {
+                                <div id="footnote${item.footnoteIndex}" data-fnid="${item.footnoteIndex}" class="fcc fn-ref ${item.className}">
+                                    <p>
+                                        <a href="#footnotesource${item.footnoteIndex}" class="fn-symbol">${letter}</a>
+                                        ${item.content}
+                                    </p>
+                                </div>
+                            `;
+                            } 
+                            else if (item.type === 'versesReference') {
 
                                 // *** Utilisation du compteur global pour l'ID ***
                                 const itemId = `xref-item-${globalIdCounter++}`;
@@ -4232,59 +4444,55 @@ function showVerseInfoDialog(article, verseInfo, href) {
                                 // 2. Construction du contenu riche pour l'expansion (Rich Content)
                                 const verseContentHtml = item.verses.map(verse => {
                                     return `
-                                <div style="
-                                    display: flex;
-                                    align-items: center;
-                                    padding-inline: 10px;
-                                    padding-block: 6px;
-                                    background: ${isDarkTheme() ? '#000000' : '#f1f1f1'};
-                                    border-bottom: 1px solid ${isDarkTheme() ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)'};
-                                ">
-                                    <img src="file://${item.imageUrl}" style="
-                                        height: 50px;
-                                        width: 50px;
-                                        border-radius: 8px;
-                                        object-fit: cover;
-                                        margin-right: 8px;
-                                        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+                                    <div style="
+                                        display: flex;
+                                        align-items: center;
+                                        background: ${isDarkTheme() ? '#000000' : '#f1f1f1'};
                                     ">
-
-                                    <div style="flex-grow: 1; margin-left: 8px; padding: 8px 0;">
-                                        <div style="
-                                            font-size: 15px;
-                                            font-weight: 700;
-                                            margin-bottom: 4px;
-                                            line-height: 1.3;
-                                            white-space: nowrap;
-                                            overflow: hidden;
-                                            text-overflow: ellipsis;
+                                        <img src="file://${item.imageUrl}" style="
+                                            height: 45px;
+                                            width: 45px;
+                                            object-fit: cover;
+                                            margin-right: 10px;
+                                            user-select: none;
                                         ">
-                                            ${verse.bibleVerseDisplay || 'Référence non disponible'}
-                                        </div>
 
-                                        <div style="
-                                            font-size: 12px;
-                                            opacity: 0.8;
-                                            line-height: 1.4;
-                                            white-space: nowrap;
-                                            overflow: hidden;
-                                            text-overflow: ellipsis;
-                                        ">
-                                            ${item.subtitle}
+                                        <div style="flex-grow: 1;">
+                                            <div style="
+                                                font-size: 14px;
+                                                font-weight: 700;
+                                                margin-top: 2px;
+                                                margin-bottom: 2px;
+                                                line-height: 1.3;
+                                                white-space: nowrap;
+                                                overflow: hidden;
+                                                text-overflow: ellipsis;
+                                                user-select: none;
+                                            ">
+                                                ${verse.bibleVerseDisplay || 'Référence non disponible'}
+                                            </div>
+
+                                            <div style="
+                                                font-size: 12px;
+                                                opacity: 0.9;
+                                                line-height: 1.4;
+                                                white-space: nowrap;
+                                                overflow: hidden;
+                                                text-overflow: ellipsis;
+                                                user-select: none;
+                                            ">
+                                                ${item.subtitle}
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
 
-                                <div style="
-                                  position: relative;
-                                  padding: 10px 10px 16px 10px;
-                                ">
-                                    <article class="${item.className || ''}">
-                                        ${verse.content || 'Contenu non disponible'}
-                                    </article>
-                                </div>
-                                <hr style="border: none; border-top: 1px solid rgba(0,0,0,0.1); margin: 0;">
-                            `;
+                                    <div style="position: relative; padding: 10px 10px 16px 10px;">
+                                        <article class="${item.className || ''}">
+                                            ${verse.content || 'Contenu non disponible'}
+                                        </article>
+                                    </div>
+                                    <hr style="border: none; border-top: 1px solid rgba(0,0,0,0.1); margin: 0;">
+                                `;
                                 }).join('');
 
                                 // 3. Encapsulation et Encoded Combined Verse
@@ -4299,21 +4507,21 @@ function showVerseInfoDialog(article, verseInfo, href) {
 
                                 // --- Définition des Styles ---
                                 const expandButtonStyle = `
-                            font-family: jw-icons-external;
-                            color: #999999;
-                            font-size: 1.1em;
-                            cursor: pointer;
-                            margin-left: 10px;
-                            flex-shrink: 0;
-                        `;
+                                    font-family: jw-icons-external;
+                                    color: #999999;
+                                    font-size: 1.1em;
+                                    cursor: pointer;
+                                    margin-left: 10px;
+                                    flex-shrink: 0;
+                                `;
 
                                 const xRefContainerStyle = `
-                            display: flex;
-                            align-items: center;
-                            justify-content: space-between;
-                            width: 100%;
-                            padding: 10px 10px 10px 0;
-                        `;
+                                    display: flex;
+                                    align-items: center;
+                                    justify-content: space-between;
+                                    width: 100%;
+                                    padding: 10px 10px 10px 0;
+                                `;
 
 
                                 // --- Construction du HTML final (SANS ONCLICK sur le bouton d'expansion) ---
@@ -4344,18 +4552,20 @@ function showVerseInfoDialog(article, verseInfo, href) {
                         `;
                             }
 
-                        } else {
+                        } 
+                        else {
                             contentHtml = `
-                        <article id="verse-info-dialog" class="${item.className || ''}">
-                            ${item.content}
-                        </article>
-                    `;
+                                <article id="verse-info-dialog" class="${item.className || ''}">
+                                    ${item.content}
+                                </article>
+                            `;
                         }
 
 
                         if (key === 'notes') {
                             dynamicContent.appendChild(articleDiv);
-                        } else if (key !== 'versions') {
+                        } 
+                        else if (key !== 'versions') {
                             articleDiv.innerHTML = contentHtml;
                             articleDiv.addEventListener('click', async (event) => {
                                 onClickOnPage(articleDiv, event.target);
@@ -4377,16 +4587,17 @@ function showVerseInfoDialog(article, verseInfo, href) {
                             }
                         }
                     });
-                } else {
+                } 
+                else {
                     // Cas où l'onglet est vide
                     const emptyMessage = tabsDefinition.find(t => t.key === key)?.label || "Contenu";
                     const emptyDiv = document.createElement('div');
                     emptyDiv.textContent = `Il n'y a pas de ${emptyMessage} pour ce verset.`;
                     emptyDiv.style.cssText = `
-                padding: 15px;
-                font-style: italic;
-                opacity: 0.7;
-            `;
+                        padding: 15px;
+                        font-style: italic;
+                        opacity: 0.7;
+                    `;
                     dynamicContent.appendChild(emptyDiv);
                 }
             }
@@ -4399,38 +4610,25 @@ function showVerseInfoDialog(article, verseInfo, href) {
 
 // Pas de changement dans handleExpand, elle est générique et globale.
 function handleExpand(itemId) {
-    const itemElement = document.getElementById(itemId);
-    const contentContainer = document.getElementById(`content-expand-${itemId}`);
+    const row = document.getElementById(itemId);
+    const box = document.getElementById(`content-expand-${itemId}`);
+    if (!row || !box) return;
 
-    // Cibler le bouton d'expansion dans le conteneur principal
-    const expandButton = itemElement.querySelector('[data-expansion-button]');
+    const btn = row.querySelector('[data-expansion-button]');
+    const isHidden = box.style.display === 'none';
 
-    if (itemElement && contentContainer && expandButton) {
-
-        const isVisible = contentContainer.style.display !== 'none';
-
-        if (!isVisible) {
-            // Ouvrir
-            const encodedContent = itemElement.getAttribute('data-content-html');
-            // La fonction de décodage doit gérer tous les échappements effectués
-            const decodedContent = encodedContent.replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&#39;/g, "'");
-
-            contentContainer.innerHTML = decodedContent;
-            contentContainer.style.display = 'block';
-
-            // Basculer l'icône sur OUVERT (E638)
-            expandButton.innerHTML = '&#xE638;';
-            expandButton.setAttribute('data-state', 'open');
-
-        } else {
-            // Fermer
-            contentContainer.style.display = 'none';
-            contentContainer.innerHTML = '';
-
-            // Basculer l'icône sur FERMÉ (E639)
-            expandButton.innerHTML = '&#xE639;';
-            expandButton.setAttribute('data-state', 'closed');
-        }
+    if (isHidden) {
+        // On privilégie le HTML déjà traité s'il existe (Full DOM), sinon on décode l'attribut standard
+        const content = row.getAttribute('data-content-html-processed') || 
+                        row.getAttribute('data-content-html')?.replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&#39;/g, "'");
+        
+        box.innerHTML = content || '';
+        box.style.display = 'block';
+        if (btn) btn.innerHTML = '&#xE638;';
+    } else {
+        box.style.display = 'none';
+        box.innerHTML = '';
+        if (btn) btn.innerHTML = '&#xE639;';
     }
 }
 
@@ -4447,10 +4645,7 @@ function showExtractPublicationDialog(article, extractData, href) {
                 headerBar.style.cssText = `
                         display: flex;
                         align-items: center;
-                        padding-inline: 8px;
-                        padding-block: 3px;
                         background: ${isDarkTheme() ? '#000000' : '#f1f1f1'};
-                        border-bottom: 1px solid ${isDarkTheme() ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)'};
                     `;
 
                 // Image de la publication
@@ -4458,50 +4653,67 @@ function showExtractPublicationDialog(article, extractData, href) {
                     const img = document.createElement('img');
                     img.src = 'file://' + item.imageUrl;
                     img.style.cssText = `
-                            height: 50px;
-                            width: 50px;
-                            border-radius: 8px;
+                            height: 45px;
+                            width: 45px;
                             object-fit: cover;
-                            margin-right: 8px;
+                            margin-right: 10px;
+                            user-select: none;
                         `;
                     headerBar.appendChild(img);
                 }
 
                 // Conteneur des textes
                 const textContainer = document.createElement('div');
-                textContainer.style.cssText = 'flex-grow: 1; margin-left: 8px; padding: 8px 0;';
+                textContainer.style.cssText = 'flex-grow: 1;';
                 
                 // Titre de la publication
                 const pubTitle = document.createElement('div');
                 pubTitle.textContent = item.publicationTitle;
                 pubTitle.style.cssText = `
-                      font-size: 16px;
+                      font-size: 14px;
                       font-weight: 700;
-                      margin-bottom: 4px;
+                      margin-top: 2px;
+                      margin-bottom: 2px;
                       color: ${isDarkTheme() ? '#ffffff' : '#333333'};
                       line-height: 1.3;
                       white-space: nowrap;
                       overflow: hidden;
                       text-overflow: ellipsis;
+                      user-select: none;
                     `;
 
-                // Sous-titre (en dessous du titre)
-                if (item.subtitle) {
-                    const subtitle = document.createElement('div');
-                    subtitle.textContent = item.subtitle;
-                    subtitle.style.cssText = `
+                const subtitleText = document.createElement('div');
+                    subtitleText.textContent = item.subtitle;
+                    subtitleText.style.cssText = `
                         font-size: 12px;
-                        opacity: 0.8;
+                        opacity: 0.9;
                         line-height: 1.4;
                         white-space: nowrap;
                         overflow: hidden;
                         text-overflow: ellipsis;
+                        user-select: none;
                       `;
-                    textContainer.appendChild(pubTitle);
-                    textContainer.appendChild(subtitle);
-                } else {
-                    textContainer.appendChild(pubTitle);
-                }
+     
+                textContainer.style.display = 'flex';
+                textContainer.style.alignItems = 'center'; // Aligne verticalement l'icône et le texte
+                textContainer.style.justifyContent = 'space-between'; // Pousse l'icône à l'extrémité droite
+
+                const textWrapper = document.createElement('div');
+                textWrapper.style.overflow = 'hidden'; // Important pour l'ellipse du texte
+                textWrapper.appendChild(pubTitle);
+                textWrapper.appendChild(subtitleText);
+
+                const icon = document.createElement('span');
+                icon.innerHTML = '&#xE63A;'; // Utilisation de innerHTML pour l'entité HTML
+                icon.style.fontFamily = 'jw-icons-external';
+                icon.style.fontSize = '20px';
+                icon.style.marginLeft = '10px'; // Petit espace entre le texte et l'icône
+                icon.style.marginRight = '5px';
+                icon.style.flexShrink = '0';   // Empêche l'icône de s'écraser si le texte est long
+                icon.style.userSelect = 'none';
+
+                textContainer.appendChild(textWrapper);
+                textContainer.appendChild(icon);
                 
                 headerBar.addEventListener('click', function() {
                     window.flutter_inappwebview.callHandler('openMepsDocument', {
@@ -4527,10 +4739,9 @@ function showExtractPublicationDialog(article, extractData, href) {
 
                 item.blockRanges.forEach(b => {
                     if ((item.startParagraphId == null || b.Identifier >= item.startParagraphId) && (item.endParagraphId == null || b.Identifier <= item.endParagraphId)) {
+                        paragraphInfo = paragraphsDataDialog.get(b.Identifier);
                         addBlockRange(
-                            paragraphsDataDialog,
-                            b.BlockType,
-                            b.Identifier,
+                            paragraphInfo,
                             b.StartToken,
                             b.EndToken,
                             b.UserMarkGuid,
@@ -4541,7 +4752,7 @@ function showExtractPublicationDialog(article, extractData, href) {
                 });
 
                 item.notes.forEach(note => {
-                    const matchingBlockRange = item.blockRanges.find(h => h.UserMarkGuid === note.UserMarkGuid);
+                    const matchingBlockRange = item.blockRanges.find(b => b.UserMarkGuid === note.UserMarkGuid);
                     const paragraphInfo = paragraphsDataDialog.get(note.BlockIdentifier)
 
                     addNoteWithGuid(
@@ -4605,51 +4816,69 @@ function showVerseCommentaryDialog(article, commentaries, href) {
                 headerBar.style.cssText = `
                         display: flex;
                         align-items: center;
-                        padding-inline: 10px;
-                        padding-block: 6px;
                         background: ${isDarkTheme() ? '#000000' : '#f1f1f1'};
-                        border-bottom: 1px solid ${isDarkTheme() ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)'};
                     `;
 
                 const img = document.createElement('img');
                 img.src = 'file://' + item.imageUrl;
                 img.style.cssText = `
-                        height: 50px;
-                        width: 50px;
-                        border-radius: 8px;
+                        height: 45px;
+                        width: 45px;
                         object-fit: cover;
-                        margin-right: 8px;
-                        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+                        margin-right: 10px;
+                        user-select: none;
                     `;
 
                 const textContainer = document.createElement('div');
-                textContainer.style.cssText = 'flex-grow: 1; margin-left: 8px; padding: 8px 0;';
+                textContainer.style.cssText = 'flex-grow: 1;';
 
-                const pubText = document.createElement('div');
-                pubText.textContent = item.publicationTitle;
-                pubText.style.cssText = `
-                        font-size: 16px;
+                const pubTitle = document.createElement('div');
+                pubTitle.textContent = item.publicationTitle;
+                pubTitle.style.cssText = `
+                        font-size: 14px;
                         font-weight: 700;
-                        margin-bottom: 4px;
+                        margin-top: 2px;
+                        margin-bottom: 2px;
                         line-height: 1.3;
                         white-space: nowrap;
                         overflow: hidden;
                         text-overflow: ellipsis;
+                        user-select: none;
                     `;
 
                 const subtitleText = document.createElement('div');
                 subtitleText.textContent = item.subtitle;
                 subtitleText.style.cssText = `
                         font-size: 12px;
-                        opacity: 0.8;
+                        opacity: 0.9;
                         line-height: 1.4;
                         white-space: nowrap;
                         overflow: hidden;
                         text-overflow: ellipsis;
+                        user-select: none;
                     `;
 
-                textContainer.appendChild(pubText);
-                textContainer.appendChild(subtitleText);
+                textContainer.style.display = 'flex';
+                textContainer.style.alignItems = 'center'; // Aligne verticalement l'icône et le texte
+                textContainer.style.justifyContent = 'space-between'; // Pousse l'icône à l'extrémité droite
+
+                const textWrapper = document.createElement('div');
+                textWrapper.style.overflow = 'hidden'; // Important pour l'ellipse du texte
+                textWrapper.appendChild(pubTitle);
+                textWrapper.appendChild(subtitleText);
+
+                const icon = document.createElement('span');
+                icon.innerHTML = '&#xE63A;'; // Utilisation de innerHTML pour l'entité HTML
+                icon.style.fontFamily = 'jw-icons-external';
+                icon.style.fontSize = '20px';
+                icon.style.marginLeft = '10px'; // Petit espace entre le texte et l'icône
+                icon.style.marginRight = '5px';
+                icon.style.flexShrink = '0';   // Empêche l'icône de s'écraser si le texte est long
+                icon.style.userSelect = 'none';
+
+                textContainer.appendChild(textWrapper);
+                textContainer.appendChild(icon);
+                
 
                 headerBar.addEventListener('click', function() {
                     window.flutter_inappwebview?.callHandler('openMepsDocument', item);
@@ -4664,6 +4893,10 @@ function showVerseCommentaryDialog(article, commentaries, href) {
                       padding-top: 10px;
                       padding-bottom: 16px;
                     `;
+
+                contentContainer.addEventListener('click', async (event) => {
+                    onClickOnPage(contentContainer, event.target);
+                });
 
                 contentContainer.appendChild(headerBar);
                 contentContainer.appendChild(article);
@@ -4833,7 +5066,7 @@ function repositionNote(noteGuid) {
     const note = pageCenter.querySelector(`[${noteAttr}="${noteGuid}"]`);
     if (note) {
         let target = null;
-        const blockId = note.getAttribute('data-note-block-id');
+        const blockId = note.getAttribute(noteBlockIdAttr);
         const idAttr = isBible() ? 'id' : 'data-pid';
         target = pageCenter.querySelector(`[${idAttr}="${blockId}"]`);
 
@@ -4849,79 +5082,41 @@ function callHandler(name, args) {
     removeAllSelected();
 }
 
-function whenClickOnParagraph(target, selector, idAttr, classFilter) {
-    if (!target) {
-        closeToolbar();
-        return;
+function whenClickOnParagraph(target, selector, idAttr, type) {
+    const matched = target.closest(selector);
+    if (!matched) { closeToolbar(); return; }
+
+    const rawId = matched.getAttribute(idAttr);
+    const parts = rawId.split('-');
+    const finalId = (type === 'verse') ? parseInt(parts[2], 10) : parseInt(rawId, 10);
+
+    const audioMarkers = cachedPages[currentIndex]?.audiosMarkers;
+    let hasAudio = false;
+    if (audioMarkers) {
+        for (let m of audioMarkers) {
+            if ((type === 'verse' && m.verseNumber === finalId) || (type === 'paragraph' && m.mepsParagraphId === finalId)) {
+                hasAudio = true; break;
+            }
+        }
     }
 
-    const matchedElement = target.closest(`[${idAttr}]`);
-
-    if (!matchedElement) {
-        closeToolbar();
-        return;
+    const data = paragraphsData.get(finalId);
+    if (data) {
+        requestAnimationFrame(() => {
+            showToolbar(data.paragraphs, finalId, selector, hasAudio, type);
+        });
     }
+}
 
-    if (classFilter === 'paragraph') {
-        const pid = matchedElement.getAttribute(idAttr);
-
-        if (!pid) {
-            closeToolbar();
-            return;
-        }
-
-        // Convertir pid en nombre pour correspondre à la clé dans paragraphsData
-        const pidNumber = parseInt(pid, 10);
-
-        // Récupérer les données du paragraphe depuis paragraphsData
-        const paragraphData = paragraphsData.get(pidNumber);
-
-        if (!paragraphData) {
-            closeToolbar();
-            return;
-        }
-
-        // Optimisation avec optional chaining et court-circuit
-        const hasAudio = cachedPages[currentIndex]?.audiosMarkers?.some(m =>
-            String(m.mepsParagraphId) === pid
-        ) ?? false;
-
-        showToolbar(paragraphData.paragraphs, pidNumber, selector, hasAudio, classFilter);
-    } else {
-        // Traitement des versets
-        let vid = matchedElement.getAttribute(idAttr);
-
-        if (!vid) {
-            closeToolbar();
-            return;
-        }
-
-        // Extraire le numéro de verset (3ème partie) de vid
-        // vid format: v1-3-5-1 -> on veut récupérer "5"
-        const vidParts = vid.split('-');
-        const verseNumber = parseInt(vidParts[2], 10); // Convertir en nombre
-
-        // Récupérer les données du verset depuis paragraphsData
-        const verseData = paragraphsData.get(verseNumber);
-
-        if (!verseData) {
-            closeToolbar();
-            return;
-        }
-
-        // Utiliser le numéro de verset pour la vérification audio
-        const hasAudio = cachedPages[currentIndex]?.audiosMarkers?.some(m =>
-            String(m.verseNumber) === String(verseNumber)
-        ) ?? false;
-
-        showToolbar(verseData.paragraphs, verseNumber, selector, hasAudio, classFilter);
-    }
+function getTheFirstTargetParagraph(target) {
+    if (!target || target.closest('#verse-dialog')) return null; // Ignore le dialogue
+    const verse = target.closest('.v[id]');
+    const idValue = verse ? verse.id.split('-')[2] : target.closest('[data-pid]')?.getAttribute('data-pid');
+    return idValue ? paragraphsData.get(parseInt(idValue, 10)) : null;
 }
 
 async function loadUserdata() {
     const userdata = await window.flutter_inappwebview.callHandler('getUserdata');
-
-    const blockTypeInt = isBible() ? 2 : 1; // 2 pour Verset, 1 pour Paragraphe (basé sur le code Flutter supposé)
 
     blockRanges = userdata.blockRanges;
     notes = userdata.notes;
@@ -4959,18 +5154,11 @@ async function loadUserdata() {
 
     const processedNoteGuids = new Set(); // Pour éviter les doublons
 
-    // -----------------------------------------------------------------
-    // Remplacement de l'itération DOM par l'itération sur paragraphsData
-    // -----------------------------------------------------------------
-
     // Itérer sur paragraphsData (Map<int ID, { paragraphs: HTMLElement[], id: int, isVerse: boolean, ... }>)
     paragraphsData.forEach((paragraphInfo, numericId) => {
 
         // 1. Récupération des données du paragraphe
-        const {
-            paragraphs,
-            isVerse
-        } = paragraphInfo;
+        const {paragraphs, isVerse} = paragraphInfo;
 
         const blockIdentifier = numericId;
         // blockType sera 2 pour 'v' (verset) ou 1 pour 'p' (paragraphe)
@@ -4979,20 +5167,20 @@ async function loadUserdata() {
         // Clé utilisée pour les Maps indexées par chaîne (BlockType-Identifier)
         const idKey = `${blockType}-${blockIdentifier}`;
 
-        // 2. Gérer les signets (Bookmarks)
+        // Gérer les signets (Bookmarks)
         const bookmark = bookmarksMap.get(idKey);
         if (bookmark) {
             addBookmark(pageCenter, paragraphInfo, bookmark.BlockType, bookmark.BlockIdentifier, bookmark.Slot);
         }
 
-        // 3. Gérer les surlignages (Highlights/BlockRanges)
+        // Gérer les surlignages (Highlights/BlockRanges)
         const matchingHighlights = blockRangeMap.get(idKey) || [];
-        matchingHighlights.forEach(h => {
-            addBlockRange(paragraphsData, h.BlockType, h.Identifier, h.StartToken, h.EndToken, h.UserMarkGuid, h.StyleIndex, h.ColorIndex);
+        matchingHighlights.forEach(b => {
+            const paragraphInfo = paragraphsData.get(b.Identifier);
+            addBlockRange(paragraphInfo, b.StartToken, b.EndToken, b.UserMarkGuid, b.StyleIndex, b.ColorIndex);
         });
 
-        // 4. Gérer les notes (Notes)
-        // notesMap est indexée par l'ID numérique (blockIdentifier)
+        // Gérer les notes (Notes)
         const matchingNotes = notesMap.get(blockIdentifier) || [];
         matchingNotes.forEach(note => {
             if (processedNoteGuids.has(note.Guid)) return;
@@ -5001,7 +5189,7 @@ async function loadUserdata() {
 
             addNoteWithGuid(
                 pageCenter,
-                paragraphInfo.paragraphs[0],
+                paragraphs[0],
                 matchingHighlight?.UserMarkGuid || null,
                 note.Guid,
                 note.ColorIndex ?? 0,
@@ -5080,7 +5268,8 @@ function getTarget(article, isBible, id) {
                 return el;
             }
         }
-    } else {
+    } 
+    else {
         return article.querySelector(`[data-pid="${id}"]`);
     }
 
@@ -5140,9 +5329,7 @@ function removeBookmark(article, blockIdentifier, slot) {
     }
 }
 
-function addBlockRange(paragraphsDataMap, blockType, blockIdentifier, startToken, endToken, guid, styleIndex, colorIndex) {
-    const paragraphInfo = paragraphsDataMap.get(blockIdentifier);
-
+function addBlockRange(paragraphInfo, startToken, endToken, guid, styleIndex, colorIndex) {
     if (!paragraphInfo) return;
 
     // Extraire les tableaux de tokens de l'objet de données complet
@@ -5168,11 +5355,7 @@ function addBlockRange(paragraphsDataMap, blockType, blockIdentifier, startToken
         const next = allTokens[tokenIndexInAll + 1];
 
         // Inclure le jeton d'échappement juste après, s'il existe et si ce n'est pas le DERNIER token sélectionné
-        if (
-            next &&
-            next.classList.contains("escape") &&
-            index !== selectedTokens.length - 1 // Pas le dernier jeton de la plage sélectionnée
-        ) {
+        if (next &&  next.classList.contains("escape") && index !== selectedTokens.length - 1) {
             next.classList.add(styleClass);
             next.setAttribute(blockRangeAttr, guid);
         }
@@ -5207,23 +5390,62 @@ function getNotePosition(container, element, noteIndicator) {
     noteIndicator.style.top = `${top}px`;
 }
 
-function repositionAllNotes(article) {
-    const notes = document.querySelectorAll(`[${noteAttr}]`);
+function repositionAllNotes(container) {
+    const notes = container.querySelectorAll(`[${noteAttr}]`);
+    
     notes.forEach(note => {
+        // 1. Initialiser l'article par défaut (le container)
+        let article = container;
+
+        // 2. Correction : hasAttribute au lieu de containsAttribute
+        if (note.hasAttribute(notePubClassAttr) && note.hasAttribute(noteMlClassAttr)) {
+            const pubClass = note.getAttribute(notePubClassAttr);
+            const mlClass = note.getAttribute(noteMlClassAttr);
+            const docIdClass = note.getAttribute(noteDocIdClassAttr);
+            
+            // On s'assure que les classes ne sont pas vides
+            if (pubClass && mlClass) {
+                const selector = docIdClass ? `article.${pubClass}.${mlClass}.${docIdClass}` : `article.${pubClass}.${mlClass}`;
+                const foundArticle = container.querySelector(selector);
+                
+                // On ne remplace 'article' que si on a trouvé une correspondance
+                if (foundArticle) {
+                    article = foundArticle;
+                }
+            }
+        }
+
         let target = null;
+        
+        // 3. Recherche de la cible (target) dans l'article trouvé
         if (note.hasAttribute(noteBlockRangeAttr)) {
             const userMarkGuid = note.getAttribute(noteBlockRangeAttr);
             target = article.querySelector(`[${blockRangeAttr}="${userMarkGuid}"]`);
-        } else {
-            const blockId = note.getAttribute('data-note-block-id');
-            const idAttr = isBible() ? 'id' : 'data-pid';
+        } 
+        else if (note.hasAttribute(noteBlockIdAttr)) {
+            const blockId = note.getAttribute(noteBlockIdAttr);
+            // Vérification si l'article contient des data-pid pour choisir l'attribut de recherche
+            const hasDataPid = article.querySelector('[data-pid]') !== null;
+            const idAttr = hasDataPid ? 'data-pid' : 'id';
             target = article.querySelector(`[${idAttr}="${blockId}"]`);
         }
 
+        // 4. Repositionnement si la cible existe
         if (target) {
             getNotePosition(article, target, note);
         }
     });
+}
+
+let resizeTimer;
+function optimizedResize(contentContainer) {
+    // On annule le repositionnement précédent s'il n'a pas encore eu lieu
+    clearTimeout(resizeTimer);
+
+    // On lance le repositionnement après 50ms de "calme"
+    resizeTimer = setTimeout(() => {
+        repositionAllNotes(contentContainer);
+    }, 50); 
 }
 
 function addNoteWithGuid(article, target, userMarkGuid, noteGuid, colorIndex, isBible, open) {
@@ -5255,7 +5477,15 @@ function addNoteWithGuid(article, target, userMarkGuid, noteGuid, colorIndex, is
     if (userMarkGuid) {
         noteIndicator.setAttribute(noteBlockRangeAttr, userMarkGuid);
     }
-    noteIndicator.setAttribute('data-note-block-id', target.getAttribute(idAttr));
+    noteIndicator.setAttribute(noteBlockIdAttr, target.getAttribute(idAttr));
+    const classes = Array.from(articleElement.classList);
+    const pubClass = classes.find(cls => cls.startsWith('pub-'));
+    const mlClass = classes.find(cls => cls.startsWith('ml-'));
+    const docIdClass = classes.find(cls => cls.startsWith('docId-'));
+
+    noteIndicator.setAttribute(notePubClassAttr, pubClass);
+    noteIndicator.setAttribute(noteMlClassAttr, mlClass);
+    noteIndicator.setAttribute(noteDocIdClassAttr, docIdClass);
 
     // Couleurs
     const colorName = colorsList[colorIndex] || "gray";
@@ -5425,25 +5655,16 @@ function hideScrollBar() {
 function showScrollBar() {
     clearTimeout(scrollBarTimeout);
 
-    // 1. Rendre l'élément visible de façon instantanée, sans opacité
     scrollBar.style.transition = 'none';
     scrollBar.style.display = 'block';
-
-    // 2. Forcer un "reflow" du navigateur pour qu'il reconnaisse le changement de 'display'.
-    // C'est l'étape clé pour que l'opacité ne soit pas animée.
-    // En accédant à une propriété comme offsetHeight, on force le navigateur à recalculer la mise en page.
     scrollBar.offsetHeight;
-
-    // 3. Réactiver la transition et changer l'opacité
     scrollBar.style.transition = 'opacity 0.5s ease-in-out';
     scrollBar.style.opacity = '1';
 
-    // 4. Relance le minuteur pour cacher la barre après un court délai
     scrollBarTimeout = setTimeout(hideScrollBar, 500);
 }
 
 function setupScrollBar() {
-    // Ajouter la scrollBar
     scrollBar = document.createElement('img');
     scrollBar.className = 'scroll-bar';
     scrollBar.src = speedBarScroll;
@@ -5511,14 +5732,13 @@ async function init() {
     pageCenter.classList.add('visible');
 
     const curr = cachedPages[currentIndex];
-    if (curr.preferredPresentation !== 'image' || !imageMode) {
+    if (curr.preferredPresentation === 'text' && !imageMode) {
         const article = document.getElementById("article-center");
         wrapWordsWithSpan(article, isBible());
         paragraphsData = fetchAllParagraphsOfTheArticle(article);
     }
 
     setupScrollBar();
-    createFloatingButton();
 
     //const bodyClone = pageCenter.cloneNode(true);
     //magnifierContent.appendChild(bodyClone);
@@ -5536,11 +5756,13 @@ async function init() {
     // Appliquer les scrolls ou sélections APRÈS que tout est visible
     if (startParagraphId != null && endParagraphId != null) {
         jumpToIdSelector('[data-pid]', 'data-pid', startParagraphId, endParagraphId);
-    } else if (startVerseId != null && endVerseId != null) {
+    } 
+    else if (startVerseId != null && endVerseId != null) {
         const hasSameChapter = bookNumber === lastBookNumber && chapterNumber === lastChapterNumber;
         const endIdForJump = hasSameChapter ? endVerseId : null;
         jumpToIdSelector('.v', 'id', startVerseId, endIdForJump);
-    } else if (textTag != null) {
+    } 
+    else if (textTag != null) {
         jumpToTextTag(textTag);
     }
 
@@ -5653,7 +5875,7 @@ pageCenter.addEventListener("scroll", () => {
     // Votre code existant pour le défilement se termine ici
 });
 
-// Variables globales pour éviter les redéclarations
+// Variables globales
 let currentGuid = '';
 let pressTimer = null;
 let firstLongPressTarget = null;
@@ -5666,6 +5888,23 @@ let isVerticalScroll = false;
 let startX = 0;
 let startY = 0;
 let currentTranslate = -100;
+let currentScale = 1;
+let startDistance = 0;
+let isZooming = false;
+let isPanning = false;
+
+// Variables zoom/pan
+let scale = 1;
+let posX = 0;
+let posY = 0;
+let startPosX = 0;
+let startPosY = 0;
+let startTouchX = 0;
+let startTouchY = 0;
+let initialPinchDistance = 0;
+let initialScale = 1;
+let pinchCenterX = 0;
+let pinchCenterY = 0;
 
 /**************
  * THROTTLE (si tu n’en as pas déjà un)
@@ -5700,7 +5939,6 @@ async function onClickOnPage(article, target) {
     if (document.body.classList.contains('selection-active') || isSelecting) {
         removeAllSelected();
         closeToolbar();
-        return;
     }
 
     // Early returns pour les cas simples
@@ -5731,10 +5969,8 @@ async function onClickOnPage(article, target) {
         return;
     }
 
-    const classList = target.classList;
-
-    // Utilisation de classList.contains avec cache
     const matchedElement = target.closest('a');
+    const classList = target.classList;
 
     if (matchedElement) {
         const linkClassList = matchedElement.classList;
@@ -5755,11 +5991,7 @@ async function onClickOnPage(article, target) {
         }
 
         if (linkClassList.contains('b')) {
-            //if (isDebugMode) window.flutter_inappwebview?.callHandler('debugDisplay', debugDispSrc + 'mid : ' + mid);
-            if (isDebugMode) console.log(debugDispSrc + 'href : ' + href);
-
             const verses = await window.flutter_inappwebview.callHandler('fetchVerses', href);
-            //if (isDebugMode) console.log(debugDispSrc + 'verses : ' + verses[0].toString());
             showVerseDialog(article, verses, href, false);
             closeToolbar();
             return;
@@ -5827,15 +6059,12 @@ async function onClickOnPage(article, target) {
         return;
     }
 
-    //removeAllSelected();
-
     // Optimisation de la logique conditionnelle
     if (isBible()) {
         whenClickOnParagraph(target, '.v', 'id', 'verse');
-        return;
-    } else {
+    } 
+    else {
         whenClickOnParagraph(target, '[data-pid]', 'data-pid', 'paragraph');
-        return;
     }
 }
 
@@ -5936,17 +6165,16 @@ document.addEventListener('selectionchange', () => {
     closeToolbar();
 });
 
-// Gestionnaire d'événements click optimisé
-pageCenter.addEventListener('click', async (event) => {
-    // NOUVEAU : Si on était en mode isSelecting et qu'on clique, on nettoie les targets
+pageCenter.addEventListener('click', (event) => {
     firstLongPressTarget = null;
     lastLongPressTarget = null;
+    isLongPressing = false;
 
     onClickOnPage(pageCenter, event.target);
 });
 
 /**************
- * TOUCH HANDLERS
+ * SURLIGNAGE DES MOTS
  **************/
 pageCenter.addEventListener('touchstart', (event) => {
     if (isReadingMode) return;
@@ -5964,12 +6192,13 @@ pageCenter.addEventListener('touchstart', (event) => {
             const firstTargetClassList = firstLongPressTarget?.classList;
             if (firstLongPressTarget && firstTargetClassList && (firstTargetClassList.contains('word') || firstTargetClassList.contains('punctuation'))) {
                 try {
+                    setLongPressing(true);
+                    isDragging = false;
+                    isLongTouchFix = true;
+
                     // GUID pour le style courant
                     const response = await window.flutter_inappwebview.callHandler('getGuid');
                     currentGuid = response.Guid;
-
-                    setLongPressing(true);
-                    isLongTouchFix = true;
                 } catch (error) {
                     console.error('Error getting style GUID:', error);
                 }
@@ -5982,36 +6211,29 @@ pageCenter.addEventListener('touchstart', (event) => {
 
 // --- Touchmove optimisé ---
 const handleTouchMove = throttle((event) => {
-    if (isReadingMode) return;
+    if (isReadingMode || !isLongPressing || !currentGuid || isSelecting) {
+        if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; }
+        return;
+    }
 
+    if (event.cancelable) event.preventDefault();
     isLongTouchFix = false;
 
-    if (document.body.classList.contains('selection-active') && !isSelecting) {
-        document.body.classList.remove('selection-active');
+    const touch = event.touches[0];
+    const x = touch.clientX;
+    const y = touch.clientY;
+
+    updateMagnifier(x, y);
+
+    // Recherche optimisée (ne regarde que les paragraphes visibles)
+    const closestElement = getClosestElementHorizontally(x, y);
+    
+    if (closestElement && closestElement !== lastLongPressTarget) {
+        lastLongPressTarget = closestElement;
+        // updateTempStyle est maintenant plus léger grâce au Lazy Loading
+        updateTempStyle();
     }
-
-    if (isLongPressing && currentGuid && !isSelecting) {
-        if (event.cancelable) event.preventDefault();
-
-        const touch = event.touches[0];
-        const x = touch.clientX;
-        const y = touch.clientY;
-
-        updateMagnifier(x, y);
-
-        const closestElement = getClosestElementHorizontally(x, y);
-        const cl = closestElement?.classList;
-        if (closestElement && cl && (cl.contains('word') || cl.contains('punctuation'))) {
-            if (closestElement !== lastLongPressTarget) {
-                lastLongPressTarget = closestElement;
-                updateTempStyle();
-            }
-        }
-    } else if (pressTimer) {
-        clearTimeout(pressTimer);
-        pressTimer = null;
-    }
-});
+}, 16); // ~60fps pour une fluidité maximale
 
 pageCenter.addEventListener('touchmove', handleTouchMove, {
     passive: false
@@ -6025,7 +6247,8 @@ pageCenter.addEventListener('touchend', (event) => {
         onLongPressEnd();
         firstLongPressTarget = null;
         lastLongPressTarget = null;
-    } else if (pressTimer) {
+    } 
+    else if (pressTimer) {
         clearTimeout(pressTimer);
         pressTimer = null;
     }
@@ -6033,35 +6256,81 @@ pageCenter.addEventListener('touchend', (event) => {
     passive: true
 });
 
-/**************
- * GET CLOSEST ELEMENT (inchangé)
- **************/
+// Set pour suivre les paragraphes actuellement dans le viewport
+const visibleParagraphIds = new Set();
+
+const visibilityObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+        // On récupère l'ID (pid ou verse id)
+        const idAttr = entry.target.getAttribute('data-pid') || 
+                       (entry.target.classList.contains('v') ? entry.target.id.split('-')[2] : null);
+        
+        if (!idAttr) return;
+        const id = parseInt(idAttr, 10);
+
+        if (entry.isIntersecting) {
+            visibleParagraphIds.add(id);
+        } else {
+            visibleParagraphIds.delete(id);
+        }
+    });
+}, { threshold: 0.1 }); // Déclenche dès que 10% du paragraphe est visible
+
+// À appeler après fetchAllParagraphsOfTheArticle
+function observeParagraphs(paragraphsData) {
+    paragraphsData.forEach((data) => {
+        data.paragraphs.forEach(p => visibilityObserver.observe(p));
+    });
+}
+
 function getClosestElementHorizontally(x, y) {
-    const allElements = getAllWordsAndPuncts();
     let closest = null;
     let minDistance = Infinity;
 
-    for (const el of allElements) {
-        const rect = el.getBoundingClientRect();
-        if (rect.height === 0 || rect.width === 0) continue;
-        if (y >= rect.top && y <= rect.bottom) {
-            const elCenterX = rect.left + rect.width / 2;
-            const distance = Math.abs(x - elCenterX);
-            if (distance < minDistance) {
-                minDistance = distance;
-                closest = el;
+    // On ne boucle QUE sur les paragraphes de l'article principal qui sont visibles
+    for (const id of visibleParagraphIds) {
+        const pData = paragraphsData.get(id);
+        if (!pData) continue;
+        
+        // On s'assure que ce paragraphe n'appartient PAS à un dialogue
+        // (Normalement ton fetch ne les a pas mis dans paragraphsData, mais on sécurise)
+        if (pData.paragraphs[0].closest('.dialog-content')) continue;
+
+        ensureParagraphIndexed(pData);
+        const result = findInTokens(pData.wordAndPunctTokens, x, y);
+        if (result.distance < minDistance) {
+            minDistance = result.distance;
+            closest = result.el;
+        }
+    }
+
+    return closest;
+}
+
+// Sous-fonction utilitaire pour la recherche
+function findInTokens(tokens, x, y) {
+    let bestEl = null;
+    let minD = Infinity;
+    
+    for (const el of tokens) {
+        const rects = el.getClientRects();
+        for (const rect of rects) {
+            // On vérifie si le Y du doigt est bien sur la ligne du mot
+            if (y >= rect.top - 5 && y <= rect.bottom + 5) { // Marge de 5px pour le confort
+                const elCenterX = rect.left + rect.width / 2;
+                const d = Math.abs(x - elCenterX);
+                if (d < minD) {
+                    minD = d;
+                    bestEl = el;
+                }
             }
         }
     }
-    return closest;
+    return { el: bestEl, distance: minD };
 }
 
 let oldStylesMap = new Map(); // Map<Element, Map<styleIndex, { styleIndex, styleClass }>>
 let tempTokensByGuid = new Map(); // Map<guid, Set<Element>>
-
-/**************
- * UTILS STYLE
- **************/
 
 function getColorIndex(styleIndex = currentStyleIndex) {
     const style = getStyleConfig(styleIndex);
@@ -6187,8 +6456,6 @@ function applyTempStyle(token, styleIndex, styleClass) {
     token.setAttribute(blockRangeAttr, currentGuid);
 }
 
-// --------------------------------------------------------------------------------
-
 function restoreTokenIfNeeded(token, styleIndex) {
     const cfg = getStyleConfig(styleIndex);
 
@@ -6216,137 +6483,96 @@ function restoreTokenIfNeeded(token, styleIndex) {
     }
 }
 
-/**************
- * UPDATE TEMP (générique)
- **************/
 function updateTempStyle() {
-    if (!firstLongPressTarget && !lastLongPressTarget) return;
+    if (!firstLongPressTarget || !lastLongPressTarget || !currentGuid) return;
 
-    const firstParagraphInfo = getTheFirstTargetParagraph(firstLongPressTarget);
-    const lastParagraphInfo = getTheFirstTargetParagraph(lastLongPressTarget);
-    if (!firstParagraphInfo || !lastParagraphInfo) return;
+    const firstPInfo = getTheFirstTargetParagraph(firstLongPressTarget);
+    const lastPInfo = getTheFirstTargetParagraph(lastLongPressTarget);
+    if (!firstPInfo || !lastPInfo) return;
 
-    // =========================================================================
-    // LOGIQUE STYLE : Déterminer le style à manipuler (pour gérer l'effacement/modification)
-    // =========================================================================
-    const {
-        styleIndex: targetStyleIndex,
-        colorIndex: targetColorIndex
-    } = getActiveStyleAndColorIndex(firstLongPressTarget, currentStyleIndex, getColorIndex());
+    ensureParagraphIndexed(firstPInfo);
+    ensureParagraphIndexed(lastPInfo);
 
-    const tempStyleIndex = targetStyleIndex;
-    const tempColorIndex = targetColorIndex;
-    // =========================================================================
+    const { styleIndex: tStyleIdx, colorIndex: tColorIdx } = getActiveStyleAndColorIndex(firstLongPressTarget);
+    const styleClass = getStyleClass(tStyleIdx, tColorIdx);
 
-    const firstId = firstParagraphInfo.id;
-    const lastId = lastParagraphInfo.id;
-
-    // LOGIQUE DOM (Ordre d'itération et de sélection)
     const orderedIds = Array.from(paragraphsData.keys());
+    const firstIdxDOM = orderedIds.indexOf(firstPInfo.id);
+    const lastIdxDOM = orderedIds.indexOf(lastPInfo.id);
 
-    let startDOMIndex = orderedIds.indexOf(firstId);
-    let endDOMIndex = orderedIds.indexOf(lastId);
-
-    if (startDOMIndex === -1 || endDOMIndex === -1) return;
-
-    let fromIndex = Math.min(startDOMIndex, endDOMIndex);
-    let toIndex = Math.max(startDOMIndex, endDOMIndex);
-
-    const isForwardSelection = (startDOMIndex <= endDOMIndex);
-
-    // Utiliser les infos de paragraphe complètes, ordonnées par leur apparition dans le DOM
-    const startParagraphInfoDOM = isForwardSelection ? firstParagraphInfo : lastParagraphInfo;
-    const endParagraphInfoDOM = isForwardSelection ? lastParagraphInfo : firstParagraphInfo;
-
-    // Utiliser les index temporaires pour obtenir la classe et la configuration
-    const styleClass = getStyleClass(tempStyleIndex, tempColorIndex);
-    const cfg = getStyleConfig(tempStyleIndex);
+    const fromIdx = Math.min(firstIdxDOM, lastIdxDOM);
+    const toIdx = Math.max(firstIdxDOM, lastIdxDOM);
 
     requestAnimationFrame(() => {
         const newTokens = new Set();
 
-        // ITÉRATION : Sur les paragraphes dans l'ordre du DOM
-        for (let i = fromIndex; i <= toIndex; i++) {
-            const currentId = orderedIds[i];
-            const paragraphData = paragraphsData.get(currentId);
+        for (let i = fromIdx; i <= toIdx; i++) {
+            const pData = paragraphsData.get(orderedIds[i]);
+            if (!pData) continue;
 
-            if (!paragraphData) continue;
+            ensureParagraphIndexed(pData);
+            const { wordAndPunctTokens, allTokens, indexInAll } = pData;
 
-            const {
-                allTokens,
-                wordAndPunctTokens,
-                indexInAll
-            } = paragraphData;
+            // --- LOGIQUE DE SÉLECTION PRÉCISE ---
+            let startInP, endInP;
 
-            let startTokenIndex = 0;
-            let endTokenIndex = wordAndPunctTokens.length - 1;
-
-            const isStartParagraph = (paragraphData === startParagraphInfoDOM);
-            const isEndParagraph = (paragraphData === endParagraphInfoDOM);
-
-            // LOGIQUE DES TOKENS CORRIGÉE (Gère l'inversion de glisser)
-            const indexOfFirst = wordAndPunctTokens.indexOf(firstLongPressTarget);
-            const indexOfLast = wordAndPunctTokens.indexOf(lastLongPressTarget);
-
-            if (isStartParagraph && isEndParagraph) {
-                // Début et Fin dans le MÊME paragraphe
-                if (indexOfFirst === -1 || indexOfLast === -1) continue;
-
-                startTokenIndex = Math.min(indexOfFirst, indexOfLast);
-                endTokenIndex = Math.max(indexOfFirst, indexOfLast);
-
-            } else if (isStartParagraph) {
-                // C'est le paragraphe de début DOM
-                const index = (indexOfFirst !== -1) ? indexOfFirst : indexOfLast;
-                if (index === -1) continue;
-                startTokenIndex = index;
-
-            } else if (isEndParagraph) {
-                // C'est le paragraphe de fin DOM
-                const index = (indexOfFirst !== -1) ? indexOfFirst : indexOfLast;
-                if (index === -1) continue;
-                endTokenIndex = index;
-
+            if (firstIdxDOM === lastIdxDOM) {
+                // Cas : Sélection dans un SEUL paragraphe
+                startInP = wordAndPunctTokens.indexOf(firstLongPressTarget);
+                endInP = wordAndPunctTokens.indexOf(lastLongPressTarget);
+            } else if (i === firstIdxDOM) {
+                // Cas : C'est le paragraphe où on a commencé l'appui long
+                startInP = wordAndPunctTokens.indexOf(firstLongPressTarget);
+                // Si on descend, on va jusqu'à la fin du paragraphe. Si on monte, on va vers le début.
+                endInP = (firstIdxDOM < lastIdxDOM) ? wordAndPunctTokens.length - 1 : 0;
+            } else if (i === lastIdxDOM) {
+                // Cas : C'est le paragraphe où se trouve le doigt actuellement
+                // Si on vient du haut, on commence au début du paragraphe. Si on vient du bas, on commence à la fin.
+                startInP = (firstIdxDOM < lastIdxDOM) ? 0 : wordAndPunctTokens.length - 1;
+                endInP = wordAndPunctTokens.indexOf(lastLongPressTarget);
+            } else {
+                // Cas : Paragraphe entièrement traversé entre le début et la fin
+                startInP = 0;
+                endInP = wordAndPunctTokens.length - 1;
             }
 
-            for (let j = startTokenIndex; j <= endTokenIndex; j++) {
-                const token = wordAndPunctTokens[j];
-                newTokens.add(token);
+            const realStart = Math.min(startInP, endInP);
+            const realEnd = Math.max(startInP, endInP);
 
-                // Inclure l'élément .escape juste après
-                const idxInAll = indexInAll.get(token);
-                if (idxInAll != null) {
-                    const next = allTokens[idxInAll + 1];
-                    if (next?.classList.contains('escape') && j < endTokenIndex) {
-                        newTokens.add(next);
-                    }
+            if (realStart === -1 || realEnd === -1) continue;
+
+            for (let j = realStart; j <= realEnd; j++) {
+                const token = wordAndPunctTokens[j];
+                if (!token) continue;
+                newTokens.add(token);
+                
+                const idx = indexInAll.get(token);
+                // Ajout de l'espace après le mot sauf si c'est le dernier mot de la sélection totale
+                if (j < realEnd || (i < toIdx)) {
+                    const next = allTokens[idx + 1];
+                    if (next?.classList.contains('escape')) newTokens.add(next);
                 }
             }
         }
 
-        // Récupérer l'ancien set de tokens pour ce guid
-        let oldTokens = tempTokensByGuid.get(currentGuid);
-        if (!oldTokens) {
-            // 🎯 CORRECTION DE LA SYNTAXE
-            oldTokens = new Set(pageCenter.querySelectorAll(`[${blockRangeAttr}="${currentGuid}"]`));
-            tempTokensByGuid.set(currentGuid, oldTokens);
-        }
-
-        // ➕ Ajouter les nouveaux
-        newTokens.forEach(token => {
-            if (!oldTokens.has(token)) {
-                applyTempStyle(token, tempStyleIndex, styleClass);
-                oldTokens.add(token);
+        // --- MISE À JOUR VISUELLE ---
+        let currentTokens = tempTokensByGuid.get(currentGuid) || new Set();
+        
+        newTokens.forEach(t => {
+            if (!currentTokens.has(t)) {
+                applyTempStyle(t, tStyleIdx, styleClass);
+                currentTokens.add(t);
             }
         });
 
-        // ➖ Retirer ceux qui ne font plus partie
-        Array.from(oldTokens).forEach(token => {
-            if (!newTokens.has(token)) {
-                restoreTokenIfNeeded(token, tempStyleIndex);
-                oldTokens.delete(token);
+        currentTokens.forEach(t => {
+            if (!newTokens.has(t)) {
+                restoreTokenIfNeeded(t, tStyleIdx);
+                currentTokens.delete(t);
             }
         });
+        
+        tempTokensByGuid.set(currentGuid, currentTokens);
     });
 }
 
@@ -6451,9 +6677,7 @@ async function onLongPressEnd() {
             const paragraphData = paragraphsData.get(pid);
             if (!paragraphData) return;
 
-            const {
-                wordAndPunctTokens
-            } = paragraphData;
+            const { wordAndPunctTokens} = paragraphData;
             const tokensInParagraph = tokenArray.filter(t => wordAndPunctTokens.includes(t));
             if (tokensInParagraph.length === 0) return;
 
@@ -6526,9 +6750,17 @@ function hideMagnifier() {
 
 // Votre fonction actuelle est la bonne méthode.
 function getTheFirstTargetParagraph(target) {
+    if (!target) return null;
+
+    // SÉCURITÉ : Si on touche un élément dans un dialogue, on ignore.
+    // Ajuste '.dialog-content' ou '.modal' selon ta classe CSS.
+    if (target.closest('.dialog-content') || target.closest('[role="dialog"]')) {
+        return null;
+    }
+
     let targetIdValue = null;
 
-    // 1. Navigation DOM optimisée
+    // On ne cherche que dans l'article principal (versets ou paragraphes)
     const verse = target.closest('.v[id]');
     if (verse) {
         targetIdValue = verse.id.split('-')[2];
@@ -6539,15 +6771,24 @@ function getTheFirstTargetParagraph(target) {
         }
     }
 
-    // 2. Accès instantané O(1)
     if (targetIdValue) {
         const targetIdInt = parseInt(targetIdValue, 10);
         if (paragraphsData.has(targetIdInt)) {
             return paragraphsData.get(targetIdInt);
         }
     }
-
     return null;
+}
+
+function getAllWords() {
+    let allTokens = [];
+
+    // Parcourir tous les paragraphes dans la Map
+    paragraphsData.forEach(paragraphData => {
+        allTokens = allTokens.concat(paragraphData.wordAndPunctTokens.filter(t => t.classList.contains('word')));
+    });
+
+    return allTokens;
 }
 
 function getAllWordsAndPuncts() {
@@ -6562,35 +6803,57 @@ function getAllWordsAndPuncts() {
     return allTokens;
 }
 
-function fetchAllParagraphsOfTheArticle(article) {
+function ensureParagraphIndexed(paragraphData) {
+    if (!paragraphData || paragraphData.allTokens) return;
+
+    // On récupère tous les tokens (mots, ponctuation, espaces)
+    const tokens = paragraphData.paragraphs.flatMap(el =>
+        Array.from(el.querySelectorAll('.word, .punctuation, .escape'))
+    );
+    
+    paragraphData.allTokens = tokens;
+    // On filtre pour n'avoir que ce qui est "surlignable"
+    paragraphData.wordAndPunctTokens = tokens.filter(t => 
+        t.classList.contains('word') || t.classList.contains('punctuation')
+    );
+    
+    const indexMap = new Map();
+    for (let i = 0; i < tokens.length; i++) {
+        indexMap.set(tokens[i], i);
+    }
+    paragraphData.indexInAll = indexMap;
+}
+
+function fetchAllParagraphsOfTheArticle(article, isVerseDialog = false) {
     const paragraphsDataMap = new Map();
-
-    // 1. Récupérer les paragraphes/versets groupés avec leurs métadonnées
     const fetchedParagraphs = fetchAllParagraphs(article);
-
-    // 2. Indexer les tokens pour chaque groupe
     const indexedTokens = indexTokens(fetchedParagraphs);
 
-    // 3. Fusionner les deux et stocker le résultat final dans paragraphsDataMap
     fetchedParagraphs.forEach(group => {
-
-        // CHANGEMENT ICI : La clé pour récupérer les tokens est le tableau 'group.paragraphs'
         const tokens = indexedTokens.get(group.paragraphs) || {
             allTokens: [],
             wordAndPunctTokens: [],
             indexInAll: new Map()
         };
 
-        // Fusion des objets
-        paragraphsDataMap.set(group.id, {
-            paragraphs: group.paragraphs, // Les éléments DOM du paragraphe/verset
-            id: group.id, // L'ID unique (ex: "15" ou data-pid)
-            isVerse: group.isVerse, // Booléen indiquant si c'est un verset
-            allTokens: tokens.allTokens, // Tous les tokens (mots, ponctuation, échappements)
-            wordAndPunctTokens: tokens.wordAndPunctTokens, // Mots et ponctuation uniquement
-            indexInAll: tokens.indexInAll // Map pour trouver l'index global d'un token
+        const uniqueKey = isVerseDialog && group.chapterId 
+            ? `${group.chapterId}_${group.id}` 
+            : group.id;
+
+        paragraphsDataMap.set(uniqueKey, {
+            paragraphs: group.paragraphs,
+            chapterId: group.chapterId || null,
+            id: group.id,
+            isVerse: group.isVerse,
+            allTokens: tokens.allTokens,
+            wordAndPunctTokens: tokens.wordAndPunctTokens,
+            indexInAll: tokens.indexInAll 
         });
     });
+
+    if(article === document.getElementById("article-center")) {
+        observeParagraphs(paragraphsDataMap);
+    }
 
     return paragraphsDataMap;
 }
@@ -6603,32 +6866,40 @@ function fetchAllParagraphs(article) {
     if (verses.length > 0) {
         // Cas 1: L'article contient des versets (plusieurs parties peuvent former un verset)
         const grouped = {};
+
         verses.forEach(verse => {
-            const parts = verse.id.split('-'); // ex: ["v1","3","15","1"]
-            const verseUniqueKey = parts[2]; // L'ID unique du verset (ex: "15")
-            if (!grouped[verseUniqueKey]) grouped[verseUniqueKey] = [];
-            grouped[verseUniqueKey].push(verse);
+            // parts = ["v1", "3", "15", "1"]
+            const parts = verse.id.split('-'); 
+            const chapterId = parts[1];
+            const verseUniqueKey = parts[2]; // L'ID du verset (ex: "15")
+
+            if (!grouped[verseUniqueKey]) {
+                grouped[verseUniqueKey] = {
+                    chapterId: chapterId,
+                    paragraphs: []
+                };
+            }
+            grouped[verseUniqueKey].paragraphs.push(verse);
         });
 
-        Object.entries(grouped).forEach(([id, group]) => {
-            // Tri des parties du verset par leur index final (la partie du verset)
-            group.sort((a, b) => parseInt(a.id.split('-')[3], 10) - parseInt(b.id.split('-')[3], 10));
+        Object.entries(grouped).forEach(([id, data]) => {
+            // Tri des parties du verset par l'index final (index 3 dans l'ID)
+            data.paragraphs.sort((a, b) => {
+                return parseInt(a.id.split('-')[3], 10) - parseInt(b.id.split('-')[3], 10);
+            });
 
-            // Création de la structure d'objet demandée
             finalList.push({
-                paragraphs: group, // toutes les parties du verset, dans l'ordre
-                // CONVERSION EN ENTIER ICI
-                id: parseInt(id, 10), // ID unique du verset converti en nombre
+                paragraphs: data.paragraphs,
+                chapterId: parseInt(data.chapterId, 10),
+                id: parseInt(id, 10),
                 isVerse: true
             });
         });
-
-    } else {
+    } 
+    else {
         // Cas 2: L'article contient des paragraphes normaux (non-versets)
         const paras = Array.from(article.querySelectorAll('[data-pid]'));
         paras.forEach(p => {
-            // Création de la structure d'objet demandée
-            // La valeur de data-pid doit également être convertie en nombre si elle est numérique
             const pid = p.getAttribute('data-pid');
 
             finalList.push({
@@ -6672,104 +6943,192 @@ function indexTokens(groups) {
 
 async function changePage(direction) {
     try {
+        // Réinitialisation du zoom
+        const currentPage = container.children[1];
+        const zoomTarget = currentPage?.querySelector('.zoomable-content');
+        if (zoomTarget) {
+            zoomTarget.style.transform = 'translate3d(0px, 0px, 0px) scale(1)';
+            zoomTarget.dataset.scale = '1';
+            zoomTarget.dataset.translateX = '0';
+            zoomTarget.dataset.translateY = '0';
+        }
+        scale = 1;
+        posX = 0;
+        posY = 0;
+
         if (direction === 'right') {
             currentTranslate = -200;
             container.style.transform = "translateX(-200%)";
-
             setTimeout(async () => {
                 currentIndex++;
                 currentTranslate = -100;
                 closeToolbar();
                 await loadPages(currentIndex);
             }, 200);
-
         } else if (direction === 'left') {
             currentTranslate = 0;
             container.style.transform = "translateX(0%)";
-
             setTimeout(async () => {
                 currentIndex--;
                 currentTranslate = -100;
                 closeToolbar();
                 await loadPages(currentIndex);
             }, 200);
-
         } else {
             container.style.transform = "translateX(-100%)";
         }
-
     } catch (error) {
         console.error('Error in changePage function:', error);
     }
 }
 
-// Gestionnaire touchstart modifié pour détecter 2 doigts
+function getCurrentZoomableContent() {
+    const currentPage = container.children[1];
+    return currentPage?.querySelector('.zoomable-content');
+}
+
+function getBoundaries(element, currentScale) {
+    const parent = element.parentElement.getBoundingClientRect();
+    // Largeur réelle après modification de la width
+    const fullWidth = parent.width * currentScale;
+    const fullHeight = element.offsetHeight; // L'élément s'adapte en hauteur (height: auto)
+
+    const maxX = Math.max(0, (fullWidth - parent.width) / 2);
+    const maxY = Math.max(0, (fullHeight - parent.height) / 2);
+
+    return { maxX, maxY };
+}
+
+// Applique les limites
+function constrainPosition(x, y, element, currentScale) {
+    const { maxX, maxY } = getBoundaries(element, currentScale);
+    
+    const constrainedX = Math.min(Math.max(x, -maxX), maxX);
+    const constrainedY = Math.min(Math.max(y, -maxY), maxY);
+    
+    return { x: constrainedX, y: constrainedY };
+}
+
+// Applique le transform
+function applyTransform(element, x, y, s) {
+    // Pour garder le SVG net, on change la taille réelle (width)
+    // et on utilise translate3d pour la position (matériellement accéléré)
+    element.style.width = `${s * 100}%`;
+    element.style.transform = `translate3d(${x}px, ${y}px, 0px)`;
+    
+    element.dataset.scale = s.toString();
+    element.dataset.translateX = x.toString();
+    element.dataset.translateY = y.toString();
+}
+
+// --- LISTENERS CORRIGÉS ---
+
 container.addEventListener('touchstart', (e) => {
     if (isLongPressing || isBlockingHorizontallyMode) return;
 
+    // Suppression des menus contextuels
     document.querySelectorAll('.options-menu, .color-menu').forEach(el => el.remove());
+
+    const zoomTarget = getCurrentZoomableContent();
+    if (zoomTarget) {
+        scale = parseFloat(zoomTarget.dataset.scale) || 1;
+    }
 
     startX = e.touches[0].clientX;
     startY = e.touches[0].clientY;
-    isDragging = true;
+    
+    // Si on a deux doigts, on prépare le zoom
+    if (e.touches.length === 2) {
+        isZooming = true;
+        isDragging = false;
+        const t1 = e.touches[0];
+        const t2 = e.touches[1];
+        initialPinchDistance = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+        initialScale = scale;
+    } else {
+        isZooming = false;
+        isDragging = true;
+    }
+
     isVerticalScroll = false;
-
     container.style.transition = "none";
-}, {
-    passive: true
-});
+}, { passive: false }); // On passe à false pour pouvoir bloquer le scroll natif si besoin
 
-// Gestionnaire touchmove modifié
-const handleContainerTouchMove = throttle((e) => {
-    if (isLongPressing || !isDragging || isBlockingHorizontallyMode) {
+container.addEventListener('touchmove', (e) => {
+    if (isLongPressing || isBlockingHorizontallyMode) {
+        isDragging = false;
+        return;
+    };
+
+    const zoomTarget = getCurrentZoomableContent();
+
+    // 1. GESTION DU ZOOM (Netteté via width)
+    if (isZooming && e.touches.length === 2 && zoomTarget) {
+        if (e.cancelable) e.preventDefault();
+        const t1 = e.touches[0];
+        const t2 = e.touches[1];
+        const currentDistance = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+        let newScale = initialScale * (currentDistance / initialPinchDistance);
+        scale = Math.min(Math.max(1, newScale), 5);
+        
+        zoomTarget.style.width = `${scale * 100}%`;
+        zoomTarget.dataset.scale = scale;
         return;
     }
 
-    const x = e.touches[0].clientX;
-    const y = e.touches[0].clientY;
-    const dx = x - startX;
-    const dy = y - startY;
+    // 2. GESTION DU SWIPE / SCROLL ARTICLE
+    if (isDragging && e.touches.length === 1) {
+        const x = e.touches[0].clientX;
+        const y = e.touches[0].clientY;
+        const dx = x - startX;
+        const dy = y - startY;
 
-    if (!isVerticalScroll && Math.abs(dy) > Math.abs(dx)) {
-        isVerticalScroll = true;
+        // Si on n'est pas zoomé (scale 1), on gère le changement de page
+        if (scale <= 1) {
+            // Détection du type de mouvement
+            if (!isVerticalScroll && Math.abs(dy) > Math.abs(dx)) {
+                isVerticalScroll = true;
+            }
+
+            if (!isVerticalScroll) {
+                // IMPORTANT : Si on bouge horizontalement, on bloque le scroll de l'article
+                if (Math.abs(dx) > 10) {
+                    if (e.cancelable) e.preventDefault(); 
+                    const percentage = dx / window.innerWidth * 100;
+                    const newTransform = (currentIndex === 0 && dx > 0) || (currentIndex === maxIndex && dx < 0) ?
+                        currentTranslate :
+                        currentTranslate + percentage;
+
+                    container.style.transform = `translateX(${newTransform}%)`;
+                }
+            }
+        } else {
+            // Si on est ZOOMÉ, on laisse le scroll natif (pan-y) fonctionner 
+            // ou tu peux ajouter ta logique de PAN ici.
+        }
     }
+}, { passive: false });
 
-    if (!isVerticalScroll) {
-        const percentage = dx / window.innerWidth * 100;
-        const newTransform = (currentIndex === 0 && dx > 0) || (currentIndex === maxIndex && dx < 0) ?
-            currentTranslate :
-            currentTranslate + percentage;
-
-        container.style.transform = `translateX(${newTransform}%)`;
-    }
-}, 16);
-
-container.addEventListener('touchmove', handleContainerTouchMove, {
-    passive: true
-});
-
-// Gestionnaire touchend modifié
 container.addEventListener('touchend', async (e) => {
-    isLongTouchFix = false;
-
+    isZooming = false;
+    
     if (isLongPressing) {
         setLongPressing(false);
         isDragging = false;
         return;
     }
 
-    if (isBlockingHorizontallyMode) return;
-
-    if (!isDragging) return;
-
+    if (!isDragging || isBlockingHorizontallyMode) return;
     isDragging = false;
 
+    // Si on scrollait l'article verticalement, on remet le container en place
     if (isVerticalScroll) {
         container.style.transition = "transform 0.2s ease-in-out";
         container.style.transform = `translateX(${currentTranslate}%)`;
         return;
     }
 
+    // Calcul final pour changer de page
     const dx = e.changedTouches[0].clientX - startX;
     const percentage = dx / window.innerWidth;
     container.style.transition = "transform 0.2s ease-in-out";
@@ -6779,8 +7138,6 @@ container.addEventListener('touchend', async (e) => {
     } else if (percentage > 0.15 && currentIndex > 0) {
         changePage('left');
     } else {
-        container.style.transform = "translateX(-100%)";
+        container.style.transform = `translateX(${currentTranslate}%)`;
     }
-}, {
-    passive: true
-});
+}, { passive: true });

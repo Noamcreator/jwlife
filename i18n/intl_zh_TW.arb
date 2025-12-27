@@ -912,5 +912,13 @@
   "action_scan_qr_code": "掃描 QR Code",
   "settings_page_transition": "頁面過渡",
   "settings_page_transition_bottom": "從底部過渡",
-  "settings_page_transition_right": "從右側過渡"
+  "settings_page_transition_right": "從右側過渡",
+  "label_research_all": "全部",
+  "label_research_wol": "WOL",
+  "label_research_bible": "聖經",
+  "label_research_verses": "經文",
+  "label_research_images": "圖片",
+  "label_research_notes": "筆記",
+  "label_research_inputs_fields": "欄位",
+  "label_research_wikipedia": "維基百科"
 }

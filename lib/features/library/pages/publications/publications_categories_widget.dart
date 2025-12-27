@@ -14,7 +14,6 @@ class PublicationsCategoriesWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Écoute la liste de catégories avec ValueListenableBuilder
     return ValueListenableBuilder<List<PublicationCategory>>(
       valueListenable: AppDataService.instance.publicationsCategories,
       builder: (context, categories, _) {
@@ -35,7 +34,7 @@ class PublicationsCategoriesWidget extends StatelessWidget {
             child: InkWell(
               onTap: () {
                 final Widget destinationPage =
-                category.hasYears || category.type == 'Convention' ? PublicationSubcategoriesPage(category: category) : PublicationsItemsPage(category: category);
+                category.hasYears || category.type == 'Convention' ? PublicationSubcategoriesPage(category: category) : PublicationsItemsPage(category: category, mepsLanguage: JwLifeSettings.instance.currentLanguage.value);
 
                 showPage(destinationPage);
               },
@@ -53,8 +52,7 @@ class PublicationsCategoriesWidget extends StatelessWidget {
         }).toList();
 
         return ResponsiveCategoriesWrapLayout(
-          textDirection:
-          JwLifeSettings.instance.currentLanguage.value.isRtl ? TextDirection.rtl : TextDirection.ltr,
+          textDirection: JwLifeSettings.instance.currentLanguage.value.isRtl ? TextDirection.rtl : TextDirection.ltr,
           children: categoryWidgets,
         );
       },

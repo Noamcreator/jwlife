@@ -42,10 +42,7 @@ class _WolSearchTabState extends State<WolSearchTab> {
     // ---- Récupération Publication ----
     Publication? pub;
     if (docId != -1) {
-      pub = await CatalogDb.instance.searchPubNoMepsFromMepsDocumentId(
-        docId,
-        JwLifeSettings.instance.currentLanguage.value.id,
-      );
+      pub = await CatalogDb.instance.searchPubNoMepsFromMepsDocumentId(docId, JwLifeSettings.instance.currentLanguage.value);
     }
 
     // ---- Image prioritaire : pub.imageSqr ----
@@ -54,7 +51,7 @@ class _WolSearchTabState extends State<WolSearchTab> {
       imageUrl = pub.imageSqr;
     } else if (article["documentImageUrl"] != null &&
         article["documentImageUrl"].toString().isNotEmpty) {
-      imageUrl = "https://wol.jw.org/" + article["documentImageUrl"];
+      imageUrl = "https://wol.jw.org/${article["documentImageUrl"]}";
     }
 
     return Container(

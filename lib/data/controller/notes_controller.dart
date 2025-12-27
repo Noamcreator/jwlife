@@ -2,10 +2,10 @@ import 'package:collection/collection.dart';
 import 'package:diacritic/diacritic.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:jwlife/features/publication/pages/document/data/models/dated_text.dart';
+import 'package:jwlife/features/document/data/models/dated_text.dart';
 
 import '../../app/jwlife_app.dart';
-import '../../features/publication/pages/document/data/models/document.dart';
+import '../../features/document/data/models/document.dart';
 import '../models/userdata/note.dart';
 
 class NotesController extends ChangeNotifier {
@@ -161,17 +161,18 @@ class NotesController extends ChangeNotifier {
             lastBlockIdentifier != null;
 
     if (hasFullBibleRange) {
-      return notes.where((n) {
-        final book = n.location.bookNumber ?? -1;
-        final chapter = n.location.chapterNumber ?? -1;
-        final block = n.blockIdentifier ?? -1;
+      int startValue = (firstBookNumber * 1000000) + (firstChapterNumber * 1000) + firstBlockIdentifier;
+      int endValue = (lastBookNumber * 1000000) + (lastChapterNumber * 1000) + lastBlockIdentifier;
 
-        return book >= firstBookNumber &&
-            book <= lastBookNumber &&
-            chapter >= firstChapterNumber &&
-            chapter <= lastChapterNumber &&
-            block >= firstBlockIdentifier &&
-            block <= lastBlockIdentifier;
+      return notes.where((n) {
+        final b = n.location.bookNumber ?? -1;
+        final c = n.location.chapterNumber ?? -1;
+        final v = n.blockIdentifier ?? -1;
+
+        int currentValue = (b * 1000000) + (c * 1000) + v;
+
+        // Ici, 19138029 est bien >= 19138001 ET <= 19139024. Ça marche !
+        return currentValue >= startValue && currentValue <= endValue;
       }).toList();
     }
 

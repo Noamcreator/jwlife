@@ -3112,4 +3112,28 @@ class AppLocalizationsNe extends AppLocalizations {
 
   @override
   String get settings_page_transition_right => 'दायाँबाट संक्रमण';
+
+  @override
+  String get label_research_all => 'सबै';
+
+  @override
+  String get label_research_wol => 'WOL';
+
+  @override
+  String get label_research_bible => 'बाइबल';
+
+  @override
+  String get label_research_verses => 'पदहरू';
+
+  @override
+  String get label_research_images => 'तस्बिरहरू';
+
+  @override
+  String get label_research_notes => 'नोटहरू';
+
+  @override
+  String get label_research_inputs_fields => 'क्षेत्रहरू';
+
+  @override
+  String get label_research_wikipedia => 'विकिपीडिया';
 }

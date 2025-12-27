@@ -5631,6 +5631,54 @@ abstract class AppLocalizations {
   /// In fr, this message translates to:
   /// **'Transition par la droite'**
   String get settings_page_transition_right;
+
+  /// No description provided for @label_research_all.
+  ///
+  /// In fr, this message translates to:
+  /// **'TOUT'**
+  String get label_research_all;
+
+  /// No description provided for @label_research_wol.
+  ///
+  /// In fr, this message translates to:
+  /// **'WOL'**
+  String get label_research_wol;
+
+  /// No description provided for @label_research_bible.
+  ///
+  /// In fr, this message translates to:
+  /// **'BIBLE'**
+  String get label_research_bible;
+
+  /// No description provided for @label_research_verses.
+  ///
+  /// In fr, this message translates to:
+  /// **'VERSETS'**
+  String get label_research_verses;
+
+  /// No description provided for @label_research_images.
+  ///
+  /// In fr, this message translates to:
+  /// **'IMAGES'**
+  String get label_research_images;
+
+  /// No description provided for @label_research_notes.
+  ///
+  /// In fr, this message translates to:
+  /// **'NOTES'**
+  String get label_research_notes;
+
+  /// No description provided for @label_research_inputs_fields.
+  ///
+  /// In fr, this message translates to:
+  /// **'CHAMPS'**
+  String get label_research_inputs_fields;
+
+  /// No description provided for @label_research_wikipedia.
+  ///
+  /// In fr, this message translates to:
+  /// **'WIKIPÉDIA'**
+  String get label_research_wikipedia;
 }
 
 class _AppLocalizationsDelegate

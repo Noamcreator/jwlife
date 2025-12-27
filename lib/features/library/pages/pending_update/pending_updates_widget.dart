@@ -18,7 +18,7 @@ import '../../../../data/models/media.dart';
 import '../../../../data/models/video.dart';
 import '../../../../data/repositories/MediaRepository.dart';
 import '../../../../i18n/i18n.dart';
-import '../../../publication/pages/menu/local/publication_menu_view.dart';
+import '../../../publication/pages/local/publication_menu_view.dart';
 
 class PendingUpdatesWidget extends StatefulWidget {
   const PendingUpdatesWidget({super.key});
@@ -269,7 +269,7 @@ class _PendingUpdatesWidgetState extends State<PendingUpdatesWidget> {
               Expanded(
                 flex: 1,
                 child: Padding(
-                  padding: const EdgeInsets.only(left: 10.0, right: 20.0, top: 4.0, bottom: 4.0),
+                  padding: const EdgeInsetsDirectional.only(start: 10.0, end: 20.0, top: 4.0, bottom: 4.0),
                   child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -328,9 +328,9 @@ class _PendingUpdatesWidgetState extends State<PendingUpdatesWidget> {
               ),
             ],
           ),
-          Positioned(
+          PositionedDirectional(
             top: -5,
-            right: -10,
+            end: -10,
             child: PopupMenuButton(
               icon: Icon(Icons.more_vert, color: Theme.of(context).brightness == Brightness.dark ? Color(0xFFc3c3c3) : Color(0xFF626262),
               ),
@@ -345,9 +345,9 @@ class _PendingUpdatesWidgetState extends State<PendingUpdatesWidget> {
               },
             ),
           ),
-          publication.progressNotifier.value == 0 ? Positioned(
+          publication.progressNotifier.value == 0 ? PositionedDirectional(
             bottom: 5,
-            right: -8,
+            end: -8,
             height: 45,
             child: IconButton(
               padding: const EdgeInsets.all(0),
@@ -361,9 +361,9 @@ class _PendingUpdatesWidgetState extends State<PendingUpdatesWidget> {
               icon: Icon(JwIcons.arrows_circular, color: Color(0xFF9d9d9d)),
             ),
           ) : Container(),
-          publication.progressNotifier.value == 0 ? Positioned(
+          publication.progressNotifier.value == 0 ? PositionedDirectional(
               bottom: 0,
-              right: -5,
+              end: -5,
               width: 50,
               child: Text(
                 textAlign: TextAlign.center,
@@ -376,9 +376,9 @@ class _PendingUpdatesWidgetState extends State<PendingUpdatesWidget> {
                 ),
               )
           ) : Container(),
-          Positioned(
+          PositionedDirectional(
             bottom: 0,
-            right: 0,
+            end: 0,
             height: 2,
             width: 340-40,
             child: publication.progressNotifier.value != 0

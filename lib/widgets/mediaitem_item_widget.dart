@@ -197,11 +197,10 @@ class _MediaItemItemWidgetState extends State<MediaItemItemWidget> {
                       builder: (context, isDownloading, _) {
                         if (!isDownloading) return const SizedBox.shrink();
 
-                        // Positioned(left: 0, right: 0) est CORRECT car la barre couvre toute la largeur de la Stack
-                        return Positioned(
+                        return PositionedDirectional(
                           bottom: 0,
-                          left: 0,
-                          right: 0,
+                          start: 0,
+                          end: 0,
                           child: ValueListenableBuilder<double>(
                             valueListenable: widget.media.progressNotifier,
                             builder: (context, progress, _) {
@@ -279,6 +278,7 @@ class _MediaItemItemWidgetState extends State<MediaItemItemWidget> {
       top: -13,
       end: -7, // Utilisé au lieu de 'right'
       child: PopupMenuButton(
+        useRootNavigator: true,
         icon: const Icon(
           Icons.more_horiz,
           color: Colors.white,

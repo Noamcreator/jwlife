@@ -9,10 +9,6 @@ import 'package:jwlife/app/services/settings_service.dart';
 import 'package:diacritic/diacritic.dart';
 
 class PublicationsItemsViewModel with ChangeNotifier {
-  // --- État ---
-  MepsLanguage _mepsLanguage = JwLifeSettings.instance.currentLanguage.value;
-  String _selectedLanguageSymbol = '';
-  // *** MODIFICATION DE LA STRUCTURE DE LA MAP : Clé simple (PublicationAttribute) ***
   Map<PublicationAttribute, List<Publication>> _publications = {};
   Map<PublicationAttribute, List<Publication>> _filteredPublications = {};
   bool _isSearching = false;
@@ -24,15 +20,15 @@ class PublicationsItemsViewModel with ChangeNotifier {
   // Paramètres injectés à l'initialisation
   final PublicationCategory category;
   final int? year;
+  MepsLanguage? mepsLanguage;
 
   // Attribut factice/générique pour le regroupement lors du tri par année (constant)
   static final genericAttribute = PublicationAttribute.all.first;
 
-  PublicationsItemsViewModel({required this.category, this.year});
+  PublicationsItemsViewModel({required this.category, this.year, this.mepsLanguage});
 
   // --- Getters publics ---
-  MepsLanguage get mepsLanguage => _mepsLanguage;
-  String get selectedLanguageSymbol => _selectedLanguageSymbol;
+  MepsLanguage? get currentMepsLanguage => mepsLanguage;
   // *** MODIFICATION DU GETTER ***
   Map<PublicationAttribute, List<Publication>> get filteredPublications => _filteredPublications;
   bool get isSearching => _isSearching;
@@ -48,12 +44,11 @@ class PublicationsItemsViewModel with ChangeNotifier {
 
   // --- LOGIQUE DE DONNÉES ---
 
-  Future<void> loadItems({Map<String, dynamic>? mepsLanguage}) async {
+  Future<void> loadItems({Map<String, dynamic>? mepsLanguageMap}) async {
     // *** MODIFICATION : Map locale utilise la clé simple ***
     Map<PublicationAttribute, List<Publication>> publications = {};
 
-    int mepsLanguageId = mepsLanguage?['LanguageId'] ?? JwLifeSettings.instance.currentLanguage.value.id;
-    _selectedLanguageSymbol = mepsLanguage?['Symbol'] ?? JwLifeSettings.instance.currentLanguage.value.symbol;
+    mepsLanguage = mepsLanguageMap != null ? MepsLanguage.fromJson(mepsLanguageMap) : currentMepsLanguage ?? JwLifeSettings.instance.currentLanguage.value;
 
     // Charger les publications existantes (la sortie de PubCatalog devra être ajustée côté Base de données)
     Map<List<PublicationAttribute>, List<Publication>> rawPublications = {};
@@ -61,14 +56,14 @@ class PublicationsItemsViewModel with ChangeNotifier {
     if (year != null) {
       rawPublications = await CatalogDb.instance.getPublicationsFromCategory(
           category.id,
+          mepsLanguage!,
           year: year,
-          mepsLanguageId: mepsLanguageId
       );
     }
     else {
       rawPublications = await CatalogDb.instance.getPublicationsFromCategory(
           category.id,
-          mepsLanguageId: mepsLanguageId
+          mepsLanguage!
       );
     }
 
@@ -94,7 +89,7 @@ class PublicationsItemsViewModel with ChangeNotifier {
 
     // Ajout des publications téléchargées
     for (var pub in PublicationRepository().getAllDownloadedPublications()) {
-      if (pub.category.id == category.id && pub.mepsLanguage.id == mepsLanguageId && (year == null || pub.year == year) && !publications.values.expand((list) => list).any((p) => p.keySymbol == pub.keySymbol && p.issueTagNumber == pub.issueTagNumber)) {
+      if (pub.category.id == category.id && pub.mepsLanguage.id == mepsLanguage!.id && (year == null || pub.year == year) && !publications.values.expand((list) => list).any((p) => p.keySymbol == pub.keySymbol && p.issueTagNumber == pub.issueTagNumber)) {
 
         PublicationAttribute attribute = pub.attributes.first;
         // Vérifie s'il y a plus d'un attribut (optionnel)
@@ -124,8 +119,6 @@ class PublicationsItemsViewModel with ChangeNotifier {
 
     // Applique le tri par défaut/actuel après le chargement
     _applySorting(_filteredPublications);
-
-    _mepsLanguage = mepsLanguage != null ? MepsLanguage.fromJson(mepsLanguage) : _publications.values.first.first.mepsLanguage;
 
     _isLoading = false;
     notifyListeners(); // Rafraîchit l'interface

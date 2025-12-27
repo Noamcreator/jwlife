@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:dio/dio.dart';
@@ -11,7 +10,6 @@ import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/core/utils/utils_language_dialog.dart';
 import 'package:jwlife/core/utils/utils_playlist.dart';
 import 'package:jwlife/data/models/video.dart' hide Subtitles;
-import 'package:qr_flutter/qr_flutter.dart';
 import 'package:realm/realm.dart';
 
 import 'package:share_plus/share_plus.dart';
@@ -22,7 +20,7 @@ import '../../data/realm/realm_library.dart';
 import '../../features/video/subtitles.dart';
 import '../../features/video/subtitles_view.dart';
 import '../../i18n/i18n.dart';
-import '../../widgets/qr_code_dialog.dart';
+import '../../widgets/dialog/qr_code_dialog.dart';
 import '../api/api.dart';
 import 'common_ui.dart';
 
@@ -379,6 +377,7 @@ Future<int?> showVideoDownloadMenu(BuildContext context, List<dynamic> files, Of
   }).toList();
 
   return await showMenu<int>(
+    useRootNavigator: true,
     context: context,
     position: RelativeRect.fromRect(
       tapPosition & const Size(40, 40), // Rectangle d'ancrage

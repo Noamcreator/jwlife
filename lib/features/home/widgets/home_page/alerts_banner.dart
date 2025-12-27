@@ -1,5 +1,4 @@
 import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
@@ -28,13 +27,14 @@ class AlertsBannerState extends State<AlertsBanner> {
     super.dispose();
   }
 
+  /// Gère le défilement automatique des alertes
   void _startTimer(int alertsLength) {
-    _timer?.cancel(); // évite les timers multiples
+    _timer?.cancel();
 
-    if (alertsLength <= 1) return; // inutile de slider
+    if (alertsLength <= 1) return;
 
     _timer = Timer.periodic(const Duration(seconds: 5), (timer) {
-      if (!mounted || _pageController == null) return;
+      if (!mounted || _pageController == null || !_pageController!.hasClients) return;
 
       if (_currentPage < alertsLength - 1) {
         _currentPage++;
@@ -42,13 +42,11 @@ class AlertsBannerState extends State<AlertsBanner> {
         _currentPage = 0;
       }
 
-      if (_pageController!.hasClients) {
-        _pageController!.animateToPage(
-          _currentPage,
-          duration: const Duration(milliseconds: 500),
-          curve: Curves.easeInOut,
-        );
-      }
+      _pageController!.animateToPage(
+        _currentPage,
+        duration: const Duration(milliseconds: 500),
+        curve: Curves.easeInOut,
+      );
     });
   }
 
@@ -57,62 +55,101 @@ class AlertsBannerState extends State<AlertsBanner> {
     return ValueListenableBuilder<List<dynamic>>(
       valueListenable: AppDataService.instance.alerts,
       builder: (context, alerts, _) {
-        if (alerts.isEmpty) {
-          _timer?.cancel();
-          return const SizedBox.shrink();
-        }
+        return AnimatedSwitcher(
+          duration: const Duration(milliseconds: 600),
+          reverseDuration: const Duration(milliseconds: 400),
+          transitionBuilder: (Widget child, Animation<double> animation) {
+            // Animation de position (Glissement vers le bas)
+            final offsetAnimation = Tween<Offset>(
+              begin: const Offset(0.0, -1.0),
+              end: const Offset(0.0, 0.0),
+            ).animate(CurvedAnimation(
+              parent: animation,
+              curve: Curves.easeOutCubic,
+            ));
 
-        // Recrée un nouveau PageController si la longueur change
-        _pageController?.dispose();
-        _pageController = PageController(initialPage: _currentPage);
-
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) _startTimer(alerts.length);
-        });
-
-        return GestureDetector(
-          onTap: () {
-            showPage(AlertsListPage(alerts: alerts));
+            return ClipRect(
+              child: FadeTransition(
+                opacity: animation, // Effet de fondu (Fade)
+                child: SlideTransition(
+                  position: offsetAnimation,
+                  child: SizeTransition(
+                    sizeFactor: animation, // La bannière pousse le contenu
+                    axisAlignment: -1.0,
+                    child: child,
+                  ),
+                ),
+              ),
+            );
           },
-          child: Container(
-            color: const Color(0xFF143368),
-            padding: const EdgeInsets.all(8),
-            height: 50,
-            child: Center(
+          // Utilise une clé unique pour que l'AnimatedSwitcher détecte le changement
+          child: alerts.isEmpty
+              ? const SizedBox.shrink(key: ValueKey('empty_banner'))
+              : _buildBannerContent(alerts),
+        );
+      },
+    );
+  }
+
+  /// Construit le corps de la bannière quand il y a des alertes
+  Widget _buildBannerContent(List<dynamic> alerts) {
+    // Initialisation ou mise à jour du controller
+    if (_pageController == null) {
+      _pageController = PageController(initialPage: _currentPage);
+    }
+
+    // Relance le timer après le rendu
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _startTimer(alerts.length);
+    });
+
+    return GestureDetector(
+      key: const ValueKey('active_banner'),
+      onTap: () {
+        showPage(AlertsListPage(alerts: alerts));
+      },
+      child: Container(
+        color: const Color(0xFF143368),
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        height: 50,
+        child: Row(
+          children: [
+            Expanded(
               child: PageView.builder(
                 controller: _pageController,
                 itemCount: alerts.length,
+                onPageChanged: (index) => _currentPage = index,
                 itemBuilder: (context, index) {
                   final alert = alerts[index];
-                  return Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: TextHtmlWidget(
-                          text: alert['title'],
-                          style: const TextStyle(color: Colors.white),
-                          overflow: TextOverflow.ellipsis,
-                          maxLines: 2,
-                          isSearch: false,
+                  return Center(
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: TextHtmlWidget(
+                            text: alert['title'] ?? '',
+                            style: const TextStyle(color: Colors.white, fontSize: 14),
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 2,
+                            isSearch: false,
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      if (alerts.length > 1)
-                        Text(
-                          i18n().label_breaking_news_count(
-                              index + 1, alerts.length),
-                          style: const TextStyle(color: Colors.white),
-                        ),
-                      const SizedBox(width: 8),
-                      const Icon(JwIcons.chevron_right, color: Colors.white),
-                    ],
+                      ],
+                    ),
                   );
                 },
               ),
             ),
-          ),
-        );
-      },
+            const SizedBox(width: 8),
+            if (alerts.length > 1)
+              Text(
+                i18n().label_breaking_news_count(_currentPage + 1, alerts.length),
+                style: const TextStyle(color: Colors.white, fontSize: 12),
+              ),
+            const SizedBox(width: 8),
+            const Icon(JwIcons.chevron_right, color: Colors.white, size: 18),
+          ],
+        ),
+      ),
     );
   }
 }

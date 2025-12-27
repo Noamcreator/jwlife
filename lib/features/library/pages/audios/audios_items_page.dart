@@ -1,10 +1,10 @@
 import 'dart:async';
-import 'dart:math';
 import 'package:diacritic/diacritic.dart';
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/core/icons.dart';
+import 'package:jwlife/core/ui/app_dimens.dart';
 import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/core/utils/utils_audio.dart';
 import 'package:jwlife/data/models/audio.dart';
@@ -112,8 +112,8 @@ class _AudioItemsPageState extends State<AudioItemsPage> {
     }
   }
 
-  void _play(int index) async {
-    JwLifeApp.audioPlayer.playAudios(_category ?? widget.category, _allAudios, id: index);
+  void _play(Audio audio) async {
+    JwLifeApp.audioPlayer.playAudios(_category ?? widget.category, _allAudios, first: audio);
   }
 
   void _playAll() async {
@@ -121,9 +121,7 @@ class _AudioItemsPageState extends State<AudioItemsPage> {
   }
 
   void _playRandom() async {
-    if (_allAudios.isEmpty) return;
-    final randomIndex = Random().nextInt(_allAudios.length);
-    JwLifeApp.audioPlayer.playAudios(_category ?? widget.category, _allAudios, id: randomIndex, randomMode: true);
+    JwLifeApp.audioPlayer.playAudios(_category ?? widget.category, _allAudios, randomMode: true);
   }
 
   void _playRandomLanguage() async {
@@ -258,15 +256,15 @@ class _AudioItemsPageState extends State<AudioItemsPage> {
     int id = _allAudios.indexOf(audio);
 
     return SizedBox(
-      height: 55,
+      height: kAudioItemHeight,
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: () => _play(id),
+          onTap: () => _play(audio),
           child: Stack(
             children: [
               Padding(
-                padding: EdgeInsets.only(left: _language.isRtl! ? 0 : 10, right: _language.isRtl! ? 10 : 0),
+                padding: EdgeInsetsDirectional.only(start: 10, end: 0),
                 child: Row(
                   children: [
                     // --- Image ---
@@ -275,8 +273,8 @@ class _AudioItemsPageState extends State<AudioItemsPage> {
                       child: ImageCachedWidget(
                         imageUrl: audio.networkImageSqr,
                         icon: JwIcons.headphones__simple,
-                        height: 50,
-                        width: 50,
+                        height: kAudioItemHeight-5,
+                        width: kAudioItemHeight-5,
                       ),
                     ),
                     const SizedBox(width: 14),
@@ -321,6 +319,7 @@ class _AudioItemsPageState extends State<AudioItemsPage> {
                       children: [
                         _buildActionIcon(context, audio),
                         PopupMenuButton(
+                          useRootNavigator: true,
                           icon: Icon(
                             Icons.more_horiz,
                             color: Theme.of(context).brightness == Brightness.dark
@@ -347,9 +346,9 @@ class _AudioItemsPageState extends State<AudioItemsPage> {
               ),
 
               // --- Barre de progression EN BAS ---
-              Positioned(
-                left: _language.isRtl! ? 0 : 70,
-                right: _language.isRtl! ? 70 : 0,
+              PositionedDirectional(
+                start: 70,
+                end: 0,
                 bottom: 4,
                 child: ValueListenableBuilder<bool>(
                   valueListenable: audio.isDownloadingNotifier,

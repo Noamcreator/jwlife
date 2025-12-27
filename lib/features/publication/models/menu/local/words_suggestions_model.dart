@@ -72,7 +72,7 @@ class WordsSuggestionsModel {
     List<String> parts = text.split(" ");
     String lastWord = parts.last;
     String prefix = parts.length > 1
-        ? parts.sublist(0, parts.length - 1).join(" ") + " "
+        ? "${parts.sublist(0, parts.length - 1).join(" ")} "
         : "";
 
     // Si dernier mot vide (l’utilisateur vient d'appuyer espace)

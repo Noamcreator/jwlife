@@ -4,12 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:html/parser.dart';
 import 'package:jwlife/core/utils/utils_document.dart';
 import 'package:jwlife/data/models/publication.dart';
-import 'package:jwlife/data/repositories/PublicationRepository.dart';
 import 'package:jwlife/widgets/image_cached_widget.dart';
 
-import '../../../../app/app_page.dart';
-import '../../../../core/utils/utils.dart';
 import '../../../../core/utils/utils_jwpub.dart';
+import '../../../../i18n/i18n.dart';
 import 'search_model.dart';
 
 class VersesSearchTab extends StatefulWidget {
@@ -91,7 +89,7 @@ class _VersesSearchTabState extends State<VersesSearchTab> {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'Aucun résultat trouvé',
+                    i18n().search_results_none,
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w600,

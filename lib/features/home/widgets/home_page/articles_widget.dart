@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:jwlife/core/utils/utils.dart';
 
 import '../../../../core/app_data/app_data_service.dart';
 import '../../../../core/icons.dart';
@@ -81,14 +82,12 @@ class ArticlesWidgetState extends State<ArticlesWidget> {
     // Suivant
     if (_currentArticleIndex < length - 1) {
       arrows.add(
-        Positioned(
-          right: isRTL ? 10 : null,
-          left: isRTL ? null : 10,
+        PositionedDirectional(
+          start: 10,
           top: 60,
           child: GestureDetector(
             onTap: () => _navigateArticle(1, length),
-            child: _buildArrowButton(
-                isRTL ? JwIcons.chevron_right : JwIcons.chevron_left),
+            child: _buildArrowButton(JwIcons.chevron_left),
           ),
         ),
       );
@@ -97,14 +96,12 @@ class ArticlesWidgetState extends State<ArticlesWidget> {
     // Précédent
     if (_currentArticleIndex > 0) {
       arrows.add(
-        Positioned(
-          left: isRTL ? 10 : null,
-          right: isRTL ? null : 10,
+        PositionedDirectional(
+          end: 10,
           top: 60,
           child: GestureDetector(
             onTap: () => _navigateArticle(-1, length),
-            child: _buildArrowButton(
-                isRTL ? JwIcons.chevron_left : JwIcons.chevron_right),
+            child: _buildArrowButton(JwIcons.chevron_right),
           ),
         ),
       );
@@ -212,25 +209,45 @@ class ArticlesWidgetState extends State<ArticlesWidget> {
 
   Widget _buildReadMoreButton(Map<String, dynamic> article, bool isDark) {
     final buttonText = article['ButtonText'];
-    if (buttonText?.isEmpty != false) return const SizedBox.shrink();
+    final hasVideo = article['HasVideo'] == 1;
+
+    if (buttonText == null || buttonText.isEmpty) {
+      return const SizedBox.shrink();
+    }
 
     return ElevatedButton(
-      onPressed: () {
-        showPage(
-          ArticlePage(
-            title: article['Title'] ?? '',
-            link: article['Link'] ?? '',
-          ),
-        );
+      onPressed: () async {
+        if(await hasInternetConnection(context: context)) {
+          showPage(
+            ArticlePage(
+              title: article['Title'] ?? '',
+              link: article['Link'] ?? '',
+            ),
+          );
+        }
       },
       style: ElevatedButton.styleFrom(
         backgroundColor: Theme.of(context).primaryColor,
+        // Supprimez les paddings par défaut si vous voulez un ajustement très serré
+        // padding: const EdgeInsets.symmetric(horizontal: 16),
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.zero,
         ),
-        textStyle: const TextStyle(fontSize: 22),
       ),
-      child: Text(buttonText!, style: const TextStyle(color: Colors.white, fontSize: 22)),
+      child: Row(
+        // SOLUTION : On force la Row à prendre le minimum de place
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (hasVideo) ...[
+            const Icon(JwIcons.play, color: Colors.white),
+            const SizedBox(width: 10),
+          ],
+          Text(
+            buttonText,
+            style: const TextStyle(color: Colors.white, fontSize: 22),
+          ),
+        ],
+      ),
     );
   }
 }

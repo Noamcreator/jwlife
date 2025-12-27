@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:convert';
+import 'dart:math';
 import 'package:audio_service/audio_service.dart';
 import 'package:dio/dio.dart';
 import 'package:just_audio/just_audio.dart';
@@ -11,17 +11,16 @@ import 'package:jwlife/data/databases/history.dart';
 import 'package:jwlife/data/realm/realm_library.dart';
 import 'package:realm/realm.dart';
 
-import '../../app/jwlife_app.dart';
 import '../../app/services/global_key_service.dart';
 import '../../app/services/settings_service.dart';
 import '../../core/api/api.dart';
 import '../../data/models/audio.dart';
-import '../../data/realm/catalog.dart' as realm_catalog;
+import '../../data/realm/catalog.dart';
 
 class JwLifeAudioPlayer {
   int? currentId;
   final player = AudioPlayer();
-  realm_catalog.RealmCategory? album;
+  RealmCategory? album;
   Publication? publication;
   String query = '';
   bool randomMode = false;
@@ -42,7 +41,7 @@ class JwLifeAudioPlayer {
         final response = await Api.httpGetWithHeaders(apiUrl, responseType: ResponseType.json);
 
         if (response.statusCode == 200) {
-          album = RealmLibrary.realm.all<realm_catalog.RealmCategory>().query("Key == '${audio.categoryKey}' AND LanguageSymbol == '$lang'").firstOrNull;
+          album = RealmLibrary.realm.all<RealmCategory>().query("Key == '${audio.categoryKey}' AND LanguageSymbol == '$lang'").firstOrNull;
 
           final apiMedia = response.data['media'][0];
           audio.imagePath = audio.networkImageSqr;
@@ -66,14 +65,14 @@ class JwLifeAudioPlayer {
     }
   }
 
-  Future<void> fetchAudiosCategoryData(realm_catalog.RealmCategory category, List<Audio> filteredAudios, {int? id}) async {
-    List<Audio> audios = [];
+  Future<void> fetchAudiosCategoryData(RealmCategory category, List<Audio> audios, Audio first, bool hasConnection) async {
+    List<Audio> finalAudios = [];
 
-    if(album != category) {
+    if(album != category || player.audioSources.length < audios.length) {
       album = category;
       String languageSymbol = category.languageSymbol ?? JwLifeSettings.instance.currentLanguage.value.symbol;
 
-      if(await hasInternetConnection()) {
+      if(hasConnection) {
         // URL de l'API
         final url = 'https://b.jw-cdn.org/apis/mediator/v1/categories/$languageSymbol/${category.key}?detailed=1&mediaLimit=0';
 
@@ -86,11 +85,11 @@ class JwLifeAudioPlayer {
           // Conversion de la réponse en JSON
           bool onlineIsNotEmpty = response.data['category'] != null && response.data['category']['media'] != null;
 
-          for (int i = 0; i < filteredAudios.length; i++) {
-            Audio audio = filteredAudios[i];
+          for (int i = 0; i < audios.length; i++) {
+            Audio audio = audios[i];
 
             if (audio.isDownloadedNotifier.value) {
-              audios.add(audio);
+              finalAudios.add(audio);
             }
             else {
               final apiMedia = response.data['category']['media'][i];
@@ -102,21 +101,24 @@ class JwLifeAudioPlayer {
                   audio.bitRate = apiMedia['files'][0]['bitRate'];
                   audio.duration = apiMedia['files'][0]['duration'];
                   audio.mimeType = apiMedia['files'][0]['mimetype'];
-                  audios.add(audio);
+                  finalAudios.add(audio);
                 }
               }
             }
           }
-
-          await setPlaylist(audios, id: id);
+        }
+        else {
+          finalAudios.addAll(audios);
         }
       }
       else {
-        await setPlaylist(JwLifeApp.mediaCollections.getAudiosFromCategory(category), id: id);
+        finalAudios.addAll(audios);
       }
+
+      await setPlaylist(finalAudios, id: audios.indexOf(first));
     }
     else {
-      await player.seek(Duration.zero, index: id);
+      await player.seek(Duration.zero, index: audios.indexOf(first));
     }
   }
 
@@ -163,7 +165,7 @@ class JwLifeAudioPlayer {
             (album?.name?.isNotEmpty == true
                 ? album!.name!
                 : RealmLibrary.realm
-                .all<realm_catalog.RealmCategory>()
+                .all<RealmCategory>()
                 .query("Key == '${audio.categoryKey}' AND LanguageSymbol == '${audio.mepsLanguage ?? JwLifeSettings.instance.currentLanguage.value.symbol}'",)
                 .firstOrNull
                 ?.name ?? '');
@@ -171,7 +173,7 @@ class JwLifeAudioPlayer {
         final MediaItem mediaItem = MediaItem(
           id: '$i',
           album: albumTitle, // Utilise la variable factorisée
-          title: audio.title,
+          title: audio.title.replaceAll('&nbsp;', ' '),
           artUri: imageUri,
           extras: {
             'keySymbol': audio.keySymbol,
@@ -189,7 +191,8 @@ class JwLifeAudioPlayer {
             audio.filePath!,
             tag: mediaItem,
           );
-        } else {
+        }
+        else {
           audioSource = AudioSource.uri(
             Uri.parse(audio.fileUrl!),
             headers: Api.getHeaders(),
@@ -219,12 +222,38 @@ class JwLifeAudioPlayer {
     await play(initialPosition: initialPosition);
   }
 
-  Future<void> playAudios(realm_catalog.RealmCategory category, List<Audio> filteredAudios, {int id = 0, bool randomMode = false}) async {
-    History.insertAudioMediaItem(filteredAudios[id]);
+  Future<void> playAudios(RealmCategory category, List<Audio> audios, {Audio? first, bool randomMode = false}) async {
+    if(audios.isEmpty) return;
+    final downloadedAudios = audios.where((element) => element.isDownloadedNotifier.value).toList();
 
-    setRandomMode(randomMode);
-    await fetchAudiosCategoryData(category, filteredAudios, id: id);
-    await play();
+    if(await hasInternetConnection(context: downloadedAudios.isEmpty || (first != null && !downloadedAudios.contains(first)) ? GlobalKeyService.jwLifePageKey.currentContext : null)) {
+      Audio firstAudio = first ?? audios.first;
+
+      if(randomMode) {
+        firstAudio = audios[Random().nextInt(audios.length)];
+      }
+
+      History.insertAudioMediaItem(firstAudio);
+
+      setRandomMode(randomMode);
+      await fetchAudiosCategoryData(category, audios, firstAudio, true);
+      await play();
+    }
+    else if (downloadedAudios.isNotEmpty) {
+      Audio firstAudio = first ?? downloadedAudios.first;
+
+      if(!downloadedAudios.contains(firstAudio)) return;
+
+      if(randomMode) {
+        firstAudio = downloadedAudios[Random().nextInt(downloadedAudios.length)];
+      }
+
+      History.insertAudioMediaItem(firstAudio);
+
+      setRandomMode(randomMode);
+      await fetchAudiosCategoryData(category, downloadedAudios, firstAudio, false);
+      await play();
+    }
   }
 
   /*

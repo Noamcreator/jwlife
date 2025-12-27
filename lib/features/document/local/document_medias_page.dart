@@ -19,7 +19,7 @@ import '../../../../../widgets/mediaitem_item_widget.dart';
 import '../../../../../widgets/responsive_appbar_actions.dart';
 import '../data/models/document.dart';
 import '../data/models/multimedia.dart';
-import 'full_screen_image_page.dart';
+import '../../image/pages/full_screen_image_page.dart';
 
 class DocumentMediasView extends StatefulWidget {
   final Document document;

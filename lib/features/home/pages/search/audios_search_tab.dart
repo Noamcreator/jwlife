@@ -114,9 +114,9 @@ class _AudioSearchTabState extends State<AudioSearchTab> {
                   height: isGrid ? null : 150,
                   color: Colors.grey,
                 ),
-                Positioned(
+                PositionedDirectional(
                   top: 0,
-                  left: 0,
+                  start: 0,
                   child: Container(
                     padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
                     decoration: BoxDecoration(
@@ -141,10 +141,11 @@ class _AudioSearchTabState extends State<AudioSearchTab> {
                     ),
                   ),
                 ),
-                Positioned(
+                PositionedDirectional(
                   top: 5,
-                  right: 5,
+                  end: 5,
                   child: PopupMenuButton(
+                    useRootNavigator: true,
                     icon: const Icon(Icons.more_horiz, color: Colors.white, size: 30),
                     itemBuilder: (context) => [
                       getAudioShareItem(audio),

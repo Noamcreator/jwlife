@@ -23,7 +23,7 @@ class _ContactEditorPageState extends State<ContactEditorPage> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _addressController = TextEditingController();
 
-  bool _isLoading = true;
+  final bool _isLoading = true;
 
   @override
   void initState() {

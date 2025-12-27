@@ -912,5 +912,13 @@
   "action_scan_qr_code": "Scanner un Code QR",
   "settings_page_transition": "Transition des pages",
   "settings_page_transition_bottom": "Transition par le bas",
-  "settings_page_transition_right": "Transition par la droite"
+  "settings_page_transition_right": "Transition par la droite",
+  "label_research_all": "TOUT",
+  "label_research_wol": "WOL",
+  "label_research_bible": "BIBLE",
+  "label_research_verses": "VERSETS",
+  "label_research_images": "IMAGES",
+  "label_research_notes": "NOTES",
+  "label_research_inputs_fields": "CHAMPS",
+  "label_research_wikipedia": "WIKIPÉDIA"
 }

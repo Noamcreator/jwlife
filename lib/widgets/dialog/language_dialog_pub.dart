@@ -11,9 +11,11 @@ import 'package:jwlife/data/databases/catalog.dart';
 import 'package:sqflite/sqflite.dart';
 
 import '../../app/services/settings_service.dart';
+import '../../core/uri/jworg_uri.dart';
 import '../../core/utils/utils.dart';
 import '../../data/databases/history.dart';
 import '../../i18n/i18n.dart';
+import 'qr_code_dialog.dart';
 
 class LanguagesPubDialog extends StatefulWidget {
   final Publication? publication;
@@ -435,7 +437,7 @@ class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
                     children: [
                       if (showRecommendedHeader)
                         Padding(
-                          padding: const EdgeInsets.only(left: 25, bottom: 5, top: 5),
+                          padding: const EdgeInsetsDirectional.only(start: 25, bottom: 5, top: 5),
                           child: Text(
                             i18n().label_languages_recommended,
                             style: TextStyle(
@@ -447,7 +449,7 @@ class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
                         ),
                       if (showOtherLanguagesHeader)
                         Padding(
-                          padding: const EdgeInsets.only(left: 25, bottom: 8, top: 10),
+                          padding: const EdgeInsetsDirectional.only(start: 25, bottom: 8, top: 10),
                           child: Text(
                             i18n().label_languages_more,
                             style: TextStyle(
@@ -468,7 +470,7 @@ class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
 
             // Bouton de fermeture
             Align(
-              alignment: Alignment.centerRight,
+              alignment: AlignmentDirectional.centerEnd,
               child: TextButton(
                 child: Text(
                   i18n().action_done_uppercase,
@@ -517,7 +519,7 @@ class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
         },
         child: Container(
           color: languageSymbol == selectedLanguage && keySymbol == selectedSymbol && issueTagNumber == selectedIssueTagNumber ? Theme.of(context).brightness == Brightness.dark ? const Color(0xFF626262) : const Color(0xFFf0f0f0) : null,
-          padding: const EdgeInsets.only(left: 40, right: 5, top: 5, bottom: 5),
+          padding: const EdgeInsetsDirectional.only(start: 40, end: 5, top: 5, bottom: 5),
           child: Stack(
             children: [
               // Contenu principal (Row avec Radio + Textes)
@@ -571,8 +573,8 @@ class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
 
               // PopupMenuButton (positionné à droite)
               if(publication?.isDownloadedNotifier.value == true)
-                Positioned(
-                  right: 0,
+                PositionedDirectional(
+                  end: 0,
                   top: 0,
                   bottom: 0,
                   child: PopupMenuButton(
@@ -594,6 +596,29 @@ class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
                               Icon(JwIcons.share),
                               SizedBox(width: 8),
                               Text(i18n().action_open_in_share),
+                            ],
+                          ),
+                        ),
+                        PopupMenuItem(
+                          onTap: () async {
+                            Publication? publication = await CatalogDb.instance.searchPub(keySymbol, issueTagNumber, languageSymbol);
+
+                            if(publication == null) return;
+                            String uri = JwOrgUri.publication(
+                                wtlocale: publication.mepsLanguage.symbol,
+                                pub: publication.keySymbol,
+                                issue: publication.issueTagNumber
+                            ).toString();
+
+                            String? imagePath = publication.isDownloadedNotifier.value ? publication.imageSqr ?? publication.networkImageSqr : publication.networkImageSqr;
+                            showQrCodeDialog(context, publication.getTitle(), uri, imagePath: imagePath);
+
+                          },
+                          child: Row(
+                            children: [
+                              Icon(JwIcons.qr_code),
+                              SizedBox(width: 8),
+                              Text(i18n().action_qr_code),
                             ],
                           ),
                         ),
@@ -635,8 +660,8 @@ class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
 
               // PopupMenuButton (positionné à droite)
               if(publication == null || publication?.isDownloadedNotifier.value == false)
-                Positioned(
-                  right: 0,
+                PositionedDirectional(
+                  end: 0,
                   top: widget.publication == null ? 0 : -5,
                   bottom: isDownloading ? 0 : null,
                   child: IconButton(
@@ -669,8 +694,8 @@ class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
 
               // PopupMenuButton (positionné à droite)
               if((publication == null || publication?.isDownloadedNotifier.value == false) && languageData['ExpandedSize'] != null && !isDownloading)
-                Positioned(
-                  right: 5,
+                PositionedDirectional(
+                  end: 5,
                   bottom: 0,
                   child: Text(
                       formatFileSize(languageData['ExpandedSize'] ?? 0),
@@ -683,9 +708,9 @@ class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
 
               // ProgressBar (positionné en bas à gauche, sous les textes)
               if (isDownloading)
-                Positioned(
-                  left: 10,
-                  right: 35,
+                PositionedDirectional(
+                  start: 10,
+                  end: 35,
                   bottom: 0,
                   child: _buildProgressBar(context),
                 ),

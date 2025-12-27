@@ -162,18 +162,17 @@ class DailyTextWidget extends StatelessWidget {
             valueListenable: pub.isDownloadingNotifier,
             builder: (context, downloading, _) {
               if (!downloading) return const SizedBox.shrink();
-              return Positioned(
+              return PositionedDirectional(
                 bottom: 0,
-                left: 0,
-                right: 0,
+                start: 0,
+                end: 0,
                 child: ValueListenableBuilder<double>(
                   valueListenable: pub.progressNotifier,
                   builder: (context, progress, _) {
                     return LinearProgressIndicator(
                       value: progress == -1 ? null : progress,
-                      valueColor: AlwaysStoppedAnimation(
-                          Theme.of(context).primaryColor),
-                      backgroundColor: Colors.grey[300],
+                      minHeight: 2,
+                      valueColor: AlwaysStoppedAnimation(Theme.of(context).primaryColor), backgroundColor: Colors.transparent,
                     );
                   },
                 ),

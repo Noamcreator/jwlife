@@ -8,6 +8,7 @@ import 'package:jwlife/app/jwlife_app_bar.dart';
 import 'package:jwlife/core/ui/app_dimens.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
+import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/core/utils/utils_language_dialog.dart';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/databases/history.dart';
@@ -19,7 +20,7 @@ import '../../../app/services/settings_service.dart';
 import '../../../core/utils/utils_document.dart';
 import '../../../data/models/userdata/bookmark.dart';
 import '../../../i18n/i18n.dart';
-import '../../../widgets/qr_code_dialog.dart';
+import '../../../widgets/dialog/qr_code_dialog.dart';
 import '../models/bible_chapter_model.dart';
 import 'bible_book_medias_page.dart';
 
@@ -71,6 +72,7 @@ class _BibleChapterPageState extends State<BibleChapterPage> {
   @override
   Widget build(BuildContext context) {
     final currentBook = _controller.currentBook;
+    final textDirection = widget.bible.mepsLanguage.isRtl ? TextDirection.rtl : TextDirection.ltr;
 
     // Synchroniser le PageController après que l'état soit disponible
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -172,7 +174,7 @@ class _BibleChapterPageState extends State<BibleChapterPage> {
           ),
         ],
       ),
-      body: bodyContent ?? const Center(child: CircularProgressIndicator()),
+      body: Directionality(textDirection: textDirection, child: bodyContent ?? const Center(child: CircularProgressIndicator())),
     );
   }
 
@@ -191,92 +193,98 @@ class _BibleChapterPageState extends State<BibleChapterPage> {
   // --- Layout Grand Écran ---
   Widget _buildTwoColumnLayout(BibleBook bookData) {
     final hasCommentary = bookData.bookInfo['HasCommentary'] == 1;
-    final double topCompensation = hasCommentary ? _kHeaderImageHeight : 0;
 
     if (bookData.isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
 
-    return SingleChildScrollView(
-      child: Column(
-        children: [
-          if (hasCommentary) SizedBox(height: topCompensation),
-          Padding(
+    return Column(
+      children: [
+        // Header fixe en haut si commentaire
+        if (hasCommentary) _buildBookHeader(bookData, withTextOverlay: true),
+
+        Expanded(
+          child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Colonne GAUCHE : Grille et Liens
                 Expanded(
                   flex: 1,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildChapterGridContent(bookData),
-                      _buildBookLinks(bookData, context),
-                    ],
+                  child: SingleChildScrollView(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildChapterGridContent(bookData),
+                        const SizedBox(height: 24),
+                        _buildBookLinks(bookData, context),
+                      ],
+                    ),
                   ),
                 ),
                 const SizedBox(width: 24),
+                // Colonne DROITE : Vue HTML
                 Expanded(
                   flex: 1,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      SizedBox(
-                        height: MediaQuery.of(context).size.height - topCompensation - 40,
-                        child: _buildHtmlView(bookData.overviewHtml ?? ''),
-                      ),
-                    ],
-                  ),
+                  child: _buildHtmlView(bookData.overviewHtml ?? ''),
                 ),
               ],
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
   // --- Widgets partagés ---
   Widget _buildBookPageContent(BibleBook bookData, {bool isLargeScreen = false}) {
-    final hasCommentary = bookData.bookInfo['HasCommentary'] == 1;
-    final double topCompensation = hasCommentary ? _kHeaderImageHeight : 0;
+    if (bookData.isLoading) return const Center(child: CircularProgressIndicator());
 
-    return Stack(
-      children: [
-        Column(
-          children: [
-            if (hasCommentary && !isLargeScreen) SizedBox(height: topCompensation),
-            Expanded(
-              child: bookData.isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : bookData.isOverview
-                  ? _buildHtmlView(bookData.overviewHtml ?? '')
-                  : SingleChildScrollView(
-                padding: hasCommentary ? EdgeInsets.zero : const EdgeInsets.symmetric(vertical: 20.0, horizontal: 16.0),
-                scrollDirection: Axis.vertical,
-                child: Padding(
-                  padding: hasCommentary ? const EdgeInsets.symmetric(horizontal: 16.0) : EdgeInsets.zero,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildChapterGridContent(bookData),
-                      _buildBookLinks(bookData, context),
-                    ],
-                  ),
-                ),
-              ),
+    // Cas 1 : Grand Écran (Layout deux colonnes)
+    if (isLargeScreen) return _buildTwoColumnLayout(bookData);
+
+    // Cas 2 : Mobile - Affichage de l'Overview (HTML)
+    if (bookData.isOverview) {
+      return Column(
+        children: [
+          // On garde le header même en mode overview si disponible
+          if (bookData.bookInfo['HasCommentary'] == 1)
+            _buildBookHeader(bookData, withTextOverlay: true),
+          Expanded(
+            child: _buildHtmlView(bookData.overviewHtml ?? ''),
+          ),
+        ],
+      );
+    }
+
+    // Cas 3 : Mobile - Affichage Normal (Grille + Liens)
+    return CustomScrollView(
+      slivers: [
+        if (bookData.bookInfo['HasCommentary'] == 1)
+          SliverToBoxAdapter(
+            child: _buildBookHeader(bookData, withTextOverlay: true),
+          ),
+
+        SliverPadding(
+          // On met le top à 0.0 pour supprimer l'espace sous le header
+          padding: const EdgeInsets.all(16),
+          sliver: SliverToBoxAdapter(
+            child: Column(
+              children: [
+                _buildChapterGridContent(bookData),
+                const SizedBox(height: 24),
+                _buildBookLinks(bookData, context),
+              ],
             ),
-          ],
+          ),
         ),
-        if (hasCommentary && !isLargeScreen)
-          _buildBookHeader(bookData, withTextOverlay: true, isPositioned: true),
       ],
     );
   }
 
-  Widget _buildBookHeader(BibleBook bookData, {bool withTextOverlay = false, bool isPositioned = false}) {
-    final imageContent = Stack(
+  Widget _buildBookHeader(BibleBook bookData, {bool withTextOverlay = false}) {
+    return Stack(
       children: [
         Image.file(
           File('${widget.bible.path}/${bookData.bookInfo['FilePath']}'),
@@ -286,51 +294,88 @@ class _BibleChapterPageState extends State<BibleChapterPage> {
         ),
         if (withTextOverlay)
           Positioned(
-            top: _kHeaderImageHeight - 50,
+            bottom: 0,
             left: 0,
             right: 0,
             child: Container(
-              padding: const EdgeInsets.all(8.0),
-              decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.55),
-              ),
+              padding: const EdgeInsets.symmetric(vertical: 12.0),
+              color: Colors.black.withOpacity(0.55),
               child: Text(
                 bookData.bookInfo['BookDisplayTitle'] ?? '',
-                style: const TextStyle(fontSize: 25, color: Colors.white),
+                style: const TextStyle(fontSize: 21, color: Colors.white),
                 textAlign: TextAlign.center,
               ),
             ),
           ),
       ],
     );
-
-    if (isPositioned) {
-      return Positioned(top: 0, left: 0, right: 0, child: imageContent);
-    }
-    return imageContent;
   }
 
-  Widget _buildHtmlView(String html) {
-    if (html.isEmpty) {
-      return Center(child: Text(i18n().message_no_content));
-    }
+  Widget _buildBookLinks(BibleBook bookData, BuildContext context) {
+    return FutureBuilder<String>(
+      future: i18nLocale(widget.bible.mepsLanguage.getSafeLocale()).then((l) => l.label_media_gallery),
+      builder: (context, snapshot) {
+        final mediaLabel = snapshot.data ?? "...";
 
-    return InAppWebView(
-        initialSettings: InAppWebViewSettings(
-          useShouldOverrideUrlLoading: true,
-          mediaPlaybackRequiresUserGesture: false,
-        ),
-        gestureRecognizers: Set()
-          ..add(
-            Factory<VerticalDragGestureRecognizer>(
-                  () => VerticalDragGestureRecognizer()..dragStartBehavior = DragStartBehavior.start,
+        return Column(
+          children: [
+            // 1. Bouton Information Livre
+            if (bookData.bookInfo['Title'] != null)
+              _buildMepsButton(
+                label: bookData.bookInfo['Title'],
+                icon: JwIcons.information_circle,
+                onPressed: () => showPageDocument(widget.bible, bookData.bookInfo['MepsDocumentId']),
+              ),
+
+            // 2. Bouton Profile
+            if (bookData.profileHtml != null && bookData.profileHtml!.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 10.0),
+                child: _buildMepsButton(
+                  label: 'Profile',
+                  icon: JwIcons.information_circle,
+                  onPressed: () => _showProfileDialog(context, bookData.profileHtml!),
+                ),
+              ),
+
+            // 3. Bouton Galerie Média
+            if (bookData.bookInfo['HasCommentary'] == 1)
+              Padding(
+                padding: const EdgeInsets.only(top: 10.0),
+                child: _buildMepsButton(
+                  label: mediaLabel,
+                  icon: JwIcons.image_stack,
+                  onPressed: () => showPage(BibleBookMediasView(bible: widget.bible, bibleBook: bookData)),
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+
+// Helper pour les boutons uniformes
+  Widget _buildMepsButton({required String label, required IconData icon, required VoidCallback onPressed}) {
+    return FilledButton(
+      style: FilledButton.styleFrom(
+        backgroundColor: const Color(0xFF757575),
+        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+        padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 12.0),
+      ),
+      onPressed: onPressed,
+      child: Row(
+        children: [
+          Icon(icon, color: Colors.white, size: 24.0),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(fontSize: 18.0, color: Colors.white),
+              overflow: TextOverflow.ellipsis,
             ),
-          ),
-        initialData: InAppWebViewInitialData(
-            data: html,
-            mimeType: 'text/html',
-            baseUrl: WebUri('file://${JwLifeSettings.instance.webViewData.webappPath}/')
-        )
+          )
+        ],
+      ),
     );
   }
 
@@ -345,7 +390,8 @@ class _BibleChapterPageState extends State<BibleChapterPage> {
 
         return GridView.builder(
           shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
+          padding: EdgeInsets.zero,
+          physics: const NeverScrollableScrollPhysics(), // Important pour laisser le parent scroller
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: crossAxisCount,
             crossAxisSpacing: kSpacing,
@@ -353,126 +399,73 @@ class _BibleChapterPageState extends State<BibleChapterPage> {
             childAspectRatio: 1.0,
           ),
           itemCount: bookData.chapters!.length,
-          itemBuilder: (context, index) {
-            final chapter = bookData.chapters![index];
-            return _buildChapterContainer(bookData, chapter);
-          },
+          itemBuilder: (context, index) => _buildChapterContainer(bookData, bookData.chapters![index]),
         );
       },
     );
   }
 
   Widget _buildChapterContainer(BibleBook bookData, dynamic chapter) {
-    return InkWell(
-      onTap: () => _controller.onTapChapter(chapter['ChapterNumber']),
-      child: Container(
-        decoration: const BoxDecoration(color: Color(0xFF757575)),
+    return Material(
+      color: const Color(0xFF757575),
+      child: InkWell(
+        onTap: () => _controller.onTapChapter(chapter['ChapterNumber']),
         child: Center(
           child: Text(
-            chapter['ChapterNumber'].toString(),
-            style: const TextStyle(fontSize: 20.0, color: Colors.white),
+            formatNumber(chapter['ChapterNumber'], localeCode: widget.bible.mepsLanguage.primaryIetfCode),
+            style: const TextStyle(fontSize: 20.0, color: Colors.white, fontWeight: FontWeight.w500),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildBookLinks(BibleBook bookData, BuildContext context) {
-    return Column(
-      children: [
-        if (bookData.bookInfo['Title'] != null)
-          Padding(
-            padding: const EdgeInsets.only(top: 16.0),
-            child: FilledButton(
-                style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFF757575),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(0)),
-                ),
-                onPressed: () {
-                  showPageDocument(widget.bible, bookData.bookInfo['MepsDocumentId']);
-                },
-                child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 16.0),
-                    child: Row(
-                      children: [
-                        const Icon(JwIcons.information_circle, color: Colors.white, size: 24.0),
-                        const SizedBox(width: 8),
-                        Text(
-                          bookData.bookInfo['Title'],
-                          style: const TextStyle(fontSize: 20.0, color: Colors.white),
-                        )
-                      ],
-                    )
-                )
-            ),
+  void _showProfileDialog(BuildContext context, String htmlContent) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        child: SizedBox(
+          width: MediaQuery.of(context).size.width * 0.8,
+          height: MediaQuery.of(context).size.height * 0.6,
+          child: Column(
+            children: [
+              Expanded(child: _buildHtmlView(htmlContent)),
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(i18n().action_close_upper),
+              ),
+            ],
           ),
-        if (bookData.profileHtml != null && bookData.profileHtml!.isNotEmpty && bookData.bookInfo['Title'] != null)
-          Padding(
-            padding: const EdgeInsets.only(top: 10.0),
-            child: FilledButton(
-                style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFF757575),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(0)),
-                ),
-                onPressed: () {
-                  showDialog(
-                    context: context,
-                    builder: (context) => Dialog(
-                      child: SizedBox(
-                        width: 300,
-                        height: 400,
-                        child: Column(
-                          children: [
-                            Expanded(child: _buildHtmlView(bookData.profileHtml!)),
-                            Align(
-                              alignment: Alignment.bottomRight,
-                              child: TextButton(
-                                onPressed: () => Navigator.of(context).pop(),
-                                child: Text(i18n().action_close_upper),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  );
-                },
-                child: const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 16.0),
-                    child: Row(
-                      children: [
-                        Icon(JwIcons.information_circle, color: Colors.white, size: 24.0),
-                        SizedBox(width: 8),
-                        Text('Profile', style: TextStyle(fontSize: 20.0, color: Colors.white))
-                      ],
-                    )
-                )
-            ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHtmlView(String html) {
+    if (html.isEmpty) return Center(child: Text(i18n().message_no_content));
+
+    return InAppWebView(
+      initialSettings: InAppWebViewSettings(
+        useShouldOverrideUrlLoading: true,
+        mediaPlaybackRequiresUserGesture: false,
+        transparentBackground: true,
+      ),
+      gestureRecognizers: Set()
+
+        ..add(
+
+          Factory<VerticalDragGestureRecognizer>(
+
+                () => VerticalDragGestureRecognizer()..dragStartBehavior = DragStartBehavior.start,
+
           ),
-        if (bookData.bookInfo['HasCommentary'] == 1)
-          Padding(
-            padding: const EdgeInsets.only(top: 10.0),
-            child: FilledButton(
-                style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFF757575),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(0)),
-                ),
-                onPressed: () {
-                  showPage(BibleBookMediasView(bible: widget.bible, bibleBook: bookData));
-                },
-                child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 16.0),
-                    child: Row(
-                      children: [
-                        const Icon(JwIcons.image_stack, color: Colors.white, size: 24.0),
-                        const SizedBox(width: 8),
-                        Text(i18n().label_media_gallery, style: const TextStyle(fontSize: 20.0, color: Colors.white))
-                      ],
-                    )
-                )
-            ),
-          ),
-      ],
+
+        ),
+      initialData: InAppWebViewInitialData(
+          data: html,
+          mimeType: 'text/html',
+          baseUrl: WebUri('file://${JwLifeSettings.instance.webViewData.webappPath}/')
+      ),
     );
   }
 

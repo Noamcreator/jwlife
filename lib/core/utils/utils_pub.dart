@@ -15,7 +15,7 @@ import 'package:jwlife/data/models/publication.dart';
 import '../../app/services/global_key_service.dart';
 import '../../features/publication/widgets/audio_download_content.dart';
 import '../../i18n/i18n.dart';
-import '../../widgets/qr_code_dialog.dart';
+import '../../widgets/dialog/qr_code_dialog.dart';
 import '../uri/jworg_uri.dart';
 import 'utils_dialog.dart';
 import '../api/api.dart';

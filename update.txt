@@ -874,3 +874,82 @@ Correction d’un bug critique empêchant le chargement des favoris au démarrag
 📦 Mises à Jour Techniques
 Mise à jour de mobile_scanner : 7.1.3 → 7.1.4
 Mise à jour de Flutter : 3.38.4 → 3.38.5
+
+📢 Mise à jour – v1.3.0 (27/12/2025)
+
+🚀 Nouvelles Fonctionnalités
+- Ajout de la gestion de la prédication (préparation) sur la page Prédication, préparant les bases pour les futures mises à jour.
+- Possibilité de changer la langue partout dans l’application, y compris dans les sous-catégories (nouveautés d’assemblée, catégories audio/vidéo, etc.).
+- Ajout de boutons flottants ronds sur les pages nécessitant des actions rapides.
+- Ajout d’un bouton ▶︎ pour les vidéos présentes dans les articles, placé avant le texte « Regarder la vidéo », comme sur le site.
+- Ajout des boutons « Nouvelle visite » et « Cours bibliques » dans la barre d’outils lors du clic sur un paragraphe dans le WebView.
+- Ajout de la recherche avancée dans l’onglet Bibliothèque, identique à JW Library, permettant de rechercher par symbol, année ou catégorie dans les publications, vidéos et audios.
+- Ajout d’un bouton permettant de supprimer une note depuis l’aperçu de la note.
+- Ajout de la génération de QR Code dans le dialogue des langues pour les publications.
+- Possibilité d’ajouter une assemblée locale depuis la page dédiée via le bouton flottant « + ».
+- Possibilité de changer la Bible affichée avec mise à jour immédiate dans l’onglet Bible.
+- Amélioration de l’historique : enregistrement du nom du livre et du chapitre lors de l’ouverture d’un chapitre biblique.
+
+🧩 Améliorations de l’Expérience Utilisateur
+- Animation venant du haut de l’écran lors de l’apparition d’un nouveau point d’actualité, comme sur le site officiel.
+- Suppression des barres de défilement sur la page des alertes d’actualités avec ouverture des liens vers le site.
+- Vérification de la connexion Internet avant l’ouverture d’un article, d’un audio, d’un PDF ou d’une page WebView afin d’éviter les erreurs.
+- Affichage d’une fenêtre d’information en cas d’absence de connexion Internet.
+- Pour les langues RTL (arabe, hébreu, etc.), inversion des boutons précédent et suivant dans les articles.
+- Adaptation complète du lecteur audio pour les langues RTL.
+- Inversion des icônes précédent/suivant pour les audios et vidéos en langues RTL.
+- Respect de la direction LTR/RTL dans tous les dialogues, y compris le dialogue des langues.
+- Amélioration du mode image/texte (ex. cantiques) avec affichage plein écran et défilement fluide.
+- Les menus à trois points s’ouvrent désormais au-dessus de la barre de navigation afin d’éviter des boutons inaccessibles.
+- Les publications et médias ajoutés aux favoris n’affichent plus l’icône étoile dans la section Favoris.
+- Lors du clic sur un verset, seul le numéro du verset est affiché dans le titre de l’AppBar, et non plus lors du clic sur un paragraphe.
+- Les liens vers les versets, le lexique et d’autres notes d’étude sont désormais cliquables dans les notes d’étude.
+- Rétablissement et correction de la page Frères et sœurs (importation des contacts non disponible pour le moment).
+- Amélioration de la page Culte avec un design plus proche de JW Library et des titres affichés en bleu.
+
+🎨 Interface & Design
+- Correction et adaptation de tous les éléments utilisant un positionnement précis pour respecter les directions LTR et RTL.
+- Réparation des icônes des marque-pages avec adaptation automatique à la couleur du thème.
+- La visionneuse d’images en plein écran respecte la direction LTR/RTL selon la langue de la publication.
+- Suppression du fond lors du chargement des images de vidéos dans la visionneuse plein écran.
+- Affichage des numéros bibliques et des chiffres selon la langue de l’utilisateur (ex. chiffres arabes).
+- Adaptation des années (Tour de Garde, Réveillez-vous, Vie et Ministère) à la langue de l’utilisateur.
+- Traduction complète des onglets de recherche (TOUT, WOL, VIDÉOS, AUDIOS, etc.) dans toutes les langues.
+- Suppression du texte en gras pour les numéros dans les grilles (ex. cantiques) afin d’obtenir un rendu plus épuré.
+- Adaptation du logo de chargement à la couleur du thème.
+- Réduction légère de la taille du logo au démarrage de l’application.
+- Adaptation de la couleur du texte pour la recherche dans les notes et catégories selon le thème.
+- Amélioration du design des dialogues WebView avec des icônes carrées et plus compactes.
+- Amélioration du dialogue des notes pour une prise de note plus agréable et mieux adaptée aux changements de taille et de mode d’affichage.
+
+⚙️ Optimisation
+- Optimisation des requêtes SQL afin de charger la langue une seule fois et de l’appliquer à l’ensemble des publications de la requête.
+- Amélioration significative des performances du surlignage sur les documents volumineux.
+- Suppression du bug provoquant un décalage de page lors du premier surlignage.
+- Accélération du clic sur les paragraphes et les versets.
+- Synchronisation du lecteur des playlists avec le lecteur vidéo principal.
+- Augmentation du nombre maximal de caractères pour la recherche dans une publication afin d’éviter l’apparition inutile de « Voir plus ».
+- Suppression des espaces inutiles avant le texte dans la page de recherche des publications.
+- Amélioration de la recherche par index de mots dans les WebView.
+- Optimisation des suggestions de recherche en fonction de la langue actuelle et de la connexion Internet.
+
+🐞 Corrections & Stabilité
+- Correction de nombreux bugs dans l’affichage et la navigation des chapitres de la Bible.
+- Le bouton « Galerie Multimédia » s’affiche désormais dans la langue de la Bible sélectionnée.
+- Vérification de la bonne traduction de la Bible avant ouverture afin d’éviter l’affichage d’une version incorrecte.
+- Vérification de l’ouverture correcte de la base de données du texte du jour avant toute requête SQL.
+- Correction de l’ouverture de la Bible depuis la recherche globale en sélectionnant automatiquement la version la plus récente installée.
+- Repositionnement correct des notes lors du passage en plein écran ou lors du redimensionnement de la fenêtre.
+- Ajustement du positionnement du bouton flottant du WebView pour une meilleure cohérence avec le reste de l’application.
+- Ajout des notes et du surlignage dans les dialogues qui ne les chargeaient pas encore (sauf pour le guide de recherche concernant les notes utilisateur).
+- Correction de la suppression des audios et vidéos des favoris.
+- Vérification de la connexion Internet avant l’affichage ou la copie des paroles d’un audio.
+- Correction d’un problème d’écran noir après l’export d’une sauvegarde depuis l’onglet Personnel.
+- Amélioration de l’affichage des paroles pour les audios.
+- Harmonisation de l’affichage des menus des playlists avec l’utilisation des trois points horizontaux.
+
+📦 Mises à Jour Techniques
+- Mise à jour de la base de langues mepsunit.db depuis la dernière version de JW Library.
+- Adaptation du format des dates à la langue de l’utilisateur (ex. 27/12/2025).
+- Mise à jour de file_picker de la version 10.3.7 vers 10.3.8.
+- Mise à jour de gpt_markdown de la version 1.1.4 vers 1.1.5.

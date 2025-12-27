@@ -912,5 +912,13 @@
   "action_scan_qr_code": "Mä QR Código scanner uñachtʼaña",
   "settings_page_transition": "Página transición",
   "settings_page_transition_bottom": "Hacia abajo transición",
-  "settings_page_transition_right": "Hacia la derecha transición"
+  "settings_page_transition_right": "Hacia la derecha transición",
+  "label_research_all": "TAQI",
+  "label_research_wol": "WOL",
+  "label_research_bible": "BIBLIA",
+  "label_research_verses": "T'AQA QILLQANAKA",
+  "label_research_images": "JAMUQNAKA",
+  "label_research_notes": "QILLQANAKA",
+  "label_research_inputs_fields": "YATIYÄWINAKA",
+  "label_research_wikipedia": "WIKIPEDIA"
 }

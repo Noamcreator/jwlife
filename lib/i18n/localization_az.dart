@@ -3118,4 +3118,28 @@ class AppLocalizationsAz extends AppLocalizations {
 
   @override
   String get settings_page_transition_right => 'Sağdan keçid';
+
+  @override
+  String get label_research_all => 'HAMISI';
+
+  @override
+  String get label_research_wol => 'WOL';
+
+  @override
+  String get label_research_bible => 'MÜQƏDDƏS KİTAB';
+
+  @override
+  String get label_research_verses => 'AYƏLƏR';
+
+  @override
+  String get label_research_images => 'ŞƏKİLLƏR';
+
+  @override
+  String get label_research_notes => 'QEYDLƏR';
+
+  @override
+  String get label_research_inputs_fields => 'SAHƏLƏR';
+
+  @override
+  String get label_research_wikipedia => 'VİKİPEDİYA';
 }

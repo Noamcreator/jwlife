@@ -1,6 +1,6 @@
 
 import 'package:jwlife/data/models/publication.dart';
-import 'package:jwlife/features/publication/pages/document/data/models/dated_text.dart';
+import 'package:jwlife/features/document/data/models/dated_text.dart';
 import 'package:sqflite/sqflite.dart';
 
 import '../../../../../core/utils/utils.dart';
@@ -18,7 +18,7 @@ class DatedTextManager {
   // Méthode privée pour initialiser la base de données
   Future<void> initializeDatabaseAndData() async {
     try {
-      database = await openDatabase(publication.databasePath!);
+      database = await openReadOnlyDatabase(publication.databasePath!);
       await fetchDatedText();
     }
     catch (e) {

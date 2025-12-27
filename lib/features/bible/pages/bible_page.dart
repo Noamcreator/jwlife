@@ -8,7 +8,7 @@ import 'package:jwlife/i18n/i18n.dart';
 import '../../../app/app_page.dart';
 import '../../../app/services/settings_service.dart';
 import '../../../core/utils/utils_language_dialog.dart';
-import '../../publication/pages/menu/local/publication_menu_view.dart';
+import '../../publication/pages/local/publication_menu_view.dart';
 
 class BiblePage extends StatefulWidget {
   const BiblePage({super.key});
@@ -18,10 +18,11 @@ class BiblePage extends StatefulWidget {
 }
 
 class BiblePageState extends State<BiblePage> {
-  final GlobalKey<PublicationMenuViewState> _bibleMenuPage = GlobalKey<PublicationMenuViewState>();
+  GlobalKey<PublicationMenuViewState>? _bibleMenuPage;
+  String? _currentBibleKey;
 
   void goToTheBooksTab() {
-    _bibleMenuPage.currentState?.goToTheBooksTab();
+    _bibleMenuPage?.currentState?.goToTheBooksTab();
   }
 
   @override
@@ -32,55 +33,62 @@ class BiblePageState extends State<BiblePage> {
         final Publication? currentBible = PublicationRepository().getLookUpBible(bibleKey: bibleKey);
 
         if (currentBible != null) {
-          if (!currentBible.isDownloadedNotifier.value) {
-            return RectanglePublicationItem(publication: currentBible);
-          } else {
-            return PublicationMenuView(
-              key: _bibleMenuPage,
-              publication: currentBible,
-              canPop: false,
-            );
+          if (_currentBibleKey != currentBible.getKey()) {
+            _currentBibleKey = currentBible.getKey();
+            _bibleMenuPage = GlobalKey<PublicationMenuViewState>();
           }
-        } else {
-          return AppPage(
-            appBar: AppBar(
-              title: Text(
-                i18n().navigation_bible,
-                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-              ),
-            ),
-            body: Center(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    textStyle: const TextStyle(fontSize: 17, fontWeight: FontWeight.w500),
-                    elevation: 3,
-                  ),
-                  onPressed: () async {
-                    showLanguagePubDialog(context, null).then((bible) async {
-                      if (bible != null) {
-                        String bibleKey = bible.getKey();
-                        JwLifeSettings.instance.lookupBible.value = bibleKey;
-                        AppSharedPreferences.instance.setLookUpBible(bibleKey);
-                      }
-                    });
-                  },
-                  child: Text(i18n().action_download_bible),
-                ),
-              ),
-            ),
+
+          return ValueListenableBuilder<bool>(
+            valueListenable: currentBible.isDownloadedNotifier,
+            builder: (context, isDownloaded, _) {
+              if (!isDownloaded) {
+                return RectanglePublicationItem(publication: currentBible);
+              }
+              else {
+                return PublicationMenuView(
+                  key: _bibleMenuPage,
+                  publication: currentBible,
+                  canPop: false,
+                );
+              }
+            },
           );
         }
+
+        // Aucune Bible sélectionnée
+        return AppPage(
+          appBar: AppBar(
+            title: Text(
+              i18n().navigation_bible,
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+          ),
+          body: Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24.0),
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  textStyle: const TextStyle(fontSize: 17, fontWeight: FontWeight.w500),
+                  elevation: 3,
+                ),
+                onPressed: () async {
+                  final bible = await showLanguagePubDialog(context, null);
+                  if (bible != null) {
+                    final String bibleKey = bible.getKey();
+                    JwLifeSettings.instance.lookupBible.value = bibleKey;
+                    AppSharedPreferences.instance.setLookUpBible(bibleKey);
+                  }
+                },
+                child: Text(i18n().action_download_bible),
+              ),
+            ),
+          ),
+        );
       },
     );
-  }
-
-  void refreshBiblePage() {
-    setState(() {});
   }
 }

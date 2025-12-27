@@ -912,5 +912,13 @@
   "action_scan_qr_code": "QR-kód beolvasása",
   "settings_page_transition": "Oldalátmenet",
   "settings_page_transition_bottom": "Átmenet alulról",
-  "settings_page_transition_right": "Átmenet jobbról"
+  "settings_page_transition_right": "Átmenet jobbról",
+  "label_research_all": "MIND",
+  "label_research_wol": "WOL",
+  "label_research_bible": "BIBLIA",
+  "label_research_verses": "VERSEK",
+  "label_research_images": "KÉPEK",
+  "label_research_notes": "JEGYZETEK",
+  "label_research_inputs_fields": "MEZŐK",
+  "label_research_wikipedia": "WIKIPÉDIA"
 }

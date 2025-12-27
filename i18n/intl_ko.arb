@@ -912,5 +912,13 @@
   "action_scan_qr_code": "QR 코드 스캔",
   "settings_page_transition": "페이지 전환",
   "settings_page_transition_bottom": "아래에서 전환",
-  "settings_page_transition_right": "오른쪽에서 전환"
+  "settings_page_transition_right": "오른쪽에서 전환",
+  "label_research_all": "전체",
+  "label_research_wol": "WOL",
+  "label_research_bible": "성경",
+  "label_research_verses": "성구",
+  "label_research_images": "이미지",
+  "label_research_notes": "노트",
+  "label_research_inputs_fields": "필드",
+  "label_research_wikipedia": "위키백과"
 }

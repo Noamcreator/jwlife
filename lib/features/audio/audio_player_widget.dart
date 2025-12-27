@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:math';
-import 'dart:typed_data';
 
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
@@ -187,10 +186,10 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
         child: Stack(
           children: [
             // Slider en haut
-            Positioned(
+            PositionedDirectional(
               top: -8,
-              left: -5,
-              right: -5,
+              start: -5,
+              end: -5,
               child: SliderTheme(
                 data: const SliderThemeData(
                   trackHeight: 2.0,
@@ -209,9 +208,9 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
               ),
             ),
 
-            Positioned(
+            PositionedDirectional(
               top: 18,
-              left: 10,
+              start: 10,
               child: ClipRRect(
                   borderRadius: BorderRadius.circular(5),
                   child: _currentImageWidget ??
@@ -225,10 +224,10 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
             ),
 
             // Contenu principal
-            Positioned(
+            PositionedDirectional(
               top: 20,
-              left: 62,
-              right: 10,
+              start: 62,
+              end: 10,
               bottom: -10,
               child: Row(
                 children: [
@@ -302,7 +301,7 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
                                     }
                                   },
                                   child: Container(
-                                    padding: const EdgeInsets.only(right: 16),
+                                    padding: const EdgeInsetsDirectional.only(end: 16),
                                     child: const Icon(JwIcons.triangle_to_bar_left, size: 22),
                                   ),
                                 ),
@@ -319,7 +318,7 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
                                     });
                                   },
                                   child: Container(
-                                    padding: const EdgeInsets.only(right: 16),
+                                    padding: const EdgeInsetsDirectional.only(end: 16),
                                     child: Icon(
                                         _isPlaying ? JwIcons.pause : JwIcons.play,
                                         size: 22
@@ -331,7 +330,7 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
                                 GestureDetector(
                                   onTap: jwAudioPlayer.player.hasNext ? () => jwAudioPlayer.next() : null,
                                   child: Container(
-                                    padding: const EdgeInsets.only(right: 16),
+                                    padding: const EdgeInsetsDirectional.only(end: 16),
                                     child: Icon(
                                       JwIcons.triangle_to_bar_right,
                                       size: 22,
@@ -347,7 +346,7 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
                                     jwAudioPlayer.player.seek(jwAudioPlayer.player.position - Duration(seconds: 5));
                                   },
                                   child: Container(
-                                    padding: const EdgeInsets.only(right: 16),
+                                    padding: const EdgeInsetsDirectional.only(end: 16),
                                     child: Icon(
                                       JwIcons.arrow_circular_left_5,
                                       size: 22,
@@ -362,7 +361,7 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
                                     jwAudioPlayer.player.seek(jwAudioPlayer.player.position + Duration(seconds: 15));
                                   },
                                   child: Container(
-                                    padding: const EdgeInsets.only(right: 16),
+                                    padding: const EdgeInsetsDirectional.only(end: 16),
                                     child: Icon(
                                       JwIcons.arrow_circular_right_15,
                                       size: 22,
@@ -902,7 +901,7 @@ class _FullAudioViewState extends State<FullAudioView> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   IconButton(
-                    icon: Icon(Icons.skip_previous, color: Colors.white, size: 40),
+                    icon: Icon(JwIcons.triangle_to_bar_left, color: Colors.white, size: 40),
                     onPressed: () {
                       jwAudioPlayer.previous();
                     },
@@ -926,7 +925,7 @@ class _FullAudioViewState extends State<FullAudioView> {
                   ),
                   SizedBox(width: 20),
                   IconButton(
-                    icon: Icon(Icons.skip_next, color: Colors.white, size: 40),
+                    icon: Icon(JwIcons.triangle_to_bar_right, color: Colors.white, size: 40),
                     onPressed: () {
                       jwAudioPlayer.next();
                     },

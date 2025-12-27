@@ -912,5 +912,13 @@
   "action_scan_qr_code": "QRコードをスキャン",
   "settings_page_transition": "ページの切り替え",
   "settings_page_transition_bottom": "下からの切り替え",
-  "settings_page_transition_right": "右からの切り替え"
+  "settings_page_transition_right": "右からの切り替え",
+  "label_research_all": "すべて",
+  "label_research_wol": "WOL",
+  "label_research_bible": "聖書",
+  "label_research_verses": "節",
+  "label_research_images": "画像",
+  "label_research_notes": "ノート",
+  "label_research_inputs_fields": "フィールド",
+  "label_research_wikipedia": "ウィキペディア"
 }

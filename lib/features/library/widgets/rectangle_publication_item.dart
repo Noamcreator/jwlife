@@ -11,15 +11,15 @@ import '../../../widgets/image_cached_widget.dart';
 class RectanglePublicationItem extends StatelessWidget {
   final Publication publication;
   final Color? backgroundColor;
-
-  /// Hauteur de l’item (sert aussi pour la largeur de l’image)
   final double height;
+  final bool searchWidget;
 
   const RectanglePublicationItem({
     super.key,
     required this.publication,
     this.backgroundColor,
-    this.height = kItemHeight,
+    this.height = kSquareItemHeight,
+    this.searchWidget = false
   });
 
   // 🔵 Progress bar compatible RTL
@@ -29,8 +29,7 @@ class RectanglePublicationItem extends StatelessWidget {
     return ValueListenableBuilder<bool>(
       valueListenable: publication.isDownloadingNotifier,
       builder: (context, isDownloading, _) {
-        return isDownloading
-            ? PositionedDirectional(
+        return isDownloading ? PositionedDirectional(
           bottom: 0,
           start: startOffset, // Démarre juste après l'image
           end: 0, // Va jusqu'au bout du widget
@@ -154,6 +153,7 @@ class RectanglePublicationItem extends StatelessWidget {
       end: -7,
       child: RepaintBoundary(
         child: PopupMenuButton(
+          useRootNavigator: true,
           popUpAnimationStyle: AnimationStyle.lerp(
             const AnimationStyle(curve: Curves.ease),
             const AnimationStyle(curve: Curves.ease),
@@ -187,7 +187,6 @@ class RectanglePublicationItem extends StatelessWidget {
           child: Stack(
             children: [
               Row(
-                textDirection: Directionality.of(context),
                 children: [
                   SizedBox(
                     height: height,
@@ -205,24 +204,28 @@ class RectanglePublicationItem extends StatelessWidget {
                   // Texte
                   Expanded(
                     child: Padding(
-                      // 2. **CONFIRMATION RTL:** Utilisation de EdgeInsetsDirectional.only est CORRECT
-                      // pour un padding sensible à la direction.
                       padding: EdgeInsetsDirectional.only(
                         start: 6.0,
                         end: 25.0,
-                        top: publication.issueTitle.isNotEmpty ? 2.0 : 4.0,
+                        top: publication.issueTitle.isNotEmpty || searchWidget ? 2.0 : 4.0,
                         bottom: 2.0,
                       ),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
-                        // 3. **CONFIRMATION RTL:** CrossAxisAlignment.start est CORRECT
-                        // pour aligner le texte au début de la direction de lecture.
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          if (publication.issueTitle.isEmpty && publication.coverTitle.isEmpty && searchWidget)
+                            Text(
+                              publication.category.getName(),
+                              style: TextStyle(fontSize: 12, color: subtitleColor),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.start, // S'assurer de l'alignement
+                            ),
                           if (publication.issueTitle.isNotEmpty)
                             Text(
                               publication.issueTitle,
-                              style: TextStyle(fontSize: height == kItemHeight ? 11 : 10, color: subtitleColor),
+                              style: TextStyle(fontSize: height == kSquareItemHeight ? 11 : 10, color: subtitleColor),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               textAlign: TextAlign.start, // S'assurer de l'alignement
@@ -232,20 +235,19 @@ class RectanglePublicationItem extends StatelessWidget {
                               publication.coverTitle,
                               style: TextStyle(
                                 height: 1.2,
-                                fontSize: height == kItemHeight ? 14 : 13,
+                                fontSize: height == kSquareItemHeight ? 14 : 13,
                                 color: Theme.of(context).secondaryHeaderColor,
                               ),
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                               textAlign: TextAlign.start, // S'assurer de l'alignement
                             ),
-                          if (publication.issueTitle.isEmpty &&
-                              publication.coverTitle.isEmpty)
+                          if (publication.issueTitle.isEmpty && publication.coverTitle.isEmpty)
                             Text(
                               publication.title,
                               style: TextStyle(
                                 height: 1.2,
-                                fontSize: height == kItemHeight ? 14.5 : 14,
+                                fontSize: height == kSquareItemHeight ? 14.5 : 14,
                                 color: Theme.of(context).secondaryHeaderColor,
                               ),
                               maxLines: 2,

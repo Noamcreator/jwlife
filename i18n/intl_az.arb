@@ -912,5 +912,13 @@
   "action_scan_qr_code": "QR Kodunu skan et",
   "settings_page_transition": "Səhifə keçidi",
   "settings_page_transition_bottom": "Aşağıdan keçid",
-  "settings_page_transition_right": "Sağdan keçid"
+  "settings_page_transition_right": "Sağdan keçid",
+  "label_research_all": "HAMISI",
+  "label_research_wol": "WOL",
+  "label_research_bible": "MÜQƏDDƏS KİTAB",
+  "label_research_verses": "AYƏLƏR",
+  "label_research_images": "ŞƏKİLLƏR",
+  "label_research_notes": "QEYDLƏR",
+  "label_research_inputs_fields": "SAHƏLƏR",
+  "label_research_wikipedia": "VİKİPEDİYA"
 }

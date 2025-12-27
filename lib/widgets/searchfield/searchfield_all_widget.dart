@@ -1,4 +1,3 @@
-import 'dart:convert';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
@@ -59,7 +58,7 @@ class _SearchFieldAllState extends State<SearchFieldAll> {
       animationDuration: const Duration(milliseconds: 300),
       itemHeight: 50,
       autofocus: widget.autofocus ?? true,
-      offset: const Offset(-45, 55),
+      offset: Directionality.of(context) == TextDirection.ltr ? const Offset(-45, 55) : const Offset(10, 55),
       maxSuggestionsInViewPort: 10,
       maxSuggestionBoxHeight: 200,
       suggestionState: Suggestion.expand,
@@ -155,6 +154,8 @@ class _SearchFieldAllState extends State<SearchFieldAll> {
   }
 
   Future<void> _fetchSuggestions(String query) async {
+    List<SuggestionItem> newSuggestions = [];
+
     final requestId = ++_latestRequestId;
     setState(() {
       _suggestions.clear();
@@ -165,25 +166,26 @@ class _SearchFieldAllState extends State<SearchFieldAll> {
     String apiWol = 'https://wol.jw.org/wol/sg/${JwLifeSettings.instance.currentLanguage.value.rsConf}/${JwLifeSettings.instance.currentLanguage.value.lib}?q=$query';
     printTime(apiWol);
     final response = await Api.httpGetWithHeaders(apiWol, responseType: ResponseType.json);
-    final items = (response.data['items'] as List).take(2); // prend seulement les 2 premiers
 
-    List<SuggestionItem> newSuggestions = [];
+    if(response.statusCode == 200) {
+      final items = (response.data['items'] as List).take(2); // prend seulement les 2 premiers
 
-    for (var item in items) {
-      newSuggestions.add(
-        SuggestionItem(
-          type: item['type'] == 1 ? 'bible' : item['type'] == 2 ? 'publication' : item['type'] == 3 ? 'topic' : 'word',
-          query: item['query'],
-          title: item['caption'],
-          label: item['label'],
-        ),
-      );
+      for (var item in items) {
+        newSuggestions.add(
+          SuggestionItem(
+            type: item['type'] == 1 ? 'bible' : item['type'] == 2 ? 'publication' : item['type'] == 3 ? 'topic' : 'word',
+            query: item['query'],
+            title: item['caption'],
+            label: item['label'],
+          ),
+        );
+      }
     }
 
     // 🔎 Recherches dans les publications téléchargées avec sujets
     final pubsWithTopics = PublicationRepository()
         .getAllDownloadedPublications()
-        .where((pub) => pub.hasTopics)
+        .where((pub) => pub.hasTopics && pub.mepsLanguage.symbol == JwLifeSettings.instance.currentLanguage.value.symbol)
         .toList();
 
     for (final pub in pubsWithTopics) {
@@ -250,7 +252,7 @@ class _SearchFieldAllState extends State<SearchFieldAll> {
     if (requestId == _latestRequestId) {
       for (final media in medias.take(10)) {
 
-        final category = RealmLibrary.realm.all<RealmCategory>().query(r"Key == $0", [media.primaryCategory ?? '']).firstOrNull;
+        final category = RealmLibrary.realm.all<RealmCategory>().query(r"Key == $0 AND LanguageSymbol == $1", [media.primaryCategory ?? '', JwLifeSettings.instance.currentLanguage.value.symbol]).firstOrNull;
 
         if(media.type == 'AUDIO') {
           Audio audio = Audio.fromJson(mediaItem: media);

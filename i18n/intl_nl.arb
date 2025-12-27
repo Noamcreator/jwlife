@@ -912,5 +912,13 @@
   "action_scan_qr_code": "Scan een QR-code",
   "settings_page_transition": "Pagina-overgang",
   "settings_page_transition_bottom": "Overgang van onderen",
-  "settings_page_transition_right": "Overgang van rechts"
+  "settings_page_transition_right": "Overgang van rechts",
+  "label_research_all": "ALLE",
+  "label_research_wol": "WOL",
+  "label_research_bible": "BIJBEL",
+  "label_research_verses": "VERZEN",
+  "label_research_images": "AFBEELDINGEN",
+  "label_research_notes": "NOTITIES",
+  "label_research_inputs_fields": "VELDEN",
+  "label_research_wikipedia": "WIKIPEDIA"
 }

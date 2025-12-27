@@ -3105,4 +3105,28 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get settings_page_transition_right => 'انتقال از راست';
+
+  @override
+  String get label_research_all => 'همه';
+
+  @override
+  String get label_research_wol => 'WOL';
+
+  @override
+  String get label_research_bible => 'کتاب مقدس';
+
+  @override
+  String get label_research_verses => 'آیات';
+
+  @override
+  String get label_research_images => 'تصاویر';
+
+  @override
+  String get label_research_notes => 'یادداشت‌ها';
+
+  @override
+  String get label_research_inputs_fields => 'فیلدها';
+
+  @override
+  String get label_research_wikipedia => 'ویکی‌پدیا';
 }

@@ -222,9 +222,9 @@ class _AllSearchTabState extends State<AllSearchTab> {
                           ),
                         ),
                       ),
-                      Positioned(
-                        bottom: 8,
-                        left: 8,
+                      PositionedDirectional(
+                        top: 8,
+                        start: 8,
                         child: Container(
                           padding: const EdgeInsets.symmetric(vertical: 3, horizontal: 7),
                           decoration: BoxDecoration(
@@ -241,9 +241,9 @@ class _AllSearchTabState extends State<AllSearchTab> {
                           ),
                         ),
                       ),
-                      Positioned(
+                      PositionedDirectional(
                         top: 8,
-                        right: 8,
+                        end: 8,
                         child: Container(
                           decoration: BoxDecoration(
                             color: Colors.black.withOpacity(0.5),
@@ -351,9 +351,9 @@ class _AllSearchTabState extends State<AllSearchTab> {
                           ),
                         ),
                       ),
-                      Positioned(
-                        bottom: 8,
-                        left: 8,
+                      PositionedDirectional(
+                        top: 8,
+                        start: 8,
                         child: Container(
                           padding: const EdgeInsets.symmetric(vertical: 3, horizontal: 7),
                           decoration: BoxDecoration(
@@ -370,9 +370,9 @@ class _AllSearchTabState extends State<AllSearchTab> {
                           ),
                         ),
                       ),
-                      Positioned(
+                      PositionedDirectional(
                         top: 8,
-                        right: 8,
+                        end: 8,
                         child: Container(
                           decoration: BoxDecoration(
                             color: Colors.black.withOpacity(0.5),

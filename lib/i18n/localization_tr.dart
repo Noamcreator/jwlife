@@ -3115,4 +3115,28 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get settings_page_transition_right => 'Sağdan geçiş';
+
+  @override
+  String get label_research_all => 'HEPSİ';
+
+  @override
+  String get label_research_wol => 'WOL';
+
+  @override
+  String get label_research_bible => 'KUTSAL KİTAP';
+
+  @override
+  String get label_research_verses => 'AYETLER';
+
+  @override
+  String get label_research_images => 'RESİMLER';
+
+  @override
+  String get label_research_notes => 'NOTLAR';
+
+  @override
+  String get label_research_inputs_fields => 'ALANLAR';
+
+  @override
+  String get label_research_wikipedia => 'VİKİPEDİ';
 }

@@ -338,8 +338,8 @@ class _NotePageState extends State<NotePage> {
     final totalHeight = visibleCount * itemHeight + spacing;
 
     _overlayEntry = OverlayEntry(
-      builder: (context) => Positioned(
-        left: position.dx,
+      builder: (context) => PositionedDirectional(
+        start: position.dx,
         top: position.dy - totalHeight, // Décale VERS LE HAUT
         width: size.width,
         child: Material(
@@ -361,7 +361,7 @@ class _NotePageState extends State<NotePage> {
                     dense: true,
                     leading: Icon(JwIcons.plus),
                     title: Text(
-                      "Ajouter la catégorie '${_categoriesController.text.trim()}'",
+                      '${i18n().action_add_a_tag} "${_categoriesController.text.trim()}"',
                       style: TextStyle(fontSize: 15),
                     ),
                     onTap: () async {

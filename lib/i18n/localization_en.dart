@@ -3109,4 +3109,28 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settings_page_transition_right => 'Transition from right';
+
+  @override
+  String get label_research_all => 'ALL';
+
+  @override
+  String get label_research_wol => 'WOL';
+
+  @override
+  String get label_research_bible => 'BIBLE';
+
+  @override
+  String get label_research_verses => 'VERSES';
+
+  @override
+  String get label_research_images => 'IMAGES';
+
+  @override
+  String get label_research_notes => 'NOTES';
+
+  @override
+  String get label_research_inputs_fields => 'FIELDS';
+
+  @override
+  String get label_research_wikipedia => 'WIKIPEDIA';
 }

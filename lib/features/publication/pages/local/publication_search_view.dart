@@ -13,7 +13,8 @@ import 'package:share_plus/share_plus.dart';
 import '../../../../../app/app_page.dart';
 import '../../../../../i18n/i18n.dart';
 import '../../../../../widgets/searchfield/searchfield_widget.dart';
-import '../../../models/menu/local/publication_search_model.dart';
+import '../../../../core/utils/utils.dart';
+import '../../models/menu/local/publication_search_model.dart';
 
 class PublicationSearchView extends StatefulWidget {
   final String query;
@@ -32,7 +33,7 @@ class _PublicationSearchViewState extends State<PublicationSearchView> {
   int _sortMode = 0;
 
   final Map<int, bool> _expandedDocuments = {};
-  final int _maxCharacters = 200;
+  final int _maxCharacters = 400;
 
   bool _isSearching = false;
   bool _isLoading = true;
@@ -100,13 +101,11 @@ class _PublicationSearchViewState extends State<PublicationSearchView> {
     final Color linkColor = Theme.of(context).brightness == Brightness.dark
         ? const Color(0xFFa0b9e2)
         : const Color(0xFF4a6da7);
-    const TextStyle baseTextStyle = TextStyle(fontSize: 18);
-    const TextStyle boldTextStyle = TextStyle(fontWeight: FontWeight.bold, fontSize: 18);
+    const TextStyle baseTextStyle = TextStyle(fontSize: 18, fontFamily: 'Roboto');
+    const TextStyle boldTextStyle = TextStyle(fontSize: 18, fontFamily: 'Roboto', fontWeight: FontWeight.bold);
 
     return Card(
-      color: Theme.of(context).brightness == Brightness.dark
-          ? const Color(0xFF292929)
-          : Colors.white,
+      color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF292929) : Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(0)),
       margin: const EdgeInsets.symmetric(vertical: 5),
       child: Padding(
@@ -127,7 +126,7 @@ class _PublicationSearchViewState extends State<PublicationSearchView> {
                         style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: linkColor),
                       ),
                       Text(
-                        "${doc['occurrences']} résultats",
+                        doc['occurrences'] == 0 ? i18n().search_results_none : doc['occurrences'] == 1 ? i18n().search_results_occurence : i18n().search_results_occurences(formatNumber(doc['occurrences'])),
                         style: const TextStyle(fontSize: 16),
                       ),
                       const SizedBox(height: 10),
@@ -157,7 +156,7 @@ class _PublicationSearchViewState extends State<PublicationSearchView> {
                       child: RichText(
                         text: TextSpan(
                           children: _buildHighlightedTextSpans(
-                            paragraphs[i]['paragraphText'] as String,
+                            (paragraphs[i]['paragraphText'] as String).trim(),
                             (paragraphs[i]['words'] as List?) ?? [],
                             textColor,
                             highlightColor,
@@ -218,7 +217,8 @@ class _PublicationSearchViewState extends State<PublicationSearchView> {
 
     String verseRef = JwLifeApp.bibleCluesInfo.getVerses(
         verse['bookNumber'], verse['chapterNumber'], verse['verseNumber'],
-        verse['bookNumber'], verse['chapterNumber'], verse['verseNumber']
+        verse['bookNumber'], verse['chapterNumber'], verse['verseNumber'],
+        localeCode: widget.publication.mepsLanguage.primaryIetfCode
     );
 
     return GestureDetector(
@@ -251,7 +251,7 @@ class _PublicationSearchViewState extends State<PublicationSearchView> {
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: linkColor),
                   ),
                   Text(
-                    verse['occurrences'] == 0 ? i18n().search_results_none : verse['occurrences'] == 1 ? i18n().search_results_occurence : i18n().search_results_occurences(verse['occurrences']),
+                    verse['occurrences'] == 0 ? i18n().search_results_none : verse['occurrences'] == 1 ? i18n().search_results_occurence : i18n().search_results_occurences(formatNumber(verse['occurrences'])),
                     style: const TextStyle(fontSize: 16),
                   ),
                 ],
@@ -276,9 +276,7 @@ class _PublicationSearchViewState extends State<PublicationSearchView> {
     );
   }
 
-  List<InlineSpan> _buildHighlightedTextSpans(
-      String text, List<dynamic> words, Color textColor, Color highlightColor,
-      TextStyle baseStyle, TextStyle boldStyle) {
+  List<InlineSpan> _buildHighlightedTextSpans(String text, List<dynamic> words, Color textColor, Color highlightColor, TextStyle baseStyle, TextStyle boldStyle) {
     List<InlineSpan> spans = [];
     int currentIndex = 0;
 
@@ -388,7 +386,7 @@ class _PublicationSearchViewState extends State<PublicationSearchView> {
                 Padding(
                   padding: const EdgeInsets.only(top: 10),
                   child: Text(
-                    totalResults == 0 ? i18n().search_results_none : totalResults == 1 ? i18n().search_results_occurence : i18n().search_results_occurences(totalResults),
+                    totalResults == 0 ? i18n().search_results_none : totalResults == 1 ? i18n().search_results_occurence : i18n().search_results_occurences(formatNumber(totalResults)),
                     style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                 ),
@@ -468,14 +466,6 @@ class _PublicationSearchViewState extends State<PublicationSearchView> {
 
   @override
   Widget build(BuildContext context) {
-    final textStyleTitle = TextStyle(fontSize: 20, fontWeight: FontWeight.bold);
-    final textStyleSubtitle = TextStyle(
-      fontSize: 14,
-      color: Theme.of(context).brightness == Brightness.dark
-          ? const Color(0xFFc3c3c3)
-          : const Color(0xFF626262),
-    );
-
     return AppPage(
       backgroundColor: Theme.of(context).brightness == Brightness.dark
           ? Colors.black

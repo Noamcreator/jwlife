@@ -3131,4 +3131,28 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get settings_page_transition_right => 'Переход справа';
+
+  @override
+  String get label_research_all => 'ВСЕ';
+
+  @override
+  String get label_research_wol => 'WOL';
+
+  @override
+  String get label_research_bible => 'БИБЛИЯ';
+
+  @override
+  String get label_research_verses => 'СТИХИ';
+
+  @override
+  String get label_research_images => 'ИЗОБРАЖЕНИЯ';
+
+  @override
+  String get label_research_notes => 'ЗАМЕТКИ';
+
+  @override
+  String get label_research_inputs_fields => 'ПОЛЯ';
+
+  @override
+  String get label_research_wikipedia => 'ВИКИПЕДИЯ';
 }

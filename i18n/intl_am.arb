@@ -912,5 +912,13 @@
   "action_scan_qr_code": "የQR ኮድ ስካን አድርግ",
   "settings_page_transition": "የገጽ ሽግግር",
   "settings_page_transition_bottom": "ሽግግር ከታች",
-  "settings_page_transition_right": "ሽግግር ከቀኝ"
+  "settings_page_transition_right": "ሽግግር ከቀኝ",
+  "label_research_all": "ሁሉንም",
+  "label_research_wol": "WOL",
+  "label_research_bible": "መጽሐፍ ቅዱስ",
+  "label_research_verses": "ጥቅሶች",
+  "label_research_images": "ምስሎች",
+  "label_research_notes": "ማስታወሻዎች",
+  "label_research_inputs_fields": "መስኮች",
+  "label_research_wikipedia": "ውክፔዲያ"
 }

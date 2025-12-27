@@ -3164,6 +3164,30 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get settings_page_transition_right => '';
+
+  @override
+  String get label_research_all => '';
+
+  @override
+  String get label_research_wol => '';
+
+  @override
+  String get label_research_bible => '';
+
+  @override
+  String get label_research_verses => '';
+
+  @override
+  String get label_research_images => '';
+
+  @override
+  String get label_research_notes => '';
+
+  @override
+  String get label_research_inputs_fields => '';
+
+  @override
+  String get label_research_wikipedia => '';
 }
 
 /// The translations for Chinese, as used in China (`zh_CN`).
@@ -6139,6 +6163,30 @@ class AppLocalizationsZhCn extends AppLocalizationsZh {
 
   @override
   String get settings_page_transition_right => '从右侧过渡';
+
+  @override
+  String get label_research_all => '全部';
+
+  @override
+  String get label_research_wol => 'WOL';
+
+  @override
+  String get label_research_bible => '圣经';
+
+  @override
+  String get label_research_verses => '经文';
+
+  @override
+  String get label_research_images => '图片';
+
+  @override
+  String get label_research_notes => '笔记';
+
+  @override
+  String get label_research_inputs_fields => '字段';
+
+  @override
+  String get label_research_wikipedia => '维基百科';
 }
 
 /// The translations for Chinese, as used in Hong Kong (`zh_HK`).
@@ -9115,6 +9163,30 @@ class AppLocalizationsZhHk extends AppLocalizationsZh {
 
   @override
   String get settings_page_transition_right => '從右側過渡';
+
+  @override
+  String get label_research_all => '全部';
+
+  @override
+  String get label_research_wol => 'WOL';
+
+  @override
+  String get label_research_bible => '聖經';
+
+  @override
+  String get label_research_verses => '經文';
+
+  @override
+  String get label_research_images => '圖片';
+
+  @override
+  String get label_research_notes => '筆記';
+
+  @override
+  String get label_research_inputs_fields => '欄位';
+
+  @override
+  String get label_research_wikipedia => '維基百科';
 }
 
 /// The translations for Chinese, as used in Taiwan (`zh_TW`).
@@ -12091,4 +12163,28 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get settings_page_transition_right => '從右側過渡';
+
+  @override
+  String get label_research_all => '全部';
+
+  @override
+  String get label_research_wol => 'WOL';
+
+  @override
+  String get label_research_bible => '聖經';
+
+  @override
+  String get label_research_verses => '經文';
+
+  @override
+  String get label_research_images => '圖片';
+
+  @override
+  String get label_research_notes => '筆記';
+
+  @override
+  String get label_research_inputs_fields => '欄位';
+
+  @override
+  String get label_research_wikipedia => '維基百科';
 }

@@ -1,9 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:dio/dio.dart' as http hide Response;
 import 'package:flutter/material.dart';
-import 'package:http/http.dart';
 import 'package:http/http.dart' as http;
 import 'package:jwlife/app/jwlife_app_bar.dart';
 import 'package:jwlife/core/icons.dart';
@@ -105,11 +103,12 @@ class _AlertsListPageState extends State<AlertsListPage> {
 
     String htmlContent = '''
     <!DOCTYPE html>
-    <html style="overflow-x: hidden; height: 100%;">
+    <html style="overflow: hidden;">
+    <meta content="text/html" charset="UTF-8">
+    <meta name="viewport" content="initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link rel="stylesheet" href="jw-styles.css" />
       <head>
         <meta charset="UTF-8">
-        <meta name="viewport" content="initial-scale=1.0, user-scalable=no">
-        <link rel="stylesheet" href="jw-styles.css" />
         <style>
           body {
             font-size: ${webViewData.fontSize}px;
@@ -199,12 +198,17 @@ class _AlertsListPageState extends State<AlertsListPage> {
       ),
       body: _isLoadingHtml ? const Center(child: CircularProgressIndicator()) : InAppWebView(
         initialSettings: InAppWebViewSettings(
-            javaScriptEnabled: true,
-            useHybridComposition: true,
-            allowFileAccess: true,
-            allowContentAccess: true,
-            cacheMode: CacheMode.LOAD_NO_CACHE,
-            allowUniversalAccessFromFileURLs: true
+          scrollBarStyle: null,
+          verticalScrollBarEnabled: false,
+          horizontalScrollBarEnabled: false,
+          useShouldOverrideUrlLoading: true,
+          mediaPlaybackRequiresUserGesture: false,
+          useOnLoadResource: false,
+          allowUniversalAccessFromFileURLs: true,
+          allowFileAccess: true,
+          allowContentAccess: true,
+          useHybridComposition: true,
+          hardwareAcceleration: true,
         ),
         initialData: InAppWebViewInitialData(
           data: _htmlContent,
@@ -245,8 +249,13 @@ class _AlertsListPageState extends State<AlertsListPage> {
                 mediaItem = getMediaItemFromLank(lank!, wtlocale);
               }
 
-              Video video = Video.fromJson(mediaItem: mediaItem!);
-              video.showPlayer(context);
+              if(mediaItem != null) {
+                Video video = Video.fromJson(mediaItem: mediaItem);
+                video.showPlayer(context);
+              }
+              else {
+                return NavigationActionPolicy.ALLOW;
+              }
             }
             else if (uri.queryParameters.containsKey('pub')) {
               // Récupère les paramètres

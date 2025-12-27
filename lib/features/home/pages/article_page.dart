@@ -10,7 +10,7 @@ class ArticlePage extends StatefulWidget {
   final String title;
   final String link;
 
-  const ArticlePage({Key? key, required this.title, required this.link}) : super(key: key);
+  const ArticlePage({super.key, required this.title, required this.link});
 
   @override
   _ArticlePageState createState() => _ArticlePageState();

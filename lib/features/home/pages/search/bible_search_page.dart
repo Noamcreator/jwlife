@@ -127,6 +127,7 @@ class _SearchBiblePageState extends State<SearchBiblePage> {
               ),
               onSearchTextChanged: (text) {
                 fetchSuggestions(text);
+                return null;
               },
               onSuggestionTap: (
                   SearchFieldListItem<Map<String, dynamic>> item) {

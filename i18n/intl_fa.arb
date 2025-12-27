@@ -912,5 +912,13 @@
   "action_scan_qr_code": "اسکن کد QR",
   "settings_page_transition": "انتقال صفحه",
   "settings_page_transition_bottom": "انتقال از پایین",
-  "settings_page_transition_right": "انتقال از راست"
+  "settings_page_transition_right": "انتقال از راست",
+  "label_research_all": "همه",
+  "label_research_wol": "WOL",
+  "label_research_bible": "کتاب مقدس",
+  "label_research_verses": "آیات",
+  "label_research_images": "تصاویر",
+  "label_research_notes": "یادداشت‌ها",
+  "label_research_inputs_fields": "فیلدها",
+  "label_research_wikipedia": "ویکی‌پدیا"
 }

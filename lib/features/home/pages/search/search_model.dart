@@ -12,7 +12,7 @@ import '../../../../core/utils/files_helper.dart';
 import '../../../../core/utils/utils.dart';
 import '../../../../data/models/publication.dart';
 import '../../../../data/models/userdata/input_field.dart';
-import '../../../publication/pages/document/local/documents_manager.dart';
+import '../../../document/local/documents_manager.dart';
 
 class SearchModel {
   String query;

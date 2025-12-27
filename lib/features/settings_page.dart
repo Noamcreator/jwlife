@@ -1,9 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:archive/archive.dart';
 import 'package:device_info_plus/device_info_plus.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:http/http.dart' as http;
@@ -13,7 +11,6 @@ import 'package:jwlife/app/jwlife_app_bar.dart';
 import 'package:jwlife/app/startup/auto_update.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
-import 'package:jwlife/core/utils/utils_backup_app.dart';
 import 'package:jwlife/core/utils/utils_language_dialog.dart';
 import 'package:jwlife/data/databases/catalog.dart';
 import 'package:jwlife/features/releases_page.dart';
@@ -21,10 +18,8 @@ import 'package:jwlife/i18n/i18n.dart';
 import 'package:jwlife/core/utils/utils_dialog.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:realm/realm.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:sqflite/sqflite.dart';
 import '../app/app_page.dart';
-import '../app/jwlife_app.dart';
 import '../app/services/global_key_service.dart';
 import '../app/services/notification_service.dart';
 import '../app/services/settings_service.dart';
@@ -53,8 +48,8 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
   String _pageTransition = 'default';
   Locale _selectedLocale = const Locale('en');
   String _selectedLocaleVernacular = 'English';
-  Color? _selectedColor = Colors.blue;
-  Color? _bibleSelectedColor = Colors.blue;
+  Color? _selectedColor = Constants.defaultDarkPrimaryColor;
+  Color? _bibleSelectedColor = Constants.defaultBibleColor;
 
   String catalogDate = '';
   String libraryDate = '';

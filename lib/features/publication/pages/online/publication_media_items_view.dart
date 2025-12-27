@@ -34,7 +34,7 @@ class _PublicationMediaItemsViewState extends State<PublicationMediaItemsView> {
       if (element.localName == 'img') {
         // Imprime le lien de l'image (valeur de l'attribut 'src')
         _mediaItems.add({
-          'ImageUrl': 'https://wol.jw.org' + element.attributes['src']!,
+          'ImageUrl': 'https://wol.jw.org${element.attributes['src']!}',
         });
       }
     }

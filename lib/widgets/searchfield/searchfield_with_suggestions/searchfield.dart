@@ -939,10 +939,9 @@ class _SearchFieldState<T> extends State<SearchField<T>> {
               }
               return Stack(
                 children: [
-                  Positioned(
-                    left: searchFieldDimensions.offset!.dx,
-                    width: widget.suggestionsDecoration?.width ??
-                        searchFieldDimensions.width,
+                  PositionedDirectional(
+                    start: searchFieldDimensions.offset!.dx,
+                    width: widget.suggestionsDecoration?.width ?? searchFieldDimensions.width,
                     child: CompositedTransformFollower(
                       offset: widget.offset ?? yOffset,
                       link: _layerLink,

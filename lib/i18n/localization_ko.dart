@@ -3023,4 +3023,28 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get settings_page_transition_right => '오른쪽에서 전환';
+
+  @override
+  String get label_research_all => '전체';
+
+  @override
+  String get label_research_wol => 'WOL';
+
+  @override
+  String get label_research_bible => '성경';
+
+  @override
+  String get label_research_verses => '성구';
+
+  @override
+  String get label_research_images => '이미지';
+
+  @override
+  String get label_research_notes => '노트';
+
+  @override
+  String get label_research_inputs_fields => '필드';
+
+  @override
+  String get label_research_wikipedia => '위키백과';
 }

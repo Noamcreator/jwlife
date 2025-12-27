@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/data/models/userdata/location.dart';
+
+import '../../../app/services/global_key_service.dart';
 
 class Note {
   String guid;
@@ -95,6 +98,7 @@ class Note {
       'BlockIdentifier': blockIdentifier,
       'ColorIndex': colorIndex,
       'UserMarkGuid': userMarkGuid,
+      'Location': location.toMap(),
       'TagsId': tagsId.join(','),
     };
   }
@@ -143,12 +147,11 @@ class Note {
     return '$relative · ${_formatDate(date)}';
   }
 
-// Fonction utilitaire pour formater la date en jj/mm/aaaa
+  // Fonction utilitaire pour formater la date en jj/mm/aaaa
   String _formatDate(DateTime date) {
-    String jour = date.day.toString().padLeft(2, '0');
-    String mois = date.month.toString().padLeft(2, '0');
-    String annee = date.year.toString();
-    return '$jour/$mois/$annee';
+    BuildContext context = GlobalKeyService.jwLifePageKey.currentContext!;
+    final locale = Localizations.localeOf(context).toString();
+    return DateFormat.yMd(locale).format(date);
   }
 
   void addTagId(int tagId) {

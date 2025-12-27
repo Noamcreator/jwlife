@@ -91,7 +91,7 @@ class FavoritesSectionState extends State<FavoritesSection> {
       );
 
       if (pub != null) {
-        return HomeSquarePublicationItem(pub: pub);
+        return HomeSquarePublicationItem(publication: pub, favorite: true);
       }
     }
 
@@ -99,7 +99,7 @@ class FavoritesSectionState extends State<FavoritesSection> {
     // MEDIA
     // -------------------------
     if (item is Media) {
-      return HomeSquareMediaItemItem(media: item);
+      return HomeSquareMediaItemItem(media: item, favorite: true);
     }
 
     // -------------------------
@@ -112,7 +112,7 @@ class FavoritesSectionState extends State<FavoritesSection> {
     );
 
     if (pub != null) {
-      return HomeSquarePublicationItem(pub: pub);
+      return HomeSquarePublicationItem(publication: pub, favorite: true);
     }
 
     // -------------------------
@@ -157,9 +157,9 @@ class FavoritesSectionState extends State<FavoritesSection> {
                   ),
 
                   // MENU DE SUPPRESSION
-                  Positioned(
+                  PositionedDirectional(
                     top: -13,
-                    right: -7,
+                    end: -7,
                     child: PopupMenuButton(
                       icon: const Icon(
                         Icons.more_horiz,
@@ -190,7 +190,7 @@ class FavoritesSectionState extends State<FavoritesSection> {
               SizedBox(
                 width: kSquareItemHeight,
                 child: Padding(
-                  padding: const EdgeInsets.only(left: 2.0, right: 4.0),
+                  padding: const EdgeInsetsDirectional.only(start: 2.0, end: 4.0),
                   child: Text(
                     '${item['KeySymbol']} • ${item['LanguageVernacularName']}',
                     style: Theme.of(context)
