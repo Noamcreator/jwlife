@@ -1,14 +1,13 @@
-import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:sqflite/sqflite.dart';
-import 'package:jwlife/core/utils/files_helper.dart';
 import 'package:jwlife/core/utils/utils_document.dart';
 import 'package:jwlife/core/utils/utils_jwpub.dart';
 
 import '../../../core/uri/jworg_uri.dart';
 import '../../../core/utils/common_ui.dart';
+import '../../../core/utils/utils_database.dart';
 import '../../document/local/documents_manager.dart';
 import '../../publication/models/menu/local/words_suggestions_model.dart';
 
@@ -76,55 +75,84 @@ class BibleChapterController {
   // --- Logique de chargement des données ---
 
   Future<void> _fetchBooks() async {
-    File mepsFile = await getMepsUnitDatabaseFile();
     try {
-      if(bible.documentsManager == null) {
-        // CORRECTION: Initialisation et vérification sécurisée
-        bible.documentsManager ??= DocumentsManager(publication: bible, mepsDocumentId: -1);
-
-        // Le '!' est sécurisé car il vient d'être initialisé ou supposé valide
+      // 1. Initialisation sécurisée du manager
+      if (bible.documentsManager == null) {
+        bible.documentsManager = DocumentsManager(publication: bible, mepsDocumentId: -1);
         await bible.documentsManager!.initializeDatabaseAndData();
-
         bible.wordsSuggestionsModel ??= WordsSuggestionsModel(bible);
       }
 
-      Database database = bible.documentsManager!.database;
+      final database = bible.documentsManager!.database;
 
-      await database.execute("ATTACH DATABASE '${mepsFile.path}' AS meps");
+      // 2. Vérifications de structure en parallèle pour gagner du temps
+      final resultsStructure = await Future.wait([
+        checkIfTableExists(database, 'Multimedia'),
+        checkIfTableExists(database, 'DocumentMultimedia'),
+        getColumnsForTable(database, 'BibleBook'),
+      ]);
 
-      List<Map<String, dynamic>> results = await database.rawQuery('''
-      SELECT 
-        BibleBook.*,
-        meps.BibleBookName.StandardBookName AS BookName,
-        d1.*,
-        d2.Content AS OutlineContent,
-        d3.Content AS OverviewContent,
-        (SELECT Multimedia.FilePath 
-         FROM DocumentMultimedia
-         JOIN Multimedia ON DocumentMultimedia.MultimediaId = Multimedia.MultimediaId 
-         WHERE DocumentMultimedia.DocumentId = BibleBook.IntroDocumentId 
-         AND Multimedia.CategoryType = 13
-         LIMIT 1) AS FilePath
-        FROM BibleBook
-        INNER JOIN meps.BibleBookName ON BibleBook.BibleBookId = meps.BibleBookName.BookNumber
-        INNER JOIN meps.BibleCluesInfo ON meps.BibleBookName.BibleCluesInfoId = meps.BibleCluesInfo.BibleCluesInfoId
-        LEFT JOIN Document d1 ON BibleBook.IntroDocumentId = d1.DocumentId
-        LEFT JOIN Document d2 ON BibleBook.OutlineDocumentId = d2.DocumentId
-        LEFT JOIN Document d3 ON BibleBook.OverviewDocumentId = d3.DocumentId
-        WHERE meps.BibleCluesInfo.LanguageId = ?
-      ''', [bible.mepsLanguage.id]);
+      final bool multimediaExists = resultsStructure[0] as bool;
+      final bool docMultimediaExists = resultsStructure[1] as bool;
+      final List<String> columns = resultsStructure[2] as List<String>;
 
-      await database.execute("DETACH DATABASE meps");
+      final bool hasOutline = columns.contains('OutlineDocumentId');
+      final bool hasOverview = columns.contains('OverviewDocumentId');
+
+      // 3. Construction de la requête SQL dynamique
+      // On n'ajoute les JOIN que si les colonnes existent dans la table BibleBook
+      String selectFields = 'BibleBook.*, d1.*';
+      String joins = 'LEFT JOIN Document d1 ON BibleBook.IntroDocumentId = d1.DocumentId';
+
+      if (hasOutline) {
+        selectFields += ', d2.Content AS OutlineContent';
+        joins += ' LEFT JOIN Document d2 ON BibleBook.OutlineDocumentId = d2.DocumentId';
+      } else {
+        selectFields += ', NULL AS OutlineContent';
+      }
+
+      if (hasOverview) {
+        selectFields += ', d3.Content AS OverviewContent';
+        joins += ' LEFT JOIN Document d3 ON BibleBook.OverviewDocumentId = d3.DocumentId';
+      } else {
+        selectFields += ', NULL AS OverviewContent';
+      }
+
+      // Gestion du chemin multimédia
+      String multimediaSubquery = 'NULL AS FilePath';
+      if (multimediaExists && docMultimediaExists) {
+        multimediaSubquery = '''
+        (SELECT M.FilePath 
+         FROM DocumentMultimedia DM
+         JOIN Multimedia M ON DM.MultimediaId = M.MultimediaId 
+         WHERE DM.DocumentId = BibleBook.IntroDocumentId 
+         AND M.CategoryType = 13
+         LIMIT 1) AS FilePath''';
+      }
+
+      final String finalQuery = '''
+      SELECT $selectFields, $multimediaSubquery
+      FROM BibleBook
+      $joins
+    ''';
+
+      // 4. Exécution et mapping
+      final List<Map<String, dynamic>> results = await database.rawQuery(finalQuery);
 
       _booksData = results.map((book) => BibleBook(book)).toList();
 
-      _currentIndex = _booksData.indexWhere((bookData) => bookData.bookInfo['BibleBookId'] == initialBookId);
+      // 5. Gestion de l'index
+      _currentIndex = _booksData.indexWhere(
+              (book) => book.bookInfo['BibleBookId'] == initialBookId
+      );
+
       if (_currentIndex == -1) _currentIndex = 0;
 
-    } catch (e) {
+    } catch (e, stacktrace) {
       debugPrint('Erreur lors de la récupération des livres: $e');
+      debugPrint(stacktrace.toString());
       _booksData = [];
-      rethrow; // Propager l'erreur pour la gérer dans initialize
+      rethrow;
     }
   }
 
@@ -243,10 +271,6 @@ class BibleChapterController {
         pub: bible.keySymbol,
         book: currentBook!.bookInfo['BibleBookId']
     ).toString();
-  }
-
-  String? getBookTitle() {
-    return currentBook?.bookInfo['BookName'];
   }
 
   void onTapChapter(int chapterNumber) {

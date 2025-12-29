@@ -528,7 +528,7 @@ class CatalogDb {
     }
   }
 
-  Future<List<Publication>> fetchPubs(String query, MepsLanguage mepsLanguage) async {
+  Future<List<Publication>> fetchPubs(String query, MepsLanguage mepsLanguage, {int? limit}) async {
     try {
       final searchQuery = '%$query%';
 
@@ -537,7 +537,8 @@ class CatalogDb {
           $publicationQuery
         WHERE p.MepsLanguageId = ? 
         AND (p.Title LIKE ? OR p.KeySymbol LIKE ? OR p.Symbol LIKE ? OR p.Year LIKE ?)
-        ORDER BY p.Year DESC;
+        ORDER BY p.Year DESC
+        ${limit != null ? 'LIMIT $limit' : ''}
       ''', [
         mepsLanguage.id,
         searchQuery,

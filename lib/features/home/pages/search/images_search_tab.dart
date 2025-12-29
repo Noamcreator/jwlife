@@ -5,6 +5,7 @@ import 'package:jwlife/core/utils/utils_document.dart';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/repositories/PublicationRepository.dart';
 
+import '../../../../core/utils/widgets_utils.dart';
 import 'search_model.dart';
 
 class ImagesSearchTab extends StatefulWidget {
@@ -28,7 +29,7 @@ class _ImagesSearchTabState extends State<ImagesSearchTab> {
       future: widget.model.fetchImages(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+          return getLoadingWidget(Theme.of(context).primaryColor);
         }
         if (snapshot.hasError) {
           return Center(child: Text('Erreur : ${snapshot.error}'));

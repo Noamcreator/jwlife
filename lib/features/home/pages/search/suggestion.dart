@@ -9,6 +9,9 @@ class SuggestionItem {
   final String? subtitle;
   final String? label;
 
+  final int? startParagraphId;
+  final int? endParagraphId;
+
   SuggestionItem({
     required this.type,
     required this.query,
@@ -17,5 +20,7 @@ class SuggestionItem {
     this.icon,
     this.subtitle,
     this.label,
+    this.startParagraphId,
+    this.endParagraphId
   });
 }

@@ -3,6 +3,7 @@ import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/utils_audio.dart';
 import 'package:jwlife/core/utils/utils_document.dart';
 import 'package:jwlife/core/utils/utils_video.dart';
+import 'package:jwlife/core/utils/widgets_utils.dart';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/databases/catalog.dart';
 import 'package:jwlife/data/realm/catalog.dart';
@@ -14,6 +15,7 @@ import '../../../../core/utils/html_styles.dart';
 import '../../../../core/utils/utils.dart';
 import '../../../../data/models/audio.dart';
 import '../../../../data/models/video.dart';
+import '../../../../data/repositories/PublicationRepository.dart';
 import '../../../../widgets/image_cached_widget.dart';
 
 class AllSearchTab extends StatefulWidget {
@@ -56,8 +58,11 @@ class _AllSearchTabState extends State<AllSearchTab> {
               int chapterNumber = int.parse(remainingString.substring(remainingString.length - 3));
               int bookNumber = int.parse(remainingString.substring(0, remainingString.length - 3));
 
+              final publications = PublicationRepository().getAllDownloadedPublications().where((pub) => pub.category.id == 1 && pub.mepsLanguage.symbol == JwLifeSettings.instance.currentLanguage.value.symbol).toList();
+              Publication? latestBible = publications.isEmpty ? null : publications.reduce((a, b) => a.year > b.year ? a : b);
+
               List<String> wordsSelected = widget.model.query.split(' ');
-              showChapterView(context, 'nwtsty', JwLifeSettings.instance.currentLanguage.value.id, bookNumber, chapterNumber, firstVerseNumber: verseNumber, lastVerseNumber: verseNumber, wordsSelected: wordsSelected);
+              showChapterView(context, latestBible?.keySymbol ?? 'nwtsty', JwLifeSettings.instance.currentLanguage.value.id, bookNumber, chapterNumber, firstVerseNumber: verseNumber, lastVerseNumber: verseNumber, wordsSelected: wordsSelected);
             },
             child: Container(
               width: 240,
@@ -670,14 +675,7 @@ class _AllSearchTabState extends State<AllSearchTab> {
       future: widget.model.fetchAllSearch(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return Center(
-            child: CircularProgressIndicator(
-              strokeWidth: 2.5,
-              valueColor: AlwaysStoppedAnimation<Color>(
-                isDark ? Colors.blue[300]! : Colors.blue[700]!,
-              ),
-            ),
-          );
+          return getLoadingWidget(Theme.of(context).primaryColor);
         } else if (snapshot.hasError) {
           return Center(
             child: Padding(

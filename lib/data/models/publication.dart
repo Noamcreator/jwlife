@@ -62,6 +62,8 @@ class Publication {
   String? databasePath;
   bool hasTopics = false;
   bool hasCommentary = false;
+  bool hasHeading = false;
+  bool isSingleDocument = false;
   DocumentsManager? documentsManager;
   DatedTextManager? datedTextManager;
   WordsSuggestionsModel? wordsSuggestionsModel;
@@ -111,6 +113,8 @@ class Publication {
     this.databasePath,
     this.hasTopics = false,
     this.hasCommentary = false,
+    this.hasHeading = false,
+    this.isSingleDocument = false,
     ValueNotifier<List<Audio>>? audiosNotifier,
     ValueNotifier<double>? progressNotifier,
     ValueNotifier<bool>? isDownloadingNotifier,
@@ -139,6 +143,10 @@ class Publication {
         existing.description = json['Description'] ?? existing.description;
         existing.imageSqr = json['ImageSqr'] != null ? json['ImageSqr'].toString().startsWith("/data") ? json['ImageSqr'] : "https://app.jw-cdn.org/catalogs/publications/${json['ImageSqr']}" : existing.imageSqr;
         existing.imageLsr = json['ImageLsr'] != null ? json['ImageLsr'].toString().startsWith("/data") ? json['ImageLsr'] : "https://app.jw-cdn.org/catalogs/publications/${json['ImageLsr']}" : existing.imageLsr;
+        existing.hasTopics = json['TopicSearch'] == 1;
+        existing.hasCommentary = json['VerseCommentary'] == 1;
+        existing.hasHeading = json['HeadingSearch'] == 1;
+        existing.isSingleDocument = json['isSingleDocument'] == 1;
       }
       existing.reserved = json['Reserved'] ?? existing.reserved;
       existing.size = json['Size'] ?? existing.size;
@@ -211,6 +219,8 @@ class Publication {
       databasePath: json['DatabasePath'],
       hasTopics: json['TopicSearch'] == 1,
       hasCommentary: json['VerseCommentary'] == 1,
+      hasHeading: json['HeadingSearch'] == 1,
+      isSingleDocument: json['isSingleDocument'] == 1,
 
       isDownloadedNotifier: ValueNotifier(json['Hash'] != null && json['DatabasePath'] != null && json['Path'] != null),
       isFavoriteNotifier: ValueNotifier(isFavorite ?? AppDataService.instance.favorites.value.any((p) => p is Publication && (p.keySymbol == keySymbol && p.mepsLanguage.id == mepsLanguageId && p.issueTagNumber == issueTagNumber))),
@@ -521,6 +531,15 @@ class Publication {
   String getTitle() {
     if(issueTitle.isNotEmpty) {
       return issueTitle;
+    }
+    else {
+      return title;
+    }
+  }
+
+  String getCoverTitle() {
+    if(coverTitle.isNotEmpty) {
+      return coverTitle;
     }
     else {
       return title;

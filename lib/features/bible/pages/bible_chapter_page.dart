@@ -10,6 +10,7 @@ import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/core/utils/utils_language_dialog.dart';
+import 'package:jwlife/core/utils/widgets_utils.dart';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/databases/history.dart';
 import 'package:jwlife/widgets/responsive_appbar_actions.dart';
@@ -103,7 +104,7 @@ class _BibleChapterPageState extends State<BibleChapterPage> {
       appBar: JwLifeAppBar(
         backgroundColor: hasCommentary ? Colors.transparent : null,
         iconsColor: hasCommentary ? Colors.white : null,
-        title: !hasCommentary ? _controller.getBookTitle() ?? widget.bookName : "",
+        title: !hasCommentary ? widget.bookName : "",
         subTitle: !hasCommentary ? widget.bible.shortTitle : null,
         actions: [
           IconTextButton(
@@ -157,7 +158,7 @@ class _BibleChapterPageState extends State<BibleChapterPage> {
             onPressed: (anchorContext) {
               SharePlus.instance.share(
                 ShareParams(
-                  title: currentBook?.bookInfo['BookName'],
+                  title: widget.bookName,
                   uri: Uri.tryParse(_controller.getShareUri()),
                 ),
               );
@@ -168,13 +169,12 @@ class _BibleChapterPageState extends State<BibleChapterPage> {
             icon: Icon(JwIcons.qr_code),
             onPressed: (anchorContext) {
               Uri? uri = Uri.tryParse(_controller.getShareUri());
-              String title = currentBook?.bookInfo['BookName'];
-              showQrCodeDialog(context, title, uri.toString());
+              showQrCodeDialog(context, widget.bookName, uri.toString());
             },
           ),
         ],
       ),
-      body: Directionality(textDirection: textDirection, child: bodyContent ?? const Center(child: CircularProgressIndicator())),
+      body: Directionality(textDirection: textDirection, child: bodyContent ?? getLoadingWidget(Theme.of(context).primaryColor)),
     );
   }
 
@@ -195,7 +195,7 @@ class _BibleChapterPageState extends State<BibleChapterPage> {
     final hasCommentary = bookData.bookInfo['HasCommentary'] == 1;
 
     if (bookData.isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return getLoadingWidget(Theme.of(context).primaryColor);
     }
 
     return Column(
@@ -227,7 +227,7 @@ class _BibleChapterPageState extends State<BibleChapterPage> {
                 // Colonne DROITE : Vue HTML
                 Expanded(
                   flex: 1,
-                  child: _buildHtmlView(bookData.overviewHtml ?? ''),
+                  child: _buildHtmlView(bookData.overviewHtml!.isNotEmpty ? bookData.overviewHtml! : bookData.profileHtml ?? ''),
                 ),
               ],
             ),
@@ -239,7 +239,7 @@ class _BibleChapterPageState extends State<BibleChapterPage> {
 
   // --- Widgets partagés ---
   Widget _buildBookPageContent(BibleBook bookData, {bool isLargeScreen = false}) {
-    if (bookData.isLoading) return const Center(child: CircularProgressIndicator());
+    if (bookData.isLoading) return getLoadingWidget(Theme.of(context).primaryColor);
 
     // Cas 1 : Grand Écran (Layout deux colonnes)
     if (isLargeScreen) return _buildTwoColumnLayout(bookData);
@@ -252,7 +252,7 @@ class _BibleChapterPageState extends State<BibleChapterPage> {
           if (bookData.bookInfo['HasCommentary'] == 1)
             _buildBookHeader(bookData, withTextOverlay: true),
           Expanded(
-            child: _buildHtmlView(bookData.overviewHtml ?? ''),
+            child: _buildHtmlView(bookData.overviewHtml!.isNotEmpty ? bookData.overviewHtml! : bookData.profileHtml ?? ''),
           ),
         ],
       );
@@ -328,7 +328,7 @@ class _BibleChapterPageState extends State<BibleChapterPage> {
               ),
 
             // 2. Bouton Profile
-            if (bookData.profileHtml != null && bookData.profileHtml!.isNotEmpty)
+            if (bookData.profileHtml != null && bookData.profileHtml!.isNotEmpty && bookData.overviewHtml!.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(top: 10.0),
                 child: _buildMepsButton(

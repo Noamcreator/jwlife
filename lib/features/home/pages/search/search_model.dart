@@ -213,7 +213,7 @@ class SearchModel {
   Future<List<Map<String, dynamic>>> _fetchVerseFromPublication(Publication publication, int verseId) async {
 
     DocumentsManager? documentsManager = publication.documentsManager;
-    Database db = documentsManager != null ? documentsManager.database : await openDatabase(publication.databasePath!);
+    Database db = documentsManager != null ? documentsManager.database : await openReadOnlyDatabase(publication.databasePath!);
 
     Future<bool> tableExists(String name) async {
       final result = await db.rawQuery(
@@ -309,7 +309,7 @@ class SearchModel {
 
   Future<List<Map<String, dynamic>>> _fetchImagesFromPublication(Publication pub, String query) async {
     DocumentsManager? documentsManager = pub.documentsManager;
-    Database db = documentsManager != null ? documentsManager.database : await openDatabase(pub.databasePath!);
+    Database db = documentsManager != null ? documentsManager.database : await openReadOnlyDatabase(pub.databasePath!);
 
     Future<bool> tableExists(Database db, String name) async {
       final result = await db.rawQuery(
@@ -398,7 +398,7 @@ class SearchModel {
     File mepsFile = await getMepsUnitDatabaseFile();
 
     try {
-      Database db = await openDatabase(mepsFile.path);
+      Database db = await openReadOnlyDatabase(mepsFile.path);
       List<Map<String, dynamic>> versesIds = await db.rawQuery("""
       SELECT
       (

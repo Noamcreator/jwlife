@@ -15,6 +15,7 @@ import 'package:jwlife/widgets/responsive_appbar_actions.dart';
 import 'package:jwlife/widgets/searchfield/searchfield_widget.dart';
 import '../../../../app/app_page.dart';
 import '../../../../app/services/settings_service.dart';
+import '../../../../core/utils/widgets_utils.dart';
 import '../../../../i18n/i18n.dart';
 import '../../models/publications/publication_items_model.dart';
 
@@ -281,9 +282,7 @@ class _PublicationsItemsBody extends StatelessWidget {
 
             // 1. VÉRIFICATION DE L'ÉTAT DE CHARGEMENT
             if (viewModel.isLoading) {
-              return const Center(
-                child: CircularProgressIndicator(), // Affiche un indicateur de chargement
-              );
+              return getLoadingWidget(Theme.of(context).primaryColor);
             }
 
             // 2. VÉRIFICATION DE L'ABSENCE DE PUBLICATIONS (après le chargement)

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
+import 'package:flutter/foundation.dart';
 
 /// Classe utilitaire simple pour décompresser des fichiers ou des réponses GZip.
 class GZipHelper {
@@ -30,14 +31,12 @@ class GZipHelper {
     }
   }
 
-  /// Décompresse simplement et retourne les octets non compressés.
-  static Uint8List decompressToBytes(List<int> gzipBytes) {
-    try {
-      final data = GZipDecoder().decodeBytes(gzipBytes);
-      return Uint8List.fromList(data);
-    } catch (e) {
-      print('❌ Erreur de décompression : $e');
-      rethrow;
-    }
+  static Future<void> decompressFileInBackground(Uint8List gzipBytes, File outputFile) async {
+    final decompressedData = await compute(_decompressBytes, gzipBytes);
+    await outputFile.writeAsBytes(decompressedData, flush: true);
+  }
+
+  static Uint8List _decompressBytes(Uint8List gzipBytes) {
+    return Uint8List.fromList(GZipDecoder().decodeBytes(gzipBytes));
   }
 }

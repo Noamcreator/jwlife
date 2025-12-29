@@ -5,6 +5,7 @@ import 'package:jwlife/app/jwlife_app_bar.dart';
 import '../../../app/app_page.dart';
 import '../../../core/api/api.dart';
 import '../../../core/utils/utils.dart';
+import '../../../core/utils/widgets_utils.dart';
 import 'online_bible_view.dart';
 
 class ChapterBiblePage extends StatefulWidget {
@@ -61,7 +62,7 @@ class _ChapterBiblePageState extends State<ChapterBiblePage> {
         title: widget.book.name, // bold font
       ),
       body: _isLoading
-          ? Center(child: CircularProgressIndicator())
+          ? getLoadingWidget(Theme.of(context).primaryColor)
           : SingleChildScrollView(
         padding: EdgeInsets.symmetric(vertical: 20.0, horizontal: 16.0),
         child: Column(

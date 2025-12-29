@@ -7,6 +7,7 @@ import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/features/library/widgets/rectangle_mediaItem_item.dart';
 import 'package:jwlife/i18n/i18n.dart';
 
+import '../../../../core/utils/widgets_utils.dart';
 import '../../../publication/pages/local/publication_menu_view.dart';
 import '../../models/downloads/download_model.dart';
 import '../../widgets/rectangle_publication_item.dart';
@@ -148,7 +149,7 @@ class _DownloadWidgetState extends State<DownloadWidget> {
       listenable: _model,
       builder: (context, child) {
         if (_model.isLoading) {
-          return const Center(child: CircularProgressIndicator());
+          return getLoadingWidget(Theme.of(context).primaryColor);
         }
 
         final groupedPublications = _model.groupedPublications;

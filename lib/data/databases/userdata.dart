@@ -20,6 +20,7 @@ import 'package:jwlife/core/shared_preferences/shared_preferences_utils.dart';
 import 'package:jwlife/core/utils/directory_helper.dart';
 import 'package:jwlife/core/utils/files_helper.dart';
 import 'package:jwlife/core/utils/utils.dart';
+import 'package:jwlife/core/utils/utils_database.dart';
 import 'package:jwlife/data/controller/notes_controller.dart';
 import 'package:jwlife/data/controller/tags_controller.dart';
 import 'package:jwlife/data/models/publication.dart';
@@ -136,7 +137,7 @@ class Userdata {
 
       if (!mepsFile.existsSync()) return favorites;
 
-      await _database.execute("ATTACH DATABASE '${mepsFile.path}' AS meps");
+      await attachDatabases(_database, {'meps': mepsFile.path});
 
       final userResults = await _database.rawQuery('''
         SELECT DISTINCT
@@ -159,7 +160,7 @@ class Userdata {
         ORDER BY tm.Position
       ''');
 
-      await _database.execute("DETACH DATABASE meps");
+      await detachDatabases(_database, ['meps']);
 
       final allPublications = PublicationRepository().getAllPublications();
 
@@ -1941,11 +1942,6 @@ class Userdata {
 
       final int bookmarkId = existingBookmark.first['BookmarkId'];
 
-      // 2. Générer le nouveau titre (comme dans addBookmark)
-      String? newTitle = (bookNumber != null && chapterNumber != null)
-          ? (blockIdentifier != null ? "$title:$blockIdentifier" : title)
-          : null;
-
       int locationId;
 
       // 3. Gérer la nouvelle Location à utiliser (comme dans addBookmark)
@@ -2032,7 +2028,7 @@ class Userdata {
         {
           'LocationId': locationId,
           'PublicationLocationId': publicationLocationId,
-          'Title': newTitle ?? title,
+          'Title': title,
           'Snippet': snippet,
           'BlockType': blockType,
           'BlockIdentifier': blockIdentifier,
@@ -2903,7 +2899,7 @@ class Userdata {
 
       // 3) Si on a une base à importer : fusion "replace"
       if (jwPlaylistDbFile != null) {
-        final Database jwPlaylistDb = await openDatabase(jwPlaylistDbFile.path);
+        final Database jwPlaylistDb = await openReadOnlyDatabase(jwPlaylistDbFile.path);
 
         // Chercher la première playlist
         final List<Map<String, Object?>> firstPlaylistResult = await jwPlaylistDb.rawQuery('''

@@ -99,7 +99,7 @@ Future<Map<String, dynamic>?> fetchMidWeekMeeting(Publication? publication, Date
 
 Future<Map<String, dynamic>?> fetchWeekendMeeting(Publication? publication, DateTime dateOfMeetings) async {
   if (publication != null) {
-    Database db = await openDatabase(publication.databasePath!);
+    Database db = await openReadOnlyDatabase(publication.databasePath!);
 
     String weekRange = DateFormat('yyyyMMdd').format(dateOfMeetings);
 

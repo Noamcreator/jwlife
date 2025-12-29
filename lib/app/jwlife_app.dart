@@ -136,7 +136,7 @@ class JwLifeAppState extends State<JwLifeApp> {
     await AppSharedPreferences.instance.setBibleColor(color);
 
     // Mise à jour de la page Bible si elle est affichée
-    GlobalKeyService.bibleKey.currentState?.goToTheBooksTab();
+    GlobalKeyService.bibleKey.currentState?.refreshColor();
   }
 
   void changeLocale(Locale locale) {

@@ -8,6 +8,7 @@ import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/repositories/PublicationRepository.dart';
 import 'package:sqflite/sqflite.dart';
 
+import '../../core/utils/utils_database.dart';
 import '../../core/utils/utils_pub.dart';
 
 class PubCollections {
@@ -15,9 +16,22 @@ class PubCollections {
 
   Future<void> init() async {
     final pubCollections = await getPubCollectionsDatabaseFile();
-    _database = await openDatabase(pubCollections.path, version: 1, onCreate: (db, version) async {
-      await createDbPubCollection(db);
-    });
+    _database = await openDatabase(
+        pubCollections.path,
+        version: 2,
+        onCreate: (db, version) async {
+          await createDbPubCollection(db);
+        },
+        onUpgrade: (db, oldVersion, newVersion) async {
+          if(oldVersion == 1 && newVersion == 2) {
+            // Ajout de la colonne HeadingSearch
+            await addColumnSafe(db, 'Publication', 'HeadingSearch', 'INTEGER DEFAULT 0');
+
+            // Ajout de la colonne IsSingleDocument
+            await addColumnSafe(db, 'Publication', 'IsSingleDocument', 'INTEGER DEFAULT 0');
+          }
+        }
+    );
     await fetchDownloadPublications();
   }
 
@@ -26,10 +40,10 @@ class PubCollections {
 
     printTime('fetchDownloadPublications start');
 
-    await _database.transaction((txn) async {
-      await txn.execute("ATTACH DATABASE '${mepsFile.path}' AS meps");
+    await attachDatabases(_database, {'meps': mepsFile.path});
 
-      final result = await txn.rawQuery('''
+    try {
+      final result = await _database.rawQuery('''
         WITH ImageData AS (
            SELECT 
                PublicationId,
@@ -74,11 +88,12 @@ class PubCollections {
 
       // On consomme pleinement les résultats avant de détacher
       result.map((row) => Publication.fromJson(row)).toList();
-    });
+    }
+    finally {
+      await detachDatabases(_database, ['meps']);
+    }
 
     printTime('fetchDownloadPublications end');
-
-    await _database.execute("DETACH DATABASE meps");
   }
 
   Future<Publication?> getDocumentFromMepsDocumentId(int mepsDocId, int currentLanguageId) async {
@@ -142,13 +157,12 @@ class PubCollections {
       }
 
       // Préparation de la base de données de publication
-      Database publicationDb = await openDatabase("$path/${pub['fileName']}", version: manifestData['schemaVersion']);
+      Database publicationDb = await openDatabase("$path/${pub['fileName']}", version: manifestData['schemaVersion'], readOnly: true);
 
       // Vérification de l'existence des tables Topics et VerseCommentary
-      bool hasTopicsTable = await tableExists(publicationDb, 'Topic') &&
-          (await publicationDb.rawQuery("SELECT COUNT(*) FROM Topic")).first['COUNT(*)'] as int > 0;
-      bool hasVerseCommentaryTable = await tableExists(publicationDb, 'VerseCommentary') &&
-          (await publicationDb.rawQuery("SELECT COUNT(*) FROM VerseCommentary")).first['COUNT(*)'] as int > 0;
+      bool hasTopicsTable = await tableExists(publicationDb, 'Topic') && (await publicationDb.rawQuery("SELECT COUNT(*) FROM Topic")).first['COUNT(*)'] as int > 0;
+      bool hasHeadingSearch = await tableExists(publicationDb, 'Heading') && (await publicationDb.rawQuery("SELECT COUNT(*) FROM Heading")).first['COUNT(*)'] as int > 0;
+      bool hasVerseCommentaryTable = await tableExists(publicationDb, 'VerseCommentary') && (await publicationDb.rawQuery("SELECT COUNT(*) FROM VerseCommentary")).first['COUNT(*)'] as int > 0;
 
       String description = await extractPublicationDescription(publication, symbol: keySymbol, issueTagNumber: issueTagNum, mepsLanguage: 'F');
       String hashPublication = getPublicationHash(languageId, symbol, year, issueTagNum);
@@ -178,6 +192,8 @@ class PubCollections {
         'MepsBuildNumber': manifestData['mepsBuildNumber'],
         'TopicSearch': hasTopicsTable ? 1 : 0,
         'VerseCommentary': hasVerseCommentaryTable ? 1 : 0,
+        'HeadingSearch': hasHeadingSearch ? 1 : 0,
+        'IsSingleDocument': 0,
       };
 
       int publicationId;
@@ -268,6 +284,10 @@ class PubCollections {
         });
       }
 
+      if(documentList.length == 1) {
+        pubDb['IsSingleDocument'] = 1;
+      }
+
       // Exécution du batch
       await batch.commit();
       await publicationDb.close();
@@ -276,7 +296,7 @@ class PubCollections {
       if (publication == null) {
         File mepsFile = await getMepsUnitDatabaseFile();
         if (await mepsFile.exists()) {
-          Database db = await openDatabase(mepsFile.path);
+          Database db = await openReadOnlyDatabase(mepsFile.path);
           List<Map<String, dynamic>> result = await db.rawQuery("SELECT Symbol, VernacularName, PrimaryIetfCode FROM Language WHERE LanguageId = $languageId");
           if (result.isNotEmpty) {
             pubDb['LanguageSymbol'] = result[0]['Symbol'];
@@ -293,8 +313,7 @@ class PubCollections {
       }
 
       // Gestion des images de couverture
-      var imageSqr = imagesDb.where((element) => element['Type'] == 't').toList()
-        ..sort((a, b) => b['Width'].compareTo(a['Width']) != 0 ? b['Width'].compareTo(a['Width']) : b['Height'].compareTo(a['Height']));
+      var imageSqr = imagesDb.where((element) => element['Type'] == 't').toList()..sort((a, b) => b['Width'].compareTo(a['Width']) != 0 ? b['Width'].compareTo(a['Width']) : b['Height'].compareTo(a['Height']));
       pubDb['ImageSqr'] = imageSqr.isNotEmpty ? imageSqr.first['Path'] : null;
 
       var imageLsr = imagesDb.where((element) => element['Type'] == 'lsr' && element['Width'] == 1200 && element['Height'] == 600).toList();
@@ -353,88 +372,90 @@ class PubCollections {
 
       // Création de la table Image
       await txn.execute("""
-      CREATE TABLE IF NOT EXISTS "Image" (
-        "ImageId" INTEGER NOT NULL,
-        "PublicationId" INTEGER,
-        "Type" TEXT NOT NULL,
-        "Attribute" TEXT NOT NULL,
-        "Path" TEXT,
-        "Width" INTEGER,
-        "Height" INTEGER,
-        "Signature" TEXT,
-        PRIMARY KEY("ImageId" AUTOINCREMENT),
-        FOREIGN KEY("PublicationId") REFERENCES "Publication"("PublicationId")
-      );
-    """);
+        CREATE TABLE IF NOT EXISTS "Image" (
+          "ImageId" INTEGER NOT NULL,
+          "PublicationId" INTEGER,
+          "Type" TEXT NOT NULL,
+          "Attribute" TEXT NOT NULL,
+          "Path" TEXT,
+          "Width" INTEGER,
+          "Height" INTEGER,
+          "Signature" TEXT,
+          PRIMARY KEY("ImageId" AUTOINCREMENT),
+          FOREIGN KEY("PublicationId") REFERENCES "Publication"("PublicationId")
+        );
+      """);
 
       // Création de la table Publication
       await txn.execute("""
-      CREATE TABLE IF NOT EXISTS "Publication" (
-        "PublicationId" INTEGER NOT NULL,
-        "MepsLanguageId" INTEGER,
-        "PublicationType" TEXT,
-        "PublicationCategorySymbol" TEXT,
-        "Title" TEXT,
-        "ShortTitle" TEXT,
-        "DisplayTitle" TEXT,
-        "UndatedReferenceTitle" TEXT,
-        "Description" TEXT,
-        "Symbol" TEXT NOT NULL,
-        "KeySymbol" TEXT,
-        "UniqueEnglishSymbol" TEXT NOT NULL,
-        "Year" INTEGER,
-        "SchemaVersion" INTEGER,
-        "IssueTagNumber" INTEGER NOT NULL DEFAULT 0,
-        "RootSymbol" TEXT,
-        "RootYear" INTEGER,
-        "Hash" TEXT,
-        "Timestamp" TEXT,
-        "Path" TEXT NOT NULL UNIQUE,
-        "DatabasePath" TEXT NOT NULL,
-        "ExpandedSize" INTEGER,
-        "MepsBuildNumber" INTEGER DEFAULT 0,
-        "TopicSearch" INTEGER DEFAULT 0,
-        "VerseCommentary" INTEGER DEFAULT 0,
-        PRIMARY KEY("PublicationId" AUTOINCREMENT)
-      );
-    """);
+        CREATE TABLE IF NOT EXISTS "Publication" (
+          "PublicationId" INTEGER NOT NULL,
+          "MepsLanguageId" INTEGER,
+          "PublicationType" TEXT,
+          "PublicationCategorySymbol" TEXT,
+          "Title" TEXT,
+          "ShortTitle" TEXT,
+          "DisplayTitle" TEXT,
+          "UndatedReferenceTitle" TEXT,
+          "Description" TEXT,
+          "Symbol" TEXT NOT NULL,
+          "KeySymbol" TEXT,
+          "UniqueEnglishSymbol" TEXT NOT NULL,
+          "Year" INTEGER,
+          "SchemaVersion" INTEGER,
+          "IssueTagNumber" INTEGER NOT NULL DEFAULT 0,
+          "RootSymbol" TEXT,
+          "RootYear" INTEGER,
+          "Hash" TEXT,
+          "Timestamp" TEXT,
+          "Path" TEXT NOT NULL UNIQUE,
+          "DatabasePath" TEXT NOT NULL,
+          "ExpandedSize" INTEGER,
+          "MepsBuildNumber" INTEGER DEFAULT 0,
+          "TopicSearch" INTEGER DEFAULT 0,
+          "VerseCommentary" INTEGER DEFAULT 0,
+          "HeadingSearch" INTEGER DEFAULT 0,
+          "IsSingleDocument" INTEGER DEFAULT 0,
+          PRIMARY KEY("PublicationId" AUTOINCREMENT)
+        );
+      """);
 
       // Création de la table PublicationAttribute
       await txn.execute("""
-      CREATE TABLE IF NOT EXISTS "PublicationAttribute" (
-        "PublicationAttributeId" INTEGER NOT NULL,
-        "PublicationId" INTEGER,
-        "Attribute" TEXT,
-        PRIMARY KEY("PublicationAttributeId" AUTOINCREMENT),
-        FOREIGN KEY("PublicationId") REFERENCES "Publication"("PublicationId")
-      );
-    """);
+        CREATE TABLE IF NOT EXISTS "PublicationAttribute" (
+          "PublicationAttributeId" INTEGER NOT NULL,
+          "PublicationId" INTEGER,
+          "Attribute" TEXT,
+          PRIMARY KEY("PublicationAttributeId" AUTOINCREMENT),
+          FOREIGN KEY("PublicationId") REFERENCES "Publication"("PublicationId")
+        );
+      """);
 
       // Création de la table PublicationIssueAttribute
       await txn.execute("""
-      CREATE TABLE IF NOT EXISTS "PublicationIssueAttribute" (
-        "PublicationIssueAttributeId" INTEGER NOT NULL,
-        "PublicationId" INTEGER,
-        "Attribute" TEXT,
-        PRIMARY KEY("PublicationIssueAttributeId" AUTOINCREMENT),
-        FOREIGN KEY("PublicationId") REFERENCES "Publication"("PublicationId")
-      );
-    """);
+        CREATE TABLE IF NOT EXISTS "PublicationIssueAttribute" (
+          "PublicationIssueAttributeId" INTEGER NOT NULL,
+          "PublicationId" INTEGER,
+          "Attribute" TEXT,
+          PRIMARY KEY("PublicationIssueAttributeId" AUTOINCREMENT),
+          FOREIGN KEY("PublicationId") REFERENCES "Publication"("PublicationId")
+        );
+      """);
 
       // Création de la table PublicationIssueProperty
       await txn.execute("""
-      CREATE TABLE IF NOT EXISTS "PublicationIssueProperty" (
-        "PublicationIssuePropertyId" INTEGER NOT NULL,
-        "PublicationId" INTEGER,
-        "Title" TEXT,
-        "UndatedTitle" TEXT,
-        "CoverTitle" TEXT,
-        "Symbol" TEXT,
-        "UndatedSymbol" TEXT,
-        PRIMARY KEY("PublicationIssuePropertyId" AUTOINCREMENT),
-        FOREIGN KEY("PublicationId") REFERENCES "Publication"("PublicationId")
-      );
-    """);
+        CREATE TABLE IF NOT EXISTS "PublicationIssueProperty" (
+          "PublicationIssuePropertyId" INTEGER NOT NULL,
+          "PublicationId" INTEGER,
+          "Title" TEXT,
+          "UndatedTitle" TEXT,
+          "CoverTitle" TEXT,
+          "Symbol" TEXT,
+          "UndatedSymbol" TEXT,
+          PRIMARY KEY("PublicationIssuePropertyId" AUTOINCREMENT),
+          FOREIGN KEY("PublicationId") REFERENCES "Publication"("PublicationId")
+        );
+      """);
     });
   }
 }

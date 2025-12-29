@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:jwlife/features/home/pages/search/search_model.dart';
 import 'package:jwlife/features/personal/widgets/input_field_item_widget.dart';
 
+import '../../../../core/utils/widgets_utils.dart';
 import '../../../../data/models/userdata/input_field.dart';
 
 class InputFieldsSearchTab extends StatefulWidget {
@@ -20,7 +21,7 @@ class _InputFieldsSearchTabState extends State<InputFieldsSearchTab> {
       future: widget.model.fetchInputFields(), // Future<List<Map<String, dynamic>>>
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+          return getLoadingWidget(Theme.of(context).primaryColor);
         } else if (snapshot.hasError) {
           return Center(child: Text('Erreur : ${snapshot.error}'));
         } else if (!snapshot.hasData || snapshot.data!.isEmpty) {

@@ -5,6 +5,8 @@ import '../../../../core/api/wikipedia_api.dart';
 // Import pour lancer l'URL
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../../core/utils/widgets_utils.dart';
+
 class WikipediaSearchTab extends StatefulWidget {
   final SearchModel model;
 
@@ -41,7 +43,7 @@ class _WikipediaSearchTabState extends State<WikipediaSearchTab> {
       future: widget.model.fetchWikipedia(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+          return getLoadingWidget(Theme.of(context).primaryColor);
         } else if (snapshot.hasError) {
           return Center(child: Text('Erreur : ${snapshot.error}'));
         } else if (!snapshot.hasData || snapshot.data!.isEmpty) {

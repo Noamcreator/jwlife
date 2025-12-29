@@ -31,7 +31,7 @@ const pageCenter = document.getElementById("page-center");
 const pageLeft = document.getElementById("page-left");
 const pageRight = document.getElementById("page-right");
 
-const magnifier = document.getElementById('magnifier');
+const magnifierWrapper = document.getElementById('magnifier-wrapper');
 const magnifierContent = document.getElementById('magnifier-content');
 
 let imageMode = false;
@@ -54,14 +54,7 @@ const APPBAR_FIXED_HEIGHT = 56;
 const BOTTOMNAVBAR_FIXED_HEIGHT = {{BOTTOM_NAVBAR_HEIGHT}};
 const AUDIO_PLAYER_HEIGHT = 80;
 
-const MAGNIFIER_SIZE = 130;
-const ZOOM_FACTOR = 1;
-
 let paragraphsData = new Map();
-
-/**************
- * CONFIG STYLES
- **************/
 
 const colorsList = ['gray', 'yellow', 'green', 'blue', 'pink', 'orange', 'purple', 'red', 'brown'];
 
@@ -214,10 +207,20 @@ function updateAllNotesUI(notesList) {
     });
 }
 
+function generateGuid() {
+    return ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c =>
+        (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)
+    );
+}
+
 function changeTheme(isDarkMode) {
     isDark = isDarkMode;
     document.body.classList.remove('cc-theme--dark', 'cc-theme--light');
     document.body.classList.add(isDarkMode ? 'cc-theme--dark' : 'cc-theme--light');
+
+    // changer la couleur du logo dans le bouton flottant
+    const floatingButton = document.getElementById('dialogFloatingButton');
+    floatingButton.style.color = isDarkMode ? '#333333' : '#ffffff';
 
     bookmarkAssets = Array.from({length: 10}, (_, i) => `bookmarks/${isDarkMode ? 'dark' : 'light'}/bookmark${i + 1}.png`);
 }
@@ -379,6 +382,7 @@ function switchImageMode(mode) {
     void container.offsetWidth; // Force le reflow
 }
 
+// Gestion de l'affichage des furigana (Prononciation)
 function switchPronunciationGuideMode(mode) {
     const article = document.getElementById('article-center');
     const articleLeft = document.getElementById('article-left');
@@ -403,7 +407,6 @@ function switchPronunciationGuideMode(mode) {
         cachedPages[i].className = classes.join(' ');
     }
 }
-
 
 function adjustArticle(articleId, link) {
     const article = document.getElementById(articleId);
@@ -822,7 +825,8 @@ async function loadIndexPage(index, isFirst) {
 
     if (isImageMode && curr.svgs && curr.svgs.length > 0) {
         loadImageSvg(pageCenter, curr.svgs);
-    } else {
+    } 
+    else {
         pageCenter.innerHTML = `<article id="article-center" class="${curr.className}">${curr.html}</article>`;
         adjustArticle('article-center', curr.link);
         addVideoCover('article-center');
@@ -1503,12 +1507,7 @@ function removeAllSelected() {
     selection.removeAllRanges();
 }
 
-function createToolbarBase({
-    targets,
-    blockRangeId,
-    isSelected,
-    target
-}) {
+function createToolbarBase({targets, blockRangeId, isSelected, target}) {
     const toolbars = document.querySelectorAll('.toolbar, .toolbar-blockRange');
 
     // Masquer les toolbars existantes
@@ -1587,10 +1586,7 @@ function createToolbarBase({
     const paragraphs = paragraphInfo.paragraphs;
     const isVerse = paragraphInfo.isVerse;
 
-    const text = Array.from(targets)
-        .map(elem => elem.innerText)
-        .filter(text => text.length > 0)
-        .join('');
+    const text = Array.from(targets).map(elem => elem.innerText).filter(text => text.length > 0).join('');
 
     toolbar.appendChild(createToolbarButtonColor(0, targets, target, toolbar, isSelected));
     toolbar.appendChild(createToolbarButtonColor(1, targets, target, toolbar, isSelected));
@@ -5173,9 +5169,9 @@ async function loadUserdata() {
             addBookmark(pageCenter, paragraphInfo, bookmark.BlockType, bookmark.BlockIdentifier, bookmark.Slot);
         }
 
-        // Gérer les surlignages (Highlights/BlockRanges)
-        const matchingHighlights = blockRangeMap.get(idKey) || [];
-        matchingHighlights.forEach(b => {
+        // Gérer les surlignages (BlockRanges)
+        const matchingBlockRanges = blockRangeMap.get(idKey) || [];
+        matchingBlockRanges.forEach(b => {
             const paragraphInfo = paragraphsData.get(b.Identifier);
             addBlockRange(paragraphInfo, b.StartToken, b.EndToken, b.UserMarkGuid, b.StyleIndex, b.ColorIndex);
         });
@@ -5185,12 +5181,12 @@ async function loadUserdata() {
         matchingNotes.forEach(note => {
             if (processedNoteGuids.has(note.Guid)) return;
 
-            const matchingHighlight = matchingHighlights.find(h => h.UserMarkGuid === note.UserMarkGuid);
+            const matchingBlockRange = matchingBlockRanges.find(h => h.UserMarkGuid === note.UserMarkGuid);
 
             addNoteWithGuid(
                 pageCenter,
                 paragraphs[0],
-                matchingHighlight?.UserMarkGuid || null,
+                matchingBlockRange?.UserMarkGuid || null,
                 note.Guid,
                 note.ColorIndex ?? 0,
                 isBible(),
@@ -5878,6 +5874,7 @@ pageCenter.addEventListener("scroll", () => {
 // Variables globales
 let currentGuid = '';
 let pressTimer = null;
+let pressTimerMagnifier = null;
 let firstLongPressTarget = null;
 let lastLongPressTarget = null;
 let isLongPressing = false;
@@ -5906,9 +5903,6 @@ let initialScale = 1;
 let pinchCenterX = 0;
 let pinchCenterY = 0;
 
-/**************
- * THROTTLE (si tu n’en as pas déjà un)
- **************/
 const throttle = (func) => {
     let scheduled = false;
     let lastArgs, lastContext;
@@ -5935,28 +5929,27 @@ const throttle = (func) => {
 
 async function onClickOnPage(article, target) {
     const tagName = target.tagName;
+    const classList = target.classList;
 
     if (document.body.classList.contains('selection-active') || isSelecting) {
         removeAllSelected();
         closeToolbar();
+        return;
     }
 
-    // Early returns pour les cas simples
-    if (tagName === 'TEXTAREA' || tagName === 'INPUT') {
+    // 1. Ignorer les clics sur les champs de formulaire
+    if (tagName === 'TEXTAREA' || tagName === 'INPUT' || classList.contains('gen-field')) {
         closeToolbar();
         return;
     }
 
     if (tagName === 'IMG') {
-        // 1. Tente de trouver l'élément parent <a> qui contient l'attribut 'data-video'
-        //    (target.closest('a') recherche l'ancêtre <a> le plus proche)
         const videoLink = target.closest('a[data-video]');
 
         // 2. Vérifie si un tel élément parent a été trouvé
         const isVideoThumbnail = videoLink !== null;
 
         if (isVideoThumbnail) {
-            // Si c'est une miniature de vidéo, on récupère la valeur de l'attribut
             const videoData = videoLink.getAttribute('data-video');
 
             closeToolbar();
@@ -5969,103 +5962,86 @@ async function onClickOnPage(article, target) {
         return;
     }
 
-    const matchedElement = target.closest('a');
-    const classList = target.classList;
+    const linkHandled = await onClickOnLink(article, target);
 
-    if (matchedElement) {
-        const linkClassList = matchedElement.classList;
-        const href = matchedElement.getAttribute('href');
-
-        if (href.startsWith('#')) {
-            const targetElement = pageCenter.querySelector(href);
-
-            if (targetElement) {
-                targetElement.scrollIntoView({
-                    behavior: 'smooth', // pour un défilement fluide
-                    block: 'center', // centre l'élément dans la vue
-                });
-            }
-
-            closeToolbar();
-            return;
-        }
-
-        if (linkClassList.contains('b')) {
-            const verses = await window.flutter_inappwebview.callHandler('fetchVerses', href);
-            showVerseDialog(article, verses, href, false);
-            closeToolbar();
-            return;
-        }
-
-        if (href.startsWith('jwpub://p/')) {
-            if (article.id === 'verse-info-dialog-guide-id') {
-                const dataXtId = matchedElement.getAttribute('data-xtid');
-
-                if (dataXtId) {
-                    const extract = await window.flutter_inappwebview.callHandler('fetchGuideVerse', dataXtId);
-
-                    if (extract != null) {
-                        showExtractPublicationDialog(article, extract, href);
-                        closeToolbar();
-                    }
-                }
-            } else {
-                const extract = await window.flutter_inappwebview.callHandler('fetchExtractPublication', href);
-                if (extract != null) {
-                    showExtractPublicationDialog(article, extract, href);
-                    closeToolbar();
-                }
-            }
-            return;
-        }
-
-        if (href.startsWith('jwpub://c/')) {
-            const commentary = await window.flutter_inappwebview.callHandler('fetchCommentaries', href);
-            if (commentary != null) {
-                showVerseCommentaryDialog(article, commentary, href);
-                closeToolbar();
-            }
-            return;
-        }
-
-        closeToolbar();
+    if (linkHandled) {
         return;
     }
 
-    if (classList.contains('fn')) {
-        const fnid = target.getAttribute('data-fnid');
-        const footnote = await window.flutter_inappwebview.callHandler('fetchFootnote', fnid);
-        showFootNoteDialog(article, footnote, 'footnote-' + fnid);
-        closeToolbar();
-        return;
-    }
-
-    if (classList.contains('m')) {
-        const mid = target.getAttribute('data-mid');
-        const versesReference = await window.flutter_inappwebview.callHandler('fetchVersesReference', mid);
-        showVerseReferencesDialog(article, versesReference, 'verse-references-' + mid);
-        closeToolbar();
-        return;
-    }
-
-    if (classList.contains('gen-field')) {
-        closeToolbar();
-        return;
-    }
-
+    // Si on a une cible avec un blockRangeAttr, on affiche la toolbar de surlignage
     const blockRangeId = target.getAttribute(blockRangeAttr);
     if (blockRangeId) {
         showToolbarBlockRange(target, blockRangeId);
         return;
     }
 
-    // Optimisation de la logique conditionnelle
+    // Sinon, on gère le clic sur le paragraphe/verset
     if (isBible()) {
         whenClickOnParagraph(target, '.v', 'id', 'verse');
     } 
     else {
         whenClickOnParagraph(target, '[data-pid]', 'data-pid', 'paragraph');
     }
+}
+
+async function onClickOnLink(article, target) {
+    const matchedElement = target.closest('a');
+    const classList = target.classList;
+
+    // 1. Gestion des liens <a>
+    if (matchedElement) {
+        const href = matchedElement.getAttribute('href') || '';
+        const linkClass = matchedElement.classList;
+
+        // Cas : Aller à une note en scrollant (#)
+        if (href.startsWith('#')) {
+            const targetElement = pageCenter.querySelector(href);
+            if (targetElement) {
+                targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        } 
+        // Cas : Versets (b)
+        else if (linkClass.contains('b')) {
+            const verses = await window.flutter_inappwebview.callHandler('fetchVerses', href);
+            if (verses) showVerseDialog(article, verses, href, false);
+        } 
+        // Cas : Extraits de publications (xt)
+        else if (linkClass.contains('xt')) {
+            const extract = await window.flutter_inappwebview.callHandler('fetchExtractPublication', href);
+            if (extract) showExtractPublicationDialog(article, extract, href);
+        } 
+        // Cas : Extrait de commentaires (jwpub://c/)
+        else if (href.startsWith('jwpub://c/')) {
+            const commentary = await window.flutter_inappwebview.callHandler('fetchCommentaries', href);
+            if (commentary) showVerseCommentaryDialog(article, commentary, href);
+        }
+
+        closeToolbar();
+        return true;
+    }
+
+    // 2. Gestion des éléments spécifiques (notes, références) via la cible directe
+    let handled = false;
+
+    if (classList.contains('fn')) {
+        const fnid = target.getAttribute('data-fnid');
+        const footnote = await window.flutter_inappwebview.callHandler('fetchFootnote', fnid);
+        showFootNoteDialog(article, footnote, `footnote-${fnid}`);
+        handled = true;
+    } 
+    else if (classList.contains('m')) {
+        const mid = target.getAttribute('data-mid');
+        const versesRef = await window.flutter_inappwebview.callHandler('fetchVersesReference', mid);
+        showVerseReferencesDialog(article, versesRef, `verse-references-${mid}`);
+        handled = true;
+    }
+
+    if (handled) {
+        closeToolbar();
+        return true;
+    }
+
+    return false;
 }
 
 function selectWord(range, textNode, offset) {
@@ -6075,13 +6051,11 @@ function selectWord(range, textNode, offset) {
     let left = offset;
     let right = offset;
 
-    // 1. Recherche de la limite gauche du mot
     // On recule tant qu'on rencontre des caractères non-espace/non-séparateur
     while (left > 0 && /\w/.test(text[left - 1])) {
         left--;
     }
 
-    // 2. Recherche de la limite droite du mot
     // On avance tant qu'on rencontre des caractères non-espace/non-séparateur
     while (right < text.length && /\w/.test(text[right])) {
         right++;
@@ -6105,7 +6079,9 @@ let isInitialSelectionChange = false;
 
 // Empêche le menu contextuel du navigateur (qui apparaît suite à un clic droit ou un appui long)
 pageCenter.addEventListener('contextmenu', (event) => {
-    if ((isLongTouchFix || isSelecting) && !isReadingMode) {
+    const linkElement = event.target.closest('a');
+
+    if ((isLongTouchFix || isSelecting) && !isReadingMode && !linkElement) {
         isLongTouchFix = false;
         isSelecting = true;
         event.preventDefault();
@@ -6142,16 +6118,25 @@ pageCenter.addEventListener('contextmenu', (event) => {
         setTimeout(() => {
             isInitialSelectionChange = false;
         }, 100);
-    } else {
-        // 1. Vérifie si l'élément cliqué est une image ou l'un de ses parents
-        const target = event.target.closest('img');
-
-        if (target) {
-            // Empêche le menu contextuel par défaut du navigateur d'apparaître
+    } 
+    else {
+        if (linkElement) {
             event.preventDefault();
+            event.stopPropagation();
 
-            const imageUrl = target.src;
-            window.flutter_inappwebview.callHandler('imageLongPressHandler', imageUrl, event.clientX, event.clientY);
+            (async () => { await onClickOnLink(pageCenter, linkElement); })();
+        }
+        else {
+             // 1. Vérifie si l'élément cliqué est une image ou l'un de ses parents
+            const target = event.target.closest('img');
+
+            if (target) {
+                // Empêche le menu contextuel par défaut du navigateur d'apparaître
+                event.preventDefault();
+
+                const imageUrl = target.src;
+                window.flutter_inappwebview.callHandler('imageLongPressHandler', imageUrl, event.clientX, event.clientY);
+            }
         }
     }
 }, false);
@@ -6176,94 +6161,94 @@ pageCenter.addEventListener('click', (event) => {
 /**************
  * SURLIGNAGE DES MOTS
  **************/
+let oldStylesMap = new Map();
+let tempTokensByGuid = new Map();
+const magnifierSize = 120;
+const zoomFactor = 1.3;
+const visibleParagraphIds = new Set();
+let magnifierElementMap = new Map();
+
 pageCenter.addEventListener('touchstart', (event) => {
+    if (isReadingMode || isSelecting) return;
+
+    if (pressTimer) clearTimeout(pressTimer);
+    firstLongPressTarget = event.target;
+
+    const targetClass = firstLongPressTarget?.classList;
+
+    pressTimer = setTimeout(() => {
+        closeToolbar();
+        toggleSelection(true);
+
+        if (firstLongPressTarget && (targetClass.contains('word') || targetClass.contains('punctuation'))) {
+            isDragging = false;
+            setLongPressing(true);
+            isLongTouchFix = true;
+            currentGuid = generateGuid();
+
+            requestAnimationFrame(() => {
+                 prepareMagnifier();
+            });
+        }
+    }, 250);
+}, { passive: false });
+
+const handleTouchMove = throttle((event) => {
     if (isReadingMode) return;
 
-    // Handles de sélection
-    if (!isSelecting) {
-        if (pressTimer) clearTimeout(pressTimer);
-
-        firstLongPressTarget = event.target;
-
-        pressTimer = setTimeout(async () => {
-            closeToolbar();
-            toggleSelection(true);
-
-            const firstTargetClassList = firstLongPressTarget?.classList;
-            if (firstLongPressTarget && firstTargetClassList && (firstTargetClassList.contains('word') || firstTargetClassList.contains('punctuation'))) {
-                try {
-                    setLongPressing(true);
-                    isDragging = false;
-                    isLongTouchFix = true;
-
-                    // GUID pour le style courant
-                    const response = await window.flutter_inappwebview.callHandler('getGuid');
-                    currentGuid = response.Guid;
-                } catch (error) {
-                    console.error('Error getting style GUID:', error);
-                }
-            }
-        }, 230);
-    }
-}, {
-    passive: false
-});
-
-// --- Touchmove optimisé ---
-const handleTouchMove = throttle((event) => {
-    if (isReadingMode || !isLongPressing || !currentGuid || isSelecting) {
-        if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; }
-        return;
-    }
-
-    if (event.cancelable) event.preventDefault();
     isLongTouchFix = false;
 
-    const touch = event.touches[0];
-    const x = touch.clientX;
-    const y = touch.clientY;
-
-    updateMagnifier(x, y);
-
-    // Recherche optimisée (ne regarde que les paragraphes visibles)
-    const closestElement = getClosestElementHorizontally(x, y);
-    
-    if (closestElement && closestElement !== lastLongPressTarget) {
-        lastLongPressTarget = closestElement;
-        // updateTempStyle est maintenant plus léger grâce au Lazy Loading
-        updateTempStyle();
+    if (document.body.classList.contains('selection-active') && !isSelecting) {
+        document.body.classList.remove('selection-active');
     }
-}, 16); // ~60fps pour une fluidité maximale
+
+    if (isLongPressing && currentGuid && !isSelecting) {
+        if (event.cancelable) event.preventDefault();
+
+        const touch = event.touches[0];
+        const x = touch.clientX;
+        const y = touch.clientY;
+
+        updateMagnifier(x, y);
+
+        const closestElement = getClosestElementHorizontally(x, y);
+        const cl = closestElement?.classList;
+        if (closestElement && cl && (cl.contains('word') || cl.contains('punctuation'))) {
+            if (closestElement !== lastLongPressTarget) {
+                lastLongPressTarget = closestElement;
+                updateTempStyle();
+            }
+        }
+    } else if (pressTimer) {
+        clearTimeout(pressTimer);
+        pressTimer = null;
+    }
+}, 16);
 
 pageCenter.addEventListener('touchmove', handleTouchMove, {
     passive: false
 });
 
-pageCenter.addEventListener('touchend', (event) => {
+pageCenter.addEventListener('touchend', () => {
     if (isReadingMode) return;
 
     if (isLongPressing) {
         hideMagnifier();
         onLongPressEnd();
+        magnifierElementMap.clear();
         firstLongPressTarget = null;
         lastLongPressTarget = null;
     } 
-    else if (pressTimer) {
+    if (pressTimer) {
         clearTimeout(pressTimer);
         pressTimer = null;
     }
-}, {
-    passive: true
-});
-
-// Set pour suivre les paragraphes actuellement dans le viewport
-const visibleParagraphIds = new Set();
+}, { passive: true });
 
 const visibilityObserver = new IntersectionObserver((entries) => {
     entries.forEach(entry => {
         // On récupère l'ID (pid ou verse id)
-        const idAttr = entry.target.getAttribute('data-pid') || 
-                       (entry.target.classList.contains('v') ? entry.target.id.split('-')[2] : null);
+        const idAttr = entry.target.getAttribute('data-pid') || (entry.target.classList.contains('v') ? entry.target.id.split('-')[2] : null);
         
         if (!idAttr) return;
         const id = parseInt(idAttr, 10);
@@ -6307,7 +6292,6 @@ function getClosestElementHorizontally(x, y) {
     return closest;
 }
 
-// Sous-fonction utilitaire pour la recherche
 function findInTokens(tokens, x, y) {
     let bestEl = null;
     let minD = Infinity;
@@ -6328,9 +6312,6 @@ function findInTokens(tokens, x, y) {
     }
     return { el: bestEl, distance: minD };
 }
-
-let oldStylesMap = new Map(); // Map<Element, Map<styleIndex, { styleIndex, styleClass }>>
-let tempTokensByGuid = new Map(); // Map<guid, Set<Element>>
 
 function getColorIndex(styleIndex = currentStyleIndex) {
     const style = getStyleConfig(styleIndex);
@@ -6432,7 +6413,6 @@ function applyTempStyle(token, styleIndex, styleClass) {
     const cfg = getStyleConfig(styleIndex);
     const existingId = token.getAttribute(blockRangeAttr);
 
-    // Sauvegarde l’ancien style une seule fois (par token et par styleIndex)
     if (existingId && existingId !== currentGuid) {
         let perToken = oldStylesMap.get(token);
         if (!perToken) {
@@ -6448,50 +6428,47 @@ function applyTempStyle(token, styleIndex, styleClass) {
         }
     }
 
-    // 🎯 CORRECTION : N'enlève QUE les classes associées à styleIndex (pour l'imbrication)
+    // Mise à jour de l'élément principal
     removeStyleClasses(token, styleIndex);
-
-    // Applique le style temporaire
     token.classList.add(styleClass);
     token.setAttribute(blockRangeAttr, currentGuid);
+
+    // SYNCHRO LOUPE : Mise à jour du jumeau
+    const twin = magnifierElementMap.get(token);
+    if (twin) {
+        removeStyleClasses(twin, styleIndex);
+        twin.classList.add(styleClass);
+    }
 }
 
 function restoreTokenIfNeeded(token, styleIndex) {
-    const cfg = getStyleConfig(styleIndex);
-
     const perToken = oldStylesMap.get(token);
+    const twin = magnifierElementMap.get(token);
+    
+    removeStyleClasses(token, styleIndex);
+    if (twin) removeStyleClasses(twin, styleIndex);
+
     if (perToken && perToken.has(styleIndex)) {
-        const {
-            styleId,
-            styleClass
-        } = perToken.get(styleIndex);
+        const { styleId, styleClass } = perToken.get(styleIndex);
         perToken.delete(styleIndex);
         if (perToken.size === 0) oldStylesMap.delete(token);
 
-        // Déjà correct : On retire SEULEMENT les classes liées à styleIndex
-        removeStyleClasses(token, styleIndex);
-
-        token.removeAttribute(blockRangeAttr);
-
-        if (styleId) token.setAttribute(blockRangeAttr, styleId);
-        if (styleClass) token.classList.add(styleClass);
+        token.setAttribute(blockRangeAttr, styleId || "");
+        if (styleClass) {
+            token.classList.add(styleClass);
+            if (twin) twin.classList.add(styleClass);
+        }
     } else {
-        // aucun ancien style → on nettoie
-        removeStyleClasses(token, styleIndex);
-
         token.removeAttribute(blockRangeAttr);
     }
 }
 
 function updateTempStyle() {
-    if (!firstLongPressTarget || !lastLongPressTarget || !currentGuid) return;
+    if (!isLongPressing || !firstLongPressTarget || !lastLongPressTarget || !currentGuid) return;
 
     const firstPInfo = getTheFirstTargetParagraph(firstLongPressTarget);
     const lastPInfo = getTheFirstTargetParagraph(lastLongPressTarget);
     if (!firstPInfo || !lastPInfo) return;
-
-    ensureParagraphIndexed(firstPInfo);
-    ensureParagraphIndexed(lastPInfo);
 
     const { styleIndex: tStyleIdx, colorIndex: tColorIdx } = getActiveStyleAndColorIndex(firstLongPressTarget);
     const styleClass = getStyleClass(tStyleIdx, tColorIdx);
@@ -6503,7 +6480,10 @@ function updateTempStyle() {
     const fromIdx = Math.min(firstIdxDOM, lastIdxDOM);
     const toIdx = Math.max(firstIdxDOM, lastIdxDOM);
 
+    // Utilisation de requestAnimationFrame pour grouper les changements visuels
     requestAnimationFrame(() => {
+        if (!isLongPressing) return;
+
         const newTokens = new Set();
 
         for (let i = fromIdx; i <= toIdx; i++) {
@@ -6513,25 +6493,17 @@ function updateTempStyle() {
             ensureParagraphIndexed(pData);
             const { wordAndPunctTokens, allTokens, indexInAll } = pData;
 
-            // --- LOGIQUE DE SÉLECTION PRÉCISE ---
             let startInP, endInP;
-
             if (firstIdxDOM === lastIdxDOM) {
-                // Cas : Sélection dans un SEUL paragraphe
                 startInP = wordAndPunctTokens.indexOf(firstLongPressTarget);
                 endInP = wordAndPunctTokens.indexOf(lastLongPressTarget);
             } else if (i === firstIdxDOM) {
-                // Cas : C'est le paragraphe où on a commencé l'appui long
                 startInP = wordAndPunctTokens.indexOf(firstLongPressTarget);
-                // Si on descend, on va jusqu'à la fin du paragraphe. Si on monte, on va vers le début.
                 endInP = (firstIdxDOM < lastIdxDOM) ? wordAndPunctTokens.length - 1 : 0;
             } else if (i === lastIdxDOM) {
-                // Cas : C'est le paragraphe où se trouve le doigt actuellement
-                // Si on vient du haut, on commence au début du paragraphe. Si on vient du bas, on commence à la fin.
                 startInP = (firstIdxDOM < lastIdxDOM) ? 0 : wordAndPunctTokens.length - 1;
                 endInP = wordAndPunctTokens.indexOf(lastLongPressTarget);
             } else {
-                // Cas : Paragraphe entièrement traversé entre le début et la fin
                 startInP = 0;
                 endInP = wordAndPunctTokens.length - 1;
             }
@@ -6539,15 +6511,13 @@ function updateTempStyle() {
             const realStart = Math.min(startInP, endInP);
             const realEnd = Math.max(startInP, endInP);
 
-            if (realStart === -1 || realEnd === -1) continue;
-
             for (let j = realStart; j <= realEnd; j++) {
                 const token = wordAndPunctTokens[j];
                 if (!token) continue;
                 newTokens.add(token);
                 
                 const idx = indexInAll.get(token);
-                // Ajout de l'espace après le mot sauf si c'est le dernier mot de la sélection totale
+                // Inclusion intelligente des espaces (tokens .escape)
                 if (j < realEnd || (i < toIdx)) {
                     const next = allTokens[idx + 1];
                     if (next?.classList.contains('escape')) newTokens.add(next);
@@ -6555,40 +6525,32 @@ function updateTempStyle() {
             }
         }
 
-        // --- MISE À JOUR VISUELLE ---
         let currentTokens = tempTokensByGuid.get(currentGuid) || new Set();
         
+        // On n'applique le style que sur ce qui est nouveau
         newTokens.forEach(t => {
             if (!currentTokens.has(t)) {
-                applyTempStyle(t, tStyleIdx, styleClass);
+                applyTempStyle(t, tStyleIdx, styleClass); // Gère aussi la loupe
                 currentTokens.add(t);
             }
         });
 
+        // On restaure uniquement ce qui est sorti de la sélection
         currentTokens.forEach(t => {
             if (!newTokens.has(t)) {
-                restoreTokenIfNeeded(t, tStyleIdx);
+                restoreTokenIfNeeded(t, tStyleIdx); // Gère aussi la loupe
                 currentTokens.delete(t);
             }
         });
-        
+
         tempTokensByGuid.set(currentGuid, currentTokens);
     });
 }
 
-// Fonction onLongPressEnd optimisée avec gestion d'erreurs et cache tokens
 async function onLongPressEnd() {
     try {
-        // Déterminer le style réellement utilisé
-        const {
-            styleIndex: tempStyleIndex,
-            colorIndex: targetColorIndex
-        } = getActiveStyleAndColorIndex(firstLongPressTarget, currentStyleIndex, getColorIndex());
+        const { styleIndex: finalStyleIndex, colorIndex: finalColorIndex } = getActiveStyleAndColorIndex(firstLongPressTarget);
 
-        const finalStyleIndex = tempStyleIndex;
-        const finalColorIndex = targetColorIndex;
-
-        // Récupération des tokens temporaires depuis le cache (ou fallback DOM)
         let tempBlockRangesElements = tempTokensByGuid.get(currentGuid);
         if (!tempBlockRangesElements) {
             tempBlockRangesElements = new Set(
@@ -6597,15 +6559,28 @@ async function onLongPressEnd() {
             tempTokensByGuid.set(currentGuid, tempBlockRangesElements);
         }
 
-        // ✅ Convertir en tableau trié selon l’ordre DOM
+        const finalClass = getStyleClass(finalStyleIndex, finalColorIndex);
+
+        tempBlockRangesElements.forEach(token => {
+            // 1. On s'assure que le token principal a la classe et le GUID final
+            token.classList.add(finalClass);
+            token.setAttribute(blockRangeAttr, currentGuid);
+
+            // 2. On fait de même pour le jumeau dans la loupe s'il existe encore
+            const twin = magnifierElementMap.get(token);
+            if (twin) {
+                twin.classList.add(finalClass);
+            }
+        });
+
+        // Tri des tokens pour garantir l'ordre logique (début -> fin)
         const tempArray = Array.from(tempBlockRangesElements).sort((a, b) =>
             a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1
         );
 
-        // Fusion / nettoyage des anciens styles sauvegardés
+        // Gestion de la fusion des styles (si on surligne par-dessus un ancien)
         oldStylesMap.forEach((perToken, token) => {
             if (!tempBlockRangesElements.has(token)) return;
-
             perToken.forEach((value) => {
                 if (value.styleId) {
                     const newClass = getStyleClass(finalStyleIndex, finalColorIndex);
@@ -6619,7 +6594,6 @@ async function onLongPressEnd() {
                         tempBlockRangesElements.add(el);
                     });
 
-                    // Demander à Flutter de supprimer l’ancien block range
                     window.flutter_inappwebview.callHandler('removeBlockRange', {
                         UserMarkGuid: value.styleId,
                         NewUserMarkGuid: currentGuid,
@@ -6629,78 +6603,38 @@ async function onLongPressEnd() {
             });
         });
 
-        // Nettoyer la map
         oldStylesMap.clear();
 
-        // Afficher la toolbar si sélection valide
+        // Affichage de la toolbar à la position du premier mot
         if (tempArray.length > 0) {
             showToolbarBlockRange(tempArray[0], currentGuid);
         }
 
-        // Construction des données à envoyer
+        // Groupement par paragraphe pour l'envoi Flutter
         const blockRangesToSend = [];
         let currentParagraphId = -1;
-        let currentIsVerse = false;
         let tokensBuffer = [];
 
-        function flushParagraphBuffer() {
-            if (tokensBuffer.length === 0) return;
-            addBlockRangeForParagraph(tokensBuffer, currentParagraphId, currentIsVerse);
-            tokensBuffer = [];
-        }
+        tempArray.forEach(element => {
+            const pInfo = getTheFirstTargetParagraph(element);
+            if (!pInfo) return;
 
-        for (let i = 0; i < tempArray.length; i++) {
-            const element = tempArray[i];
-            const {
-                id,
-                isVerse
-            } = getTheFirstTargetParagraph(element);
-            if (id == null) continue;
-
-            if (id !== currentParagraphId) {
-                // Nouveau paragraphe → flush précédent
-                flushParagraphBuffer();
-
-                currentParagraphId = id;
-                currentIsVerse = isVerse;
+            if (pInfo.id !== currentParagraphId) {
+                if (tokensBuffer.length > 0) {
+                    blockRangesToSend.push(createRangeData(tokensBuffer, currentParagraphId, paragraphsData.get(currentParagraphId)));
+                }
+                currentParagraphId = pInfo.id;
                 tokensBuffer = [element];
             } else {
                 tokensBuffer.push(element);
             }
+        });
+
+        // Dernier buffer
+        if (tokensBuffer.length > 0) {
+            blockRangesToSend.push(createRangeData(tokensBuffer, currentParagraphId, paragraphsData.get(currentParagraphId)));
         }
 
-        // Sauvegarder le dernier paragraphe
-        flushParagraphBuffer();
-
-        // ✅ Ajoute un block range par paragraphe à partir des tokens réellement sélectionnés
-        function addBlockRangeForParagraph(tokenArray, pid, isVerse) {
-            const paragraphData = paragraphsData.get(pid);
-            if (!paragraphData) return;
-
-            const { wordAndPunctTokens} = paragraphData;
-            const tokensInParagraph = tokenArray.filter(t => wordAndPunctTokens.includes(t));
-            if (tokensInParagraph.length === 0) return;
-
-            const firstEl = tokensInParagraph[0];
-            const lastEl = tokensInParagraph[tokensInParagraph.length - 1];
-
-            const startIdx = wordAndPunctTokens.indexOf(firstEl);
-            const endIdx = wordAndPunctTokens.indexOf(lastEl);
-
-            if (startIdx === -1 || endIdx === -1) {
-                console.error(`❌ Impossible de retrouver les bornes dans le paragraphe ${pid}`);
-                return;
-            }
-
-            blockRangesToSend.push({
-                BlockType: isVerse ? 2 : 1,
-                Identifier: pid,
-                StartToken: Math.min(startIdx, endIdx),
-                EndToken: Math.max(startIdx, endIdx),
-            });
-        }
-
-        // Envoi unique à Flutter
         await window.flutter_inappwebview.callHandler(
             'addBlockRanges',
             currentGuid,
@@ -6709,43 +6643,135 @@ async function onLongPressEnd() {
             blockRangesToSend
         );
 
-        // Nettoyage final du cache
         tempTokensByGuid.delete(currentGuid);
 
     } catch (err) {
         console.error('Error in onLongPressEnd:', err);
-    } finally {
-        // Reset état global
+    } 
+    finally {
+        // Important : Nettoyer la map des jumeaux pour libérer la mémoire
+        magnifierElementMap.clear();
+        currentGuid = '';
         firstLongPressTarget = null;
         lastLongPressTarget = null;
     }
 }
 
+// Fonction utilitaire pour formater la donnée vers Flutter
+function createRangeData(tokenArray, pid, pData) {
+    const { wordAndPunctTokens, isVerse } = pData;
+    const tokensInP = tokenArray.filter(t => wordAndPunctTokens.includes(t));
+    const startIdx = wordAndPunctTokens.indexOf(tokensInP[0]);
+    const endIdx = wordAndPunctTokens.indexOf(tokensInP[tokensInP.length - 1]);
+
+    return {
+        BlockType: isVerse ? 2 : 1,
+        Identifier: pid,
+        StartToken: Math.min(startIdx, endIdx),
+        EndToken: Math.max(startIdx, endIdx),
+    };
+}
+
+function prepareMagnifier(targetElement) {
+    // 1. Nettoyage
+    magnifierContent.textContent = '';
+    magnifierElementMap.clear();
+
+    const articleCenter = document.getElementById('article-center');
+    if (!articleCenter) return;
+
+    // 2. Création du conteneur "fantôme" (Ghost)
+    // On lui donne le même ID/Classe pour hériter exactement des mêmes styles CSS
+    const ghostContainer = document.createElement('div');
+    ghostContainer.id = articleCenter.id;
+    ghostContainer.className = articleCenter.className;
+    
+    // Style pour simuler la zone de l'article sans tout cloner
+    ghostContainer.style.cssText = `
+        position: absolute;
+        top: 0; 
+        left: 0;
+        width: ${articleCenter.offsetWidth}px;
+        height: ${articleCenter.scrollHeight}px;
+        pointer-events: none;
+        background: transparent;
+        border: none;
+        margin: 0;
+        padding: 0;
+    `;
+
+    // 3. Clonage sélectif (uniquement les éléments visibles)
+    visibleParagraphIds.forEach(id => {
+        // Récupération de l'élément réel dans le DOM via l'ID stocké
+        // (S'adapte à ta structure data-pid ou id de verset)
+        const originalEl = paragraphsData.get(id)?.paragraphs[0];
+        
+        if (originalEl) {
+            const clone = originalEl.cloneNode(true);
+            
+            // On force le positionnement absolu pour respecter la place originale dans l'article
+            clone.style.position = 'absolute';
+            clone.style.top = `${originalEl.offsetTop}px`;
+            clone.style.left = `${originalEl.offsetLeft}px`;
+            clone.style.width = `${originalEl.offsetWidth}px`;
+            
+            // Important : on s'assure que les marges ne se cumulent pas
+            clone.style.margin = getComputedStyle(originalEl).margin;
+
+            // 4. Mapping des tokens (mots/ponctuation) pour la loupe
+            const originalTokens = originalEl.querySelectorAll('.word, .punctuation, .escape');
+            const clonedTokens = clone.querySelectorAll('.word, .punctuation, .escape');
+            
+            for (let i = 0; i < originalTokens.length; i++) {
+                if (originalTokens[i] && clonedTokens[i]) {
+                    magnifierElementMap.set(originalTokens[i], clonedTokens[i]);
+                }
+            }
+
+            ghostContainer.appendChild(clone);
+        }
+    });
+
+    // 5. Injection dans la loupe
+    magnifierContent.appendChild(ghostContainer);
+}
+
 function updateMagnifier(x, y) {
-    const magnifierSize = 130;
-    const zoomFactor = 1;
-
-    // Position de la loupe (décalée vers le haut pour ne pas être sous la souris)
+    // 1. Position de la bulle sur l'écran (Fixed)
     const offsetX = x - magnifierSize / 2;
-    const offsetY = y - magnifierSize + 40;
+    const offsetY = y - magnifierSize + 20; // Positionnée au dessus du doigt
 
-    magnifier.style.left = `${offsetX}px`;
-    magnifier.style.top = `${offsetY}px`;
-    magnifier.classList.remove('hide'); // Assurez-vous qu'elle est visible
+    magnifierWrapper.style.transform = `translate3d(${offsetX}px, ${offsetY}px, 0)`;
+    magnifierWrapper.classList.remove("hide");
 
-    // Calcul de la position pour centrer la zone zoomée
-    const centerX = magnifierSize / 2;
-    const centerY = magnifierSize / 2;
+    // 2. Alignement du contenu INTERNE
+    // On doit utiliser le rectangle de pageCenter pour être précis au pixel près
+    const rect = pageCenter.getBoundingClientRect();
     const scrollY = pageCenter.scrollTop;
 
-    // Position du contenu zoomé
-    //magnifierContent.style.transform = `scale(${zoomFactor})`;
-    //magnifierContent.style.left = `${centerX - x * zoomFactor}px`;
-    //magnifierContent.style.top = `${centerY - y - 40 - scrollY * zoomFactor}px`;
+    const halfW = magnifierSize / 2;
+    const halfH = 45 / 2; // Ta hauteur de loupe est de 45px dans ton CSS
+
+    // On calcule la position relative du toucher par rapport au haut du contenu total
+    // (Position du doigt dans le viewport) - (Position du conteneur) + (Scroll accumulé)
+    const relativeX = (x - rect.left) * zoomFactor;
+    const relativeY = (y - rect.top + scrollY + 20) * zoomFactor;
+
+    const moveX = halfW - relativeX;
+    const moveY = halfH - relativeY;
+
+    if (magnifierContent) {
+        const target = magnifierContent.firstElementChild;
+        if (target) {
+            target.style.transformOrigin = '0 0';
+            // On utilise translate3d pour la performance
+            target.style.transform = `translate3d(${moveX}px, ${moveY}px, 0) scale(${zoomFactor})`;
+        }
+    }
 }
 
 function hideMagnifier() {
-    magnifier.classList.add('hide');
+    magnifierWrapper.classList.add("hide");
 }
 
 // Votre fonction actuelle est la bonne méthode.
@@ -6803,24 +6829,32 @@ function getAllWordsAndPuncts() {
     return allTokens;
 }
 
+function getAllWordsPunctsAndEscape() {
+    let allTokens = [];
+
+    // Parcourir tous les paragraphes dans la Map
+    paragraphsData.forEach(paragraphData => {
+        // Ajouter les wordAndPunctTokens de chaque paragraphe
+        allTokens = allTokens.concat(paragraphData.allTokens);
+    });
+
+    return allTokens;
+}
+
 function ensureParagraphIndexed(paragraphData) {
     if (!paragraphData || paragraphData.allTokens) return;
 
-    // On récupère tous les tokens (mots, ponctuation, espaces)
     const tokens = paragraphData.paragraphs.flatMap(el =>
         Array.from(el.querySelectorAll('.word, .punctuation, .escape'))
     );
     
     paragraphData.allTokens = tokens;
-    // On filtre pour n'avoir que ce qui est "surlignable"
     paragraphData.wordAndPunctTokens = tokens.filter(t => 
         t.classList.contains('word') || t.classList.contains('punctuation')
     );
     
     const indexMap = new Map();
-    for (let i = 0; i < tokens.length; i++) {
-        indexMap.set(tokens[i], i);
-    }
+    tokens.forEach((t, i) => indexMap.set(t, i));
     paragraphData.indexInAll = indexMap;
 }
 

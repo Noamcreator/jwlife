@@ -62,7 +62,7 @@ class _LanguageDialogState extends State<LanguageDialog> {
 
     if (await mepsUnitFile.exists()) {
       try {
-        database = await openDatabase(mepsUnitFile.path);
+        database = await openReadOnlyDatabase(mepsUnitFile.path);
         await _fetchAllLanguages(selectedLanguage!);
       } finally {
         // La base de données est fermée après l'opération

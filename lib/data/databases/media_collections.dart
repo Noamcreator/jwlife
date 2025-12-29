@@ -31,8 +31,6 @@ class MediaCollections {
     // Chargement des publications
     //File mepsFile = await getMepsFile();
 
-    //await _database.execute("ATTACH DATABASE '${mepsFile.path}' AS meps");
-
     List<Map<String, dynamic>> audiosResult = await _database.rawQuery('''
       SELECT Audio.*, MediaKey.* FROM Audio
       LEFT JOIN MediaKey ON Audio.MediaKeyId = MediaKey.MediaKeyId

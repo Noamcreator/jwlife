@@ -232,6 +232,10 @@ class JwLifePageState extends State<JwLifePage> with WidgetsBindingObserver {
   }
 
   void changeNavBarIndex(int index, {bool goToFirstPage = false}) {
+    if (!loadedNavigators.value.contains(index)) {
+      loadedNavigators.value = {...loadedNavigators.value, index};
+    }
+
     if (index == currentNavigationBottomBarIndex.value) {
       returnToFirstPage(index);
     }
@@ -363,9 +367,10 @@ class JwLifePageState extends State<JwLifePage> with WidgetsBindingObserver {
                       return IndexedStack(
                         index: index,
                         children: List.generate(6, (i) {
-                          if (i == index || loaded.contains(i)) {
+                          if (loaded.contains(i) || i == index) {
                             return _createNavigator(i);
                           }
+                          // Sinon, on met un placeholder léger
                           return const SizedBox.shrink();
                         }),
                       );

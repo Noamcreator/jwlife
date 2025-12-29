@@ -421,16 +421,6 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
                         },
                       );
 
-                      // Récupérer un guid
-                      controller.addJavaScriptHandler(
-                        handlerName: 'getGuid',
-                        callback: (args) {
-                          return {
-                            'Guid': Uuid().v4()
-                          };
-                        },
-                      );
-
                       controller.addJavaScriptHandler(
                         handlerName: 'getUserdata',
                         callback: (args) {

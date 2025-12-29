@@ -141,7 +141,14 @@ class RectangleTopicItem extends StatelessWidget {
     return Material(
       color: itemBackgroundColor,
       child: InkWell(
-        onTap: () => showDocumentView(context, topic['MepsDocumentId'], topic['MepsLanguageId']),
+        onTap: () {
+          if(topic['Type'] == 'heading') {
+            showDocumentView(context, topic['MepsDocumentId'], topic['MepsLanguageId'], startParagraphId: topic['BeginParagraphOrdinal'], endParagraphId: topic['EndParagraphOrdinal']);
+          }
+          else if(topic['Type'] == 'topic') {
+            showDocumentView(context, topic['MepsDocumentId'], topic['MepsLanguageId']);
+          }
+        },
         child: SizedBox(
           height: kSquareItemHeight,
           child: Stack(
@@ -170,7 +177,7 @@ class RectangleTopicItem extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            publication.title,
+                            topic['ParentTitle'] != null ? '${publication.getShortTitle()} • ${topic['ParentTitle']}' : publication.getShortTitle(),
                             style: TextStyle(fontSize: 12, color: subtitleColor),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,

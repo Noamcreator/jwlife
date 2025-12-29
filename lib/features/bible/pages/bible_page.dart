@@ -25,6 +25,10 @@ class BiblePageState extends State<BiblePage> {
     _bibleMenuPage?.currentState?.goToTheBooksTab();
   }
 
+  void refreshColor() {
+    _bibleMenuPage?.currentState?.refreshBibleColors();
+  }
+
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder<String>(

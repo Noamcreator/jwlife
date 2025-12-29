@@ -946,10 +946,44 @@ Mise à jour de Flutter : 3.38.4 → 3.38.5
 - Vérification de la connexion Internet avant l’affichage ou la copie des paroles d’un audio.
 - Correction d’un problème d’écran noir après l’export d’une sauvegarde depuis l’onglet Personnel.
 - Amélioration de l’affichage des paroles pour les audios.
-- Harmonisation de l’affichage des menus des playlists avec l’utilisation des trois points horizontaux.
+- Harmonisation de l’affichage des menus des playlists avec l’utilisation des trois points horizontauxe.
 
 📦 Mises à Jour Techniques
 - Mise à jour de la base de langues mepsunit.db depuis la dernière version de JW Library.
 - Adaptation du format des dates à la langue de l’utilisateur (ex. 27/12/2025).
 - Mise à jour de file_picker de la version 10.3.7 vers 10.3.8.
 - Mise à jour de gpt_markdown de la version 1.1.4 vers 1.1.5.
+
+📢 Mise à jour – v1.3.1 (29/12/2025)
+
+🚀 Nouvelles Fonctionnalités
+- Possibilité d’ouvrir et de consulter des bibles en anglais qui ne sont pas issues de la Traduction du monde nouveau, comme la King James Version.
+- Ajout d’une loupe fonctionnelle dans les WebView permettant de visualiser en temps réel le contenu en cours de surlignage.
+- Ajout des éléments de recherche issus du Guide de recherche pour enrichir les suggestions dans la recherche globale ainsi que dans la recherche de la bibliothèque.
+- Ajout d’une barre de progression lors du téléchargement des audios, visible directement dans le menu de téléchargement.
+
+🧩 Améliorations de l’Expérience
+- Les accents ne sont désormais plus pris en compte dans la recherche : il est possible de taper « jesus » et d’obtenir des résultats pour « Jésus », aussi bien dans la recherche globale que dans celle de la bibliothèque.
+- Amélioration de la gestion de l’affichage des références bibliques : lorsque deux versets consécutifs sont sélectionnés (ex. Genèse 3:15 et 16), l’affichage est désormais correctement formaté en « Genèse 3:15-16 ».
+- Amélioration de la rapidité d’ouverture du menu d’une publication, avec un espace réservé et optimisé pour l’affichage de l’image rectangulaire.
+
+🎨 Interface & Design
+- Harmonisation du rond de rafraîchissement avec celui utilisé dans toute l’application, avec adaptation automatique à la couleur du thème actif.
+- Amélioration des couleurs des livres de la Bible en fonction du thème sélectionné.
+- Actualisation instantanée de la couleur des livres de la Bible lors d’un changement de thème depuis le menu, sans nécessiter de rechargement.
+- Le bouton flottant (Floating Action Button) s’adapte désormais automatiquement à la couleur du thème lors d’un changement dans les paramètres.
+
+⚙️ Optimisation
+- Optimisation de la décompression du catalogue lors d’une mise à jour de celui-ci.
+- Optimisation de la conversion des fichiers JSON vers la base de données Realm.
+- Amélioration significative de la vitesse de chargement au démarrage de l’application : plusieurs actions sont maintenant exécutées en simultané afin d’afficher le contenu le plus rapidement possible.
+
+🐞 Corrections & Stabilité
+- Correction d’un bug affectant certaines langues lors du clic sur un verset depuis les résultats de recherche globale dans la section « TOUT ».
+- Correction de petits bugs liés au surlignage apparus dans les dernières versions : lorsque le surlignage était effectué rapidement, il pouvait parfois disparaître, ce problème est désormais résolu.
+- Correction de plusieurs bugs liés aux bases de données afin d’éviter des plantages de l’application.
+- Correction d’un bug lors du remplacement d’un marque-page dans la Bible : la référence s’affichait deux fois (ex. Genèse 3:15:15), elle est désormais correctement affichée une seule fois (Genèse 3:15).
+
+📦 Mises à Jour Techniques
+- Amélioration globale de la gestion et de la stabilité des bases de données.
+- Optimisation des processus internes liés aux recherches, au chargement des contenus et à l’affichage dynamique des éléments selon le thème.

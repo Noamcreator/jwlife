@@ -7,6 +7,7 @@ import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/widgets/image_cached_widget.dart';
 
 import '../../../../core/utils/utils_jwpub.dart';
+import '../../../../core/utils/widgets_utils.dart';
 import '../../../../i18n/i18n.dart';
 import 'search_model.dart';
 
@@ -33,14 +34,7 @@ class _VersesSearchTabState extends State<VersesSearchTab> {
       future: widget.model.fetchVerses(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return Center(
-            child: CircularProgressIndicator(
-              strokeWidth: 2.5,
-              valueColor: AlwaysStoppedAnimation<Color>(
-                isDark ? Colors.blue[300]! : Colors.blue[700]!,
-              ),
-            ),
-          );
+          return getLoadingWidget(Theme.of(context).primaryColor);
         } else if (snapshot.hasError) {
           return Center(
             child: Padding(

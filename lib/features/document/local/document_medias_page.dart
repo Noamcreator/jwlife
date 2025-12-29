@@ -17,6 +17,7 @@ import '../../../../../data/models/video.dart';
 import '../../../../../i18n/i18n.dart';
 import '../../../../../widgets/mediaitem_item_widget.dart';
 import '../../../../../widgets/responsive_appbar_actions.dart';
+import '../../../core/utils/widgets_utils.dart';
 import '../data/models/document.dart';
 import '../data/models/multimedia.dart';
 import '../../image/pages/full_screen_image_page.dart';
@@ -119,7 +120,7 @@ class _DocumentMediasViewState extends State<DocumentMediasView> {
         ],
       ),
       body: (videos.isEmpty && images.isEmpty)
-          ? const Center(child: CircularProgressIndicator())
+          ? getLoadingWidget(Theme.of(context).primaryColor)
           : SingleChildScrollView(
         padding: EdgeInsets.all(spacing),
         child: Column(

@@ -12,6 +12,7 @@ import 'package:jwlife/widgets/image_cached_widget.dart';
 import '../../../../../app/app_page.dart';
 import '../../../../../app/services/global_key_service.dart';
 import '../../../../../data/models/video.dart';
+import '../../../core/utils/widgets_utils.dart';
 import '../../document/data/models/multimedia.dart';
 
 class FullScreenImagePage extends StatefulWidget {
@@ -172,9 +173,7 @@ class _FullScreenImagePageState extends State<FullScreenImagePage> {
                 // Retrait du dispose/réinitialisation du PhotoViewController pour la performance
               });
             },
-            loadingBuilder: (context, event) => const Center(
-              child: CircularProgressIndicator(color: Colors.white),
-            ),
+            loadingBuilder: (context, event) => getLoadingWidget(Colors.white)
           ),
 
           // Barre supérieure

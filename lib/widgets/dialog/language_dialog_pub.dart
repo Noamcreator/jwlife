@@ -5,6 +5,7 @@ import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/files_helper.dart';
+import 'package:jwlife/core/utils/utils_database.dart';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/repositories/PublicationRepository.dart';
 import 'package:jwlife/data/databases/catalog.dart';
@@ -82,11 +83,11 @@ class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
   }
 
   Future<void> _fetchAllPubLanguages() async {
-    Database? database = CatalogDb.instance.database;
+    Database? db = CatalogDb.instance.database;
 
     File mepsUnitFile = await getMepsUnitDatabaseFile();
 
-    await database.execute('ATTACH DATABASE ? AS meps', [mepsUnitFile.path]);
+    await attachDatabases(db, {'meps': mepsUnitFile.path});
 
     // PrimaryIetfCode de la langue source
     String sourceLanguageLocale = JwLifeSettings.instance.locale.languageCode;
@@ -217,9 +218,9 @@ class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
     // ==========================================================
 
     List<Map<String, dynamic>> response =
-    await database.rawQuery(baseQuery, arguments);
+    await db.rawQuery(baseQuery, arguments);
 
-    await database.execute('DETACH DATABASE meps');
+    await detachDatabases(db, ['meps']);
 
     List<Map<String, dynamic>> languagesModifiable = List.from(response);
 

@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../app/services/settings_service.dart';
 import '../../../../core/icons.dart';
+import '../../../../core/utils/widgets_utils.dart';
 import '../../../../data/models/video.dart';
 import '../../../../widgets/image_cached_widget.dart';
 
@@ -31,7 +32,7 @@ class _VideosSearchTabState extends State<VideosSearchTab> {
       future: widget.model.fetchVideos(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+          return getLoadingWidget(Theme.of(context).primaryColor);
         } else if (snapshot.hasError) {
           return Center(child: Text('Erreur: ${snapshot.error}'));
         } else if (!snapshot.hasData || snapshot.data!.isEmpty) {

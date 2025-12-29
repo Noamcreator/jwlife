@@ -5,6 +5,7 @@ import 'package:html/dom.dart' as html;
 import '../../../app/app_page.dart';
 import '../../../core/api/api.dart';
 import '../../../core/utils/utils.dart';
+import '../../../core/utils/widgets_utils.dart';
 
 class BibleView extends StatefulWidget {
   final String link;
@@ -104,7 +105,7 @@ class _BibleViewState extends State<BibleView> {
         title: Text("Bible View"),
       ),
       body: _isLoading
-          ? Center(child: CircularProgressIndicator())
+          ? getLoadingWidget(Theme.of(context).primaryColor)
           : SingleChildScrollView(
         padding: EdgeInsets.all(16),
         child: Column(

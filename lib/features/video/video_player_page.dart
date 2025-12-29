@@ -19,6 +19,7 @@ import '../../app/app_page.dart';
 import '../../app/services/global_key_service.dart';
 import '../../core/api/api.dart';
 import '../../core/utils/utils_playlist.dart';
+import '../../core/utils/widgets_utils.dart';
 import '../../i18n/i18n.dart';
 import 'subtitles.dart';
 
@@ -954,9 +955,7 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
                     valueListenable: _isInitializedNotifier,
                     builder: (context, isInitialized, child) {
                       if (_controller == null || !isInitialized) {
-                        return CircularProgressIndicator(
-                          color: Theme.of(context).primaryColor,
-                        );
+                        return getLoadingWidget(Theme.of(context).primaryColor);
                       }
 
                       return Stack(

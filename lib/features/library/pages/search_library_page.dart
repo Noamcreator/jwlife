@@ -21,6 +21,7 @@ import '../../../app/services/settings_service.dart';
 import '../../../core/ui/app_dimens.dart';
 import '../../../core/utils/common_ui.dart';
 import '../../../core/utils/utils.dart';
+import '../../../core/utils/utils_database.dart';
 import '../../../core/utils/widgets_utils.dart';
 import '../../../data/models/audio.dart';
 import '../../../data/models/video.dart';
@@ -88,28 +89,66 @@ class SearchLibraryPageState extends State<SearchLibraryPage> {
       MepsLanguage mepsLanguage = JwLifeSettings.instance.currentLanguage.value;
 
       /// RECHERCHE DES TOPICS
-      final pubsWithTopics = PublicationRepository().getAllDownloadedPublications().where((pub) => pub.hasTopics && pub.mepsLanguage.symbol == mepsLanguage.symbol).toList();
+      final pubsWithTopics = PublicationRepository().getAllDownloadedPublications().where((pub) => (pub.hasTopics || pub.hasHeading) && pub.mepsLanguage.symbol == mepsLanguage.symbol).toList();
 
       for (final pub in pubsWithTopics) {
         Database? db = pub.documentsManager?.database ?? await openReadOnlyDatabase(pub.databasePath!);
 
-        final topics = await db.rawQuery('''
-          SELECT Topic.DisplayTopic, Document.MepsDocumentId
-          FROM Topic
-          LEFT JOIN TopicDocument ON Topic.TopicId = TopicDocument.TopicId
-          LEFT JOIN Document ON TopicDocument.DocumentId = Document.DocumentId
-          WHERE LOWER(Topic.Topic) LIKE ?
-        ''', ['%$normalizedQuery%']);
-
-        for (var row in topics) {
-          topicResults.add({
-            'Type': 'topic',
-            'MepsDocumentId': row['MepsDocumentId'],
-            'MepsLanguageId': mepsLanguage.id,
-            'Title': row['DisplayTopic'] as String,
-            'Publication': pub,
-          });
+        if(!db.isOpen && pub.documentsManager != null ) {
+          pub.documentsManager!.database = await openReadOnlyDatabase(pub.databasePath!);
         }
+
+        if (pub.hasHeading) {
+          final sqlColumn = buildAccentInsensitiveQuery('Child.Title');
+          final headings = await db.rawQuery('''
+            SELECT 
+              Child.DisplayTitle, 
+              Parent.DisplayTitle AS ParentTitle,
+              Child.BeginParagraphOrdinal, 
+              Child.EndParagraphOrdinal, 
+              Child.ContentEndParagraphOrdinal, 
+              Document.MepsDocumentId
+            FROM Heading AS Child
+            INNER JOIN Document ON Child.DocumentId = Document.DocumentId
+            LEFT JOIN Heading AS Parent ON Child.ParentHeadingId = Parent.HeadingId
+            WHERE $sqlColumn LIKE ?
+          ''', ['%$normalizedQuery%']);
+
+          for (var row in headings) {
+            topicResults.add({
+              'Type': 'heading',
+              'MepsDocumentId': row['MepsDocumentId'],
+              'BeginParagraphOrdinal': row['BeginParagraphOrdinal'],
+              'EndParagraphOrdinal': row['EndParagraphOrdinal'],
+              'ContentEndParagraphOrdinal': row['ContentEndParagraphOrdinal'],
+              'MepsLanguageId': mepsLanguage.id,
+              'ParentTitle': row['ParentTitle'],
+              'Title': row['DisplayTitle'] as String,
+              'Publication': pub,
+            });
+          }
+        }
+        else if(pub.hasTopics) {
+          final sqlColumn = buildAccentInsensitiveQuery('Topic.Topic');
+          final topics = await db.rawQuery('''
+            SELECT Topic.DisplayTopic, Document.MepsDocumentId
+            FROM Topic
+            LEFT JOIN TopicDocument ON Topic.TopicId = TopicDocument.TopicId
+            LEFT JOIN Document ON TopicDocument.DocumentId = Document.DocumentId
+            WHERE $sqlColumn LIKE ?
+          ''', ['%$normalizedQuery%']);
+
+          for (var row in topics) {
+            topicResults.add({
+              'Type': 'topic',
+              'MepsDocumentId': row['MepsDocumentId'],
+              'MepsLanguageId': mepsLanguage.id,
+              'Title': row['DisplayTopic'] as String,
+              'Publication': pub,
+            });
+          }
+        }
+
         if (pub.documentsManager == null) await db.close();
       }
 
@@ -268,7 +307,7 @@ class SearchLibraryPageState extends State<SearchLibraryPage> {
                       return RectangleMediaItemItem(media: item, searchWidget: true);
                     } else if (item is Publication) {
                       return RectanglePublicationItem(publication: item, searchWidget: true);
-                    } else if (item is Map && item['Type'] == 'topic') {
+                    } else if (item is Map && (item['Type'] == 'topic' || item['Type'] == 'heading')) {
                       return RectangleTopicItem(topic: item, publication: item['Publication']);
                     }
                     return const SizedBox.shrink();

@@ -7,6 +7,7 @@ import 'package:jwlife/data/models/userdata/congregation.dart';
 
 import '../../../app/app_page.dart';
 import '../../../app/jwlife_app.dart';
+import '../../../core/utils/widgets_utils.dart';
 import 'contact_editor_page.dart';
 
 class BrothersAndSistersPage extends StatefulWidget {
@@ -195,7 +196,7 @@ class _BrothersAndSistersPageState extends State<BrothersAndSistersPage> {
         title: 'Frères et Soeurs',
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? getLoadingWidget(Theme.of(context).primaryColor)
           : Column(
         children: [
           // DropdownButton pour sélectionner une congrégation

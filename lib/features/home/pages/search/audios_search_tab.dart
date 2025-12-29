@@ -6,6 +6,7 @@ import 'package:jwlife/core/utils/utils_video.dart';
 import 'package:jwlife/data/realm/catalog.dart';
 
 import '../../../../app/services/settings_service.dart';
+import '../../../../core/utils/widgets_utils.dart';
 import '../../../../data/models/audio.dart';
 import 'search_model.dart';
 
@@ -30,7 +31,7 @@ class _AudioSearchTabState extends State<AudioSearchTab> {
       future: widget.model.fetchAudios(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+          return getLoadingWidget(Theme.of(context).primaryColor);
         } else if (snapshot.hasError) {
           return Center(child: Text('Erreur: ${snapshot.error}'));
         } else if (!snapshot.hasData || snapshot.data!.isEmpty) {

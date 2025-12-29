@@ -543,6 +543,7 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
                     allowContentAccess: true,
                     useHybridComposition: true,
                     hardwareAcceleration: true,
+                    allowsLinkPreview: false,
                   ),
                   initialData: InAppWebViewInitialData(
                       data: createReaderHtmlShell(
@@ -741,16 +742,6 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
                         List<dynamic> dynamicTags = args[1] as List<dynamic>;
                         List<int> tagsId = dynamicTags.whereType<int>().cast<int>().toList(); // Reste du code inchangé
                         return getFilteredTags(query, tagsId).map((t) => t.toMap()).toList();
-                      },
-                    );
-
-                    // Récupérer un guid
-                    controller.addJavaScriptHandler(
-                      handlerName: 'getGuid',
-                      callback: (args) {
-                        return {
-                          'Guid': Uuid().v4()
-                        };
                       },
                     );
 

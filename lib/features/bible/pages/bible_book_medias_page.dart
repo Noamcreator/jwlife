@@ -1,3 +1,4 @@
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:jwlife/app/jwlife_app_bar.dart';
 import 'package:jwlife/core/icons.dart';
@@ -8,6 +9,7 @@ import 'package:jwlife/widgets/responsive_appbar_actions.dart';
 
 import '../../../app/app_page.dart';
 import '../../../core/utils/common_ui.dart';
+import '../../../core/utils/widgets_utils.dart';
 import '../../../i18n/i18n.dart';
 import '../../document/data/models/multimedia.dart';
 import '../../image/pages/full_screen_image_page.dart';
@@ -140,11 +142,9 @@ class _BibleBookMediasViewState extends State<BibleBookMediasView> {
   }
 
   String _getChapterTitle(int chapterId) {
-    final bookName = widget.bibleBook.bookInfo['BookName'] as String;
-    return '$bookName $chapterId';
+    final bibleDocument = widget.bible.documentsManager!.documents.firstWhereOrNull((d) => d.bookNumber == widget.bibleBook.bookInfo['BibleBookId'] && d.chapterNumber == chapterId);
+    return bibleDocument?.getDisplayTitle() ?? '';
   }
-
-  // --- Tuile d'Image ---
 
   Widget imageTile(BuildContext context, Multimedia media, List<Multimedia> allMediasInGroup, double screenWidth) {
     final double labelFontSize = screenWidth > 600 ? 13.0 : 11.0;
@@ -227,7 +227,7 @@ class _BibleBookMediasViewState extends State<BibleBookMediasView> {
         ],
       ),
       body: isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? getLoadingWidget(Theme.of(context).primaryColor)
           : groupedMedias.isEmpty
           ? Center(child: Text(i18n().message_no_media_title))
           : ListView.builder(

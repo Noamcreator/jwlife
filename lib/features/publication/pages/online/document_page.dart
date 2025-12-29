@@ -12,6 +12,7 @@ import '../../../../../app/app_page.dart';
 import '../../../../../core/api/api.dart';
 import '../../../../../core/utils/utils.dart';
 import '../../../../../i18n/i18n.dart';
+import '../../../../core/utils/widgets_utils.dart';
 import 'publication_media_items_view.dart';
 
 class PagesDocumentView extends StatefulWidget {
@@ -331,7 +332,7 @@ class _PagesDocumentViewState extends State<PagesDocumentView> {
         ],
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? getLoadingWidget(Theme.of(context).primaryColor)
           : _showNotes ? Container()
           : PageView.builder(
         controller: PageController(initialPage: _currentIndex),

@@ -76,7 +76,7 @@ Future<Map<String, dynamic>> fetchVerses(String link, Publication publication) a
 
   try {
     final File mepsFile = await getMepsUnitDatabaseFile();
-    final Database db = await openDatabase(mepsFile.path, readOnly: true);
+    final Database db = await openReadOnlyDatabase(mepsFile.path);
 
     // SQL Corrigé : On sélectionne les chapitres de manière linéaire
     // (Book * 1000 + Chapter) permet de créer un index unique croissant pour comparer facilement
@@ -133,7 +133,7 @@ Future<Map<String, dynamic>> fetchVerses(String link, Publication publication) a
 
     final bibles = PublicationRepository().getOrderBibles();
     final items = await Future.wait(bibles.map((bible) async {
-      Database? bibleDb = bible.documentsManager?.database ?? await openDatabase(bible.databasePath!, readOnly: true);
+      Database? bibleDb = bible.documentsManager?.database ?? await openReadOnlyDatabase(bible.databasePath!);
 
       final String typeKey = bible.keySymbol.contains('nwt') ? 'NWTR' : 'NWT';
       final List<List<int>> segments = bibleSegments[typeKey] ?? [];
@@ -859,7 +859,7 @@ Future<List<Map<String, dynamic>>> fetchOtherVerseVersion(BuildContext context, 
     for (var bible in PublicationRepository().getOrderBibles()) {
       Database? bibleDb;
       if(bible.documentsManager == null) {
-        bibleDb = await openDatabase(bible.databasePath!);
+        bibleDb = await openReadOnlyDatabase(bible.databasePath!);
       }
       else {
         bibleDb = bible.documentsManager!.database;
@@ -953,7 +953,7 @@ Future<List<Map<String, dynamic>>> fetchVerseResearchGuide(
       try {
         // Ouvrir la base de données si nécessaire
         if (publication.documentsManager == null) {
-          db = await openDatabase(publication.databasePath!);
+          db = await openReadOnlyDatabase(publication.databasePath!);
         } else {
           db = publication.documentsManager!.database;
         }

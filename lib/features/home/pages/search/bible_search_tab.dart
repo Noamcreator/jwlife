@@ -4,6 +4,7 @@ import 'package:jwlife/data/repositories/PublicationRepository.dart';
 
 import '../../../../app/services/settings_service.dart';
 import '../../../../core/utils/html_styles.dart';
+import '../../../../core/utils/widgets_utils.dart';
 import '../../../../data/models/publication.dart';
 import 'search_model.dart';
 
@@ -30,14 +31,7 @@ class _BibleSearchTabState extends State<BibleSearchTab> {
       future: widget.model.fetchBible(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return Center(
-            child: CircularProgressIndicator(
-              strokeWidth: 2.5,
-              valueColor: AlwaysStoppedAnimation<Color>(
-                isDark ? Colors.blue[300]! : Colors.blue[700]!,
-              ),
-            ),
-          );
+          return getLoadingWidget(Theme.of(context).primaryColor);
         } else if (snapshot.hasError) {
           return Center(
             child: Padding(
@@ -128,7 +122,6 @@ class _BibleSearchTabState extends State<BibleSearchTab> {
                   int verseNumber = int.parse(itemString2.substring(5, 8));
 
                   final publications = PublicationRepository().getAllDownloadedPublications().where((pub) => pub.category.id == 1 && pub.mepsLanguage.symbol == JwLifeSettings.instance.currentLanguage.value.symbol).toList();
-
                   Publication? latestBible = publications.isEmpty ? null : publications.reduce((a, b) => a.year > b.year ? a : b);
 
                   List<String> wordsSelected = widget.model.query.split(' ');

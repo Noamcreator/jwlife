@@ -16,6 +16,7 @@ import '../../../core/api/api.dart';
 import '../../../core/utils/directory_helper.dart';
 import '../../../core/utils/utils.dart';
 import '../../../core/utils/utils_language_dialog.dart';
+import '../../../core/utils/widgets_utils.dart';
 import '../../../data/databases/catalog.dart';
 import '../../../data/models/publication.dart';
 import '../../../data/models/video.dart';
@@ -196,7 +197,7 @@ class _AlertsListPageState extends State<AlertsListPage> {
           )
         ],
       ),
-      body: _isLoadingHtml ? const Center(child: CircularProgressIndicator()) : InAppWebView(
+      body: _isLoadingHtml ? getLoadingWidget(Theme.of(context).primaryColor) : InAppWebView(
         initialSettings: InAppWebViewSettings(
           scrollBarStyle: null,
           verticalScrollBarEnabled: false,

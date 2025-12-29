@@ -122,10 +122,10 @@ Future<void> handleResetUserdata(BuildContext context) async {
       builder: (ctx) {
         // L'ASSIGNATION du Context du dialogue se fait ici.
         dialogContext = ctx;
-        return const Center(
+        return Center(
           child: SizedBox(
             height: 70,
-            child: Center(child: CircularProgressIndicator()),
+            child: getLoadingWidget(Theme.of(context).primaryColor),
           ),
         );
       },

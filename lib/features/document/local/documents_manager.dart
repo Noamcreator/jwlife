@@ -34,15 +34,17 @@ class DocumentsManager {
       if (publication.isBible()) {
         result = await database.rawQuery("""
           SELECT 
-            Document.*, 
-            (SELECT Title 
-             FROM PublicationViewItem pvi 
-             JOIN PublicationViewSchema pvs 
-               ON pvi.SchemaType = pvs.SchemaType
-             WHERE pvi.DefaultDocumentId = Document.DocumentId 
-               AND pvs.DataType = 'name'
-             LIMIT 1
+            Document.*,
+            (
+              SELECT Title
+              FROM PublicationViewItem pvi
+              JOIN PublicationViewSchema pvs
+                ON pvi.SchemaType = pvs.SchemaType
+              WHERE pvi.DefaultDocumentId = Document.DocumentId
+                AND pvs.DataType = 'name'
+              LIMIT 1
             ) AS DisplayTitle,
+      
             BibleChapter.BookNumber,
             BibleChapter.ChapterNumber,
             BibleChapter.Content AS ChapterContent,
@@ -50,10 +52,10 @@ class DocumentsManager {
             BibleChapter.PostContent,
             BibleChapter.FirstVerseId,
             BibleChapter.LastVerseId
+      
           FROM Document
-          LEFT JOIN BibleChapter 
-              ON Document.Type = 2 
-              AND BibleChapter.BookNumber = Document.ChapterNumber
+          LEFT JOIN BibleBook ON Document.Type = 2 AND BibleBook.BookDocumentId = Document.DocumentId
+          LEFT JOIN BibleChapter ON BibleChapter.BookNumber = BibleBook.BibleBookId
           WHERE Document.Class <> 118;
         """);
       }

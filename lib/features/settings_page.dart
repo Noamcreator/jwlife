@@ -31,6 +31,7 @@ import '../core/utils/directory_helper.dart';
 import '../core/utils/files_helper.dart';
 import '../core/utils/utils.dart';
 import '../core/utils/utils_import_export.dart';
+import '../core/utils/widgets_utils.dart';
 import '../data/realm/catalog.dart';
 import '../data/realm/realm_library.dart';
 import '../widgets/settings_widget.dart';
@@ -171,7 +172,7 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
   Future<void> _getVernacularName(String languageCode) async {
     try {
       final mepsFile = await getMepsUnitDatabaseFile();
-      final database = await openDatabase(mepsFile.path);
+      final database = await openReadOnlyDatabase(mepsFile.path);
 
       final result = await database.rawQuery('''
         SELECT VernacularName FROM Language
@@ -847,11 +848,11 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
                 content: Builder(
                   builder: (ctx) {
                     dialogContext = ctx;
-                    return const Padding(
+                    return Padding(
                       padding: EdgeInsets.symmetric(horizontal: 25),
                       child: SizedBox(
                         height: 50,
-                        child: Center(child: CircularProgressIndicator()),
+                        child: getLoadingWidget(Theme.of(context).primaryColor),
                       ),
                     );
                   },

@@ -6,6 +6,7 @@ import 'package:jwlife/features/home/pages/search/search_model.dart';
 
 import '../../../../app/services/settings_service.dart';
 import '../../../../core/utils/html_styles.dart';
+import '../../../../core/utils/widgets_utils.dart';
 import '../../../../widgets/image_cached_widget.dart';
 
 class WolSearchTab extends StatefulWidget {
@@ -203,14 +204,7 @@ class _WolSearchTabState extends State<WolSearchTab> {
       future: widget.model.fetchWolSearch(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return Center(
-            child: CircularProgressIndicator(
-              strokeWidth: 2.5,
-              valueColor: AlwaysStoppedAnimation<Color>(
-                isDark ? Colors.blue[300]! : Colors.blue[700]!,
-              ),
-            ),
-          );
+          return getLoadingWidget(Theme.of(context).primaryColor);
         }
 
         if (snapshot.hasError) {
@@ -307,12 +301,7 @@ class _WolSearchTabState extends State<WolSearchTab> {
                     child: SizedBox(
                       width: 20,
                       height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          isDark ? Colors.grey[600]! : Colors.grey[400]!,
-                        ),
-                      ),
+                      child: getLoadingWidget(Theme.of(context).primaryColor)
                     ),
                   );
                 }

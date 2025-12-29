@@ -5,6 +5,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/core/utils/utils_video.dart';
+import 'package:jwlife/core/utils/widgets_utils.dart';
 import 'package:jwlife/data/models/media.dart';
 import 'package:jwlife/data/models/audio.dart';
 import 'package:jwlife/data/models/video.dart';
@@ -473,7 +474,7 @@ class _PlaylistPlayerPageState extends State<PlaylistPlayerPage> {
               ),
             );
           }
-          return const Center(child: CircularProgressIndicator(color: Colors.white));
+          return getLoadingWidget(Colors.white);
         },
       );
     }
@@ -503,9 +504,7 @@ class _PlaylistPlayerPageState extends State<PlaylistPlayerPage> {
     }
 
     // Cas par défaut (chargement en cours ou non supporté)
-    return Center(
-      child: CircularProgressIndicator(color: Theme.of(context).primaryColor),
-    );
+    return getLoadingWidget(Theme.of(context).primaryColor);
   }
 
   Widget _buildCenterPlayPauseOverlay() {

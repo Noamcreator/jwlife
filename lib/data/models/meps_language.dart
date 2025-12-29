@@ -78,7 +78,7 @@ class MepsLanguage {
   static Future<String> fromId(int mepsLanguageId) async {
     File mepsFile = await getMepsUnitDatabaseFile();
 
-    Database database = await openDatabase(mepsFile.path, readOnly: true);
+    Database database = await openReadOnlyDatabase(mepsFile.path);
 
     List<Map<String, dynamic>> results = await database.query(
         'Language',

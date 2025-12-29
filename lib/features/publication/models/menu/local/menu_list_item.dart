@@ -1,4 +1,6 @@
 class ListItem {
+  final int? publicationViewItemId;
+  final int? parentPublicationViewItemId;
   final String title;
   final String mediumTitle;
   final String largeTitle;
@@ -7,15 +9,17 @@ class ListItem {
   final String imageFilePath;
   final String? dataType;
   final int mepsDocumentId;
-  final bool isTitle; // Pour savoir si c'est un titre avec des sous-éléments
+  final bool isTitle;
   final bool isBibleBooks;
   final int? groupId;
   final int? bibleBookId;
   final bool? hasCommentary;
   final bool showImage;
-  final List<ListItem> subItems; // Liste des sous-éléments (si applicable)
+  final List<ListItem> subItems;
 
   ListItem({
+    this.publicationViewItemId,
+    this.parentPublicationViewItemId,
     this.title = '',
     this.mediumTitle = '',
     this.largeTitle = '',

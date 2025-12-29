@@ -3,6 +3,7 @@ import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
 
 import '../../../app/app_page.dart';
+import '../../../core/utils/widgets_utils.dart';
 
 class ContactEditorPage extends StatefulWidget {
   final String congregationId;
@@ -141,7 +142,7 @@ class _ContactEditorPageState extends State<ContactEditorPage> {
         title: const Text('Modifier le contact'),
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? getLoadingWidget(Theme.of(context).primaryColor)
           : Padding(
         padding: const EdgeInsets.all(16.0),
         child: Form(

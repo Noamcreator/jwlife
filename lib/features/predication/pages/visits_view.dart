@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:jwlife/core/utils/files_helper.dart';
+import 'package:jwlife/data/databases/catalog.dart';
 import 'package:sqflite/sqflite.dart';
 
 import '../../../app/app_page.dart';
@@ -78,16 +79,14 @@ class _VisitsViewState extends State<VisitsView> {
   }
 
   Future<void> _showAddVisitDialog() async {
-    File catalogFile = await getCatalogDatabaseFile();
-    Database catalogDb = await openDatabase(catalogFile.path);
+    Database catalogDb = CatalogDb.instance.database;
     List<Map<String, dynamic>> publications = await catalogDb.rawQuery('''
     SELECT * FROM Publication
     WHERE MepsLanguageId = ? AND IssueTagNumber = 0
   ''', [JwLifeSettings.instance.currentLanguage.value.id]);
-    await catalogDb.close();
 
     File pubCollectionsFile = await getPubCollectionsDatabaseFile();
-    Database pubCollectionDb = await openDatabase(pubCollectionsFile.path);
+    Database pubCollectionDb = await openReadOnlyDatabase(pubCollectionsFile.path);
     List<Map<String, dynamic>> downloadPublications = await pubCollectionDb.rawQuery('''
     SELECT * FROM Publication
     WHERE MepsLanguageId = ? AND IssueTagNumber = 0
@@ -172,7 +171,7 @@ class _VisitsViewState extends State<VisitsView> {
                               List<Map<String, dynamic>> docs = [];
                               if (publication.isNotEmpty) {
                                 // Si une publication correspondante est trouvée
-                                Database pubDb = await openDatabase(publication['DatabasePath']);
+                                Database pubDb = await openReadOnlyDatabase(publication['DatabasePath']);
                                 docs = await pubDb.rawQuery('SELECT * FROM Document');
                                 await pubDb.close();
                               }

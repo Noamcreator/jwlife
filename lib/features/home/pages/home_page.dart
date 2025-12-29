@@ -49,6 +49,39 @@ class HomePageState extends State<HomePage> {
     final horizontalPadding = (screenWidth * 0.03).clamp(8.0, 40.0);
     const double sizeDivider = 10;
 
+    final List<Widget> items = [
+      const LinearProgress(),
+      const AlertsBanner(),
+      const DailyTextWidget(),
+      const ArticlesWidget(),
+      const SizedBox(height: 30),
+
+      /// Sections avec padding horizontal
+      Padding(
+        padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+        child: Column(
+          children: [
+            FavoritesSection(
+              onReorder: (oldIndex, newIndex) {
+                if (newIndex > oldIndex) newIndex -= 1;
+                JwLifeApp.userdata.reorderFavorites(oldIndex, newIndex);
+              },
+            ),
+            const FrequentlyUsedSection(),
+            const SizedBox(height: sizeDivider),
+            const ToolboxSection(),
+            const SizedBox(height: sizeDivider),
+            const LatestPublicationSection(),
+            const SizedBox(height: 4),
+            const LatestMediasSection(),
+            const SizedBox(height: sizeDivider),
+            const OnlineSection(),
+            const SizedBox(height: 25),
+          ],
+        ),
+      ),
+    ];
+
     return AppPage(
       appBar: HomeAppBar(
         onOpenSettings: () {
@@ -56,47 +89,21 @@ class HomePageState extends State<HomePage> {
         },
       ),
       body: RefreshIndicator(
-        color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black,
-        backgroundColor: Theme.of(context).brightness == Brightness.dark ? Colors.black : Colors.white,
+        color: Theme.of(context).brightness == Brightness.dark
+            ? Colors.white
+            : Colors.black,
+        backgroundColor: Theme.of(context).brightness == Brightness.dark
+            ? Colors.black
+            : Colors.white,
         onRefresh: () async {
           if (await hasInternetConnection(context: context) && !AppDataService.instance.isRefreshing.value) {
-            await AppDataService.instance.refreshContent();
+            await AppDataService.instance.checkUpdatesAndRefreshContent();
           }
         },
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const LinearProgress(),
-              const AlertsBanner(),
-              const DailyTextWidget(),
-              const ArticlesWidget(),
-              const SizedBox(height: 30),
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
-                child: Column(
-                  children: [
-                    FavoritesSection(
-                      onReorder: (oldIndex, newIndex) {
-                        if (newIndex > oldIndex) newIndex -= 1;
-                        JwLifeApp.userdata.reorderFavorites(oldIndex, newIndex);
-                      },
-                    ),
-                    const FrequentlyUsedSection(),
-                    const SizedBox(height: sizeDivider),
-                    const ToolboxSection(),
-                    const SizedBox(height: sizeDivider),
-                    const LatestPublicationSection(),
-                    const SizedBox(height: 4),
-                    const LatestMediasSection(),
-                    const SizedBox(height: sizeDivider),
-                    const OnlineSection(),
-                    const SizedBox(height: 25),
-                  ],
-                ),
-              ),
-            ],
-          ),
+        child: ListView.builder(
+          padding: EdgeInsets.zero,
+          itemCount: items.length,
+          itemBuilder: (context, index) => items[index],
         ),
       ),
     );

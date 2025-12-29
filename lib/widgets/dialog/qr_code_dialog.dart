@@ -7,6 +7,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../core/assets.dart';
 import '../../core/ui/app_dimens.dart';
+import '../../core/utils/widgets_utils.dart';
 import '../../data/databases/tiles_cache.dart';
 import '../../i18n/i18n.dart';
 
@@ -233,7 +234,7 @@ class _QrCodeScannerDialogState extends State<QrCodeScannerDialog> {
       return _buildPermissionDeniedMessage();
     }
     else {
-      return const Center(child: CircularProgressIndicator());
+      return getLoadingWidget(Theme.of(context).primaryColor);
     }
   }
 

@@ -225,7 +225,7 @@ class _NotePageState extends State<NotePage> {
         );
       } else {
         if (pub.documentsManager == null) {
-          final db = await openDatabase(pub.databasePath!);
+          final db = await openReadOnlyDatabase(pub.databasePath!);
           final rows = await db.rawQuery(
             'SELECT Title FROM Document WHERE MepsDocumentId = ?',
             [_note.location.mepsDocumentId],

@@ -6,12 +6,14 @@ import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/core/utils/files_helper.dart';
 import 'package:jwlife/core/utils/utils.dart';
+import 'package:jwlife/core/utils/utils_database.dart';
 import 'package:jwlife/core/utils/utils_pub.dart';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/features/library/widgets/rectangle_mediaItem_item.dart';
 import 'package:jwlife/widgets/image_cached_widget.dart';
 import 'package:sqflite/sqflite.dart';
 
+import '../../../../core/utils/widgets_utils.dart';
 import '../../../../data/databases/catalog.dart';
 import '../../../../data/models/audio.dart';
 import '../../../../data/models/media.dart';
@@ -75,12 +77,9 @@ class _PendingUpdatesWidgetState extends State<PendingUpdatesWidget> {
     File mepsFile = await getMepsUnitDatabaseFile();
 
     if (await pubCollectionsFile.exists()) {
-      Database pubCollectionsDB = await openReadOnlyDatabase(
-          pubCollectionsFile.path);
-      await pubCollectionsDB.execute(
-          "ATTACH DATABASE '${mepsFile.path}' AS meps");
-      await pubCollectionsDB.execute(
-          "ATTACH DATABASE '${CatalogDb.instance.database.path}' AS catalog");
+      Database pubCollectionsDB = await openReadOnlyDatabase(pubCollectionsFile.path);
+
+      await attachDatabases(pubCollectionsDB, {'meps': mepsFile.path, 'catalog': CatalogDb.instance.database.path});
 
       List<Map<String, dynamic>> result = await pubCollectionsDB.rawQuery('''
         SELECT DISTINCT
@@ -126,8 +125,7 @@ class _PendingUpdatesWidgetState extends State<PendingUpdatesWidget> {
         }
       });
 
-      await pubCollectionsDB.execute("DETACH DATABASE catalog");
-      await pubCollectionsDB.execute("DETACH DATABASE meps");
+      await detachDatabases(pubCollectionsDB, ['meps', 'catalog']);
       await pubCollectionsDB.close();
     }
   }
@@ -141,7 +139,7 @@ class _PendingUpdatesWidgetState extends State<PendingUpdatesWidget> {
     }
 
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return getLoadingWidget(Theme.of(context).primaryColor);
     }
 
     return _buildContent();

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:jwlife/core/icons.dart';
+import 'package:jwlife/core/utils/widgets_utils.dart';
 import 'package:jwlife/features/home/pages/search/input_fields_search_tab.dart';
 import 'package:jwlife/features/home/pages/search/notes_search_tab.dart';
 import 'package:jwlife/features/home/pages/search/search_model.dart';
@@ -131,7 +132,7 @@ class _SearchPageState extends State<SearchPage> {
               (context) => WikipediaSearchTab(model: _searchModel),
         ],
       )
-          : Center(child: CircularProgressIndicator()),
+          : getLoadingWidget(Theme.of(context).primaryColor),
     );
   }
 }

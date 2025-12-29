@@ -123,10 +123,10 @@ class Api {
         printTime('Le fichier "catalog.db" a été téléchargé');
 
         printTime('Decompression de catalog.db en cours...');
-        await GZipHelper.decompressToFile(response.data, catalogFile);
+        await GZipHelper.decompressFileInBackground(response.data, catalogFile);
         printTime('Le fichier "catalog.db" a été décompressé avec succés dans : $catalogFile');
 
-        printTime('On met à jour ala dernière revision ($lastRevisionAvailable) du catalogue dans les préférences');
+        printTime('On met à jour la dernière revision ($lastRevisionAvailable) du catalogue dans les préférences');
         AppSharedPreferences.instance.setNewCatalogRevision(lastRevisionAvailable);
       }
       else {

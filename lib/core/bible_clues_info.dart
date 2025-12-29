@@ -80,22 +80,29 @@ class BibleCluesInfo {
     BibleBookName bookName = bibleBookNames.elementAt(book1 - 1);
     String bibleBookName = isAbbreviation ? bookName.officialBookAbbreviation : bookName.standardBookName;
 
+    // CAS 1 : Livres différents
     if (book1 != book2) {
       BibleBookName bookName2 = bibleBookNames.elementAt(book2 - 1);
       String bibleBookName2 = isAbbreviation ? bookName2.officialBookAbbreviation : bookName2.standardBookName;
 
       return '$bibleBookName $formattedChapter1$chapterVerseSeparator$formattedVerse1Text $nonConsecutiveRangeSeparator $bibleBookName2 $formattedChapter2$chapterVerseSeparator$formattedVerse2Text';
     }
+
+    // CAS 2 : Même livre, chapitres différents
     else if (chapter1 != chapter2) {
       return '$bibleBookName $formattedChapter1$chapterVerseSeparator$formattedVerse1Text $nonConsecutiveRangeSeparator $formattedChapter2$chapterVerseSeparator$formattedVerse2Text';
     }
+
+    // CAS 3 : Même livre, même chapitre, versets différents
     else if (verse1 != verse2) {
-      if (verse1 != verse2 - 1 || verse2 != verse1 - 1) {
-        return '$bibleBookName $formattedChapter1$chapterVerseSeparator$formattedVerse1Text$rangeSeparator$formattedVerse2Text';
+      if ((verse2 - verse1).abs() == 1) {
+        return '$bibleBookName $formattedChapter1$chapterVerseSeparator$formattedVerse1Text$separator $formattedVerse2Text';
       }
-      return '$bibleBookName $formattedChapter1$chapterVerseSeparator$formattedVerse1Text $separator $formattedVerse2Text';
+      // Si l'écart est supérieur à 1 (ex: 20-25)
+      return '$bibleBookName $formattedChapter1$chapterVerseSeparator$formattedVerse1Text$rangeSeparator$formattedVerse2Text';
     }
-    // Cas où book1 == book2, chapter1 == chapter2, verse1 == verse2
+
+    // CAS 4 : Tout est identique (un seul verset)
     return '$bibleBookName $formattedChapter1$chapterVerseSeparator$formattedVerse1Text';
   }
 
@@ -103,7 +110,7 @@ class BibleCluesInfo {
     File mepsFile = await getMepsUnitDatabaseFile();
 
     try {
-      Database db = await openDatabase(mepsFile.path);
+      Database db = await openReadOnlyDatabase(mepsFile.path);
       List<Map<String, dynamic>> result = await db.rawQuery("""
       SELECT 
         FirstBibleVerseId + (? - 1) +

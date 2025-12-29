@@ -14,6 +14,7 @@ import '../../../../../app/app_page.dart';
 import '../../../../../i18n/i18n.dart';
 import '../../../../../widgets/searchfield/searchfield_widget.dart';
 import '../../../../core/utils/utils.dart';
+import '../../../../core/utils/widgets_utils.dart';
 import '../../models/menu/local/publication_search_model.dart';
 
 class PublicationSearchView extends StatefulWidget {
@@ -343,11 +344,7 @@ class _PublicationSearchViewState extends State<PublicationSearchView> {
 
   Widget _buildUnifiedResultsList() {
     if (_isLoading) {
-      return Center(
-        child: CircularProgressIndicator(
-          color: Theme.of(context).primaryColor,
-        ),
-      );
+      return getLoadingWidget(Theme.of(context).primaryColor);
     }
 
     bool isBible = widget.publication.isBible();

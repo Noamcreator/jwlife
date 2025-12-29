@@ -5,6 +5,7 @@ import 'package:jwlife/app/app_page.dart';
 import 'package:jwlife/app/jwlife_app_bar.dart';
 
 import '../app/startup/auto_update.dart';
+import '../core/utils/widgets_utils.dart';
 import '../i18n/i18n.dart';
 
 class ReleasesPage extends StatefulWidget {
@@ -87,7 +88,7 @@ class _ReleasesPageState extends State<ReleasesPage> {
         valueListenable: releases,
         builder: (context, value, child) {
           if (value.isEmpty && _searchController.text.isEmpty) {
-            return const Center(child: CircularProgressIndicator());
+            return getLoadingWidget(Theme.of(context).primaryColor);
           }
 
           final displayList = _filteredReleases;

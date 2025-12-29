@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:html/parser.dart' as htmlParser;
 import 'package:jwlife/core/icons.dart';
+import 'package:jwlife/core/utils/widgets_utils.dart';
 import 'package:jwlife/data/models/publication.dart';
 
 import '../../../../../app/app_page.dart';
@@ -313,7 +314,7 @@ class _PublicationMenuState extends State<PublicationMenu> with SingleTickerProv
         ],
       ),
       body: _isLoading
-          ? Center(child: CircularProgressIndicator())
+          ? getLoadingWidget(Theme.of(context).primaryColor)
           : NestedScrollView(
         headerSliverBuilder: (context, innerBoxIsScrolled) {
           return [

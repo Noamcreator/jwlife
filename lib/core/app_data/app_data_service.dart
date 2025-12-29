@@ -7,6 +7,7 @@ import 'package:jwlife/core/api/api.dart';
 import 'package:jwlife/core/app_data/alert_info_service.dart';
 import 'package:jwlife/core/app_data/articles_service.dart';
 import 'package:jwlife/core/app_data/meetings_pubs_service.dart';
+import 'package:jwlife/core/utils/utils_database.dart';
 import 'package:jwlife/data/databases/catalog.dart';
 import 'package:jwlife/data/models/media.dart';
 import 'package:jwlife/data/models/meps_language.dart';
@@ -67,65 +68,47 @@ class AppDataService {
   final circuitBrPub = ValueNotifier<Publication?>(null);
   final circuitCoPub = ValueNotifier<Publication?>(null);
 
-  Future<void> refreshContent({bool first = false}) async {
+  Future<void> checkUpdatesAndRefreshContent({bool first = false}) async {
     printTime("Refresh start");
-    if (!await hasInternetConnection()) {
-      showBottomMessage(i18n().message_no_internet_connection_title);
-      return;
-    }
 
-    if (!first) {
-      showBottomMessage(i18n().message_catalog_downloading);
-    }
+    if (!first) showBottomMessage(i18n().message_catalog_downloading);
 
-    // Lancer les vérifications en parallèle
     final results = await Future.wait([
       Api.isLibraryUpdateAvailable(),
-      Api.isCatalogUpdateAvailable()
+      Api.isCatalogUpdateAvailable(),
     ]);
 
-    bool libraryUpdate = results[0];
-    bool catalogUpdate = results[1];
+    final bool libraryUpdate = results[0];
+    final bool catalogUpdate = results[1];
 
     if (!catalogUpdate && !libraryUpdate) {
-      if (!first) {
-        showBottomMessage(i18n().message_catalog_up_to_date);
-      }
+      if (!first) showBottomMessage(i18n().message_catalog_up_to_date);
       return;
     }
 
-    if (!first) {
-      showBottomMessage(i18n().label_update_available);
-    }
+    if (!first) showBottomMessage(i18n().label_update_available);
 
     isRefreshing.value = true;
 
-    // Préparer les tâches de mise à jour
     final List<Future> updateTasks = [];
 
     if (libraryUpdate) {
-      updateTasks.add(
-        Api.updateLibrary(JwLifeSettings.instance.currentLanguage.value.symbol).then((_) {
-          AppDataService.instance.teachingToolboxMedias.value = RealmLibrary.loadTeachingToolboxVideos();
-          AppDataService.instance.latestMedias.value = RealmLibrary.loadLatestMedias();
-          RealmLibrary.updateLibraryCategories();
-        }),
-      );
+      updateTasks.add(Api.updateLibrary(JwLifeSettings.instance.currentLanguage.value.symbol).then((_) {
+        AppDataService.instance.teachingToolboxMedias.value = RealmLibrary.loadTeachingToolboxVideos();
+        AppDataService.instance.latestMedias.value = RealmLibrary.loadLatestMedias();
+        RealmLibrary.updateLibraryCategories();
+      }));
     }
 
     if (catalogUpdate) {
-      updateTasks.add(
-        Api.updateCatalog().then((_) async {
-          await loadAllContentData(first: false, library: false);
-        }),
-      );
+      updateTasks.add(Api.updateCatalog().then((_) async {
+        await loadAllContentData(first: false, library: false);
+      }));
     }
 
-    // Exécuter toutes les tâches en parallèle
     await Future.wait(updateTasks);
 
     isRefreshing.value = false;
-
     showBottomMessage(i18n().message_catalog_success);
   }
 
@@ -164,7 +147,6 @@ class AppDataService {
       late Database database = CatalogDb.instance.database;
 
       try {
-        // ATTACH et requêtes dans la transaction
         await database.transaction((txn) async {
           String formattedDate = DateTime.now().toIso8601String().split('T').first;
           final languageId = mepsLanguage.id;
@@ -210,9 +192,10 @@ class AppDataService {
 
           printTime('End: Dated Publications');
 
-          await txn.execute("ATTACH DATABASE '${mepsFile.path}' AS meps");
+          await attachTransaction(txn, {'meps': mepsFile.path});
+
           if(isHistoryFileExist) {
-            await txn.execute("ATTACH DATABASE '${historyFile.path}' AS history");
+            await attachTransaction(txn, {'history': historyFile.path});
           }
 
           if(first && isHistoryFileExist) {
@@ -237,7 +220,11 @@ class AppDataService {
             printTime('End: Recent Publications');
           }
 
-          await txn.execute("DETACH DATABASE meps");
+          await detachTransaction(txn, ['meps']);
+
+          if(isHistoryFileExist) {
+            await detachTransaction(txn, ['history']);
+          }
 
           printTime('Start: ToolBox Pubs');
           result4 = await txn.rawQuery('''
@@ -320,10 +307,6 @@ class AppDataService {
             ''', [languageId, 0]);
 
           AppDataService.instance.otherMeetingsPublications.value = result5.map((pub) => Publication.fromJson(pub, currentLanguage: mepsLanguage)).toList();
-
-          if(isHistoryFileExist) {
-            await txn.execute("DETACH DATABASE history");
-          }
         });
       }
       catch (e) {
@@ -335,32 +318,39 @@ class AppDataService {
     }
 
     if(library) {
-      refreshContent(first: language != null || first);
+      if (!await hasInternetConnection()) {
+        showBottomMessage(i18n().message_no_internet_connection_title);
+        return;
+      }
+      checkUpdatesAndRefreshContent(first: language != null || first);
     }
 
     if(isCatalogFileExist) {
-      CatalogDb.instance.updateCatalogCategories();
       RealmLibrary.updateLibraryCategories();
+      await Future.wait([
+        CatalogDb.instance.updateCatalogCategories(),
 
-      await refreshMeetingsPubs(pubs: [?midweekMeetingPub.value, ?weekendMeetingPub.value]);
+        refreshMeetingsPubs(pubs: [
+          if (midweekMeetingPub.value != null) midweekMeetingPub.value!,
+          if (weekendMeetingPub.value != null) weekendMeetingPub.value!,
+        ]),
+
+        CatalogDb.instance.fetchAssemblyPublications(mepsLanguage),
+      ]);
       refreshPublicTalks();
     }
 
     await Mepsunit.loadBibleCluesInfo();
-
-    GlobalKeyService.jwLifePageKey.currentState!.loadAllNavigator();
-
-    if(isCatalogFileExist) {
-      await CatalogDb.instance.fetchAssemblyPublications(mepsLanguage);
-    }
 
     mepsLanguage.loadWolInfo();
 
     if(first) {
       final isConnected = await hasInternetConnection();
       if (isConnected) {
-        JwLifeAutoUpdater.checkAndUpdate();
-        AssetsDownload.download();
+        Future.wait([
+          JwLifeAutoUpdater.checkAndUpdate(),
+          AssetsDownload.download(),
+        ]);
       }
     }
   }

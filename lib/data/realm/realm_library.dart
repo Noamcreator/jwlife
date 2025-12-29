@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:collection/collection.dart';
+import 'package:flutter/foundation.dart';
 import 'package:jwlife/core/app_data/app_data_service.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:realm/realm.dart';
@@ -62,6 +63,44 @@ class RealmLibrary {
   // ---------- LECTURE ----------
 
   /// Charge les vidéos et audios de la catégorie 'TeachingToolbox' pour la langue courante.
+  Future<List<Media>> loadTeachingToolboxVideosAsync() async {
+    final languageSymbol = JwLifeSettings.instance.currentLanguage.value.symbol;
+
+    // Récupérer juste les données serializables pour l'isolate
+    final categoriesData = realm.all<RealmCategory>()
+        .query("Key == \$0 AND LanguageSymbol == \$1", ['TeachingToolbox', languageSymbol])
+        .map((c) => c.media) // juste les clés
+        .expand((e) => e)
+        .toList();
+
+    final mediaData = categoriesData
+        .map((key) {
+      final item = realm.all<RealmMediaItem>().query("NaturalKey == \$0", [key]).firstOrNull;
+      if (item == null) return null;
+      return {
+        'type': item.type,
+        'naturalKey': item.naturalKey,
+        'data': item, // tu peux sérialiser ce qui est nécessaire
+      };
+    })
+        .whereType<Map<String, dynamic>>()
+        .toList();
+
+    // Déplacer la construction des Media dans un isolate
+    return compute(_createMediaList, mediaData);
+  }
+
+// Fonction top-level pour compute
+  List<Media> _createMediaList(List<Map<String, dynamic>> mediaData) {
+    final out = <Media>[];
+    for (final item in mediaData) {
+      final t = (item['type'] ?? '').toUpperCase();
+      if (t == 'VIDEO') out.add(Video.fromJson(mediaItem: item['data']));
+      else if (t == 'AUDIO') out.add(Audio.fromJson(mediaItem: item['data']));
+    }
+    return out;
+  }
+
   static List<Media> loadTeachingToolboxVideos() {
     return _loadMediaFromCategory('TeachingToolbox');
   }
@@ -119,132 +158,101 @@ class RealmLibrary {
     }
   }
 
-  // ---------- IMPORT JSON -> REALM ----------
+  // ------------------ TOP-LEVEL FUNCTION POUR ISOLATE ------------------
 
-  /// Décode les données GZip JSON, parse et insère/met à jour les données dans la base de donnée Realm.
-  static Future<void> convertMediaJsonToRealm(Uint8List bodyBytes, String serverEtag, String serverDate) async {
-    final decodedData = GZipCodec().decode(bodyBytes);
-    final String jsonString = utf8.decode(decodedData);
+  /// Transforme le bodyBytes GZip JSON en Map serializable pour Realm
+  static Map<String, dynamic> _parseToPayload(Uint8List bodyBytes) {
+    final decoded = GZipCodec().decode(bodyBytes);
+    final jsonString = utf8.decode(decoded);
 
-    // Utiliser LineSplitter.split est correct si chaque ligne est un objet JSON.
-    final List<dynamic> jsonList = LineSplitter.split(jsonString).map((line) => json.decode(line)).toList();
+    final lines = LineSplitter.split(jsonString).map((line) => json.decode(line) as Map<String, dynamic>).toList();
 
-    // Déclaration des listes pour l'insertion
-    final List<RealmLanguage> languagesToAdd = [];
-    final List<RealmCategory> categoriesToAdd = [];
-    final List<RealmMediaItem> mediaToAdd = [];
+    final List<Map<String, dynamic>> languages = [];
+    final List<Map<String, dynamic>> categories = [];
+    final List<Map<String, dynamic>> media = [];
 
-    // 2. Pré-parsing et collecte
-    for (final entry in jsonList) {
+    for (final entry in lines) {
       final type = entry['type'];
       final data = entry['o'];
-
-      if (type == 'language') {
-        languagesToAdd.add(RealmLanguage(
-          data['code'] ?? '',
-          locale: data['locale'],
-          vernacular: data['vernacular'],
-          name: data['name'],
-          isLanguagePair: data['isLangPair'] ?? false,
-          isSignLanguage: data['isSignLanguage'] ?? false,
-          isRtl: data['isRTL'] ?? false,
-          eTag: serverEtag,
-          lastModified: serverDate,
-        ));
-      }
-      else if (type == 'category') {
-        categoriesToAdd.add(_parseCategory(data, languagesToAdd.first.symbol));
-      }
-      else if (type == 'media-item') {
-        // Ajouter la vérification de la langue
-        if (languagesToAdd.isNotEmpty) {
-          final item = _parseMediaItem(data, languagesToAdd.first.symbol);
-          if (item != null) {
-            mediaToAdd.add(item);
-          }
-        }
-      }
+      if (type == 'language') languages.add(data);
+      if (type == 'category') categories.add(data);
+      if (type == 'media-item') media.add(data);
     }
 
-    // Si aucune langue n'a été trouvée, on ne peut pas faire la purge/insertion
-    if (languagesToAdd.isEmpty) {
-      // Optionnel: logger une erreur
-      return;
-    }
+    return {
+      'languages': languages,
+      'categories': categories,
+      'media': media,
+    };
+  }
 
-    // 3. 🔥 Transaction : purge + réinsertion
+
+  static Future<void> convertMediaJsonToRealm(Uint8List bodyBytes, String serverEtag, String serverDate) async {
+    // Parsing lourd dans un isolate
+    final payloadMap = await compute(RealmLibrary._parseToPayload, bodyBytes);
+
+    final List<Map<String, dynamic>> languagesData = List<Map<String, dynamic>>.from(payloadMap['languages']);
+    final List<Map<String, dynamic>> categoriesData = List<Map<String, dynamic>>.from(payloadMap['categories']);
+    final List<Map<String, dynamic>> mediaData = List<Map<String, dynamic>>.from(payloadMap['media']);
+
+    if (languagesData.isEmpty) return;
+
+    final languageSymbol = languagesData.first['code'] ?? '';
+
+    // Préparer objets Realm sur le thread principal
+    final languagesToAdd = languagesData.map((data) => RealmLanguage(
+      data['code'] ?? '',
+      locale: data['locale'],
+      vernacular: data['vernacular'],
+      name: data['name'],
+      isLanguagePair: data['isLangPair'] ?? false,
+      isSignLanguage: data['isSignLanguage'] ?? false,
+      isRtl: data['isRTL'] ?? false,
+      eTag: serverEtag,
+      lastModified: serverDate,
+    )).toList();
+
+    final categoriesToAdd = categoriesData.map((data) => _parseCategory(data, languageSymbol)).toList();
+    final mediaToAdd = mediaData.map((data) => _parseMediaItem(data, languageSymbol)).whereType<RealmMediaItem>().toList();
+
+    // 🔥 Transaction Realm
     realm.write(() {
-      // 1. Identification des objets liés à la langue
-      final catsToPurge = realm.all<RealmCategory>().query("LanguageSymbol == \$0", [languagesToAdd.first.symbol ?? '']);
-      final mediasToPurge = realm.all<RealmMediaItem>().query("LanguageSymbol == \$0", [languagesToAdd.first.symbol ?? '']);
+      final catsToPurge = realm.all<RealmCategory>().query("LanguageSymbol == \$0", [languageSymbol]);
+      final mediasToPurge = realm.all<RealmMediaItem>().query("LanguageSymbol == \$0", [languageSymbol]);
 
-      // 2. Collecte des images à supprimer
-      // On collecte tous les objets Images référencés par les Category et MediaItem
-      // que nous allons supprimer.
-      final List<RealmImages> imagesToDelete = [];
+      final List<RealmImages> imagesToDelete = [
+        for (final cat in catsToPurge) if (cat.images != null) cat.images!,
+        for (final media in mediasToPurge) if (media.images != null) media.images!,
+      ];
 
-      // Collecter les images des catégories
-      for (final cat in catsToPurge) {
-        if (cat.images != null) {
-          imagesToDelete.add(cat.images!);
-        }
-      }
-
-      // Collecter les images des médias
-      for (final media in mediasToPurge) {
-        if (media.images != null) {
-          imagesToDelete.add(media.images!);
-        }
-      }
-
-      // 3. Purger les Images
-      // C'est l'étape que vous vouliez réintégrer, mais en utilisant une liste
-      // collectée en amont, ce qui est plus direct et performant.
       realm.deleteMany(imagesToDelete);
-
-      // 4. Purger les objets principaux (Category et MediaItem)
-      // C'EST CETTE ÉTAPE QUI GARANTIT QU'IL N'Y AURA PAS DE DOUBLONS
       realm.deleteMany(catsToPurge);
       realm.deleteMany(mediasToPurge);
 
-      // 5. Ajouter les nouvelles données (Insertion/Mise à jour)
       realm.addAll(languagesToAdd, update: true);
       realm.addAll(categoriesToAdd);
       realm.addAll(mediaToAdd);
     });
   }
 
-  // ---------- HELPERS ----------
+  // ------------------ HELPERS ------------------
 
-  /// Parse les données JSON pour créer un objet [RealmCategory].
   static RealmCategory _parseCategory(Map<String, dynamic> data, String? languageSymbol) {
-    // Vérification de nullité plus stricte pour le code de catégorie
     final String categoryKey = data['key']?.toString() ?? '';
-    if (categoryKey.isEmpty) {
-      // Optionnel: log d'erreur
-      throw Exception('Category key is missing');
-    }
+    if (categoryKey.isEmpty) throw Exception('Category key missing');
 
-    final List<String> media = (data['media'] is List)
-        ? List<String>.from(data['media'] as List).toSet().toList()
-        : <String>[];
-
+    final List<String> media = (data['media'] is List) ? List<String>.from(data['media'] as List).toSet().toList() : <String>[];
     final List<dynamic> rawSubs = data['subcategories'] as List? ?? const [];
     final List<RealmCategory> subcategories = [];
 
-    // Utilisation de `try-catch` pour le parsing récursif
     for (final sub in rawSubs) {
       if (sub is Map<String, dynamic>) {
         try {
           subcategories.add(_parseCategory(sub, languageSymbol));
-        } catch (e) {
-          // Gérer les sous-catégories malformées
-          // Optionnel: log d'erreur
-        }
+        } catch (_) {}
       }
     }
 
-    // Assurer que les champs non-nullables dans le modèle Realm sont gérés.
     return RealmCategory(
       key: categoryKey,
       type: data['type'],
@@ -256,61 +264,33 @@ class RealmLibrary {
     );
   }
 
-  /// Parse les données JSON pour créer un objet [RealmMediaItem].
   static RealmMediaItem? _parseMediaItem(Map<String, dynamic> data, String? languageSymbol) {
-    // 1. Traitement de la clé naturelle
     final String? rawNk = data['naturalKey'];
     if (rawNk == null || rawNk.isEmpty) return null;
 
-    // Remplacement correct, s'assurant que `naturalKey` est non-null
     final String naturalKey = rawNk;
     final String compoundKey = '${languageSymbol ?? ''}-$rawNk';
 
-    if (naturalKey.isEmpty) return null;
-
-    // 2. Normalisation du type (simplifié)
-    String? normalizeType(dynamic format) {
-      if (format == null) return null;
-      final f = format.toString().toUpperCase();
-      if (f == 'VIDEO' || f == 'AUDIO') return f;
-      // Retourner null si ce n'est ni VIDEO ni AUDIO pour éviter les types non supportés
-      return null;
-    }
-
-    // 3. Parsing des KeyParts
-    final Map<String, dynamic> keyParts =
-    (data['keyParts'] is Map<String, dynamic>) ? data['keyParts'] as Map<String, dynamic> : {};
-    final String? type = normalizeType(keyParts['formatCode']);
-
-    // Si le type n'est pas VIDEO ou AUDIO, on peut l'ignorer
+    Map<String, dynamic> keyParts = (data['keyParts'] is Map<String, dynamic>) ? data['keyParts'] as Map<String, dynamic> : {};
+    String? type;
+    final f = keyParts['formatCode']?.toString().toUpperCase();
+    if (f == 'VIDEO' || f == 'AUDIO') type = f;
     if (type == null) return null;
 
-    // 4. Parsing de la durée (plus robuste)
     double? duration;
     final d = data['duration'];
-    if (d is num) {
-      // Gère int et double
-      duration = d.toDouble();
-    } else if (d is String) {
-      duration = double.tryParse(d);
-    }
+    if (d is num) duration = d.toDouble();
+    else if (d is String) duration = double.tryParse(d);
 
-    // 5. Parsing de issueDate (plus robuste)
     int? issueDate;
     final issue = keyParts['issueDate'];
-    if (issue is int) {
-      issueDate = issue;
-    } else if (issue is String) {
-      issueDate = int.tryParse(issue);
-    }
+    if (issue is int) issueDate = issue;
+    else if (issue is String) issueDate = int.tryParse(issue);
 
     String? remoteType;
     final remote = keyParts['remoteType'];
-    if (remote is String) {
-      remoteType = remote;
-    }
+    if (remote is String) remoteType = remote;
 
-    // Assurer que les champs non-nullables dans le modèle Realm sont gérés.
     return RealmMediaItem(
       compoundKey,
       duration ?? 0.0,
@@ -332,10 +312,9 @@ class RealmLibrary {
     );
   }
 
-  /// Parse les données JSON pour créer un objet [images].
   static RealmImages? _parseImages(dynamic images, bool isCategory) {
     if (images is! Map<String, dynamic>) return null;
-    // Utiliser des variables locales pour simplifier le code
+
     final Map<String, dynamic> sqr = images['sqr'] as Map<String, dynamic>? ?? {};
     final Map<String, dynamic> cvr = images['cvr'] as Map<String, dynamic>? ?? {};
     final Map<String, dynamic> lsr = images['lsr'] as Map<String, dynamic>? ?? {};
@@ -348,21 +327,12 @@ class RealmLibrary {
     String? extraWideImageUrl = pnr['sm'] as String?;
     String? extraWideFullSizeImageUrl = pnr['lg'] as String?;
 
-    // Logique de fallback pour `squareImageUrl`
     squareImageUrl ??= cvr['xs'] as String?;
     squareFullSizeImageUrl ??= cvr['lg'] as String?;
 
-    // Retourner null si aucune image n'a pu être trouvée
-    if (squareImageUrl == null &&
-        squareFullSizeImageUrl == null &&
-        wideImageUrl == null &&
-        wideFullSizeImageUrl == null &&
-        extraWideImageUrl == null &&
-        extraWideFullSizeImageUrl == null) {
-      return null;
-    }
+    if (squareImageUrl == null && squareFullSizeImageUrl == null && wideImageUrl == null &&
+        wideFullSizeImageUrl == null && extraWideImageUrl == null && extraWideFullSizeImageUrl == null) return null;
 
-    // Assurer que les champs non-nullables sont gérés dans le constructeur
     return RealmImages(
       squareImageUrl: squareImageUrl,
       squareFullSizeImageUrl: squareFullSizeImageUrl,

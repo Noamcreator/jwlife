@@ -15,9 +15,11 @@ import '../../core/api/api.dart';
 import '../../core/icons.dart';
 import '../../core/utils/common_ui.dart';
 import '../../core/utils/utils.dart';
+import '../../core/utils/utils_database.dart';
 import '../../core/utils/utils_document.dart';
 import '../../data/databases/catalog.dart';
 import '../../data/models/audio.dart';
+import '../../data/models/meps_language.dart';
 import '../../data/models/video.dart';
 import '../../data/realm/catalog.dart';
 import '../../data/realm/realm_library.dart';
@@ -135,8 +137,8 @@ class _SearchFieldAllState extends State<SearchFieldAll> {
             if (item.type == 'video' || item.type == 'audio')
               Icon(item.type == 'audio' ? JwIcons.music : JwIcons.video),
 
-            if (item.type == 'topic') const SizedBox(width: 10),
-            if (item.type == 'topic' && item.label != null)
+            if (item.type == 'wolTopic') const SizedBox(width: 10),
+            if (item.type == 'wolTopic' && item.label != null)
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
                 decoration: const BoxDecoration(
@@ -156,14 +158,17 @@ class _SearchFieldAllState extends State<SearchFieldAll> {
   Future<void> _fetchSuggestions(String query) async {
     List<SuggestionItem> newSuggestions = [];
 
+    final trimmedQuery = query.trim();
+
     final requestId = ++_latestRequestId;
     setState(() {
       _suggestions.clear();
     });
 
-    String normalizedText = normalize(query);
+    String normalizedQuery = normalize(query).toLowerCase();
+    MepsLanguage mepsLanguage = JwLifeSettings.instance.currentLanguage.value;
 
-    String apiWol = 'https://wol.jw.org/wol/sg/${JwLifeSettings.instance.currentLanguage.value.rsConf}/${JwLifeSettings.instance.currentLanguage.value.lib}?q=$query';
+    String apiWol = 'https://wol.jw.org/wol/sg/${mepsLanguage.rsConf}/${mepsLanguage.lib}?q=$query';
     printTime(apiWol);
     final response = await Api.httpGetWithHeaders(apiWol, responseType: ResponseType.json);
 
@@ -171,88 +176,136 @@ class _SearchFieldAllState extends State<SearchFieldAll> {
       final items = (response.data['items'] as List).take(2); // prend seulement les 2 premiers
 
       for (var item in items) {
-        newSuggestions.add(
-          SuggestionItem(
-            type: item['type'] == 1 ? 'bible' : item['type'] == 2 ? 'publication' : item['type'] == 3 ? 'topic' : 'word',
-            query: item['query'],
-            title: item['caption'],
-            label: item['label'],
-          ),
-        );
+        if(item['type'] != 2) {
+          newSuggestions.add(
+            SuggestionItem(
+              type: item['type'] == 1 ? 'bible' : item['type'] == 3 ? 'wolTopic' : 'word',
+              query: item['query'],
+              title: item['caption'],
+              label: item['label'],
+            ),
+          );
+        }
       }
     }
 
     // 🔎 Recherches dans les publications téléchargées avec sujets
-    final pubsWithTopics = PublicationRepository()
-        .getAllDownloadedPublications()
-        .where((pub) => pub.hasTopics && pub.mepsLanguage.symbol == JwLifeSettings.instance.currentLanguage.value.symbol)
-        .toList();
+    final pubsWithTopics = PublicationRepository().getAllDownloadedPublications().where((pub) => (pub.hasTopics || pub.hasHeading) && pub.mepsLanguage.symbol == mepsLanguage.symbol).toList();
 
     for (final pub in pubsWithTopics) {
-      Database? db;
-      if (pub.documentsManager == null) {
-        db = await openReadOnlyDatabase(pub.databasePath!);
-      } else {
-        db = pub.documentsManager!.database;
+      Database? db = pub.documentsManager?.database ?? await openReadOnlyDatabase(pub.databasePath!);
+
+      if(!db.isOpen && pub.documentsManager != null ) {
+        pub.documentsManager!.database = await openReadOnlyDatabase(pub.databasePath!);
       }
 
-      final topics = await db.rawQuery('''
-        SELECT Topic.DisplayTopic, Document.MepsDocumentId
-        FROM Topic
-        LEFT JOIN TopicDocument ON Topic.TopicId = TopicDocument.TopicId
-        LEFT JOIN Document ON TopicDocument.DocumentId = Document.DocumentId
-        WHERE LOWER(Topic.Topic) LIKE ?
-      ''', ['%$normalizedText%']); // recherche insensible à la casse
+      if (pub.hasHeading) {
+        final sqlColumn = buildAccentInsensitiveQuery('Child.Title');
+        final headings = await db.rawQuery('''
+            SELECT 
+              Child.DisplayTitle, 
+              Parent.DisplayTitle AS ParentTitle,
+              Child.BeginParagraphOrdinal, 
+              Child.EndParagraphOrdinal, 
+              Child.ContentEndParagraphOrdinal, 
+              Document.MepsDocumentId
+            FROM Heading AS Child
+            INNER JOIN Document ON Child.DocumentId = Document.DocumentId
+            LEFT JOIN Heading AS Parent ON Child.ParentHeadingId = Parent.HeadingId
+            WHERE $sqlColumn LIKE ?
+          ''', ['%$normalizedQuery%']);
 
-      if (topics.isNotEmpty && requestId == _latestRequestId) {
-        // trie par similarité
-        final normalizedQuery = normalize(query);
-        final topicsList = List<Map<String, dynamic>>.from(topics);
+        if (headings.isNotEmpty && requestId == _latestRequestId) {
+          final headingsList = List<Map<String, dynamic>>.from(headings);
 
-        topicsList.sort((a, b) {
-          final s1 = normalize(a['DisplayTopic'] as String);
-          final s2 = normalize(b['DisplayTopic'] as String);
-          final scoreA = StringSimilarity.compareTwoStrings(normalizedQuery, s1);
-          final scoreB = StringSimilarity.compareTwoStrings(normalizedQuery, s2);
-          return scoreB.compareTo(scoreA);
-        });
+          headingsList.sort((a, b) {
+            final s1 = normalize(a['DisplayTitle'] as String);
+            final s2 = normalize(b['DisplayTitle'] as String);
+            final scoreA = StringSimilarity.compareTwoStrings(normalizedQuery, s1);
+            final scoreB = StringSimilarity.compareTwoStrings(normalizedQuery, s2);
+            return scoreB.compareTo(scoreA);
+          });
 
-        newSuggestions.add(SuggestionItem(
-          type: 'document',
-          query: topicsList.first['MepsDocumentId'],
-          title: topicsList.first['DisplayTopic'] as String,
-          image: pub.imageSqr,
-          subtitle: pub.title,
-          label: i18n().search_suggestions_topics,
-        ));
+          newSuggestions.add(SuggestionItem(
+            type: 'heading',
+            query: headingsList.first['MepsDocumentId'],
+            startParagraphId: headingsList.first['BeginParagraphOrdinal'],
+            endParagraphId: headingsList.first['EndParagraphOrdinal'],
+            title: headingsList.first['DisplayTitle'] as String,
+            image: pub.imageSqr,
+            subtitle: headingsList.first['ParentTitle'] != null ? '${pub.getShortTitle()} • ${headingsList.first['ParentTitle']}' : pub.getShortTitle(),
+            label: i18n().search_suggestions_topics,
+          ));
+        }
+      }
+      else if(pub.hasTopics) {
+        final sqlColumn = buildAccentInsensitiveQuery('Topic.Topic');
+        final topics = await db.rawQuery('''
+          SELECT Topic.DisplayTopic, Document.MepsDocumentId
+          FROM Topic
+          LEFT JOIN TopicDocument ON Topic.TopicId = TopicDocument.TopicId
+          LEFT JOIN Document ON TopicDocument.DocumentId = Document.DocumentId
+          WHERE $sqlColumn LIKE ?
+        ''', ['%$normalizedQuery%']); // recherche insensible à la casse
+
+        if (topics.isNotEmpty && requestId == _latestRequestId) {
+          final topicsList = List<Map<String, dynamic>>.from(topics);
+
+          topicsList.sort((a, b) {
+            final s1 = normalize(a['DisplayTopic'] as String);
+            final s2 = normalize(b['DisplayTopic'] as String);
+            final scoreA = StringSimilarity.compareTwoStrings(normalizedQuery, s1);
+            final scoreB = StringSimilarity.compareTwoStrings(normalizedQuery, s2);
+            return scoreB.compareTo(scoreA);
+          });
+
+          newSuggestions.add(SuggestionItem(
+            type: 'topic',
+            query: topicsList.first['MepsDocumentId'],
+            title: topicsList.first['DisplayTopic'] as String,
+            image: pub.imageSqr,
+            subtitle: pub.getShortTitle(),
+            label: i18n().search_suggestions_topics,
+          ));
+        }
       }
 
       if(pub.documentsManager == null) await db.close();
     }
 
     // 📘 Recherche dans le catalogue principal
-    /*
-    final catalogFile = await getCatalogDatabaseFile();
-    final db = await openDatabase(catalogFile.path, readOnly: true);
+    final pubResults = await CatalogDb.instance.fetchPubs(trimmedQuery, mepsLanguage, limit: 6);
+    final pubs = PublicationRepository().getAllDownloadedPublications().where((pub) =>
+    pub.mepsLanguage.symbol == mepsLanguage.symbol &&
+        (pub.title.toLowerCase().contains(normalizedQuery)
+            || pub.category.getName().toLowerCase().contains(normalizedQuery)
+            || pub.keySymbol.toLowerCase().contains(normalizedQuery)
+            || pub.symbol.toLowerCase().contains(normalizedQuery)
+            || pub.year.toString().contains(normalizedQuery))).toList().take(6);
 
-    final result = await db.rawQuery(/* comme ton code source ci-dessus */);
-    final fallbackResult = await db.rawQuery(/* fallback query */);
+    for(var pub in pubs) {
+      if(!pubResults.contains(pub)) {
+        pubResults.add(pub);
+      }
+    }
 
-    // Ajout des résultats à newSuggestions comme dans ton code
-
-    await db.close();
-
-     */
+    for(var pub in pubResults) {
+      newSuggestions.add(SuggestionItem(
+        type: 'publication',
+        query: pub.keySymbol,
+        title: pub.getShortTitle(),
+        image: pub.networkImageSqr ?? pub.imageSqr,
+        subtitle: pub.category.getName(),
+      ));
+    }
 
     // 🎵 Recherche dans les médias Realm
-    final medias = RealmLibrary.realm.all<RealmMediaItem>().query(r"Title CONTAINS[c] $0 AND LanguageSymbol == $1",
-      [query, JwLifeSettings.instance.currentLanguage.value.symbol],
-    );
+    final medias = RealmLibrary.realm.all<RealmMediaItem>().query(r"Title CONTAINS[c] $0 AND LanguageSymbol == $1", [trimmedQuery, mepsLanguage.symbol]);
 
     if (requestId == _latestRequestId) {
       for (final media in medias.take(10)) {
 
-        final category = RealmLibrary.realm.all<RealmCategory>().query(r"Key == $0 AND LanguageSymbol == $1", [media.primaryCategory ?? '', JwLifeSettings.instance.currentLanguage.value.symbol]).firstOrNull;
+        final category = RealmLibrary.realm.all<RealmCategory>().query(r"Key == $0 AND LanguageSymbol == $1", [media.primaryCategory ?? '', mepsLanguage.symbol]).firstOrNull;
 
         if(media.type == 'AUDIO') {
           Audio audio = Audio.fromJson(mediaItem: media);
@@ -291,8 +344,11 @@ class _SearchFieldAllState extends State<SearchFieldAll> {
     if (selected == null) return;
     BuildContext context = GlobalKeyService.jwLifePageKey.currentState!.getCurrentState().context;
     switch (selected.type) {
-      case 'document':
+      case 'topic':
         await showDocumentView(context, selected.query, JwLifeSettings.instance.currentLanguage.value.id);
+        break;
+      case 'heading':
+        await showDocumentView(context, selected.query, JwLifeSettings.instance.currentLanguage.value.id, startParagraphId: selected.startParagraphId, endParagraphId: selected.endParagraphId);
         break;
       case 'bible':
         showPage(SearchBiblePage(query: selected.query));

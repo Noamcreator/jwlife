@@ -9,6 +9,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../../app/services/settings_service.dart';
 import '../../../../core/uri/jworg_uri.dart';
 import '../../../../core/utils/utils_language_dialog.dart';
+import '../../../../core/utils/widgets_utils.dart';
 import '../../../../i18n/i18n.dart';
 
 class PublicationsSearchTab extends StatefulWidget {
@@ -34,14 +35,7 @@ class _PublicationsSearchTabState extends State<PublicationsSearchTab> {
       future: widget.model.fetchPublications(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return Center(
-            child: CircularProgressIndicator(
-              strokeWidth: 2.5,
-              valueColor: AlwaysStoppedAnimation<Color>(
-                isDark ? Colors.blue[300]! : Colors.blue[700]!,
-              ),
-            ),
-          );
+          return getLoadingWidget(Theme.of(context).primaryColor);
         } else if (snapshot.hasError) {
           return Center(
             child: Padding(

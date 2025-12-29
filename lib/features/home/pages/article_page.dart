@@ -5,6 +5,7 @@ import 'package:jwlife/app/services/settings_service.dart';
 
 import '../../../app/app_page.dart';
 import '../../../core/utils/utils.dart';
+import '../../../core/utils/widgets_utils.dart';
 
 class ArticlePage extends StatefulWidget {
   final String title;
@@ -59,7 +60,7 @@ class _ArticlePageState extends State<ArticlePage> {
         subTitle: JwLifeSettings.instance.currentLanguage.value.vernacular
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? getLoadingWidget(Theme.of(context).primaryColor)
           : Stack(
         children: [
           InAppWebView(
