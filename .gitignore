@@ -11,5 +11,7 @@ build/
 /android/build/
 /android/keystore/
 /android/.kotlin/
+/android/local.properties
 
+build_and_update.ps1
 update.txt
