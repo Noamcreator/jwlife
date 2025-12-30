@@ -1,41 +1,15 @@
-# Miscellaneous
-*.class
-*.log
-*.pyc
-*.swp
-.DS_Store
 .old_apk/
-.atom/
-.build/
-.buildlog/
-.history
-.svn/
-.swiftpm/
-migrate_working_dir/
-
-# IntelliJ related
-*.iml
-*.ipr
-*.iws
 .idea/
-
-# Flutter/Dart/Pub related
 .dart_tool/
 .flutter-plugins-dependencies
-.pub/
-/build/
+build/
 
 /lib/core/keys.dart
-
-# Symbolication related
-app.*.symbols
-
-# Obfuscation related
-app.*.map.json
 
 # Android Studio will place build artifacts here
 /android/.gradle/
 /android/build/
 /android/keystore/
+/android/.kotlin/
 
 update.txt
