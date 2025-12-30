@@ -33,9 +33,7 @@ class PublicationsCategoriesWidget extends StatelessWidget {
             color: backgroundColor,
             child: InkWell(
               onTap: () {
-                final Widget destinationPage =
-                category.hasYears || category.type == 'Convention' ? PublicationSubcategoriesPage(category: category) : PublicationsItemsPage(category: category, mepsLanguage: JwLifeSettings.instance.currentLanguage.value);
-
+                final Widget destinationPage = category.hasYears || category.type == 'Convention' ? PublicationSubcategoriesPage(category: category) : PublicationsItemsPage(category: category, mepsLanguage: JwLifeSettings.instance.currentLanguage.value);
                 showPage(destinationPage);
               },
               child: FutureBuilder<Widget>(

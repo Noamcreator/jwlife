@@ -6,14 +6,14 @@ import '../data/models/document.dart';
 
 class DocumentsManager {
   Publication publication;
-  int mepsDocumentId;
-  int? bookNumber;
-  int? chapterNumber;
+  int? initMepsDocumentId;
+  int? initBookNumber;
+  int? initChapterNumber;
   late Database database;
-  int selectedDocumentIndex = -1;
+  int selectedDocumentId = -1;
   List<Document> documents = [];
 
-  DocumentsManager({required this.publication, required this.mepsDocumentId, this.bookNumber, this.chapterNumber});
+  DocumentsManager({required this.publication, this.initMepsDocumentId, this.initBookNumber, this.initChapterNumber});
 
   // Méthode privée pour initialiser la base de données
   Future<void> initializeDatabaseAndData() async {
@@ -81,12 +81,12 @@ class DocumentsManager {
         documents = documents.reversed.toList();
       }
 
-      if (mepsDocumentId != -1) {
-        if(bookNumber != null && chapterNumber != null) {
-          selectedDocumentIndex = documents.indexWhere((element) => element.bookNumber == bookNumber && element.chapterNumberBible == chapterNumber);
+      if (initMepsDocumentId != null) {
+        if(initBookNumber != null && initChapterNumber != null) {
+          selectedDocumentId = documents.indexWhere((element) => element.bookNumber == initBookNumber && element.chapterNumberBible == initChapterNumber);
         }
         else {
-          selectedDocumentIndex = documents.indexWhere((element) => element.mepsDocumentId == mepsDocumentId);
+          selectedDocumentId = documents.indexWhere((element) => element.mepsDocumentId == initMepsDocumentId);
         }
       }
     }
@@ -95,7 +95,7 @@ class DocumentsManager {
     }
   }
 
-  Document getCurrentDocument() => documents[selectedDocumentIndex];
+  Document getCurrentDocument() => documents[selectedDocumentId];
 
   Document getDocumentAt(int index) => documents[index];
 

@@ -258,6 +258,7 @@ class _AllSearchTabState extends State<AllSearchTab> {
                             padding: EdgeInsets.zero,
                             icon: const Icon(Icons.more_vert, color: Colors.white, size: 22),
                             itemBuilder: (context) => [
+                              if (video.isDownloadedNotifier.value && video.filePath != null) getVideoShareFileItem(video),
                               getVideoShareItem(video),
                               getVideoQrCode(context, video),
                               getVideoAddPlaylistItem(context, video),
@@ -387,6 +388,7 @@ class _AllSearchTabState extends State<AllSearchTab> {
                             padding: EdgeInsets.zero,
                             icon: const Icon(Icons.more_vert, color: Colors.white, size: 22),
                             itemBuilder: (context) => [
+                              if (audio.isDownloadedNotifier.value && audio.filePath != null) getAudioShareFileItem(audio),
                               getAudioShareItem(audio),
                               getAudioQrCode(context, audio),
                               getAudioAddPlaylistItem(context, audio),

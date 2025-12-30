@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:realm/realm.dart';
-import 'package:diacritic/diacritic.dart';
 import 'package:jwlife/data/realm/catalog.dart';
 import 'package:jwlife/data/realm/realm_library.dart';
 import 'package:jwlife/core/api/api.dart';
@@ -9,6 +8,7 @@ import 'package:jwlife/data/models/audio.dart';
 import 'package:jwlife/data/models/media.dart';
 import 'package:jwlife/data/models/video.dart';
 
+import '../../../../core/utils/utils.dart';
 import '../../../../core/utils/utils_video.dart';
 
 class VideoItemsModel extends ChangeNotifier {
@@ -88,7 +88,7 @@ class VideoItemsModel extends ChangeNotifier {
     if (query.isEmpty) {
       _filteredVideos = _subcategories;
     } else {
-      final normalizedQuery = removeDiacritics(query).toLowerCase();
+      final normalizedQuery = normalize(query);
       _filteredVideos = [];
 
       // Filtre les médias dans chaque sous-catégorie
@@ -99,7 +99,7 @@ class VideoItemsModel extends ChangeNotifier {
 
             if (mediaItem.title == null) return false;
 
-            final normalizedTitle = removeDiacritics(mediaItem.title!).toLowerCase();
+            final normalizedTitle = normalize(mediaItem.title!);
             return normalizedTitle.contains(normalizedQuery);
           } catch (_) {
             return false;

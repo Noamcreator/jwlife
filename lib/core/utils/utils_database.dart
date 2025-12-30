@@ -74,6 +74,12 @@ Future<List<String>> getColumnsForTable(Database db, String tableName) async {
   return result.map((row) => row['name'] as String).toList();
 }
 
+Future<bool> checkIfColumnsExists(Database db, String tableName, List<String> columns) async {
+  final result = await db.rawQuery("PRAGMA table_info($tableName)");
+  final existingColumns = result.map((row) => row['name'] as String).toList();
+  return columns.every((column) => existingColumns.contains(column));
+}
+
 // Créez une fonction utilitaire pour générer la requête SQL avec remplacements
 String buildAccentInsensitiveQuery(String column) {
   return '''

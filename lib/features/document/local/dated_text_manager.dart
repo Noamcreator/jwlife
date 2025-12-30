@@ -1,4 +1,3 @@
-
 import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/features/document/data/models/dated_text.dart';
 import 'package:sqflite/sqflite.dart';
@@ -7,13 +6,12 @@ import '../../../../../core/utils/utils.dart';
 
 class DatedTextManager {
   Publication publication;
-  DateTime dateTime;
+  DateTime? initDateTime;
   late Database database;
-  int selectedDatedTextIndex = -1;
+  int selectedDatedTextId = -1;
   List<DatedText> datedTexts = [];
-  String html = '';
 
-  DatedTextManager({required this.publication, required this.dateTime});
+  DatedTextManager({required this.publication, this.initDateTime});
 
   // Méthode privée pour initialiser la base de données
   Future<void> initializeDatabaseAndData() async {
@@ -27,7 +25,7 @@ class DatedTextManager {
   }
 
   Future<void> fetchDatedText() async {
-    int dateInt = convertDateTimeToIntDate(dateTime);
+    int dateInt = convertDateTimeToIntDate(initDateTime ?? DateTime.now());
 
     try {
       List<Map<String, dynamic>> result = await database.rawQuery("""
@@ -47,18 +45,18 @@ class DatedTextManager {
         """);
 
       datedTexts = result.map((e) => DatedText.fromMap(database, publication, e)).toList();
-      selectedDatedTextIndex = datedTexts.indexWhere((element) => element.firstDateOffset == dateInt);
+      selectedDatedTextId = datedTexts.indexWhere((element) => element.firstDateOffset == dateInt);
     }
     catch (e) {
       printTime('Error fetching all documents: $e');
     }
   }
 
-  DatedText getCurrentDatedText() => datedTexts[selectedDatedTextIndex];
+  DatedText getCurrentDatedText() => datedTexts[selectedDatedTextId];
 
-  DatedText getPreviousDatedText() => datedTexts[selectedDatedTextIndex - 1];
+  DatedText getPreviousDatedText() => datedTexts[selectedDatedTextId - 1];
 
-  DatedText getNextDocument() => datedTexts[selectedDatedTextIndex + 1];
+  DatedText getNextDocument() => datedTexts[selectedDatedTextId + 1];
 
   DatedText getDatedTextAt(int index) => datedTexts[index];
 

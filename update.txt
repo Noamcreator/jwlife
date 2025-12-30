@@ -987,3 +987,41 @@ Mise à jour de Flutter : 3.38.4 → 3.38.5
 📦 Mises à Jour Techniques
 - Amélioration globale de la gestion et de la stabilité des bases de données.
 - Optimisation des processus internes liés aux recherches, au chargement des contenus et à l’affichage dynamique des éléments selon le thème.
+
+📢 Mise à jour – v1.3.2 (30/12/2025)
+
+🚀 Nouvelles Fonctionnalités
+- Ajout d’un menu dédié aux médias permettant d’envoyer et d’intégrer des fichiers audio (mp3) et vidéo (mp4), avec un fonctionnement similaire à celui de JW Library
+- Ajout d’une nouvelle possibilité de tri dans l’onglet « Publications téléchargées et mises à jour » avec les critères suivants : Titre, Symbol, Année, Souvent utilisé, Rarement utilisé et Taille décroissante
+- Ajout de la recherche intelligente de versets dans la recherche globale, proposant deux choix distincts :
+  - Accès direct au verset dans l’onglet « Bible »
+  - Lancement d’une recherche textuelle classique sur le verset
+- Préparation de l’affichage permettant de montrer les deux premiers versets d’une fenêtre côte à côte (fonctionnalité prête pour une future activation)
+
+🧩 Améliorations de l’Expérience
+- Avant tout téléchargement d’un audio, vérification automatique de la connexion Internet afin d’éviter les erreurs inutiles
+- Lorsqu’un livre biblique ne contient qu’un seul chapitre (ex. Philémon), l’affichage du verset est désormais conforme à JW Library (ex. « Philémon 22 » au lieu de « Philémon 1:22 »)
+- En cliquant sur une note affichée en bas de page, l’application effectue automatiquement un scroll fluide jusqu’à la note d’origine dans le document
+- Dans la recherche globale, la distinction claire entre navigation biblique et recherche améliore la compréhension et la rapidité d’accès au contenu
+
+🎨 Interface & Design
+- Réduction du niveau de zoom de la loupe afin d’offrir une meilleure visibilité globale du contenu environnant
+- Centrage vertical du sous-titre dans l’AppBar lorsque le titre principal n’est pas encore chargé
+- Agrandissement et accélération de l’animation de l’icône de rafraîchissement pour se rapprocher visuellement et fonctionnellement de JW Library
+- Correction d’un problème d’affichage dans la liste des versets utilisant la King James Version, qui empêchait l’affichage correct des autres versets dans la WebView
+
+⚙️ Optimisation
+- Optimisation du wrapping des mots dans la WebView, permettant un chargement plus rapide des documents
+- Améliorations globales des performances de la WebView afin de réduire les temps de chargement et améliorer la fluidité
+- Optimisation du système de gestion des téléchargements et des mises à jour des publications et des médias
+
+🐞 Corrections & Stabilité
+- Correction d’un bug lors de la recherche d’audios associés à une publication lorsque certains audios n’avaient pas de paragraphe lié
+- Correction de nombreux bugs liés aux téléchargements et aux mises à jour de publications et de médias, désormais entièrement stabilisés
+- Correction du rafraîchissement de l’interface lorsque l’on retire une publication d’une catégorie alors qu’elle n’est pas présente dans le catalogue
+- Correction de multiples problèmes liés aux bases de données, améliorant la fiabilité globale de l’application
+
+📦 Mises à Jour Techniques
+- Réorganisation complète des noms de fichiers et de l’arborescence du projet pour une meilleure maintenabilité
+- Harmonisation de l’ordre des catégories dans l’onglet « Publications téléchargées et mises à jour » afin qu’il corresponde exactement à celui de l’onglet « Publication »
+- Nettoyage et restructuration interne du projet pour faciliter les évolutions futures

@@ -2,65 +2,46 @@ import 'package:flutter/material.dart';
 
 import '../../../core/ui/app_dimens.dart';
 import '../../../core/icons.dart';
-import '../../../core/utils/utils.dart'; // Pour formatFileSize
-import '../../../core/utils/utils_pub.dart'; // Pour les fonctions de menu
+import '../../../core/utils/utils.dart';
+import '../../../core/utils/utils_pub.dart';
 import '../../../data/models/publication.dart';
 import '../../../i18n/i18n.dart';
 import '../../../widgets/image_cached_widget.dart';
+import '../../../widgets/multiple_listenable_builder_widget.dart';
 
 class RectanglePublicationItem extends StatelessWidget {
   final Publication publication;
   final Color? backgroundColor;
   final double height;
   final bool searchWidget;
+  final bool refreshPendingUpdateTab;
+  final bool showSize;
 
   const RectanglePublicationItem({
     super.key,
     required this.publication,
     this.backgroundColor,
-    this.height = kSquareItemHeight,
-    this.searchWidget = false
+    this.height = kItemHeight,
+    this.searchWidget = false,
+    this.refreshPendingUpdateTab = false,
+    this.showSize = false
   });
 
-  // 🔵 Progress bar compatible RTL
-  Widget _buildProgressBar(double startOffset) {
-    // La barre de progression est positionnée du coin de l'image (startOffset) jusqu'à la fin (end: 0).
-    // Ceci est CORRECT.
-    return ValueListenableBuilder<bool>(
-      valueListenable: publication.isDownloadingNotifier,
-      builder: (context, isDownloading, _) {
-        return isDownloading ? PositionedDirectional(
-          bottom: 0,
-          start: startOffset, // Démarre juste après l'image
-          end: 0, // Va jusqu'au bout du widget
-          height: 2,
-          child: ValueListenableBuilder<double>(
-            valueListenable: publication.progressNotifier,
-            builder: (context, progress, _) {
-              return LinearProgressIndicator(
-                value: progress == -1 ? null : progress,
-                valueColor: AlwaysStoppedAnimation<Color>(
-                  Theme.of(context).primaryColor,
-                ),
-                backgroundColor: const Color(0xFFbdbdbd),
-                minHeight: 2,
-              );
-            },
-          ),
-        )
-            : const SizedBox.shrink();
-      },
-    );
-  }
-
-  // 🔵 Boutons dynamiques RTL-safe
   Widget _buildDynamicButton() {
-    // Tous les éléments dynamiques (téléchargement, favori, mise à jour)
-    // sont positionnés en `end: -8` ou `end: 2`. Ceci est CORRECT.
-    return ValueListenableBuilder<bool>(
-      valueListenable: publication.isDownloadingNotifier,
-      builder: (context, isDownloading, _) {
-        // 1. Téléchargement en cours → bouton annuler
+    return MultiValueListenableBuilder(
+      listenables: [
+        publication.isDownloadingNotifier,
+        publication.isDownloadedNotifier,
+        publication.hasUpdateNotifier,
+        publication.isFavoriteNotifier,
+      ],
+      builder: (context) {
+        final bool isDownloading = publication.isDownloadingNotifier.value;
+        final bool isDownloaded = publication.isDownloadedNotifier.value;
+        final bool hasUpdate = publication.hasUpdateNotifier.value;
+        final bool isFavorite = publication.isFavoriteNotifier.value;
+
+        // --- 1. CAS : TÉLÉCHARGEMENT EN COURS ---
         if (isDownloading) {
           return PositionedDirectional(
             bottom: -4,
@@ -72,82 +53,77 @@ class RectanglePublicationItem extends StatelessWidget {
               icon: const Icon(
                 JwIcons.x,
                 color: Color(0xFF9d9d9d),
+                size: 20,
               ),
             ),
           );
         }
 
-        // 2. Non téléchargé / Mise à jour
-        return ValueListenableBuilder<bool>(
-          valueListenable: publication.isDownloadedNotifier,
-          builder: (context, isDownloaded, _) {
-            if (!isDownloaded || publication.hasUpdate()) {
-              return Stack(
-                children: [
-                  PositionedDirectional(
-                    bottom: 3,
-                    end: -5,
-                    height: 40,
-                    child: IconButton(
-                      padding: EdgeInsets.zero,
-                      onPressed: () {
-                        if (publication.hasUpdate()) {
-                          publication.update(context);
-                        } else {
-                          publication.download(context);
-                        }
-                      },
-                      icon: Icon(
-                        publication.hasUpdate()
-                            ? JwIcons.arrows_circular
-                            : JwIcons.cloud_arrow_down,
-                        size: publication.hasUpdate() ? 20 : 24,
-                        color: const Color(0xFF9d9d9d),
-                      ),
+        // --- 2. CAS : NON TÉLÉCHARGÉ OU MISE À JOUR DISPONIBLE (OU SHOWSIZE) ---
+        if (!isDownloaded || hasUpdate || showSize) {
+          return Stack(
+            children: [
+              // Bouton Action (Download ou Update)
+              if (!showSize || hasUpdate)
+                PositionedDirectional(
+                  bottom: 3,
+                  end: -5,
+                  height: 40,
+                  child: IconButton(
+                    padding: EdgeInsets.zero,
+                    onPressed: () {
+                      if (hasUpdate) {
+                        publication.update(context);
+                      } else {
+                        publication.download(context);
+                      }
+                    },
+                    icon: Icon(
+                      hasUpdate ? JwIcons.arrows_circular : JwIcons.cloud_arrow_down,
+                      size: hasUpdate ? 20 : 24,
+                      color: const Color(0xFF9d9d9d),
                     ),
                   ),
-                  PositionedDirectional(
-                    bottom: 0,
-                    end: 2,
-                    child: Text(
-                      formatFileSize(publication.size),
-                      style: const TextStyle(
-                        fontSize: 10,
-                        color: Color(0xFF9d9d9d),
-                      ),
-                    ),
+                ),
+              // Affichage de la taille
+              PositionedDirectional(
+                bottom: hasUpdate ? 0 : (showSize ? 2 : 0),
+                end: 2,
+                child: Text(
+                  formatFileSize(hasUpdate
+                      ? publication.size
+                      : (showSize ? publication.expandedSize : publication.size)),
+                  style: TextStyle(
+                    fontSize: hasUpdate ? 10 : (showSize ? 12 : 10),
+                    color: const Color(0xFF9d9d9d),
                   ),
-                ],
-              );
-            }
+                ),
+              ),
+            ],
+          );
+        }
 
-            // 3. Téléchargé : afficher favori
-            return ValueListenableBuilder<bool>(
-              valueListenable: publication.isFavoriteNotifier,
-              builder: (context, isFavorite, _) {
-                if (isFavorite) {
-                  return const PositionedDirectional(
-                    bottom: -4,
-                    end: 2,
-                    height: 40,
-                    child: Icon(
-                      JwIcons.star,
-                      color: Color(0xFF9d9d9d),
-                    ),
-                  );
-                }
-                return const SizedBox.shrink();
-              },
-            );
-          },
-        );
+        // --- 3. CAS : TÉLÉCHARGÉ (AFFICHAGE FAVORI) ---
+        if (isFavorite) {
+          return const PositionedDirectional(
+            bottom: -4,
+            end: 2,
+            height: 40,
+            child: Icon(
+              JwIcons.star,
+              color: Color(0xFF9d9d9d),
+              size: 22,
+            ),
+          );
+        }
+
+        // Par défaut, rien
+        return const SizedBox.shrink();
       },
     );
   }
 
-  // 🔵 Menu contextuel amélioré
-  Widget _buildPopupMenu(BuildContext context) {
-    // Positionné en HAUT-FIN. Ceci est CORRECT.
+  Widget _buildPopupMenu() {
     return PositionedDirectional(
       top: -13,
       end: -7,
@@ -169,6 +145,33 @@ class RectanglePublicationItem extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildProgressBar() {
+    return ValueListenableBuilder<bool>(
+      valueListenable: publication.isDownloadingNotifier,
+      builder: (context, isDownloading, _) {
+        return isDownloading ? PositionedDirectional(
+          bottom: 0,
+          start: height, // Démarre juste après l'image
+          end: 0, // Va jusqu'au bout du widget
+          height: 2,
+          child: ValueListenableBuilder<double>(
+            valueListenable: publication.progressNotifier,
+            builder: (context, progress, _) {
+              return LinearProgressIndicator(
+                value: progress == -1 ? null : progress,
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  Theme.of(context).primaryColor,
+                ),
+                backgroundColor: const Color(0xFFbdbdbd),
+                minHeight: 2,
+              );
+            },
+          ),
+        ) : const SizedBox.shrink();
+      },
     );
   }
 
@@ -225,7 +228,7 @@ class RectanglePublicationItem extends StatelessWidget {
                           if (publication.issueTitle.isNotEmpty)
                             Text(
                               publication.issueTitle,
-                              style: TextStyle(fontSize: height == kSquareItemHeight ? 11 : 10, color: subtitleColor),
+                              style: TextStyle(fontSize: height == kItemHeight ? 11 : 10, color: subtitleColor),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               textAlign: TextAlign.start, // S'assurer de l'alignement
@@ -235,7 +238,7 @@ class RectanglePublicationItem extends StatelessWidget {
                               publication.coverTitle,
                               style: TextStyle(
                                 height: 1.2,
-                                fontSize: height == kSquareItemHeight ? 14 : 13,
+                                fontSize: height == kItemHeight ? 14 : 13,
                                 color: Theme.of(context).secondaryHeaderColor,
                               ),
                               maxLines: 2,
@@ -247,7 +250,7 @@ class RectanglePublicationItem extends StatelessWidget {
                               publication.title,
                               style: TextStyle(
                                 height: 1.2,
-                                fontSize: height == kSquareItemHeight ? 14.5 : 14,
+                                fontSize: height == kItemHeight ? 14.5 : 14,
                                 color: Theme.of(context).secondaryHeaderColor,
                               ),
                               maxLines: 2,
@@ -268,14 +271,9 @@ class RectanglePublicationItem extends StatelessWidget {
                 ],
               ),
 
-              // Menu (Utilise PositionedDirectional dans _buildPopupMenu)
-              _buildPopupMenu(context),
-
-              // Bouton dynamique (Utilise PositionedDirectional dans _buildDynamicButton)
+              _buildPopupMenu(),
               _buildDynamicButton(),
-
-              // Barre de progression (Utilise PositionedDirectional dans _buildProgressBar)
-              _buildProgressBar(height),
+              _buildProgressBar(),
             ],
           ),
         ),

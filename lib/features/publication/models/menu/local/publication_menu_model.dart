@@ -28,7 +28,7 @@ class PublicationMenuModel {
   PublicationMenuModel(this.publication);
 
   Future<void> init() async {
-    publication.documentsManager ??= DocumentsManager(publication: publication, mepsDocumentId: -1);
+    publication.documentsManager ??= DocumentsManager(publication: publication);
     await publication.documentsManager!.initializeDatabaseAndData();
     publication.wordsSuggestionsModel ??= WordsSuggestionsModel(publication);
 
@@ -45,8 +45,7 @@ class PublicationMenuModel {
     _documentMultimediaExists = results[1];
 
     if (_multimediaExists) {
-      final columns = await getColumnsForTable(db, 'Multimedia');
-      _hasMultimediaColumns = columns.contains('CategoryType');
+      _hasMultimediaColumns = await checkIfColumnsExists(db, 'Multimedia', ['CategoryType']);
     }
 
     if (results[2]) {

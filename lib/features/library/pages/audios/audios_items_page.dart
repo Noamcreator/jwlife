@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'package:diacritic/diacritic.dart';
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:jwlife/app/jwlife_app.dart';
@@ -98,12 +97,12 @@ class _AudioItemsPageState extends State<AudioItemsPage> {
       });
     } else {
       // 1. Normaliser la requête de recherche : minuscule + suppression des diacritiques
-      final normalizedQuery = removeDiacritics(query).toLowerCase();
+      final normalizedQuery = normalize(query);
 
       setState(() {
         _filteredAudios = _allAudios.where((mediaItem) {
           // 2. Normaliser le titre de l'élément pour la comparaison
-          final normalizedTitle = removeDiacritics(mediaItem.title).toLowerCase();
+          final normalizedTitle = normalize(mediaItem.title);
 
           // 3. Comparer les chaînes normalisées
           return normalizedTitle.contains(normalizedQuery);
@@ -329,6 +328,7 @@ class _AudioItemsPageState extends State<AudioItemsPage> {
                           ),
                           padding: EdgeInsets.zero,
                           itemBuilder: (context) => [
+                            if (audio.isDownloadedNotifier.value && audio.filePath != null) getAudioShareFileItem(audio),
                             getAudioShareItem(audio),
                             getAudioQrCode(context, audio),
                             getAudioAddPlaylistItem(context, audio),

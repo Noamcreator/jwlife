@@ -61,6 +61,26 @@ RealmMediaItem? getAudioItem(String? keySymbol, int? track, int? documentId, int
   return RealmLibrary.realm.all<RealmMediaItem>().query(query).firstOrNull;
 }
 
+PopupMenuItem getAudioShareFileItem(Audio audio) {
+  return PopupMenuItem(
+    child: Row(
+      children: [
+        Icon(JwIcons.document_envelope),
+        SizedBox(width: 8),
+        Text(i18n().action_open_in_share_file),
+      ],
+    ),
+    onTap: () {
+      SharePlus.instance.share(
+        ShareParams(
+          title: audio.title,
+          files: [XFile(audio.filePath!)],
+        ),
+      );
+    },
+  );
+}
+
 PopupMenuItem getAudioShareItem(Audio audio) {
   return PopupMenuItem(
     child: Row(

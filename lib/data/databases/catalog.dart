@@ -528,6 +528,62 @@ class CatalogDb {
     }
   }
 
+  Future<List<Publication>> getAllUpdatePublications() async {
+    // 1. Récupérer les publications locales
+    List<Publication> localPubs = PublicationRepository().getAllDownloadedPublications();
+
+    if (localPubs.isEmpty) return [];
+
+    // 2. Préparer les placeholders pour la requête SQL (ex: ?, ?, ?)
+    final placeholders = localPubs.map((_) => '?').join(', ');
+
+    // Extraire les listes de valeurs pour le filtrage
+    final keySymbols = localPubs.map((p) => p.keySymbol).toList();
+    final issueTagNumbers = localPubs.map((p) => p.issueTagNumber).toList();
+    final mepsLanguageIds = localPubs.map((p) => p.mepsLanguage.id).toList();
+
+    try {
+      final List<Map<String, dynamic>> results = await database.rawQuery('''
+        SELECT
+          p.KeySymbol,
+          p.IssueTagNumber,
+          p.MepsLanguageId,
+          pa.LastModified,
+          pa.LastUpdated,
+          pa.Size,
+          pa.ExpandedSize
+        FROM PublicationAsset pa
+        INNER JOIN Publication p ON pa.PublicationId = p.Id
+        WHERE p.KeySymbol IN ($placeholders) 
+          AND p.IssueTagNumber IN ($placeholders) 
+          AND p.MepsLanguageId IN ($placeholders)
+          AND pa.LastModified IS NOT NULL 
+          AND pa.LastUpdated IS NOT NULL
+      ''', [...keySymbols, ...issueTagNumbers, ...mepsLanguageIds]);
+
+      for (var pub in localPubs) {
+        String? lastModified = results.firstWhereOrNull((element) => element['KeySymbol'] == pub.keySymbol && element['IssueTagNumber'] == pub.issueTagNumber && element['MepsLanguageId'] == pub.mepsLanguage.id)?['LastModified'] ?? pub.lastModified;
+        String? lastUpdated = results.firstWhereOrNull((element) => element['KeySymbol'] == pub.keySymbol && element['IssueTagNumber'] == pub.issueTagNumber && element['MepsLanguageId'] == pub.mepsLanguage.id)?['LastUpdated'] ?? pub.lastUpdated;
+        int? size = results.firstWhereOrNull((element) => element['KeySymbol'] == pub.keySymbol && element['IssueTagNumber'] == pub.issueTagNumber && element['MepsLanguageId'] == pub.mepsLanguage.id)?['Size'] ?? pub.size;
+        int? expandedSize = results.firstWhereOrNull((element) => element['KeySymbol'] == pub.keySymbol && element['IssueTagNumber'] == pub.issueTagNumber && element['MepsLanguageId'] == pub.mepsLanguage.id)?['ExpandedSize'] ?? pub.expandedSize;
+
+        if(lastModified != null && lastUpdated != null && size != null && expandedSize != null) {
+          pub.lastModified = lastModified;
+          pub.lastUpdated = lastUpdated;
+          pub.size = size;
+          pub.expandedSize = expandedSize;
+        }
+      }
+
+      // 4. Conversion des résultats
+      return localPubs;
+    }
+    catch (e) {
+      print('Error getAllUpdatePublications: $e');
+      return [];
+    }
+  }
+
   Future<List<Publication>> fetchPubs(String query, MepsLanguage mepsLanguage, {int? limit}) async {
     try {
       final searchQuery = '%$query%';

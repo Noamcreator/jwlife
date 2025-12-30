@@ -91,7 +91,6 @@ class _VisitsViewState extends State<VisitsView> {
     SELECT * FROM Publication
     WHERE MepsLanguageId = ? AND IssueTagNumber = 0
   ''', [JwLifeSettings.instance.currentLanguage.value.id]);
-    await pubCollectionDb.close();
 
     List<Map<String, dynamic>> documents = [];
 

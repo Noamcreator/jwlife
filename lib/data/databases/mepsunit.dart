@@ -14,8 +14,28 @@ class Mepsunit {
       final mepsUnit = await openReadOnlyDatabase(mepsFile.path);
 
       try {
-        List<Map<String, dynamic>> result = await mepsUnit.rawQuery("SELECT * FROM BibleCluesInfo WHERE LanguageId = ${JwLifeSettings.instance.currentLanguage.value.id}");
-        List<Map<String, dynamic>> result2 = await mepsUnit.rawQuery("SELECT * FROM BibleBookName WHERE BibleCluesInfoId = ${result[0]['BibleCluesInfoId']}");
+        final result = await mepsUnit.rawQuery("""
+          SELECT
+            BibleCluesInfoId,
+            ChapterVerseSeparator, 
+            Separator, 
+            RangeSeparator, 
+            NonconsecutiveChapterListSeparator, 
+            SuperscriptionTextFull, 
+            SuperscriptionTextAbbreviation
+          FROM BibleCluesInfo
+          WHERE BibleInfoId = 2 AND LanguageId = ${JwLifeSettings.instance.currentLanguage.value.id}
+        """);
+
+        final result2 = await mepsUnit.rawQuery("""
+          SELECT DISTINCT 
+            BibleBookName.*,
+            BibleBookInfo.IsSingleChapter,
+            BibleBookInfo.HasSuperscriptions
+          FROM BibleBookName
+          INNER JOIN BibleBookInfo ON BibleBookName.BookNumber = BibleBookInfo.BookNumber
+          WHERE BibleBookName.BibleCluesInfoId = ${result.first['BibleCluesInfoId']};
+        """);
 
         List<BibleBookName> bibleBookNames = result2.map((book) => BibleBookName.fromJson(book)).toList();
         JwLifeApp.bibleCluesInfo = BibleCluesInfo.fromJson(result.first, bibleBookNames);

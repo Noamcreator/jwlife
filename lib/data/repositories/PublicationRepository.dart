@@ -75,7 +75,7 @@ class PublicationRepository {
     String keySymbol = parts[0];
     String mepsLanguageSymbol = parts[1];
 
-    return getAllPublications().firstWhereOrNull((p) => p.keySymbol == keySymbol && p.mepsLanguage.symbol == mepsLanguageSymbol);
+    return getAllPublications().firstWhereOrNull((p) => p.keySymbol == keySymbol && p.mepsLanguage.symbol == mepsLanguageSymbol) ?? getAllBibles().first;
   }
 
   /// Retourne une instance unique d'une publication si elle existe, sinon l'original

@@ -24,6 +24,7 @@ import '../features/audio/audio_player_model.dart';
 import '../features/document/local/document_page.dart';
 import '../features/home/pages/daily_text_page.dart';
 import '../i18n/localization.dart';
+import '../widgets/webview_manager.dart';
 import 'jwlife_page.dart';
 
 class _JwLifePageContainer extends StatelessWidget {
@@ -31,7 +32,12 @@ class _JwLifePageContainer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return JwLifePage(key: GlobalKeyService.jwLifePageKey);
+    return Stack(
+      children: [
+        JwLifePage(key: GlobalKeyService.jwLifePageKey),
+        WebViewManager.instance.preloaderWidget()
+      ],
+    );
   }
 }
 

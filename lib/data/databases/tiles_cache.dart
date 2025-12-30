@@ -11,7 +11,6 @@ import '../../core/utils/directory_helper.dart';
 import '../models/tile.dart';
 
 class TilesCache {
-  // Singleton
   static final TilesCache _instance = TilesCache._internal();
   factory TilesCache() => _instance;
   TilesCache._internal();

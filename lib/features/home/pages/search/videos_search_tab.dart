@@ -248,6 +248,7 @@ class _VideosSearchTabState extends State<VideosSearchTab> {
                     useRootNavigator: true,
                     icon: const Icon(Icons.more_horiz, color: Colors.white, size: 30),
                     itemBuilder: (context) => [
+                      if (video.isDownloadedNotifier.value && video.filePath != null) getVideoShareFileItem(video),
                       getVideoShareItem(video),
                       getVideoQrCode(context, video),
                       getVideoAddPlaylistItem(context, video),

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:jwlife/app/jwlife_app_bar.dart';
 
@@ -227,9 +228,9 @@ class _PublicationsItemsPageState extends State<PublicationsItemsPage> {
                             end: 10,
                             bottom: 0,
                           ),
-                        ).then((res) {
-                          if (res != null) {
-                            _model.sortPublications(res);
+                        ).then((value) {
+                          if (value != null) {
+                            _model.sortPublications(value);
                           }
                         });
                       }
@@ -273,114 +274,108 @@ class _PublicationsItemsBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // On détermine la direction du texte
+    final isRtl = viewModel.mepsLanguage?.isRtl ?? mepsLanguage?.isRtl ?? JwLifeSettings.instance.currentLanguage.value.isRtl;
+
+    // Récupérer tous les notifiers pour écouter les changements de téléchargement globalement
+    final List<ValueListenable<bool>> downloadNotifiers = [];
+    viewModel.filteredPublications.values.forEach((list) {
+      for (var pub in list) {
+        downloadNotifiers.add(pub.isDownloadedNotifier);
+      }
+    });
+
     return Directionality(
-        textDirection: viewModel.mepsLanguage?.isRtl ?? mepsLanguage?.isRtl ?? JwLifeSettings.instance.currentLanguage.value.isRtl ? TextDirection.rtl : TextDirection.ltr,
-        child: ListenableBuilder(
-          listenable: viewModel,
-          builder: (context, child) {
-            final filteredPublications = viewModel.filteredPublications;
+      textDirection: isRtl ? TextDirection.rtl : TextDirection.ltr,
+      child: ListenableBuilder(
+        // On écoute à la fois le viewModel ET tous les changements de téléchargement
+        listenable: Listenable.merge([viewModel, ...downloadNotifiers]),
+        builder: (context, child) {
+          if (viewModel.isLoading) {
+            return getLoadingWidget(Theme.of(context).primaryColor);
+          }
 
-            // 1. VÉRIFICATION DE L'ÉTAT DE CHARGEMENT
-            if (viewModel.isLoading) {
-              return getLoadingWidget(Theme.of(context).primaryColor);
+          // 1. PRÉ-FILTRAGE des listes pour supprimer les éléments non téléchargés/catalogués
+          final Map<PublicationAttribute, List<Publication>> displayMap = {};
+
+          viewModel.filteredPublications.forEach((attribute, list) {
+            final visibleList = list.where((pub) =>
+            pub.isDownloadedNotifier.value || pub.catalogedOn.isNotEmpty
+            ).toList();
+
+            if (visibleList.isNotEmpty) {
+              displayMap[attribute] = visibleList;
             }
+          });
 
-            // 2. VÉRIFICATION DE L'ABSENCE DE PUBLICATIONS (après le chargement)
-            bool hasPublications = filteredPublications.values.any((list) => list.isNotEmpty);
-
-            if (!hasPublications) {
-              // Affiche le message s'il n'y a aucune publication du tout
-              return Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(24.0),
-                  child: Text(
-                    i18n().message_no_items_publications,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 18,
-                      color: Theme.of(context).hintColor,
-                    ),
-                  ),
+          // 2. Vérification si vide après filtrage
+          if (displayMap.isEmpty) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Text(
+                  i18n().message_no_items_publications,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 18, color: Theme.of(context).hintColor),
                 ),
-              );
-            }
+              ),
+            );
+          }
 
-            // 3. AFFICHAGE DES PUBLICATIONS (si chargées et disponibles)
-            return LayoutBuilder(
-              builder: (context, constraints) {
-                final double screenWidth = constraints.maxWidth;
-                final double contentPadding = getContentPadding(screenWidth);
+          return LayoutBuilder(
+            builder: (context, constraints) {
+              final double screenWidth = constraints.maxWidth;
+              final double contentPadding = getContentPadding(screenWidth);
 
-                // Calcul de la grille (stable)
-                final int crossAxisCount = (screenWidth / (kMaxItemWidth + kSpacing)).floor();
-                final int finalCrossAxisCount = crossAxisCount > 0 ? crossAxisCount : 1;
-                final double totalSpacing = kSpacing * (finalCrossAxisCount - 1);
-                final double itemWidth = (screenWidth - (contentPadding * 2) - totalSpacing) / finalCrossAxisCount;
-                final double childAspectRatio = itemWidth / kSquareItemHeight;
+              // Calcul de la grille
+              final int crossAxisCount = (screenWidth / (kMaxItemWidth + kSpacing)).floor();
+              final int finalCrossAxisCount = crossAxisCount > 0 ? crossAxisCount : 1;
+              final double totalSpacing = kSpacing * (finalCrossAxisCount - 1);
+              final double itemWidth = (screenWidth - (contentPadding * 2) - totalSpacing) / finalCrossAxisCount;
+              final double childAspectRatio = itemWidth / kItemHeight;
 
-                final List<Widget> slivers = [];
+              final List<Widget> slivers = [];
 
-                // Parcourir les groupes d'attributs filtrés
-                filteredPublications.forEach((attribute, publicationList) {
-                  if (publicationList.isEmpty) return; // Cette ligne est toujours utile pour les groupes vides
-
-                  // 1. Ajout de l'en-tête (SliverToBoxAdapter)
-                  // L'ID 0 est ignoré car il est utilisé comme attribut factice pour le tri par année.
-                  if (attribute.id != 0) {
-                    slivers.add(
-                      SliverToBoxAdapter(
-                        child: Padding(
-                          padding: EdgeInsets.symmetric(horizontal: contentPadding),
-                          child: buildCategoryHeader(context, attribute),
-                        ),
-                      ),
-                    );
-                  }
-
-                  // 2. Ajout de la grille de publications (SliverGrid)
+              displayMap.forEach((attribute, publicationList) {
+                // Ajout de l'en-tête
+                if (attribute.id != 0) {
                   slivers.add(
-                    SliverPadding(
-                      padding: EdgeInsets.all(contentPadding),
-                      sliver: SliverGrid.builder(
-                        itemCount: publicationList.length,
-                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: finalCrossAxisCount,
-                          mainAxisSpacing: kSpacing,
-                          crossAxisSpacing: kSpacing,
-                          childAspectRatio: childAspectRatio, // Ratio optimisé
-                        ),
-                        // ItemBuilder optimisé
-                        itemBuilder: (context, index) {
-                          Publication publication = publicationList[index];
-                          // ValueListenableBuilder est le plus petit possible, ne reconstruisant
-                          // que l'élément affecté par le changement d'état de téléchargement.
-                          return ValueListenableBuilder<bool>(
-                              valueListenable: publication.isDownloadedNotifier,
-                              builder: (context, isDownloaded, _) {
-                                // La logique reste ici car elle est dynamique et propre à l'élément de liste.
-                                if (isDownloaded || publication.catalogedOn.isNotEmpty) {
-                                  return RectanglePublicationItem(publication: publication);
-                                }
-                                else {
-                                  // Utiliser SizedBox.shrink() est la bonne pratique pour les éléments non visibles.
-                                  return const SizedBox.shrink();
-                                }
-                              }
-                          );
-                        },
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(horizontal: contentPadding),
+                        child: buildCategoryHeader(context, attribute),
                       ),
                     ),
                   );
-                });
+                }
 
-                // 3. Le CustomScrollView
-                return CustomScrollView(
-                  slivers: slivers,
+                // Ajout de la grille (sans SizedBox.shrink, tout est rempli)
+                slivers.add(
+                  SliverPadding(
+                    padding: EdgeInsets.all(contentPadding),
+                    sliver: SliverGrid.builder(
+                      itemCount: publicationList.length,
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: finalCrossAxisCount,
+                        mainAxisSpacing: kSpacing,
+                        crossAxisSpacing: kSpacing,
+                        childAspectRatio: childAspectRatio,
+                      ),
+                      itemBuilder: (context, index) {
+                        return RectanglePublicationItem(
+                          publication: publicationList[index],
+                        );
+                      },
+                    ),
+                  ),
                 );
-              },
-            );
-          },
-        )
+              });
+
+              return CustomScrollView(slivers: slivers);
+            },
+          );
+        },
+      ),
     );
   }
 }

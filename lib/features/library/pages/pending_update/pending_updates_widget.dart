@@ -1,399 +1,173 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
-import 'package:jwlife/core/icons.dart';
+import 'package:jwlife/core/ui/app_dimens.dart';
+import 'package:jwlife/core/icons.dart'; // Import pour les icônes
 import 'package:jwlife/core/utils/common_ui.dart';
-import 'package:jwlife/core/utils/files_helper.dart';
-import 'package:jwlife/core/utils/utils.dart';
-import 'package:jwlife/core/utils/utils_database.dart';
-import 'package:jwlife/core/utils/utils_pub.dart';
+import 'package:jwlife/data/models/media.dart';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/features/library/widgets/rectangle_mediaItem_item.dart';
-import 'package:jwlife/widgets/image_cached_widget.dart';
-import 'package:sqflite/sqflite.dart';
+import 'package:jwlife/i18n/i18n.dart'; // Import pour i18n
 
 import '../../../../core/utils/widgets_utils.dart';
-import '../../../../data/databases/catalog.dart';
 import '../../../../data/models/audio.dart';
-import '../../../../data/models/media.dart';
-import '../../../../data/models/video.dart';
-import '../../../../data/repositories/MediaRepository.dart';
-import '../../../../i18n/i18n.dart';
+import '../../../../widgets/multiple_listenable_builder_widget.dart';
 import '../../../publication/pages/local/publication_menu_view.dart';
+import '../../models/pending_update/pending_update_model.dart';
+import '../../widgets/rectangle_publication_item.dart';
 
 class PendingUpdatesWidget extends StatefulWidget {
-  const PendingUpdatesWidget({super.key});
+  final PendingUpdatesPageModel model;
+  const PendingUpdatesWidget({super.key, required this.model});
 
   @override
   _PendingUpdatesWidgetState createState() => _PendingUpdatesWidgetState();
 }
 
 class _PendingUpdatesWidgetState extends State<PendingUpdatesWidget> {
-  bool _isLoading = true;
-
-  Map<String, List<Publication>> _groupedPublications = {};
-  Map<String, List<Media>> _groupedMedias = {};
-  double _itemWidth = 0;
+  late final PendingUpdatesPageModel _model;
 
   @override
   void initState() {
     super.initState();
-    _loadData();
+    _model = widget.model;
   }
 
-  Future<void> _loadData() async {
-    try {
-      // Chargement des médias
-      await _loadMedias();
-
-      // Pré-calcul des publications groupées
-      await _loadAndGroupPublications();
-
-      setState(() {
-        _isLoading = false;
-      });
-    } catch (e) {
-      // Gestion d'erreur
-      setState(() {
-        _isLoading = false;
-      });
-    }
+  /// Message affiché lorsqu'il n'y a aucune mise à jour en attente
+  Widget _buildEmptyState() {
+    return SliverFillRemaining(
+      hasScrollBody: false,
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              JwIcons.arrows_circular,
+              size: 100,
+              color: Colors.grey.withOpacity(0.3),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              i18n().messages_empty_downloads, // Vérifie que cette clé existe ou utilise un texte fixe
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 18,
+                color: Colors.grey,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
-  Future<void> _loadMedias() async {
-    List<Media> mediasDownload = List.from(MediaRepository().getAllDownloadedMedias());
-    List<Audio> audiosDownload = mediasDownload.whereType<Audio>().toList();
-    List<Video> videosDownload = mediasDownload.whereType<Video>().toList();
+  List<Widget> _buildSliverSection<T>(String? title, List<T> items, double contentPadding) {
+    // FILTRE : On ne garde que les éléments qui ont réellement une mise à jour
+    final visibleItems = items.where((item) {
+      if (item is Publication) return item.hasUpdateNotifier.value;
+      if (item is Media) return item.hasUpdateNotifier.value;
+      return false;
+    }).toList();
 
-    _groupedMedias = {
-      if (audiosDownload.isNotEmpty) 'Audios': audiosDownload.toList(),
-      if (videosDownload.isNotEmpty) 'Videos': videosDownload.toList(),
-    };
-  }
+    if (visibleItems.isEmpty) return [];
 
-  Future<void> _loadAndGroupPublications() async {
-    File pubCollectionsFile = await getPubCollectionsDatabaseFile();
-    File mepsFile = await getMepsUnitDatabaseFile();
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isTwoColumn = screenWidth > 800;
+    final int crossAxisCount = isTwoColumn ? 2 : 1;
+    final double calculatedItemWidth = (screenWidth - (getContentPadding(screenWidth) * 2) - (kSpacing * (crossAxisCount - 1))) / crossAxisCount;
 
-    if (await pubCollectionsFile.exists()) {
-      Database pubCollectionsDB = await openReadOnlyDatabase(pubCollectionsFile.path);
-
-      await attachDatabases(pubCollectionsDB, {'meps': mepsFile.path, 'catalog': CatalogDb.instance.database.path});
-
-      List<Map<String, dynamic>> result = await pubCollectionsDB.rawQuery('''
-        SELECT DISTINCT
-          p.*,
-          pa.ExpandedSize,
-          pa.LastModified,
-          pip.Title AS IssueTitle,
-          pip.CoverTitle AS CoverTitle,
-          l.Symbol AS LanguageSymbol,
-          l.VernacularName AS LanguageVernacularName,
-          l.PrimaryIetfCode AS LanguagePrimaryIetfCode,
-          (SELECT img.Path 
-           FROM Image img
-           WHERE img.Type = 't' 
-             AND img.PublicationId = p.PublicationId 
-           ORDER BY img.Width DESC, img.Height DESC 
-           LIMIT 1) AS ImageSqr,
-          (SELECT img.Path 
-           FROM Image img
-           WHERE img.Width = 1200 
-             AND img.Height = 600 
-             AND img.Type = 'lsr' 
-             AND img.PublicationId = p.PublicationId 
-           LIMIT 1) AS ImageLsr
-        FROM Publication p
-        LEFT JOIN PublicationIssueProperty pip ON pip.PublicationId = p.PublicationId
-        LEFT JOIN meps.Language l ON p.MepsLanguageId = l.LanguageId
-        LEFT JOIN catalog.Publication cp 
-          ON p.MepsLanguageId = cp.MepsLanguageId 
-          AND p.KeySymbol = cp.KeySymbol 
-          AND p.IssueTagNumber = cp.IssueTagNumber
-        LEFT JOIN catalog.PublicationAsset pa ON cp.Id = pa.PublicationId
-        WHERE STRFTIME('%Y-%m-%d %H:%M:%S', pa.LastModified) > STRFTIME('%Y-%m-%d %H:%M:%S', p.Timestamp)
-        ORDER BY p.PublicationType
-      ''');
-
-      setState(() {
-        _groupedPublications = {};
-        for (var pub in result) {
-          Publication publication = Publication.fromJson(pub);
-          _groupedPublications.putIfAbsent(
-              publication.category.getName(), () => []).add(publication);
-        }
-      });
-
-      await detachDatabases(pubCollectionsDB, ['meps', 'catalog']);
-      await pubCollectionsDB.close();
-    }
+    return [
+      if (title != null)
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: EdgeInsets.only(left: contentPadding, right: contentPadding, top: 20.0, bottom: 5.0),
+            child: Text(title, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+          ),
+        ),
+      SliverPadding(
+        padding: EdgeInsets.symmetric(horizontal: contentPadding, vertical: kSpacing),
+        sliver: SliverGrid.builder(
+          itemCount: visibleItems.length,
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: crossAxisCount,
+            mainAxisSpacing: kSpacing,
+            crossAxisSpacing: kSpacing,
+            childAspectRatio: calculatedItemWidth / kItemHeight,
+          ),
+          itemBuilder: (context, index) {
+            final item = visibleItems[index];
+            return GestureDetector(
+              onTap: () {
+                if (item is Publication) {
+                  showPage(PublicationMenuView(publication: item));
+                }
+              },
+              child: Container(
+                color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF292929) : Colors.white,
+                child: item is Publication
+                    ? RectanglePublicationItem(publication: item)
+                    : RectangleMediaItemItem(media: item as Media),
+              ),
+            );
+          },
+        ),
+      ),
+    ];
   }
 
   @override
   Widget build(BuildContext context) {
-    // Calcul de la largeur une seule fois
-    if (_itemWidth == 0) {
-      final screenWidth = MediaQuery.of(context).size.width;
-      _itemWidth = screenWidth > 800 ? (screenWidth / 2 - 16) : screenWidth;
-    }
+    final double contentPadding = getContentPadding(MediaQuery.of(context).size.width);
 
-    if (_isLoading) {
-      return getLoadingWidget(Theme.of(context).primaryColor);
-    }
+    return ListenableBuilder(
+      listenable: _model,
+      builder: (context, _) {
+        if (_model.isLoading) return getLoadingWidget(Theme.of(context).primaryColor);
 
-    return _buildContent();
-  }
+        // Récupération de tous les notifiers pour vider la liste en temps réel dès qu'une MAJ est faite
+        final allUpdateNotifiers = <ValueNotifier<bool>>[];
+        for (var item in [..._model.mixedItems, ..._model.groupedItems.values.expand((e) => e)]) {
+          if (item is Publication) allUpdateNotifiers.add(item.hasUpdateNotifier);
+          if (item is Media) allUpdateNotifiers.add(item.hasUpdateNotifier);
+        }
 
-  Widget _buildContent() {
-    return ListView(
-      padding: const EdgeInsets.all(10.0),
-      children: [
-        // Sections des publications
-        if (_groupedPublications.isNotEmpty) ..._buildPublicationSections(),
+        return MultiValueListenableBuilder(
+          listenables: allUpdateNotifiers,
+          builder: (context) {
+            final List<Widget> slivers = [];
+            final List<Widget> contentSections = [];
 
-        // Sections des médias
-        if (_groupedMedias.isNotEmpty) ..._buildMediaSections(),
-      ],
-    );
-  }
-
-  List<Widget> _buildPublicationSections() {
-    return _groupedPublications.entries.map((entry) {
-      return _buildSection<Publication>(
-        entry.key,
-        entry.value,
-        _buildCategoryButton,
-      );
-    }).toList();
-  }
-
-  List<Widget> _buildMediaSections() {
-    return _groupedMedias.entries.map((entry) {
-      return _buildSection<Media>(
-        entry.key,
-        entry.value,
-        _buildMediaButton,
-      );
-    }).toList();
-  }
-  Widget _buildSection<T>(
-      String title,
-      List<T> items,
-      Widget Function(BuildContext, T) buildItem,
-      ) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 10.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(bottom: 5.0),
-            child: Text(
-              title,
-              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-            ),
-          ),
-          Wrap(
-            spacing: 3.0,
-            runSpacing: 3.0,
-            children: items.map((item) {
-              return GestureDetector(
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).brightness == Brightness.dark
-                        ? const Color(0xFF292929)
-                        : Colors.white,
-                  ),
-                  child: buildItem(context, item),
-                ),
-                onTap: () {
-                  if (item is Publication) {
-                    showPage(PublicationMenuView(publication: item));
+            // 1. Construction des sections de contenu
+            if (_model.mixedItems.isNotEmpty) {
+              contentSections.addAll(_buildSliverSection(null, _model.mixedItems, contentPadding));
+            } else {
+              _model.groupedItems.forEach((key, list) {
+                if (list.isNotEmpty) {
+                  String title = "";
+                  if (list.first is Publication) {
+                    title = (list.first as Publication).category.getName();
                   }
-                  else if (item is Media) {
-                    item.showPlayer(context);
+                  else if (list.first is Media) {
+                    title = list.first is Audio ? i18n().pub_type_audio_programs : i18n().label_videos;
                   }
-                },
-              );
-            }).toList(),
-          ),
-        ],
-      ),
+                  contentSections.addAll(_buildSliverSection<dynamic>(title, list, contentPadding));
+                }
+              });
+            }
+
+            // 2. Vérification si on a du contenu après filtrage
+            if (contentSections.isEmpty) {
+              slivers.add(_buildEmptyState());
+            } else {
+              slivers.addAll(contentSections);
+            }
+
+            // Petit espacement en bas pour le scroll
+            slivers.add(SliverToBoxAdapter(child: SizedBox(height: contentPadding)));
+
+            return CustomScrollView(slivers: slivers);
+          },
+        );
+      },
     );
-  }
-
-  Widget _buildCategoryButton(BuildContext context, Publication publication) {
-    // Gestion des dates : Version actuelle
-    String? lastModified = publication.lastModified;
-    String formattedDate = "N/A";  // Valeur par défaut
-
-    if (lastModified != null) {
-      lastModified = lastModified.replaceAll('+00:00', 'Z'); // Normalisation du format
-      try {
-        formattedDate = DateFormat('dd/MM/yyyy').format(DateTime.parse(lastModified));  // Formatage de la date
-      } catch (e) {
-        printTime("Erreur lors du formatage de la date : $e");
-      }
-    }
-
-    // Gestion des dates : Version téléchargée
-    String? downloadedDateStr = publication.timeStamp;  // Par exemple, publication.downloadedDate
-    String downloadedDate = "N/A";  // Valeur par défaut
-
-    downloadedDateStr = downloadedDateStr!.replaceAll('+00:00', 'Z'); // Normalisation du format
-    try {
-      downloadedDate = DateFormat('dd/MM/yyyy').format(DateTime.parse(downloadedDateStr));  // Formatage de la date
-    } catch (e) {
-      printTime("Erreur lors du formatage de la date téléchargée : $e");
-    }
-
-    return SizedBox(
-      width: _itemWidth,
-      height: 85,
-      child: Stack(
-        children: [
-          Row(
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(0),
-                child: ImageCachedWidget(
-                  imageUrl: publication.imageSqr,
-                  icon: publication.category.icon,
-                  height: 85,
-                  width: 85,
-                ),
-              ),
-              Expanded(
-                flex: 1,
-                child: Padding(
-                  padding: const EdgeInsetsDirectional.only(start: 10.0, end: 20.0, top: 4.0, bottom: 4.0),
-                  child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (publication.issueTitle.isNotEmpty)
-                          Text(
-                            publication.issueTitle,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Theme.of(context).brightness == Brightness.dark
-                                  ? const Color(0xFFc3c3c3)
-                                  : const Color(0xFF626262),
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        if (publication.coverTitle.isNotEmpty)
-                          Text(
-                            publication.coverTitle,
-                            style: TextStyle(
-                              fontSize: 14,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        if (publication.issueTitle.isEmpty && publication.coverTitle.isEmpty)
-                          Text(
-                            publication.title,
-                            style: TextStyle(fontSize: 14),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        Spacer(),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Version téléchargée : $downloadedDate',
-                              style: TextStyle(fontSize: 12, color: Theme.of(context).brightness == Brightness.dark
-                                  ? const Color(0xFFc3c3c3)
-                                  : const Color(0xFF626262),
-                              ),
-                            ),
-                            Text(
-                              'Mise à jour disponible : $formattedDate',
-                              style: TextStyle(fontSize: 12, color: Theme.of(context).brightness == Brightness.dark
-                                  ? const Color(0xFFc3c3c3)
-                                  : const Color(0xFF626262),
-                              ),
-                            ),
-                          ],
-                        )
-                      ],
-                    ),
-                ),
-              ),
-            ],
-          ),
-          PositionedDirectional(
-            top: -5,
-            end: -10,
-            child: PopupMenuButton(
-              icon: Icon(Icons.more_vert, color: Theme.of(context).brightness == Brightness.dark ? Color(0xFFc3c3c3) : Color(0xFF626262),
-              ),
-              itemBuilder: (BuildContext context) {
-                return [
-                  getPubShareMenuItem(publication),
-                  getPubQrCodeMenuItem(context, publication),
-                  getPubLanguagesItem(context, i18n().label_languages_more, publication),
-                  getPubFavoriteItem(publication),
-                  getPubDownloadItem(context, publication),
-                ];
-              },
-            ),
-          ),
-          publication.progressNotifier.value == 0 ? PositionedDirectional(
-            bottom: 5,
-            end: -8,
-            height: 45,
-            child: IconButton(
-              padding: const EdgeInsets.all(0),
-              onPressed: () async {
-                await publication.update(context);
-                setState(() {
-                  _groupedPublications[publication.category.getName()]?.remove(publication);
-                  if(_groupedPublications[publication.category.getName()]!.isEmpty) _groupedPublications.remove(publication.category.getName());
-                });
-              },
-              icon: Icon(JwIcons.arrows_circular, color: Color(0xFF9d9d9d)),
-            ),
-          ) : Container(),
-          publication.progressNotifier.value == 0 ? PositionedDirectional(
-              bottom: 0,
-              end: -5,
-              width: 50,
-              child: Text(
-                textAlign: TextAlign.center,
-                formatFileSize(publication.expandedSize),
-                style: TextStyle(
-                  fontSize: 11,
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? const Color(0xFFc3c3c3)
-                      : const Color(0xFF626262),
-                ),
-              )
-          ) : Container(),
-          PositionedDirectional(
-            bottom: 0,
-            end: 0,
-            height: 2,
-            width: 340-40,
-            child: publication.progressNotifier.value != 0
-                ? LinearProgressIndicator(
-              value: publication.progressNotifier.value == -1 ? null : publication.progressNotifier.value,
-              valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).primaryColor),
-              backgroundColor: Colors.grey, // Fond gris
-              minHeight: 2, // Assure que la hauteur est bien prise en compte
-            )
-                : Container(),
-          )
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMediaButton(BuildContext context, Media media) {
-    return RectangleMediaItemItem(media: media);
   }
 }

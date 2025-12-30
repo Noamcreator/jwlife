@@ -179,16 +179,16 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
   Future<void> init() async {
     if(widget.publication.documentsManager != null) {
       if(widget.bookNumber != null && widget.chapterNumber != null) {
-        widget.publication.documentsManager!.bookNumber = widget.bookNumber!;
-        widget.publication.documentsManager!.chapterNumber = widget.chapterNumber!;
-        widget.publication.documentsManager!.selectedDocumentIndex = widget.publication.documentsManager!.documents.indexWhere((element) => element.bookNumber == widget.bookNumber && element.chapterNumberBible == widget.chapterNumber);
+        widget.publication.documentsManager!.initBookNumber = widget.bookNumber!;
+        widget.publication.documentsManager!.initChapterNumber = widget.chapterNumber!;
+        widget.publication.documentsManager!.selectedDocumentId = widget.publication.documentsManager!.documents.indexWhere((element) => element.bookNumber == widget.bookNumber && element.chapterNumberBible == widget.chapterNumber);
       }
       else {
-        widget.publication.documentsManager!.selectedDocumentIndex = widget.publication.documentsManager!.documents.indexWhere((element) => element.mepsDocumentId == widget.mepsDocumentId);
+        widget.publication.documentsManager!.selectedDocumentId = widget.publication.documentsManager!.documents.indexWhere((element) => element.mepsDocumentId == widget.mepsDocumentId);
       }
     }
     else {
-      widget.publication.documentsManager = DocumentsManager(publication: widget.publication, mepsDocumentId: widget.mepsDocumentId, bookNumber: widget.bookNumber, chapterNumber: widget.chapterNumber);
+      widget.publication.documentsManager = DocumentsManager(publication: widget.publication, initMepsDocumentId: widget.mepsDocumentId, initBookNumber: widget.bookNumber, initChapterNumber: widget.chapterNumber);
       await widget.publication.documentsManager!.initializeDatabaseAndData();
 
       widget.publication.wordsSuggestionsModel = WordsSuggestionsModel(widget.publication);
@@ -411,11 +411,11 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
   }
 
   Future<void> _jumpToPage(int page) async {
-    if (page != widget.publication.documentsManager!.selectedDocumentIndex) {
-      _pageHistory.add(widget.publication.documentsManager!.selectedDocumentIndex); // Ajouter la page actuelle à l'historique
+    if (page != widget.publication.documentsManager!.selectedDocumentId) {
+      _pageHistory.add(widget.publication.documentsManager!.selectedDocumentId); // Ajouter la page actuelle à l'historique
       _currentPageHistory = page;
 
-      widget.publication.documentsManager!.selectedDocumentIndex = page;
+      widget.publication.documentsManager!.selectedDocumentId = page;
       await _controller.evaluateJavascript(source: 'jumpToPage($page);');
 
       controlsKey.currentState?.toggleControls(true);
@@ -428,7 +428,7 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
         _currentPageHistory = _pageHistory.removeLast(); // Revenir à la dernière page dans l'historique
         await _controller.loadData(data: createReaderHtmlShell(
             widget.publication,
-            widget.publication.documentsManager!.selectedDocumentIndex,
+            widget.publication.documentsManager!.selectedDocumentId,
             widget.publication.documentsManager!.documents.length - 1
         ), baseUrl: WebUri('file://${JwLifeSettings.instance.webViewData.webappPath}/'));
       }
@@ -548,7 +548,7 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
                   initialData: InAppWebViewInitialData(
                       data: createReaderHtmlShell(
                           widget.publication,
-                          widget.publication.documentsManager!.selectedDocumentIndex,
+                          widget.publication.documentsManager!.selectedDocumentId,
                           widget.publication.documentsManager!.documents.length - 1,
                           bookNumber: widget.bookNumber,
                           chapterNumber: widget.chapterNumber,
@@ -710,6 +710,22 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
                       },
                     );
 
+
+                    controller.addJavaScriptHandler(
+                      handlerName: 'getUserdata',
+                      callback: (args) {
+                        Document document = widget.publication.documentsManager!.getCurrentDocument();
+
+                        return {
+                          'blockRanges': _blockRangesController.getBlockRangesByDocument(document: document).map((blockRange) => blockRange.toMap()).toList(),
+                          'notes': _notesController.getNotesByDocument(document: document).map((note) => note.toMap()).toList(),
+                          'tags': _tagsController.tags.map((tag) => tag.toMap()).toList(),
+                          'inputFields': document.inputFields,
+                          'bookmarks': document.bookmarks,
+                        };
+                      },
+                    );
+
                     controller.addJavaScriptHandler(
                       handlerName: 'onScroll',
                       callback: (args) async {
@@ -742,20 +758,6 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
                         List<dynamic> dynamicTags = args[1] as List<dynamic>;
                         List<int> tagsId = dynamicTags.whereType<int>().cast<int>().toList(); // Reste du code inchangé
                         return getFilteredTags(query, tagsId).map((t) => t.toMap()).toList();
-                      },
-                    );
-
-                    controller.addJavaScriptHandler(
-                      handlerName: 'getUserdata',
-                      callback: (args) {
-                        Document document = widget.publication.documentsManager!.getCurrentDocument();
-                        return {
-                          'blockRanges': _blockRangesController.getBlockRangesByDocument(document: document).map((blockRange) => blockRange.toMap()).toList(),
-                          'notes': _notesController.getNotesByDocument(document: document).map((note) => note.toMap()).toList(),
-                          'tags': _tagsController.tags.map((tag) => tag.toMap()).toList(),
-                          'inputFields': document.inputFields,
-                          'bookmarks': document.bookmarks,
-                        };
                       },
                     );
 
@@ -851,6 +853,7 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
                         Note? note = _notesController.getNoteByGuid(guid);
 
                         return {
+                          'DialogTitle': i18n().label_note,
                           'Title': note == null ? '' : note.title,
                           'Content': note == null ? '' : note.content,
                           'TagsId': note == null ? [] : note.tagsId.join(','),
@@ -1167,7 +1170,7 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
                             if (bookmark.location.bookNumber != null && bookmark.location.chapterNumber != null) {
                               final page = docManager.documents.indexWhere((doc) => doc.bookNumber == bookmark.location.bookNumber && doc.chapterNumberBible == bookmark.location.chapterNumber);
 
-                              if (page != widget.publication.documentsManager!.selectedDocumentIndex) {
+                              if (page != widget.publication.documentsManager!.selectedDocumentId) {
                                 await _jumpToPage(page);
                               }
 
@@ -1201,7 +1204,7 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
                           if(bookmark != null) {
                             if (bookmark.location.mepsDocumentId != null) {
                               final page = docManager.documents.indexWhere((doc) => doc.mepsDocumentId == bookmark.location.mepsDocumentId);
-                              if (page != widget.publication.documentsManager!.selectedDocumentIndex) {
+                              if (page != widget.publication.documentsManager!.selectedDocumentId) {
                                 await _jumpToPage(page);
                               }
                             }
@@ -1509,7 +1512,7 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
                         }
                       }
                       else {
-                        _pageHistory.add(widget.publication.documentsManager!.selectedDocumentIndex); // Ajouter la page actuelle à l'historique
+                        _pageHistory.add(widget.publication.documentsManager!.selectedDocumentId); // Ajouter la page actuelle à l'historique
                         _currentPageHistory = -1;
 
                         controlsKey.currentState?.toggleControls(true);
@@ -1526,7 +1529,7 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
                       return NavigationActionPolicy.CANCEL;
                     }
 
-                    _pageHistory.add(widget.publication.documentsManager!.selectedDocumentIndex); // Ajouter la page actuelle à l'historique
+                    _pageHistory.add(widget.publication.documentsManager!.selectedDocumentId); // Ajouter la page actuelle à l'historique
                     _currentPageHistory = -1;
 
                     controlsKey.currentState?.toggleControls(true);
@@ -1686,7 +1689,7 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
 
   void changePageAt(int index) {
     setState(() {
-      widget.publication.documentsManager!.selectedDocumentIndex = index;
+      widget.publication.documentsManager!.selectedDocumentId = index;
       _title = widget.publication.documentsManager!.getCurrentDocument().getDisplayTitle();
       _controlsVisible = true;
     });
@@ -1776,8 +1779,8 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
 
     Document? current;
     if (dm != null &&
-        dm.selectedDocumentIndex != -1 &&
-        dm.selectedDocumentIndex < dm.documents.length) {
+        dm.selectedDocumentId != -1 &&
+        dm.selectedDocumentId < dm.documents.length) {
       current = dm.getCurrentDocument();
     }
 
@@ -1792,8 +1795,8 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
 
     Document? current;
     if (dm != null &&
-        dm.selectedDocumentIndex != -1 &&
-        dm.selectedDocumentIndex < dm.documents.length) {
+        dm.selectedDocumentId != -1 &&
+        dm.selectedDocumentId < dm.documents.length) {
       current = dm.getCurrentDocument();
     }
 
@@ -1927,7 +1930,7 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
                                 doc.chapterNumber == bm.location.chapterNumber,
                           );
 
-                          if (page != dm.selectedDocumentIndex) {
+                          if (page != dm.selectedDocumentId) {
                             await widget.jumpToPage(page);
                           }
 
@@ -1941,7 +1944,7 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
                                 (doc) => doc.mepsDocumentId == bm.location.mepsDocumentId,
                           );
 
-                          if (page != dm.selectedDocumentIndex) {
+                          if (page != dm.selectedDocumentId) {
                             await widget.jumpToPage(page);
                           }
 

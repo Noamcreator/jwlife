@@ -139,11 +139,11 @@ class Audio extends Media {
 
   @override
   Future<void> download(BuildContext context, {int? resolution, Offset? tapPosition}) async {
-    if(naturalKey == null) {
-      super.performDownload(context, null);
-    }
-    else {
-      if(await hasInternetConnection(context: context)) {
+    if(await hasInternetConnection(context: context)) {
+      if(naturalKey == null) {
+        super.performDownload(context, null);
+      }
+      else {
         String link = 'https://b.jw-cdn.org/apis/mediator/v1/media-items/$mepsLanguage/$naturalKey';
         final response = await Api.httpGetWithHeaders(link, responseType: ResponseType.json);
         if (response.statusCode == 200) {

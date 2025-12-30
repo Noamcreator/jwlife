@@ -17,20 +17,18 @@ class VideosCategoriesWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final TextDirection direction = JwLifeSettings.instance.currentLanguage.value.isRtl ? TextDirection.rtl : TextDirection.ltr;
-
     final List<Widget> categoryWidgets = categories.subCategories.map((category) {
-      return _buildCategoryButton(category, direction);
+      return _buildCategoryButton(category);
     }).toList();
 
     return ResponsiveCategoriesWrapLayout(
-      textDirection: direction,
+      textDirection: JwLifeSettings.instance.currentLanguage.value.isRtl ? TextDirection.rtl : TextDirection.ltr,
       children: categoryWidgets,
     );
   }
 
-  Widget _buildCategoryButton(RealmCategory category, TextDirection direction) {
-    final bool isRtl = direction == TextDirection.rtl;
+  Widget _buildCategoryButton(RealmCategory category) {
+    final bool isRtl = JwLifeSettings.instance.currentLanguage.value.isRtl;
 
     int textLength = category.name!.length - 8;
     double transitionPoint = (textLength / 19).clamp(0.38, 0.5);
@@ -44,15 +42,14 @@ class VideosCategoriesWidget extends StatelessWidget {
       child: Stack(
         children: [
           // 1. Image positionnée à 'end'
-          Positioned.directional(
-            textDirection: direction,
+          PositionedDirectional(
             end: 0,
             top: 0,
             bottom: 0,
             child: ImageCachedWidget(
               imageUrl: category.images!.extraWideImageUrl,
               icon: JwIcons.video,
-              height: kSquareItemHeight,
+              height: kItemHeight,
               fit: BoxFit.fill,
             ),
           ),

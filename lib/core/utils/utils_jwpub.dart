@@ -74,7 +74,19 @@ Future<Publication?> downloadJwpubFile(Publication publication, BuildContext con
 }
 
 Future<Publication?> jwpubUnzip(Uint8List bytes, {Publication? publication, bool update = false}) async {
-  if(update && publication != null) {
+  bool reOpenDocumentsManager = false;
+  bool reOpenDatedTextManager = false;
+
+  if (update && publication != null) {
+    // 1. On vérifie si l'une des bases est ouverte avant de fermer
+    reOpenDocumentsManager = publication.documentsManager != null;
+    reOpenDatedTextManager = publication.datedTextManager != null;
+
+    // 2. Fermeture sécurisée avec l'opérateur ?.
+    await publication.documentsManager?.database.close();
+    await publication.datedTextManager?.database.close();
+
+    // 3. Suppression
     await removePublication(publication);
   }
 
@@ -111,7 +123,7 @@ Future<Publication?> jwpubUnzip(Uint8List bytes, {Publication? publication, bool
 
   printTime('Fichiers extraits dans : ${destinationDir.path}');
 
-  Publication? pub = await JwLifeApp.pubCollections.insertPublicationFromManifest(manifestData, destinationDir.path, publication: publication);
+  Publication? pub = await JwLifeApp.pubCollections.insertPublicationFromManifest(manifestData, destinationDir.path, publication: publication, reOpenDocumentsManager: reOpenDocumentsManager, reOpenDatedTextManager: reOpenDatedTextManager);
   if(pub != null) {
     return pub;
   }

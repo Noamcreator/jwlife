@@ -201,13 +201,7 @@ class Api {
       final url = Uri.https(baseUrl, getPubMediaLinks, queryParams);
       print('Generated URL: $url');
 
-      final response = await dio.getUri(
-        url,
-        options: Options(
-          headers: Api.getHeaders(),
-          validateStatus: (status) => status != null && status < 500,
-        ),
-      );
+      final response = await httpGetWithHeadersUri(url, responseType: ResponseType.json);
 
       if (response.statusCode == 200 && response.data != null) {
         final data = response.data;
@@ -231,7 +225,7 @@ class Api {
                   "FileSize": audio['filesize'] ?? 0,
                   "FileUrl": file['url'] ?? '',
                   "ModifiedDateTime": file['modifiedDatetime'] ?? '',
-                  "Markers": audio['markers']['markers'] ?? [],
+                  "Markers": audio['markers']?['markers'] ?? [],
                   "Version": 1,
                   "MimeType": audio['mimetype'] ?? '',
                   "BitRate": audio['bitRate'] ?? 0,

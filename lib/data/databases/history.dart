@@ -19,6 +19,7 @@ import '../../app/services/settings_service.dart';
 import '../../core/utils/utils.dart';
 import '../../i18n/i18n.dart';
 import '../models/audio.dart';
+import '../models/media.dart';
 import '../models/publication.dart';
 
 class History {
@@ -402,6 +403,65 @@ class History {
     await db.close();
   }
 
+  static Future<List<dynamic>> searchUsedItems(List<dynamic> items, String sortType) async {
+    Database db = await getHistoryDb();
+    File mepsDbFile = await getMepsUnitDatabaseFile();
+
+    // On utilise tes fonctions personnalisées
+    await attachDatabases(db, {'meps': mepsDbFile.path});
+
+    Map<int, int> visitsMap = {};
+
+    for (var item in items) {
+      int? langId;
+      String symbol = (item is Publication) ? item.keySymbol : (item as Media).keySymbol ?? '';
+      int issueTag = (item is Publication) ? item.issueTagNumber : (item as Media).issueTagNumber ?? 0;
+
+      if (item is Publication) {
+        // Pour les publications, l'ID est déjà là
+        langId = item.mepsLanguage.id;
+      } else if (item is Media) {
+        // Pour les médias, on récupère l'ID via le symbole dans la base attachée
+        final langResult = await db.rawQuery(
+            "SELECT LanguageId FROM meps.Language WHERE Symbol = ?",
+            [item.mepsLanguage] // Le symbole (ex: 'F')
+        );
+        if (langResult.isNotEmpty) {
+          langId = langResult.first['LanguageId'] as int;
+        }
+      }
+
+      // On récupère le nombre de visites dans la table History
+      if (langId != null) {
+        final result = await db.rawQuery('''
+        SELECT SUM(VisitCount) as Total 
+        FROM History 
+        WHERE KeySymbol = ? AND IssueTagNumber = ? AND MepsLanguageId = ?
+      ''', [symbol, issueTag, langId]);
+
+        visitsMap[item.hashCode] = Sqflite.firstIntValue(result) ?? 0;
+      } else {
+        visitsMap[item.hashCode] = 0;
+      }
+    }
+
+    await detachDatabases(db, ['meps']);
+    await db.close();
+
+    // On trie la liste originale
+    items.sort((a, b) {
+      int scoreA = visitsMap[a.hashCode] ?? 0;
+      int scoreB = visitsMap[b.hashCode] ?? 0;
+
+      if (sortType == 'frequently_used') {
+        return scoreB.compareTo(scoreA); // Plus visités en premier
+      } else {
+        return scoreA.compareTo(scoreB); // Moins visités en premier
+      }
+    });
+
+    return items;
+  }
 
   static Future<void> showHistoryDialog(BuildContext mainContext, {int? bottomBarIndex}) async {
     bool isDarkMode = Theme.of(mainContext).brightness == Brightness.dark;

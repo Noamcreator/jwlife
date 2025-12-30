@@ -56,6 +56,26 @@ RealmMediaItem? getMediaItem(String? keySymbol, int? track, int? documentId, int
   return results.isNotEmpty ? results.first : null;
 }
 
+PopupMenuItem getVideoShareFileItem(Video video) {
+  return PopupMenuItem(
+    child: Row(
+      children: [
+        Icon(JwIcons.document_envelope),
+        SizedBox(width: 8),
+        Text(i18n().action_open_in_share_file),
+      ],
+    ),
+    onTap: () {
+      SharePlus.instance.share(
+        ShareParams(
+          title: video.title,
+          files: [XFile(video.filePath!)],
+        ),
+      );
+    },
+  );
+}
+
 PopupMenuItem getVideoShareItem(Video video) {
   return PopupMenuItem(
     child: Row(

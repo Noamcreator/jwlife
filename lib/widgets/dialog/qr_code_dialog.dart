@@ -107,7 +107,7 @@ class _QrCodeDialogState extends State<QrCodeDialog> {
                   size: 250,
                   embeddedImage: _imageFile != null ? FileImage(_imageFile!) : const AssetImage(Assets.iconsNavJworg),
                   embeddedImageStyle: QrEmbeddedImageStyle(
-                    size: const Size(kSquareItemHeight / 1.2, kSquareItemHeight / 1.2),
+                    size: const Size(kItemHeight / 1.2, kItemHeight / 1.2),
                   ),
                   errorCorrectionLevel: QrErrorCorrectLevel.M,
                 ),

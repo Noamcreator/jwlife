@@ -95,10 +95,10 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
   Future<void> init() async {
     if(widget.publication.datedTextManager != null) {
       int index = convertDateTimeToIntDate(widget.date ?? DateTime.now());
-      widget.publication.datedTextManager!.selectedDatedTextIndex = widget.publication.datedTextManager!.datedTexts.indexWhere((element) => element.firstDateOffset == index);
+      widget.publication.datedTextManager!.selectedDatedTextId = widget.publication.datedTextManager!.datedTexts.indexWhere((element) => element.firstDateOffset == index);
     }
     else {
-      widget.publication.datedTextManager = DatedTextManager(publication: widget.publication, dateTime: widget.date ?? DateTime.now());
+      widget.publication.datedTextManager = DatedTextManager(publication: widget.publication, initDateTime: widget.date ?? DateTime.now());
       await widget.publication.datedTextManager!.initializeDatabaseAndData();
     }
 
@@ -133,7 +133,7 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
   Future<void> changePageAt(int index) async {
     if (index <= widget.publication.datedTextManager!.datedTexts.length - 1 && index >= 0) {
       setState(() {
-        widget.publication.datedTextManager!.selectedDatedTextIndex = index;
+        widget.publication.datedTextManager!.selectedDatedTextId = index;
       });
 
       await widget.publication.datedTextManager!.getCurrentDatedText().changePageAt();
@@ -145,11 +145,11 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
   }
 
   Future<void> _jumpToPage(int page) async {
-    if (page != widget.publication.datedTextManager!.selectedDatedTextIndex) {
-      _pageHistory.add(widget.publication.datedTextManager!.selectedDatedTextIndex); // Ajouter la page actuelle à l'historique
+    if (page != widget.publication.datedTextManager!.selectedDatedTextId) {
+      _pageHistory.add(widget.publication.datedTextManager!.selectedDatedTextId); // Ajouter la page actuelle à l'historique
       _currentPageHistory = page;
 
-      widget.publication.datedTextManager!.selectedDatedTextIndex = page;
+      widget.publication.datedTextManager!.selectedDatedTextId = page;
       await _controller.evaluateJavascript(source: 'jumpToPage($page);');
 
       controlsKey.currentState?.toggleControls(true);
@@ -162,7 +162,7 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
         _currentPageHistory = _pageHistory.removeLast(); // Revenir à la dernière page dans l'historique
         await _controller.loadData(data: createReaderHtmlShell(
             widget.publication,
-            widget.publication.datedTextManager!.selectedDatedTextIndex,
+            widget.publication.datedTextManager!.selectedDatedTextId,
             widget.publication.datedTextManager!.datedTexts.length - 1
         ), baseUrl: WebUri('file://${JwLifeSettings.instance.webViewData.webappPath}/'));
       }
@@ -261,7 +261,7 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
                     initialData: InAppWebViewInitialData(
                         data: createReaderHtmlShell(
                             widget.publication,
-                            widget.publication.datedTextManager!.selectedDatedTextIndex,
+                            widget.publication.datedTextManager!.selectedDatedTextId,
                             widget.publication.datedTextManager!.datedTexts.length - 1
                         ),
                         baseUrl: WebUri('file://${JwLifeSettings.instance.webViewData.webappPath}/')
@@ -526,6 +526,7 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
                           Note? note = _notesController.getNoteByGuid(guid);
 
                           return {
+                            'DialogTitle': i18n().label_note,
                             'Title': note == null ? '' : note.title,
                             'Content': note == null ? '' : note.content,
                             'TagsId': note == null ? [] : note.tagsId.join(','),
@@ -775,7 +776,7 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
                           if(bookmark != null) {
                             if (bookmark.location.mepsDocumentId != null) {
                               final page = docManager.datedTexts.indexWhere((doc) => doc.mepsDocumentId == bookmark.location.mepsDocumentId);
-                              if (page != widget.publication.datedTextManager!.selectedDatedTextIndex) {
+                              if (page != widget.publication.datedTextManager!.selectedDatedTextId) {
                                 await _jumpToPage(page);
                               }
                             }
@@ -916,7 +917,7 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
                             }
                           }
                           else {
-                            _pageHistory.add(widget.publication.datedTextManager!.selectedDatedTextIndex); // Ajouter la page actuelle à l'historique
+                            _pageHistory.add(widget.publication.datedTextManager!.selectedDatedTextId); // Ajouter la page actuelle à l'historique
                             _currentPageHistory = -1;
 
                             controlsKey.currentState?.toggleControls(true);
@@ -929,7 +930,7 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
                         return NavigationActionPolicy.CANCEL;
                       }
 
-                      _pageHistory.add(widget.publication.datedTextManager!.selectedDatedTextIndex); // Ajouter la page actuelle à l'historique
+                      _pageHistory.add(widget.publication.datedTextManager!.selectedDatedTextId); // Ajouter la page actuelle à l'historique
                       _currentPageHistory = -1;
 
                       controlsKey.currentState?.toggleControls(true);
@@ -1060,7 +1061,7 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
 
   void changePageAt(int index) {
     setState(() {
-      widget.publication.datedTextManager!.selectedDatedTextIndex = index;
+      widget.publication.datedTextManager!.selectedDatedTextId = index;
       _controlsVisible = true;
     });
     GlobalKeyService.jwLifePageKey.currentState!.toggleBottomNavBarVisibility(_controlsVisible);
@@ -1084,8 +1085,8 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
 
     DatedText? current;
     if (dm != null &&
-        dm.selectedDatedTextIndex != -1 &&
-        dm.selectedDatedTextIndex < dm.datedTexts.length) {
+        dm.selectedDatedTextId != -1 &&
+        dm.selectedDatedTextId < dm.datedTexts.length) {
       current = dm.getCurrentDatedText();
     }
 
@@ -1104,8 +1105,8 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
 
     DatedText? current;
     if (dm != null &&
-        dm.selectedDatedTextIndex != -1 &&
-        dm.selectedDatedTextIndex < dm.datedTexts.length) {
+        dm.selectedDatedTextId != -1 &&
+        dm.selectedDatedTextId < dm.datedTexts.length) {
       current = dm.getCurrentDatedText();
     }
 

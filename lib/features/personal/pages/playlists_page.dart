@@ -123,8 +123,8 @@ class _PlaylistsPageState extends State<PlaylistsPage> {
                                             future: playlist.getThumbnailFile(),
                                             builder: (context, snapshot) {
                                               final placeholder = Container(
-                                                height: kSquareItemHeight,
-                                                width: kSquareItemHeight,
+                                                height: kItemHeight,
+                                                width: kItemHeight,
                                                 color: Colors.grey.shade300,
                                               );
 
@@ -134,16 +134,16 @@ class _PlaylistsPageState extends State<PlaylistsPage> {
 
                                               if (snapshot.hasError || snapshot.data == null) {
                                                 return Container(
-                                                  height: kSquareItemHeight,
-                                                  width: kSquareItemHeight,
+                                                  height: kItemHeight,
+                                                  width: kItemHeight,
                                                   color: Colors.grey,
                                                 );
                                               }
 
                                               return Image.file(
                                                 snapshot.data!,
-                                                height: kSquareItemHeight,
-                                                width: kSquareItemHeight,
+                                                height: kItemHeight,
+                                                width: kItemHeight,
                                                 fit: BoxFit.cover,
                                               );
                                             },

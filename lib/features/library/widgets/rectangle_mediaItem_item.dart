@@ -15,13 +15,15 @@ class RectangleMediaItemItem extends StatelessWidget {
   final Color? backgroundColor;
   final double height;
   final bool searchWidget;
+  final bool showSize;
 
   const RectangleMediaItemItem({
     super.key,
     required this.media,
     this.backgroundColor,
-    this.height = kSquareItemHeight,
-    this.searchWidget = false
+    this.height = kItemHeight,
+    this.searchWidget = false,
+    this.showSize = false
   });
 
   // Extrait la logique de la barre de progression
@@ -79,30 +81,46 @@ class RectangleMediaItemItem extends StatelessWidget {
         return ValueListenableBuilder<bool>(
           valueListenable: media.isDownloadedNotifier,
           builder: (context, isDownloaded, _) {
-            if (!isDownloaded || media.hasUpdate()) {
-              return PositionedDirectional(
-                bottom: 0,
-                end: -5,
-                height: 40,
-                child: IconButton(
-                  padding: EdgeInsets.zero,
-                  onPressed: () {
-                    if (media.hasUpdate()) {
-                      //media.update(context);
-                    }
-                    else {
-                      final RenderBox renderBox = context.findRenderObject() as RenderBox;
-                      final Offset tapPosition = renderBox.localToGlobal(Offset.zero) + renderBox.size.center(Offset.zero);
+            if (!isDownloaded || media.hasUpdate() || showSize) {
+              return Stack(
+                children: [
+                  if(!showSize && media.hasUpdate())
+                    PositionedDirectional(
+                      bottom: 0,
+                      end: -5,
+                      height: 40,
+                      child: IconButton(
+                        padding: EdgeInsets.zero,
+                        onPressed: () {
+                          if (media.hasUpdate()) {
+                            //media.update(context);
+                          }
+                          else {
+                            final RenderBox renderBox = context.findRenderObject() as RenderBox;
+                            final Offset tapPosition = renderBox.localToGlobal(Offset.zero) + renderBox.size.center(Offset.zero);
 
-                      media.download(context, tapPosition: tapPosition);
-                    }
-                  },
-                  icon: Icon(
-                    media.hasUpdate() ? JwIcons.arrows_circular : JwIcons.cloud_arrow_down,
-                    size: media.hasUpdate() ? 20 : 24,
-                    color: const Color(0xFF9d9d9d),
+                            media.download(context, tapPosition: tapPosition);
+                          }
+                        },
+                        icon: Icon(
+                          media.hasUpdate() ? JwIcons.arrows_circular : JwIcons.cloud_arrow_down,
+                          size: media.hasUpdate() ? 20 : 24,
+                          color: const Color(0xFF9d9d9d),
+                        ),
+                      ),
+                    ),
+                  PositionedDirectional(
+                    bottom: media.hasUpdate() ? 0 : showSize ? 2 : 0,
+                    end: 2,
+                    child: Text(
+                      formatFileSize(media.fileSize ?? 0),
+                      style: TextStyle(
+                        fontSize: media.hasUpdate() ? 10 : showSize ? 12 : 10,
+                        color: const Color(0xFF9d9d9d),
+                      ),
+                    ),
                   ),
-                ),
+                ],
               );
             }
 
@@ -147,6 +165,7 @@ class RectangleMediaItemItem extends StatelessWidget {
           icon: const Icon(Icons.more_horiz, color: Color(0xFF9d9d9d)),
           itemBuilder: (context) => media is Audio
               ? [
+            if (media.isDownloadedNotifier.value && media.filePath != null) getAudioShareFileItem(media as Audio),
             getAudioShareItem(media as Audio),
             getAudioAddPlaylistItem(context, media as Audio),
             getAudioLanguagesItem(context, media as Audio),
@@ -154,9 +173,8 @@ class RectangleMediaItemItem extends StatelessWidget {
             getAudioDownloadItem(context, media as Audio),
             getAudioLyricsItem(context, media as Audio),
             getCopyLyricsItem(media as Audio)
-          ]
-              : media is Video
-              ? [
+          ] : media is Video ? [
+            if (media.isDownloadedNotifier.value && media.filePath != null) getVideoShareFileItem(media as Video),
             getVideoShareItem(media as Video),
             getVideoQrCode(context, media as Video),
             getVideoAddPlaylistItem(context, media as Video),

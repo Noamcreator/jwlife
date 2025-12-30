@@ -6,10 +6,12 @@ import 'package:jwlife/core/utils/utils_jwpub.dart';
 import 'package:jwlife/data/databases/catalog.dart';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/repositories/PublicationRepository.dart';
+import 'package:jwlife/features/document/local/dated_text_manager.dart';
 import 'package:sqflite/sqflite.dart';
 
 import '../../core/utils/utils_database.dart';
 import '../../core/utils/utils_pub.dart';
+import '../../features/document/local/documents_manager.dart';
 
 class PubCollections {
   late Database _database;
@@ -97,8 +99,6 @@ class PubCollections {
   }
 
   Future<Publication?> getDocumentFromMepsDocumentId(int mepsDocId, int currentLanguageId) async {
-    await open();
-
     List<Map<String, dynamic>> result = await _database.rawQuery('''
       SELECT 
         p.KeySymbol,
@@ -116,14 +116,7 @@ class PubCollections {
     return null;
   }
 
-  Future<void> open() async {
-    if(!_database.isOpen) {
-      File pubCollections = await getPubCollectionsDatabaseFile();
-      _database = await openDatabase(pubCollections.path, version: 1);
-    }
-  }
-
-  Future<Publication?> insertPublicationFromManifest(dynamic manifestData, String path, {Publication? publication}) async {
+  Future<Publication?> insertPublicationFromManifest(dynamic manifestData, String path, {Publication? publication, bool reOpenDocumentsManager = false, bool reOpenDatedTextManager = false}) async {
     try {
       dynamic pub = manifestData['publication'];
       String timeStamp = manifestData['timestamp'];
@@ -160,9 +153,9 @@ class PubCollections {
       Database publicationDb = await openDatabase("$path/${pub['fileName']}", version: manifestData['schemaVersion'], readOnly: true);
 
       // Vérification de l'existence des tables Topics et VerseCommentary
-      bool hasTopicsTable = await tableExists(publicationDb, 'Topic') && (await publicationDb.rawQuery("SELECT COUNT(*) FROM Topic")).first['COUNT(*)'] as int > 0;
-      bool hasHeadingSearch = await tableExists(publicationDb, 'Heading') && (await publicationDb.rawQuery("SELECT COUNT(*) FROM Heading")).first['COUNT(*)'] as int > 0;
-      bool hasVerseCommentaryTable = await tableExists(publicationDb, 'VerseCommentary') && (await publicationDb.rawQuery("SELECT COUNT(*) FROM VerseCommentary")).first['COUNT(*)'] as int > 0;
+      bool hasTopicsTable = await checkIfTableExists(publicationDb, 'Topic') && (await publicationDb.rawQuery("SELECT COUNT(*) FROM Topic")).first['COUNT(*)'] as int > 0;
+      bool hasHeadingSearch = await checkIfTableExists(publicationDb, 'Heading') && (await publicationDb.rawQuery("SELECT COUNT(*) FROM Heading")).first['COUNT(*)'] as int > 0;
+      bool hasVerseCommentaryTable = await checkIfTableExists(publicationDb, 'VerseCommentary') && (await publicationDb.rawQuery("SELECT COUNT(*) FROM VerseCommentary")).first['COUNT(*)'] as int > 0;
 
       String description = await extractPublicationDescription(publication, symbol: keySymbol, issueTagNumber: issueTagNum, mepsLanguage: 'F');
       String hashPublication = getPublicationHash(languageId, symbol, year, issueTagNum);
@@ -319,6 +312,17 @@ class PubCollections {
       var imageLsr = imagesDb.where((element) => element['Type'] == 'lsr' && element['Width'] == 1200 && element['Height'] == 600).toList();
       pubDb['ImageLsr'] = imageLsr.isNotEmpty ? imageLsr.first['Path'] : null;
 
+      if(publication != null) {
+        if(reOpenDocumentsManager) {
+          publication.documentsManager ??= DocumentsManager(publication: publication);
+          await publication.documentsManager!.initializeDatabaseAndData();
+        }
+        else if (reOpenDatedTextManager) {
+          publication.datedTextManager ??= DatedTextManager(publication: publication);
+          await publication.documentsManager!.initializeDatabaseAndData();
+        }
+      }
+
       return Publication.fromJson(pubDb);
     }
     catch (e) {
@@ -328,8 +332,6 @@ class PubCollections {
   }
 
   Future<void> deletePublication(Publication publication) async {
-    await open(); // Assure-toi que la base est ouverte
-
     await _database.transaction((txn) async {
       // 1. Récupérer l'ID de la publication à supprimer
       final List<Map<String, dynamic>> results = await txn.query(

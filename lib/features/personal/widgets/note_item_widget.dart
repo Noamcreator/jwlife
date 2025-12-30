@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:jwlife/core/icons.dart';
+import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/data/controller/tags_controller.dart';
 import 'package:jwlife/data/databases/catalog.dart';
 import 'package:provider/provider.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:collection/collection.dart';
-import 'package:diacritic/diacritic.dart';
 
 import '../../../app/jwlife_app.dart';
 import '../../../core/utils/common_ui.dart';
@@ -115,8 +115,8 @@ class NoteItemWidget extends StatefulWidget {
       );
     }
 
-    final nt = removeDiacritics(text.toLowerCase());
-    final nq = removeDiacritics(query.toLowerCase());
+    final nt = normalize(text);
+    final nq = normalize(query);
     final idx = nt.indexOf(nq);
 
     if (idx == -1) {

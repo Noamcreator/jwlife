@@ -8,12 +8,15 @@ import 'package:jwlife/features/library/widgets/rectangle_mediaItem_item.dart';
 import 'package:jwlife/i18n/i18n.dart';
 
 import '../../../../core/utils/widgets_utils.dart';
+import '../../../../data/models/audio.dart';
+import '../../../../widgets/multiple_listenable_builder_widget.dart';
 import '../../../publication/pages/local/publication_menu_view.dart';
 import '../../models/downloads/download_model.dart';
 import '../../widgets/rectangle_publication_item.dart';
 
 class DownloadWidget extends StatefulWidget {
-  const DownloadWidget({super.key});
+  final DownloadPageModel model;
+  const DownloadWidget({super.key, required this.model});
 
   @override
   _DownloadWidgetState createState() => _DownloadWidgetState();
@@ -25,73 +28,76 @@ class _DownloadWidgetState extends State<DownloadWidget> {
   @override
   void initState() {
     super.initState();
-    _model = DownloadPageModel();
+    _model = widget.model;
   }
 
-  @override
-  void dispose() {
-    _model.dispose();
-    super.dispose();
+  /// Affiche un message et une icône quand la liste est vide
+  Widget _buildEmptyState() {
+    return SliverFillRemaining(
+      hasScrollBody: false,
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              JwIcons.publication_video_music,
+              size: 100,
+              color: Colors.grey.withOpacity(0.3),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              i18n().messages_empty_downloads, // Assure-toi que cette clé existe ou utilise "Aucun téléchargement"
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 18,
+                color: Colors.grey,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
-  // --- Méthode d'aide pour construire un Sliver (remplace _buildSection) ---
-  List<Widget> _buildSliverSection<T>(
-      String titleKey,
-      List<T> items,
-      Widget Function(T) buildItem,
-      double contentPadding,
-      ) {
-    if (items.isEmpty) return [];
-
-    // --- Logique de Localisation du Titre ---
-    String displayTitle = titleKey;
-    if (items.first is Publication) {
-      final pub = items.first as Publication;
-      // Récupération du nom de catégorie localisé
-      displayTitle = pub.category.getName();
-    }
-    else {
-      if (titleKey == 'Audios') {
-        displayTitle = i18n().pub_type_audio_programs;
-      } else if (titleKey == 'Videos') {
-        displayTitle = i18n().label_videos;
+  List<Widget> _buildSliverSection<T>(String? title, List<T> items, double contentPadding) {
+    // Filtrage strict : on ne garde que ce qui est réellement sur l'appareil
+    final visibleItems = items.where((item) {
+      if (item is Publication) {
+        return item.isDownloadedNotifier.value;
+      } else if (item is Media) {
+        return item.isDownloadedNotifier.value;
       }
-    }
+      return false;
+    }).toList();
 
-    // --- Calcul des dimensions pour le SliverGrid (Utilise kItemHeight pour tous) ---
+    if (visibleItems.isEmpty) return [];
+
     final screenWidth = MediaQuery.of(context).size.width;
     final isTwoColumn = screenWidth > 800;
-
-    // 🥳 UTILISE kItemHeight pour tous les éléments
-    const double itemHeight = kSquareItemHeight;
     final int crossAxisCount = isTwoColumn ? 2 : 1;
 
-    // Recalculer la largeur de l'élément pour garantir l'aspect ratio correct
-    const double paddingListView = 10.0; // Le padding de la ListView/CustomScrollView
+    const double paddingListView = 10.0;
     const double totalPadding = paddingListView * 2;
     final double totalSpacing = kSpacing * (crossAxisCount - 1);
     final double calculatedItemWidth = (screenWidth - totalPadding - totalSpacing) / crossAxisCount;
+    final double childAspectRatio = calculatedItemWidth / kItemHeight;
 
-    final double childAspectRatio = calculatedItemWidth / itemHeight;
-
-    // --- Construction des Slivers ---
     return [
-      // 1. Sliver pour le TITRE
-      SliverToBoxAdapter(
-        child: Padding(
-          padding: EdgeInsets.only(left: contentPadding, right: contentPadding, top: 20.0, bottom: 5.0),
-          child: Text(
-            displayTitle,
-            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+      if (title != null)
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: EdgeInsets.only(left: contentPadding, right: contentPadding, top: 20.0, bottom: 5.0),
+            child: Text(
+              title,
+              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+            ),
           ),
         ),
-      ),
-
-      // 2. Sliver pour la GRILLE (Contenu virtualisé)
       SliverPadding(
         padding: EdgeInsets.symmetric(horizontal: contentPadding, vertical: kSpacing),
         sliver: SliverGrid.builder(
-          itemCount: items.length,
+          itemCount: visibleItems.length,
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: crossAxisCount,
             mainAxisSpacing: kSpacing,
@@ -99,14 +105,13 @@ class _DownloadWidgetState extends State<DownloadWidget> {
             childAspectRatio: childAspectRatio,
           ),
           itemBuilder: (context, index) {
-            final item = items[index];
+            final item = visibleItems[index];
 
             return GestureDetector(
               onTap: () {
                 if (item is Publication) {
                   showPage(PublicationMenuView(publication: item));
-                }
-                else if (item is Media) {
+                } else if (item is Media) {
                   item.showPlayer(context);
                 }
               },
@@ -116,7 +121,9 @@ class _DownloadWidgetState extends State<DownloadWidget> {
                       ? const Color(0xFF292929)
                       : Colors.white,
                 ),
-                child: buildItem(item),
+                child: item is Publication
+                    ? RectanglePublicationItem(publication: item, showSize: true)
+                    : RectangleMediaItemItem(media: item as Media, showSize: true),
               ),
             );
           },
@@ -125,87 +132,72 @@ class _DownloadWidgetState extends State<DownloadWidget> {
     ];
   }
 
-  // --- Méthodes de Construction des Items ---
-
-  Widget _buildPublicationItem(Publication publication) {
-    return RectanglePublicationItem(
-      publication: publication,
-    );
-  }
-
-  Widget _buildMediaButton(Media media) {
-    return RectangleMediaItemItem(
-      media: media,
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    // 10.0 correspond au padding horizontal total de la ListView/CustomScrollView
     final screenWidth = MediaQuery.of(context).size.width;
     final double contentPadding = getContentPadding(screenWidth);
 
     return ListenableBuilder(
       listenable: _model,
       builder: (context, child) {
-        if (_model.isLoading) {
-          return getLoadingWidget(Theme.of(context).primaryColor);
+        if (_model.isLoading) return getLoadingWidget(Theme.of(context).primaryColor);
+
+        // Récupération des notifiers pour réagir aux suppressions en temps réel
+        final List<ValueNotifier<bool>> allNotifiers = [];
+        for (var item in [..._model.mixedItems, ..._model.groupedItems.values.expand((e) => e)]) {
+          if (item is Publication) allNotifiers.add(item.isDownloadedNotifier);
+          if (item is Media) allNotifiers.add(item.isDownloadedNotifier);
         }
 
-        final groupedPublications = _model.groupedPublications;
-        final groupedMedias = _model.groupedMedias;
+        return MultiValueListenableBuilder(
+          listenables: allNotifiers,
+          builder: (context) {
+            final List<Widget> slivers = [];
 
-        final List<Widget> slivers = [];
-
-        // 1. Bouton d'import (SliverToBoxAdapter)
-        slivers.add(
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: EdgeInsets.all(contentPadding),
-              child: OutlinedButton.icon(
-                onPressed: () => _model.importJwpub(context),
-                icon: const Icon(JwIcons.document),
-                label: Text(i18n().label_import_jwpub),
-                style: OutlinedButton.styleFrom(shape: const RoundedRectangleBorder()),
+            // 1. Bouton d'import (Toujours affiché)
+            slivers.add(
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.all(contentPadding),
+                  child: OutlinedButton.icon(
+                    onPressed: () => _model.importJwpub(context),
+                    icon: const Icon(JwIcons.document),
+                    label: Text(i18n().label_import_jwpub),
+                    style: OutlinedButton.styleFrom(shape: const RoundedRectangleBorder()),
+                  ),
+                ),
               ),
-            ),
-          ),
-        );
+            );
 
-        // 2. Sections des publications
-        if (groupedPublications.isNotEmpty) {
-          groupedPublications.entries.map((entry) {
-            slivers.addAll(_buildSliverSection<Publication>(
-                entry.key,
-                entry.value,
-                _buildPublicationItem,
-                contentPadding
-            ));
-          }).toList();
-        }
+            // 2. Construction des sections de contenu
+            final List<Widget> contentSlivers = [];
+            if (_model.mixedItems.isNotEmpty) {
+              contentSlivers.addAll(_buildSliverSection<dynamic>(null, _model.mixedItems, contentPadding));
+            } else {
+              _model.groupedItems.forEach((key, list) {
+                if (list.isNotEmpty) {
+                  String title = "";
+                  if (list.first is Publication) {
+                    title = (list.first as Publication).category.getName();
+                  }
+                  else if (list.first is Media) {
+                    title = list.first is Audio ? i18n().pub_type_audio_programs : i18n().label_videos;
+                  }
+                  contentSlivers.addAll(_buildSliverSection<dynamic>(title, list, contentPadding));
+                }
+              });
+            }
 
-        // 3. Sections des médias
-        if (groupedMedias.isNotEmpty) {
-          groupedMedias.entries.map((entry) {
-            slivers.addAll(_buildSliverSection<Media>(
-                entry.key,
-                entry.value,
-                _buildMediaButton,
-                contentPadding
-            ));
-          }).toList();
-        }
+            // 3. Affichage du contenu ou du message "Vide"
+            if (contentSlivers.isEmpty) {
+              slivers.add(_buildEmptyState());
+            } else {
+              slivers.addAll(contentSlivers);
+            }
 
-        // ajouter un padding
-        slivers.add(
-          SliverToBoxAdapter(
-            child: SizedBox(height: contentPadding),
-          ),
-        );
-
-        // 4. CustomScrollView pour un défilement fluide
-        return CustomScrollView(
-          slivers: slivers,
+            slivers.add(SliverToBoxAdapter(child: SizedBox(height: contentPadding)));
+            return CustomScrollView(slivers: slivers);
+          },
         );
       },
     );

@@ -26,7 +26,7 @@ class HomeSquareMediaItemItem extends StatelessWidget {
             media.showPlayer(context);
           },
           child: SizedBox(
-            width: kSquareItemHeight,
+            width: kItemHeight,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -37,8 +37,8 @@ class HomeSquareMediaItemItem extends StatelessWidget {
                       child: ImageCachedWidget(
                         imageUrl: media.networkImageSqr,
                         icon: media is Audio ? JwIcons.headphones__simple : JwIcons.video,
-                        height: kSquareItemHeight,
-                        width: kSquareItemHeight,
+                        height: kItemHeight,
+                        width: kItemHeight,
                       ),
                     ),
                     PositionedDirectional(
@@ -48,6 +48,7 @@ class HomeSquareMediaItemItem extends StatelessWidget {
                         useRootNavigator: true,
                         icon: const Icon(Icons.more_horiz, color: Colors.white, shadows: [Shadow(color: Colors.black, blurRadius: 20)]),
                         itemBuilder: (context) => media is Audio ? [
+                          if (media.isDownloadedNotifier.value && media.filePath != null) getAudioShareFileItem(media as Audio),
                           getAudioShareItem(media as Audio),
                           getAudioQrCode(context, media as Audio),
                           getAudioAddPlaylistItem(context, media as Audio),
@@ -58,6 +59,7 @@ class HomeSquareMediaItemItem extends StatelessWidget {
                           getCopyLyricsItem(media as Audio)
                         ]
                             : media is Video ? [
+                          if (media.isDownloadedNotifier.value && media.filePath != null) getVideoShareFileItem(media as Video),
                           getVideoShareItem(media as Video),
                           getVideoQrCode(context, media as Video),
                           getVideoAddPlaylistItem(context, media as Video),

@@ -1,12 +1,12 @@
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:jwlife/app/services/global_key_service.dart';
+import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/core/utils/utils_document.dart';
 import 'package:jwlife/data/controller/notes_controller.dart';
 import 'package:jwlife/data/controller/tags_controller.dart';
 import 'package:jwlife/data/models/userdata/note.dart';
 import 'package:jwlife/widgets/image_cached_widget.dart';
-import 'package:diacritic/diacritic.dart';
 import 'package:provider/provider.dart';
 import 'package:sqflite/sqflite.dart';
 
@@ -27,8 +27,8 @@ List<TextSpan> _buildHighlightedTextSpans(
   }
 
   // Rendre la recherche insensible à la casse et aux accents
-  final normalizedText = removeDiacritics(text.toLowerCase());
-  final normalizedQuery = removeDiacritics(query.toLowerCase());
+  final normalizedText = normalize(text);
+  final normalizedQuery = normalize(query);
 
   final List<TextSpan> spans = [];
   int currentPosition = 0;
@@ -267,8 +267,8 @@ class _NotePageState extends State<NotePage> {
     if (content.isEmpty) return;
 
     // Utiliser removeDiacritics pour une recherche insensible aux accents
-    final normalizedContent = removeDiacritics(content.toLowerCase());
-    final normalizedQuery = removeDiacritics(widget.searchQuery!.toLowerCase());
+    final normalizedContent = normalize(content);
+    final normalizedQuery = normalize(widget.searchQuery!);
 
     final firstMatchIndex = normalizedContent.indexOf(normalizedQuery);
 

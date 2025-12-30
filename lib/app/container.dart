@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:jwlife/app/services/global_key_service.dart';
-import 'package:jwlife/widgets/webview_manager.dart';
 import '../features/bible/pages/bible_page.dart';
 import '../features/home/pages/home_page.dart' show HomePage, HomePageState;
 import '../features/library/pages/library_page.dart';
@@ -80,14 +79,9 @@ class PredicationPageContainer extends StatelessWidget {
     return MediaQuery.removeViewInsets(
       removeBottom: true,
       context: context,
-      child: Stack(
-        children: [
-          PredicationPage(
-            key: GlobalKeyService.getKey<PredicationPageState>(PageType.predication),
-          ),
-          WebViewManager.instance.preloaderWidget()
-        ],
-      )
+      child: PredicationPage(
+        key: GlobalKeyService.getKey<PredicationPageState>(PageType.predication),
+      ),
     );
   }
 }

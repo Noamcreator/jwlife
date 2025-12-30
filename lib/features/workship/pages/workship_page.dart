@@ -164,7 +164,7 @@ class WorkShipPageState extends State<WorkShipPage> with TickerProviderStateMixi
       documentsManager = AppDataService.instance.publicTalkPub.value!.documentsManager!;
     }
     else {
-      documentsManager = DocumentsManager(publication: AppDataService.instance.publicTalkPub.value!, mepsDocumentId: -1);
+      documentsManager = DocumentsManager(publication: AppDataService.instance.publicTalkPub.value!);
       await documentsManager.initializeDatabaseAndData();
     }
 

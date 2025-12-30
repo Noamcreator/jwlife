@@ -4,6 +4,7 @@ import 'package:jwlife/core/app_data/app_data_service.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/widgets_utils.dart';
 import 'package:jwlife/data/databases/history.dart';
+import 'package:jwlife/features/library/models/downloads/download_model.dart';
 import 'package:jwlife/features/library/pages/pending_update/pending_updates_widget.dart';
 import 'package:jwlife/features/library/pages/publications/publications_categories_widget.dart';
 import 'package:jwlife/features/library/pages/search_library_page.dart';
@@ -16,6 +17,7 @@ import '../../../core/shared_preferences/shared_preferences_utils.dart';
 import '../../../core/ui/text_styles.dart';
 import '../../../core/utils/common_ui.dart';
 import '../../../core/utils/utils_language_dialog.dart';
+import '../models/pending_update/pending_update_model.dart';
 import 'audios/audios_categories_widget.dart';
 import 'downloads/downloads_widget.dart';
 
@@ -28,11 +30,16 @@ class LibraryPage extends StatefulWidget {
 
 class LibraryPageState extends State<LibraryPage> with TickerProviderStateMixin {
   TabController? _tabController;
+  late final DownloadPageModel _downloadModel;
+  late final PendingUpdatesPageModel _pendingUpdatesModel;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: _calculateTabsLength(), vsync: this);
+    _initTabController(_calculateTabsLength());
+
+    _downloadModel = DownloadPageModel();
+    _pendingUpdatesModel = PendingUpdatesPageModel();
 
     // Écoute des changements dans les catégories pour reconstruire les onglets
     AppDataService.instance.publicationsCategories.addListener(_onModelChange);
@@ -40,9 +47,43 @@ class LibraryPageState extends State<LibraryPage> with TickerProviderStateMixin 
     AppDataService.instance.audioCategories.addListener(_onModelChange);
   }
 
+  void refreshDownloadTab() {
+    _downloadModel.refreshData();
+  }
+
+  void refreshPendingUpdateTab() {
+    _pendingUpdatesModel.refreshData();
+  }
+
+  void _initTabController(int length, {int initialIndex = 0}) {
+    _tabController?.dispose();
+    _tabController = TabController(
+      length: length,
+      vsync: this,
+      initialIndex: initialIndex.clamp(0, length - 1),
+    );
+
+    // Indispensable pour mettre à jour l'AppBar quand on change d'onglet
+    _tabController!.addListener(() {
+      if (!_tabController!.indexIsChanging) {
+        setState(() {});
+      }
+    });
+  }
+
+  void goToThePubsTab() {
+    final publications = AppDataService.instance.publicationsCategories.value;
+    if (_tabController != null && publications.isNotEmpty) {
+      _tabController!.animateTo(0);
+    }
+  }
+
   @override
   void dispose() {
     _tabController?.dispose();
+    AppDataService.instance.publicationsCategories.removeListener(_onModelChange);
+    AppDataService.instance.videoCategories.removeListener(_onModelChange);
+    AppDataService.instance.audioCategories.removeListener(_onModelChange);
     super.dispose();
   }
 
@@ -53,13 +94,7 @@ class LibraryPageState extends State<LibraryPage> with TickerProviderStateMixin 
     if (_tabController == null) return;
 
     if (_tabController!.length != newLength) {
-      final currentIndex = _tabController!.index;
-      _tabController!.dispose();
-      _tabController = TabController(
-        length: newLength,
-        vsync: this,
-        initialIndex: currentIndex.clamp(0, newLength - 1),
-      );
+      _initTabController(newLength, initialIndex: _tabController!.index);
       setState(() {});
     } else {
       setState(() {});
@@ -72,18 +107,11 @@ class LibraryPageState extends State<LibraryPage> with TickerProviderStateMixin 
     final audios = AppDataService.instance.audioCategories.value;
 
     int length = 0;
-    if (publications.isNotEmpty) length++; // Publications
-    if (videos != null) length++; // Vidéos
-    if (audios != null) length++; // Audio
-    length += 2; // Téléchargés + Mises à jour en attente
+    if (publications.isNotEmpty) length++;
+    if (videos != null) length++;
+    if (audios != null) length++;
+    length += 2; // Téléchargés + Mises à jour
     return length;
-  }
-
-  void goToThePubsTab() {
-    final publications = AppDataService.instance.publicationsCategories.value;
-    if (_tabController != null && publications.isNotEmpty) {
-      _tabController!.animateTo(0);
-    }
   }
 
   void _onLanguagePressed(BuildContext context) async {
@@ -103,54 +131,149 @@ class LibraryPageState extends State<LibraryPage> with TickerProviderStateMixin 
     final tabs = <Tab>[];
     final views = <Widget>[];
 
-    // Publications
+    // Construction dynamique des listes pour identifier l'index
     if (publicationsCategories.isNotEmpty) {
       tabs.add(Tab(text: i18n().navigation_publications.toUpperCase()));
       views.add(PublicationsCategoriesWidget());
     }
 
-    // Vidéos
     if (videosCategories != null) {
       tabs.add(Tab(text: i18n().pub_type_videos_uppercase));
       views.add(VideosCategoriesWidget(categories: videosCategories));
     }
 
-    // Audio
     if (audioCategories != null) {
       tabs.add(Tab(text: i18n().pub_type_audio_programs_uppercase));
       views.add(AudiosCategoriesWidget(categories: audioCategories));
     }
 
-    // Téléchargés
+    // Index pour le bouton de tri
+    final int downloadIndex = tabs.length;
     tabs.add(Tab(text: i18n().label_downloaded_uppercase));
-    views.add(const DownloadWidget());
+    views.add(DownloadWidget(model: _downloadModel));
 
-    // Mises à jour en attente
+    final int pendingUpdatesIndex = tabs.length;
     tabs.add(Tab(text: i18n().label_pending_updates_uppercase));
-    views.add(const PendingUpdatesWidget());
+    views.add(PendingUpdatesWidget(model: _pendingUpdatesModel));
 
-    // Mise à jour du TabController si nécessaire
-    if (_tabController == null || _tabController!.length != tabs.length) {
-      _tabController?.dispose();
-      _tabController = TabController(length: tabs.length, vsync: this);
-    }
+    // Vérification si on est sur l'onglet Téléchargements
+    final bool isDownloadTab = _tabController?.index == downloadIndex;
+    final bool isPendingUpdatesTab = _tabController?.index == pendingUpdatesIndex;
 
     return AppPage(
       appBar: JwLifeAppBar(
         canPop: false,
         title: i18n().navigation_library,
-        subTitleWidget: ValueListenableBuilder(valueListenable: JwLifeSettings.instance.currentLanguage, builder: (context, value, child) {
-          return Text(value.vernacular, style: Theme.of(context).extension<JwLifeThemeStyles>()!.appBarSubTitle);
-        }),
+        subTitleWidget: ValueListenableBuilder(
+            valueListenable: JwLifeSettings.instance.currentLanguage,
+            builder: (context, value, child) {
+              return Text(value.vernacular, style: Theme.of(context).extension<JwLifeThemeStyles>()!.appBarSubTitle);
+            }
+        ),
         actions: [
           IconTextButton(
-              icon: const Icon(JwIcons.magnifying_glass),
-              onPressed: (buildContext) => showPage(SearchLibraryPage())
+            icon: const Icon(JwIcons.magnifying_glass),
+            onPressed: (buildContext) => showPage(SearchLibraryPage()),
           ),
-          IconTextButton(
-            icon: const Icon(JwIcons.language),
-            onPressed: _onLanguagePressed,
-          ),
+          // Condition pour afficher Tri ou Langue
+          if (isDownloadTab || isPendingUpdatesTab)
+            IconTextButton(
+              icon: const Icon(JwIcons.arrows_up_down), // Remplace par JwIcons.sort si disponible
+              onPressed: (context) {
+                /// 1. Définir les options du menu (les `PopupMenuItem`s)
+                final List<PopupMenuEntry> menuItems = [
+                  // --- Tri par Titre ---
+                  // Option 1.1 : Tri par Titre (A-Z)
+                  PopupMenuItem(
+                    value: 'title_asc', // champ: title, ordre: ascendant
+                    child: Text(i18n().label_sort_title_asc),
+                  ),
+                  // Option 1.2 : Tri par Titre (Z-A)
+                  PopupMenuItem(
+                    value: 'title_desc', // champ: title, ordre: descendant
+                    child: Text(i18n().label_sort_title_desc),
+                  ),
+
+                  // Ajouter un séparateur visuel si vous le souhaitez (non obligatoire)
+                  const PopupMenuDivider(),
+
+                  // --- Tri par Année ---
+                  // Option 2.1 : Tri par Année (Le plus récent d'abord)
+                  PopupMenuItem(
+                    value: 'year_desc', // champ: year, ordre: descendant (car année > -> plus récent)
+                    child: Text(i18n().label_sort_year_desc),
+                  ),
+                  // Option 2.2 : Tri par Année (Le plus ancien d'abord)
+                  PopupMenuItem(
+                    value: 'year_asc', // champ: year, ordre: ascendant
+                    child: Text(i18n().label_sort_year_asc),
+                  ),
+
+                  // Ajouter un séparateur visuel si vous le souhaitez
+                  const PopupMenuDivider(),
+
+                  // --- Tri par Symbole (Exemple) ---
+                  // Option 3.1 : Tri par Symbole (A-Z)
+                  PopupMenuItem(
+                    value: 'symbol_asc',
+                    child: Text(i18n().label_sort_symbol_asc),
+                  ),
+                  // Option 3.2 : Tri par Symbole (Z-A)
+                  PopupMenuItem(
+                    value: 'symbol_desc',
+                    child: Text(i18n().label_sort_symbol_desc),
+                  ),
+
+                  const PopupMenuDivider(),
+
+                  PopupMenuItem(
+                    value: 'frequently_used',
+                    child: Text(i18n().label_sort_frequently_used),
+                  ),
+                  // Option 3.2 : Tri par Symbole (Z-A)
+                  PopupMenuItem(
+                    value: 'rarely_used',
+                    child: Text(i18n().label_sort_rarely_used),
+                  ),
+
+                  const PopupMenuDivider(),
+
+                  PopupMenuItem(
+                    value: 'largest_size',
+                    child: Text(i18n().label_sort_largest_size),
+                  ),
+                ];
+
+                // 2. Afficher le menu avec les options
+                showMenu(
+                  context: context,
+                  elevation: 8.0,
+                  items: menuItems,
+                  initialValue: null,
+                  position: RelativeRect.fromDirectional(
+                    textDirection: Directionality.of(context),
+                    start: MediaQuery.of(context).size.width - 210,
+                    top: 40,
+                    end: 10,
+                    bottom: 0,
+                  ),
+                ).then((value) {
+                  if (value != null) {
+                    if(isDownloadTab) {
+                      _downloadModel.sortItems(value);
+                    }
+                    else if(isPendingUpdatesTab) {
+                      _pendingUpdatesModel.sortItems(value);
+                    }
+                  }
+                });
+              }
+            )
+          else
+            IconTextButton(
+              icon: const Icon(JwIcons.language),
+              onPressed: _onLanguagePressed,
+            ),
           IconTextButton(
             icon: const Icon(JwIcons.arrow_circular_left_clock),
             onPressed: History.showHistoryDialog,
@@ -174,7 +297,7 @@ class LibraryPageState extends State<LibraryPage> with TickerProviderStateMixin 
           Expanded(
             child: TabBarView(
               controller: _tabController,
-              children: tabs.isEmpty
+              children: views.isEmpty
                   ? [getLoadingWidget(Theme.of(context).primaryColor)]
                   : views,
             ),

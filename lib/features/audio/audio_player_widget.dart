@@ -399,6 +399,7 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
 
                                     if (mediaItem != null) {
                                       Audio audio = Audio.fromJson(mediaItem: mediaItem);
+                                      if (audio.isDownloadedNotifier.value && audio.filePath != null) items.add(getAudioShareFileItem(audio));
                                       items.add(getAudioShareItem(audio));
                                       items.add(getAudioQrCode(context, audio));
                                       items.add(getAudioAddPlaylistItem(context, audio));
@@ -810,6 +811,7 @@ class _FullAudioViewState extends State<FullAudioView> {
                         PopupMenuButton(
                           icon: Icon(JwIcons.three_dots_horizontal, color: Colors.white),
                           itemBuilder: (context) => [
+                            if (audio.isDownloadedNotifier.value && audio.filePath != null) getAudioShareFileItem(audio),
                             getAudioShareItem(audio),
                             getAudioQrCode(context, audio),
                             getAudioAddPlaylistItem(context, audio),

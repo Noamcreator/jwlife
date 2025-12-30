@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/data/models/meps_language.dart';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/models/publication_category.dart';
@@ -6,7 +7,6 @@ import 'package:jwlife/data/models/publication_attribute.dart';
 import 'package:jwlife/data/databases/catalog.dart';
 import 'package:jwlife/data/repositories/PublicationRepository.dart';
 import 'package:jwlife/app/services/settings_service.dart';
-import 'package:diacritic/diacritic.dart';
 
 class PublicationsItemsViewModel with ChangeNotifier {
   Map<PublicationAttribute, List<Publication>> _publications = {};
@@ -130,15 +130,15 @@ class PublicationsItemsViewModel with ChangeNotifier {
       _filteredPublications = Map.from(_publications);
     } else {
       // Normalisation de la requête pour la recherche (sans diacritiques et minuscule)
-      final normalizedQuery = removeDiacritics(query).toLowerCase();
+      final normalizedQuery = normalize(query);
 
       // *** MODIFICATION : La carte filtrée utilise la clé simple ***
       _filteredPublications = {};
       _publications.forEach((attribute, publicationList) {
         final filteredList = publicationList.where((pub) {
           // Normalisation du titre et du symbole pour la comparaison
-          final normalizedTitle = removeDiacritics(pub.title).toLowerCase();
-          final normalizedKeySymbol = removeDiacritics(pub.keySymbol).toLowerCase();
+          final normalizedTitle = normalize(pub.title);
+          final normalizedKeySymbol = normalize(pub.keySymbol);
 
           return normalizedTitle.contains(normalizedQuery) || normalizedKeySymbol.contains(normalizedQuery);
         }).toList();
@@ -264,8 +264,8 @@ class PublicationsItemsViewModel with ChangeNotifier {
         }
 
         // --- Logique de Tri par Critère Utilisateur (Titre) ---
-        String titleA = removeDiacritics(a.title).toLowerCase();
-        String titleB = removeDiacritics(b.title).toLowerCase();
+        String titleA = normalize(a.title);
+        String titleB = normalize(b.title);
 
         bool isSpecialA = RegExp(r'^[^a-zA-Z]').hasMatch(titleA);
         bool isSpecialB = RegExp(r'^[^a-zA-Z]').hasMatch(titleB);

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:jwlife/core/utils/utils.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:collection/collection.dart';
-import 'package:diacritic/diacritic.dart';
 
 import '../../../core/utils/utils_document.dart';
 import '../../../data/models/publication.dart';
@@ -79,8 +79,8 @@ class InputFieldItemWidget extends StatefulWidget {
     }
 
     // Normalisation du texte et de la requête pour la recherche
-    final normalizedText = removeDiacritics(text.toLowerCase());
-    final normalizedQuery = removeDiacritics(query.toLowerCase());
+    final normalizedText = normalize(text);
+    final normalizedQuery = normalize(query);
     int firstMatchIndex = normalizedText.indexOf(normalizedQuery); // Recherche sur le texte normalisé
 
     String displayText = text;
@@ -105,7 +105,7 @@ class InputFieldItemWidget extends StatefulWidget {
     int start = 0;
 
     // Pour l'itération de RichText: nous devons normaliser le displayText pour trouver les occurrences dans cette sous-chaîne.
-    final normalizedDisplayText = removeDiacritics(displayText.toLowerCase());
+    final normalizedDisplayText = normalize(displayText);
 
     while (start < normalizedDisplayText.length) {
       final index = normalizedDisplayText.indexOf(normalizedQuery, start);

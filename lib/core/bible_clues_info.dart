@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:collection/collection.dart';
 import 'package:jwlife/core/utils/files_helper.dart';
 import 'package:jwlife/core/utils/utils.dart';
 import 'package:sqflite/sqflite.dart';
@@ -39,7 +40,7 @@ class BibleCluesInfo {
 
   BibleBookName? getBook(String bookName) {
     // Cherche le livre correspondant dans BibleCluesInfo
-    return bibleBookNames.firstWhere(
+    return bibleBookNames.firstWhereOrNull(
             (b) => b.standardBookName.toLowerCase() == bookName.toLowerCase() ||
             b.standardBookAbbreviation.toLowerCase() == bookName.toLowerCase() ||
             b.officialBookAbbreviation.toLowerCase() == bookName.toLowerCase() ||
@@ -52,58 +53,63 @@ class BibleCluesInfo {
     );
   }
 
-  String getVerse(int book, int chapter, int verse, {String? localeCode, bool isAbbreviation = false}) {
-    return getVerses(book, chapter, verse, book, chapter, verse, isAbbreviation: isAbbreviation, localeCode: localeCode);
+  String getVerse(int book, int chapter, int verse, {String? localeCode, String type = 'standardBookName'}) {
+    return getVerses(book, chapter, verse, book, chapter, verse, type: type, localeCode: localeCode);
   }
 
-  String getVerses(int book1, int chapter1, int verse1, int book2, int chapter2, int verse2, {String? localeCode, bool isAbbreviation = false}) {
-    // Formatage des chiffres pour la locale (format '0' pour les entiers)
+  String getVerses(int book1, int chapter1, int verse1, int book2, int chapter2, int verse2, {String? localeCode, String type = 'standardBookName'}) {
+    // Récupération des infos des livres
+    BibleBookName bookName1 = bibleBookNames.elementAt(book1 - 1);
+    String name1 = type == 'standardBookName' ? bookName1.standardBookName : type == 'standardBookAbbreviation' ? bookName1.standardBookAbbreviation : bookName1.standardBookName;
+
+    // Déterminer si on doit afficher le chapitre pour le livre 1
+    // On ne l'affiche pas si c'est un livre à chapitre unique (isSingleChapter == true)
+    bool showChapter1 = !(bookName1.isSingleChapter);
+
+    // Formatage des chiffres
     final String formattedChapter1 = formatNumber(chapter1, format: '0', localeCode: localeCode);
     final String formattedChapter2 = formatNumber(chapter2, format: '0', localeCode: localeCode);
 
-    // Formatage du verset 1 (sauf s'il est égal à 0)
-    String formattedVerse1Text;
-    if (verse1 == 0) {
-      formattedVerse1Text = superscriptionFullText;
-    } else {
-      formattedVerse1Text = formatNumber(verse1, format: '0', localeCode: localeCode);
+    String formatVerseText(int v) {
+      if (v == 0) return superscriptionFullText;
+      return formatNumber(v, format: '0', localeCode: localeCode);
     }
 
-    // Formatage du verset 2 (sauf s'il est égal à 0)
-    String formattedVerse2Text;
-    if (verse2 == 0) {
-      formattedVerse2Text = superscriptionFullText;
-    } else {
-      formattedVerse2Text = formatNumber(verse2, format: '0', localeCode: localeCode);
-    }
+    String formattedVerse1Text = formatVerseText(verse1);
+    String formattedVerse2Text = formatVerseText(verse2);
 
-    BibleBookName bookName = bibleBookNames.elementAt(book1 - 1);
-    String bibleBookName = isAbbreviation ? bookName.officialBookAbbreviation : bookName.standardBookName;
+    // Helper pour construire la partie "Chapitre:Verset" ou juste "Verset"
+    String buildRef(bool showChap, String chap, String verse) {
+      return showChap ? '$chap$chapterVerseSeparator$verse' : verse;
+    }
 
     // CAS 1 : Livres différents
     if (book1 != book2) {
       BibleBookName bookName2 = bibleBookNames.elementAt(book2 - 1);
-      String bibleBookName2 = isAbbreviation ? bookName2.officialBookAbbreviation : bookName2.standardBookName;
+      String name2 = type == 'standardBookName' ? bookName2.standardBookName : type == 'standardBookAbbreviation' ? bookName2.standardBookAbbreviation : bookName2.standardBookName;
+      bool showChapter2 = !(bookName2.isSingleChapter);
 
-      return '$bibleBookName $formattedChapter1$chapterVerseSeparator$formattedVerse1Text $nonConsecutiveRangeSeparator $bibleBookName2 $formattedChapter2$chapterVerseSeparator$formattedVerse2Text';
+      String ref1 = buildRef(showChapter1, formattedChapter1, formattedVerse1Text);
+      String ref2 = buildRef(showChapter2, formattedChapter2, formattedVerse2Text);
+
+      return '$name1 $ref1 $nonConsecutiveRangeSeparator $name2 $ref2';
     }
 
     // CAS 2 : Même livre, chapitres différents
     else if (chapter1 != chapter2) {
-      return '$bibleBookName $formattedChapter1$chapterVerseSeparator$formattedVerse1Text $nonConsecutiveRangeSeparator $formattedChapter2$chapterVerseSeparator$formattedVerse2Text';
+      return '$name1 $formattedChapter1$chapterVerseSeparator$formattedVerse1Text $nonConsecutiveRangeSeparator $formattedChapter2$chapterVerseSeparator$formattedVerse2Text';
     }
 
     // CAS 3 : Même livre, même chapitre, versets différents
     else if (verse1 != verse2) {
-      if ((verse2 - verse1).abs() == 1) {
-        return '$bibleBookName $formattedChapter1$chapterVerseSeparator$formattedVerse1Text$separator $formattedVerse2Text';
-      }
-      // Si l'écart est supérieur à 1 (ex: 20-25)
-      return '$bibleBookName $formattedChapter1$chapterVerseSeparator$formattedVerse1Text$rangeSeparator$formattedVerse2Text';
+      String refBase = showChapter1 ? '$name1 $formattedChapter1$chapterVerseSeparator$formattedVerse1Text' : '$name1 $formattedVerse1Text';
+
+      String sep = (verse2 - verse1).abs() == 1 ? '$separator ' : rangeSeparator;
+      return '$refBase$sep$formattedVerse2Text';
     }
 
     // CAS 4 : Tout est identique (un seul verset)
-    return '$bibleBookName $formattedChapter1$chapterVerseSeparator$formattedVerse1Text';
+    return '$name1 ${buildRef(showChapter1, formattedChapter1, formattedVerse1Text)}';
   }
 
   Future<int?> getBibleVerseId(int book, int chapter, int verse) async {
@@ -145,6 +151,8 @@ class BibleBookName {
   final String standardPluralBookName;
   final String standardPluralBookAbbreviation;
   final String officialPluralBookAbbreviation;
+  final bool isSingleChapter;
+  final bool hasSuperscriptions;
 
   BibleBookName({
     required this.bookNumber,
@@ -157,6 +165,8 @@ class BibleBookName {
     required this.standardPluralBookName,
     required this.standardPluralBookAbbreviation,
     required this.officialPluralBookAbbreviation,
+    required this.isSingleChapter,
+    required this.hasSuperscriptions,
   });
 
   // Méthode pour désérialiser un BibleBookName à partir du JSON
@@ -172,6 +182,8 @@ class BibleBookName {
       standardPluralBookName: json['StandardPluralBookName'],
       standardPluralBookAbbreviation: json['StandardPluralBookAbbreviation'],
       officialPluralBookAbbreviation: json['OfficialPluralBookAbbreviation'],
+      isSingleChapter: json['IsSingleChapter'] == 1,
+      hasSuperscriptions: json['HasSuperscriptions'] == 1
     );
   }
 }

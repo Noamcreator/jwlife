@@ -588,19 +588,19 @@ function addVideoCover(articleId) {
 
             const playButton = document.createElement("div");
             playButton.style = `
-            position: absolute;
-            bottom: 10px;
-            left: 10px;
-            width: 40px;
-            height: 40px;
-            background-color: rgba(0, 0, 0, 0.7);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 24px;
-            color: white;
-            font-family: jw-icons-external;
-          `;
+                position: absolute;
+                bottom: 10px;
+                left: 10px;
+                width: 40px;
+                height: 40px;
+                background-color: rgba(0, 0, 0, 0.7);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 24px;
+                color: white;
+                font-family: jw-icons-external;
+            `;
             playButton.innerHTML = "&#xE690;";
             container.appendChild(playButton);
 
@@ -622,242 +622,110 @@ function addVideoCover(articleId) {
     });
 }
 
+// ============= OPTIMISATIONS PRINCIPALES =============
+
+const skipClasses = new Set(["fn", "m", "cl", "vl", "dc-button--primary", "gen-field", "parNum", "word", "escape", "punctuation"]);
+
 function wrapWordsWithSpan(article, isBible) {
-    let selector = isBible ? '.v' : '[data-pid]';
+    const selector = isBible ? '.v' : '[data-pid]';
     const paragraphs = article.querySelectorAll(selector);
-    paragraphs.forEach((p) => {
-        processTextNodes(p);
-    });
+    for (let i = 0; i < paragraphs.length; i++) {
+        processTextNodes(paragraphs[i]);
+    }
 }
 
 function processTextNodes(element) {
-    const skipClasses = new Set(["fn", "m", "cl", "vl", "dc-button--primary", "gen-field"]);
+    if (!element || (element.classList && [...element.classList].some(c => skipClasses.has(c)))) {
+        return;
+    }
 
-    function walkNodes(node) {
-        if (node.nodeType === Node.TEXT_NODE) {
-            // VÉRIFIER SI UN PARENT A UNE CLASSE INTERDITE
+    const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT, {
+        acceptNode: (node) => {
             let parent = node.parentElement;
-            while (parent) {
-                if (parent.classList && [...skipClasses].some(c => parent.classList.contains(c))) {
-                    return; // Skip ce text node
+            while (parent && parent !== element) {
+                if (parent.tagName.toLowerCase() === 'sup') {
+                    return NodeFilter.FILTER_REJECT;
+                }
+                if (parent.classList && [...parent.classList].some(c => skipClasses.has(c))) {
+                    return NodeFilter.FILTER_REJECT;
                 }
                 parent = parent.parentElement;
             }
-
-            const text = node.textContent;
-            const newHTML = processText(text);
-            const temp = document.createElement('div');
-            temp.innerHTML = newHTML.html;
-
-            const nodeParent = node.parentNode;
-            while (temp.firstChild) {
-                nodeParent.insertBefore(temp.firstChild, node);
-            }
-            nodeParent.removeChild(node);
-        } else if (node.nodeType === Node.ELEMENT_NODE) {
-            if (node.classList && [...skipClasses].some(c => node.classList.contains(c))) {
-                return;
-            }
-
-            if ((node.closest && node.closest("sup")) ||
-                (node.classList && (node.classList.contains('word') ||
-                    node.classList.contains('escape') ||
-                    node.classList.contains('punctuation')))) {
-                return;
-            }
-
-            const children = Array.from(node.childNodes);
-            children.forEach(child => walkNodes(child));
+            return NodeFilter.FILTER_ACCEPT;
         }
-    }
-    walkNodes(element);
-}
+    });
 
-function processText(text) {
-    let html = '';
-    let i = 0;
-    while (i < text.length) {
-        let currentChar = text[i];
+    const nodes = [];
+    let currentNode;
+    while (currentNode = walker.nextNode()) nodes.push(currentNode);
 
-        if (currentChar === ' ' || currentChar === '\u00A0') {
-            // It's a space
-            let spaceSequence = '';
-            while (i < text.length && (text[i] === ' ' || text[i] === '\u00A0')) {
-                spaceSequence += text[i];
-                i++;
+    const combinedRegex = /[\p{L}\p{N}]+(?:[^\p{L}\p{N}\s][\p{L}\p{N}]+)*|\s+|[^\p{L}\p{N}\s]/gu;
+
+    for (let i = 0; i < nodes.length; i++) {
+        const node = nodes[i];
+        const text = node.textContent;
+        const fragment = document.createDocumentFragment();
+        
+        let match;
+        while ((match = combinedRegex.exec(text)) !== null) {
+            const token = match[0];
+            const span = document.createElement('span');
+            
+            if (/[\p{L}\p{N}]/u.test(token)) {
+                span.className = 'word';
+            } else if (/\s+/.test(token)) {
+                span.className = 'escape';
+            } else {
+                span.className = 'punctuation';
             }
-            html += `<span class="escape">${spaceSequence}</span>`;
-        } else if (isLetter(currentChar) || isDigit(currentChar)) {
-            // It's the beginning of a word (including integrated punctuation)
-            let word = '';
-            while (i < text.length && !isSpace(text[i]) && !isStandalonePunctuation(text, i)) {
-                word += text[i];
-                i++;
-            }
-            html += `<span class="word">${word}</span>`;
-        } else {
-            // It's standalone punctuation
-            html += `<span class="punctuation">${currentChar}</span>`;
-            i++;
+            
+            span.textContent = token;
+            fragment.appendChild(span);
         }
+        
+        node.parentNode.replaceChild(fragment, node);
     }
-
-    return {
-        html: html
-    };
-}
-
-function isLetter(char) {
-    const code = char.charCodeAt(0);
-    return (
-        // Latin A-Z, a-z
-        (code >= 65 && code <= 90) ||
-        (code >= 97 && code <= 122) ||
-        // Latin Extended (À-ÿ)
-        (code >= 192 && code <= 255) ||
-        // Ligatures
-        char === 'œ' || char === 'Œ' ||
-        char === 'æ' || char === 'Æ' ||
-        // Arabic (0600-06FF, 0750-077F, 08A0-08FF, FB50-FDFF, FE70-FEFF)
-        (code >= 0x0600 && code <= 0x06FF) ||
-        (code >= 0x0750 && code <= 0x077F) ||
-        (code >= 0x08A0 && code <= 0x08FF) ||
-        (code >= 0xFB50 && code <= 0xFDFF) ||
-        (code >= 0xFE70 && code <= 0xFEFF) ||
-        // Hiragana (3040-309F)
-        (code >= 0x3040 && code <= 0x309F) ||
-        // Katakana (30A0-30FF)
-        (code >= 0x30A0 && code <= 0x30FF) ||
-        // Kanji/CJK Unified Ideographs (4E00-9FFF)
-        (code >= 0x4E00 && code <= 0x9FFF) ||
-        // CJK Extensions A (3400-4DBF)
-        (code >= 0x3400 && code <= 0x4DBF) ||
-        // CJK Extensions B-F (20000-2FA1F)
-        (code >= 0x20000 && code <= 0x2FA1F) ||
-        // Halfwidth Katakana (FF65-FF9F)
-        (code >= 0xFF65 && code <= 0xFF9F) ||
-        // Hebrew (0590-05FF)
-        (code >= 0x0590 && code <= 0x05FF) ||
-        // Cyrillic (0400-04FF)
-        (code >= 0x0400 && code <= 0x04FF)
-    );
-}
-
-function isDigit(char) {
-    const code = char.charCodeAt(0);
-    return (
-        // ASCII digits 0-9
-        (code >= 48 && code <= 57) ||
-        // Arabic-Indic digits (٠-٩)
-        (code >= 0x0660 && code <= 0x0669) ||
-        // Extended Arabic-Indic digits (۰-۹)
-        (code >= 0x06F0 && code <= 0x06F9) ||
-        // Fullwidth digits (０-９)
-        (code >= 0xFF10 && code <= 0xFF19)
-    );
-}
-
-function isSpace(char) {
-    return char === ' ' || char === '\u00A0' || char === '\u3000'; // Added ideographic space
-}
-
-function isStandalonePunctuation(text, index) {
-    const char = text[index];
-
-    // If it's not punctuation, return false
-    if (isLetter(char) || isDigit(char) || isSpace(char)) {
-        return false;
-    }
-
-    // Helper function to find the next/previous visible character
-    function findPrevVisibleChar(text, startIndex) {
-        for (let i = startIndex - 1; i >= 0; i--) {
-            const c = text[i];
-            if (!isInvisibleChar(c)) {
-                return c;
-            }
-        }
-        return '';
-    }
-
-    function findNextVisibleChar(text, startIndex) {
-        for (let i = startIndex + 1; i < text.length; i++) {
-            const c = text[i];
-            if (!isInvisibleChar(c)) {
-                return c;
-            }
-        }
-        return '';
-    }
-
-    // Check if it's punctuation that's part of a word
-    const prevChar = findPrevVisibleChar(text, index);
-    const nextChar = findNextVisibleChar(text, index);
-
-    if ((isLetter(prevChar) && isLetter(nextChar)) || (isDigit(prevChar) && isDigit(nextChar))) {
-        return false;
-    }
-
-    // Otherwise, it's standalone punctuation
-    return true;
-}
-
-// Function to detect invisible characters
-function isInvisibleChar(char) {
-    const code = char.charCodeAt(0);
-    return (
-        char === '\u200B' || // Zero Width Space
-        char === '\u200C' || // Zero Width Non-Joiner (important for Arabic/Persian)
-        char === '\u200D' || // Zero Width Joiner
-        char === '\uFEFF' || // Zero Width No-Break Space (BOM)
-        char === '\u00AD' || // Soft Hyphen
-        (code >= 0x2000 && code <= 0x200F) || // Various Unicode spaces
-        (code >= 0x202A && code <= 0x202E) // Directional formatting characters (RTL/LTR marks)
-    );
 }
 
 async function loadIndexPage(index, isFirst) {
     const curr = await fetchPage(index);
     const isImageMode = curr.preferredPresentation === 'text' ? imageMode : !imageMode;
     
-    // On vide le contenu texte précédent pour éviter les superpositions
     pageCenter.innerHTML = ''; 
+
+    if(isFirst) {
+        pageCenter.classList.add('visible');
+    }
 
     if (isImageMode && curr.svgs && curr.svgs.length > 0) {
         loadImageSvg(pageCenter, curr.svgs);
     } 
     else {
+        showFloatingButton();
         pageCenter.innerHTML = `<article id="article-center" class="${curr.className}">${curr.html}</article>`;
         adjustArticle('article-center', curr.link);
         addVideoCover('article-center');
 
-        if(isFirst) {
-            // Initialiser le FAB au chargement
-            showFloatingButton();
-        }
-    }
-
-    // Animation reset
-    container.style.transition = "none";
-    container.style.transform = "translateX(-100%)";
-    void container.offsetWidth;
-    container.style.transition = "transform 0.3s ease-in-out";
-
-    if (!isFirst && !isImageMode || !curr.svgs || curr.svgs.length === 0) {
         const article = document.getElementById("article-center");
         wrapWordsWithSpan(article, isBible());
         paragraphsData = fetchAllParagraphsOfTheArticle(article);
     }
+
+    container.style.transition = "none";
+    container.style.transform = "translateX(-100%)";
+    void container.offsetWidth;
+    container.style.transition = "transform 0.25s ease-in-out";
 }
 
 async function loadPrevAndNextPages(index) {
-    const prev = await fetchPage(index - 1);
-    const next = await fetchPage(index + 1);
+    const [prev, next] = await Promise.all([
+        fetchPage(index - 1),
+        fetchPage(index + 1)
+    ]);
     
     const isImageModePrev = prev.preferredPresentation === 'text' ? imageMode : !imageMode;
     const isImageModeNext = next.preferredPresentation === 'text' ? imageMode : !imageMode;
 
-    // Page de Gauche
     pageLeft.innerHTML = '';
     if (isImageModePrev && prev.svgs && prev.svgs.length > 0) {
         loadImageSvg(pageLeft, prev.svgs);
@@ -866,7 +734,6 @@ async function loadPrevAndNextPages(index) {
         adjustArticle('article-left', prev.link);
     }
 
-    // Page de Droite
     pageRight.innerHTML = '';
     if (isImageModeNext && next.svgs && next.svgs.length > 0) {
         loadImageSvg(pageRight, next.svgs);
@@ -923,6 +790,40 @@ async function loadPages(currentIndex) {
     restoreScrollPosition(pageLeft, currentIndex - 1);
     restoreScrollPosition(pageRight, currentIndex + 1);
 }
+
+async function init() {
+    pageCenter.classList.remove('visible');
+    pageCenter.scrollTop = 0;
+    pageCenter.scrollLeft = 0;
+
+    await loadIndexPage(currentIndex, true);
+
+    setupScrollBar();
+
+    await window.flutter_inappwebview.callHandler('changePageAt', currentIndex);
+
+    await loadUserdata();
+
+    if (wordsSelected.length > 0) {
+        selectWords(wordsSelected, false);
+    }
+
+    if (startParagraphId != null && endParagraphId != null) {
+        jumpToIdSelector('[data-pid]', 'data-pid', startParagraphId, endParagraphId);
+    } 
+    else if (startVerseId != null && endVerseId != null) {
+        const hasSameChapter = bookNumber === lastBookNumber && chapterNumber === lastChapterNumber;
+        const endIdForJump = hasSameChapter ? endVerseId : null;
+        jumpToIdSelector('.v', 'id', startVerseId, endIdForJump);
+    } 
+    else if (textTag != null) {
+        jumpToTextTag(textTag);
+    }
+
+    loadPrevAndNextPages(currentIndex);
+}
+
+init();
 
 async function jumpToPage(index) {
     closeToolbar();
@@ -2987,7 +2888,7 @@ async function openNoteDialog(noteGuid) {
     }
 
     const options = {
-        title: 'Note',
+        title: note.DialogTitle || 'Note',
         type: 'note',
         noteData: {
             noteGuid: noteGuid,
@@ -3819,7 +3720,7 @@ function showVerseDialog(article, verses, href, replace) {
             contentContainer.appendChild(customizeButton);
 
             contentContainer.addEventListener('click', async (event) => {
-                onClickOnPage(contentContainer, event.target);
+                onClickOnPage(contentContainer, event);
             });
 
             repositionAllNotes(contentContainer);
@@ -3975,7 +3876,7 @@ function showVerseReferencesDialog(article, verseReferences, href) {
                 contentContainer.appendChild(article);
 
                 contentContainer.addEventListener('click', async (event) => {
-                    onClickOnPage(contentContainer, event.target);
+                    onClickOnPage(contentContainer, event);
                 });
 
                 repositionAllNotes(contentContainer);
@@ -4225,7 +4126,7 @@ function showVerseInfoDialog(article, verseInfo, href, pid, replace) {
                                 expandArea.id = `content-expand-${itemId}`;
                                 expandArea.style.display = 'none';
                                 expandArea.addEventListener('click', async (event) => {
-                                    onClickOnPage(expandArea, event.target);
+                                    onClickOnPage(expandArea, event);
                                 });
 
                                 row.addEventListener('click', (e) => {
@@ -4564,7 +4465,7 @@ function showVerseInfoDialog(article, verseInfo, href, pid, replace) {
                         else if (key !== 'versions') {
                             articleDiv.innerHTML = contentHtml;
                             articleDiv.addEventListener('click', async (event) => {
-                                onClickOnPage(articleDiv, event.target);
+                                onClickOnPage(articleDiv, event);
                             });
                             dynamicContent.appendChild(articleDiv);
 
@@ -4778,7 +4679,7 @@ function showExtractPublicationDialog(article, extractData, href) {
             });
 
             contentContainer.addEventListener('click', async (event) => {
-                onClickOnPage(article, event.target);
+                onClickOnPage(article, event);
             });
 
             contentContainer.querySelectorAll('img').forEach(img => {
@@ -4891,7 +4792,7 @@ function showVerseCommentaryDialog(article, commentaries, href) {
                     `;
 
                 contentContainer.addEventListener('click', async (event) => {
-                    onClickOnPage(contentContainer, event.target);
+                    onClickOnPage(contentContainer, event);
                 });
 
                 contentContainer.appendChild(headerBar);
@@ -4921,7 +4822,7 @@ function showFootNoteDialog(article, footnote, href) {
                 `;
 
             noteContent.addEventListener('click', async (event) => {
-                onClickOnPage(noteContainer, event.target);
+                onClickOnPage(noteContainer, event);
             });
 
             noteContainer.appendChild(noteContent);
@@ -5716,58 +5617,6 @@ function setupScrollBar() {
     scrollBarTimeout = setTimeout(hideScrollBar, 3000);
 }
 
-async function init() {
-    // Masquer le contenu avant le chargement
-    pageCenter.classList.remove('visible');
-
-    // Charger la page principale
-    await loadIndexPage(currentIndex, true);
-    pageCenter.scrollTop = 0;
-    pageCenter.scrollLeft = 0;
-
-    pageCenter.classList.add('visible');
-
-    const curr = cachedPages[currentIndex];
-    if (curr.preferredPresentation === 'text' && !imageMode) {
-        const article = document.getElementById("article-center");
-        wrapWordsWithSpan(article, isBible());
-        paragraphsData = fetchAllParagraphsOfTheArticle(article);
-    }
-
-    setupScrollBar();
-
-    //const bodyClone = pageCenter.cloneNode(true);
-    //magnifierContent.appendChild(bodyClone);
-
-    // Informer Flutter que la page principale est chargée
-    await window.flutter_inappwebview.callHandler('changePageAt', currentIndex);
-
-    // Charger les données utilisateur (notes/bookmarks, etc.)
-    await loadUserdata();
-
-    if (wordsSelected.length > 0) {
-        selectWords(wordsSelected, false);
-    }
-
-    // Appliquer les scrolls ou sélections APRÈS que tout est visible
-    if (startParagraphId != null && endParagraphId != null) {
-        jumpToIdSelector('[data-pid]', 'data-pid', startParagraphId, endParagraphId);
-    } 
-    else if (startVerseId != null && endVerseId != null) {
-        const hasSameChapter = bookNumber === lastBookNumber && chapterNumber === lastChapterNumber;
-        const endIdForJump = hasSameChapter ? endVerseId : null;
-        jumpToIdSelector('.v', 'id', startVerseId, endIdForJump);
-    } 
-    else if (textTag != null) {
-        jumpToTextTag(textTag);
-    }
-
-    // Charger les pages autour
-    await loadPrevAndNextPages(currentIndex);
-}
-
-init();
-
 let lastScrollTop = 0;
 let lastDirection = null;
 
@@ -5927,7 +5776,8 @@ const throttle = (func) => {
     };
 };
 
-async function onClickOnPage(article, target) {
+async function onClickOnPage(article, event) {
+    const target = event.target;
     const tagName = target.tagName;
     const classList = target.classList;
 
@@ -5962,7 +5812,7 @@ async function onClickOnPage(article, target) {
         return;
     }
 
-    const linkHandled = await onClickOnLink(article, target);
+    const linkHandled = await onClickOnLink(article, target, event);
 
     if (linkHandled) {
         return;
@@ -5984,7 +5834,7 @@ async function onClickOnPage(article, target) {
     }
 }
 
-async function onClickOnLink(article, target) {
+async function onClickOnLink(article, target, event) {
     const matchedElement = target.closest('a');
     const classList = target.classList;
 
@@ -5995,18 +5845,28 @@ async function onClickOnLink(article, target) {
 
         // Cas : Aller à une note en scrollant (#)
         if (href.startsWith('#')) {
-            const targetElement = pageCenter.querySelector(href);
+            // empêche le comportement par défaut
+            event.preventDefault();
+
+            const targetElement = article.querySelector(href);
             if (targetElement) {
-                targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                const elementToScroll = (targetElement.tagName === 'SPAN' && targetElement.innerHTML === '') 
+                    ? targetElement.parentElement 
+                    : targetElement;
+
+                elementToScroll.scrollIntoView({ 
+                    behavior: 'smooth', 
+                    block: 'center' 
+                });
             }
         } 
         // Cas : Versets (b)
-        else if (linkClass.contains('b')) {
+        else if (linkClass.contains('b') || href.startsWith('jwpub://b/')) {
             const verses = await window.flutter_inappwebview.callHandler('fetchVerses', href);
             if (verses) showVerseDialog(article, verses, href, false);
         } 
         // Cas : Extraits de publications (xt)
-        else if (linkClass.contains('xt')) {
+        else if (linkClass.contains('xt') || href.startsWith('jwpub://p/')) {
             const extract = await window.flutter_inappwebview.callHandler('fetchExtractPublication', href);
             if (extract) showExtractPublicationDialog(article, extract, href);
         } 
@@ -6124,7 +5984,7 @@ pageCenter.addEventListener('contextmenu', (event) => {
             event.preventDefault();
             event.stopPropagation();
 
-            (async () => { await onClickOnLink(pageCenter, linkElement); })();
+            (async () => { await onClickOnLink(pageCenter, linkElement, event); })();
         }
         else {
              // 1. Vérifie si l'élément cliqué est une image ou l'un de ses parents
@@ -6155,7 +6015,7 @@ pageCenter.addEventListener('click', (event) => {
     lastLongPressTarget = null;
     isLongPressing = false;
 
-    onClickOnPage(pageCenter, event.target);
+    onClickOnPage(pageCenter, event);
 });
 
 /**************
@@ -6164,7 +6024,7 @@ pageCenter.addEventListener('click', (event) => {
 let oldStylesMap = new Map();
 let tempTokensByGuid = new Map();
 const magnifierSize = 120;
-const zoomFactor = 1.3;
+const zoomFactor = 1.15;
 const visibleParagraphIds = new Set();
 let magnifierElementMap = new Map();
 
@@ -6672,7 +6532,7 @@ function createRangeData(tokenArray, pid, pData) {
     };
 }
 
-function prepareMagnifier(targetElement) {
+function prepareMagnifier() {
     // 1. Nettoyage
     magnifierContent.textContent = '';
     magnifierElementMap.clear();
@@ -6861,14 +6721,10 @@ function ensureParagraphIndexed(paragraphData) {
 function fetchAllParagraphsOfTheArticle(article, isVerseDialog = false) {
     const paragraphsDataMap = new Map();
     const fetchedParagraphs = fetchAllParagraphs(article);
-    const indexedTokens = indexTokens(fetchedParagraphs);
+    const indexedTokens = indexTokensOptimized(fetchedParagraphs);
 
     fetchedParagraphs.forEach(group => {
-        const tokens = indexedTokens.get(group.paragraphs) || {
-            allTokens: [],
-            wordAndPunctTokens: [],
-            indexInAll: new Map()
-        };
+        const tokens = indexedTokens.get(group.paragraphs);
 
         const uniqueKey = isVerseDialog && group.chapterId 
             ? `${group.chapterId}_${group.id}` 
@@ -6894,18 +6750,15 @@ function fetchAllParagraphsOfTheArticle(article, isVerseDialog = false) {
 
 function fetchAllParagraphs(article) {
     const finalList = [];
-    // Sélectionne tous les éléments qui ressemblent à une partie de verset
     const verses = Array.from(article.querySelectorAll('.v[id]'));
 
     if (verses.length > 0) {
-        // Cas 1: L'article contient des versets (plusieurs parties peuvent former un verset)
         const grouped = {};
 
         verses.forEach(verse => {
-            // parts = ["v1", "3", "15", "1"]
             const parts = verse.id.split('-'); 
             const chapterId = parts[1];
-            const verseUniqueKey = parts[2]; // L'ID du verset (ex: "15")
+            const verseUniqueKey = parts[2];
 
             if (!grouped[verseUniqueKey]) {
                 grouped[verseUniqueKey] = {
@@ -6917,7 +6770,6 @@ function fetchAllParagraphs(article) {
         });
 
         Object.entries(grouped).forEach(([id, data]) => {
-            // Tri des parties du verset par l'index final (index 3 dans l'ID)
             data.paragraphs.sort((a, b) => {
                 return parseInt(a.id.split('-')[3], 10) - parseInt(b.id.split('-')[3], 10);
             });
@@ -6931,15 +6783,13 @@ function fetchAllParagraphs(article) {
         });
     } 
     else {
-        // Cas 2: L'article contient des paragraphes normaux (non-versets)
         const paras = Array.from(article.querySelectorAll('[data-pid]'));
         paras.forEach(p => {
             const pid = p.getAttribute('data-pid');
 
             finalList.push({
-                paragraphs: [p], // tableau avec uniquement ce paragraphe
-                // CONVERSION EN ENTIER ICI
-                id: parseInt(pid, 10), // ID unique du paragraphe converti en nombre
+                paragraphs: [p],
+                id: parseInt(pid, 10),
                 isVerse: false
             });
         });
@@ -6948,30 +6798,37 @@ function fetchAllParagraphs(article) {
     return finalList;
 }
 
-// La fonction indexTokens doit être modifiée pour utiliser 'paragraphs' directement comme clé dans la Map
-function indexTokens(groups) {
+function indexTokensOptimized(groups) {
     const map = new Map();
+    
     groups.forEach(group => {
-        // La clé de la Map est le tableau 'paragraphs'
         const p = group.paragraphs;
-
-        // ... votre code actuel de calcul des tokens ...
-        const allTokens = p.flatMap(el =>
-            Array.from(el.querySelectorAll('.word, .punctuation, .escape'))
-        );
-        const wordAndPunctTokens = allTokens.filter(
-            t => t.classList.contains('word') || t.classList.contains('punctuation')
-        );
+        
+        const allTokens = [];
+        p.forEach(el => {
+            const tokens = el.querySelectorAll('.word, .punctuation, .escape');
+            allTokens.push(...tokens);
+        });
+        
+        const wordAndPunctTokens = [];
         const indexInAll = new Map();
-        for (let i = 0; i < allTokens.length; i++) indexInAll.set(allTokens[i], i);
+        
+        for (let i = 0; i < allTokens.length; i++) {
+            const token = allTokens[i];
+            indexInAll.set(token, i);
+            
+            if (token.classList.contains('word') || token.classList.contains('punctuation')) {
+                wordAndPunctTokens.push(token);
+            }
+        }
 
-        // Stockage en utilisant le tableau de paragraphes comme clé
         map.set(p, {
             allTokens,
             wordAndPunctTokens,
             indexInAll
         });
     });
+    
     return map;
 }
 

@@ -1,4 +1,3 @@
-import 'package:diacritic/diacritic.dart';
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:jwlife/app/jwlife_app_bar.dart';
@@ -100,23 +99,23 @@ class _NotesTagsPageState extends State<NotesTagsPage> {
                     // 3. Démarrer un nouveau timer
                     _debounce = Timer(const Duration(milliseconds: 200), () {
                       // Exécuter le filtrage seulement après l'arrêt de la saisie
-                      final normalizedQuery = removeDiacritics(searchQuery.toLowerCase());
+                      final normalizedQuery = normalize(searchQuery);
 
                       setState(() {
                         // 4. Filtrer les Tags
                         filteredTags = tagsController.tags.where((tag) {
-                          final normalizedTagName = removeDiacritics(tag.name.toLowerCase());
+                          final normalizedTagName = normalize(tag.name);
                           return normalizedTagName.contains(normalizedQuery);
                         }).toList();
 
                         // 5. Filtrer les Notes
                         filteredNotes = notesController.getNotes().where((note) {
                           final normalizedTitle = note.title != null
-                              ? removeDiacritics(note.title!.toLowerCase())
+                              ? normalize(note.title!)
                               : '';
 
                           final normalizedContent = note.content != null
-                              ? removeDiacritics(note.content!.toLowerCase())
+                              ? normalize(note.content!)
                               : '';
 
                           return normalizedTitle.contains(normalizedQuery) ||

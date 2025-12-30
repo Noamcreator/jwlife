@@ -88,7 +88,7 @@ class Userdata {
     context.read<TagsController>().loadTags();
 
     // vérifier si les nouvelles tables sont présentes
-    if(!await tableExists(_database, "Congregation")) {
+    if(!await checkIfTableExists(_database, "Congregation")) {
       await _database.execute('''
         CREATE TABLE "Congregation" (
           "CongregationId"	INTEGER NOT NULL,

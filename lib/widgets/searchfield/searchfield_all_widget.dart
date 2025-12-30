@@ -2,6 +2,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:jwlife/app/services/global_key_service.dart';
+import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/widgets/searchfield/searchfield_with_suggestions/decoration.dart';
 import 'package:jwlife/widgets/searchfield/searchfield_with_suggestions/input_decoration.dart';
 import 'package:jwlife/widgets/searchfield/searchfield_with_suggestions/searchfield.dart';
@@ -24,7 +25,6 @@ import '../../data/models/video.dart';
 import '../../data/realm/catalog.dart';
 import '../../data/realm/realm_library.dart';
 import '../../data/repositories/PublicationRepository.dart';
-import '../../features/home/pages/search/bible_search_page.dart';
 import '../../features/home/pages/search/search_page.dart';
 import '../../features/home/pages/search/suggestion.dart';
 import '../../i18n/i18n.dart';
@@ -118,7 +118,7 @@ class _SearchFieldAllState extends State<SearchFieldAll> {
                   width: 40,
                   height: 40,
                 )
-                    : Container(width: 40, height: 40, color: Colors.grey[400],),
+                    : SizedBox(width: 40, height: 40, child: Icon(item.type == 'bible' ? JwIcons.bible : JwIcons.magnifying_glass, color: Colors.grey)),
                 const SizedBox(width: 10),
               ],
             ),
@@ -138,11 +138,11 @@ class _SearchFieldAllState extends State<SearchFieldAll> {
               Icon(item.type == 'audio' ? JwIcons.music : JwIcons.video),
 
             if (item.type == 'wolTopic') const SizedBox(width: 10),
-            if (item.type == 'wolTopic' && item.label != null)
+            if (item.label != null)
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                decoration: const BoxDecoration(
-                  color: Color(0xFFc0c0c0),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).brightness == Brightness.dark ? Colors.grey : const Color(0xFFc0c0c0),
                 ),
                 child: Text(
                   item.label!,
@@ -239,6 +239,10 @@ class _SearchFieldAllState extends State<SearchFieldAll> {
         }
       }
       else if(pub.hasTopics) {
+        if(!db.isOpen && pub.documentsManager != null) {
+          pub.documentsManager!.database = await openReadOnlyDatabase(pub.databasePath!);
+        }
+
         final sqlColumn = buildAccentInsensitiveQuery('Topic.Topic');
         final topics = await db.rawQuery('''
           SELECT Topic.DisplayTopic, Document.MepsDocumentId
@@ -343,6 +347,53 @@ class _SearchFieldAllState extends State<SearchFieldAll> {
     SuggestionItem? selected = item.item;
     if (selected == null) return;
     BuildContext context = GlobalKeyService.jwLifePageKey.currentState!.getCurrentState().context;
+
+    if(selected.type == 'bible') {
+      String bibleLink = 'https://wol.jw.org/wol/l/r30/lp-f?q=${selected.query}';
+
+      final response = await Api.httpGetWithHeaders(bibleLink, responseType: ResponseType.json);
+
+      if(response.statusCode == 200) {
+        // 1. On récupère la liste 'items'
+        final items = response.data['items'] as List;
+        if (items.isNotEmpty) {
+          final firstItem = items.first;
+
+          // 2. 'results' est une liste de listes.
+          // Ton JSON montre : "results": [ [ { ... } ] ]
+          final resultsOuter = firstItem['results'] as List;
+
+          if (resultsOuter.isNotEmpty) {
+            final resultsInner = resultsOuter.first as List;
+
+            if (resultsInner.isNotEmpty) {
+              // 3. C'est ici que se trouve ton objet final
+              final data = resultsInner.first;
+
+              final book = data['book'];
+              final firstChapter = data['first_chapter'];
+              final firstVerse = data['first_verse'];
+              final lastChapter = data['last_chapter'];
+              final lastVerse = data['last_verse'];
+
+              Publication? currentBible = PublicationRepository().getLookUpBible();
+              if(currentBible != null) {
+                showChapterView(
+                    context,
+                    currentBible.keySymbol,
+                    currentBible.mepsLanguage.id,
+                    book,
+                    firstChapter,
+                    firstVerseNumber: firstVerse,
+                    lastVerseNumber: lastVerse
+                );
+              }
+            }
+          }
+        }
+      }
+    }
+
     switch (selected.type) {
       case 'topic':
         await showDocumentView(context, selected.query, JwLifeSettings.instance.currentLanguage.value.id);
@@ -351,7 +402,6 @@ class _SearchFieldAllState extends State<SearchFieldAll> {
         await showDocumentView(context, selected.query, JwLifeSettings.instance.currentLanguage.value.id, startParagraphId: selected.startParagraphId, endParagraphId: selected.endParagraphId);
         break;
       case 'bible':
-        showPage(SearchBiblePage(query: selected.query));
         break;
       case 'publication':
         final publication = await CatalogDb.instance.searchPub(selected.query, 0, JwLifeSettings.instance.currentLanguage.value.id);

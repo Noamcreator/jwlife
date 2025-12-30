@@ -3,18 +3,21 @@ import 'dart:ui' as ui;
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:crypto/crypto.dart';
-import 'package:diacritic/diacritic.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:jwlife/app/services/global_key_service.dart';
+import 'package:jwlife/core/utils/diacritic.dart';
 import 'package:jwlife/core/utils/utils_dialog.dart';
-import 'package:sqflite/sqflite.dart';
 
 import 'package:image/image.dart' as img;
 
 import '../../i18n/i18n.dart';
 
 String capitalize(String s) => s[0].toUpperCase() + s.substring(1);
+
+String removeDiacritics(String text) {
+  return String.fromCharCodes(replaceCodeUnits(text.codeUnits));
+}
 
 String normalize(String s) {
   return removeDiacritics(s).toLowerCase();
@@ -131,33 +134,24 @@ String formatFileSize(int bytes, {String? localeCode}) {
   const int GB = 1024 * MB;
   const int TB = 1024 * GB;
 
-  // Définir le format pour les décimales (ex: 4.2 MB)
-  const String decimalFormat = '0';
+  // Format '0' assure qu'il n'y a pas de virgule affichée
+  const String integerFormat = '0';
 
   if (bytes < KB) {
-    // Octets (ne nécessite pas formatNumber)
-    final String formattedBy = formatNumber(bytes, format: '0', localeCode: localeCode);
-    return i18n().label_units_storage_bytes(formattedBy);
+    return i18n().label_units_storage_bytes(formatNumber(bytes, format: integerFormat, localeCode: localeCode));
   } else if (bytes < MB) {
-    // KiloOctets (KB). Pour les KB, on garde l'entier par simplicité, comme dans l'original.
-    final int roundedKb = (bytes / KB).floor();
-    final String formattedKb = formatNumber(roundedKb, format: decimalFormat, localeCode: localeCode);
-    return i18n().label_units_storage_kb(formattedKb);
+    // .round() transforme 8.9 en 9 et 8.4 en 8
+    final int roundedKb = (bytes / KB).round();
+    return i18n().label_units_storage_kb(formatNumber(roundedKb, format: integerFormat, localeCode: localeCode));
   } else if (bytes < GB) {
-    // MégaOctets (MB). Utilisation de formatNumber pour la décimale.
-    final double mb = bytes / MB;
-    final String formattedMb = formatNumber(mb, format: decimalFormat, localeCode: localeCode);
-    return i18n().label_units_storage_mb(formattedMb);
+    final int roundedMb = (bytes / MB).round();
+    return i18n().label_units_storage_mb(formatNumber(roundedMb, format: integerFormat, localeCode: localeCode));
   } else if (bytes < TB) {
-    // GigaOctets (GB). Utilisation de formatNumber pour la décimale.
-    final double gb = bytes / GB;
-    final String formattedGb = formatNumber(gb, format: decimalFormat, localeCode: localeCode);
-    return i18n().label_units_storage_gb(formattedGb);
+    final int roundedGb = (bytes / GB).round();
+    return i18n().label_units_storage_gb(formatNumber(roundedGb, format: integerFormat, localeCode: localeCode));
   } else {
-    // TéraOctets (TB). Utilisation de formatNumber pour la décimale.
-    final double tb = bytes / TB;
-    final String formattedTb = formatNumber(tb, format: decimalFormat, localeCode: localeCode);
-    return i18n().label_units_storage_tb(formattedTb);
+    final int roundedTb = (bytes / TB).round();
+    return i18n().label_units_storage_tb(formatNumber(roundedTb, format: integerFormat, localeCode: localeCode));
   }
 }
 
@@ -332,14 +326,6 @@ void printTime(String printText) async {
   DateTime now = DateTime.now();
   String formattedTime = DateFormat('HH:mm:ss:SS').format(now);
   debugPrint("$formattedTime: $printText");
-}
-
-Future<bool> tableExists(Database db, String tableName) async {
-  final result = await db.rawQuery('''
-    SELECT name FROM sqlite_master 
-    WHERE type='table' AND name=?
-  ''', [tableName]);
-  return result.isNotEmpty;
 }
 
 img.Image resizeAndCropCenter(img.Image originalImage, int targetSize) {

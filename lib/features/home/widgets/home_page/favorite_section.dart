@@ -134,7 +134,7 @@ class FavoritesSectionState extends State<FavoritesSection> {
           );
         },
         child: SizedBox(
-          width: kSquareItemHeight,
+          width: kItemHeight,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -144,8 +144,8 @@ class FavoritesSectionState extends State<FavoritesSection> {
                     borderRadius: BorderRadius.circular(2.0),
                     child: Container(
                       color: backgroundColor,
-                      height: kSquareItemHeight,
-                      width: kSquareItemHeight,
+                      height: kItemHeight,
+                      width: kItemHeight,
                       child: const Center(
                         child: Icon(
                           JwIcons.publication_video_music,
@@ -188,7 +188,7 @@ class FavoritesSectionState extends State<FavoritesSection> {
 
               // TITRE
               SizedBox(
-                width: kSquareItemHeight,
+                width: kItemHeight,
                 child: Padding(
                   padding: const EdgeInsetsDirectional.only(start: 2.0, end: 4.0),
                   child: Text(

@@ -182,7 +182,7 @@ class _RectanglePlaylistItemItemState extends State<RectanglePlaylistItemItem> {
           showPlaylistPlayer(widget.items, startIndex: widget.items.indexOf(widget.item));
         },
         child: SizedBox(
-          height: kSquareItemHeight,
+          height: kItemHeight,
           child: Stack(
             children: [
               Row(
@@ -193,8 +193,8 @@ class _RectanglePlaylistItemItemState extends State<RectanglePlaylistItemItem> {
                       future: widget.item.getThumbnailFile(),
                       builder: (context, snapshot) {
                         final placeholder = Container(
-                          height: kSquareItemHeight,
-                          width: kSquareItemHeight,
+                          height: kItemHeight,
+                          width: kItemHeight,
                           color: Colors.grey.shade300,
                         );
 
@@ -204,16 +204,16 @@ class _RectanglePlaylistItemItemState extends State<RectanglePlaylistItemItem> {
 
                         if (snapshot.hasError || snapshot.data == null) {
                           return Container(
-                            height: kSquareItemHeight,
-                            width: kSquareItemHeight,
+                            height: kItemHeight,
+                            width: kItemHeight,
                             color: Colors.grey,
                           );
                         }
 
                         return Image.file(
                           snapshot.data!,
-                          height: kSquareItemHeight,
-                          width: kSquareItemHeight,
+                          height: kItemHeight,
+                          width: kItemHeight,
                           fit: BoxFit.cover,
                         );
                       },
@@ -317,6 +317,7 @@ class _RectanglePlaylistItemItemState extends State<RectanglePlaylistItemItem> {
                         // S'assurer que media est un Video si vous appelez getVideoShareItem
                         if (media != null && media is Video) {
                           items.addAll([
+                            if (media.isDownloadedNotifier.value && media.filePath != null) getVideoShareFileItem(media),
                             getVideoShareItem(media),
                             getVideoQrCode(context, media),
                             getVideoAddPlaylistItem(context, media),
@@ -331,6 +332,7 @@ class _RectanglePlaylistItemItemState extends State<RectanglePlaylistItemItem> {
                         // S'assurer que media est un Video si vous appelez getVideoShareItem
                         if (media != null && media is Audio) {
                           items.addAll([
+                            if (media.isDownloadedNotifier.value && media.filePath != null) getAudioShareFileItem(media),
                             getAudioShareItem(media),
                             getAudioQrCode(context, media),
                             getAudioAddPlaylistItem(context, media),

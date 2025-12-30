@@ -24,6 +24,7 @@ import '../../data/models/userdata/note.dart';
 import '../../data/repositories/PublicationRepository.dart';
 import '../../i18n/i18n.dart';
 import '../utils/files_helper.dart';
+import '../utils/utils_database.dart';
 
 /*
   String verseAudioLink = 'https://b.jw-cdn.org/apis/pub-media/GETPUBMEDIALINKS?pub=NWT&langwritten=F&fileformat=mp3&booknum=$book1&track=$chapter1';
@@ -69,10 +70,9 @@ Future<Map<String, dynamic>> fetchVerses(String link, Publication publication) a
   final int chapter2 = int.parse(endParts[1]);
   final int verse2 = int.parse(endParts[2]);
 
-  final String versesDisplay = JwLifeApp.bibleCluesInfo.getVerses(
-      book1, chapter1, verse1, book2, chapter2, verse2,
-      localeCode: publication.mepsLanguage.primaryIetfCode
-  );
+  final String versesDisplayLarge = JwLifeApp.bibleCluesInfo.getVerses(book1, chapter1, verse1, book2, chapter2, verse2, localeCode: publication.mepsLanguage.primaryIetfCode, type: 'standardBookName');
+  final String versesDisplayMedium= JwLifeApp.bibleCluesInfo.getVerses(book1, chapter1, verse1, book2, chapter2, verse2, localeCode: publication.mepsLanguage.primaryIetfCode, type: 'standardBookAbbreviation');
+  final String versesDisplaySmall = JwLifeApp.bibleCluesInfo.getVerses(book1, chapter1, verse1, book2, chapter2, verse2, localeCode: publication.mepsLanguage.primaryIetfCode, type: 'officialBookAbbreviation');
 
   try {
     final File mepsFile = await getMepsUnitDatabaseFile();
@@ -82,7 +82,7 @@ Future<Map<String, dynamic>> fetchVerses(String link, Publication publication) a
     // (Book * 1000 + Chapter) permet de créer un index unique croissant pour comparer facilement
     final List<Map<String, dynamic>> rangeData = await db.rawQuery("""
       SELECT BibleInfo.Name, BookNumber, ChapterNumber, FirstBibleVerseId, FirstOrdinal,
-      EXISTS (SELECT 1 FROM BibleSuperscriptionLocation bsl WHERE bsl.BookNumber = BibleRange.BookNumber AND bsl.ChapterNumber = BibleRange.ChapterNumber) as hasSup
+      EXISTS (SELECT 1 FROM BibleSuperscriptionLocation bsl WHERE bsl.BookNumber = BibleRange.BookNumber AND bsl.ChapterNumber = BibleRange.ChapterNumber) as HasSup
       FROM BibleRange
       INNER JOIN BibleInfo ON BibleRange.BibleInfoId = BibleInfo.BibleInfoId
       WHERE BibleInfo.Name IN ('NWTR', 'NWT') 
@@ -110,21 +110,18 @@ Future<Map<String, dynamic>> fetchVerses(String link, Publication publication) a
 
         int base = c['FirstBibleVerseId'];
         int firstOrd = c['FirstOrdinal'];
-        bool hasSup = c['hasSup'] == 1;
+        bool hasSup = c['HasSup'] == 1;
 
         // Calcul ID de début (logique FirstVerse)
-        int startId = hasSup
-            ? ((vStart == 0 || vStart == 1) ? base : base + (vStart - firstOrd) + 1)
-            : base + (vStart - firstOrd);
+        int startId = hasSup ? ((vStart == 0 || vStart == 1) ? base : base + (vStart - firstOrd) + 1) : base + (vStart - firstOrd);
 
         // Calcul ID de fin (logique LastVerse)
         int endId;
         if (vEnd == 999) {
           endId = (i < chapters.length - 1) ? chapters[i + 1]['FirstBibleVerseId'] - 1 : startId + 150;
-        } else {
-          endId = hasSup
-              ? (vEnd == 0 ? base : vEnd == 1 ? base + 1 : base + (vEnd - firstOrd) + 1)
-              : base + (vEnd - firstOrd);
+        }
+        else {
+          endId = hasSup ? (vEnd == 0 ? base : vEnd == 1 ? base + 1 : base + (vEnd - firstOrd) + 1) : base + (vEnd - firstOrd);
         }
 
         bibleSegments[type]!.add([startId, endId]);
@@ -142,25 +139,32 @@ Future<Map<String, dynamic>> fetchVerses(String link, Publication publication) a
       final String langCode = bible.mepsLanguage.primaryIetfCode;
 
       for (final range in segments) {
-        final List<Map<String, dynamic>> verses = await bibleDb.rawQuery(
-            "SELECT Label, Content, BeginParagraphOrdinal FROM BibleVerse WHERE BibleVerseId BETWEEN ? AND ? ORDER BY BibleVerseId",
-            [range[0], range[1]]
-        );
+        // 1. Vérification de l'existence de la colonne
+        bool hasBeginParagraphOrdinalColumn = await checkIfColumnsExists(bibleDb, 'BibleVerse', ['BeginParagraphOrdinal']);
+
+        // 2. Construction dynamique de la clause SELECT
+        String columnToInclude = hasBeginParagraphOrdinalColumn ? ', BeginParagraphOrdinal' : '';
+
+        // 3. Exécution de la requête avec la colonne conditionnelle
+        final List<Map<String, dynamic>> verses = await bibleDb.rawQuery("""
+          SELECT Label, Content $columnToInclude 
+          FROM BibleVerse 
+          WHERE BibleVerseId BETWEEN ? AND ? 
+          ORDER BY BibleVerseId
+          """, [range[0], range[1]]);
 
         for (final verse in verses) {
           String label = verse['Label'] ?? '';
           if (label.isNotEmpty) {
-            label = label.replaceAllMapped(_clRegex, (m) =>
-            '<span class="cl"><strong>${formatNumber(int.parse(m.group(1)!), localeCode: langCode)}</strong> </span>'
-            ).replaceAllMapped(_vlRegex, (m) =>
-            '<span class="vl">${formatNumber(int.parse(m.group(1)!), localeCode: langCode)}</span>'
+            label = label.replaceAllMapped(_clRegex, (m) => '<span class="cl"><strong>${formatNumber(int.parse(m.group(1)!), localeCode: langCode)}</strong> </span>')
+                .replaceAllMapped(_vlRegex, (m) => '<span class="vl">${formatNumber(int.parse(m.group(1)!), localeCode: langCode)}</span>'
             );
           }
           htmlBuffer.write(label);
           if (verse['Content'] != null) {
             String decoded = decodeBlobContent(verse['Content'] as Uint8List, bible.hash!);
             if (label.isEmpty) {
-              final pid = verse['BeginParagraphOrdinal'];
+              final pid = verse['BeginParagraphOrdinal'] ?? 0;
               htmlBuffer.write('<p id="p$pid" data-pid="$pid" class="sw">$decoded</p>');
             }
             else {
@@ -177,6 +181,7 @@ Future<Map<String, dynamic>> fetchVerses(String link, Publication publication) a
 
       return {
         'type': 'verse',
+        'hasVerse': htmlBuffer.toString().isNotEmpty,
         'content': htmlBuffer.toString(),
         'className': "bibleCitation html5 pub-${bible.keySymbol} jwac ml-${bible.mepsLanguage.symbol} ms-${bible.mepsLanguage.internalScriptName} dir-${bible.mepsLanguage.isRtl ? 'rtl' : 'ltr'} layout-reading layout-sidebar",
         'subtitle': bible.mepsLanguage.vernacular,
@@ -185,6 +190,7 @@ Future<Map<String, dynamic>> fetchVerses(String link, Publication publication) a
         'audio': {},
         'keySymbol': bible.keySymbol,
         'mepsLanguageId': bible.mepsLanguage.id,
+        'display': bibles.indexOf(bible) == 0 ? 'left' : bibles.indexOf(bible) == 1 ? 'right' : 'center',
         'blockRanges': blockRanges.map((br) => br.toMap()).toList(),
       };
     }));
@@ -192,7 +198,12 @@ Future<Map<String, dynamic>> fetchVerses(String link, Publication publication) a
     final context = GlobalKeyService.jwLifePageKey.currentContext!;
     return {
       'items': items,
-      'title': versesDisplay,
+      'title': versesDisplayLarge,
+      'allTiles': {
+        'large': versesDisplayLarge,
+        'medium': versesDisplayMedium,
+        'small': versesDisplaySmall,
+      },
       'firstBookNumber': book1,
       'lastBookNumber': book2,
       'firstChapterNumber': chapter1,
@@ -205,8 +216,9 @@ Future<Map<String, dynamic>> fetchVerses(String link, Publication publication) a
           firstBlockIdentifier: verse1, lastBlockIdentifier: verse2
       ).map((n) => n.toMap()).toList(),
     };
-  } catch (e) {
-    return {'items': [], 'title': versesDisplay};
+  }
+  catch (e) {
+    return {'items': [], 'title': versesDisplayLarge};
   }
 }
 
@@ -533,7 +545,7 @@ Future<Map<String, dynamic>> fetchFootnote(BuildContext context, Publication pub
     'type': 'note',
     'content': '',
     'className': '',
-    'title': 'Note',
+    'title': i18n().label_icon_footnotes,
   };
 }
 
@@ -566,11 +578,7 @@ Future<Map<String, dynamic>> fetchVersesReference(BuildContext context, Publicat
 
       final String langCode = publication.mepsLanguage.primaryIetfCode;
 
-      String verseDisplay = JwLifeApp.bibleCluesInfo.getVerses(
-          book, chapter, verseNumber,
-          book, chapter, verseNumber,
-          localeCode: langCode
-      );
+      String verseDisplay = JwLifeApp.bibleCluesInfo.getVerses(book, chapter, verseNumber, book, chapter, verseNumber, localeCode: langCode);
 
       final StringBuffer htmlBuffer = StringBuffer();
       String label = verse['Label'] ?? '';
@@ -721,45 +729,45 @@ Future<Map<String, dynamic>> fetchCommentaries(BuildContext context, Publication
   return {};
 }
 
-Future<List<Map<String, dynamic>>> fetchVerseCommentaries(
-    BuildContext context,
-    Publication publication,
-    int verseId,
-    bool showLabel) async {
+Future<List<Map<String, dynamic>>> fetchVerseCommentaries(BuildContext context, Publication publication, int verseId, bool showLabel) async {
+  Database db = publication.documentsManager!.database;
   try {
-    List<Map<String, dynamic>> response =
-    await publication.documentsManager!.database.rawQuery('''
+    bool hasCommentaryTable = await checkIfTableExists(db, 'VerseCommentary');
+    bool hasCommentaryMepsDocumentIdColumn = hasCommentaryTable ? await checkIfColumnsExists(db, 'VerseCommentary', ['VerseCommentary', 'CommentaryMepsDocumentId']) : false;
+
+    if(hasCommentaryTable && hasCommentaryMepsDocumentIdColumn) {
+      List<Map<String, dynamic>> response = await db.rawQuery('''
       SELECT
         Label, 
         Content, 
         CommentaryMepsDocumentId
       FROM VerseCommentary
-      INNER JOIN VerseCommentaryMap 
-        ON VerseCommentary.VerseCommentaryId = VerseCommentaryMap.VerseCommentaryId
+      INNER JOIN VerseCommentaryMap ON VerseCommentary.VerseCommentaryId = VerseCommentaryMap.VerseCommentaryId
       WHERE VerseCommentaryMap.BibleVerseId = ?
     ''', [verseId]);
 
-    if (response.isNotEmpty) {
-      return response.map((commentary) {
-        String htmlContent = '';
-        if (showLabel) {
-          htmlContent += commentary['Label'] ?? '';
-        }
-        final decodedHtml = decodeBlobContent(
-          commentary['Content'] as Uint8List,
-          publication.hash!,
-        );
-        htmlContent += decodedHtml;
+      if (response.isNotEmpty) {
+        return response.map((commentary) {
+          String htmlContent = '';
+          if (showLabel) {
+            htmlContent += commentary['Label'] ?? '';
+          }
+          final decodedHtml = decodeBlobContent(
+            commentary['Content'] as Uint8List,
+            publication.hash!,
+          );
+          htmlContent += decodedHtml;
 
-        return {
-          'type': 'commentary',
-          'content': htmlContent,
-          'className': "scriptureIndexLink html5 layout-reading layout-sidebar",
-          'subtitle': publication.mepsLanguage.vernacular,
-          'imageUrl': publication.imageSqr,
-          'publicationTitle': publication.getTitle(),
-        };
-      }).toList();
+          return {
+            'type': 'commentary',
+            'content': htmlContent,
+            'className': "scriptureIndexLink html5 layout-reading layout-sidebar",
+            'subtitle': publication.mepsLanguage.vernacular,
+            'imageUrl': publication.imageSqr,
+            'publicationTitle': publication.getTitle(),
+          };
+        }).toList();
+      }
     }
   } catch (e) {
     print(e);
@@ -1297,7 +1305,7 @@ Future<List<Map<String, dynamic>>> fetchVerseFootnotes(BuildContext context, Pub
             'chapterNumber': chapterN,
             'firstVerseNumber': firstV,
             'lastVerseNumber': lastV,
-            'bookDisplay': JwLifeApp.bibleCluesInfo.getVerse(bookN, chapterN, verse['VerseNumber'], isAbbreviation: true, localeCode: publication.mepsLanguage.primaryIetfCode),
+            'bookDisplay': JwLifeApp.bibleCluesInfo.getVerse(bookN, chapterN, verse['VerseNumber'], type: 'officialBookAbbreviation', localeCode: publication.mepsLanguage.primaryIetfCode),
             'bibleVerseDisplay': JwLifeApp.bibleCluesInfo.getVerse(bookN, chapterN, verse['VerseNumber'], localeCode: publication.mepsLanguage.primaryIetfCode),
             'content': htmlBuffer.toString(), // Contenu HTML du verset individuel
             'label': label,

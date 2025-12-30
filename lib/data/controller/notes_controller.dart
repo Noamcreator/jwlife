@@ -1,7 +1,7 @@
 import 'package:collection/collection.dart';
-import 'package:diacritic/diacritic.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/features/document/data/models/dated_text.dart';
 
 import '../../app/jwlife_app.dart';
@@ -244,15 +244,15 @@ class NotesController extends ChangeNotifier {
     }
 
     // 1. Enlever les diacritiques et mettre en minuscules pour la requête
-    final processedQuery = removeDiacritics(query).toLowerCase();
+    final processedQuery = normalize(query);
 
     return notes.where((note) {
       // 2. Enlever les diacritiques et mettre en minuscules pour la note
       final title = note.title != null
-          ? removeDiacritics(note.title!).toLowerCase()
+          ? normalize(note.title!)
           : '';
       final content = note.content != null
-          ? removeDiacritics(note.content!).toLowerCase()
+          ? normalize(note.content!)
           : '';
 
       // 3. Effectuer la recherche

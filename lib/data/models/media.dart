@@ -50,6 +50,7 @@ abstract class Media {
   final ValueNotifier<bool> isDownloadingNotifier;
   final ValueNotifier<bool> isDownloadedNotifier;
   final ValueNotifier<bool> isFavoriteNotifier;
+  final ValueNotifier<bool> hasUpdateNotifier;
 
   Media({
     this.naturalKey,
@@ -80,10 +81,12 @@ abstract class Media {
     ValueNotifier<bool>? isDownloadingNotifier,
     ValueNotifier<bool>? isDownloadedNotifier,
     ValueNotifier<bool>? isFavoriteNotifier,
+    ValueNotifier<bool>? hasUpdateNotifier
   })  : progressNotifier = progressNotifier ?? ValueNotifier(0.0),
         isDownloadingNotifier = isDownloadingNotifier ?? ValueNotifier(false),
         isDownloadedNotifier = isDownloadedNotifier ?? ValueNotifier(false),
-        isFavoriteNotifier = isFavoriteNotifier ?? ValueNotifier(false);
+        isFavoriteNotifier = isFavoriteNotifier ?? ValueNotifier(false),
+        hasUpdateNotifier = hasUpdateNotifier ?? ValueNotifier(false);
 
   Future<void> download(BuildContext context, {int? resolution, Offset? tapPosition});
 
@@ -108,38 +111,45 @@ abstract class Media {
     }
   }
 
-  Future<void> performDownload(BuildContext context, Map<String, dynamic>? mediaJson, {int? resolution = 0}) async {
-    isDownloadingNotifier.value = true;
-    progressNotifier.value = 0;
+  Future<bool> performDownload(BuildContext context, Map<String, dynamic>? mediaJson, {int? resolution = 0}) async {
+    if(!isDownloadingNotifier.value) {
+      isDownloadingNotifier.value = true;
+      progressNotifier.value = 0;
 
-    final cancelToken = CancelToken();
-    _cancelToken = cancelToken;
+      final cancelToken = CancelToken();
+      _cancelToken = cancelToken;
 
-    _downloadOperation = CancelableOperation.fromFuture(
-      downloadMedia(context, this, fileUrl, mediaJson, cancelToken, false, resolution: resolution),
-      onCancel: () {
+      _downloadOperation = CancelableOperation.fromFuture(
+        downloadMedia(context, this, fileUrl, mediaJson, cancelToken, false, resolution: resolution),
+        onCancel: () {
+          isDownloadingNotifier.value = false;
+          isDownloadedNotifier.value = false;
+          progressNotifier.value = 0;
+          // Annuler la notification
+          NotificationService().cancelNotification(hashCode);
+        },
+      );
+
+      Media? media = await _downloadOperation!.valueOrCancellation();
+
+      if (media != null) {
         isDownloadingNotifier.value = false;
-        isDownloadedNotifier.value = false;
-        progressNotifier.value = 0;
-        // Annuler la notification
-        NotificationService().cancelNotification(hashCode);
-      },
-    );
+        isDownloadedNotifier.value = true;
+        progressNotifier.value = 1.0;
+        notifyDownload(i18n().message_download_complete);
 
-    Media? media = await _downloadOperation!.valueOrCancellation();
-
-    if (media != null) {
-      isDownloadedNotifier.value = true;
-      progressNotifier.value = 1.0;
-
-      notifyDownload(i18n().message_download_complete);
+        GlobalKeyService.libraryKey.currentState?.refreshDownloadTab();
+        GlobalKeyService.libraryKey.currentState?.refreshPendingUpdateTab();
+        return true;
+      }
+      else {
+        // Téléchargement annulé ou échoué (valueOrCancellation() retourne null)
+        await NotificationService().cancelNotification(hashCode);
+        isDownloadingNotifier.value = false;
+        return false; // <-- ÉCHEC/ANNULATION
+      }
     }
-    else {
-      // Téléchargement annulé ou échoué
-      await NotificationService().cancelNotification(hashCode);
-    }
-
-    isDownloadingNotifier.value = false;
+    return false;
   }
 
   Future<void> cancelDownload(BuildContext context, {void Function(double progress)? update}) async {
@@ -150,43 +160,53 @@ abstract class Media {
       _downloadOperation = null;
       showBottomMessage(i18n().message_download_cancel);
     }
+    if (isDownloadingNotifier.value) {
+      isDownloadingNotifier.value = false;
+      isDownloadedNotifier.value = false;
+      progressNotifier.value = 0;
+    }
   }
 
-  Future<void> update(BuildContext context, Map<String, dynamic> mediaJson) async {
-    progressNotifier.value = -1;
-    isDownloadingNotifier.value = true;
-    isDownloadedNotifier.value = false;
+  Future<bool> update(BuildContext context, Map<String, dynamic> mediaJson) async {
+    if(!isDownloadingNotifier.value) {
+      progressNotifier.value = 0;
+      isDownloadingNotifier.value = true;
+      isDownloadedNotifier.value = false;
 
-    final cancelToken = CancelToken();
-    _cancelToken = cancelToken;
+      final cancelToken = CancelToken();
+      _cancelToken = cancelToken;
 
-    _updateOperation = CancelableOperation.fromFuture(
-      downloadMedia(context, this, fileUrl, mediaJson, cancelToken, true, resolution: 0), // TODO mettre le bon file pour la mise à jour
-      onCancel: () {
+      _updateOperation = CancelableOperation.fromFuture(
+        downloadMedia(context, this, fileUrl, mediaJson, cancelToken, true, resolution: 0), // TODO mettre le bon file pour la mise à jour
+        onCancel: () {
+          isDownloadingNotifier.value = false;
+          isDownloadedNotifier.value = false;
+          hasUpdateNotifier.value = true;
+          progressNotifier.value = 0;
+          // Annuler la notification
+          NotificationService().cancelNotification(hashCode);
+        },
+      );
+
+      Media? media = await _updateOperation!.valueOrCancellation();
+
+      if (media != null) {
         isDownloadingNotifier.value = false;
-        isDownloadedNotifier.value = false;
-        progressNotifier.value = 0;
-        // Annuler la notification
-        NotificationService().cancelNotification(hashCode);
-      },
-    );
+        isDownloadedNotifier.value = true;
+        hasUpdateNotifier.value = false;
+        progressNotifier.value = 1.0;
+        notifyDownload(i18n().message_catalog_success);
 
-    Media? media = await _updateOperation!.valueOrCancellation();
-
-    if (media != null) {
-      isDownloadedNotifier.value = true;
-
-      progressNotifier.value = 1.0;
-
-      // Notification de fin avec bouton "Ouvrir"
-      notifyDownload(i18n().message_catalog_success);
+        return true; // <-- SUCCÈS
+      }
+      else {
+        // Téléchargement annulé ou échoué
+        await NotificationService().cancelNotification(hashCode);
+        isDownloadingNotifier.value = false;
+        return false; // <-- ÉCHEC/ANNULATION
+      }
     }
-    else {
-      // Téléchargement annulé ou échoué
-      await NotificationService().cancelNotification(hashCode);
-    }
-
-    isDownloadingNotifier.value = false;
+    return false;
   }
 
   Future<void> cancelUpdate(BuildContext context, {void Function(double progress)? update}) async {
@@ -196,6 +216,12 @@ abstract class Media {
       _cancelToken = null;
       _updateOperation = null;
       showBottomMessage(i18n().message_update_cancel);
+    }
+    if (isDownloadingNotifier.value) {
+      isDownloadingNotifier.value = false;
+      isDownloadedNotifier.value = true;
+      hasUpdateNotifier.value = true;
+      progressNotifier.value = 0;
     }
   }
 
@@ -207,6 +233,7 @@ abstract class Media {
     filePath = null;
     isDownloadingNotifier.value = false;
     isDownloadedNotifier.value = false;
+    hasUpdateNotifier.value = false;
     progressNotifier.value = 0;
 
     showBottomMessage(i18n().message_delete_item(title));

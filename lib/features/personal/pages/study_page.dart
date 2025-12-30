@@ -460,7 +460,7 @@ class StudyTabViewState extends State<StudyTabView> {
                           initPlaylist();
                         },
                         child: SizedBox(
-                          height: kSquareItemHeight,
+                          height: kItemHeight,
                           child: Stack(
                             children: [
                               Row(
@@ -471,8 +471,8 @@ class StudyTabViewState extends State<StudyTabView> {
                                       future: playlist.getThumbnailFile(),
                                       builder: (context, snapshot) {
                                         final placeholder = Container(
-                                          height: kSquareItemHeight,
-                                          width: kSquareItemHeight,
+                                          height: kItemHeight,
+                                          width: kItemHeight,
                                           color: Colors.grey.shade300,
                                         );
 
@@ -482,16 +482,16 @@ class StudyTabViewState extends State<StudyTabView> {
 
                                         if (snapshot.hasError || snapshot.data == null) {
                                           return Container(
-                                            height: kSquareItemHeight,
-                                            width: kSquareItemHeight,
+                                            height: kItemHeight,
+                                            width: kItemHeight,
                                             color: Colors.grey,
                                           );
                                         }
 
                                         return Image.file(
                                           snapshot.data!,
-                                          height: kSquareItemHeight,
-                                          width: kSquareItemHeight,
+                                          height: kItemHeight,
+                                          width: kItemHeight,
                                           fit: BoxFit.cover,
                                         );
                                       },

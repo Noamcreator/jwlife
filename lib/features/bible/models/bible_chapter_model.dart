@@ -78,7 +78,7 @@ class BibleChapterController {
     try {
       // 1. Initialisation sécurisée du manager
       if (bible.documentsManager == null) {
-        bible.documentsManager = DocumentsManager(publication: bible, mepsDocumentId: -1);
+        bible.documentsManager = DocumentsManager(publication: bible);
         await bible.documentsManager!.initializeDatabaseAndData();
         bible.wordsSuggestionsModel ??= WordsSuggestionsModel(bible);
       }

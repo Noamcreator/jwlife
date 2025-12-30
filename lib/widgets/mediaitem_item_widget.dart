@@ -290,6 +290,7 @@ class _MediaItemItemWidgetState extends State<MediaItemItemWidget> {
           // ... Le contenu du menu reste inchangé
           return widget.media is Audio
               ? [
+            if (widget.media.isDownloadedNotifier.value && widget.media.filePath != null) getAudioShareFileItem(widget.media as Audio),
             getAudioShareItem(widget.media as Audio),
             getAudioQrCode(context, widget.media as Audio),
             getAudioAddPlaylistItem(context, widget.media as Audio),
@@ -299,6 +300,7 @@ class _MediaItemItemWidgetState extends State<MediaItemItemWidget> {
             getAudioLyricsItem(context, widget.media as Audio),
             getCopyLyricsItem(widget.media as Audio),
           ] : [
+            if (widget.media.isDownloadedNotifier.value && widget.media.filePath != null) getVideoShareFileItem(widget.media as Video),
             getVideoShareItem(widget.media as Video),
             getVideoQrCode(context, widget.media as Video),
             getVideoAddPlaylistItem(context, widget.media as Video),

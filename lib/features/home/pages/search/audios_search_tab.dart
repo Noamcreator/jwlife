@@ -149,6 +149,7 @@ class _AudioSearchTabState extends State<AudioSearchTab> {
                     useRootNavigator: true,
                     icon: const Icon(Icons.more_horiz, color: Colors.white, size: 30),
                     itemBuilder: (context) => [
+                      if (audio.isDownloadedNotifier.value && audio.filePath != null) getAudioShareFileItem(audio),
                       getAudioShareItem(audio),
                       getAudioQrCode(context, audio),
                       getAudioAddPlaylistItem(context, audio),
