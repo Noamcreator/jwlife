@@ -3188,4 +3188,10 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get label_research_wikipedia => 'WIKIPÉDIA';
+
+  @override
+  String get meps_language => 'F';
+
+  @override
+  String get label_icon_commentary => 'Note d\'étude';
 }

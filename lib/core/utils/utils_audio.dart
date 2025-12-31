@@ -45,7 +45,7 @@ void showAudioPlayerPublicationLink(BuildContext context, Publication publicatio
 }
 
 RealmMediaItem? getAudioItem(String? keySymbol, int? track, int? documentId, int? issueTagNumber, int? mepsLanguageId) {
-  String languageSymbol = JwLifeSettings.instance.currentLanguage.value.symbol;
+  String languageSymbol = JwLifeSettings.instance.libraryLanguage.value.symbol;
   var queryParts = <String>[];
   if (keySymbol != null && keySymbol != '') queryParts.add("PubSymbol == '$keySymbol'");
   if (track != null && track != 0) queryParts.add("Track == '$track'");

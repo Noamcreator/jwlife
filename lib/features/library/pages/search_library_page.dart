@@ -86,7 +86,7 @@ class SearchLibraryPageState extends State<SearchLibraryPage> {
       List<dynamic> mediaResults = [];
 
       String normalizedQuery = normalize(trimmedQuery).toLowerCase();
-      MepsLanguage mepsLanguage = JwLifeSettings.instance.currentLanguage.value;
+      MepsLanguage mepsLanguage = JwLifeSettings.instance.libraryLanguage.value;
 
       /// RECHERCHE DES TOPICS
       final pubsWithTopics = PublicationRepository().getAllDownloadedPublications().where((pub) => (pub.hasTopics || pub.hasHeading) && pub.mepsLanguage.symbol == mepsLanguage.symbol).toList();

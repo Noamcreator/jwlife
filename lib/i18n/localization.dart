@@ -136,7 +136,6 @@ abstract class AppLocalizations {
     Locale('ru'),
     Locale('tr'),
     Locale('zh'),
-    Locale('zh', 'CN'),
     Locale('zh', 'HK'),
     Locale('zh', 'TW'),
   ];
@@ -5679,6 +5678,18 @@ abstract class AppLocalizations {
   /// In fr, this message translates to:
   /// **'WIKIPÉDIA'**
   String get label_research_wikipedia;
+
+  /// No description provided for @meps_language.
+  ///
+  /// In fr, this message translates to:
+  /// **'F'**
+  String get meps_language;
+
+  /// No description provided for @label_icon_commentary.
+  ///
+  /// In fr, this message translates to:
+  /// **'Note d\'étude'**
+  String get label_icon_commentary;
 }
 
 class _AppLocalizationsDelegate
@@ -5726,8 +5737,6 @@ AppLocalizations lookupAppLocalizations(Locale locale) {
     case 'zh':
       {
         switch (locale.countryCode) {
-          case 'CN':
-            return AppLocalizationsZhCn();
           case 'HK':
             return AppLocalizationsZhHk();
           case 'TW':

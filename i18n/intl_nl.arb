@@ -920,5 +920,7 @@
   "label_research_images": "AFBEELDINGEN",
   "label_research_notes": "NOTITIES",
   "label_research_inputs_fields": "VELDEN",
-  "label_research_wikipedia": "WIKIPEDIA"
+  "label_research_wikipedia": "WIKIPEDIA",
+  "meps_language": "O",
+  "label_icon_commentary": "Studienotitie"
 }

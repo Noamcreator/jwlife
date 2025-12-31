@@ -920,5 +920,7 @@
   "label_research_images": "صور",
   "label_research_notes": "ملاحظات",
   "label_research_inputs_fields": "حقول",
-  "label_research_wikipedia": "ويكيبيديا"
+  "label_research_wikipedia": "ويكيبيديا",
+  "meps_language": "A",
+  "label_icon_commentary": "ملاحظة دراسية"
 }

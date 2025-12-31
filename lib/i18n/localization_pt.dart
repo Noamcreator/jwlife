@@ -3161,4 +3161,10 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get label_research_wikipedia => 'WIKIPÉDIA';
+
+  @override
+  String get meps_language => 'T';
+
+  @override
+  String get label_icon_commentary => 'Nota de estudo';
 }

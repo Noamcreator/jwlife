@@ -10,7 +10,7 @@ class WikipediaApi {
     final List<WikipediaArticle> articles = [];
 
     try {
-      final lang = JwLifeSettings.instance.currentLanguage.value.primaryIetfCode;
+      final lang = JwLifeSettings.instance.libraryLanguage.value.primaryIetfCode;
 
       String queryEncoded = 'https://$lang.wikipedia.org/w/rest.php/v1/search/title?q=${Uri.encodeComponent(query.toLowerCase())}&limit=4';
 

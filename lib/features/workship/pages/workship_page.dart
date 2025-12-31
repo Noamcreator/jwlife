@@ -7,6 +7,7 @@ import 'package:jwlife/core/app_data/app_data_service.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/uri/jworg_uri.dart';
 import 'package:jwlife/core/utils/utils_document.dart';
+import 'package:jwlife/data/models/meps_language.dart';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/databases/catalog.dart';
 import 'package:jwlife/features/library/widgets/rectangle_publication_item.dart';
@@ -19,6 +20,7 @@ import '../../../app/jwlife_app.dart';
 import '../../../app/jwlife_app_bar.dart';
 import '../../../app/services/settings_service.dart';
 import '../../../core/app_data/meetings_pubs_service.dart';
+import '../../../core/shared_preferences/shared_preferences_keys.dart';
 import '../../../core/shared_preferences/shared_preferences_utils.dart';
 import '../../../core/ui/text_styles.dart';
 import '../../../core/utils/common_ui.dart';
@@ -80,7 +82,7 @@ class WorkShipPageState extends State<WorkShipPage> with TickerProviderStateMixi
     _isConventionToggle = true;
 
     fetchFirstCongregation();
-    List<Publication> dayPubs = await CatalogDb.instance.getPublicationsForTheDay(date: _dateOfMeetingValue.value);
+    List<Publication> dayPubs = await CatalogDb.instance.getPublicationsForTheDay(JwLifeSettings.instance.workshipLanguage.value, date: _dateOfMeetingValue.value);
 
     refreshMeetingsPubs(pubs: dayPubs);
   }
@@ -106,48 +108,40 @@ class WorkShipPageState extends State<WorkShipPage> with TickerProviderStateMixi
   }
 
   String formatWeekRange(DateTime date) {
+    // Utilisation de la locale sécurisée (gère le fallback pour 'ay', etc.)
+    final String locale = getSafeLocale();
+
     // Fonction pour normaliser une date en supprimant l'heure
     DateTime normalize(DateTime d) => DateTime(d.year, d.month, d.day);
 
     // Normalisation de la date reçue
-    date = normalize(date);
+    DateTime normalizedDate = normalize(date);
 
-    // Déterminer la semaine associée à "date"
+    // Déterminer la semaine associée à "date" (Lundi au Dimanche)
     DateTime firstDayOfWeek = normalize(
-        date.subtract(Duration(days: date.weekday - 1)));
+        normalizedDate.subtract(Duration(days: normalizedDate.weekday - 1)));
     DateTime lastDayOfWeek = normalize(
         firstDayOfWeek.add(const Duration(days: 6)));
 
-    // Déterminer la semaine actuelle
-    final now = normalize(DateTime.now());
+    // Déterminer le début de la semaine actuelle pour la comparaison
+    final now = DateTime.now();
     DateTime currentWeekStart = normalize(
         now.subtract(Duration(days: now.weekday - 1)));
-    DateTime currentWeekEnd = normalize(
-        currentWeekStart.add(const Duration(days: 6)));
 
-    // Formatage jours/mois
-    String day1 = DateFormat('d', JwLifeSettings.instance.locale.languageCode)
-        .format(firstDayOfWeek);
-    String day2 = DateFormat('d', JwLifeSettings.instance.locale.languageCode)
-        .format(lastDayOfWeek);
-    String month1 =
-    DateFormat('MMMM', JwLifeSettings.instance.locale.languageCode)
-        .format(firstDayOfWeek);
-    String month2 =
-    DateFormat('MMMM', JwLifeSettings.instance.locale.languageCode)
-        .format(lastDayOfWeek);
+    // Formatage jours et mois avec la locale sécurisée
+    String day1 = DateFormat('d', locale).format(firstDayOfWeek);
+    String day2 = DateFormat('d', locale).format(lastDayOfWeek);
+    String month1 = DateFormat('MMMM', locale).format(firstDayOfWeek);
+    String month2 = DateFormat('MMMM', locale).format(lastDayOfWeek);
 
-    // Texte formaté
+    // Texte formaté via i18n
     String base = month1 == month2
         ? i18n().label_date_range_one_month(day1, day2, month1)
         : i18n().label_date_range_two_months(day1, day2, month1, month2);
 
     // Vérification : est-ce la semaine actuelle ?
-    bool isThisWeek =
-        firstDayOfWeek.isAtSameMomentAs(currentWeekStart) ||
-            (firstDayOfWeek.isAfter(currentWeekStart) &&
-                lastDayOfWeek.isBefore(currentWeekEnd)) ||
-            lastDayOfWeek.isAtSameMomentAs(currentWeekEnd);
+    // Si le lundi de la date choisie est le même que le lundi d'aujourd'hui
+    bool isThisWeek = firstDayOfWeek.isAtSameMomentAs(currentWeekStart);
 
     // Ajout du label "Cette semaine"
     if (isThisWeek) {
@@ -313,7 +307,7 @@ class WorkShipPageState extends State<WorkShipPage> with TickerProviderStateMixi
       appBar: JwLifeAppBar(
         canPop: false,
         title: i18n().navigation_workship,
-        subTitleWidget: ValueListenableBuilder(valueListenable: JwLifeSettings.instance.currentLanguage, builder: (context, value, child) {
+        subTitleWidget: ValueListenableBuilder(valueListenable: JwLifeSettings.instance.workshipLanguage, builder: (context, value, child) {
           return Text(value.vernacular, style: Theme.of(context).extension<JwLifeThemeStyles>()!.appBarSubTitle);
         }),
         actions: [
@@ -321,11 +315,11 @@ class WorkShipPageState extends State<WorkShipPage> with TickerProviderStateMixi
             icon: const Icon(JwIcons.language),
             text: i18n().label_languages_more,
             onPressed: (anchorContext) {
-              showLanguageDialog(context).then((language) async {
+              showLanguageDialog(context, firstSelectedLanguage: JwLifeSettings.instance.workshipLanguage.value.symbol).then((language) async {
                 if (language != null) {
-                  if (language['Symbol'] != JwLifeSettings.instance.currentLanguage.value.symbol) {
-                    await AppSharedPreferences.instance.setLibraryLanguage(language);
-                    AppDataService.instance.changeLanguageAndRefreshContent();
+                  if (language['Symbol'] != JwLifeSettings.instance.workshipLanguage.value.symbol) {
+                    await AppSharedPreferences.instance.setWorkshipLanguage(language);
+                    AppDataService.instance.changeWorkshipLanguageAndRefresh();
                   }
                 }
               });
@@ -337,7 +331,7 @@ class WorkShipPageState extends State<WorkShipPage> with TickerProviderStateMixi
             onPressed: (anchorContext) async {
               DateTime? selectedDay = await showMonthCalendarDialog(context, _dateOfMeetingValue.value);
               if (selectedDay != null) {
-                List<Publication> dayPubs = await CatalogDb.instance.getPublicationsForTheDay(date: selectedDay);
+                List<Publication> dayPubs = await CatalogDb.instance.getPublicationsForTheDay(JwLifeSettings.instance.workshipLanguage.value, date: selectedDay);
 
                 refreshSelectedDay(selectedDay);
                 refreshMeetingsPubs(pubs: dayPubs, date: selectedDay);
@@ -356,7 +350,7 @@ class WorkShipPageState extends State<WorkShipPage> with TickerProviderStateMixi
             icon: const Icon(JwIcons.share),
             onPressed: (anchorContext) {
               String uri = JwOrgUri.meetings(
-                  wtlocale: JwLifeSettings.instance.currentLanguage.value.symbol,
+                  wtlocale: JwLifeSettings.instance.libraryLanguage.value.symbol,
                   date: convertDateTimeToIntDate(_dateOfMeetingValue.value).toString()
               ).toString();
 
@@ -371,7 +365,7 @@ class WorkShipPageState extends State<WorkShipPage> with TickerProviderStateMixi
             icon: const Icon(JwIcons.qr_code),
             onPressed: (anchorContext) {
               String uri = JwOrgUri.meetings(
-                  wtlocale: JwLifeSettings.instance.currentLanguage.value.symbol,
+                  wtlocale: JwLifeSettings.instance.libraryLanguage.value.symbol,
                   date: convertDateTimeToIntDate(_dateOfMeetingValue.value).toString()
               ).toString();
 
@@ -441,21 +435,19 @@ class WorkShipPageState extends State<WorkShipPage> with TickerProviderStateMixi
                       final type = meeting["type"] as String;
                       final isMidweek = type == "midweek";
 
-                      final icon = isMidweek ? JwIcons.sheep : JwIcons
-                          .watchtower;
+                      final icon = isMidweek ? JwIcons.sheep : JwIcons.watchtower;
 
-                      final dateStr = DateFormat("EEEE d MMMM", JwLifeSettings.instance.locale.languageCode).format(date);
-                      final hourStr = DateFormat("HH", JwLifeSettings.instance.locale.languageCode).format(date);
-                      final minuteStr = DateFormat("mm", JwLifeSettings.instance.locale.languageCode).format(date);
+                      final locale = getSafeLocale();
+                      final dateStr = DateFormat("EEEE d MMMM", locale).format(date);
+                      final hourStr = DateFormat("HH", locale).format(date);
+                      final minuteStr = DateFormat("mm", locale).format(date);
 
                       final formatData = i18n().label_date_next_meeting(dateStr, hourStr, minuteStr);
 
                       return Material(
                         color: Colors.transparent,
                         child: InkWell(
-                          onTap: () {
-                            showPage(CongregationsPage());
-                          },
+                          onTap: () => showPage(CongregationsPage()),
                           child: Container(
                             width: double.infinity,
                             padding: const EdgeInsets.symmetric(vertical: 5),
@@ -467,14 +459,10 @@ class WorkShipPageState extends State<WorkShipPage> with TickerProviderStateMixi
                               crossAxisAlignment: CrossAxisAlignment.center,
                               children: [
                                 Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 8),
+                                  padding: const EdgeInsets.symmetric(horizontal: 8),
                                   child: Icon(
                                     icon,
-                                    color: Theme
-                                        .of(context)
-                                        .brightness == Brightness.dark ? Colors
-                                        .white70 : const Color(0xFF686868),
+                                    color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : const Color(0xFF686868),
                                     size: 40,
                                   ),
                                 ),
@@ -485,7 +473,7 @@ class WorkShipPageState extends State<WorkShipPage> with TickerProviderStateMixi
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       Text(
-                                        _congregation!.name,
+                                        _congregation?.name ?? '',
                                         textAlign: TextAlign.left,
                                         style: TextStyle(
                                           fontSize: 16,
@@ -521,7 +509,7 @@ class WorkShipPageState extends State<WorkShipPage> with TickerProviderStateMixi
                     },
                   ),
 
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 15),
 
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -531,7 +519,7 @@ class WorkShipPageState extends State<WorkShipPage> with TickerProviderStateMixi
                         padding: EdgeInsets.zero,
                         onPressed: () async {
                           DateTime newDate = _dateOfMeetingValue.value.subtract(const Duration(days: 7));
-                          List<Publication> dayPubs = await CatalogDb.instance.getPublicationsForTheDay(date: newDate);
+                          List<Publication> dayPubs = await CatalogDb.instance.getPublicationsForTheDay(JwLifeSettings.instance.workshipLanguage.value, date: newDate);
 
                           refreshSelectedDay(newDate);
                           refreshMeetingsPubs(pubs: dayPubs, date: newDate);
@@ -542,7 +530,7 @@ class WorkShipPageState extends State<WorkShipPage> with TickerProviderStateMixi
                         onPressed: () async {
                           DateTime? selectedDay = await showMonthCalendarDialog(context, _dateOfMeetingValue.value);
                           if (selectedDay != null) {
-                            List<Publication> dayPubs = await CatalogDb.instance.getPublicationsForTheDay(date: selectedDay);
+                            List<Publication> dayPubs = await CatalogDb.instance.getPublicationsForTheDay(JwLifeSettings.instance.workshipLanguage.value, date: selectedDay);
 
                             refreshSelectedDay(selectedDay);
                             refreshMeetingsPubs(pubs: dayPubs, date: selectedDay);
@@ -560,7 +548,7 @@ class WorkShipPageState extends State<WorkShipPage> with TickerProviderStateMixi
                         padding: EdgeInsets.zero,
                         onPressed: () async {
                           DateTime newDate = _dateOfMeetingValue.value.add(const Duration(days: 7));
-                          List<Publication> dayPubs = await CatalogDb.instance.getPublicationsForTheDay(date: newDate);
+                          List<Publication> dayPubs = await CatalogDb.instance.getPublicationsForTheDay(JwLifeSettings.instance.workshipLanguage.value, date: newDate);
 
                           refreshSelectedDay(newDate);
                           refreshMeetingsPubs(pubs: dayPubs, date: newDate);
@@ -591,7 +579,7 @@ class WorkShipPageState extends State<WorkShipPage> with TickerProviderStateMixi
                   const SizedBox(height: 25),
 
                   // Carte Autres Publications
-                  _buildExpandableMeetingCard(
+                  _buildExpandableCard(
                     context: context,
                     title: i18n().label_other_meeting_publications,
                     icon: JwIcons.book_stack,
@@ -616,7 +604,7 @@ class WorkShipPageState extends State<WorkShipPage> with TickerProviderStateMixi
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Carte Assemblée de Circonscription (BR)
-                  _buildExpandableMeetingCard(
+                  _buildExpandableCard(
                     context: context,
                     title: i18n().navigation_workship_assembly_br,
                     icon: JwIcons.arena,
@@ -630,7 +618,7 @@ class WorkShipPageState extends State<WorkShipPage> with TickerProviderStateMixi
                   const SizedBox(height: 12),
 
                   // Carte Assemblée de Circonscription (CO)
-                  _buildExpandableMeetingCard(
+                  _buildExpandableCard(
                     context: context,
                     title: i18n().navigation_workship_assembly_co,
                     icon: JwIcons.arena,
@@ -644,7 +632,7 @@ class WorkShipPageState extends State<WorkShipPage> with TickerProviderStateMixi
                   const SizedBox(height: 12),
 
                   // Carte Assemblée Régionale/Internationale
-                  _buildExpandableMeetingCard(
+                  _buildExpandableCard(
                     context: context,
                     title: i18n().navigation_workship_convention,
                     icon: JwIcons.arena,
@@ -673,7 +661,7 @@ class WorkShipPageState extends State<WorkShipPage> with TickerProviderStateMixi
     required IconData icon,
     required Widget child
   }) {
-    TextDirection textDirection = JwLifeSettings.instance.currentLanguage.value.isRtl ? TextDirection.rtl : TextDirection.ltr;
+    TextDirection textDirection = JwLifeSettings.instance.workshipLanguage.value.isRtl ? TextDirection.rtl : TextDirection.ltr;
 
     return Column(
       children: [
@@ -701,7 +689,7 @@ class WorkShipPageState extends State<WorkShipPage> with TickerProviderStateMixi
     );
   }
 
-  Widget _buildExpandableMeetingCard({
+  Widget _buildExpandableCard({
     required BuildContext context,
     required String title,
     required IconData icon,
@@ -710,12 +698,15 @@ class WorkShipPageState extends State<WorkShipPage> with TickerProviderStateMixi
     required VoidCallback onToggle,
     required Widget child,
   }) {
-    TextDirection textDirection = JwLifeSettings.instance.currentLanguage.value.isRtl ? TextDirection.rtl : TextDirection.ltr;
+    TextDirection textDirection = JwLifeSettings.instance.libraryLanguage.value.isRtl 
+        ? TextDirection.rtl 
+        : TextDirection.ltr;
 
     return Column(
       children: [
         GestureDetector(
           onTap: onToggle,
+          behavior: HitTestBehavior.opaque, // Améliore la zone de clic
           child: Row(
             children: [
               Expanded(
@@ -724,32 +715,42 @@ class WorkShipPageState extends State<WorkShipPage> with TickerProviderStateMixi
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
-                    color: Theme
-                        .of(context)
-                        .brightness == Brightness.dark ? Colors.white : Colors
-                        .black,
+                    color: Theme.of(context).brightness == Brightness.dark 
+                        ? Colors.white 
+                        : Colors.black,
                   ),
                 ),
               ),
               AnimatedRotation(
                 turns: isExpanded ? 0.25 : 0.0,
                 duration: const Duration(milliseconds: 250),
-                child: Icon(JwIcons.chevron_right,
-                    color: Theme
-                        .of(context)
-                        .brightness == Brightness.dark ? Colors.white : Colors
-                        .black, size: 28),
+                child: Icon(
+                  JwIcons.chevron_right,
+                  color: Theme.of(context).brightness == Brightness.dark 
+                      ? Colors.white 
+                      : Colors.black,
+                  size: 28,
+                ),
               ),
             ],
           ),
         ),
         const SizedBox(height: 2),
-        AnimatedSize(
-          duration: const Duration(milliseconds: 250),
-          curve: Curves.easeInOut,
-          alignment: Alignment.topCenter,
-          child: isExpanded
-              ? Directionality(textDirection: textDirection, child: child) : const SizedBox.shrink(),
+        ClipRect( // Évite les débordements d'animation
+          child: AnimatedSize(
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeInOut,
+            alignment: Alignment.topCenter,
+            child: isExpanded
+                ? Directionality(
+                    textDirection: textDirection, 
+                    child: Container(
+                      width: double.infinity,
+                      child: child,
+                    ),
+                  )
+                : const SizedBox(width: double.infinity, height: 0),
+          ),
         )
       ],
     );
@@ -843,9 +844,14 @@ class WorkShipPageState extends State<WorkShipPage> with TickerProviderStateMixi
                               Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  SizedBox(
+                                  Container(
                                     width: 60,
                                     height: 60,
+                                    margin: EdgeInsetsDirectional.only(end: 10),
+                                    decoration: BoxDecoration(
+                                      color: isDark ? const Color(0xFF4f4f4f) : const Color(0xFF8e8e8e),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
                                     child: ClipRRect(
                                       borderRadius: BorderRadius.circular(4),
                                       child: Container(
@@ -862,25 +868,19 @@ class WorkShipPageState extends State<WorkShipPage> with TickerProviderStateMixi
                                       ),
                                     ),
                                   ),
-                                  const SizedBox(width: 8),
                                   Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Text(publicTalkPub
-                                            .getTitle()
-                                            .toUpperCase(), style: contextStyle),
-                                        const SizedBox(height: 2),
-                                        Text(
-                                          selectedTalk?.title ??
-                                              i18n().label_workship_public_talk_choosing,
-                                          style: titleStyle,
-                                        ),
-                                      ],
+                                    child: Padding(
+                                      padding: const EdgeInsetsDirectional.only(top: 4.0, end: 30),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(publicTalkPub.getTitle().toUpperCase(), style: contextStyle, maxLines: 1, overflow: TextOverflow.ellipsis),
+                                          const SizedBox(height: 2.0),
+                                          Text(selectedTalk?.title ?? i18n().label_workship_public_talk_choosing, style: titleStyle, maxLines: 2, overflow: TextOverflow.ellipsis),
+                                        ],
+                                      ),
                                     ),
                                   ),
-                                  const SizedBox(width: 20),
                                 ],
                               ),
 
@@ -913,8 +913,7 @@ class WorkShipPageState extends State<WorkShipPage> with TickerProviderStateMixi
                                       if (selectedTalk != null)
                                         PopupMenuItem(
                                           onTap: () {
-                                            AppDataService.instance
-                                                .selectedPublicTalk.value = null;
+                                            AppDataService.instance.selectedPublicTalk.value = null;
                                           },
                                           child: Row(
                                             children: [
@@ -1156,9 +1155,7 @@ class WorkShipPageState extends State<WorkShipPage> with TickerProviderStateMixi
           return Material(
             color: Colors.transparent,
             child: InkWell(
-                onTap: () {
-                  showDocumentView(context, midweekMeeting['MepsDocumentId'], JwLifeSettings.instance.currentLanguage.value.id);
-                },
+                onTap: () => showDocumentView(context, midweekMeeting['MepsDocumentId'], midweekPub.mepsLanguage.id),
                 child: Padding(
                     padding: const EdgeInsets.symmetric(vertical: 4.0),
                     child: Stack(
@@ -1166,47 +1163,42 @@ class WorkShipPageState extends State<WorkShipPage> with TickerProviderStateMixi
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            SizedBox(
-                              width: 60.0,
-                              height: 60.0,
+                            Container(
+                              width: 60,
+                              height: 60,
+                              margin: EdgeInsetsDirectional.only(end: 10),
+                              decoration: BoxDecoration(
+                                color: isDark ? const Color(0xFF4f4f4f) : const Color(0xFF8e8e8e),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
                               child: ClipRRect(
                                 borderRadius: BorderRadius.circular(4.0),
                                 child: Image.file(
                                   File(imageFullPath),
-                                  frameBuilder: (context, child, frame,
-                                      wasSynchronouslyLoaded) {
+                                  frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
                                     if (frame == null) {
-                                      return Container(color: Theme
-                                          .of(context)
-                                          .brightness == Brightness.dark
-                                          ? const Color(
-                                          0xFF4f4f4f)
-                                          : const Color(0xFF8e8e8e));
+                                      return Container(color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF4f4f4f) : const Color(0xFF8e8e8e));
                                     }
-
                                     return child;
                                   },
                                   fit: BoxFit.cover,
                                 ),
                               ),
                             ),
-                            const SizedBox(width: 8),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  midweekMeeting['Subtitle'],
-                                  style: contextStyle, // Style ajusté
+                            Expanded(
+                              child: Padding(
+                                padding: const EdgeInsetsDirectional.only(top: 4.0, end: 30),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    if (midweekMeeting['Subtitle'] != null)
+                                      Text(midweekMeeting['Subtitle'], style: contextStyle, maxLines: 1, overflow: TextOverflow.ellipsis),
+                                    const SizedBox(height: 2.0),
+                                    Text(midweekMeeting['Title'].trim(), style: titleStyle, maxLines: 2, overflow: TextOverflow.ellipsis),
+                                  ],
                                 ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  midweekMeeting['Title'],
-                                  style: titleStyle,
-                                ),
-                              ],
+                              ),
                             ),
-                            const Spacer(),
                           ],
                         ),
                         PositionedDirectional(
@@ -1345,13 +1337,7 @@ class WorkShipPageState extends State<WorkShipPage> with TickerProviderStateMixi
           return Material(
             color: Colors.transparent,
             child: InkWell(
-                onTap: () {
-                  showDocumentView(
-                    context,
-                    weekendMeeting['MepsDocumentId'],
-                    JwLifeSettings.instance.currentLanguage.value.id,
-                  );
-                },
+                onTap: () => showDocumentView(context, weekendMeeting['MepsDocumentId'], weekendPub.mepsLanguage.id),
                 child: Padding(
                     padding: const EdgeInsets.symmetric(vertical: 4.0),
                     child: Stack(
@@ -1359,9 +1345,14 @@ class WorkShipPageState extends State<WorkShipPage> with TickerProviderStateMixi
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            SizedBox(
-                              width: 60.0,
-                              height: 60.0,
+                            Container(
+                              width: 60,
+                              height: 60,
+                              margin: EdgeInsetsDirectional.only(end: 10),
+                              decoration: BoxDecoration(
+                                color: isDark ? const Color(0xFF4f4f4f) : const Color(0xFF8e8e8e),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
                               child: ClipRRect(
                                 borderRadius: BorderRadius.circular(4.0),
                                 child: Image.file(
@@ -1369,42 +1360,28 @@ class WorkShipPageState extends State<WorkShipPage> with TickerProviderStateMixi
                                   frameBuilder: (context, child, frame,
                                       wasSynchronouslyLoaded) {
                                     if (frame == null && wasSynchronouslyLoaded) {
-                                      return Container(color: Theme
-                                          .of(context)
-                                          .brightness == Brightness.dark
-                                          ? const Color(0xFF4f4f4f)
-                                          : const Color(0xFF8e8e8e));
+                                      return Container(color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF4f4f4f) : const Color(0xFF8e8e8e));
                                     }
-
                                     return child;
                                   },
                                   fit: BoxFit.cover,
                                 ),
                               ),
                             ),
-                            const SizedBox(width: 8),
                             Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                // mainAxisSize.min est correct pour ne prendre que l'espace vertical nécessaire.
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                    weekendMeeting['ContextTitle'],
-                                    style: contextStyle, // Assurez-vous que contextStyle est défini
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    weekendMeeting['Title'],
-                                    style: titleStyle,
-                                    // Assurez-vous que titleStyle est défini
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ],
+                              child: Padding(
+                                padding: const EdgeInsetsDirectional.only(top: 4.0, end: 30),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    if (weekendMeeting['ContextTitle'] != null)
+                                      Text(weekendMeeting['ContextTitle'], style: contextStyle, maxLines: 1, overflow: TextOverflow.ellipsis),
+                                    const SizedBox(height: 2.0),
+                                    Text(weekendMeeting['Title'].trim(), style: titleStyle, maxLines: 2, overflow: TextOverflow.ellipsis),
+                                  ],
+                                ),
                               ),
                             ),
-                            const SizedBox(width: 20),
                           ],
                         ),
 
@@ -1522,9 +1499,6 @@ class WorkShipPageState extends State<WorkShipPage> with TickerProviderStateMixi
     return ValueListenableBuilder<Publication?>(
       valueListenable: AppDataService.instance.conventionPub,
       builder: (context, conventionPub, _) {
-        // ----------------------------------------------------------
-        // 1) AUCUNE CONVENTION DISPONIBLE
-        // ----------------------------------------------------------
         if (conventionPub == null) {
           return _buildEmptyState(
             context,
@@ -1533,22 +1507,18 @@ class WorkShipPageState extends State<WorkShipPage> with TickerProviderStateMixi
           );
         }
 
-        // ----------------------------------------------------------
-        // 2) PUBLICATION TROUVÉE
-        // ----------------------------------------------------------
         return ValueListenableBuilder<bool>(
           valueListenable: conventionPub.isDownloadedNotifier,
           builder: (context, isDownloaded, _) {
-            if (!isDownloaded) {
-              return _buildDownloadState(context, conventionPub);
-            }
-
-            // ----------------------------------------------------------
-            // 3) PUBLICATION TÉLÉCHARGÉE → AFFICHAGE CONTENU
-            // ----------------------------------------------------------
-            return PublicationMenuView(
-              publication: conventionPub,
-              showAppBar: false,
+            // La clé combine l'ID et l'état de téléchargement pour forcer le refresh
+            return KeyedSubtree(
+              key: ValueKey('conv_${conventionPub.id}_$isDownloaded'),
+              child: !isDownloaded
+                  ? _buildDownloadState(context, conventionPub)
+                  : PublicationMenuView(
+                      publication: conventionPub,
+                      showAppBar: false,
+                    ),
             );
           },
         );
@@ -1556,14 +1526,10 @@ class WorkShipPageState extends State<WorkShipPage> with TickerProviderStateMixi
     );
   }
 
-
   Widget _isCircuitBrContentIsDownload(BuildContext context) {
     return ValueListenableBuilder<Publication?>(
       valueListenable: AppDataService.instance.circuitBrPub,
       builder: (context, circuitBrPub, _) {
-        // ----------------------------------------------------------
-        // 1) PAS DE PROGRAMME DISPONIBLE
-        // ----------------------------------------------------------
         if (circuitBrPub == null) {
           return _buildEmptyState(
             context,
@@ -1572,22 +1538,17 @@ class WorkShipPageState extends State<WorkShipPage> with TickerProviderStateMixi
           );
         }
 
-        // ----------------------------------------------------------
-        // 2) PUBLICATION : ÉTAT DE TÉLÉCHARGEMENT
-        // ----------------------------------------------------------
         return ValueListenableBuilder<bool>(
           valueListenable: circuitBrPub.isDownloadedNotifier,
           builder: (context, isDownloaded, _) {
-            if (!isDownloaded) {
-              return _buildDownloadState(context, circuitBrPub);
-            }
-
-            // ----------------------------------------------------------
-            // 3) PUBLICATION TÉLÉCHARGÉE → AFFICHAGE DU MENU
-            // ----------------------------------------------------------
-            return PublicationMenuView(
-              publication: circuitBrPub,
-              showAppBar: false,
+            return KeyedSubtree(
+              key: ValueKey('br_${circuitBrPub.id}_$isDownloaded'),
+              child: !isDownloaded
+                  ? _buildDownloadState(context, circuitBrPub)
+                  : PublicationMenuView(
+                      publication: circuitBrPub,
+                      showAppBar: false,
+                    ),
             );
           },
         );
@@ -1595,14 +1556,10 @@ class WorkShipPageState extends State<WorkShipPage> with TickerProviderStateMixi
     );
   }
 
-
   Widget _isCircuitCoContentIsDownload(BuildContext context) {
     return ValueListenableBuilder<Publication?>(
       valueListenable: AppDataService.instance.circuitCoPub,
       builder: (context, circuitCoPub, _) {
-        // ----------------------------------------------------------
-        // 1) PAS DE PROGRAMME DISPONIBLE
-        // ----------------------------------------------------------
         if (circuitCoPub == null) {
           return _buildEmptyState(
             context,
@@ -1611,22 +1568,17 @@ class WorkShipPageState extends State<WorkShipPage> with TickerProviderStateMixi
           );
         }
 
-        // ----------------------------------------------------------
-        // 2) PUBLICATION : ÉTAT DE TÉLÉCHARGEMENT
-        // ----------------------------------------------------------
         return ValueListenableBuilder<bool>(
           valueListenable: circuitCoPub.isDownloadedNotifier,
           builder: (context, isDownloaded, _) {
-            if (!isDownloaded) {
-              return _buildDownloadState(context, circuitCoPub);
-            }
-
-            // ----------------------------------------------------------
-            // 3) PUBLICATION TÉLÉCHARGÉE → AFFICHAGE DU MENU
-            // ----------------------------------------------------------
-            return PublicationMenuView(
-              publication: circuitCoPub,
-              showAppBar: false,
+            return KeyedSubtree(
+              key: ValueKey('co_${circuitCoPub.id}_$isDownloaded'),
+              child: !isDownloaded
+                  ? _buildDownloadState(context, circuitCoPub)
+                  : PublicationMenuView(
+                      publication: circuitCoPub,
+                      showAppBar: false,
+                    ),
             );
           },
         );

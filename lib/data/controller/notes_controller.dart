@@ -143,13 +143,11 @@ class NotesController extends ChangeNotifier {
       ).toList();
     }
 
-    else if (datedText != null) {
-      final langId = datedText.mepsLanguageId;
-
-      // Cas document normal
-      return notes.where((n) =>
-          n.location.mepsDocumentId == datedText.mepsDocumentId
-      ).toList();
+    else if (datedText != null) {;
+      return notes.where((n) {
+          final block = n.blockIdentifier ?? -1;
+          return n.location.mepsDocumentId == datedText.mepsDocumentId && block >= datedText.beginParagraphOrdinal && block <= datedText.endParagraphOrdinal;
+      }).toList();
     }
 
     // --- 2) CAS : Filtrage par plages (Bible ou publication découpée) ---

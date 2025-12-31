@@ -77,7 +77,7 @@ class _LyricsPageState extends State<LyricsPage> {
             }
           </style>
           <body class="${JwLifeSettings.instance.webViewData.theme}">
-            <article id="article" class="jwac docClass-31 ms-${JwLifeSettings.instance.currentLanguage.value.internalScriptName} ml-${widget.mepsLanguage} dir-${JwLifeSettings.instance.currentLanguage.value.isRtl ? 'rtl' : 'ltr'} layout-reading layout-sidebar">
+            <article id="article" class="jwac docClass-31 ms-${JwLifeSettings.instance.libraryLanguage.value.internalScriptName} ml-${widget.mepsLanguage} dir-${JwLifeSettings.instance.libraryLanguage.value.isRtl ? 'rtl' : 'ltr'} layout-reading layout-sidebar">
               $htmlContent
             </article>
           </body>

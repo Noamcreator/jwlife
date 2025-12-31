@@ -55,6 +55,7 @@ const BOTTOMNAVBAR_FIXED_HEIGHT = {{BOTTOM_NAVBAR_HEIGHT}};
 const AUDIO_PLAYER_HEIGHT = 80;
 
 let paragraphsData = new Map();
+let paragraphsDataDialog = new Map();
 
 const colorsList = ['gray', 'yellow', 'green', 'blue', 'pink', 'orange', 'purple', 'red', 'brown'];
 
@@ -339,13 +340,13 @@ function loadImageSvg(pageElement, svgPaths) {
     pageElement.appendChild(svgContainer);
 }
 
-function switchImageMode(mode) {
+async function switchImageMode(mode) {
     imageMode = mode;
     const curr = cachedPages[currentIndex];
     const prev = cachedPages[currentIndex - 1];
     const next = cachedPages[currentIndex + 1];
 
-    function renderPage(page, item, position) {
+    async function renderPage(page, item, position) {
         if (!item) return; // Sécurité si la page n'existe pas
 
         const isImageMode = item.preferredPresentation === 'text' ? imageMode : !imageMode;
@@ -366,13 +367,14 @@ function switchImageMode(mode) {
                 const article = document.getElementById("article-center");
                 wrapWordsWithSpan(article, isBible());
                 paragraphsData = fetchAllParagraphsOfTheArticle(article);
-                loadUserdata();
+                await loadUserdata();
+                initializeBaseDialog();
             }
         }
     }
 
     // On réinitialise l'affichage pour les 3 conteneurs
-    renderPage(pageCenter, curr, "center");
+    await renderPage(pageCenter, curr, "center");
     renderPage(pageLeft, prev, "left");
     renderPage(pageRight, next, "right");
 
@@ -643,7 +645,7 @@ function processTextNodes(element) {
         acceptNode: (node) => {
             let parent = node.parentElement;
             while (parent && parent !== element) {
-                if (parent.tagName.toLowerCase() === 'sup') {
+                if (parent.tagName.toLowerCase() === 'sup' || parent.tagName.toLowerCase() === 'rt') {
                     return NodeFilter.FILTER_REJECT;
                 }
                 if (parent.classList && [...parent.classList].some(c => skipClasses.has(c))) {
@@ -784,7 +786,8 @@ async function loadPages(currentIndex) {
     startY = 0;
     currentTranslate = -100;
 
-    loadUserdata();
+    await loadUserdata();
+    initializeBaseDialog();
     await loadPrevAndNextPages(currentIndex);
 
     restoreScrollPosition(pageLeft, currentIndex - 1);
@@ -809,12 +812,12 @@ async function init() {
     }
 
     if (startParagraphId != null && endParagraphId != null) {
-        jumpToIdSelector('[data-pid]', 'data-pid', startParagraphId, endParagraphId);
+        jumpToIdSelector(pageCenter.id, '[data-pid]', 'data-pid', startParagraphId, endParagraphId);
     } 
     else if (startVerseId != null && endVerseId != null) {
         const hasSameChapter = bookNumber === lastBookNumber && chapterNumber === lastChapterNumber;
         const endIdForJump = hasSameChapter ? endVerseId : null;
-        jumpToIdSelector('.v', 'id', startVerseId, endIdForJump);
+        jumpToIdSelector(pageCenter.id, '.v', 'id', startVerseId, endIdForJump);
     } 
     else if (textTag != null) {
         jumpToTextTag(textTag);
@@ -833,10 +836,12 @@ async function jumpToPage(index) {
     await loadPages(index);
 }
 
-async function jumpToIdSelector(selector, idAttr, begin, end) {
+async function jumpToIdSelector(articleId, selector, idAttr, begin, end) {
     closeToolbar();
 
-    const paragraphs = Array.from(paragraphsData.values()).flatMap(item => item.paragraphs);
+    const paragraphsDataTemp = articleId === 'page-center' ? paragraphsData : paragraphsDataDialog;
+
+    const paragraphs = Array.from(paragraphsDataTemp.values()).flatMap(item => item.paragraphs);
     if (paragraphs.length === 0) {
         console.error(`No paragraphs found for selector: ${selector}`);
         return;
@@ -907,7 +912,7 @@ async function jumpToIdSelector(selector, idAttr, begin, end) {
     });
 
     // --- Récupérer les id correspondant à begin → effectiveEnd ---
-    paragraphsData.forEach(data => {
+    paragraphsDataTemp.forEach(data => {
         const hasElement = data.paragraphs.some(p => {
             const id = getParagraphId(p, selector, idAttr);
             return id !== null && id >= begin && id <= effectiveEnd;
@@ -939,7 +944,8 @@ async function jumpToIdSelector(selector, idAttr, begin, end) {
         const lastBottom = lastParagraph.offsetTop + lastParagraph.offsetHeight;
         const totalHeight = lastBottom - firstTop;
 
-        const screenHeight = pageCenter.clientHeight;
+        const article = articleId === 'page-center' ? pageCenter : getCurrentDialogContainer();
+        const screenHeight = article.clientHeight;
         const visibleHeight = screenHeight - appBarHeight - bottomNavBarHeight - 40;
 
         let scrollToY;
@@ -958,7 +964,7 @@ async function jumpToIdSelector(selector, idAttr, begin, end) {
         }
 
         scrollToY = Math.max(scrollToY, 0);
-        pageCenter.scrollTop = scrollToY;
+        article.scrollTop = scrollToY;
 
         await new Promise(requestAnimationFrame);
         isChangingParagraph = false;
@@ -1042,10 +1048,8 @@ function isBible() {
     return cachedPages[currentIndex]['isBibleChapter'];
 }
 
-function restoreOpacity() {
-    const selector = isBible() ? '.v' : '[data-pid]';
-    const elements = pageCenter.querySelectorAll(selector);
-
+function restoreOpacity(article) {
+    const elements = article == pageCenter ? Array.from(paragraphsData.values()).flatMap(item => item.paragraphs) : Array.from(paragraphsDataDialog.values()).flatMap(item => item.paragraphs);
 
     if(isBible()) {
         window.window.flutter_inappwebview.callHandler('verseClickNumber', null);
@@ -1059,13 +1063,12 @@ function restoreOpacity() {
     });
 }
 
-function dimOthers(paragraphs, selector) {
+function dimOthers(article, paragraphs) {
+    const paragraphsDataTemp = article === pageCenter ? paragraphsData : paragraphsDataDialog;
     // Convertir currents en tableau, si ce n'est pas déjà un tableau
     const paragraphsArray = Array.isArray(paragraphs) ? paragraphs : Array.from(paragraphs);
 
-    const allParagraphElements = Array.from(paragraphsData.values())
-        .flatMap(item => item.paragraphs);
-
+    const allParagraphElements = Array.from(paragraphsDataTemp.values()).flatMap(item => item.paragraphs);
     // Diminuer l'opacité des autres paragraphes
     allParagraphElements.forEach(element => {
         element.style.opacity = paragraphsArray.includes(element) ? '1' : '0.5';
@@ -1075,7 +1078,7 @@ function dimOthers(paragraphs, selector) {
     const selectedIds = [];
 
     // On parcourt paragraphsData et non allParagraphElements
-    paragraphsData.forEach((data) => {
+    paragraphsDataTemp.forEach((data) => {
         const hasElement = data.paragraphs.some(p => paragraphsArray.includes(p));
         if (hasElement) {
             selectedIds.push(data.id);
@@ -1097,12 +1100,13 @@ function createToolbarButton(icon, onClick) {
     const baseColor = isDarkTheme() ? 'white' : '#4f4f4f';
     const hoverColor = isDarkTheme() ? '#606060' : '#e6e6e6';
 
+    // je veux de la couleur quand je clique dessus ou que je passe dessus
     button.style.cssText = `
         font-family: jw-icons-external;
-        font-size: 26px;
-        padding: 3px;
+        font-size: 24.5px;
+        padding: 2px;
         border-radius: 5px;
-        margin: 0 7px;
+        margin: 0 6.5px;
         color: ${baseColor};
         background: none;
         -webkit-tap-highlight-color: transparent;
@@ -1125,10 +1129,10 @@ function createToolbarButtonColor(styleIndex, targets, target, styleToolbar, isS
 
     button.style.cssText = `
         font-family: jw-icons-external;
-        font-size: 26px;
+        font-size: 24.5px;
         padding: 3px;
         border-radius: 5px;
-        margin: 0 7px;
+        margin: 0 6.5px;
         color: ${baseColor};
         background: none;
         -webkit-tap-highlight-color: transparent;
@@ -1160,7 +1164,7 @@ function createToolbarButtonColor(styleIndex, targets, target, styleToolbar, isS
         backButton.innerHTML = '&#xE639;';
         backButton.style.cssText = `
           font-family: jw-icons-external;
-          font-size: 26px;
+          font-size: 24.5px;
           padding: 3px;
           border-radius: 5px;
           margin: 0 3px;
@@ -1200,7 +1204,6 @@ function createToolbarButtonColor(styleIndex, targets, target, styleToolbar, isS
             width: 25px;
             height: 25px;
             border-radius: 50%;
-            /* Utilise l'opacité 1.0 car c'est un bouton/aperçu */
             background-color: rgba(${rgbValue}, 1.0);
             display: flex;
             justify-content: center;
@@ -1336,9 +1339,6 @@ function createToolbarButtonColor(styleIndex, targets, target, styleToolbar, isS
                 }
 
                 currentStyleIndex = styleIndex;
-
-                // Fermeture instantanée
-                colorToolbar.remove();
                 closeToolbar(); // Supposée fonction pour fermer la toolbar principale
             });
 
@@ -1383,16 +1383,33 @@ function createToolbarButtonColor(styleIndex, targets, target, styleToolbar, isS
     return button;
 }
 
-function closeToolbar() {
-    const toolbars = document.querySelectorAll('.toolbar, .toolbar-blockRange, .toolbar-colors');
+function closeToolbar(article = pageCenter) {
+    const toolbars = document.querySelectorAll('.toolbar');
 
-    if (toolbars.length === 0) return; // Ne rien faire s'il n'y a aucune toolbar
+    if (toolbars.length === 0) return false;
 
-    restoreOpacity(); // Appel si des toolbars sont présentes
+    let actionPrise = false;
 
     toolbars.forEach(toolbar => {
-        toolbar.remove();
+        // Si elle est déjà en train de fermer, on ignore
+        if (toolbar.dataset.status === 'closing') return;
+
+        // On marque la toolbar comme "en cours de fermeture"
+        toolbar.dataset.status = 'closing';
+        actionPrise = true;
+
+        restoreOpacity(article);
+
+        toolbar.style.transition = "opacity 0.3s ease-out";
+        toolbar.style.opacity = '0';
+        toolbar.style.pointerEvents = 'none';
+
+        setTimeout(() => {
+            toolbar.remove();
+        }, 300);
     });
+
+    return actionPrise;
 }
 
 function removeAllSelected() {
@@ -1409,22 +1426,6 @@ function removeAllSelected() {
 }
 
 function createToolbarBase({targets, blockRangeId, isSelected, target}) {
-    const toolbars = document.querySelectorAll('.toolbar, .toolbar-blockRange');
-
-    // Masquer les toolbars existantes
-    toolbars.forEach(toolbar => toolbar.style.opacity = '0');
-
-    setTimeout(() => {
-        toolbars.forEach(toolbar => toolbar.remove());
-    }, 200);
-
-    // Ne rien faire si la bonne toolbar existe déjà
-    const existing = Array.from(toolbars).find(toolbar =>
-        toolbar.getAttribute(blockRangeAttr) === blockRangeId ||
-        toolbar.classList.contains('selected')
-    );
-    if (existing) return;
-
     if (!targets || targets.length === 0) return;
 
     // Horizontal : centré sur tous les targets
@@ -1533,30 +1534,14 @@ function showSelectedToolbar() {
     });
 }
 
-function showToolbar(paragraphs, pid, selector, hasAudio, type) {
+function showToolbar(article, paragraphs, pid, hasAudio, type) {
     const paragraph = paragraphs[0];
-    const toolbars = document.querySelectorAll('.toolbar, .toolbar-blockRange, .toolbar-colors');
-
-    // Chercher la toolbar correspondante au pid
-    const matchingToolbar = Array.from(toolbars).find(toolbar => toolbar.getAttribute('data-pid') === pid.toString());
-
-    // Supprimer les toolbars qui ne correspondent pas
-    toolbars.forEach(toolbar => {
-        toolbar.style.opacity = '0';
-        toolbar.remove();
-    });
-
-    if (matchingToolbar) {
-        restoreOpacity();
-        return;
-    }
 
     // Ici on dim les autres si pas de blockRange
-    dimOthers(paragraphs, selector);
+    dimOthers(article, paragraphs);
 
     const rect = paragraph.getBoundingClientRect();
     const scrollY = window.scrollY;
-    // const scrollX = window.scrollX; // Pas nécessaire si on se base sur rect.left pour le calcul horizontal initial
 
     const toolbarHeight = 40;
     const safetyMargin = 10;
@@ -1566,6 +1551,10 @@ function showToolbar(paragraphs, pid, selector, hasAudio, type) {
     const toolbar = document.createElement('div');
     toolbar.classList.add('toolbar');
     toolbar.setAttribute('data-pid', pid);
+
+    if(article !== pageCenter) {
+        return;
+    }
 
     // On s'assure que transform n'est jamais utilisé pour le centrage
     toolbar.style.transform = 'none';
@@ -1646,11 +1635,9 @@ function showToolbar(paragraphs, pid, selector, hasAudio, type) {
 
     buttons.forEach(([icon, handler]) => toolbar.appendChild(createToolbarButton(icon, handler)));
 
-    // 2. Positionnement initial pour la mesure
-    toolbar.style.visibility = 'hidden';
-    toolbar.style.opacity = '0';
     // Position temporaire pour la mesure, sans affecter le flux de la page (important pour .offsetWidth)
     toolbar.style.position = 'absolute';
+    toolbar.style.zIndex = '9999';
 
     document.body.appendChild(toolbar);
 
@@ -1706,8 +1693,9 @@ function showToolbar(paragraphs, pid, selector, hasAudio, type) {
     toolbar.style.top = `${top}px`;
 
     // 5. Affichage final
-    toolbar.style.visibility = 'visible';
-    toolbar.style.opacity = '1';
+    requestAnimationFrame(() => {
+        toolbar.style.opacity = '1';
+    });
 }
 
 async function fetchVerseInfo(paragraph, pid) {
@@ -2316,7 +2304,23 @@ const DIALOG_ICONS = {
     'default': DIAMOND
 };
 
-async function createNotesDashboardContent(container, opt) {
+function getCurrentDialogContainer() {
+    if (currentDialogIndex < 0 || dialogHistory.length === 0) {
+        return null;
+    }
+
+    const currentDialogData = dialogHistory[currentDialogIndex];
+    
+    const dialogElement = document.getElementById(currentDialogData.dialogId);
+
+    if (dialogElement) {
+        return dialogElement.querySelector('#contentContainer');
+    }
+
+    return null;
+}
+
+async function createNotesDashboardContent(container) {
     const isBibleMode = isBible();
 
     container.innerHTML = '';
@@ -2331,6 +2335,15 @@ async function createNotesDashboardContent(container, opt) {
         return;
     }
 
+    const indexContainer = document.createElement('div');
+    if(isBibleMode) {
+        indexContainer.style.display = 'flex';
+        indexContainer.style.flexWrap = 'wrap';
+        indexContainer.style.gap = '8px';
+        indexContainer.style.marginBottom = '16px';
+        innerContainer.appendChild(indexContainer);
+    }
+
     const sortedNotes = [...notes].sort((a, b) => {
         const A = a.BlockIdentifier || '';
         const B = b.BlockIdentifier || '';
@@ -2339,68 +2352,63 @@ async function createNotesDashboardContent(container, opt) {
         return (a.Guid || "").localeCompare(b.Guid || "");
     });
 
-    const indexContainer = document.createElement('div');
-    indexContainer.style.display = 'flex';
-    indexContainer.style.flexWrap = 'wrap';
-    indexContainer.style.gap = '8px';
-    indexContainer.style.marginBottom = '16px';
-    innerContainer.appendChild(indexContainer);
-
     const blockIdSet = new Set();
 
-    sortedNotes.forEach(note => {
-        if (isBibleMode && note.BlockIdentifier && !blockIdSet.has(note.BlockIdentifier)) {
-            blockIdSet.add(note.BlockIdentifier);
+    if(isBibleMode) {
+        sortedNotes.forEach(note => {
+            if (isBibleMode && note.BlockIdentifier && !blockIdSet.has(note.BlockIdentifier)) {
+                blockIdSet.add(note.BlockIdentifier);
 
-            // Carré pour accéder à ce groupe
-            const square = document.createElement('div');
-            square.textContent = note.BlockIdentifier; // texte à l’intérieur
-            square.style.cursor = 'pointer';
-            square.style.width = '50px'; // largeur uniforme
-            square.style.height = '50px'; // hauteur uniforme
-            square.style.display = 'flex';
-            square.style.alignItems = 'center';
-            square.style.justifyContent = 'center';
-            square.style.backgroundColor = '#757575'; // couleur demandée
-            square.style.color = '#fff'; // texte en blanc pour contraste
-            square.style.borderRadius = '4px'; // coins légèrement arrondis
-            square.style.fontSize = '0.85em';
-            square.style.fontWeight = 'bold';
+                // Carré pour accéder à ce groupe
+                const square = document.createElement('div');
+                square.textContent = note.BlockIdentifier; // texte à l’intérieur
+                square.style.cursor = 'pointer';
+                square.style.width = '50px'; // largeur uniforme
+                square.style.height = '50px'; // hauteur uniforme
+                square.style.display = 'flex';
+                square.style.alignItems = 'center';
+                square.style.justifyContent = 'center';
+                square.style.backgroundColor = '#757575'; // couleur demandée
+                square.style.color = '#fff'; // texte en blanc pour contraste
+                square.style.borderRadius = '4px'; // coins légèrement arrondis
+                square.style.fontSize = '0.85em';
+                square.style.fontWeight = 'bold';
 
-            // Scroll vers le groupe
-            square.onclick = () => {
-                const target = document.getElementById(`block-${note.BlockIdentifier}`);
-                if (target) {
-                    target.scrollIntoView({
-                        behavior: 'smooth',
-                        block: 'start'
-                    });
-                }
-            };
+                // Scroll vers le groupe
+                square.onclick = () => {
+                    const target = document.getElementById(`block-${note.BlockIdentifier}`);
+                    if (target) {
+                        target.scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'start'
+                        });
+                    }
+                };
 
-            indexContainer.appendChild(square);
-        }
-    });
+                indexContainer.appendChild(square);
+            }
+        });
+    }
 
     let lastBlockIdentifier = null;
 
-    sortedNotes.forEach(note => {
-
-        // Si nouveau BlockIdentifier → ajouter titre avec id
+    sortedNotes.forEach((note, index) => {
+        // 1. Gestion du Titre (BlockIdentifier)
         if (isBibleMode && note.BlockIdentifier && note.BlockIdentifier !== lastBlockIdentifier) {
-
             const blockElem = document.createElement('div');
             blockElem.textContent = cachedPages[currentIndex].title + ':' + note.BlockIdentifier;
-
-            blockElem.id = `block-${note.BlockIdentifier}`; // pour le scroll
+            blockElem.id = `block-${note.BlockIdentifier}`;
             blockElem.style.fontWeight = 'bold';
-            blockElem.style.margin = '40px 0 6px 8px';
+
+            // Si c'est le tout premier élément (index 0), on retire la marge du haut (40px -> 0)
+            const marginTop = (index === 0) ? '0px' : '40px';
+            blockElem.style.margin = `${marginTop} 0 6px 8px`;
 
             innerContainer.appendChild(blockElem);
             lastBlockIdentifier = note.BlockIdentifier;
         }
 
-        // Note
+        // 2. Préparation de la Note
         const noteData = {
             noteGuid: note.Guid,
             title: note.Title,
@@ -2409,26 +2417,34 @@ async function createNotesDashboardContent(container, opt) {
             colorIndex: note.ColorIndex
         };
 
-        const newNote = {
-            noteData
-        };
+        const newNote = { noteData };
         const noteElement = createNoteContent(innerContainer, newNote);
 
         if (noteElement) {
-            noteElement.style.marginBottom = '16px';
+            // 3. Gestion de la marge du bas
+            // Si c'est le dernier élément du tableau, on retire la marge du bas (16px -> 0)
+            if (index === sortedNotes.length - 1) {
+                noteElement.style.marginBottom = '0px';
+            } else {
+                noteElement.style.marginBottom = '16px';
+            }
+
             innerContainer.appendChild(noteElement);
         }
     });
 }
 
 function initializeBaseDialog() {
-    if (baseDialog) return;
+    closeDialog();
+    // On enlève tous les éléments de la page
+    document.querySelectorAll('.customDialog').forEach(dialog => {
+        dialog.remove();
+    });
 
     baseDialog = {
         options: {
             title: 'Notes', // Mis à jour pour refléter le contenu
             type: 'base',
-            // 🚨 Utilisation de la nouvelle fonction pour le contenu
             contentRenderer: createNotesDashboardContent
         },
         canGoBack: false,
@@ -2436,7 +2452,6 @@ function initializeBaseDialog() {
         dialogId: 'customDialog-base',
     };
 }
-initializeBaseDialog(); // Initialisation déplacée ici pour la clarté.
 
 function hideAllDialogs() {
     document.querySelectorAll('.customDialog').forEach(dialog => {
@@ -3535,155 +3550,167 @@ function createOptionsMenu(noteGuid, popup, isDark) {
     };
 }
 
-// Fonctions spécialisées
-function showVerseDialog(article, verses, href, replace) {
+// Fonction pour afficher le dialogue des différentes traductions de versets
+function showVerseDialog(article, dialogData, href, replace) {
     showDialog({
-        title: verses.title,
+        title: dialogData.title,
         type: 'verse',
         article: article,
         replace: replace,
         href: href,
         contentRenderer: (contentContainer) => {
-            verses.items.forEach((verseItem) => {
+            dialogData.verses.forEach((item) => {
                 const headerBar = document.createElement('div');
                 headerBar.style.cssText = `
-                        display: flex;
-                        align-items: center;
-                        background: ${isDarkTheme() ? '#000000' : '#f1f1f1'};
-                    `;
+                    display: flex;
+                    align-items: center;
+                    background: ${isDarkTheme() ? '#000000' : '#f1f1f1'};
+                `;
 
                 const img = document.createElement('img');
-                img.src = 'file://' + verseItem.imageUrl;
+                img.src = 'file://' + item.imageUrl;
                 img.style.cssText = `
-                        height: 45px;
-                        width: 45px;
-                        object-fit: cover;
-                        margin-right: 10px;
-                        user-select: none;
-                    `;
+                    height: 45px;
+                    width: 45px;
+                    object-fit: cover;
+                    margin-right: 10px;
+                    user-select: none;
+                `;
 
                 const textContainer = document.createElement('div');
                 textContainer.style.cssText = 'flex-grow: 1;';
 
-                const pubTitle = document.createElement('div');
-                pubTitle.textContent = verseItem.publicationTitle;
-                pubTitle.style.cssText = `
-                        font-size: 14px;
-                        font-weight: 700;
-                        margin-top: 2px;
-                        margin-bottom: 2px;
-                        color: ${isDarkTheme() ? '#ffffff' : '#333333'};
-                        line-height: 1.3;
-                        white-space: nowrap;
-                        overflow: hidden;
-                        text-overflow: ellipsis;
-                        user-select: none;
-                    `;
+                const bibleTitle = document.createElement('div');
+                bibleTitle.textContent = item.bibleTitle;
+                bibleTitle.style.cssText = `
+                    font-size: 14px;
+                    font-weight: 700;
+                    margin-top: 2px;
+                    margin-bottom: 2px;
+                    color: ${isDarkTheme() ? '#ffffff' : '#333333'};
+                    line-height: 1.3;
+                    white-space: nowrap;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                    user-select: none;
+                `;
 
-                const subtitleText = document.createElement('div');
-                subtitleText.textContent = verseItem.subtitle;
-                subtitleText.style.cssText = `
-                        font-size: 12px;
-                        opacity: 0.9;
-                        line-height: 1.4;
-                        white-space: nowrap;
-                        overflow: hidden;
-                        text-overflow: ellipsis;
-                        user-select: none;
-                    `;
+                const languageText = document.createElement('div');
+                languageText.textContent = item.languageText;
+                languageText.style.cssText = `
+                    font-size: 12px;
+                    opacity: 0.9;
+                    line-height: 1.4;
+                    white-space: nowrap;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                    user-select: none;
+                `;
 
-                // 1. Configurer le conteneur parent pour qu'il aligne les éléments horizontalement
                 textContainer.style.display = 'flex';
-                textContainer.style.alignItems = 'center'; // Aligne verticalement l'icône et le texte
-                textContainer.style.justifyContent = 'space-between'; // Pousse l'icône à l'extrémité droite
+                textContainer.style.alignItems = 'center';
+                textContainer.style.justifyContent = 'space-between';
 
-                // 2. Créer un wrapper pour les textes (pour qu'ils restent empilés à gauche)
                 const textWrapper = document.createElement('div');
-                textWrapper.style.overflow = 'hidden'; // Important pour l'ellipse du texte
-                textWrapper.appendChild(pubTitle);
-                textWrapper.appendChild(subtitleText);
+                textWrapper.style.overflow = 'hidden';
+                textWrapper.appendChild(bibleTitle);
+                textWrapper.appendChild(languageText);
 
-                // 3. Création de l'icône
                 const icon = document.createElement('span');
-                icon.innerHTML = '&#xE63A;'; // Utilisation de innerHTML pour l'entité HTML
+                icon.innerHTML = '&#xE63A;';
                 icon.style.fontFamily = 'jw-icons-external';
                 icon.style.fontSize = '20px';
-                icon.style.marginLeft = '10px'; // Petit espace entre le texte et l'icône
+                icon.style.marginLeft = '10px';
                 icon.style.marginRight = '5px';
-                icon.style.flexShrink = '0';   // Empêche l'icône de s'écraser si le texte est long
+                icon.style.flexShrink = '0';
                 icon.style.userSelect = 'none';
 
-                // 4. Assemblage final
                 textContainer.appendChild(textWrapper);
                 textContainer.appendChild(icon);
-
-                headerBar.addEventListener('click', function() {
-                    window.flutter_inappwebview?.callHandler('openMepsDocument', verseItem, verses);
-                });
 
                 headerBar.appendChild(img);
                 headerBar.appendChild(textContainer);
 
                 const article = document.createElement('div');
-                article.innerHTML = `<article id="verse-dialog" class="${verseItem.className}">${verseItem.content}</article>`;
                 article.style.cssText = `
-                      position: relative;
-                      padding-top: 10px;
-                      padding-bottom: 16px;
-                    `;
+                    position: relative;
+                    padding-top: 10px;
+                    padding-bottom: 16px;
+                `;
+                
+                if(item.isVerseExisting) {
+                    article.innerHTML = `<article id="verse-dialog" class="${item.className}">${item.content}</article>`;
 
-                wrapWordsWithSpan(article, true);
+                    wrapWordsWithSpan(article, true);
 
-                const paragraphsDataDialog = fetchAllParagraphsOfTheArticle(article, true);
+                    paragraphsDataDialog = fetchAllParagraphsOfTheArticle(article, true);
 
-                verseItem.blockRanges.forEach(b => {
-                    const chapterNumber = b.Location?.ChapterNumber ?? null;
+                    item.blockRanges.forEach(b => {
+                        const chapterNumber = b.Location?.ChapterNumber ?? null;
 
-                    const paragraphInfo = [...paragraphsDataDialog.values()].find(p =>
-                        p.chapterId === chapterNumber &&
-                        p.id === b.Identifier
-                    );
+                        const paragraphInfo = [...paragraphsDataDialog.values()].find(p =>
+                            p.chapterId === chapterNumber &&
+                            p.id === b.Identifier
+                        );
 
-                    if (!paragraphInfo || !paragraphInfo.paragraphs?.length) {
-                        return;
-                    }
-                    addBlockRange(paragraphInfo, b.StartToken, b.EndToken, b.UserMarkGuid, b.StyleIndex, b.ColorIndex);
-                });
+                        if (!paragraphInfo || !paragraphInfo.paragraphs?.length) {
+                            return;
+                        }
+                        addBlockRange(paragraphInfo, b.StartToken, b.EndToken, b.UserMarkGuid, b.StyleIndex, b.ColorIndex);
+                    });
 
-                verses.notes.forEach(note => {
-                    const matchingBlockRange = verseItem.blockRanges.find(
-                        b => b.UserMarkGuid === note.UserMarkGuid
-                    );
+                    dialogData.notes.forEach(note => {
+                        const matchingBlockRange = item.blockRanges.find(
+                            b => b.UserMarkGuid === note.UserMarkGuid
+                        );
 
-                    const chapterNumber = note.Location?.ChapterNumber ?? null;
+                        const chapterNumber = note.Location?.ChapterNumber ?? null;
 
-                    const paragraphInfo = [...paragraphsDataDialog.values()].find(p =>
-                        p.chapterId === chapterNumber &&
-                        p.id === note.BlockIdentifier
-                    );
+                        const paragraphInfo = [...paragraphsDataDialog.values()].find(p =>
+                            p.chapterId === chapterNumber &&
+                            p.id === note.BlockIdentifier
+                        );
 
-                    if (!paragraphInfo || !paragraphInfo.paragraphs?.length) {
-                        return;
-                    }
+                        if (!paragraphInfo || !paragraphInfo.paragraphs?.length) {
+                            return;
+                        }
 
-                    addNoteWithGuid(
-                        article,
-                        paragraphInfo.paragraphs[0],
-                        matchingBlockRange?.UserMarkGuid ?? null,
-                        note.Guid,
-                        note.ColorIndex ?? 0,
-                        true,
-                        false
-                    );
-                });
+                        addNoteWithGuid(
+                            article,
+                            paragraphInfo.paragraphs[0],
+                            matchingBlockRange?.UserMarkGuid ?? null,
+                            note.Guid,
+                            note.ColorIndex ?? 0,
+                            true,
+                            false
+                        );
+                    });
+
+                    const infoBible = {
+                        keySymbol: item.keySymbol,
+                        mepsLanguageId: item.mepsLanguageId,
+                        issueTagNumber: 0
+                    };
+
+                    article.addEventListener('click', async (event) => {
+                        onClickOnPage(article, event, infoBible);
+                    });
+
+                    headerBar.addEventListener('click', function() {
+                        window.flutter_inappwebview?.callHandler('openMepsDocument', item, dialogData);
+                    });
+                }
+                else {
+                    article.innerHTML = `<article id="verse-dialog" class="${item.className}">${dialogData.noVerseExistingText}</article>`;
+                }
 
                 contentContainer.appendChild(headerBar);
                 contentContainer.appendChild(article);
-            }); // Fin de forEach
+            });
 
             // CRÉATION DU BOUTON "PERSONNALISER"
             const customizeButton = document.createElement('button');
-            customizeButton.textContent = 'Personnaliser';
+            customizeButton.textContent = dialogData.personalizedText || 'Personalized';
 
             // Détermination des couleurs selon le thème
             const bgColor = isDarkTheme() ? '#8e8e8e' : '#757575';
@@ -3709,36 +3736,31 @@ function showVerseDialog(article, verses, href, replace) {
 
                 // 2. Vérification si des changements ont eu lieu AVANT de recharger les versets
                 if (hasChanges === true) {
-                    const verses = await window.flutter_inappwebview.callHandler('fetchVerses', href);
-                    showVerseDialog(article, verses, href, true);
-                } else {
+                    const dialogData = await window.flutter_inappwebview.callHandler('fetchVerses', href);
+                    showVerseDialog(article, dialogData, href, true);
+                } 
+                else {
                     console.log("Aucun changement de version, les versets ne sont pas rechargés.");
                 }
             });
 
             // Ajout du bouton au bas du contentContainer
             contentContainer.appendChild(customizeButton);
-
-            contentContainer.addEventListener('click', async (event) => {
-                onClickOnPage(contentContainer, event);
-            });
-
             repositionAllNotes(contentContainer);
         }
     });
 }
 
-function showVerseReferencesDialog(article, verseReferences, href) {
+// Fonction pour afficher les références des versets bibliques
+function showVerseReferencesDialog(article, dialogData, href) {
     showDialog({
-        title: verseReferences.title || 'Références bibliques',
+        title: dialogData.title,
         type: 'verse-references',
         article: article,
         href: href,
         contentRenderer: (contentContainer) => {
-            verseReferences.items.forEach((item, index) => {
+            dialogData.verseReferences.forEach((item) => {
                 const headerBar = document.createElement('div');
-                // CORRECTION : Utilisation des backticks (`) pour le template literal
-                // afin d'interpoler ${isDarkTheme() ? '...' : '...'}
                 headerBar.style.cssText = `
                       display: flex;
                       align-items: center;
@@ -3758,9 +3780,9 @@ function showVerseReferencesDialog(article, verseReferences, href) {
                 const textContainer = document.createElement('div');
                 textContainer.style.cssText = 'flex-grow: 1;';
 
-                const pubTitle = document.createElement('div');
-                pubTitle.textContent = item.publicationTitle;
-                pubTitle.style.cssText = `
+                const verseTitleDiaplay = document.createElement('div');
+                verseTitleDiaplay.textContent = item.verseTitleDiaplay;
+                verseTitleDiaplay.style.cssText = `
                       font-size: 14px;
                       font-weight: 700;
                       margin-top: 2px;
@@ -3773,11 +3795,11 @@ function showVerseReferencesDialog(article, verseReferences, href) {
                       user-select: none;
                   `;
 
-                const subtitleText = document.createElement('div');
-                subtitleText.textContent = item.subtitle;
-                subtitleText.style.cssText = `
+                const languageText = document.createElement('div');
+                languageText.textContent = item.languageText;
+                languageText.style.cssText = `
                       font-size: 12px;
-                      opacity: 0.8;
+                      opacity: 0.9;
                       line-height: 1.4;
                       white-space: nowrap;
                       overflow: hidden;
@@ -3785,28 +3807,24 @@ function showVerseReferencesDialog(article, verseReferences, href) {
                       user-select: none;
                   `;
 
-                // 1. Configurer le conteneur parent pour qu'il aligne les éléments horizontalement
                 textContainer.style.display = 'flex';
-                textContainer.style.alignItems = 'center'; // Aligne verticalement l'icône et le texte
-                textContainer.style.justifyContent = 'space-between'; // Pousse l'icône à l'extrémité droite
+                textContainer.style.alignItems = 'center';
+                textContainer.style.justifyContent = 'space-between';
 
-                // 2. Créer un wrapper pour les textes (pour qu'ils restent empilés à gauche)
                 const textWrapper = document.createElement('div');
-                textWrapper.style.overflow = 'hidden'; // Important pour l'ellipse du texte
-                textWrapper.appendChild(pubTitle);
-                textWrapper.appendChild(subtitleText);
+                textWrapper.style.overflow = 'hidden';
+                textWrapper.appendChild(verseTitleDiaplay);
+                textWrapper.appendChild(languageText);
 
-                // 3. Création de l'icône
                 const icon = document.createElement('span');
-                icon.innerHTML = '&#xE63A;'; // Utilisation de innerHTML pour l'entité HTML
+                icon.innerHTML = '&#xE63A;';
                 icon.style.fontFamily = 'jw-icons-external';
                 icon.style.fontSize = '20px';
-                icon.style.marginLeft = '10px'; // Petit espace entre le texte et l'icône
+                icon.style.marginLeft = '10px';
                 icon.style.marginRight = '5px';
-                icon.style.flexShrink = '0';   // Empêche l'icône de s'écraser si le texte est long
+                icon.style.flexShrink = '0';
                 icon.style.userSelect = 'none';
 
-                // 4. Assemblage final
                 textContainer.appendChild(textWrapper);
                 textContainer.appendChild(icon);
                 
@@ -3818,9 +3836,7 @@ function showVerseReferencesDialog(article, verseReferences, href) {
                 headerBar.appendChild(textContainer);
 
                 const article = document.createElement('div');
-                // CORRECTION : Utilisation des backticks (`) pour le template literal
-                // afin d'interpoler ${item.className} et ${item.content}
-                article.innerHTML = `<article id="verse-dialog" class="${item.className}">${item.content}</article>`;
+                article.innerHTML = `<article id="verse-references-dialog" class="${item.className}">${item.content}</article>`;
                 article.style.cssText = `
                     position: relative;
                     padding-top: 10px;
@@ -3829,7 +3845,7 @@ function showVerseReferencesDialog(article, verseReferences, href) {
 
                 wrapWordsWithSpan(article, true);
 
-                const paragraphsDataDialog = fetchAllParagraphsOfTheArticle(article, true);
+                paragraphsDataDialog = fetchAllParagraphsOfTheArticle(article, true);
 
                 item.blockRanges.forEach(b => {
                     const chapterNumber = b.Location?.ChapterNumber ?? null;
@@ -3875,12 +3891,11 @@ function showVerseReferencesDialog(article, verseReferences, href) {
                 contentContainer.appendChild(headerBar);
                 contentContainer.appendChild(article);
 
-                contentContainer.addEventListener('click', async (event) => {
-                    onClickOnPage(contentContainer, event);
+                article.addEventListener('click', async (event) => {
+                    onClickOnPage(article, event);
                 });
-
-                repositionAllNotes(contentContainer);
             });
+            repositionAllNotes(contentContainer);
         }
     });
 }
@@ -4227,7 +4242,7 @@ function showVerseInfoDialog(article, verseInfo, href, pid, replace) {
 
                             wrapWordsWithSpan(article, true);
 
-                            const paragraphsDataDialog = fetchAllParagraphsOfTheArticle(article, true);
+                            paragraphsDataDialog = fetchAllParagraphsOfTheArticle(article, true);
 
                             item.blockRanges.forEach(b => {
                                 const chapterNumber = b.Location?.ChapterNumber ?? null;
@@ -4529,15 +4544,14 @@ function handleExpand(itemId) {
     }
 }
 
-function showExtractPublicationDialog(article, extractData, href) {
+function showExtractPublicationDialog(article, dialogData, href) {
     showDialog({
-        title: extractData.title,
+        title: dialogData.title,
         type: 'publication',
         article: article,
         href: href,
         contentRenderer: (contentContainer) => {
-            extractData.items.forEach((item, index) => {
-                // Header avec image et infos
+            dialogData.extractsPublications.forEach((item, index) => {
                 const headerBar = document.createElement('div');
                 headerBar.style.cssText = `
                         display: flex;
@@ -4545,7 +4559,6 @@ function showExtractPublicationDialog(article, extractData, href) {
                         background: ${isDarkTheme() ? '#000000' : '#f1f1f1'};
                     `;
 
-                // Image de la publication
                 if (item.imageUrl) {
                     const img = document.createElement('img');
                     img.src = 'file://' + item.imageUrl;
@@ -4580,7 +4593,7 @@ function showExtractPublicationDialog(article, extractData, href) {
                     `;
 
                 const subtitleText = document.createElement('div');
-                    subtitleText.textContent = item.subtitle;
+                    subtitleText.textContent = item.subtitleText;
                     subtitleText.style.cssText = `
                         font-size: 12px;
                         opacity: 0.9;
@@ -4592,33 +4605,28 @@ function showExtractPublicationDialog(article, extractData, href) {
                       `;
      
                 textContainer.style.display = 'flex';
-                textContainer.style.alignItems = 'center'; // Aligne verticalement l'icône et le texte
-                textContainer.style.justifyContent = 'space-between'; // Pousse l'icône à l'extrémité droite
+                textContainer.style.alignItems = 'center';
+                textContainer.style.justifyContent = 'space-between';
 
                 const textWrapper = document.createElement('div');
-                textWrapper.style.overflow = 'hidden'; // Important pour l'ellipse du texte
+                textWrapper.style.overflow = 'hidden';
                 textWrapper.appendChild(pubTitle);
                 textWrapper.appendChild(subtitleText);
 
                 const icon = document.createElement('span');
-                icon.innerHTML = '&#xE63A;'; // Utilisation de innerHTML pour l'entité HTML
+                icon.innerHTML = '&#xE63A;';
                 icon.style.fontFamily = 'jw-icons-external';
                 icon.style.fontSize = '20px';
-                icon.style.marginLeft = '10px'; // Petit espace entre le texte et l'icône
+                icon.style.marginLeft = '10px';
                 icon.style.marginRight = '5px';
-                icon.style.flexShrink = '0';   // Empêche l'icône de s'écraser si le texte est long
+                icon.style.flexShrink = '0';
                 icon.style.userSelect = 'none';
 
                 textContainer.appendChild(textWrapper);
                 textContainer.appendChild(icon);
                 
                 headerBar.addEventListener('click', function() {
-                    window.flutter_inappwebview.callHandler('openMepsDocument', {
-                        mepsDocumentId: item.mepsDocumentId,
-                        mepsLanguageId: item.mepsLanguageId,
-                        startParagraphId: item.startParagraphId,
-                        endParagraphId: item.endParagraphId
-                    });
+                    window.flutter_inappwebview.callHandler('openMepsDocument', item);
                 });
 
                 headerBar.appendChild(textContainer);
@@ -4628,11 +4636,11 @@ function showExtractPublicationDialog(article, extractData, href) {
                 article.style.cssText = `
                       position: relative;
                       padding-block: 16px;
-                    `;
+                `;
 
                 wrapWordsWithSpan(article, false);
 
-                const paragraphsDataDialog = fetchAllParagraphsOfTheArticle(article);
+                paragraphsDataDialog = fetchAllParagraphsOfTheArticle(article);
 
                 item.blockRanges.forEach(b => {
                     if ((item.startParagraphId == null || b.Identifier >= item.startParagraphId) && (item.endParagraphId == null || b.Identifier <= item.endParagraphId)) {
@@ -4663,11 +4671,15 @@ function showExtractPublicationDialog(article, extractData, href) {
                     );
                 });
 
+                article.addEventListener('click', async (event) => {
+                    onClickOnPage(article, event, item);
+                });
+
                 contentContainer.appendChild(headerBar);
                 contentContainer.appendChild(article);
 
                 // Séparateur entre les éléments (sauf le dernier)
-                if (index < extractData.items.length - 1) {
+                if (index < dialogData.extractsPublications.length - 1) {
                     const separator = document.createElement('div');
                     separator.style.cssText = `
                             height: 3px;
@@ -4678,126 +4690,169 @@ function showExtractPublicationDialog(article, extractData, href) {
                 }
             });
 
-            contentContainer.addEventListener('click', async (event) => {
-                onClickOnPage(article, event);
-            });
-
             contentContainer.querySelectorAll('img').forEach(img => {
                 img.onerror = () => {
                     img.style.display = 'none';
-
-                    requestAnimationFrame(() => {
-                        requestAnimationFrame(() => {
-                            repositionAllNotes(contentContainer);
-                        });
-                    });
                 };
-
             });
 
             repositionAllNotes(contentContainer);
-
         }
     });
 }
 
-function showVerseCommentaryDialog(article, commentaries, href) {
+function showVerseCommentaryDialog(article, dialogData, href) {
     showDialog({
-        title: commentaries.title,
+        title: dialogData.title,
         type: 'commentary',
         article: article,
         href: href,
         contentRenderer: (contentContainer) => {
-            commentaries.items.forEach((item, index) => {
-                const headerBar = document.createElement('div');
-                headerBar.style.cssText = `
-                        display: flex;
-                        align-items: center;
-                        background: ${isDarkTheme() ? '#000000' : '#f1f1f1'};
-                    `;
+            const headerBar = document.createElement('div');
+            headerBar.style.cssText = `
+                display: flex;
+                align-items: center;
+                background: ${isDarkTheme() ? '#000000' : '#f1f1f1'};
+            `;
 
-                const img = document.createElement('img');
-                img.src = 'file://' + item.imageUrl;
-                img.style.cssText = `
-                        height: 45px;
-                        width: 45px;
-                        object-fit: cover;
-                        margin-right: 10px;
-                        user-select: none;
-                    `;
+            const img = document.createElement('img');
+            img.src = 'file://' + dialogData.imageUrl;
+            img.style.cssText = `
+                height: 45px;
+                width: 45px;
+                object-fit: cover;
+                margin-right: 10px;
+                user-select: none;
+            `;
 
-                const textContainer = document.createElement('div');
-                textContainer.style.cssText = 'flex-grow: 1;';
+            const textContainer = document.createElement('div');
+            textContainer.style.cssText = 'flex-grow: 1;';
 
-                const pubTitle = document.createElement('div');
-                pubTitle.textContent = item.publicationTitle;
-                pubTitle.style.cssText = `
-                        font-size: 14px;
-                        font-weight: 700;
-                        margin-top: 2px;
-                        margin-bottom: 2px;
-                        line-height: 1.3;
-                        white-space: nowrap;
-                        overflow: hidden;
-                        text-overflow: ellipsis;
-                        user-select: none;
-                    `;
+            const verseTitleDiaplay = document.createElement('div');
+            verseTitleDiaplay.textContent = dialogData.verseTitleDiaplay;
+            verseTitleDiaplay.style.cssText = `
+                font-size: 14px;
+                font-weight: 700;
+                margin-top: 2px;
+                margin-bottom: 2px;
+                line-height: 1.3;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                user-select: none;
+            `;
 
-                const subtitleText = document.createElement('div');
-                subtitleText.textContent = item.subtitle;
-                subtitleText.style.cssText = `
-                        font-size: 12px;
-                        opacity: 0.9;
-                        line-height: 1.4;
-                        white-space: nowrap;
-                        overflow: hidden;
-                        text-overflow: ellipsis;
-                        user-select: none;
-                    `;
+            const bibleTitle = document.createElement('div');
+            bibleTitle.textContent = dialogData.bibleTitle;
+            bibleTitle.style.cssText = `
+                font-size: 12px;
+                opacity: 0.9;
+                line-height: 1.4;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                user-select: none;
+            `;
 
-                textContainer.style.display = 'flex';
-                textContainer.style.alignItems = 'center'; // Aligne verticalement l'icône et le texte
-                textContainer.style.justifyContent = 'space-between'; // Pousse l'icône à l'extrémité droite
+            textContainer.style.display = 'flex';
+            textContainer.style.alignItems = 'center';
+            textContainer.style.justifyContent = 'space-between';
 
-                const textWrapper = document.createElement('div');
-                textWrapper.style.overflow = 'hidden'; // Important pour l'ellipse du texte
-                textWrapper.appendChild(pubTitle);
-                textWrapper.appendChild(subtitleText);
+            const textWrapper = document.createElement('div');
+            textWrapper.style.overflow = 'hidden';
+            textWrapper.appendChild(verseTitleDiaplay);
+            textWrapper.appendChild(bibleTitle);
 
-                const icon = document.createElement('span');
-                icon.innerHTML = '&#xE63A;'; // Utilisation de innerHTML pour l'entité HTML
-                icon.style.fontFamily = 'jw-icons-external';
-                icon.style.fontSize = '20px';
-                icon.style.marginLeft = '10px'; // Petit espace entre le texte et l'icône
-                icon.style.marginRight = '5px';
-                icon.style.flexShrink = '0';   // Empêche l'icône de s'écraser si le texte est long
-                icon.style.userSelect = 'none';
+            const icon = document.createElement('span');
+            icon.innerHTML = '&#xE63A;';
+            icon.style.fontFamily = 'jw-icons-external';
+            icon.style.fontSize = '20px';
+            icon.style.marginLeft = '10px';
+            icon.style.marginRight = '5px';
+            icon.style.flexShrink = '0';
+            icon.style.userSelect = 'none';
 
-                textContainer.appendChild(textWrapper);
-                textContainer.appendChild(icon);
+            textContainer.appendChild(textWrapper);
+            textContainer.appendChild(icon);
                 
+            headerBar.addEventListener('click', function() {
+                window.flutter_inappwebview?.callHandler('openMepsDocument', dialogData);
+            });
 
-                headerBar.addEventListener('click', function() {
-                    window.flutter_inappwebview?.callHandler('openMepsDocument', item);
-                });
+            headerBar.appendChild(img);
+            headerBar.appendChild(textContainer);
 
-                headerBar.appendChild(img);
-                headerBar.appendChild(textContainer);
+            const verse = document.createElement('div');
+            verse.innerHTML = `<article id="verse-dialog" class="${dialogData.verseClassName}">${dialogData.verseContent}</article>`;
+            verse.style.cssText = `
+                position: relative;
+                padding-top: 10px;
+                padding-bottom: 5px;
+            `;
 
-                const article = document.createElement('div');
-                article.innerHTML = `<article id="commentary-dialog" class="${item.className}">${item.content}</article>`;
-                article.style.cssText = `
-                      padding-top: 10px;
+            wrapWordsWithSpan(verse, true);
+
+            paragraphsDataDialog = fetchAllParagraphsOfTheArticle(verse, true);
+
+            dialogData.blockRanges.forEach(b => {
+                const chapterNumber = b.Location?.ChapterNumber ?? null;
+
+                const paragraphInfo = [...paragraphsDataDialog.values()].find(p =>
+                    p.chapterId === chapterNumber &&
+                    p.id === b.Identifier
+                );
+
+                if (!paragraphInfo || !paragraphInfo.paragraphs?.length) {
+                    return;
+                }
+                addBlockRange(paragraphInfo, b.StartToken, b.EndToken, b.UserMarkGuid, b.StyleIndex, b.ColorIndex);
+            });
+
+            dialogData.notes.forEach(note => {
+                const matchingBlockRange = dialogData.blockRanges.find(
+                    b => b.UserMarkGuid === note.UserMarkGuid
+                );
+
+                const chapterNumber = note.Location?.ChapterNumber ?? null;
+
+                const paragraphInfo = [...paragraphsDataDialog.values()].find(p =>
+                    p.chapterId === chapterNumber &&
+                    p.id === note.BlockIdentifier
+                );
+
+                if (!paragraphInfo || !paragraphInfo.paragraphs?.length) {
+                    return;
+                }
+
+                addNoteWithGuid(
+                    verse,
+                    paragraphInfo.paragraphs[0],
+                    matchingBlockRange?.UserMarkGuid ?? null,
+                    note.Guid,
+                    note.ColorIndex ?? 0,
+                    true,
+                    false
+                );
+            });
+
+
+            contentContainer.appendChild(headerBar);
+            contentContainer.appendChild(verse);
+
+            dialogData.commentaries.forEach((item) => {
+                const articleCommentary = document.createElement('div');
+                articleCommentary.innerHTML = `<article id="commentary-dialog" class="${item.className}">${item.content}</article>`;
+                articleCommentary.style.cssText = `
                       padding-bottom: 16px;
                     `;
 
-                contentContainer.addEventListener('click', async (event) => {
-                    onClickOnPage(contentContainer, event);
+                articleCommentary.addEventListener('click', async (event) => {
+                    onClickOnPage(articleCommentary, event);
                 });
 
-                contentContainer.appendChild(headerBar);
-                contentContainer.appendChild(article);
+                contentContainer.appendChild(articleCommentary);
             });
+            repositionAllNotes(contentContainer);
         }
     });
 }
@@ -4809,24 +4864,24 @@ function showFootNoteDialog(article, footnote, href) {
         article: article,
         href: href,
         contentRenderer: (contentContainer) => {
-            const noteContainer = document.createElement('div');
-            noteContainer.style.cssText = `
-                    padding-inline: 20px;
-                `;
+            const footnoteContainer = document.createElement('div');
+            footnoteContainer.style.cssText = `
+                padding-inline: 20px;
+            `;
 
-            const noteContent = document.createElement('div');
-            noteContent.innerHTML = footnote.content;
-            noteContent.style.cssText = `
-                    line-height: 1.7;
-                    font-size: inherit;
-                `;
+            const footnoteContent = document.createElement('div');
+            footnoteContent.innerHTML = footnote.content;
+            footnoteContent.style.cssText = `
+                line-height: 1.7;
+                font-size: inherit;
+            `;
 
-            noteContent.addEventListener('click', async (event) => {
-                onClickOnPage(noteContainer, event);
+            footnoteContent.addEventListener('click', async (event) => {
+                onClickOnPage(footnoteContainer, event);
             });
 
-            noteContainer.appendChild(noteContent);
-            contentContainer.appendChild(noteContainer);
+            footnoteContainer.appendChild(footnoteContent);
+            contentContainer.appendChild(footnoteContainer);
         }
     });
 }
@@ -4979,7 +5034,7 @@ function callHandler(name, args) {
     removeAllSelected();
 }
 
-function whenClickOnParagraph(target, selector, idAttr, type) {
+function whenClickOnParagraph(article, target, selector, idAttr, type) {
     const matched = target.closest(selector);
     if (!matched) { closeToolbar(); return; }
 
@@ -4987,7 +5042,7 @@ function whenClickOnParagraph(target, selector, idAttr, type) {
     const parts = rawId.split('-');
     const finalId = (type === 'verse') ? parseInt(parts[2], 10) : parseInt(rawId, 10);
 
-    const audioMarkers = cachedPages[currentIndex]?.audiosMarkers;
+    const audioMarkers = article === pageCenter ? cachedPages[currentIndex]?.audiosMarkers : null;
     let hasAudio = false;
     if (audioMarkers) {
         for (let m of audioMarkers) {
@@ -4997,11 +5052,10 @@ function whenClickOnParagraph(target, selector, idAttr, type) {
         }
     }
 
-    const data = paragraphsData.get(finalId);
+    const data = article === pageCenter ? paragraphsData.get(finalId) : paragraphsDataDialog.get(finalId);
+
     if (data) {
-        requestAnimationFrame(() => {
-            showToolbar(data.paragraphs, finalId, selector, hasAudio, type);
-        });
+        showToolbar(article, data.paragraphs, finalId, hasAudio, type);
     }
 }
 
@@ -5776,20 +5830,19 @@ const throttle = (func) => {
     };
 };
 
-async function onClickOnPage(article, event) {
+async function onClickOnPage(article, event, infoPublication = null) {
     const target = event.target;
     const tagName = target.tagName;
     const classList = target.classList;
 
+    const closeToolbarResult = closeToolbar(article);
+
     if (document.body.classList.contains('selection-active') || isSelecting) {
         removeAllSelected();
-        closeToolbar();
-        return;
     }
 
     // 1. Ignorer les clics sur les champs de formulaire
     if (tagName === 'TEXTAREA' || tagName === 'INPUT' || classList.contains('gen-field')) {
-        closeToolbar();
         return;
     }
 
@@ -5801,40 +5854,37 @@ async function onClickOnPage(article, event) {
 
         if (isVideoThumbnail) {
             const videoData = videoLink.getAttribute('data-video');
-
-            closeToolbar();
             return; // Sortie : on ne traite PAS comme une simple image
         }
 
         // Si ce n'est pas un lien vidéo, on le traite comme une image normale
         window.flutter_inappwebview.callHandler('onImageClick', target.src);
-        closeToolbar();
         return;
     }
 
-    const linkHandled = await onClickOnLink(article, target, event);
+    const linkHandled = await onClickOnLink(article, target, event, infoPublication);
 
-    if (linkHandled) {
+    if (linkHandled || closeToolbarResult) {
         return;
     }
 
     // Si on a une cible avec un blockRangeAttr, on affiche la toolbar de surlignage
     const blockRangeId = target.getAttribute(blockRangeAttr);
-    if (blockRangeId) {
+    if (blockRangeId && article === pageCenter) {
         showToolbarBlockRange(target, blockRangeId);
         return;
     }
 
     // Sinon, on gère le clic sur le paragraphe/verset
     if (isBible()) {
-        whenClickOnParagraph(target, '.v', 'id', 'verse');
+        whenClickOnParagraph(article, target, '.v', 'id', 'verse');
     } 
     else {
-        whenClickOnParagraph(target, '[data-pid]', 'data-pid', 'paragraph');
+        whenClickOnParagraph(article, target, '[data-pid]', 'data-pid', 'paragraph');
     }
 }
 
-async function onClickOnLink(article, target, event) {
+async function onClickOnLink(article, target, event, infoPublication = null) {
     const matchedElement = target.closest('a');
     const classList = target.classList;
 
@@ -5862,12 +5912,12 @@ async function onClickOnLink(article, target, event) {
         } 
         // Cas : Versets (b)
         else if (linkClass.contains('b') || href.startsWith('jwpub://b/')) {
-            const verses = await window.flutter_inappwebview.callHandler('fetchVerses', href);
+            const verses = await window.flutter_inappwebview.callHandler('fetchVerses', href); 
             if (verses) showVerseDialog(article, verses, href, false);
         } 
         // Cas : Extraits de publications (xt)
         else if (linkClass.contains('xt') || href.startsWith('jwpub://p/')) {
-            const extract = await window.flutter_inappwebview.callHandler('fetchExtractPublication', href);
+            const extract = await window.flutter_inappwebview.callHandler('fetchExtractPublication', href, infoPublication);
             if (extract) showExtractPublicationDialog(article, extract, href);
         } 
         // Cas : Extrait de commentaires (jwpub://c/)
@@ -5875,9 +5925,11 @@ async function onClickOnLink(article, target, event) {
             const commentary = await window.flutter_inappwebview.callHandler('fetchCommentaries', href);
             if (commentary) showVerseCommentaryDialog(article, commentary, href);
         }
-
-        closeToolbar();
         return true;
+    }
+
+    if (article !== pageCenter) {
+        return false;
     }
 
     // 2. Gestion des éléments spécifiques (notes, références) via la cible directe
@@ -5897,7 +5949,6 @@ async function onClickOnLink(article, target, event) {
     }
 
     if (handled) {
-        closeToolbar();
         return true;
     }
 
@@ -6011,6 +6062,8 @@ document.addEventListener('selectionchange', () => {
 });
 
 pageCenter.addEventListener('click', (event) => {
+    event.stopPropagation();
+
     firstLongPressTarget = null;
     lastLongPressTarget = null;
     isLongPressing = false;
@@ -6848,21 +6901,22 @@ async function changePage(direction) {
         posY = 0;
 
         if (direction === 'right') {
+            closeToolbar();
             currentTranslate = -200;
             container.style.transform = "translateX(-200%)";
             setTimeout(async () => {
                 currentIndex++;
                 currentTranslate = -100;
-                closeToolbar();
                 await loadPages(currentIndex);
             }, 200);
-        } else if (direction === 'left') {
+        } 
+        else if (direction === 'left') {
+            closeToolbar();
             currentTranslate = 0;
             container.style.transform = "translateX(0%)";
             setTimeout(async () => {
                 currentIndex--;
                 currentTranslate = -100;
-                closeToolbar();
                 await loadPages(currentIndex);
             }, 200);
         } else {

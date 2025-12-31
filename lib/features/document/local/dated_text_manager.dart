@@ -35,6 +35,8 @@ class DatedTextManager {
             DatedText.Link,
             DatedText.FirstDateOffset,
             DatedText.LastDateOffset,
+            DatedText.BeginParagraphOrdinal,
+            DatedText.EndParagraphOrdinal,
             DatedText.Content,
             Document.MepsDocumentId,
             Document.MepsLanguageIndex,

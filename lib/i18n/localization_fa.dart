@@ -3129,4 +3129,10 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get label_research_wikipedia => 'ویکی‌پدیا';
+
+  @override
+  String get meps_language => 'PR';
+
+  @override
+  String get label_icon_commentary => 'یادداشت مطالعه';
 }

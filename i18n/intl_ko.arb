@@ -920,5 +920,7 @@
   "label_research_images": "이미지",
   "label_research_notes": "노트",
   "label_research_inputs_fields": "필드",
-  "label_research_wikipedia": "위키백과"
+  "label_research_wikipedia": "위키백과",
+  "meps_language": "KO",
+  "label_icon_commentary": "학습 노트"
 }

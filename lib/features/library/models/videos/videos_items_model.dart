@@ -188,16 +188,17 @@ class VideoItemsModel extends ChangeNotifier {
   // --- Logique de service (Changement de Langue) ---
   void showLanguageSelection(BuildContext context) async {
     // Affiche la boîte de dialogue de sélection de langue
-    final language = await showLanguageDialog(context, selectedLanguageSymbol: _language.symbol);
+    final language = await showLanguageDialog(context, firstSelectedLanguage: _language.symbol);
     if (language != null) {
-      final newSymbol = language['Symbol'] as String;
-      loadItems(symbol: newSymbol); // Recharge les données dans la nouvelle langue
+      final languageSymbol = language['Symbol'] as String;
+      if (languageSymbol != _language.symbol) {
+        loadItems(symbol: languageSymbol); // Recharge les données dans la nouvelle langue
 
-      if (await Api.isLibraryUpdateAvailable(symbol: newSymbol)) {
-        // Déclenche la mise à jour de la librairie si nécessaire
-        Api.updateLibrary(newSymbol).then((_) {
-          loadItems(symbol: newSymbol); // Recharge après la mise à jour
-        });
+        if (await Api.isLibraryUpdateAvailable(languageSymbol)) {
+          Api.updateLibrary(languageSymbol).then((_) {
+            loadItems(symbol: languageSymbol);
+          });
+        }
       }
     }
   }

@@ -57,7 +57,7 @@ class _ArticlePageState extends State<ArticlePage> {
     return AppPage(
       appBar: JwLifeAppBar(
         title: widget.title,
-        subTitle: JwLifeSettings.instance.currentLanguage.value.vernacular
+        subTitle: JwLifeSettings.instance.libraryLanguage.value.vernacular
       ),
       body: _isLoading
           ? getLoadingWidget(Theme.of(context).primaryColor)

@@ -166,7 +166,7 @@ class _SearchFieldAllState extends State<SearchFieldAll> {
     });
 
     String normalizedQuery = normalize(query).toLowerCase();
-    MepsLanguage mepsLanguage = JwLifeSettings.instance.currentLanguage.value;
+    MepsLanguage mepsLanguage = JwLifeSettings.instance.libraryLanguage.value;
 
     String apiWol = 'https://wol.jw.org/wol/sg/${mepsLanguage.rsConf}/${mepsLanguage.lib}?q=$query';
     printTime(apiWol);
@@ -396,15 +396,15 @@ class _SearchFieldAllState extends State<SearchFieldAll> {
 
     switch (selected.type) {
       case 'topic':
-        await showDocumentView(context, selected.query, JwLifeSettings.instance.currentLanguage.value.id);
+        await showDocumentView(context, selected.query, JwLifeSettings.instance.libraryLanguage.value.id);
         break;
       case 'heading':
-        await showDocumentView(context, selected.query, JwLifeSettings.instance.currentLanguage.value.id, startParagraphId: selected.startParagraphId, endParagraphId: selected.endParagraphId);
+        await showDocumentView(context, selected.query, JwLifeSettings.instance.libraryLanguage.value.id, startParagraphId: selected.startParagraphId, endParagraphId: selected.endParagraphId);
         break;
       case 'bible':
         break;
       case 'publication':
-        final publication = await CatalogDb.instance.searchPub(selected.query, 0, JwLifeSettings.instance.currentLanguage.value.id);
+        final publication = await CatalogDb.instance.searchPub(selected.query, 0, JwLifeSettings.instance.libraryLanguage.value.id);
         if (publication != null) {
           publication.showMenu(context);
         } else {

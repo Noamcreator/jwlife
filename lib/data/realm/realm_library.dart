@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
 import 'package:jwlife/core/app_data/app_data_service.dart';
+import 'package:jwlife/data/models/meps_language.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:realm/realm.dart';
 import 'package:path/path.dart' as path;
@@ -59,59 +60,18 @@ class RealmLibrary {
 
     realm = Realm(config);
   }
-
-  // ---------- LECTURE ----------
-
-  /// Charge les vidéos et audios de la catégorie 'TeachingToolbox' pour la langue courante.
-  Future<List<Media>> loadTeachingToolboxVideosAsync() async {
-    final languageSymbol = JwLifeSettings.instance.currentLanguage.value.symbol;
-
-    // Récupérer juste les données serializables pour l'isolate
-    final categoriesData = realm.all<RealmCategory>()
-        .query("Key == \$0 AND LanguageSymbol == \$1", ['TeachingToolbox', languageSymbol])
-        .map((c) => c.media) // juste les clés
-        .expand((e) => e)
-        .toList();
-
-    final mediaData = categoriesData
-        .map((key) {
-      final item = realm.all<RealmMediaItem>().query("NaturalKey == \$0", [key]).firstOrNull;
-      if (item == null) return null;
-      return {
-        'type': item.type,
-        'naturalKey': item.naturalKey,
-        'data': item, // tu peux sérialiser ce qui est nécessaire
-      };
-    })
-        .whereType<Map<String, dynamic>>()
-        .toList();
-
-    // Déplacer la construction des Media dans un isolate
-    return compute(_createMediaList, mediaData);
-  }
-
-// Fonction top-level pour compute
-  List<Media> _createMediaList(List<Map<String, dynamic>> mediaData) {
-    final out = <Media>[];
-    for (final item in mediaData) {
-      final t = (item['type'] ?? '').toUpperCase();
-      if (t == 'VIDEO') out.add(Video.fromJson(mediaItem: item['data']));
-      else if (t == 'AUDIO') out.add(Audio.fromJson(mediaItem: item['data']));
-    }
-    return out;
-  }
-
-  static List<Media> loadTeachingToolboxVideos() {
-    return _loadMediaFromCategory('TeachingToolbox');
+  
+  static List<Media> loadTeachingToolboxVideos(MepsLanguage language) {
+    return _loadMediaFromCategory(language, 'TeachingToolbox');
   }
 
   /// Charge les vidéos et audios de la catégorie 'LatestAudioVideo' pour la langue courante.
-  static List<Media> loadLatestMedias() {
-    return _loadMediaFromCategory('LatestAudioVideo');
+  static List<Media> loadLatestMedias(MepsLanguage language) {
+    return _loadMediaFromCategory(language, 'LatestAudioVideo');
   }
 
-  static void updateLibraryCategories() {
-    String languageSymbol = JwLifeSettings.instance.currentLanguage.value.symbol;
+  static void updateLibraryCategories(MepsLanguage language) {
+    String languageSymbol = language.symbol;
 
     final videoResults = realm.all<RealmCategory>().query("Key == 'VideoOnDemand' AND LanguageSymbol == '$languageSymbol'");
     final audioResults = realm.all<RealmCategory>().query("Key == 'Audio' AND LanguageSymbol == '$languageSymbol'");
@@ -121,10 +81,10 @@ class RealmLibrary {
   }
 
   /// Helper générique pour charger les médias à partir d'une clé de catégorie.
-  static List<Media> _loadMediaFromCategory(String categoryKey) {
+  static List<Media> _loadMediaFromCategory(MepsLanguage language, String categoryKey) {
     final List<Media> out = [];
     // Utiliser `symbol` directement est plus propre
-    final String languageSymbol = JwLifeSettings.instance.currentLanguage.value.symbol;
+    final String languageSymbol = language.symbol;
 
     final categories = realm.all<RealmCategory>().query("Key == \$0 AND LanguageSymbol == \$1", [categoryKey, languageSymbol]);
 

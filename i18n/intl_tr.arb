@@ -920,5 +920,7 @@
   "label_research_images": "RESİMLER",
   "label_research_notes": "NOTLAR",
   "label_research_inputs_fields": "ALANLAR",
-  "label_research_wikipedia": "VİKİPEDİ"
+  "label_research_wikipedia": "VİKİPEDİ",
+  "meps_language": "TK",
+  "label_icon_commentary": "Çalışma notu"
 }

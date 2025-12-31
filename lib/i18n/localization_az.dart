@@ -3142,4 +3142,10 @@ class AppLocalizationsAz extends AppLocalizations {
 
   @override
   String get label_research_wikipedia => 'VİKİPEDİYA';
+
+  @override
+  String get meps_language => 'AJR';
+
+  @override
+  String get label_icon_commentary => 'Tədris qeydi';
 }

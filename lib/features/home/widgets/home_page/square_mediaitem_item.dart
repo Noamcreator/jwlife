@@ -127,7 +127,6 @@ class HomeSquareMediaItemItem extends StatelessWidget {
                                   onPressed: () {
                                     final RenderBox renderBox = context.findRenderObject() as RenderBox;
                                     final Offset tapPosition = renderBox.localToGlobal(Offset.zero) + renderBox.size.center(Offset.zero);
-
                                     media.download(context, tapPosition: tapPosition);
                                   },
                                   icon: const Icon(

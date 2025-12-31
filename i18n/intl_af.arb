@@ -920,5 +920,7 @@
   "label_research_images": "PRENTE",
   "label_research_notes": "NOTAS",
   "label_research_inputs_fields": "VELDE",
-  "label_research_wikipedia": "WIKIPEDIA"
+  "label_research_wikipedia": "WIKIPEDIA",
+  "meps_language": "AF",
+  "label_icon_commentary": "Studienota"
 }

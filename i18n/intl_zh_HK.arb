@@ -920,5 +920,7 @@
   "label_research_images": "圖片",
   "label_research_notes": "筆記",
   "label_research_inputs_fields": "欄位",
-  "label_research_wikipedia": "維基百科"
+  "label_research_wikipedia": "維基百科",
+  "meps_language": "CHC",
+  "label_icon_commentary": "學習筆記"
 }

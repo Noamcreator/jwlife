@@ -16,7 +16,7 @@ class DailyTextWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder<Publication?>(
-      valueListenable: AppDataService.instance.dailyText,
+      valueListenable: AppDataService.instance.dailyTextPublication,
       builder: (context, pub, _) {
         if (pub == null) {
           return _buildWelcomeSection(context);
@@ -89,7 +89,7 @@ class DailyTextWidget extends StatelessWidget {
     required String verseHtml,
   }) {
     final now = DateTime.now();
-    final locale = JwLifeSettings.instance.currentLanguage.value.getSafeLocale();
+    final locale = JwLifeSettings.instance.dailyTextLanguage.value.getSafeLocale();
 
     return GestureDetector(
       onTap: () {

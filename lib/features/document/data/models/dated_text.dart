@@ -23,6 +23,8 @@ class DatedText {
   String link;
   int firstDateOffset;
   int lastDateOffset;
+  int beginParagraphOrdinal;
+  int endParagraphOrdinal;
   int mepsDocumentId;
   int mepsLanguageId;
   String classType;
@@ -42,6 +44,8 @@ class DatedText {
     required this.link,
     required this.firstDateOffset,
     required this.lastDateOffset,
+    required this.beginParagraphOrdinal,
+    required this.endParagraphOrdinal,
     required this.mepsDocumentId,
     required this.mepsLanguageId,
     this.classType = '0',
@@ -58,6 +62,8 @@ class DatedText {
       link: map['Link'] ?? '',
       firstDateOffset: map['FirstDateOffset'] ?? 0,
       lastDateOffset: map['LastDateOffset'] ?? 0,
+      beginParagraphOrdinal: map['BeginParagraphOrdinal'] ?? 0,
+      endParagraphOrdinal: map['EndParagraphOrdinal'] ?? 0,
       mepsDocumentId: map['MepsDocumentId'] ?? 0,
       mepsLanguageId: map['MepsLanguageIndex'] ?? 0,
       classType: map['Class'] ?? '0',
@@ -81,7 +87,7 @@ class DatedText {
     List<BlockRange> blockRanges = context.read<BlockRangesController>().blockRanges;
 
     results = await Future.wait([
-      JwLifeApp.userdata.getBlockRangesFromDocumentId(mepsDocumentId, mepsLanguageId),
+      JwLifeApp.userdata.getBlockRangesFromDocumentId(mepsDocumentId, mepsLanguageId, startParagraph: beginParagraphOrdinal, endParagraph: endParagraphOrdinal),
       JwLifeApp.userdata.getBookmarksFromDocumentId(mepsDocumentId, mepsLanguageId),
     ]);
 

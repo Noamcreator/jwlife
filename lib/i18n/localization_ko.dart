@@ -3047,4 +3047,10 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get label_research_wikipedia => '위키백과';
+
+  @override
+  String get meps_language => 'KO';
+
+  @override
+  String get label_icon_commentary => '학습 노트';
 }

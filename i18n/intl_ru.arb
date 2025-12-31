@@ -920,5 +920,7 @@
   "label_research_images": "ИЗОБРАЖЕНИЯ",
   "label_research_notes": "ЗАМЕТКИ",
   "label_research_inputs_fields": "ПОЛЯ",
-  "label_research_wikipedia": "ВИКИПЕДИЯ"
+  "label_research_wikipedia": "ВИКИПЕДИЯ",
+  "meps_language": "U",
+  "label_icon_commentary": "Учебная заметка"
 }

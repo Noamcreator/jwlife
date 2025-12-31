@@ -2,6 +2,7 @@ import 'dart:collection';
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:jwlife/app/services/settings_service.dart';
 import 'package:jwlife/core/utils/utils_jwpub.dart';
 import 'package:jwlife/core/utils/utils_pub.dart';
 import 'package:jwlife/data/databases/history.dart';
@@ -158,7 +159,7 @@ class DownloadPageModel with ChangeNotifier {
             } else {
               if (jwpub.keySymbol == 'S-34') refreshPublicTalks();
               if (f == result.files.last) {
-                CatalogDb.instance.updateCatalogCategories();
+                CatalogDb.instance.updateCatalogCategories(JwLifeSettings.instance.libraryLanguage.value);
                 await _loadData();
                 showPage(PublicationMenuView(publication: jwpub));
               }

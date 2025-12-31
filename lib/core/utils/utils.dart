@@ -24,17 +24,49 @@ String normalize(String s) {
 }
 
 String formatNumber(num number, {String? format, String? localeCode}) {
-  BuildContext context = GlobalKeyService.jwLifePageKey.currentContext!;
-  String locale = localeCode?.toString() ?? Localizations.localeOf(context).toString();
-
+  final locale = getSafeLocale(localeInput: localeCode);
   return DateFormat.y(locale).format(DateTime(number.toInt()));
 }
 
 String formatYear(num number, {Locale? localeCode}) {
-  BuildContext context = GlobalKeyService.jwLifePageKey.currentContext!;
-  String locale = localeCode?.toString() ?? Localizations.localeOf(context).toString();
-
+  final locale = getSafeLocale(localeInput: localeCode);
   return DateFormat.y(locale).format(DateTime(number.toInt()));
+}
+
+String getSafeLocale({dynamic localeInput}) {
+  String locale;
+
+  if (localeInput != null) {
+    locale = localeInput.toString();
+  }
+  else {
+    final context = GlobalKeyService.jwLifePageKey.currentContext;
+    locale = context != null ? Localizations.localeOf(context).toString() : 'en';
+  }
+
+  if (!DateFormat.localeExists(locale)) {
+    final languageCode = locale.split('_').first;
+
+    if (DateFormat.localeExists(languageCode)) {
+      return languageCode;
+    }
+    return (languageCode == 'ay') ? 'es' : 'en';
+  }
+
+  return locale;
+}
+
+String formatDuration(double duration) {
+  final String locale = getSafeLocale();
+  int totalSeconds = duration.toInt();
+  DateTime time = DateTime.utc(0, 1, 1).add(Duration(seconds: totalSeconds));
+
+  int hours = totalSeconds ~/ 3600;
+
+  String formatPattern = (hours > 0) ? 'H:mm:ss' : 'm:ss';
+
+  final formatter = DateFormat(formatPattern, locale);
+  return formatter.format(time);
 }
 
 int convertDateTimeToIntDate(DateTime dateTime) {
@@ -60,28 +92,6 @@ String formatTick(int ticks) {
   return formattedDuration;
 }
 
-String formatDuration(double duration) {
-  BuildContext context = GlobalKeyService.jwLifePageKey.currentContext!;
-  String locale = Localizations.localeOf(context).toString();
-
-  int totalSeconds = duration.toInt();
-  DateTime referenceTime = DateTime(0, 0, 0);
-  DateTime time = referenceTime.add(Duration(seconds: totalSeconds));
-
-  // Calculer les heures pour décider si on inclut HH
-  int hours = totalSeconds ~/ 3600;
-
-  // Définir le format en fonction de la durée totale.
-  String formatPattern = (hours > 0) ? 'H:mm:ss' : 'm:ss';
-
-  // Utiliser DateFormat pour localiser le format
-  final formatter = DateFormat(formatPattern, locale);
-
-  String formattedTime = formatter.format(time);
-
-  return formattedTime;
-}
-
 String formatTs(double position, double duration) {
   DateTime referenceTime = DateTime(0, 0, 0);
 
@@ -95,7 +105,8 @@ String formatTs(double position, double duration) {
   String formatPattern = 'H:mm:ss';
 
   // Utiliser DateFormat pour localiser le format
-  final formatter = DateFormat(formatPattern, 'en');
+  final locale = getSafeLocale();
+  final formatter = DateFormat(formatPattern, locale);
 
   String formattedTime = '${formatter.format(timePosition)} - ${formatter.format(timeDuration)}';
 

@@ -158,7 +158,7 @@ class _PublicationsItemsPageState extends State<PublicationsItemsPage> {
                     icon: const Icon(JwIcons.language),
                     text: i18n().action_languages,
                     onPressed: (anchorContext) async {
-                      showLanguageDialog(context, selectedLanguageSymbol: _model.currentMepsLanguage?.symbol ?? widget.mepsLanguage.symbol).then((language) async {
+                      showLanguageDialog(context, firstSelectedLanguage: _model.currentMepsLanguage?.symbol ?? widget.mepsLanguage.symbol).then((language) async {
                         if (language != null) {
                           await _model.loadItems(mepsLanguageMap: language);
                           _loadTitle();
@@ -275,7 +275,7 @@ class _PublicationsItemsBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // On détermine la direction du texte
-    final isRtl = viewModel.mepsLanguage?.isRtl ?? mepsLanguage?.isRtl ?? JwLifeSettings.instance.currentLanguage.value.isRtl;
+    final isRtl = viewModel.mepsLanguage?.isRtl ?? mepsLanguage?.isRtl ?? JwLifeSettings.instance.libraryLanguage.value.isRtl;
 
     // Récupérer tous les notifiers pour écouter les changements de téléchargement globalement
     final List<ValueListenable<bool>> downloadNotifiers = [];

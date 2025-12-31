@@ -71,7 +71,7 @@ class _CongregationsPageState extends State<CongregationsPage> {
       'keywords': query,
       'latitude': '0',
       'longitude': '0',
-      'searchLanguageCode': JwLifeSettings.instance.currentLanguage.value.symbol
+      'searchLanguageCode': JwLifeSettings.instance.workshipLanguage.value.symbol
     };
 
     final url = Uri.https(
@@ -227,11 +227,10 @@ class _CongregationsPageState extends State<CongregationsPage> {
 
   // Fonction pour obtenir le nom du jour localisé
   String _getLocalizedWeekday(int weekday) {
-    // Utilisation de la date actuelle et ajustement du jour
     final now = DateTime.now();
     final date = now.add(Duration(days: (weekday - now.weekday)));
-    // Formatage avec intl pour obtenir le jour localisé
-    return DateFormat.EEEE(JwLifeSettings.instance.locale.languageCode).format(date);
+    final locale = getSafeLocale();
+    return DateFormat.EEEE(locale).format(date);
   }
 
   /// Méthode réutilisable pour construire chaque élément de suggestion
@@ -344,13 +343,14 @@ class _CongregationsPageState extends State<CongregationsPage> {
                 final congregation = _congregations[index];
                 final isDark = Theme.of(context).brightness == Brightness.dark;
 
+                final locale = getSafeLocale();
                 final midweekTime = DateFormat("HH:mm").parse(congregation.midweekTime!);
-                final hourMidweekStr = DateFormat("HH", JwLifeSettings.instance.locale.languageCode).format(midweekTime);
-                final minuteMidweekStr = DateFormat("mm", JwLifeSettings.instance.locale.languageCode).format(midweekTime);
+                final hourMidweekStr = DateFormat("HH", locale).format(midweekTime);
+                final minuteMidweekStr = DateFormat("mm", locale).format(midweekTime);
 
                 final weekendTime = DateFormat("HH:mm").parse(congregation.weekendTime!);
-                final hourWeekendStr = DateFormat("HH", JwLifeSettings.instance.locale.languageCode).format(weekendTime);
-                final minuteWeekendStr = DateFormat("mm", JwLifeSettings.instance.locale.languageCode).format(weekendTime);
+                final hourWeekendStr = DateFormat("HH", locale).format(weekendTime);
+                final minuteWeekendStr = DateFormat("mm", locale).format(weekendTime);
 
                 return GestureDetector(
                   onTap: () => _showEditDialog(congregation),

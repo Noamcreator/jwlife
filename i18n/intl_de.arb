@@ -920,5 +920,7 @@
   "label_research_images": "BILDER",
   "label_research_notes": "NOTIZEN",
   "label_research_inputs_fields": "FELDER",
-  "label_research_wikipedia": "WIKIPEDIA"
+  "label_research_wikipedia": "WIKIPEDIA",
+  "meps_language": "X",
+  "label_icon_commentary": "Studiennote"
 }

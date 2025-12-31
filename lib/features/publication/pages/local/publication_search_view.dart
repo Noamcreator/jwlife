@@ -219,7 +219,6 @@ class _PublicationSearchViewState extends State<PublicationSearchView> {
     String verseRef = JwLifeApp.bibleCluesInfo.getVerses(
         verse['bookNumber'], verse['chapterNumber'], verse['verseNumber'],
         verse['bookNumber'], verse['chapterNumber'], verse['verseNumber'],
-        localeCode: widget.publication.mepsLanguage.primaryIetfCode
     );
 
     return GestureDetector(

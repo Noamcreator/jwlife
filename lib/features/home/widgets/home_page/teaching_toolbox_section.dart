@@ -5,14 +5,15 @@ import 'package:jwlife/features/home/widgets/home_page/square_publication_item.d
 
 import '../../../../core/app_data/app_data_service.dart';
 import '../../../../core/icons.dart';
+import '../../../../core/shared_preferences/shared_preferences_utils.dart';
 import '../../../../core/ui/text_styles.dart';
 import '../../../../core/utils/utils_language_dialog.dart';
 import '../../../../data/models/media.dart';
 import '../../../../data/models/publication.dart';
 import '../../../../i18n/i18n.dart';
 
-class ToolboxSection extends StatelessWidget {
-  const ToolboxSection({super.key});
+class TeachingToolboxSection extends StatelessWidget {
+  const TeachingToolboxSection({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -20,15 +21,12 @@ class ToolboxSection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
 
-        /// ------------------------------------------------------------
-        /// 🔹 Toolbox – Médias en premier, puis Publications
-        /// ------------------------------------------------------------
+        // Toolbox – Médias en premier, puis Publications
         ValueListenableBuilder<List<Media>>(
           valueListenable: AppDataService.instance.teachingToolboxMedias,
           builder: (context, medias, _) {
             return ValueListenableBuilder<List<Publication?>>(
-              valueListenable:
-              AppDataService.instance.teachingToolboxPublications,
+              valueListenable: AppDataService.instance.teachingToolboxPublications,
               builder: (context, pubs, _) {
                 final combined = [
                   ...medias,
@@ -57,23 +55,28 @@ class ToolboxSection extends StatelessWidget {
                               SizedBox(width: 2),
                               Icon(
                                 JwIcons.chevron_right,
-                                color: Theme
-                                    .of(context)
-                                    .secondaryHeaderColor,
+                                color: Theme.of(context).secondaryHeaderColor,
                                 size: 24,
                               ),
                             ],
                           ),
                         ),
                         ValueListenableBuilder(
-                            valueListenable: JwLifeSettings.instance.currentLanguage,
-                            builder: (context, value, child) {
+                            valueListenable: JwLifeSettings.instance.teachingToolboxLanguage,
+                            builder: (context, mepsLanguage, child) {
                               return GestureDetector(
                                   onTap: () {
-                                    showLanguageDialog(context);
+                                    showLanguageDialog(context, firstSelectedLanguage: mepsLanguage.symbol).then((language) async {
+                                      if (language != null) {
+                                        if (language['Symbol'] != mepsLanguage.symbol) {
+                                          await AppSharedPreferences.instance.setTeachingToolboxLanguage(language);
+                                          AppDataService.instance.changeTeachingToolboxLanguageAndRefresh();
+                                        }
+                                      }
+                                    });
                                   },
                                   child: Text(
-                                      value.vernacular,
+                                      mepsLanguage.vernacular,
                                       style: TextStyle(color: Theme.of(context).primaryColor)
                                   )
                               );
@@ -103,9 +106,7 @@ class ToolboxSection extends StatelessWidget {
 
         const SizedBox(height: 8),
 
-        /// ------------------------------------------------------------
-        /// 🔹 Tracts Publications
-        /// ------------------------------------------------------------
+        // Tracts Publications
         ValueListenableBuilder<List<Publication?>>(
           valueListenable:
           AppDataService.instance.teachingToolboxTractsPublications,

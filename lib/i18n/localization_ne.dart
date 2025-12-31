@@ -3136,4 +3136,10 @@ class AppLocalizationsNe extends AppLocalizations {
 
   @override
   String get label_research_wikipedia => 'विकिपीडिया';
+
+  @override
+  String get meps_language => 'NP';
+
+  @override
+  String get label_icon_commentary => 'अध्ययन टिप्पणी';
 }

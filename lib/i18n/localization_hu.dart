@@ -3165,4 +3165,10 @@ class AppLocalizationsHu extends AppLocalizations {
 
   @override
   String get label_research_wikipedia => 'WIKIPÉDIA';
+
+  @override
+  String get meps_language => 'H';
+
+  @override
+  String get label_icon_commentary => 'Tanulmányi feljegyzés';
 }

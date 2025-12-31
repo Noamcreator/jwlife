@@ -5,9 +5,10 @@ import '../../app/services/settings_service.dart';
 import '../../core/bible_clues_info.dart';
 import '../../core/utils/files_helper.dart';
 import '../../core/utils/utils_database.dart';
+import '../models/meps_language.dart';
 
 class Mepsunit {
-  static Future<void> loadBibleCluesInfo() async {
+  static Future<void> loadBibleCluesInfo(String mepsLanguageSymbol) async {
     final mepsFile = await getMepsUnitDatabaseFile();
 
     if (allFilesExist([mepsFile])) {
@@ -24,7 +25,8 @@ class Mepsunit {
             SuperscriptionTextFull, 
             SuperscriptionTextAbbreviation
           FROM BibleCluesInfo
-          WHERE BibleInfoId = 2 AND LanguageId = ${JwLifeSettings.instance.currentLanguage.value.id}
+          INNER JOIN Language ON BibleCluesInfo.LanguageId = Language.LanguageId
+          WHERE BibleInfoId = 2 AND Language.Symbol = '$mepsLanguageSymbol'
         """);
 
         final result2 = await mepsUnit.rawQuery("""

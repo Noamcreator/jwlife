@@ -51,7 +51,7 @@ class SearchModel {
     final queryParams = {'q': query};
     final url = Uri.https(
       'b.jw-cdn.org',
-      '/apis/search/results/${JwLifeSettings.instance.currentLanguage.value.symbol}/$path',
+      '/apis/search/results/${JwLifeSettings.instance.libraryLanguage.value.symbol}/$path',
       queryParams,
     );
 
@@ -115,7 +115,7 @@ class SearchModel {
     final queryParams = {'q': query, 'r': 'occ', 'p': 'par'};
     final url = Uri.https(
       'wol.jw.org',
-      '/wol/s/${JwLifeSettings.instance.currentLanguage.value.rsConf}/${JwLifeSettings.instance.currentLanguage.value.lib}',
+      '/wol/s/${JwLifeSettings.instance.libraryLanguage.value.rsConf}/${JwLifeSettings.instance.libraryLanguage.value.lib}',
       queryParams,
     );
 
@@ -196,7 +196,7 @@ class SearchModel {
 
     List<Future<List<Map<String, dynamic>>>> futures = [];
 
-    for (Publication publication in PublicationRepository().getPublicationsFromLanguage(JwLifeSettings.instance.currentLanguage.value)) {
+    for (Publication publication in PublicationRepository().getPublicationsFromLanguage(JwLifeSettings.instance.libraryLanguage.value)) {
       futures.add(_fetchVerseFromPublication(publication, verseId));
     }
 
@@ -295,7 +295,7 @@ class SearchModel {
 
     final List<Future<List<Map<String, dynamic>>>> futures = [];
 
-    for (Publication pub in PublicationRepository().getPublicationsFromLanguage(JwLifeSettings.instance.currentLanguage.value)) {
+    for (Publication pub in PublicationRepository().getPublicationsFromLanguage(JwLifeSettings.instance.libraryLanguage.value)) {
       futures.add(_fetchImagesFromPublication(pub, query));
     }
 

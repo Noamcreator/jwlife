@@ -3,6 +3,7 @@ import 'package:jwlife/features/home/widgets/home_page/rectangle_publication_ite
 import '../../../../app/services/settings_service.dart';
 import '../../../../core/app_data/app_data_service.dart';
 import '../../../../core/icons.dart';
+import '../../../../core/shared_preferences/shared_preferences_utils.dart';
 import '../../../../core/ui/text_styles.dart';
 import '../../../../core/utils/utils_language_dialog.dart';
 import '../../../../data/models/publication.dart';
@@ -51,14 +52,21 @@ class LatestPublicationSection extends StatelessWidget {
                   ),
                 ),
                 ValueListenableBuilder(
-                    valueListenable: JwLifeSettings.instance.currentLanguage,
-                    builder: (context, value, child) {
+                    valueListenable: JwLifeSettings.instance.latestLanguage,
+                    builder: (context, mepsLanguage, child) {
                       return GestureDetector(
                           onTap: () {
-                            showLanguageDialog(context);
+                            showLanguageDialog(context, firstSelectedLanguage: mepsLanguage.symbol).then((language) async {
+                              if (language != null) {
+                                if (language['Symbol'] != mepsLanguage.symbol) {
+                                  await AppSharedPreferences.instance.setLatestLanguage(language);
+                                  AppDataService.instance.changeLatestLanguageAndRefresh();
+                                }
+                              }
+                            });
                           },
                           child: Text(
-                              value.vernacular,
+                              mepsLanguage.vernacular,
                               style: TextStyle(color: Theme.of(context).primaryColor)
                           )
                       );

@@ -22,13 +22,13 @@ class VideosCategoriesWidget extends StatelessWidget {
     }).toList();
 
     return ResponsiveCategoriesWrapLayout(
-      textDirection: JwLifeSettings.instance.currentLanguage.value.isRtl ? TextDirection.rtl : TextDirection.ltr,
+      textDirection: JwLifeSettings.instance.libraryLanguage.value.isRtl ? TextDirection.rtl : TextDirection.ltr,
       children: categoryWidgets,
     );
   }
 
   Widget _buildCategoryButton(RealmCategory category) {
-    final bool isRtl = JwLifeSettings.instance.currentLanguage.value.isRtl;
+    final bool isRtl = JwLifeSettings.instance.libraryLanguage.value.isRtl;
 
     int textLength = category.name!.length - 8;
     double transitionPoint = (textLength / 19).clamp(0.38, 0.5);

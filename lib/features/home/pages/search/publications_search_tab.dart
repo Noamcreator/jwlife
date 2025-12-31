@@ -145,7 +145,7 @@ class _PublicationsSearchTabState extends State<PublicationsSearchTab> {
                   Publication? publication = await CatalogDb.instance.searchPub(
                     keySymbol,
                     int.parse(issueTagNumber),
-                    JwLifeSettings.instance.currentLanguage.value.id,
+                    JwLifeSettings.instance.libraryLanguage.value.id,
                   );
 
                   if (publication != null) {
@@ -277,7 +277,7 @@ class _PublicationsSearchTabState extends State<PublicationsSearchTab> {
                               }
 
                               final uri = JwOrgUri.publication(
-                                wtlocale: JwLifeSettings.instance.currentLanguage.value.symbol,
+                                wtlocale: JwLifeSettings.instance.libraryLanguage.value.symbol,
                                 pub: symbol,
                                 issue: issueTagNumber ?? 0,
                               ).toString();
@@ -303,7 +303,7 @@ class _PublicationsSearchTabState extends State<PublicationsSearchTab> {
                               Publication? publication = await CatalogDb.instance.searchPub(
                                 keySymbol,
                                 int.parse(issueTagNumber),
-                                JwLifeSettings.instance.currentLanguage.value.id,
+                                JwLifeSettings.instance.libraryLanguage.value.id,
                               );
 
                               if (publication != null) {

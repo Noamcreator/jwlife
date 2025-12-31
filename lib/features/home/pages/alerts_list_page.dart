@@ -137,8 +137,8 @@ class _AlertsListPageState extends State<AlertsListPage> {
 
   void setLanguage() async {
     setState(() {
-      _language = JwLifeSettings.instance.currentLanguage.value.vernacular;
-      _languageSymbol = JwLifeSettings.instance.currentLanguage.value.symbol;
+      _language = JwLifeSettings.instance.libraryLanguage.value.vernacular;
+      _languageSymbol = JwLifeSettings.instance.libraryLanguage.value.symbol;
     });
   }
 

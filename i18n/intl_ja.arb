@@ -920,5 +920,7 @@
   "label_research_images": "画像",
   "label_research_notes": "ノート",
   "label_research_inputs_fields": "フィールド",
-  "label_research_wikipedia": "ウィキペディア"
+  "label_research_wikipedia": "ウィキペディア",
+  "meps_language": "J",
+  "label_icon_commentary": "学習ノート"
 }

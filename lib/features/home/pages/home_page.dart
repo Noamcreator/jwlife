@@ -19,7 +19,7 @@ import '../widgets/home_page/home_appbar.dart';
 import '../widgets/home_page/latest_publications_section.dart';
 import '../widgets/home_page/linear_progress.dart';
 import '../widgets/home_page/online_section.dart';
-import '../widgets/home_page/toolbox_section.dart';
+import '../widgets/home_page/teaching_toolbox_section.dart';
 import '../../settings_page.dart';
 
 class HomePage extends StatefulWidget {
@@ -69,7 +69,7 @@ class HomePageState extends State<HomePage> {
             ),
             const FrequentlyUsedSection(),
             const SizedBox(height: sizeDivider),
-            const ToolboxSection(),
+            const TeachingToolboxSection(),
             const SizedBox(height: sizeDivider),
             const LatestPublicationSection(),
             const SizedBox(height: 4),
@@ -96,8 +96,10 @@ class HomePageState extends State<HomePage> {
             ? Colors.black
             : Colors.white,
         onRefresh: () async {
-          if (await hasInternetConnection(context: context) && !AppDataService.instance.isRefreshing.value) {
-            await AppDataService.instance.checkUpdatesAndRefreshContent();
+          if(!AppDataService.instance.isRefreshing.value) {
+            if (await hasInternetConnection(context: context)) {
+              await AppDataService.instance.checkUpdatesAndRefreshContent();
+            }
           }
         },
         child: ListView.builder(

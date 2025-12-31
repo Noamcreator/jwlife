@@ -15,7 +15,10 @@ import 'app/startup/copy_assets.dart';
 import 'core/shared_preferences/shared_preferences_utils.dart';
 import 'core/uri/jworg_uri.dart';
 import 'core/webview/html_template_service.dart';
+import 'data/databases/mepsunit.dart';
 import 'data/realm/realm_library.dart';
+import 'i18n/i18n.dart';
+import 'i18n/localization.dart';
 
 // Constante pour le préfixe SharedPreferences
 const String _kSharedPrefsPrefix = 'jwlife.';
@@ -50,8 +53,15 @@ Future<void> _initializeServices() async {
     // Initialisation des configurations de l'application
     JwLifeSettings.instance.init(),
     // Initialisation de la base de données Realm
-    RealmLibrary.init()
+    RealmLibrary.init(),
   ]);
+
+  JwLifeSettings.instance.appLocalesMeps = await Future.wait(
+    AppLocalizations.supportedLocales.map((locale) async {
+      final i18n = await i18nLocale(locale);
+      return MapEntry(locale, i18n.meps_language);
+    }),
+  );
 
   // 3. Configuration de Just Audio Background (nécessite d'être après ensureInitialized)
   JustAudioBackground.init(

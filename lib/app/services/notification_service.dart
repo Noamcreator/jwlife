@@ -1,11 +1,14 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:jwlife/app/services/settings_service.dart';
+import 'package:jwlife/core/utils/common_ui.dart';
+import 'package:jwlife/data/models/publication.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz;
 
 import '../../core/uri/jworg_uri.dart';
 import '../../core/uri/utils_uri.dart';
+import '../../data/repositories/PublicationRepository.dart';
 import '../../i18n/i18n.dart';
 
 @pragma('vm:entry-point')
@@ -271,7 +274,7 @@ class NotificationService {
         notificationDetails,
         matchDateTimeComponents: DateTimeComponents.time, // Répète chaque jour à la même heure
         payload: JwOrgUri.dailyText(
-          wtlocale: JwLifeSettings.instance.currentLanguage.value.symbol,
+          wtlocale: JwLifeSettings.instance.dailyTextLanguage.value.symbol,
           date: 'today'
         ).toString(),
         androidScheduleMode: AndroidScheduleMode.exact,
@@ -333,20 +336,27 @@ class NotificationService {
         scheduledDate = scheduledDate.add(const Duration(days: 1));
       }
 
-      await notificationPlugin.zonedSchedule(
-        101, // ID fixe pour pouvoir l'annuler/modifier
-        'Lecture de la Bible',
-        'Cliquez ici pour ouvrir la Bible',
-        scheduledDate,
-        notificationDetails,
-        matchDateTimeComponents: DateTimeComponents.time, // Répète chaque jour à la même heure
-        payload: JwOrgUri.bibleBook(
-            wtlocale: JwLifeSettings.instance.currentLanguage.value.symbol,
-            pub: 'nwtsty',
+      Publication? bible = PublicationRepository().getLookUpBible();
+      if(bible != null) {
+        await notificationPlugin.zonedSchedule(
+          101, // ID fixe pour pouvoir l'annuler/modifier
+          'Lecture de la Bible',
+          'Cliquez ici pour ouvrir la Bible',
+          scheduledDate,
+          notificationDetails,
+          matchDateTimeComponents: DateTimeComponents.time,
+          payload: JwOrgUri.bibleBook(
+            wtlocale: bible.mepsLanguage.symbol,
+            pub: bible.keySymbol,
             book: 1,
-        ).toString(),
-        androidScheduleMode: AndroidScheduleMode.exact,
-      );
+          ).toString(),
+          androidScheduleMode: AndroidScheduleMode.exact,
+        );
+      }
+      else {
+        // Vous n'avez pas de bible téléchargé...
+        showBottomMessage("Vous n'avez pas de bible téléchargé");
+      }
 
       print('Notification quotidienne programmée pour ${hour}h${minute.toString().padLeft(2, '0')}');
     }

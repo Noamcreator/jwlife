@@ -11,7 +11,7 @@ import 'app_data_service.dart';
 
 void refreshPublicTalks() {
   String keySymbol = 'S-34';
-  String mepsLanguageSymbol = JwLifeSettings.instance.currentLanguage.value.symbol;
+  String mepsLanguageSymbol = JwLifeSettings.instance.workshipLanguage.value.symbol;
 
   AppDataService.instance.publicTalkPub.value = PublicationRepository().getPublicationWithSymbol(keySymbol, 0, mepsLanguageSymbol);
 }

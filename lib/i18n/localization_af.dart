@@ -3160,4 +3160,10 @@ class AppLocalizationsAf extends AppLocalizations {
 
   @override
   String get label_research_wikipedia => 'WIKIPEDIA';
+
+  @override
+  String get meps_language => 'AF';
+
+  @override
+  String get label_icon_commentary => 'Studienota';
 }

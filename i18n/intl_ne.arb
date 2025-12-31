@@ -920,5 +920,7 @@
   "label_research_images": "तस्बिरहरू",
   "label_research_notes": "नोटहरू",
   "label_research_inputs_fields": "क्षेत्रहरू",
-  "label_research_wikipedia": "विकिपीडिया"
+  "label_research_wikipedia": "विकिपीडिया",
+  "meps_language": "NP",
+  "label_icon_commentary": "अध्ययन टिप्पणी"
 }

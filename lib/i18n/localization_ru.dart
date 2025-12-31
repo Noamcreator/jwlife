@@ -3155,4 +3155,10 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get label_research_wikipedia => 'ВИКИПЕДИЯ';
+
+  @override
+  String get meps_language => 'U';
+
+  @override
+  String get label_icon_commentary => 'Учебная заметка';
 }

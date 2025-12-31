@@ -57,6 +57,8 @@ class RectangleMediaItemItem extends StatelessWidget {
 
   // Extrait la logique du bouton dynamique (Téléchargement, Annuler, Mise à jour, Favori)
   Widget _buildDynamicButton() {
+    final GlobalKey anchorKey = GlobalKey();
+
     return ValueListenableBuilder<bool>(
       valueListenable: media.isDownloadingNotifier,
       builder: (context, isDownloading, _) {
@@ -80,26 +82,29 @@ class RectangleMediaItemItem extends StatelessWidget {
         // --- 2. Mode Non Téléchargé / Mise à jour requise ---
         return ValueListenableBuilder<bool>(
           valueListenable: media.isDownloadedNotifier,
-          builder: (context, isDownloaded, _) {
+          builder: (builderContext, isDownloaded, _) {
             if (!isDownloaded || media.hasUpdate() || showSize) {
               return Stack(
                 children: [
-                  if(!showSize && media.hasUpdate())
+                  if(!showSize && (media.hasUpdate() || !isDownloaded))
                     PositionedDirectional(
                       bottom: 0,
                       end: -5,
                       height: 40,
                       child: IconButton(
+                        key: anchorKey,
                         padding: EdgeInsets.zero,
                         onPressed: () {
                           if (media.hasUpdate()) {
                             //media.update(context);
                           }
                           else {
-                            final RenderBox renderBox = context.findRenderObject() as RenderBox;
-                            final Offset tapPosition = renderBox.localToGlobal(Offset.zero) + renderBox.size.center(Offset.zero);
-
-                            media.download(context, tapPosition: tapPosition);
+                            final RenderBox? renderBox = anchorKey.currentContext?.findRenderObject() as RenderBox?;
+                            if (renderBox != null) {
+                              final Offset tapPosition = renderBox.localToGlobal(Offset.zero) +
+                                  Offset(renderBox.size.width / 2, renderBox.size.height / 2);
+                              media.download(context, tapPosition: tapPosition);
+                            }
                           }
                         },
                         icon: Icon(
@@ -109,17 +114,18 @@ class RectangleMediaItemItem extends StatelessWidget {
                         ),
                       ),
                     ),
-                  PositionedDirectional(
-                    bottom: media.hasUpdate() ? 0 : showSize ? 2 : 0,
-                    end: 2,
-                    child: Text(
-                      formatFileSize(media.fileSize ?? 0),
-                      style: TextStyle(
-                        fontSize: media.hasUpdate() ? 10 : showSize ? 12 : 10,
-                        color: const Color(0xFF9d9d9d),
+                  if(showSize)
+                    PositionedDirectional(
+                      bottom: media.hasUpdate() ? 0 : showSize ? 2 : 0,
+                      end: 2,
+                      child: Text(
+                        formatFileSize(media.fileSize ?? 0),
+                        style: TextStyle(
+                          fontSize: media.hasUpdate() ? 10 : showSize ? 12 : 10,
+                          color: const Color(0xFF9d9d9d),
+                        ),
                       ),
                     ),
-                  ),
                 ],
               );
             }

@@ -75,7 +75,7 @@ class _AudioSearchTabState extends State<AudioSearchTab> {
   }
 
   Widget _buildAudioCard(BuildContext context, Map<String, dynamic> item, {bool isGrid = false}) {
-    RealmMediaItem? mediaItem = getMediaItemFromLank(item['lank'], JwLifeSettings.instance.currentLanguage.value.symbol);
+    RealmMediaItem? mediaItem = getMediaItemFromLank(item['lank'], JwLifeSettings.instance.libraryLanguage.value.symbol);
 
     if (mediaItem == null) return const SizedBox.shrink();
 

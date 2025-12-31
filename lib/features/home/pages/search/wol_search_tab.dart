@@ -43,7 +43,7 @@ class _WolSearchTabState extends State<WolSearchTab> {
     // ---- Récupération Publication ----
     Publication? pub;
     if (docId != -1) {
-      pub = await CatalogDb.instance.searchPubNoMepsFromMepsDocumentId(docId, JwLifeSettings.instance.currentLanguage.value);
+      pub = await CatalogDb.instance.searchPubNoMepsFromMepsDocumentId(docId, JwLifeSettings.instance.libraryLanguage.value);
     }
 
     // ---- Image prioritaire : pub.imageSqr ----
@@ -65,7 +65,7 @@ class _WolSearchTabState extends State<WolSearchTab> {
               showDocumentView(
                 context,
                 docId,
-                JwLifeSettings.instance.currentLanguage.value.id,
+                JwLifeSettings.instance.libraryLanguage.value.id,
                 wordsSelected: widget.model.query.split(' '),
               );
             }

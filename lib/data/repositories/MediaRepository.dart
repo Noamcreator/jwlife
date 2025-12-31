@@ -36,7 +36,7 @@ class MediaRepository {
   Media? getByCompositeKey(RealmMediaItem? mediaItem) {
     String keySymbol = mediaItem?.pubSymbol ?? '';
     int documentId = mediaItem?.documentId ?? 0;
-    String mepsLanguage = mediaItem?.languageSymbol ?? JwLifeSettings.instance.currentLanguage.value.symbol;
+    String mepsLanguage = mediaItem?.languageSymbol ?? JwLifeSettings.instance.libraryLanguage.value.symbol;
     int issueTagNumber = mediaItem?.issueDate ?? 0;
     int? track = mediaItem?.track ?? 0;
     bool isAudio = mediaItem?.type == 'AUDIO' ? true : false;
@@ -47,7 +47,7 @@ class MediaRepository {
   Media? getByCompositeKeyForDownload(RealmMediaItem mediaItem) {
     String keySymbol = mediaItem.pubSymbol ?? '';
     int documentId = mediaItem.documentId ?? 0;
-    String mepsLanguage = mediaItem.languageSymbol ?? JwLifeSettings.instance.currentLanguage.value.symbol;
+    String mepsLanguage = mediaItem.languageSymbol ?? JwLifeSettings.instance.libraryLanguage.value.symbol;
     int issueTagNumber = mediaItem.issueDate ?? 0;
     int? track = mediaItem.track ?? 0;
 

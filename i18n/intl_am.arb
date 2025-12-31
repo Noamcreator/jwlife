@@ -920,5 +920,7 @@
   "label_research_images": "ምስሎች",
   "label_research_notes": "ማስታወሻዎች",
   "label_research_inputs_fields": "መስኮች",
-  "label_research_wikipedia": "ውክፔዲያ"
+  "label_research_wikipedia": "ውክፔዲያ",
+  "meps_language": "AM",
+  "label_icon_commentary": "የጥናት ማስታወሻ"
 }

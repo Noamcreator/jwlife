@@ -40,7 +40,7 @@ RealmMediaItem? getMediaItem(String? keySymbol, int? track, int? documentId, int
     queryParts.add("IssueDate == '$issueStr'");
   }
 
-  String languageSymbol = JwLifeSettings.instance.currentLanguage.value.symbol;
+  String languageSymbol = JwLifeSettings.instance.libraryLanguage.value.symbol;
   if (mepsLanguage != null && mepsLanguage is String) {
     languageSymbol = mepsLanguage;
   }

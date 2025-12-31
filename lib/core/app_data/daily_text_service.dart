@@ -42,11 +42,7 @@ Future<Map<String, dynamic>?> getDatedDocumentForToday(Publication publication) 
   return response.first;
 }
 
-Future<void> fetchVerseOfTheDay() async {
-  final pub = AppDataService.instance.dailyText.value;
-
-  if (pub == null) return;
-
+Future<void> fetchVerseOfTheDay(Publication pub) async {
   // 2) Attendre la fin du téléchargement
   if (!pub.isDownloadedNotifier.value) {
     late VoidCallback listener;
@@ -54,7 +50,7 @@ Future<void> fetchVerseOfTheDay() async {
     listener = () async {
       if (pub.isDownloadedNotifier.value) {
         pub.isDownloadedNotifier.removeListener(listener);
-        await fetchVerseOfTheDay(); // relance propre
+        await fetchVerseOfTheDay(pub); // relance propre
       }
     };
 

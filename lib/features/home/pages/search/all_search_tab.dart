@@ -58,11 +58,11 @@ class _AllSearchTabState extends State<AllSearchTab> {
               int chapterNumber = int.parse(remainingString.substring(remainingString.length - 3));
               int bookNumber = int.parse(remainingString.substring(0, remainingString.length - 3));
 
-              final publications = PublicationRepository().getAllDownloadedPublications().where((pub) => pub.category.id == 1 && pub.mepsLanguage.symbol == JwLifeSettings.instance.currentLanguage.value.symbol).toList();
+              final publications = PublicationRepository().getAllDownloadedPublications().where((pub) => pub.category.id == 1 && pub.mepsLanguage.symbol == JwLifeSettings.instance.libraryLanguage.value.symbol).toList();
               Publication? latestBible = publications.isEmpty ? null : publications.reduce((a, b) => a.year > b.year ? a : b);
 
               List<String> wordsSelected = widget.model.query.split(' ');
-              showChapterView(context, latestBible?.keySymbol ?? 'nwtsty', JwLifeSettings.instance.currentLanguage.value.id, bookNumber, chapterNumber, firstVerseNumber: verseNumber, lastVerseNumber: verseNumber, wordsSelected: wordsSelected);
+              showChapterView(context, latestBible?.keySymbol ?? 'nwtsty', JwLifeSettings.instance.libraryLanguage.value.id, bookNumber, chapterNumber, firstVerseNumber: verseNumber, lastVerseNumber: verseNumber, wordsSelected: wordsSelected);
             },
             child: Container(
               width: 240,
@@ -130,7 +130,7 @@ class _AllSearchTabState extends State<AllSearchTab> {
               if (item['links'] != null && item['links']['wol'] != null) {
                 String lank = item['lank'];
                 int docId = int.parse(lank.replaceAll("pa-", ""));
-                showDocumentView(context, docId, JwLifeSettings.instance.currentLanguage.value.id);
+                showDocumentView(context, docId, JwLifeSettings.instance.libraryLanguage.value.id);
               } else {
                 launchUrl(Uri.parse(item['links']['jw.org']!), mode: LaunchMode.externalApplication);
               }
@@ -181,7 +181,7 @@ class _AllSearchTabState extends State<AllSearchTab> {
         itemCount: result['results'].length,
         itemBuilder: (context, videoIndex) {
           final item = result['results'][videoIndex];
-          RealmMediaItem? mediaItem = getMediaItemFromLank(item['lank'], JwLifeSettings.instance.currentLanguage.value.symbol);
+          RealmMediaItem? mediaItem = getMediaItemFromLank(item['lank'], JwLifeSettings.instance.libraryLanguage.value.symbol);
 
           if (mediaItem == null) return const SizedBox.shrink();
 
@@ -310,7 +310,7 @@ class _AllSearchTabState extends State<AllSearchTab> {
         itemCount: result['results'].length,
         itemBuilder: (context, audioIndex) {
           final item = result['results'][audioIndex];
-          RealmMediaItem? mediaItem = getMediaItemFromLank(item['lank'], JwLifeSettings.instance.currentLanguage.value.symbol);
+          RealmMediaItem? mediaItem = getMediaItemFromLank(item['lank'], JwLifeSettings.instance.libraryLanguage.value.symbol);
 
           if (mediaItem == null) return const SizedBox.shrink();
 
@@ -466,7 +466,7 @@ class _AllSearchTabState extends State<AllSearchTab> {
                 Publication? publication = await CatalogDb.instance.searchPub(
                   keySymbol,
                   int.parse(issueTagNumber),
-                  JwLifeSettings.instance.currentLanguage.value.id,
+                  JwLifeSettings.instance.libraryLanguage.value.id,
                 );
 
                 if (publication != null) {
@@ -573,7 +573,7 @@ class _AllSearchTabState extends State<AllSearchTab> {
                     String lank = article['lank'];
                     int docId = int.parse(lank.replaceAll("pa-", ""));
                     List<String> wordsSelected = widget.model.query.split(' ');
-                    showDocumentView(context, docId, JwLifeSettings.instance.currentLanguage.value.id, wordsSelected: wordsSelected);
+                    showDocumentView(context, docId, JwLifeSettings.instance.libraryLanguage.value.id, wordsSelected: wordsSelected);
                   } else {
                     launchUrl(Uri.parse(article['links']['jw.org']!), mode: LaunchMode.externalApplication);
                   }

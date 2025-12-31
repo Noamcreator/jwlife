@@ -20,6 +20,7 @@ import 'package:uuid/uuid.dart';
 import '../../../app/app_page.dart';
 import '../../../app/services/global_key_service.dart';
 import '../../../app/services/settings_service.dart';
+import '../../../core/app_data/app_data_service.dart';
 import '../../../core/shared_preferences/shared_preferences_utils.dart';
 import '../../../core/utils/utils.dart';
 import '../../../core/utils/utils_language_dialog.dart';
@@ -37,12 +38,14 @@ import '../../../data/models/userdata/note.dart';
 import '../../../data/models/userdata/tag.dart';
 import '../../../data/models/video.dart';
 import '../../../data/realm/catalog.dart';
+import '../../../data/repositories/PublicationRepository.dart';
 import '../../../i18n/i18n.dart';
 import '../../../widgets/dialog/publication_dialogs.dart';
 import '../../../core/utils/utils_dialog.dart';
 import '../../../widgets/dialog/qr_code_dialog.dart';
 import '../../../widgets/responsive_appbar_actions.dart';
 import '../../document/local/dated_text_manager.dart';
+import '../../document/local/documents_manager.dart';
 import '../../personal/pages/tag_page.dart';
 
 class DailyTextPage extends StatefulWidget {
@@ -140,7 +143,7 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
     }
   }
 
-  Future<void> _jumpToParagraph(int beginParagraphOrdinal, int endParagraphOrdinal) async {
+  Future<void> _jumpToParagraph(int beginParagraphOrdinal, int endParagraphOrdinal, {String articleId = 'page-center'}) async {
     await _controller.evaluateJavascript(source: "jumpToIdSelector('[data-pid]', 'data-pid', $beginParagraphOrdinal, $endParagraphOrdinal);");
   }
 
@@ -665,7 +668,30 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
                       controller.addJavaScriptHandler(
                         handlerName: 'fetchExtractPublication',
                         callback: (args) async {
-                          Map<String, dynamic>? extractPublication = await fetchExtractPublication(context, 'daily', widget.publication.datedTextManager!.database, widget.publication, args[0], _jumpToPage, _jumpToParagraph);
+                          final href = args[0];
+                          final infoPublication = args[1];
+
+                          Publication? publication;
+                          int? mepsDocumentId;
+
+                          if(infoPublication != null) {
+                            // Récupération sécurisée des valeurs
+                            final rawIssueTag = infoPublication['issueTagNumber'];
+                            final rawMepsLanguageId = infoPublication['mepsLanguageId'];
+                            final rawMepsDocumentId = infoPublication['mepsDocumentId'];
+
+                            int issueTag = rawIssueTag is int ? rawIssueTag : int.parse(rawIssueTag.toString());
+                            int mepsLanguageId = rawMepsLanguageId is int ? rawMepsLanguageId : int.parse(rawMepsLanguageId.toString());
+                            mepsDocumentId = rawMepsDocumentId != null ? (rawMepsDocumentId is int ? rawMepsDocumentId : int.parse(rawMepsDocumentId.toString())) : null;
+
+                            publication = PublicationRepository().getByCompositeKeyForDownloadWithMepsLanguageId(
+                                infoPublication['keySymbol'],
+                                issueTag,
+                                mepsLanguageId
+                            );
+                          }
+
+                          Map<String, dynamic>? extractPublication = await fetchExtractPublication(context, 'document', widget.publication, publication, mepsDocumentId, href, _jumpToPage, _jumpToParagraph);
                           if (extractPublication != null) {
                             return extractPublication;
                           }
@@ -715,7 +741,7 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
                                   endParagraphId: endParagraphId
                               );
                             }
-                            else if (document['type'] != null && document['type'] == 'verse') {
+                            else if (document['type'] != null && (document['type'] == 'verse' || document['type'] == 'verse-references' || document['type'] == 'commentary')) {
                               Map<String, dynamic> verse = args[1];
                               int bookNumber1 = verse['firstBookNumber'] ?? verse['bookNumber'];
                               int bookNumber2 = verse['lastBookNumber'] ?? bookNumber1;
@@ -1128,9 +1154,16 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
                       text: i18n().action_languages,
                       icon: Icon(JwIcons.language),
                       onPressed: (anchorContext) async {
-                        showLanguagePubDialog(context, widget.publication).then((languagePub) {
+                        showLanguagePubDialog(context, widget.publication).then((languagePub) async {
                           if (languagePub != null) {
-                            languagePub.showMenu(context);
+                            if(languagePub.mepsLanguage.symbol != widget.publication.mepsLanguage.symbol) {
+                              // Fermer l'anciène fenetre
+                              Navigator.of(context).pop();
+                              showDailyText(context, languagePub, date: widget.publication.datedTextManager!.getCurrentDatedText().getDate());
+
+                              await AppSharedPreferences.instance.setDailyTextLanguage(languagePub.mepsLanguage);
+                              AppDataService.instance.changeDailyTextLanguageAndRefresh();
+                            }
                           }
                         });
                       },
@@ -1150,11 +1183,9 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
                           bool sameYear = selectedDay.year == currentDate.year;
 
                           if (!sameYear) {
-                            List<Publication> dayPubs =
-                            await CatalogDb.instance.getPublicationsForTheDay(date: selectedDay);
+                            List<Publication> dayPubs = await CatalogDb.instance.getPublicationsForTheDay(JwLifeSettings.instance.dailyTextLanguage.value,date: selectedDay);
 
-                            Publication? dailyTextPub =
-                            dayPubs.firstWhereOrNull((p) => p.keySymbol.contains('es'));
+                            Publication? dailyTextPub = dayPubs.firstWhereOrNull((p) => p.keySymbol.contains('es'));
                             if (dailyTextPub == null) return;
 
                             showDailyText(context, dailyTextPub, date: selectedDay);

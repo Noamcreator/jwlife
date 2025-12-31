@@ -3139,4 +3139,10 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get label_research_wikipedia => 'VİKİPEDİ';
+
+  @override
+  String get meps_language => 'TK';
+
+  @override
+  String get label_icon_commentary => 'Çalışma notu';
 }

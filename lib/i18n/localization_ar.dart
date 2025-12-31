@@ -3117,4 +3117,10 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get label_research_wikipedia => 'ويكيبيديا';
+
+  @override
+  String get meps_language => 'A';
+
+  @override
+  String get label_icon_commentary => 'ملاحظة دراسية';
 }

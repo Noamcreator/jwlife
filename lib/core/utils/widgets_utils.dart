@@ -6,12 +6,14 @@ Widget getLoadingWidget(Color color) {
 
 class FastLoadingWidget extends StatefulWidget {
   final Color color;
-  final Duration duration; // vitesse
+  // 800ms = Rapide mais fluide.
+  // Si c'est encore trop lent pour toi, descends à 500ms.
+  final Duration duration;
 
   const FastLoadingWidget({
     super.key,
     required this.color,
-    this.duration = const Duration(milliseconds: 800), // plus petit = plus rapide
+    this.duration = const Duration(milliseconds: 600),
   });
 
   @override
@@ -28,7 +30,7 @@ class _FastLoadingWidgetState extends State<FastLoadingWidget>
     _controller = AnimationController(
       vsync: this,
       duration: widget.duration,
-    )..repeat(); // rotation continue
+    )..repeat(); // Le repeat() sur un controller sans courbe spécifique est déjà linéaire
   }
 
   @override
@@ -44,10 +46,14 @@ class _FastLoadingWidgetState extends State<FastLoadingWidget>
         width: 45,
         height: 45,
         child: RotationTransition(
+          // On utilise directement le controller pour garder la vitesse constante
           turns: _controller,
           child: CircularProgressIndicator(
             color: widget.color,
             strokeWidth: 5,
+            // IMPORTANT : Fixer la valeur à 0.7 (ou autre) crée un cercle partiel
+            // fixe qui tourne. C'est ça qui donne l'effet de vitesse constante.
+            value: 0.7,
           ),
         ),
       ),

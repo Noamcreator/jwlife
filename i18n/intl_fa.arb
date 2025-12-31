@@ -920,5 +920,7 @@
   "label_research_images": "تصاویر",
   "label_research_notes": "یادداشت‌ها",
   "label_research_inputs_fields": "فیلدها",
-  "label_research_wikipedia": "ویکی‌پدیا"
+  "label_research_wikipedia": "ویکی‌پدیا",
+  "meps_language": "PR",
+  "label_icon_commentary": "یادداشت مطالعه"
 }

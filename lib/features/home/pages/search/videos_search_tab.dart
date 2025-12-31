@@ -160,7 +160,7 @@ class _VideosSearchTabState extends State<VideosSearchTab> {
   }
 
   Widget _buildVideoCard(BuildContext context, Map<String, dynamic> item) {
-    RealmMediaItem? mediaItem = getMediaItemFromLank(item['lank'], JwLifeSettings.instance.currentLanguage.value.symbol);
+    RealmMediaItem? mediaItem = getMediaItemFromLank(item['lank'], JwLifeSettings.instance.libraryLanguage.value.symbol);
 
     if (mediaItem == null) {
       return const SizedBox.shrink();

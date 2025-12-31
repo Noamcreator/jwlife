@@ -54,7 +54,7 @@ class Audio extends Media {
     final issueTagNumber = json?['IssueTagNumber'] ?? mediaItem?.issueDate;
     final track = json?['Track'] ?? mediaItem?.track;
 
-    final mepsLanguage = languageSymbol ?? json?['MepsLanguage'] ?? mediaItem?.languageSymbol ?? JwLifeSettings.instance.currentLanguage.value.symbol;
+    final mepsLanguage = languageSymbol ?? json?['MepsLanguage'] ?? mediaItem?.languageSymbol ?? JwLifeSettings.instance.libraryLanguage.value.symbol;
 
     mediaItem ??= getMediaItem(keySymbol, track, documentId, issueTagNumber, mepsLanguage, isVideo: false);
 

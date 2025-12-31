@@ -920,5 +920,7 @@
   "label_research_images": "ছবি",
   "label_research_notes": "টোকা",
   "label_research_inputs_fields": "ক্ষেত্ৰসমূহ",
-  "label_research_wikipedia": "উইকিপিডিয়া"
+  "label_research_wikipedia": "উইকিপিডিয়া",
+  "meps_language": "AE",
+  "label_icon_commentary": "অধ্যয়ন টোকা"
 }

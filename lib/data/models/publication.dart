@@ -129,10 +129,10 @@ class Publication {
         isFavoriteNotifier = isFavoriteNotifier ?? ValueNotifier(false),
         hasUpdateNotifier = hasUpdateNotifier ?? ValueNotifier(false);
 
-  factory Publication.fromJson(Map<String, dynamic> json, {bool? isFavorite, MepsLanguage? currentLanguage}) {
+  factory Publication.fromJson(Map<String, dynamic> json, {bool? isFavorite, MepsLanguage? language}) {
     final keySymbol = json['KeySymbol'] ?? json['UndatedSymbol'] ?? '';
     final issueTagNumber = json['IssueTagNumber'] ?? 0;
-    final mepsLanguageId = json['MepsLanguageId'] as int? ?? currentLanguage?.id ?? 0;
+    final mepsLanguageId = json['MepsLanguageId'] as int? ?? language?.id ?? 0;
 
     // Recherche dans le repository une publications existante
     Publication? existing = PublicationRepository().getPublicationWithMepsLanguageId(keySymbol, issueTagNumber, mepsLanguageId);
@@ -166,7 +166,7 @@ class Publication {
       return existing;
     }
 
-    MepsLanguage mepsLanguage = currentLanguage ?? (json['LanguageSymbol'] != null ? MepsLanguage.fromJson(json) : JwLifeSettings.instance.currentLanguage.value);
+    MepsLanguage mepsLanguage = language ?? (json['LanguageSymbol'] != null ? MepsLanguage.fromJson(json) : JwLifeSettings.instance.libraryLanguage.value);
 
     String? lastModified = json['LastModified'];
     String? timeStamp = json['Timestamp'];

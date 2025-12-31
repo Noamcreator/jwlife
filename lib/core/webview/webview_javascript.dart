@@ -45,7 +45,7 @@ String createReaderHtmlShell(
     '{{PUBLICATION_SHORT_TITLE}}': publication.getShortTitle(),
     '{{PUBLICATION_PATH}}': publication.path ?? '',
     '{{FONT_SIZE}}': fontSize.toString(),
-    '{{BOTTOM_NAVBAR_HEIGHT}}': kBottomNavigationBarHeight.toString(),
+    '{{BOTTOM_NAVBAR_HEIGHT}}': (kBottomNavigationBarHeight-1).toString(),
     '{{THEME}}': webViewData.theme,
     '{{DIRECTION}}': direction,
     '{{CURRENT_INDEX}}': firstIndex.toString(),

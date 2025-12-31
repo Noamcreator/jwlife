@@ -1,5 +1,6 @@
 .old_apk/
 .idea/
+.vscode/
 .dart_tool/
 .flutter-plugins-dependencies
 build/

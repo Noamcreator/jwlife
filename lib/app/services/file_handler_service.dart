@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/app/services/global_key_service.dart';
+import 'package:jwlife/app/services/settings_service.dart';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:path/path.dart' as path;
 
@@ -464,7 +465,7 @@ class FileHandlerService {
     else {
       if(keySymbol.isNotEmpty) {
         showJwPubNotGoodFile(keySymbol);
-        CatalogDb.instance.updateCatalogCategories();
+        CatalogDb.instance.updateCatalogCategories(JwLifeSettings.instance.libraryLanguage.value);
       }
       else {
         showPage(PublicationMenuView(publication: jwpub));

@@ -3138,4 +3138,10 @@ class AppLocalizationsAs extends AppLocalizations {
 
   @override
   String get label_research_wikipedia => 'উইকিপিডিয়া';
+
+  @override
+  String get meps_language => 'AE';
+
+  @override
+  String get label_icon_commentary => 'অধ্যয়ন টোকা';
 }

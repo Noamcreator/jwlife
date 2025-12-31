@@ -57,53 +57,43 @@ class _LanguagesAppDialogState extends State<LanguagesAppDialog> {
   }
 
   Future<void> _fetchAllLanguages(Locale locale) async {
-    // Récupérer tous les codes de langue supportés
-    final languageCodes = AppLocalizations.supportedLocales.map((locale) => locale.languageCode).toList();
+    final mepsLanguagesInClause = JwLifeSettings.instance.appLocalesMeps.map((meps) => "'${meps.value}'").join(',');
+    final selectedMepsLanguage = i18n().meps_language;
 
-    final codesInClause = languageCodes.map((code) => "'$code'").join(',');
-    final selectedCode = locale.languageCode;
-
-    // Requête SQL : LEFT JOIN + fallback COALESCE
     final response = await database!.rawQuery('''
-    SELECT
-      L.VernacularName,
-      L.PrimaryIetfCode,
-      COALESCE(LN.Name, L.PrimaryIetfCode) AS Name,
-      L.Symbol
-    FROM Language L
-    LEFT JOIN LocalizedLanguageName LLN
-      ON LLN.TargetLanguageId = L.LanguageId
-      AND LLN.SourceLanguageId = (
-        SELECT LanguageId
-        FROM Language
-        WHERE PrimaryIetfCode = '$selectedCode'
-      )
-    LEFT JOIN LanguageName LN
-      ON LN.LanguageNameId = LLN.LanguageNameId
-    WHERE L.PrimaryIetfCode IN ($codesInClause);
-  ''');
+      SELECT
+        L.VernacularName,
+        L.PrimaryIetfCode,
+        COALESCE(LN.Name, L.PrimaryIetfCode) AS Name,
+        L.Symbol
+      FROM Language L
+      LEFT JOIN LocalizedLanguageName LLN
+        ON LLN.TargetLanguageId = L.LanguageId
+        AND LLN.SourceLanguageId = (
+          SELECT LanguageId FROM Language WHERE Symbol = '$selectedMepsLanguage'
+        )
+      LEFT JOIN LanguageName LN ON LN.LanguageNameId = LLN.LanguageNameId
+      WHERE L.Symbol IN ($mepsLanguagesInClause)
+    ''');
 
-    // Créer une liste modifiable
-    List<Map<String, dynamic>> languagesModifiable = response.map((row) => Map<String, dynamic>.from(row)).toList();
+    List<Map<String, dynamic>> languagesModifiable = [];
 
-    // Ajouter le champ 'Locale'
-    for (var language in languagesModifiable) {
-      final localeMatch = AppLocalizations.supportedLocales.firstWhereOrNull((loc) => loc.languageCode == language['PrimaryIetfCode']);
-      if(localeMatch != null) {
-        language['Locale'] = localeMatch;
+    for (var loc in JwLifeSettings.instance.appLocalesMeps) {
+      final dbMatch = response.firstWhereOrNull((row) => row['Symbol'] == loc.value);
+
+      if (dbMatch != null) {
+        languagesModifiable.add({
+          ...Map<String, dynamic>.from(dbMatch),
+          'Locale': loc.key,
+        });
       }
-    }
-
-    // Vérifier chaque langue supportée et ajouter si manquante
-    for (var loc in AppLocalizations.supportedLocales) {
-      final exists = languagesModifiable.any((row) => row['Locale'] == loc);
-      if (!exists) {
+      else {
         languagesModifiable.add({
           'VernacularName': '',
-          'PrimaryIetfCode': loc.languageCode,
-          'Name': loc.toString(),
-          'Symbol': null,
-          'Locale': loc,
+          'PrimaryIetfCode': loc.key.languageCode,
+          'Name': loc.key.toString(),
+          'Symbol': loc.value,
+          'Locale': loc.key,
         });
       }
     }
@@ -217,7 +207,6 @@ class _LanguagesAppDialogState extends State<LanguagesAppDialog> {
                 separatorBuilder: (context, index) => Divider(color: dividerColor, height: 0),
                 itemBuilder: (BuildContext context, int index) {
                   final languageData = _filteredLanguagesList[index];
-                  final lank = languageData['Symbol'];
                   final vernacularName = languageData['VernacularName'];
                   final translatedName = languageData['Name'] ?? '';
 

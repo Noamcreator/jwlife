@@ -32,7 +32,7 @@ class PredicationPageState extends State<PredicationPage> {
       fontSize: 22,
     );
 
-    String locale = Localizations.localeOf(context).toString();
+    String locale = getSafeLocale();
     String formattedDate = DateFormat('MMMM yyyy', locale).format(DateTime.now()).toUpperCase();
 
     return AppPage(

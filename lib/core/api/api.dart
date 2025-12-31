@@ -139,47 +139,46 @@ class Api {
   }
 
   /// Vérifie si une mise à jour de la bibliothèque pour une langue donnée est disponible.
-  static Future<bool> isLibraryUpdateAvailable({String? symbol}) async {
-    String languageSymbol = symbol ?? JwLifeSettings.instance.currentLanguage.value.symbol;
+  static Future<bool> isLibraryUpdateAvailable(String mepsLanguageSymbol) async {
     try {
-      final url = langCatalogUrl.replaceFirst('{language_code}', languageSymbol);
+      final url = langCatalogUrl.replaceFirst('{language_code}', mepsLanguageSymbol);
       final response = await httpGetWithHeaders(url);
       final serverETag = response.headers['etag'] as List<String>;
       final serverDate = response.headers['last-modified'] as List<String>;
 
-      final results = RealmLibrary.realm.all<RealmLanguage>().query("Symbol == '$languageSymbol'");
+      final results = RealmLibrary.realm.all<RealmLanguage>().query("Symbol == '$mepsLanguageSymbol'");
       final language = results.isNotEmpty ? results.first : null;
 
       if (language == null || language.eTag != serverETag.first || language.lastModified != serverDate.first) {
-        printTime('Une mise à jour de la bibliothèque pour la langue $languageSymbol est disponible.');
+        printTime('Une mise à jour de la bibliothèque pour la langue $mepsLanguageSymbol est disponible.');
         return true;
       }
     }
     catch (e) {
       printTime('Erreur lors de la vérification de mise à jour de la bibliothèque : $e');
     }
-    printTime('La Bibliothèque pour la langue $languageSymbol est déjà à jour.');
+    printTime('La Bibliothèque pour la langue $mepsLanguageSymbol est déjà à jour.');
     return false;
   }
 
   /// Met à jour la bibliothèque pour une langue donnée.
-  static Future<bool> updateLibrary(String languageSymbol) async {
+  static Future<bool> updateLibrary(String mepsLanguageSymbol) async {
     try {
-      final url = langCatalogUrl.replaceFirst('{language_code}', languageSymbol);
+      final url = langCatalogUrl.replaceFirst('{language_code}', mepsLanguageSymbol);
       final response = await httpGetWithHeaders(url);
 
       if (response.statusCode == 200) {
-        debugPrint('Chargement du catalogue pour la langue $languageSymbol...');
+        debugPrint('Chargement du catalogue pour la langue $mepsLanguageSymbol...');
         // Mettre à jour la date de modification
         final serverEtag = response.headers['etag'] as List<String>;
         final serverDate = response.headers['last-modified'] as List<String>;
         await RealmLibrary.convertMediaJsonToRealm(response.data, serverEtag.first, serverDate.first);
 
-        debugPrint('Catalogue de la langue $languageSymbol mis à jour.');
+        debugPrint('Catalogue de la langue $mepsLanguageSymbol mis à jour.');
         return true;
       }
       else {
-        debugPrint('Échec du téléchargement du catalogue pour la langue $languageSymbol : ${response.statusCode}');
+        debugPrint('Échec du téléchargement du catalogue pour la langue $mepsLanguageSymbol : ${response.statusCode}');
       }
     } catch (e) {
       debugPrint('Erreur lors de la mise à jour de la bibliothèque : $e');

@@ -29,7 +29,7 @@ class JwLifeAudioPlayer {
 
   Future<void> fetchAudioData(Audio audio) async {
     String? lank = audio.naturalKey;
-    String? lang = audio.mepsLanguage ?? JwLifeSettings.instance.currentLanguage.value.symbol;
+    String? lang = audio.mepsLanguage ?? JwLifeSettings.instance.libraryLanguage.value.symbol;
 
     if(audio.fileUrl != null) {
       await setPlaylist([audio]);
@@ -70,7 +70,7 @@ class JwLifeAudioPlayer {
 
     if(album != category || player.audioSources.length < audios.length) {
       album = category;
-      String languageSymbol = category.languageSymbol ?? JwLifeSettings.instance.currentLanguage.value.symbol;
+      String languageSymbol = category.languageSymbol ?? JwLifeSettings.instance.libraryLanguage.value.symbol;
 
       if(hasConnection) {
         // URL de l'API
@@ -166,7 +166,7 @@ class JwLifeAudioPlayer {
                 ? album!.name!
                 : RealmLibrary.realm
                 .all<RealmCategory>()
-                .query("Key == '${audio.categoryKey}' AND LanguageSymbol == '${audio.mepsLanguage ?? JwLifeSettings.instance.currentLanguage.value.symbol}'",)
+                .query("Key == '${audio.categoryKey}' AND LanguageSymbol == '${audio.mepsLanguage ?? JwLifeSettings.instance.libraryLanguage.value.symbol}'",)
                 .firstOrNull
                 ?.name ?? '');
 

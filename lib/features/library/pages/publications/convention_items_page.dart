@@ -39,7 +39,7 @@ class _ConventionItemsViewState extends State<ConventionItemsView> {
   List<String> medias = [];
 
   final _pageTitle = ValueNotifier<String>('');
-  final _mepsLanguage = ValueNotifier<MepsLanguage>(JwLifeSettings.instance.currentLanguage.value);
+  final _mepsLanguage = ValueNotifier<MepsLanguage>(JwLifeSettings.instance.libraryLanguage.value);
 
   @override
   void initState() {
@@ -61,12 +61,12 @@ class _ConventionItemsViewState extends State<ConventionItemsView> {
   }
 
   Future<void> loadItems({Map<String, dynamic>? mepsLanguage}) async {
-    String mepsLanguageSymbol = mepsLanguage?['Symbol'] ?? JwLifeSettings.instance.currentLanguage.value.symbol;
+    String mepsLanguageSymbol = mepsLanguage?['Symbol'] ?? JwLifeSettings.instance.libraryLanguage.value.symbol;
 
-    List<Publication> pubs = await CatalogDb.instance.fetchPubsFromConventionsDays(JwLifeSettings.instance.currentLanguage.value);
+    List<Publication> pubs = await CatalogDb.instance.fetchPubsFromConventionsDays(JwLifeSettings.instance.libraryLanguage.value);
     RealmResults<RealmCategory> convDaysCategories = RealmLibrary.realm.all<RealmCategory>().query("LanguageSymbol == '$mepsLanguageSymbol'").query("Key == 'ConvDay1' OR Key == 'ConvDay2' OR Key == 'ConvDay3'");
 
-    _mepsLanguage.value = mepsLanguage != null ? MepsLanguage.fromJson(mepsLanguage) : JwLifeSettings.instance.currentLanguage.value;
+    _mepsLanguage.value = mepsLanguage != null ? MepsLanguage.fromJson(mepsLanguage) : JwLifeSettings.instance.libraryLanguage.value;
 
     setState(() {
       publications = pubs.where((element) => element.conventionReleaseDayNumber == widget.indexDay).toList();
@@ -99,7 +99,7 @@ class _ConventionItemsViewState extends State<ConventionItemsView> {
               IconTextButton(
                 icon: const Icon(JwIcons.language),
                 onPressed: (BuildContext context) {
-                  showLanguageDialog(context, selectedLanguageSymbol: _mepsLanguage.value.symbol).then((language) async {
+                  showLanguageDialog(context, firstSelectedLanguage: _mepsLanguage.value.symbol).then((language) async {
                     if (language != null) {
                       await loadItems(mepsLanguage: language);
                       _loadTitle();

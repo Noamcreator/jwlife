@@ -3070,4 +3070,10 @@ class AppLocalizationsAm extends AppLocalizations {
 
   @override
   String get label_research_wikipedia => 'ውክፔዲያ';
+
+  @override
+  String get meps_language => 'AM';
+
+  @override
+  String get label_icon_commentary => 'የጥናት ማስታወሻ';
 }

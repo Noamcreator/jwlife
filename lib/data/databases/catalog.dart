@@ -76,7 +76,7 @@ class CatalogDb {
     }
   }
 
-  Future<void> updateCatalogCategories() async {
+  Future<void> updateCatalogCategories(MepsLanguage language) async {
     printTime('On met à jour les catégories pour voir si le catalogue contient des nouvelles publications...');
     // Charger le fichier de catalogue et ouvrir la base de données
     try {
@@ -86,7 +86,7 @@ class CatalogDb {
             PublicationTypeId AS id
           FROM Publication
           WHERE MepsLanguageId = ?
-        ''', [JwLifeSettings.instance.currentLanguage.value.id]);
+        ''', [language.id]);
 
       List<Map<String, dynamic>> hasPubForConventionDay = await database.rawQuery('''
           SELECT EXISTS (
@@ -95,15 +95,15 @@ class CatalogDb {
               WHERE ConventionReleaseDayNumber IS NOT NULL
                 AND MepsLanguageId = ?
           ) AS HasConventionReleaseDayNumber;
-        ''', [JwLifeSettings.instance.currentLanguage.value.id]);
+        ''', [language.id]);
 
-      final hasConvDay = RealmLibrary.realm.all<RealmCategory>().query("LanguageSymbol == '${JwLifeSettings.instance.currentLanguage.value.symbol}'").query("Key == 'ConvDay1' OR Key == 'ConvDay2' OR Key == 'ConvDay3'");
+      final hasConvDay = RealmLibrary.realm.all<RealmCategory>().query("LanguageSymbol == '${language.symbol}'").query("Key == 'ConvDay1' OR Key == 'ConvDay2' OR Key == 'ConvDay3'");
 
       // Convertir les résultats SQL en un Set pour une recherche rapide
       Set<int> existingIds = result1.map((e) => e['id'] as int).toSet();
 
       // Récupérer les publications en fonction de la langue actuelle
-      List<Publication> publications = PublicationRepository().getPublicationsFromLanguage(JwLifeSettings.instance.currentLanguage.value);
+      List<Publication> publications = PublicationRepository().getPublicationsFromLanguage(language);
 
       // Extraire les IDs des catégories existantes dans les publications
       Set<int> existingTypes = publications.map((e) => e.category.id).toSet();
@@ -128,13 +128,13 @@ class CatalogDb {
     }
   }
 
-  Future<List<Publication>> getPublicationsForTheDay({DateTime? date, MepsLanguage? mepsLanguage}) async {
+  Future<List<Publication>> getPublicationsForTheDay(MepsLanguage mepsLanguage, {DateTime? date}) async {
     // Obtenez la date du jour au format AAAA-mm-jj
     String formattedDate = '';
     date ??= DateTime.now();
     formattedDate = "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
 
-    MepsLanguage language = mepsLanguage ?? JwLifeSettings.instance.currentLanguage.value;
+    MepsLanguage language = mepsLanguage;
 
     try {
       final result = await database.rawQuery('''
@@ -147,7 +147,7 @@ class CatalogDb {
           WHERE ? BETWEEN dt.Start AND dt.End AND p.MepsLanguageId = ?
         ''', [formattedDate, language.id]);
 
-      return result.map((e) => Publication.fromJson(e, currentLanguage: language)).toList();
+      return result.map((e) => Publication.fromJson(e, language: language)).toList();
     }
     catch (e) {
       printTime('Error getPublicationsForTheDay: $e');
@@ -380,7 +380,7 @@ class CatalogDb {
           LIMIT 1
         ''', [mepsDocumentId, mepsLanguage]);
 
-      return publications.isNotEmpty ? Publication.fromJson(publications.first, currentLanguage: mepsLanguage) : null;
+      return publications.isNotEmpty ? Publication.fromJson(publications.first, language: mepsLanguage) : null;
     }
     catch (e) {
       return null;
@@ -421,7 +421,7 @@ class CatalogDb {
       // Groupement par attribut
       final Map<List<PublicationAttribute>, List<Publication>> groupedByCategory = {};
       for (final publication in result) {
-        final pub = Publication.fromJson(publication, currentLanguage: mepsLanguage);
+        final pub = Publication.fromJson(publication, language: mepsLanguage);
         groupedByCategory.putIfAbsent(pub.attributes, () => []).add(pub);
       }
 
@@ -434,7 +434,7 @@ class CatalogDb {
   }
 
   Future<List<Map<String, dynamic>>> getItemsYearInCategory(int category, {int? mepsLanguageId}) async {
-    mepsLanguageId ??= JwLifeSettings.instance.currentLanguage.value.id;
+    mepsLanguageId ??= JwLifeSettings.instance.libraryLanguage.value.id;
 
     try {
        final result = await database.rawQuery(''' 
@@ -494,7 +494,7 @@ class CatalogDb {
 
       // Fusion et transformation en objets Publication
       for (var publication in [...circuitAssemblies, ...convention]) {
-        final pub = Publication.fromJson(publication, currentLanguage: mepsLanguage);
+        final pub = Publication.fromJson(publication, language: mepsLanguage);
         assembliesPublications.add(pub);
       }
 
@@ -604,7 +604,7 @@ class CatalogDb {
       ]);
 
       // Transformation de la liste de Maps en liste d'objets Publication
-      return results.map((json) => Publication.fromJson(json, currentLanguage: mepsLanguage)).toList();
+      return results.map((json) => Publication.fromJson(json, language: mepsLanguage)).toList();
 
     }
     catch (e) {

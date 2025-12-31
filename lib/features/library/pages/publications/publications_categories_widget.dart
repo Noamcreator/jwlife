@@ -21,7 +21,6 @@ class PublicationsCategoriesWidget extends StatelessWidget {
           return const SizedBox.shrink();
         }
 
-        // Transforme les catégories en widgets
         final List<Widget> categoryWidgets = categories.map((category) {
           final ThemeData theme = Theme.of(context);
           final bool isDark = theme.brightness == Brightness.dark;
@@ -33,7 +32,9 @@ class PublicationsCategoriesWidget extends StatelessWidget {
             color: backgroundColor,
             child: InkWell(
               onTap: () {
-                final Widget destinationPage = category.hasYears || category.type == 'Convention' ? PublicationSubcategoriesPage(category: category) : PublicationsItemsPage(category: category, mepsLanguage: JwLifeSettings.instance.currentLanguage.value);
+                final Widget destinationPage = category.hasYears || category.type == 'Convention'
+                    ? PublicationSubcategoriesPage(category: category)
+                    : PublicationsItemsPage(category: category, mepsLanguage: JwLifeSettings.instance.libraryLanguage.value);
                 showPage(destinationPage);
               },
               child: FutureBuilder<Widget>(
@@ -50,7 +51,7 @@ class PublicationsCategoriesWidget extends StatelessWidget {
         }).toList();
 
         return ResponsiveCategoriesWrapLayout(
-          textDirection: JwLifeSettings.instance.currentLanguage.value.isRtl ? TextDirection.rtl : TextDirection.ltr,
+          textDirection: JwLifeSettings.instance.libraryLanguage.value.isRtl ? TextDirection.rtl : TextDirection.ltr,
           children: categoryWidgets,
         );
       },
@@ -58,8 +59,9 @@ class PublicationsCategoriesWidget extends StatelessWidget {
   }
 
   Future<Widget> _buildCategoryButton(BuildContext context, PublicationCategory category, Color backgroundColor, Color textColor) async {
-    final String categoryName = await category.getNameAsync(JwLifeSettings.instance.currentLanguage.value.getSafeLocale());
-    final iconColor = Theme.of(context).brightness == Brightness.dark ? Color(0xFFC0C0C0) : Color(0xFF4F4F4F);
+    final Brightness brightness = Theme.of(context).brightness;
+    final String categoryName = await category.getNameAsync(JwLifeSettings.instance.libraryLanguage.value.getSafeLocale());
+    final Color iconColor = brightness == Brightness.dark ? const Color(0xFFC0C0C0) : const Color(0xFF4F4F4F);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20.0),

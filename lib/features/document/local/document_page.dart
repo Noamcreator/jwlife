@@ -402,12 +402,12 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
     }
   }
 
-  Future<void> _jumpToParagraph(int beginParagraphOrdinal, int endParagraphOrdinal) async {
-    await _controller.evaluateJavascript(source: "jumpToIdSelector('[data-pid]', 'data-pid', $beginParagraphOrdinal, $endParagraphOrdinal);");
+  Future<void> _jumpToParagraph(int beginParagraphOrdinal, int endParagraphOrdinal, {String articleId = 'page-center'}) async {
+    await _controller.evaluateJavascript(source: "jumpToIdSelector('$articleId', '[data-pid]', 'data-pid', $beginParagraphOrdinal, $endParagraphOrdinal);");
   }
 
-  Future<void> _jumpToVerse(int startVerseNumber, int? lastVerseNumber) async {
-    await _controller.evaluateJavascript(source: "jumpToIdSelector('.v', 'id', $startVerseNumber, $lastVerseNumber);");
+  Future<void> _jumpToVerse(int startVerseNumber, int? lastVerseNumber, {String articleId = 'page-center'}) async {
+    await _controller.evaluateJavascript(source: "jumpToIdSelector('$articleId', '.v', 'id', $startVerseNumber, $lastVerseNumber);");
   }
 
   Future<void> _jumpToPage(int page) async {
@@ -989,7 +989,30 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
                     controller.addJavaScriptHandler(
                       handlerName: 'fetchExtractPublication',
                       callback: (args) async {
-                        Map<String, dynamic>? extractPublication = await fetchExtractPublication(context, 'document', widget.publication.documentsManager!.database, widget.publication, args[0], _jumpToPage, _jumpToParagraph);
+                        final href = args[0];
+                        final infoPublication = args[1];
+
+                        Publication? publication;
+                        int? mepsDocumentId;
+
+                        if(infoPublication != null) {
+                          // Récupération sécurisée des valeurs
+                          final rawIssueTag = infoPublication['issueTagNumber'];
+                          final rawMepsLanguageId = infoPublication['mepsLanguageId'];
+                          final rawMepsDocumentId = infoPublication['mepsDocumentId'];
+
+                          int issueTag = rawIssueTag is int ? rawIssueTag : int.parse(rawIssueTag.toString());
+                          int mepsLanguageId = rawMepsLanguageId is int ? rawMepsLanguageId : int.parse(rawMepsLanguageId.toString());
+                          mepsDocumentId = rawMepsDocumentId != null ? (rawMepsDocumentId is int ? rawMepsDocumentId : int.parse(rawMepsDocumentId.toString())) : null;
+
+                          publication = PublicationRepository().getByCompositeKeyForDownloadWithMepsLanguageId(
+                              infoPublication['keySymbol'],
+                              issueTag,
+                              mepsLanguageId
+                          );
+                        }
+
+                        Map<String, dynamic>? extractPublication = await fetchExtractPublication(context, 'document', widget.publication, publication, mepsDocumentId, href, _jumpToPage, _jumpToParagraph);
                         if (extractPublication != null) {
                           return extractPublication;
                         }
@@ -1027,16 +1050,19 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
                         int book = document.bookNumber!;
                         int chapter = document.chapterNumber!;
                         int verse = args[0]['id'];
-                        int? verseId = await JwLifeApp.bibleCluesInfo.getBibleVerseId(book, chapter, verse);
+                        // Préparation des segments
 
-                        Future<List<Map<String, dynamic>>> verseCommentaries = fetchVerseCommentaries(context, widget.publication, verseId!, false);
+                        final bibleSegments = await JwLifeApp.bibleCluesInfo.getBibleVerseId(book, chapter, verse);
+                        int verseId = bibleSegments['NWTR']?['start'] ?? 0;
+
+                        Future<List<Map<String, dynamic>>> verseCommentaries = fetchVerseCommentaries(context, widget.publication, verseId, false);
                         Future<List<Map<String, dynamic>>> verseMedias = fetchVerseMedias(context, widget.publication, verseId);
                         Future<List<Map<String, dynamic>>> verseVersions = fetchOtherVerseVersion(context, widget.publication, book, chapter, verse, verseId);
                         Future<List<Map<String, dynamic>>> verseResearchGuide = fetchVerseResearchGuide(context, verseId, false);
                         Future<List<Map<String, dynamic>>> verseFootnotes = fetchVerseFootnotes(context, widget.publication, verseId);
 
                         final verseInfo = {
-                          'title': JwLifeApp.bibleCluesInfo.getVerse(widget.publication.documentsManager!.getCurrentDocument().bookNumber!, widget.publication.documentsManager!.getCurrentDocument().chapterNumber!, verse),
+                          'title': JwLifeApp.bibleCluesInfo.getVerse(document.bookNumber!, document.chapterNumber!, verse),
                           'commentary': await verseCommentaries,
                           'medias': await verseMedias,
                           'versions': await verseVersions,
@@ -1077,7 +1103,7 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
                                 endParagraphId: endParagraphId       // Passé comme int?
                             );
                           }
-                          else if (document['type'] != null && document['type'] == 'verse') {
+                          else if (document['type'] != null && (document['type'] == 'verse' || document['type'] == 'verse-references' || document['type'] == 'commentary')) {
                             Map<String, dynamic> verse = args.length == 1 ? args[0] : args[1];
                             String keySymbol = document['keySymbol'];
                             int mepsLanguageId = document['mepsLanguageId'];
@@ -1342,7 +1368,7 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
                         audio_service.MediaItem mediaItem = audio_service.MediaItem(
                             id: '0',
                             album: bible.title,
-                            title: JwLifeApp.bibleCluesInfo.getVerse(verse['bookNumber'], verse['chapterNumber'], verseNumber, localeCode: widget.publication.mepsLanguage.primaryIetfCode),
+                            title: JwLifeApp.bibleCluesInfo.getVerse(verse['bookNumber'], verse['chapterNumber'], verseNumber),
                             artUri: Uri.file(bible.imageSqr!)
                         );
 
@@ -1385,7 +1411,7 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
                         int? issue = uri.queryParameters['issue'] != null ? int.parse(uri.queryParameters['issue']!) : null;
                         int? docId = uri.queryParameters['docid'] != null ? int.parse(uri.queryParameters['docid']!) : null;
                         int? track = uri.queryParameters['track'] != null ? int.parse(uri.queryParameters['track']!) : null;
-                        String? langwritten = uri.queryParameters['langwritten'] ?? JwLifeSettings.instance.currentLanguage.value.symbol;
+                        String? langwritten = uri.queryParameters['langwritten'] ?? JwLifeSettings.instance.libraryLanguage.value.symbol;
                         int? langId = uri.queryParameters['langId'] != null ? int.parse(uri.queryParameters['langId']!) : null;
 
                         if(langId != null) {

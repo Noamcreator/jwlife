@@ -118,7 +118,7 @@ class LibraryPageState extends State<LibraryPage> with TickerProviderStateMixin 
     final language = await showLanguageDialog(context);
     if (language != null) {
       await AppSharedPreferences.instance.setLibraryLanguage(language);
-      AppDataService.instance.changeLanguageAndRefreshContent();
+      AppDataService.instance.changeLibraryLanguageAndRefresh();
     }
   }
 
@@ -165,7 +165,7 @@ class LibraryPageState extends State<LibraryPage> with TickerProviderStateMixin 
         canPop: false,
         title: i18n().navigation_library,
         subTitleWidget: ValueListenableBuilder(
-            valueListenable: JwLifeSettings.instance.currentLanguage,
+            valueListenable: JwLifeSettings.instance.libraryLanguage,
             builder: (context, value, child) {
               return Text(value.vernacular, style: Theme.of(context).extension<JwLifeThemeStyles>()!.appBarSubTitle);
             }

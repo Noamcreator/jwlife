@@ -3182,4 +3182,10 @@ class AppLocalizationsAy extends AppLocalizations {
 
   @override
   String get label_research_wikipedia => 'WIKIPEDIA';
+
+  @override
+  String get meps_language => 'AP';
+
+  @override
+  String get label_icon_commentary => 'Yatiqañ qillqa';
 }

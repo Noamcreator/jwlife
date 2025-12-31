@@ -3036,4 +3036,10 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get label_research_wikipedia => 'ウィキペディア';
+
+  @override
+  String get meps_language => 'J';
+
+  @override
+  String get label_icon_commentary => '学習ノート';
 }

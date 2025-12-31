@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 
 class MultiValueListenableBuilder extends StatelessWidget {
-  final List<ValueNotifier<bool>> listenables;
+  // En mettant Listenable, on accepte ValueNotifier<bool>, ValueNotifier<MepsLanguage>, etc.
+  final List<Listenable> listenables;
   final Widget Function(BuildContext context) builder;
 
   const MultiValueListenableBuilder({

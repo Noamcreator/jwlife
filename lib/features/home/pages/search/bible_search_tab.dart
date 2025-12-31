@@ -121,14 +121,14 @@ class _BibleSearchTabState extends State<BibleSearchTab> {
                   int chapterNumber = int.parse(itemString2.substring(2, 5));
                   int verseNumber = int.parse(itemString2.substring(5, 8));
 
-                  final publications = PublicationRepository().getAllDownloadedPublications().where((pub) => pub.category.id == 1 && pub.mepsLanguage.symbol == JwLifeSettings.instance.currentLanguage.value.symbol).toList();
+                  final publications = PublicationRepository().getAllDownloadedPublications().where((pub) => pub.category.id == 1 && pub.mepsLanguage.symbol == JwLifeSettings.instance.libraryLanguage.value.symbol).toList();
                   Publication? latestBible = publications.isEmpty ? null : publications.reduce((a, b) => a.year > b.year ? a : b);
 
                   List<String> wordsSelected = widget.model.query.split(' ');
                   showChapterView(
                     context,
                     latestBible?.keySymbol ?? 'nwtsty',
-                    JwLifeSettings.instance.currentLanguage.value.id,
+                    JwLifeSettings.instance.libraryLanguage.value.id,
                     bookNumber,
                     chapterNumber,
                     firstVerseNumber: verseNumber,

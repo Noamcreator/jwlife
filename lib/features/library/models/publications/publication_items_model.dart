@@ -48,7 +48,7 @@ class PublicationsItemsViewModel with ChangeNotifier {
     // *** MODIFICATION : Map locale utilise la clé simple ***
     Map<PublicationAttribute, List<Publication>> publications = {};
 
-    mepsLanguage = mepsLanguageMap != null ? MepsLanguage.fromJson(mepsLanguageMap) : currentMepsLanguage ?? JwLifeSettings.instance.currentLanguage.value;
+    mepsLanguage = mepsLanguageMap != null ? MepsLanguage.fromJson(mepsLanguageMap) : currentMepsLanguage ?? JwLifeSettings.instance.libraryLanguage.value;
 
     // Charger les publications existantes (la sortie de PubCatalog devra être ajustée côté Base de données)
     Map<List<PublicationAttribute>, List<Publication>> rawPublications = {};

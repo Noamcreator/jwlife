@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:jwlife/core/utils/utils.dart';
 import 'package:table_calendar/table_calendar.dart';
 
 import '../../../app/app_page.dart';
@@ -177,7 +178,7 @@ class _PredicationReportPageState extends State<PredicationReportPage> {
             const SizedBox(height: 20),
             if (_selectedDay != null) ...[
               Text(
-                DateFormat("EEEE d MMMM", JwLifeSettings.instance.locale.languageCode).format(_selectedDay!),
+                DateFormat("EEEE d MMMM", getSafeLocale()).format(_selectedDay!),
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 10),

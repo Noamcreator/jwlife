@@ -920,5 +920,7 @@
   "label_research_images": "IMÁGENES",
   "label_research_notes": "NOTAS",
   "label_research_inputs_fields": "CAMPOS",
-  "label_research_wikipedia": "WIKIPEDIA"
+  "label_research_wikipedia": "WIKIPEDIA",
+  "meps_language": "S",
+  "label_icon_commentary": "Nota de estudio"
 }

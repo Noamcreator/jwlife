@@ -1,4 +1,5 @@
 import 'package:collection/collection.dart';
+import 'package:jwlife/app/services/settings_service.dart';
 import 'package:jwlife/data/repositories/PublicationRepository.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -139,7 +140,7 @@ Future<void> handleUri(JwOrgUri uri) async {
     else if (uri.isDailyText) {
       final date = (uri.date == null || uri.date == 'today') ? DateTime.now() : DateTime.parse(uri.date!);
 
-      List<Publication> dayPubs = await CatalogDb.instance.getPublicationsForTheDay(date: date);
+      List<Publication> dayPubs = await CatalogDb.instance.getPublicationsForTheDay(JwLifeSettings.instance.dailyTextLanguage.value, date: date);
 
       // Si Publication a un champ 'id' ou 'symbol' à tester
       Publication? dailyTextPub = dayPubs.firstWhereOrNull((p) => p.keySymbol.contains('es')); // ou p.symbol, p.title, etc.
@@ -152,7 +153,7 @@ Future<void> handleUri(JwOrgUri uri) async {
     else if (uri.isMeetings) {
       final date = (uri.date == null) ? DateTime.now() : DateTime.parse(uri.date!);
 
-      List<Publication> dayPubs = await CatalogDb.instance.getPublicationsForTheDay(date: date);
+      List<Publication> dayPubs = await CatalogDb.instance.getPublicationsForTheDay(JwLifeSettings.instance.dailyTextLanguage.value, date: date);
 
       refreshMeetingsPubs(pubs: dayPubs);
       GlobalKeyService.workShipKey.currentState!.refreshSelectedDay(date);

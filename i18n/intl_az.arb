@@ -920,5 +920,7 @@
   "label_research_images": "ŞƏKİLLƏR",
   "label_research_notes": "QEYDLƏR",
   "label_research_inputs_fields": "SAHƏLƏR",
-  "label_research_wikipedia": "VİKİPEDİYA"
+  "label_research_wikipedia": "VİKİPEDİYA",
+  "meps_language": "AJR",
+  "label_icon_commentary": "Tədris qeydi"
 }

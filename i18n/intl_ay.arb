@@ -920,5 +920,7 @@
   "label_research_images": "JAMUQNAKA",
   "label_research_notes": "QILLQANAKA",
   "label_research_inputs_fields": "YATIYÄWINAKA",
-  "label_research_wikipedia": "WIKIPEDIA"
+  "label_research_wikipedia": "WIKIPEDIA",
+  "meps_language": "AP",
+  "label_icon_commentary": "Yatiqañ qillqa"
 }

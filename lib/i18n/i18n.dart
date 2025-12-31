@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:jwlife/app/services/global_key_service.dart';
 import 'localization.dart';
 
-AppLocalizations i18n() {
-  BuildContext context = GlobalKeyService.jwLifePageKey.currentState!.context;
+AppLocalizations i18n({BuildContext? context}) {
+  context ??= GlobalKeyService.jwLifePageKey.currentState!.context;
   return AppLocalizations.of(context)!;
 }
 

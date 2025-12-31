@@ -298,7 +298,8 @@ class PubCollections {
           }
           await db.close();
         }
-      } else {
+      }
+      else {
         // Utilisation des données de publication existantes
         pubDb['LanguageSymbol'] = publication.mepsLanguage.symbol;
         pubDb['LanguageVernacularName'] = publication.mepsLanguage.vernacular;

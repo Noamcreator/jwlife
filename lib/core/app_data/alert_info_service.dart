@@ -4,7 +4,7 @@ import 'package:jwlife/data/models/meps_language.dart';
 import '../api/api.dart';
 import '../utils/utils.dart';
 
-Future<void> fetchAlertsList(MepsLanguage language) async {
+Future<void> fetchAlertsList(String mepsLanguageSymbol) async {
   printTime("fetchAlertInfo");
 
   if(Api.currentJwToken.isEmpty) {
@@ -14,7 +14,7 @@ Future<void> fetchAlertsList(MepsLanguage language) async {
   // Préparer les paramètres de requête pour l'URL
   final queryParams = {
     'type': 'news',
-    'lang': language.symbol,
+    'lang': mepsLanguageSymbol,
     'context': 'homePage',
   };
 

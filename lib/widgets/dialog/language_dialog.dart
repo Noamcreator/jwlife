@@ -56,7 +56,7 @@ class _LanguageDialogState extends State<LanguageDialog> {
   }
 
   Future<void> initSettings() async {
-    selectedLanguage = widget.selectedLanguageSymbol ?? JwLifeSettings.instance.currentLanguage.value.symbol;
+    selectedLanguage = widget.selectedLanguageSymbol ?? JwLifeSettings.instance.libraryLanguage.value.symbol;
 
     File mepsUnitFile = await getMepsUnitDatabaseFile();
 

@@ -207,7 +207,7 @@ class History {
     int? documentId = video.documentId;
     int? issueTagNumber = video.issueTagNumber;
     String? displayTitle = video.title;
-    int mepsLanguageId = JwLifeSettings.instance.currentLanguage.value.id;
+    int mepsLanguageId = JwLifeSettings.instance.libraryLanguage.value.id;
 
     String whereClause = "Type = ?";
     List<dynamic> whereArgs = ["video"];
@@ -275,7 +275,7 @@ class History {
     int? documentId = audio.documentId;
     int? issueTagNumber = audio.issueTagNumber;
     String? displayTitle = audio.title;
-    int mepsLanguageId = JwLifeSettings.instance.currentLanguage.value.id;
+    int mepsLanguageId = JwLifeSettings.instance.libraryLanguage.value.id;
 
     String whereClause = "Type = ?";
     List<dynamic> whereArgs = ["audio"];
@@ -343,7 +343,7 @@ class History {
     int? documentId = audio.documentId;
     int? issueTagNumber = audio.issueTagNumber;
     String? displayTitle = audio.title;
-    int mepsLanguageId = JwLifeSettings.instance.currentLanguage.value.id;
+    int mepsLanguageId = JwLifeSettings.instance.libraryLanguage.value.id;
 
     String whereClause = "Type = ?";
     List<dynamic> whereArgs = ["audio"];

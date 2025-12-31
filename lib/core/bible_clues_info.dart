@@ -54,10 +54,10 @@ class BibleCluesInfo {
   }
 
   String getVerse(int book, int chapter, int verse, {String? localeCode, String type = 'standardBookName'}) {
-    return getVerses(book, chapter, verse, book, chapter, verse, type: type, localeCode: localeCode);
+    return getVerses(book, chapter, verse, book, chapter, verse, type: type);
   }
 
-  String getVerses(int book1, int chapter1, int verse1, int book2, int chapter2, int verse2, {String? localeCode, String type = 'standardBookName'}) {
+  String getVerses(int book1, int chapter1, int verse1, int book2, int chapter2, int verse2, {String type = 'standardBookName'}) {
     // Récupération des infos des livres
     BibleBookName bookName1 = bibleBookNames.elementAt(book1 - 1);
     String name1 = type == 'standardBookName' ? bookName1.standardBookName : type == 'standardBookAbbreviation' ? bookName1.standardBookAbbreviation : bookName1.standardBookName;
@@ -67,12 +67,12 @@ class BibleCluesInfo {
     bool showChapter1 = !(bookName1.isSingleChapter);
 
     // Formatage des chiffres
-    final String formattedChapter1 = formatNumber(chapter1, format: '0', localeCode: localeCode);
-    final String formattedChapter2 = formatNumber(chapter2, format: '0', localeCode: localeCode);
+    final String formattedChapter1 = formatNumber(chapter1, format: '0');
+    final String formattedChapter2 = formatNumber(chapter2, format: '0');
 
     String formatVerseText(int v) {
       if (v == 0) return superscriptionFullText;
-      return formatNumber(v, format: '0', localeCode: localeCode);
+      return formatNumber(v, format: '0');
     }
 
     String formattedVerse1Text = formatVerseText(verse1);
@@ -112,31 +112,59 @@ class BibleCluesInfo {
     return '$name1 ${buildRef(showChapter1, formattedChapter1, formattedVerse1Text)}';
   }
 
-  Future<int?> getBibleVerseId(int book, int chapter, int verse) async {
-    File mepsFile = await getMepsUnitDatabaseFile();
+  Future<Map<String, Map<String, int>>> getBibleVerseId(int book1, int chapter1, int verse1, {int? book2, int? chapter2, int? verse2}) async {
+    final File mepsFile = await getMepsUnitDatabaseFile();
+    final Database db = await openReadOnlyDatabase(mepsFile.path);
+
+    // On prépare la structure demandée
+    final Map<String, Map<String, int>> bibleSegments = {
+      'NWT': {'start': 0, 'end': 0},
+      'NWTR': {'start': 0, 'end': 0},
+    };
+
+    final int endBook = book2 ?? book1;
+    final int endChapter = chapter2 ?? chapter1;
+    final int endVerse = verse2 ?? verse1;
 
     try {
-      Database db = await openReadOnlyDatabase(mepsFile.path);
-      List<Map<String, dynamic>> result = await db.rawQuery("""
+      // On récupère uniquement le premier chapitre et le dernier chapitre de la plage
+      final List<Map<String, dynamic>> rangeData = await db.rawQuery("""
       SELECT 
-        FirstBibleVerseId + (? - 1) +
-        CASE 
-          WHEN EXISTS (
-            SELECT 1 FROM BibleSuperscriptionLocation
-            WHERE BookNumber = ? AND ChapterNumber = ?
-          ) AND ? > 1 THEN 1 ELSE 0
-        END AS VerseId
-      FROM BibleRange
-      INNER JOIN BibleInfo ON BibleRange.BibleInfoId = BibleInfo.BibleInfoId
-      WHERE BibleInfo.Name = ? AND BookNumber = ? AND ChapterNumber = ?;
-      """, [verse, book, chapter, verse, 'NWTR', book, chapter]);
+        bi.Name, br.BookNumber, br.ChapterNumber, br.FirstBibleVerseId, br.FirstOrdinal,
+        (SELECT COUNT(*) FROM BibleSuperscriptionLocation bsl 
+         WHERE bsl.BookNumber = br.BookNumber AND bsl.ChapterNumber = br.ChapterNumber) as HasSup
+      FROM BibleRange br
+      INNER JOIN BibleInfo bi ON br.BibleInfoId = bi.BibleInfoId
+      WHERE bi.Name IN ('NWTR', 'NWT') 
+      AND ((br.BookNumber = ? AND br.ChapterNumber = ?) OR (br.BookNumber = ? AND br.ChapterNumber = ?))
+    """, [book1, chapter1, endBook, endChapter]);
 
-      return result.first['VerseId'] as int;
+      for (var type in ['NWT', 'NWTR']) {
+        final typeChapters = rangeData.where((e) => e['Name'] == type).toList();
+        if (typeChapters.isEmpty) continue;
+
+        // On trouve le chapitre de départ et celui de fin dans les résultats
+        final startData = typeChapters.firstWhere((e) => e['BookNumber'] == book1 && e['ChapterNumber'] == chapter1);
+        final endData = typeChapters.firstWhere((e) => e['BookNumber'] == endBook && e['ChapterNumber'] == endChapter);
+
+        // Calcul ID de début
+        int startId = startData['FirstBibleVerseId'] + (verse1 - startData['FirstOrdinal']);
+        if (startData['HasSup'] > 0 && verse1 != 0) startId++;
+
+        // Calcul ID de fin
+        int endId = endData['FirstBibleVerseId'] + (endVerse - endData['FirstOrdinal']);
+        if (endData['HasSup'] > 0 && endVerse != 0) endId++;
+
+        bibleSegments[type] = {
+          'start': startId,
+          'end': endId,
+        };
+      }
+    } finally {
+      await db.close();
     }
-    catch (e) {
-      print('Error opening database: $e');
-    }
-    return null;
+
+    return bibleSegments;
   }
 }
 

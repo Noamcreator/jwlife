@@ -83,14 +83,14 @@ class _VisitsViewState extends State<VisitsView> {
     List<Map<String, dynamic>> publications = await catalogDb.rawQuery('''
     SELECT * FROM Publication
     WHERE MepsLanguageId = ? AND IssueTagNumber = 0
-  ''', [JwLifeSettings.instance.currentLanguage.value.id]);
+  ''', [JwLifeSettings.instance.libraryLanguage.value.id]);
 
     File pubCollectionsFile = await getPubCollectionsDatabaseFile();
     Database pubCollectionDb = await openReadOnlyDatabase(pubCollectionsFile.path);
     List<Map<String, dynamic>> downloadPublications = await pubCollectionDb.rawQuery('''
     SELECT * FROM Publication
     WHERE MepsLanguageId = ? AND IssueTagNumber = 0
-  ''', [JwLifeSettings.instance.currentLanguage.value.id]);
+  ''', [JwLifeSettings.instance.libraryLanguage.value.id]);
 
     List<Map<String, dynamic>> documents = [];
 

@@ -920,5 +920,7 @@
   "label_research_images": "IMMAGINI",
   "label_research_notes": "NOTE",
   "label_research_inputs_fields": "CAMPI",
-  "label_research_wikipedia": "WIKIPEDIA"
+  "label_research_wikipedia": "WIKIPEDIA",
+  "meps_language": "I",
+  "label_icon_commentary": "Nota di studio"
 }

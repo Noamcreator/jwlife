@@ -223,14 +223,16 @@ class _AudioItemsPageState extends State<AudioItemsPage> {
           IconTextButton(
             icon: const Icon(JwIcons.language),
             onPressed: (BuildContext context) async {
-              showLanguageDialog(context, selectedLanguageSymbol: _language.symbol).then((language) async {
+              showLanguageDialog(context, firstSelectedLanguage: _language.symbol).then((language) async {
                 if (language != null) {
-                  loadItems(symbol: language['Symbol']);
+                  if(language['Symbol'] != _language.symbol) {
+                    loadItems(symbol: language['Symbol']);
 
-                  if (await Api.isLibraryUpdateAvailable(symbol: language['Symbol'])) {
-                    Api.updateLibrary(language['Symbol']!).then((_) {
-                      loadItems(symbol: language['Symbol']);
-                    });
+                    if (await Api.isLibraryUpdateAvailable(language['Symbol'])) {
+                      Api.updateLibrary(language['Symbol']!).then((_) {
+                        loadItems(symbol: language['Symbol']);
+                      });
+                    }
                   }
                 }
               });

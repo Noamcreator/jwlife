@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite/sqflite.dart';
 import '../../app/services/settings_service.dart';
 import '../../data/models/meps_language.dart';
+import '../../i18n/i18n.dart';
 import '../../i18n/localization.dart';
 import '../constants.dart';
 import 'shared_preferences_keys.dart'; // Assurez-vous d'importer vos clés
@@ -153,86 +154,122 @@ class AppSharedPreferences {
     await _sp.setString(SharedPreferencesKeys.lastMepsTimestamp.key, lastMepsTimestamp);
   }
 
-  // --- LIBRARY LANGUAGE ---
+  // Récupère n'importe quelle langue (Library, Meetings, etc.)
+  Future<List<String>> _getLanguageByKey(PrefKey pref) async {
+    // 1. Tenter de récupérer la valeur actuelle
+    List<String>? currentData = _sp.getStringList(pref.key);
 
-  Future<List<String>> getLibraryLanguage() async {
+    // 2. Vérifier si les données existent et sont valides (longueur 15)
+    if (currentData == null || currentData.length != 15) {
+      // Si corrompu ou absent, on cherche en DB
+      dynamic mepsData = await _fetchMepsLanguageFromDb();
 
-    Future<dynamic> getMepsLanguage() async {
-      Locale systemLocale = ui.PlatformDispatcher.instance.locale;
-
-      File mepsFile = await getMepsUnitDatabaseFile();
-      Database mepsDb = await openReadOnlyDatabase(mepsFile.path);
-
-      List<Map<String, dynamic>> results = await mepsDb.rawQuery("""
-        SELECT 
-          L.*,
-      
-          S.InternalName AS ScriptInternalName,
-          S.DisplayName AS ScriptDisplayName,
-          S.IsBidirectional,
-          S.IsRTL,
-          S.IsCharacterSpaced,
-          S.IsCharacterBreakable,
-          S.SupportsCodeNames,
-          S.HasSystemDigits,
-      
-          F.PrimaryIetfCode AS FallbackPrimaryIetfCode
-      FROM Language AS L
-      INNER JOIN Script AS S ON L.ScriptId = S.ScriptId
-      LEFT JOIN Language AS F ON L.PrimaryFallbackLanguageId = F.LanguageId
-      WHERE L.PrimaryIetfCode = ?
-      LIMIT 1;
-      """, [systemLocale.languageCode]);
-
-      return results.first;
+      if (mepsData != null) {
+        await _setLanguageByKey(pref, mepsData);
+        return _sp.getStringList(pref.key) ?? List<String>.from(pref.defaultValue);
+      }
     }
 
-    if(_sp.getStringList(SharedPreferencesKeys.libraryLanguage.key)?.length != 15) {
-      dynamic mepsLanguage = await getMepsLanguage();
-      await setLibraryLanguage(mepsLanguage);
-
-      return _sp.getStringList(SharedPreferencesKeys.libraryLanguage.key) ?? List<String>.from(SharedPreferencesKeys.libraryLanguage.defaultValue);
-    }
-
-    if(_sp.getStringList(SharedPreferencesKeys.libraryLanguage.key) != null) {
-      return _sp.getStringList(SharedPreferencesKeys.libraryLanguage.key)!;
-    }
-
-    dynamic mepsLanguage = await getMepsLanguage();
-    await setLibraryLanguage(mepsLanguage);
-
-    return _sp.getStringList(SharedPreferencesKeys.libraryLanguage.key) ?? List<String>.from(SharedPreferencesKeys.libraryLanguage.defaultValue);
+    return currentData ?? List<String>.from(pref.defaultValue);
   }
 
-  Future<void> setLibraryLanguage(dynamic selectedLanguage) async {
-    if(selectedLanguage is Map<String, dynamic>) {
-      JwLifeSettings.instance.currentLanguage.value = MepsLanguage.fromJson(selectedLanguage);
+// Sauvegarde n'importe quelle langue
+  Future<void> _setLanguageByKey(PrefKey pref, dynamic selectedLanguage) async {
+    MepsLanguage lang;
+    if (selectedLanguage is Map<String, dynamic>) {
+      lang = MepsLanguage.fromJson(selectedLanguage);
+    }
+    else if (selectedLanguage is MepsLanguage) {
+      lang = selectedLanguage;
     }
     else {
       return;
     }
 
-    await _sp.setStringList(SharedPreferencesKeys.libraryLanguage.key, [
-      JwLifeSettings.instance.currentLanguage.value.id.toString(),
-      JwLifeSettings.instance.currentLanguage.value.symbol,
-      JwLifeSettings.instance.currentLanguage.value.vernacular,
-      JwLifeSettings.instance.currentLanguage.value.primaryIetfCode,
-      JwLifeSettings.instance.currentLanguage.value.isSignLanguage ? '1' : '0',
-      JwLifeSettings.instance.currentLanguage.value.internalScriptName,
-      JwLifeSettings.instance.currentLanguage.value.displayScriptName,
-      JwLifeSettings.instance.currentLanguage.value.isBidirectional ? '1' : '0',
-      JwLifeSettings.instance.currentLanguage.value.isRtl ? '1' : '0',
-      JwLifeSettings.instance.currentLanguage.value.isCharacterSpaced ? '1' : '0',
-      JwLifeSettings.instance.currentLanguage.value.isCharacterBreakable ? '1' : '0',
-      JwLifeSettings.instance.currentLanguage.value.hasSystemDigits ? '1' : '0',
-      JwLifeSettings.instance.currentLanguage.value.fallbackPrimaryIetfCode,
-      JwLifeSettings.instance.currentLanguage.value.rsConf,
-      JwLifeSettings.instance.currentLanguage.value.lib,
+    if (pref.key == SharedPreferencesKeys.libraryLanguage.key) {
+      JwLifeSettings.instance.libraryLanguage.value = lang;
+    }
+    else if (pref.key == SharedPreferencesKeys.dailyTextLanguage.key) {
+      JwLifeSettings.instance.dailyTextLanguage.value = lang;
+    }
+    else if (pref.key == SharedPreferencesKeys.articlesLanguage.key) {
+      JwLifeSettings.instance.articlesLanguage.value = lang;
+    }
+    else if (pref.key == SharedPreferencesKeys.workshipLanguage.key) {
+      JwLifeSettings.instance.workshipLanguage.value = lang;
+    }
+    else if (pref.key == SharedPreferencesKeys.teachingToolboxLanguage.key) {
+      JwLifeSettings.instance.teachingToolboxLanguage.value = lang;
+    }
+    else if (pref.key == SharedPreferencesKeys.latestLanguage.key) {
+      JwLifeSettings.instance.latestLanguage.value = lang;
+    }
+
+    await _sp.setStringList(pref.key, [
+      lang.id.toString(),
+      lang.symbol,
+      lang.vernacular,
+      lang.primaryIetfCode,
+      lang.isSignLanguage ? '1' : '0',
+      lang.internalScriptName,
+      lang.displayScriptName,
+      lang.isBidirectional ? '1' : '0',
+      lang.isRtl ? '1' : '0',
+      lang.isCharacterSpaced ? '1' : '0',
+      lang.isCharacterBreakable ? '1' : '0',
+      lang.hasSystemDigits ? '1' : '0',
+      lang.fallbackPrimaryIetfCode,
+      lang.rsConf,
+      lang.lib,
     ]);
   }
 
-  // --- WEB APP FOLDER ---
+// Fonction SQL privée pour éviter la répétition
+  Future<dynamic> _fetchMepsLanguageFromDb() async {
+    File mepsFile = await getMepsUnitDatabaseFile();
+    Database mepsDb = await openReadOnlyDatabase(mepsFile.path);
 
+    Locale systemLocale = ui.PlatformDispatcher.instance.locale;
+
+    List<Map<String, dynamic>> results = await mepsDb.rawQuery("""
+      SELECT L.*, S.InternalName AS ScriptInternalName, S.DisplayName AS ScriptDisplayName,
+             S.IsBidirectional, S.IsRTL, S.IsCharacterSpaced, S.IsCharacterBreakable,
+             S.SupportsCodeNames, S.HasSystemDigits, F.PrimaryIetfCode AS FallbackPrimaryIetfCode
+      FROM Language AS L
+      INNER JOIN Script AS S ON L.ScriptId = S.ScriptId
+      LEFT JOIN Language AS F ON L.PrimaryFallbackLanguageId = F.LanguageId
+      WHERE L.PrimaryIetfCode = ?
+      LIMIT 1;
+    """, [systemLocale.languageCode]);
+
+    return results.isNotEmpty ? results.first : null;
+  }
+
+  // Pour la bibliothèque
+  Future<List<String>> getLibraryLanguage() => _getLanguageByKey(SharedPreferencesKeys.libraryLanguage);
+  Future<void> setLibraryLanguage(dynamic language) => _setLanguageByKey(SharedPreferencesKeys.libraryLanguage, language);
+
+  // Pour le texte du jour
+  Future<List<String>> getDailyTextLanguage() => _getLanguageByKey(SharedPreferencesKeys.dailyTextLanguage);
+  Future<void> setDailyTextLanguage(dynamic language) => _setLanguageByKey(SharedPreferencesKeys.dailyTextLanguage, language);
+
+  // Pour les articles
+  Future<List<String>> getArticlesLanguage() => _getLanguageByKey(SharedPreferencesKeys.articlesLanguage);
+  Future<void> setArticlesLanguage(dynamic language) => _setLanguageByKey(SharedPreferencesKeys.articlesLanguage, language);
+
+  // Pour les réunions et les assemblées
+  Future<List<String>> getWorkshipLanguage() => _getLanguageByKey(SharedPreferencesKeys.workshipLanguage);
+  Future<void> setWorkshipLanguage(dynamic language) => _setLanguageByKey(SharedPreferencesKeys.workshipLanguage, language);
+
+  // Pour la boîte à outils d'enseignement
+  Future<List<String>> getTeachingToolboxLanguage() => _getLanguageByKey(SharedPreferencesKeys.teachingToolboxLanguage);
+  Future<void> setTeachingToolboxLanguage(dynamic language) => _setLanguageByKey(SharedPreferencesKeys.teachingToolboxLanguage, language);
+
+  // Pour les derniers publications/médias
+  Future<List<String>> getLatestLanguage() => _getLanguageByKey(SharedPreferencesKeys.latestLanguage);
+  Future<void> setLatestLanguage(dynamic language) => _setLanguageByKey(SharedPreferencesKeys.latestLanguage, language);
+
+  // --- WEB APP FOLDER ---
   String getWebAppVersion() {
     return _sp.getString(SharedPreferencesKeys.webAppDownloadVersion.key) ?? SharedPreferencesKeys.webAppDownloadVersion.defaultValue;
   }

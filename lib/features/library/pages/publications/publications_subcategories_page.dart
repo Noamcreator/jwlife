@@ -35,7 +35,7 @@ class _PublicationSubcategoriesPageState extends State<PublicationSubcategoriesP
   List<Map<String, dynamic>> items = [];
 
   final _pageTitle = ValueNotifier<String>('');
-  final _mepsLanguage = ValueNotifier<MepsLanguage>(JwLifeSettings.instance.currentLanguage.value);
+  final _mepsLanguage = ValueNotifier<MepsLanguage>(JwLifeSettings.instance.libraryLanguage.value);
 
   @override
   void initState() {
@@ -56,8 +56,8 @@ class _PublicationSubcategoriesPageState extends State<PublicationSubcategoriesP
   Future<void> loadItemsDays({Map<String, dynamic>? mepsLanguage}) async {
     List<Map<String, dynamic>> days = [];
 
-    String mepsLanguageSymbol = mepsLanguage?['Symbol'] ?? JwLifeSettings.instance.currentLanguage.value.symbol;
-    _mepsLanguage.value = mepsLanguage != null ? MepsLanguage.fromJson(mepsLanguage) : JwLifeSettings.instance.currentLanguage.value;
+    String mepsLanguageSymbol = mepsLanguage?['Symbol'] ?? JwLifeSettings.instance.libraryLanguage.value.symbol;
+    _mepsLanguage.value = mepsLanguage != null ? MepsLanguage.fromJson(mepsLanguage) : JwLifeSettings.instance.libraryLanguage.value;
 
     List<Publication> pubs = await CatalogDb.instance.fetchPubsFromConventionsDays(_mepsLanguage.value);
     RealmResults<RealmCategory> convDaysCategories = RealmLibrary.realm.all<RealmCategory>().query("LanguageSymbol == '$mepsLanguageSymbol'").query("Key == 'ConvDay1' OR Key == 'ConvDay2' OR Key == 'ConvDay3'");
@@ -78,8 +78,8 @@ class _PublicationSubcategoriesPageState extends State<PublicationSubcategoriesP
   }
 
   Future<void> loadItemsYears({Map<String, dynamic>? mepsLanguage}) async {
-    int mepsLanguageId = mepsLanguage?['LanguageId'] ?? JwLifeSettings.instance.currentLanguage.value.id;
-    _mepsLanguage.value = mepsLanguage != null ? MepsLanguage.fromJson(mepsLanguage) : JwLifeSettings.instance.currentLanguage.value;
+    int mepsLanguageId = mepsLanguage?['LanguageId'] ?? JwLifeSettings.instance.libraryLanguage.value.id;
+    _mepsLanguage.value = mepsLanguage != null ? MepsLanguage.fromJson(mepsLanguage) : JwLifeSettings.instance.libraryLanguage.value;
 
     final years = await CatalogDb.instance.getItemsYearInCategory(widget.category.id, mepsLanguageId: mepsLanguageId);
 
@@ -143,7 +143,7 @@ class _PublicationSubcategoriesPageState extends State<PublicationSubcategoriesP
               IconTextButton(
                 icon: const Icon(JwIcons.language),
                 onPressed: (BuildContext context) {
-                  showLanguageDialog(context, selectedLanguageSymbol: _mepsLanguage.value.symbol).then((language) async {
+                  showLanguageDialog(context, firstSelectedLanguage: _mepsLanguage.value.symbol).then((language) async {
                     if (language != null) {
                       if(widget.category.type == 'Convention') {
                         await loadItemsDays(mepsLanguage: language);

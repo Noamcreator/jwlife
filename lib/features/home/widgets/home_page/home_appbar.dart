@@ -4,6 +4,7 @@ import 'package:jwlife/core/app_data/app_data_service.dart';
 import 'package:jwlife/core/uri/jworg_uri.dart';
 import 'package:jwlife/core/uri/utils_uri.dart';
 import 'package:jwlife/core/utils/utils_language_dialog.dart';
+import 'package:jwlife/data/models/meps_language.dart';
 import 'package:jwlife/widgets/responsive_appbar_actions.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
@@ -14,6 +15,7 @@ import '../../../../core/ui/text_styles.dart';
 import '../../../../data/databases/history.dart';
 import '../../../../i18n/i18n.dart';
 import '../../../../widgets/dialog/qr_code_dialog.dart';
+import '../../../../widgets/multiple_listenable_builder_widget.dart';
 import '../../../../widgets/searchfield/searchfield_all_widget.dart';
 
 class HomeAppBar extends StatefulWidget implements PreferredSizeWidget {
@@ -67,10 +69,13 @@ class _HomeAppBarState extends State<HomeAppBar> {
   void onOpenLanguageDialog(BuildContext context) async {
     showLanguageDialog(context).then((language) async {
       if (language != null) {
-        if (language['Symbol'] != JwLifeSettings.instance.currentLanguage.value.symbol) {
-          await AppSharedPreferences.instance.setLibraryLanguage(language);
-          AppDataService.instance.changeLanguageAndRefreshContent();
-        }
+        await AppSharedPreferences.instance.setLibraryLanguage(language);
+        await AppSharedPreferences.instance.setDailyTextLanguage(language);
+        await AppSharedPreferences.instance.setArticlesLanguage(language);
+        await AppSharedPreferences.instance.setWorkshipLanguage(language);
+        await AppSharedPreferences.instance.setTeachingToolboxLanguage(language);
+        await AppSharedPreferences.instance.setLatestLanguage(language);
+        AppDataService.instance.changeLanguageAndRefreshContent();
       }
     });
   }
@@ -91,9 +96,46 @@ class _HomeAppBarState extends State<HomeAppBar> {
     return JwLifeAppBar(
       canPop: false,
       title: i18n().navigation_home,
-      subTitleWidget: ValueListenableBuilder(valueListenable: JwLifeSettings.instance.currentLanguage, builder: (context, value, child) {
-        return Text(value.vernacular, style: Theme.of(context).extension<JwLifeThemeStyles>()!.appBarSubTitle);
-      }),
+      subTitleWidget: MultiValueListenableBuilder(
+          listenables: [
+            JwLifeSettings.instance.libraryLanguage,
+            JwLifeSettings.instance.dailyTextLanguage,
+            JwLifeSettings.instance.articlesLanguage,
+            JwLifeSettings.instance.workshipLanguage,
+            JwLifeSettings.instance.teachingToolboxLanguage,
+            JwLifeSettings.instance.latestLanguage
+          ],
+          builder: (context) {
+            // 1. On récupère les valeurs actuelles
+            final languages = [
+              JwLifeSettings.instance.libraryLanguage.value,
+              JwLifeSettings.instance.dailyTextLanguage.value,
+              JwLifeSettings.instance.articlesLanguage.value,
+              JwLifeSettings.instance.workshipLanguage.value,
+              JwLifeSettings.instance.teachingToolboxLanguage.value,
+              JwLifeSettings.instance.latestLanguage.value,
+            ];
+
+            // 2. On compte l'occurrence de chaque symbole (ex: 'fr', 'en', 'fr' -> {fr: 2, en: 1})
+            final counts = <String, int>{};
+            for (var lang in languages) {
+              counts[lang.symbol] = (counts[lang.symbol] ?? 0) + 1;
+            }
+
+            // 3. On trouve le symbole qui a le plus gros score
+            final mostUsedSymbol = counts.entries
+                .reduce((a, b) => a.value > b.value ? a : b)
+                .key;
+
+            // 4. On récupère l'objet langue correspondant pour l'affichage
+            final favoriteLang = languages.firstWhere((l) => l.symbol == mostUsedSymbol);
+
+            return Text(
+              favoriteLang.vernacular,
+              style: Theme.of(context).extension<JwLifeThemeStyles>()!.appBarSubTitle,
+            );
+          }
+      ),
       actions: [
         IconTextButton(
           icon: const Icon(JwIcons.magnifying_glass),

@@ -18,6 +18,7 @@ import 'package:jwlife/i18n/i18n.dart';
 import 'package:jwlife/core/utils/utils_dialog.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:realm/realm.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite/sqflite.dart';
 import '../app/app_page.dart';
 import '../app/services/global_key_service.dart';
@@ -26,6 +27,7 @@ import '../app/services/settings_service.dart';
 import '../core/app_data/app_data_service.dart';
 import '../core/keys.dart';
 import '../core/constants.dart';
+import '../core/shared_preferences/shared_preferences_keys.dart';
 import '../core/shared_preferences/shared_preferences_utils.dart';
 import '../core/utils/directory_helper.dart';
 import '../core/utils/files_helper.dart';
@@ -121,7 +123,7 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
 
     // Charge les autres données en parallèle
     final otherFutures = Future.wait([
-      _getVernacularName(selectedLanguage),
+      _getVernacularName(),
       _getCatalogDate(),
       _getLibraryDate(),
       _loadCacheSize(),
@@ -169,15 +171,15 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
     }
   }
 
-  Future<void> _getVernacularName(String languageCode) async {
+  Future<void> _getVernacularName() async {
     try {
       final mepsFile = await getMepsUnitDatabaseFile();
       final database = await openReadOnlyDatabase(mepsFile.path);
 
       final result = await database.rawQuery('''
         SELECT VernacularName FROM Language
-        WHERE PrimaryIetfCode = ?
-      ''', [languageCode]);
+        WHERE Symbol = ?
+      ''', [i18n().meps_language]);
 
       await database.close();
 
@@ -205,7 +207,7 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
 
   Future<void> _getLibraryDate() async {
     try {
-      final results = RealmLibrary.realm.all<RealmLanguage>().query("Symbol == '${JwLifeSettings.instance.currentLanguage.value.symbol}'");
+      final results = RealmLibrary.realm.all<RealmLanguage>().query("Symbol == '${JwLifeSettings.instance.libraryLanguage.value.symbol}'");
 
       final date = results.isNotEmpty ? results.first.lastModified : null;
 
@@ -226,7 +228,7 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
     final localDate = dateTime.toLocal();
     return DateFormat(
       'EEEE d MMMM yyyy HH:mm:ss',
-      JwLifeSettings.instance.currentLanguage.value.primaryIetfCode,
+      JwLifeSettings.instance.libraryLanguage.value.primaryIetfCode,
     ).format(localDate);
   }
 
@@ -708,16 +710,16 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
         onTap: showLanguageSelectionDialog,
       ),
       ValueListenableBuilder(
-          valueListenable: JwLifeSettings.instance.currentLanguage,
+          valueListenable: JwLifeSettings.instance.libraryLanguage,
           builder: (context, value, child) {
             return SettingsTile(
               title: i18n().settings_language_library,
               subtitle: value.vernacular,
               onTap: () {
-                showLanguageDialog(context).then((value) async {
-                  if (value['Symbol'] != JwLifeSettings.instance.currentLanguage.value.symbol) {
-                    await AppSharedPreferences.instance.setLibraryLanguage(value);
-                    AppDataService.instance.changeLanguageAndRefreshContent();
+                showLanguageDialog(context).then((language) async {
+                  if (language['Symbol'] != JwLifeSettings.instance.libraryLanguage.value.symbol) {
+                    await AppSharedPreferences.instance.setLibraryLanguage(language);
+                    AppDataService.instance.changeLibraryLanguageAndRefresh();
                   }
                 });
               },

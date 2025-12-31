@@ -920,5 +920,7 @@
   "label_research_images": "IMAGES",
   "label_research_notes": "NOTES",
   "label_research_inputs_fields": "CHAMPS",
-  "label_research_wikipedia": "WIKIPÉDIA"
+  "label_research_wikipedia": "WIKIPÉDIA",
+  "meps_language": "F",
+  "label_icon_commentary": "Note d'étude"
 }

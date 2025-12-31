@@ -17,7 +17,7 @@ class InputField {
     // 1. Créer une copie mutable de la map.
     final mutableMap = Map<String, dynamic>.from(map);
 
-    mutableMap['MepsLanguage'] = JwLifeSettings.instance.currentLanguage.value.id;
+    mutableMap['MepsLanguage'] = JwLifeSettings.instance.libraryLanguage.value.id;
 
     return InputField(
       textTag: mutableMap['TextTag'],
