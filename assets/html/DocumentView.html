@@ -317,6 +317,21 @@
         .text-red { --c: var(--color-red-rgb); }
         .text-brown { --c: var(--color-brown-rgb); }
 
+
+        /* 2 colonnes pour avoir le bible verse cote à cote : container */
+        .bibleVerseContainer2Columns {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        /* 2 colonnes pour avoir le bible verse cote à cote : ligne avec les 2 colonnes */
+        .bibleVerseRow {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
         .cc-theme--light .note-indicator-gray      { background-color: #bfbfbf; }
         .cc-theme--light .note-indicator-yellow    { background-color: #fff379; }
         .cc-theme--light .note-indicator-green     { background-color: #b7e492; }
