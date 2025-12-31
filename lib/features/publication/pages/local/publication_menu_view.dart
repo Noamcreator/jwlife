@@ -394,7 +394,7 @@ class PublicationMenuViewState extends State<PublicationMenuView> with SingleTic
                         child: Image.file(
                           File(imageFullPath),
                           fit: BoxFit.cover,
-                          cacheWidth: 120,
+                          cacheWidth: 180,
                         ),
                       )
                           : null,

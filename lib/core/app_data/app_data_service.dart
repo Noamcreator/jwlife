@@ -69,7 +69,13 @@ class AppDataService {
   final circuitBrPub = ValueNotifier<Publication?>(null);
   final circuitCoPub = ValueNotifier<Publication?>(null);
 
-  Future<void> checkUpdatesAndRefreshContent({bool isFirst = false, String type = 'all'}) async {
+  Future<void> checkUpdatesAndRefreshContent(BuildContext? context, {bool isFirst = false, String type = 'all'}) async {
+    if (!await hasInternetConnection(context: context)) {
+      if(context == null) {
+        showBottomMessage(i18n().message_no_internet_connection_title);
+      }
+    }
+
     printTime("Refresh start");
 
     final settings = JwLifeSettings.instance;
@@ -425,12 +431,7 @@ class AppDataService {
     }
 
     if(library && type != 'articles' && type != 'dailyText') {
-      if (await hasInternetConnection()) {
-        checkUpdatesAndRefreshContent(isFirst: true, type: type);
-      }
-      else {
-        showBottomMessage(i18n().message_no_internet_connection_title);
-      }
+      checkUpdatesAndRefreshContent(null, isFirst: true, type: type);
     }
 
     if(isCatalogFileExist) {

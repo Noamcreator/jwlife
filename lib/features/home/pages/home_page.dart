@@ -1,25 +1,13 @@
-
 import 'package:flutter/material.dart';
 import 'package:jwlife/app/app_page.dart';
-import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/core/app_data/app_data_service.dart';
 import 'package:jwlife/core/uri/jworg_uri.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
-import 'package:jwlife/core/utils/utils.dart';
-import 'package:jwlife/features/home/widgets/home_page/favorite_section.dart';
-import 'package:jwlife/features/home/widgets/home_page/latest_medias_section.dart';
+import 'package:jwlife/features/home/widgets/home_content.dart';
 
 import '../../../app/services/file_handler_service.dart';
 import '../../../core/uri/utils_uri.dart';
-import '../widgets/home_page/alerts_banner.dart';
-import '../widgets/home_page/articles_widget.dart';
-import '../widgets/home_page/daily_text_widget.dart';
-import '../widgets/home_page/frequently_used_section.dart';
 import '../widgets/home_page/home_appbar.dart';
-import '../widgets/home_page/latest_publications_section.dart';
-import '../widgets/home_page/linear_progress.dart';
-import '../widgets/home_page/online_section.dart';
-import '../widgets/home_page/teaching_toolbox_section.dart';
 import '../../settings_page.dart';
 
 class HomePage extends StatefulWidget {
@@ -48,45 +36,10 @@ class HomePageState extends State<HomePage> {
     final screenWidth = MediaQuery.of(context).size.width;
     final horizontalPadding = (screenWidth * 0.03).clamp(8.0, 40.0);
     const double sizeDivider = 10;
-
-    final List<Widget> items = [
-      const LinearProgress(),
-      const AlertsBanner(),
-      const DailyTextWidget(),
-      const ArticlesWidget(),
-      const SizedBox(height: 30),
-
-      /// Sections avec padding horizontal
-      Padding(
-        padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
-        child: Column(
-          children: [
-            FavoritesSection(
-              onReorder: (oldIndex, newIndex) {
-                if (newIndex > oldIndex) newIndex -= 1;
-                JwLifeApp.userdata.reorderFavorites(oldIndex, newIndex);
-              },
-            ),
-            const FrequentlyUsedSection(),
-            const SizedBox(height: sizeDivider),
-            const TeachingToolboxSection(),
-            const SizedBox(height: sizeDivider),
-            const LatestPublicationSection(),
-            const SizedBox(height: 4),
-            const LatestMediasSection(),
-            const SizedBox(height: sizeDivider),
-            const OnlineSection(),
-            const SizedBox(height: 25),
-          ],
-        ),
-      ),
-    ];
-
+      
     return AppPage(
       appBar: HomeAppBar(
-        onOpenSettings: () {
-          showPage(SettingsPage());
-        },
+        onOpenSettings: () => showPage(SettingsPage()),
       ),
       body: RefreshIndicator(
         color: Theme.of(context).brightness == Brightness.dark
@@ -95,19 +48,17 @@ class HomePageState extends State<HomePage> {
         backgroundColor: Theme.of(context).brightness == Brightness.dark
             ? Colors.black
             : Colors.white,
-        onRefresh: () async {
-          if(!AppDataService.instance.isRefreshing.value) {
-            if (await hasInternetConnection(context: context)) {
-              await AppDataService.instance.checkUpdatesAndRefreshContent();
-            }
+        onRefresh: () {
+          if (!AppDataService.instance.isRefreshing.value) {
+            AppDataService.instance.checkUpdatesAndRefreshContent(context);
           }
+          return Future.value();
         },
-        child: ListView.builder(
-          padding: EdgeInsets.zero,
-          itemCount: items.length,
-          itemBuilder: (context, index) => items[index],
+        child: HomeContent(
+          horizontalPadding: horizontalPadding,
+          sizeDivider: sizeDivider,
         ),
-      ),
+      )
     );
   }
 }
