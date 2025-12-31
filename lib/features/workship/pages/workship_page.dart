@@ -1182,6 +1182,7 @@ class WorkShipPageState extends State<WorkShipPage> with TickerProviderStateMixi
                                     return child;
                                   },
                                   fit: BoxFit.cover,
+                                  cacheWidth: 180,
                                 ),
                               ),
                             ),
@@ -1365,6 +1366,7 @@ class WorkShipPageState extends State<WorkShipPage> with TickerProviderStateMixi
                                     return child;
                                   },
                                   fit: BoxFit.cover,
+                                  cacheWidth: 180,
                                 ),
                               ),
                             ),

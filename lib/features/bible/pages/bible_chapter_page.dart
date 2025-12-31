@@ -291,6 +291,7 @@ class _BibleChapterPageState extends State<BibleChapterPage> {
           width: double.infinity,
           height: _kHeaderImageHeight,
           fit: BoxFit.cover,
+          cacheWidth: 1220,
         ),
         if (withTextOverlay)
           Positioned(

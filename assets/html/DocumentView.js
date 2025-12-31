@@ -1181,6 +1181,8 @@ function createToolbarButtonColor(styleIndex, targets, target, styleToolbar, isS
         backButton.addEventListener('click', (e) => {
             e.stopPropagation();
             colorToolbar.remove();
+            // Enlever le fade
+            styleToolbar.style.transition = 'opacity 0.0s ease-out';
             styleToolbar.style.opacity = 1; // Rendre l'ancienne toolbar visible instantanément
         });
         colorToolbar.appendChild(backButton);
@@ -1228,12 +1230,12 @@ function createToolbarButtonColor(styleIndex, targets, target, styleToolbar, isS
             colorButton.appendChild(colorCircle);
 
             colorButton.style.cssText = `
-            padding: 3px;
-            border-radius: 5px;
-            margin: 0 6px;
-            background: none;
-            -webkit-tap-highlight-color: transparent;
-          `;
+                padding: 3px;
+                border-radius: 5px;
+                margin: 0 6px;
+                background: none;
+                -webkit-tap-highlight-color: transparent;
+            `;
 
             // Ajouter l'événement de clic pour chaque couleur
             colorButton.addEventListener('click', (e) => {
@@ -1352,32 +1354,14 @@ function createToolbarButtonColor(styleIndex, targets, target, styleToolbar, isS
     button.addEventListener('click', (e) => {
         e.stopPropagation();
 
-        // Supprimer l'ancienne toolbar de couleur si elle existe (pour éviter le clignotement)
-        document.querySelector('.toolbar-colors')?.remove();
-
         // Créer et afficher la toolbar de couleurs (instantanné)
         const colorToolbar = createColorToolbar();
+        // afficher la toolbar de couleur
+        colorToolbar.style.opacity = '1';
         document.body.appendChild(colorToolbar);
 
         // Rendre la toolbar principale invisible (immédiat)
         styleToolbar.style.opacity = '0';
-
-        // Fermer la toolbar si on clique ailleurs (logique simplifiée)
-        const closeColorToolbar = (event) => {
-            // Vérifie si le clic est en dehors de la toolbar de couleur ET en dehors du bouton de couleur
-            if (!colorToolbar.contains(event.target) && !button.contains(event.target)) {
-                // Fermeture instantanée
-                colorToolbar.remove();
-                styleToolbar.style.opacity = '1';
-                document.removeEventListener('click', closeColorToolbar);
-            }
-        };
-
-        // ✅ FIX : Utiliser setTimeout(0) au lieu de requestAnimationFrame
-        // pour garantir que l'écouteur n'est pas déclenché par l'événement de clic actuel
-        setTimeout(() => {
-            document.addEventListener('click', closeColorToolbar);
-        }, 0);
     });
 
     return button;
