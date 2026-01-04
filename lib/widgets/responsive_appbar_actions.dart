@@ -84,45 +84,47 @@ class ResponsiveAppBarActions extends StatelessWidget {
 
         // Bouton "Plus" (trois points) et menu
         menuItems.isEmpty ? const SizedBox.shrink() : RepaintBoundary(
-          child: PopupMenuButton<IconTextButton>(
-            style: ButtonStyle(visualDensity: VisualDensity.compact),
-            popUpAnimationStyle: AnimationStyle(curve: Curves.easeInExpo, duration: const Duration(milliseconds: 200)),
-
-            // Bouton 'plus' affiché (sa couleur est définie ici)
-            icon: Icon(JwIcons.three_dots_horizontal, color: iconsColor),
-
-            itemBuilder: (context) => menuItems.map((action) =>
-                PopupMenuItem(
-                  value: action,
-                  padding: EdgeInsets.zero,
-                  child: ListTile(
-                    dense: true,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16.0),
-                    // Couleur des icônes dans le menu (blanche si spécifiée, sinon thème)
-                    iconColor: iconsColor ?? Theme.of(context).primaryColor,
-                    // ⬅️ CORRECTION : Cloner l'icône du menu avec la couleur pour les éléments du menu
-                    leading: _cloneIconWithColor(action.icon, Theme.of(context).primaryColor),
-                    title: Text(action.text ?? 'No text'),
-
-                    trailing: action.onSwitchChange != null && action.isSwitch != null ? Switch(
-                        value: action.isSwitch!,
-                        onChanged: (value) {
-                          action.onSwitchChange?.call(value);
-                          Navigator.pop(context);
-                        }) : null,
-
-                    onTap: () {
-                      Navigator.pop(context);
-                      // Ici on peut utiliser le 'context' de l'item du menu (qui est suffisant pour le onPressed)
-                      action.onPressed?.call(context);
-                    },
+          child: RepaintBoundary(
+            child: PopupMenuButton<IconTextButton>(
+              style: ButtonStyle(visualDensity: VisualDensity.compact),
+              popUpAnimationStyle: AnimationStyle(curve: Curves.easeInExpo, duration: const Duration(milliseconds: 200)),
+            
+              // Bouton 'plus' affiché (sa couleur est définie ici)
+              icon: Icon(JwIcons.three_dots_horizontal, color: iconsColor),
+            
+              itemBuilder: (context) => menuItems.map((action) =>
+                  PopupMenuItem(
+                    value: action,
+                    padding: EdgeInsets.zero,
+                    child: ListTile(
+                      dense: true,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16.0),
+                      // Couleur des icônes dans le menu (blanche si spécifiée, sinon thème)
+                      iconColor: iconsColor ?? Theme.of(context).primaryColor,
+                      // ⬅️ CORRECTION : Cloner l'icône du menu avec la couleur pour les éléments du menu
+                      leading: _cloneIconWithColor(action.icon, Theme.of(context).primaryColor),
+                      title: Text(action.text ?? 'No text'),
+            
+                      trailing: action.onSwitchChange != null && action.isSwitch != null ? Switch(
+                          value: action.isSwitch!,
+                          onChanged: (value) {
+                            action.onSwitchChange?.call(value);
+                            Navigator.pop(context);
+                          }) : null,
+            
+                      onTap: () {
+                        Navigator.pop(context);
+                        // Ici on peut utiliser le 'context' de l'item du menu (qui est suffisant pour le onPressed)
+                        action.onPressed?.call(context);
+                      },
+                    ),
                   ),
-                ),
-            ).toList(),
-            // Gestion de l'état du menu via GlobalKeyService
-            onOpened: () => GlobalKeyService.jwLifePageKey.currentState!.togglePopMenuOpen(true),
-            onSelected: (value) => GlobalKeyService.jwLifePageKey.currentState!.togglePopMenuOpen(false),
-            onCanceled: () => GlobalKeyService.jwLifePageKey.currentState!.togglePopMenuOpen(false),
+              ).toList(),
+              // Gestion de l'état du menu via GlobalKeyService
+              onOpened: () => GlobalKeyService.jwLifePageKey.currentState!.togglePopMenuOpen(true),
+              onSelected: (value) => GlobalKeyService.jwLifePageKey.currentState!.togglePopMenuOpen(false),
+              onCanceled: () => GlobalKeyService.jwLifePageKey.currentState!.togglePopMenuOpen(false),
+            ),
           ),
         )
       ],

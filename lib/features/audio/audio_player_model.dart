@@ -3,11 +3,11 @@ import 'dart:math';
 import 'package:audio_service/audio_service.dart';
 import 'package:dio/dio.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:jwlife/app/jwlife_app.dart';
 
 import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/data/databases/tiles_cache.dart';
 import 'package:jwlife/data/models/publication.dart';
-import 'package:jwlife/data/databases/history.dart';
 import 'package:jwlife/data/realm/realm_library.dart';
 import 'package:realm/realm.dart';
 
@@ -211,7 +211,7 @@ class JwLifeAudioPlayer {
 
 
   Future<void> playAudio(Audio audio, {Duration initialPosition = Duration.zero}) async {
-    History.insertAudioMediaItem(audio);
+    JwLifeApp.history.insertAudioMediaItem(audio);
 
     if(audio.isDownloadedNotifier.value) {
       await setPlaylist([audio]);
@@ -233,7 +233,7 @@ class JwLifeAudioPlayer {
         firstAudio = audios[Random().nextInt(audios.length)];
       }
 
-      History.insertAudioMediaItem(firstAudio);
+      JwLifeApp.history.insertAudioMediaItem(firstAudio);
 
       setRandomMode(randomMode);
       await fetchAudiosCategoryData(category, audios, firstAudio, true);
@@ -248,7 +248,7 @@ class JwLifeAudioPlayer {
         firstAudio = downloadedAudios[Random().nextInt(downloadedAudios.length)];
       }
 
-      History.insertAudioMediaItem(firstAudio);
+      JwLifeApp.history.insertAudioMediaItem(firstAudio);
 
       setRandomMode(randomMode);
       await fetchAudiosCategoryData(category, downloadedAudios, firstAudio, false);
@@ -288,7 +288,7 @@ class JwLifeAudioPlayer {
   Future<void> playAudioFromPublicationLink(Publication publication, int id, Duration position) async {
     Audio audio = publication.audiosNotifier.value.elementAt(id);
 
-    History.insertAudio(audio);
+    JwLifeApp.history.insertAudio(audio);
 
     setRandomMode(false);
     await setPlaylist(publication.audiosNotifier.value, pub: publication, id: id, position: position);

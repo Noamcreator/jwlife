@@ -18,7 +18,7 @@ class BiblePage extends StatefulWidget {
 }
 
 class BiblePageState extends State<BiblePage> {
-  GlobalKey<PublicationMenuViewState>? _bibleMenuPage;
+  GlobalKey<PublicationMenuPageState>? _bibleMenuPage;
   String? _currentBibleKey;
 
   void goToTheBooksTab() {
@@ -39,7 +39,7 @@ class BiblePageState extends State<BiblePage> {
         if (currentBible != null) {
           if (_currentBibleKey != currentBible.getKey()) {
             _currentBibleKey = currentBible.getKey();
-            _bibleMenuPage = GlobalKey<PublicationMenuViewState>();
+            _bibleMenuPage = GlobalKey<PublicationMenuPageState>();
           }
 
           return ValueListenableBuilder<bool>(
@@ -49,7 +49,7 @@ class BiblePageState extends State<BiblePage> {
                 return RectanglePublicationItem(publication: currentBible);
               }
               else {
-                return PublicationMenuView(
+                return PublicationMenuPage(
                   key: _bibleMenuPage,
                   publication: currentBible,
                   canPop: false,
@@ -80,6 +80,7 @@ class BiblePageState extends State<BiblePage> {
                   elevation: 3,
                 ),
                 onPressed: () async {
+                  // On met null pour la bible car on veut toutes les bibles et pas uniquement la bible qu'on a sélectionnée
                   final bible = await showLanguagePubDialog(context, null);
                   if (bible != null) {
                     final String bibleKey = bible.getKey();

@@ -7,7 +7,7 @@ import '../../features/home/pages/daily_text_page.dart';
 import '../shared_preferences/shared_preferences_utils.dart';
 import 'directory_helper.dart';
 
-class WebViewData {
+class WebViewSettings {
   late String theme;
   late String backgroundColor;
   late String cssCode;
@@ -17,6 +17,7 @@ class WebViewData {
   late bool isFullScreenMode;
   late bool isReadingMode;
   late bool isBlockingHorizontallyMode;
+  late bool versesInParallel;
 
   late bool isFuriganaActive;
   late bool isPinyinActive;
@@ -37,6 +38,7 @@ class WebViewData {
     isFullScreenMode = sharedPreferences.getFullscreenMode();
     isReadingMode = sharedPreferences.getReadingMode();
     isBlockingHorizontallyMode = sharedPreferences.getBlockingHorizontallyMode();
+    versesInParallel = sharedPreferences.getVersesInParallel();
 
     isFuriganaActive = sharedPreferences.getFuriganaActive();
     isPinyinActive = sharedPreferences.getPinyinActive();
@@ -178,5 +180,10 @@ class WebViewData {
     final newKeysList = newBiblesList.map((bible) => bible.getKey()).toList();
     biblesSet = newKeysList;
     await AppSharedPreferences.instance.setBiblesSet(biblesSet);
+  }
+
+  Future<void> updateVersesInParallel(bool finalVersesInParallel) async {
+    versesInParallel = finalVersesInParallel;
+    await AppSharedPreferences.instance.setVersesInParallel(finalVersesInParallel);
   }
 }

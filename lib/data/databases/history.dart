@@ -11,6 +11,7 @@ import 'package:jwlife/data/databases/catalog.dart';
 import 'package:jwlife/data/models/publication_category.dart';
 import 'package:jwlife/data/models/video.dart';
 import 'package:jwlife/data/realm/catalog.dart';
+import 'package:jwlife/data/repositories/PublicationRepository.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:jwlife/core/utils/files_helper.dart';
 
@@ -23,80 +24,157 @@ import '../models/media.dart';
 import '../models/publication.dart';
 
 class History {
-  static Future<void> createDbHistory(Database db) async {
-    return await db.transaction((txn) async {
-      await txn.execute("""
-        CREATE TABLE IF NOT EXISTS "History" (
-          "HistoryId" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-          "BookNumber" INTEGER,
-          "ChapterNumber" INTEGER,
-          "DocumentId" INTEGER,
-          "StartBlockIdentifier" INTEGER,
-          "EndBlockIdentifier" INTEGER,
-          "Track" INTEGER,
-          "IssueTagNumber" INTEGER DEFAULT 0,
-          "KeySymbol" TEXT,
-          "MepsLanguageId" INTEGER,
-          "DisplayTitle" TEXT,
-          "Type" TEXT,
-          "NavigationBottomBarIndex" INTEGER DEFAULT 0,
-          "ScrollPosition" INTEGER DEFAULT 0,
-          "VisitCount" INTEGER DEFAULT 1,
-          "LastVisited" TEXT DEFAULT CURRENT_TIMESTAMP
-        );
-      """);
+  late Database _database;
+
+  Future<void> init() async {
+    final historyFile = await getHistoryDatabaseFile();
+    _database = await openDatabase(
+        historyFile.path, 
+        version: 2, 
+        onCreate: (db, version) async {
+          await createDbHistory(db);
+        },
+        onUpgrade: (db, oldVersion, newVersion) async {
+          if (oldVersion == 1 && newVersion == 2) {
+            await db.transaction((txn) async {
+              // 1. Renommer l'ancienne table
+              await txn.execute("ALTER TABLE History RENAME TO History_old;");
+
+              // 2. Créer la nouvelle table avec le bon DEFAULT
+              await txn.execute("""
+                CREATE TABLE History (
+                  "HistoryId" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                  "BookNumber" INTEGER,
+                  "ChapterNumber" INTEGER,
+                  "FirstDatedTextOffset" INTEGER,
+                  "LastDatedTextOffset" INTEGER,
+                  "DocumentId" INTEGER,
+                  "StartBlockIdentifier" INTEGER,
+                  "EndBlockIdentifier" INTEGER,
+                  "Track" INTEGER,
+                  "IssueTagNumber" INTEGER DEFAULT 0,
+                  "KeySymbol" TEXT,
+                  "MepsLanguageId" INTEGER,
+                  "DisplayTitle" TEXT,
+                  "Type" TEXT,
+                  "NavigationBottomBarIndex" INTEGER DEFAULT 0,
+                  "ScrollPosition" INTEGER DEFAULT 0,
+                  "VisitCount" INTEGER DEFAULT 1,
+                  "LastVisited" TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+                );
+              """);
+
+              // 3. Copier et convertir les données
+              await txn.execute("""
+                INSERT INTO History (
+                  HistoryId, BookNumber, ChapterNumber, FirstDatedTextOffset, LastDatedTextOffset, 
+                  DocumentId, StartBlockIdentifier, EndBlockIdentifier, Track, IssueTagNumber, 
+                  KeySymbol, MepsLanguageId, DisplayTitle, Type, NavigationBottomBarIndex, 
+                  ScrollPosition, VisitCount, LastVisited
+                )
+                SELECT 
+                  HistoryId, BookNumber, ChapterNumber, FirstDatedTextOffset, LastDatedTextOffset, 
+                  DocumentId, StartBlockIdentifier, EndBlockIdentifier, Track, IssueTagNumber, 
+                  KeySymbol, MepsLanguageId, DisplayTitle, Type, NavigationBottomBarIndex, 
+                  ScrollPosition, VisitCount, 
+                  strftime('%Y-%m-%dT%H:%M:%SZ', LastVisited)
+                FROM History_old;
+              """);
+
+              // 4. Supprimer l'ancienne table
+              await txn.execute("DROP TABLE History_old;");
+              
+              // 5. Recréer ton Trigger (indispensable car lié à la table)
+              await txn.execute("""
+                CREATE TRIGGER IF NOT EXISTS tr_History_Update_All
+                AFTER UPDATE ON History
+                FOR EACH ROW
+                BEGIN
+                  UPDATE History 
+                  SET 
+                    LastVisited = strftime('%Y-%m-%dT%H:%M:%SZ', 'now'),
+                    VisitCount = CASE 
+                      WHEN (
+                        NEW.ScrollPosition IS NOT OLD.ScrollPosition AND
+                        NEW.NavigationBottomBarIndex IS OLD.NavigationBottomBarIndex AND
+                        NEW.DisplayTitle IS OLD.DisplayTitle AND
+                        NEW.KeySymbol IS OLD.KeySymbol AND
+                        NEW.ChapterNumber IS OLD.ChapterNumber AND
+                        NEW.BookNumber IS OLD.BookNumber AND
+                        NEW.StartBlockIdentifier IS OLD.StartBlockIdentifier AND
+                        NEW.EndBlockIdentifier IS OLD.EndBlockIdentifier AND
+                        NEW.DocumentId IS OLD.DocumentId AND
+                        NEW.MepsLanguageId IS OLD.MepsLanguageId AND
+                        NEW.Type IS OLD.Type AND
+                        NEW.Track IS OLD.Track AND
+                        NEW.IssueTagNumber IS OLD.IssueTagNumber AND
+                        NEW.FirstDatedTextOffset IS OLD.FirstDatedTextOffset AND
+                        NEW.LastDatedTextOffset IS OLD.LastDatedTextOffset
+                      ) THEN OLD.VisitCount
+                      ELSE OLD.VisitCount + 1
+                    END
+                  WHERE HistoryId = NEW.HistoryId;
+                END;
+              """);
+            });
+          }
+        }
+    );
+  }
+
+  Future<void> deleteAllHistory() async {
+    await _database.delete("History");
+  }
+
+  Future<List<Map<String, dynamic>>> loadAllHistory(int? bottomBarIndex) async {
+    File mepsUnitFile = await getMepsUnitDatabaseFile();
+    
+    // Assure-toi que les bases sont bien attachées avant la requête
+    await attachDatabases(_database, {
+      'catalog': CatalogDb.instance.database.path, 
+      'meps': mepsUnitFile.path
     });
-  }
 
-  static Future<Database> getHistoryDb() async {
-    File historyFile = await getHistoryDatabaseFile();
-    return await openDatabase(historyFile.path, version: 1, onCreate: (db, version) async {
-      await createDbHistory(db);
-    });
-  }
-
-  static Future<void> deleteAllHistory() async {
-    final db = await getHistoryDb();
-    await db.delete("History");
-    await db.close();
-  }
-
-  static Future<List<Map<String, dynamic>>> loadAllHistory(int? bottomBarIndex) async {
-    final db = await getHistoryDb();
-
-    await attachDatabases(db, {'catalog': CatalogDb.instance.database.path});
-
-    // Initialise la clause WHERE vide
+    // Gestion dynamique de la clause WHERE et des arguments
     String whereClause = '';
+    List<dynamic> arguments = [];
+    
     if (bottomBarIndex != null) {
-      whereClause = 'WHERE NavigationBottomBarIndex = $bottomBarIndex';
+      whereClause = 'WHERE History.NavigationBottomBarIndex = ?';
+      arguments.add(bottomBarIndex);
     }
 
-    final result = await db.rawQuery('''
+    final result = await _database.rawQuery('''
       SELECT 
         History.*,
-        catalog.Publication.ShortTitle AS PublicationTitle,
-        catalog.Publication.IssueTitle AS PublicationIssueTitle,
-        catalog.Publication.PublicationTypeId
+        cat.ShortTitle AS PublicationTitle,
+        cat.IssueTitle AS PublicationIssueTitle,
+        cat.PublicationTypeId,
+        lang.Symbol AS LanguageSymbol,
+        lang.VernacularName AS LanguageVernacularName,
+        lang.IsSignLanguage AS IsSignLanguage,
+        scr.IsRTL AS IsRTL
       FROM History
-      LEFT JOIN catalog.Publication 
-        ON catalog.Publication.MepsLanguageId = History.MepsLanguageId 
-        AND catalog.Publication.KeySymbol = History.KeySymbol
-        AND catalog.Publication.IssueTagNumber = History.IssueTagNumber
+      LEFT JOIN meps.Language lang 
+        ON lang.LanguageId = History.MepsLanguageId
+      LEFT JOIN catalog.Publication cat 
+        ON cat.MepsLanguageId = History.MepsLanguageId 
+        AND cat.KeySymbol = History.KeySymbol
+        AND cat.IssueTagNumber = History.IssueTagNumber
+      LEFT JOIN meps.Script scr 
+        ON scr.ScriptId = lang.ScriptId
       $whereClause
-      ORDER BY LastVisited DESC
-    ''');
+      ORDER BY History.LastVisited DESC
+    ''', arguments);
 
-    await detachDatabases(db, ['catalog']);
-    await db.close();
+    // Note : détacher 'catalog' et 'meps' si nécessaire
+    await detachDatabases(_database, ['catalog', 'meps']);
 
     return result;
   }
 
-  static Future<List<Map<String, dynamic>>> getMostUsedLanguages() async {
-    final db = await getHistoryDb();
-
-    final result = await db.rawQuery('''
+  Future<List<Map<String, dynamic>>> getMostUsedLanguages() async {
+    final result = await _database.rawQuery('''
        SELECT MepsLanguageId, COUNT(*) AS Occurrences
        FROM History
        GROUP BY MepsLanguageId
@@ -104,38 +182,31 @@ class History {
        LIMIT 5;
     ''');
 
-    await db.close();
-
     return result;
   }
 
-  static Future<void> insertDocument(String displayTitle, Publication pub, int docId, int? startParagraphId, int? endParagraphId) async {
-    final db = await getHistoryDb();
-
-    List<Map<String, dynamic>> existing = await db.query(
+  Future<void> insertDocument(String displayTitle, Publication pub, int docId, int? startParagraphId, int? endParagraphId) async {
+    List<Map<String, dynamic>> existing = await _database.query(
       "History",
       where: "DocumentId = ? AND MepsLanguageId = ? AND Type = ?",
       whereArgs: [docId, pub.mepsLanguage.id, "document"],
     );
 
     if (existing.isNotEmpty) {
-      await db.update(
+      await _database.update(
         "History",
         {
           "DisplayTitle": displayTitle,
           "StartBlockIdentifier": startParagraphId,
           "EndBlockIdentifier": endParagraphId,
-          "VisitCount": (existing.first["VisitCount"] ?? 0) + 1,
-          "LastVisited": DateTime.now().toUtc().toIso8601String(),
           "NavigationBottomBarIndex": GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex.value,
-          "ScrollPosition": 0
         },
         where: "HistoryId = ?",
         whereArgs: [existing.first["HistoryId"]],
       );
     }
     else {
-      await db.insert("History", {
+      await _database.insert("History", {
         "DisplayTitle": displayTitle,
         "DocumentId": docId,
         "StartBlockIdentifier": startParagraphId,
@@ -144,19 +215,13 @@ class History {
         "IssueTagNumber": pub.issueTagNumber,
         "MepsLanguageId": pub.mepsLanguage.id,
         "Type": "document",
-        "NavigationBottomBarIndex": GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex.value,
-        "ScrollPosition": 0,
-        "LastVisited": DateTime.now().toUtc().toIso8601String()
+        "NavigationBottomBarIndex": GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex.value
       });
     }
-
-    await db.close();
   }
 
-  static Future<void> insertBibleChapter(String displayTitle, Publication bible, int bibleBook, int bibleChapter, int? startVerse, int? endVerse) async {
-    final db = await getHistoryDb();
-
-    List<Map<String, dynamic>> existing = await db.query(
+  Future<void> insertBibleChapter(String displayTitle, Publication bible, int bibleBook, int bibleChapter, int? startVerse, int? endVerse) async {
+    List<Map<String, dynamic>> existing = await _database.query(
       "History",
       where: "KeySymbol = ? AND BookNumber = ? AND ChapterNumber = ? AND MepsLanguageId = ? AND Type = ?",
       whereArgs: [bible.keySymbol, bibleBook, bibleChapter, bible.mepsLanguage.id, "chapter"],
@@ -165,23 +230,20 @@ class History {
     String lastDisplayTitle = startVerse == null && endVerse == null ? displayTitle : JwLifeApp.bibleCluesInfo.getVerses(bibleBook, bibleChapter, startVerse ?? 0, bibleBook, bibleChapter, endVerse ?? 0);
 
     if (existing.isNotEmpty) {
-      await db.update(
+      await _database.update(
         "History",
         {
           "DisplayTitle": lastDisplayTitle,
           "StartBlockIdentifier": startVerse,
           "EndBlockIdentifier": endVerse,
-          "VisitCount": (existing.first["VisitCount"] ?? 0) + 1,
-          "LastVisited": DateTime.now().toUtc().toIso8601String(),
           "NavigationBottomBarIndex": GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex.value,
-          "ScrollPosition": 0
         },
         where: "HistoryId = ?",
         whereArgs: [existing.first["HistoryId"]],
       );
     }
     else {
-      await db.insert("History", {
+      await _database.insert("History", {
         "DisplayTitle": lastDisplayTitle,
         "BookNumber": bibleBook,
         "ChapterNumber": bibleChapter,
@@ -190,18 +252,44 @@ class History {
         "KeySymbol": bible.keySymbol,
         "MepsLanguageId": bible.mepsLanguage.id,
         "Type": "chapter",
-        "NavigationBottomBarIndex": GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex.value,
-        "ScrollPosition": 0,
-        "LastVisited": DateTime.now().toUtc().toIso8601String()
+        "NavigationBottomBarIndex": GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex.value
       });
     }
-
-    await db.close();
   }
 
-  static Future<void> insertVideo(Video video) async {
-    final db = await getHistoryDb();
+  Future<void> insertDatedText(String displayTitle, Publication pub, int firstDatedTextOffset, int lastDatedTextOffset) async {
+    List<Map<String, dynamic>> existing = await _database.query(
+      "History",
+      where: "FirstDatedTextOffset = ? AND LastDatedTextOffset = ? AND KeySymbol = ? AND MepsLanguageId = ? AND Type = ?",
+      whereArgs: [firstDatedTextOffset, lastDatedTextOffset, pub.keySymbol, pub.mepsLanguage.id, "datedText"],
+    );
 
+    if (existing.isNotEmpty) {
+      await _database.update(
+        "History",
+        {
+          "DisplayTitle": displayTitle,
+          "NavigationBottomBarIndex": GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex.value,
+        },
+        where: "HistoryId = ?",
+        whereArgs: [existing.first["HistoryId"]],
+      );
+    }
+    else {
+      await _database.insert("History", {
+        "DisplayTitle": displayTitle,
+        "FirstDatedTextOffset": firstDatedTextOffset,
+        "LastDatedTextOffset": lastDatedTextOffset,
+        "KeySymbol": pub.keySymbol,
+        "IssueTagNumber": pub.issueTagNumber,
+        "MepsLanguageId": pub.mepsLanguage.id,
+        "Type": "datedText",
+        "NavigationBottomBarIndex": GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex.value
+      });
+    }
+  }
+
+  Future<void> insertVideo(Video video) async {
     String? keySymbol = video.keySymbol;
     int? track = video.track;
     int? documentId = video.documentId;
@@ -232,18 +320,16 @@ class History {
       whereArgs.add(issueTagNumber);
     }
 
-    List<Map<String, dynamic>> existing = await db.query(
+    List<Map<String, dynamic>> existing = await _database.query(
       "History",
       where: whereClause,
       whereArgs: whereArgs,
     );
 
     if (existing.isNotEmpty) {
-      await db.update(
+      await _database.update(
         "History",
         {
-          "VisitCount": (existing.first["VisitCount"] ?? 0) + 1,
-          "LastVisited": DateTime.now().toUtc().toIso8601String(),
           "NavigationBottomBarIndex": GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex.value,
         },
         where: "HistoryId = ?",
@@ -251,7 +337,7 @@ class History {
       );
     }
     else {
-      await db.insert("History", {
+      await _database.insert("History", {
         "DisplayTitle": displayTitle,
         "DocumentId": documentId,
         "KeySymbol": keySymbol,
@@ -260,16 +346,11 @@ class History {
         "MepsLanguageId": mepsLanguageId,
         "Type": "video",
         "NavigationBottomBarIndex": GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex.value,
-        "LastVisited": DateTime.now().toUtc().toIso8601String()
       });
     }
-
-    await db.close();
   }
 
-  static Future<void> insertAudioMediaItem(Audio audio) async {
-    final db = await getHistoryDb();
-
+  Future<void> insertAudioMediaItem(Audio audio) async {
     String? keySymbol = audio.keySymbol;
     int? track = audio.track;
     int? documentId = audio.documentId;
@@ -300,18 +381,16 @@ class History {
       whereArgs.add(issueTagNumber);
     }
 
-    List<Map<String, dynamic>> existing = await db.query(
+    List<Map<String, dynamic>> existing = await _database.query(
       "History",
       where: whereClause,
       whereArgs: whereArgs,
     );
 
     if (existing.isNotEmpty) {
-      await db.update(
+      await _database.update(
         "History",
         {
-          "VisitCount": (existing.first["VisitCount"] ?? 0) + 1,
-          "LastVisited": DateTime.now().toUtc().toIso8601String(),
           "NavigationBottomBarIndex": GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex.value,
         },
         where: "HistoryId = ?",
@@ -319,7 +398,7 @@ class History {
       );
     }
     else {
-      await db.insert("History", {
+      await _database.insert("History", {
         "DisplayTitle": displayTitle,
         "DocumentId": documentId,
         "KeySymbol": keySymbol,
@@ -328,16 +407,11 @@ class History {
         "MepsLanguageId": mepsLanguageId,
         "Type": "audio",
         "NavigationBottomBarIndex": GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex.value,
-        "LastVisited": DateTime.now().toUtc().toIso8601String()
       });
-    }
-
-    await db.close();
+    };
   }
 
-  static Future<void> insertAudio(Audio audio) async {
-    final db = await getHistoryDb();
-
+  Future<void> insertAudio(Audio audio) async {
     String? keySymbol = audio.keySymbol;
     int? track = audio.track;
     int? documentId = audio.documentId;
@@ -368,18 +442,16 @@ class History {
       whereArgs.add(issueTagNumber);
     }
 
-    List<Map<String, dynamic>> existing = await db.query(
+    List<Map<String, dynamic>> existing = await _database.query(
       "History",
       where: whereClause,
       whereArgs: whereArgs,
     );
 
     if (existing.isNotEmpty) {
-      await db.update(
+      await _database.update(
         "History",
         {
-          "VisitCount": (existing.first["VisitCount"] ?? 0) + 1,
-          "LastVisited": DateTime.now().toUtc().toIso8601String(),
           "NavigationBottomBarIndex": GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex.value,
         },
         where: "HistoryId = ?",
@@ -387,7 +459,7 @@ class History {
       );
     }
     else {
-      await db.insert("History", {
+      await _database.insert("History", {
         "DisplayTitle": displayTitle,
         "DocumentId": documentId,
         "KeySymbol": keySymbol,
@@ -395,20 +467,16 @@ class History {
         "IssueTagNumber": issueTagNumber ?? 0,
         "MepsLanguageId": mepsLanguageId,
         "Type": "audio",
-        "NavigationBottomBarIndex": GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex.value,
-        "LastVisited": DateTime.now().toUtc().toIso8601String()
+        "NavigationBottomBarIndex": GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex.value
       });
     }
-
-    await db.close();
   }
 
-  static Future<List<dynamic>> searchUsedItems(List<dynamic> items, String sortType) async {
-    Database db = await getHistoryDb();
+  Future<List<dynamic>> searchUsedItems(List<dynamic> items, String sortType) async {
     File mepsDbFile = await getMepsUnitDatabaseFile();
 
     // On utilise tes fonctions personnalisées
-    await attachDatabases(db, {'meps': mepsDbFile.path});
+    await attachDatabases(_database, {'meps': mepsDbFile.path});
 
     Map<int, int> visitsMap = {};
 
@@ -422,7 +490,7 @@ class History {
         langId = item.mepsLanguage.id;
       } else if (item is Media) {
         // Pour les médias, on récupère l'ID via le symbole dans la base attachée
-        final langResult = await db.rawQuery(
+        final langResult = await _database.rawQuery(
             "SELECT LanguageId FROM meps.Language WHERE Symbol = ?",
             [item.mepsLanguage] // Le symbole (ex: 'F')
         );
@@ -433,7 +501,7 @@ class History {
 
       // On récupère le nombre de visites dans la table History
       if (langId != null) {
-        final result = await db.rawQuery('''
+        final result = await _database.rawQuery('''
         SELECT SUM(VisitCount) as Total 
         FROM History 
         WHERE KeySymbol = ? AND IssueTagNumber = ? AND MepsLanguageId = ?
@@ -445,8 +513,7 @@ class History {
       }
     }
 
-    await detachDatabases(db, ['meps']);
-    await db.close();
+    await detachDatabases(_database, ['meps']);
 
     // On trie la liste originale
     items.sort((a, b) {
@@ -463,7 +530,7 @@ class History {
     return items;
   }
 
-  static Future<void> showHistoryDialog(BuildContext mainContext, {int? bottomBarIndex}) async {
+  Future<void> showHistoryDialog(BuildContext mainContext, {int? bottomBarIndex}) async {
     bool isDarkMode = Theme.of(mainContext).brightness == Brightness.dark;
     final Color dividerColor = isDarkMode ? Colors.black : const Color(0xFFf0f0f0);
     final Color hintColor = isDarkMode ? const Color(0xFFc5c5c5) : const Color(0xFF666666);
@@ -485,7 +552,8 @@ class History {
               setState(() { // <== Appel crucial pour reconstruire le widget
                 if (query.isEmpty) {
                   filteredHistory = List.from(allHistory);
-                } else {
+                } 
+                else {
                   filteredHistory = allHistory.where((element) {
                     return element["DisplayTitle"]
                         .toString()
@@ -521,7 +589,7 @@ class History {
                         child: Row(
                           children: [
                             Icon(JwIcons.magnifying_glass, color: hintColor),
-                            const SizedBox(width: 16),
+                            const SizedBox(width: 10),
                             // **Wrap the TextField in Expanded**
                             Expanded(
                               child: TextField( // <-- This is now constrained
@@ -556,7 +624,7 @@ class History {
                         separatorBuilder: (context, index) => Divider(color: dividerColor, height: 0),
                         itemBuilder: (context, index) {
                           var item = filteredHistory[index];
-                          IconData icon = item["Type"] == 'webview' ? item['PublicationTypeId'] != null ? PublicationCategory.all.firstWhere((category) => category.id == item['PublicationTypeId']).icon : JwIcons.document : JwIcons.document;
+                          var pub = item["PublicationTitle"] == null && item['Type'] == 'document' ? PublicationRepository().getPublicationWithMepsLanguageId(item["KeySymbol"], item["IssueTagNumber"], item["MepsLanguageId"]) : null;
 
                           return InkWell(
                             onTap: () {
@@ -602,49 +670,51 @@ class History {
                               else if (item["Type"] == "document") {
                                 showDocumentView(mainContext, item["DocumentId"], item["MepsLanguageId"], startParagraphId: item["StartBlockIdentifier"], endParagraphId: item["EndBlockIdentifier"]);
                               }
+                              else if (item["Type"] == "datedText") {
+                                showDailyText(mainContext, item["FirstDatedTextOffset"], item["LastDatedTextOffset"], item["KeySymbol"], item["MepsLanguageId"]);
+                              }
                             },
-                            child: Container(
-                              padding: const EdgeInsets.only(left: 20, right: 10, top: 5, bottom: 5),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                children: [
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          item["DisplayTitle"] ?? "Sans titre",
-                                          style: const TextStyle(fontSize: 16),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                        Text(
-                                          item["Type"] == "video"
-                                              ? "Vidéo"
-                                              : item["Type"] == "audio"
-                                              ? "Audio"
-                                              : (item["PublicationIssueTitle"] ?? item["PublicationTitle"] ?? item['KeySymbol']),
-                                          style: TextStyle(
-                                            fontSize: 14,
-                                            color: subtitleColor,
+                            child: Directionality(
+                              textDirection: item["IsRTL"] == 1 ? TextDirection.rtl : TextDirection.ltr,
+                              child: Container(
+                                padding: const EdgeInsets.only(left: 15, right: 15, top: 5, bottom: 5),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  children: [
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            item["DisplayTitle"] ?? "Sans titre",
+                                            style: const TextStyle(fontSize: 16),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
                                           ),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ],
+                                          Text(
+                                            item["Type"] == "video"
+                                                ? i18n().label_videos
+                                                : item["Type"] == "audio"
+                                                ? i18n().pub_type_audio_programs
+                                                : (item["PublicationIssueTitle"] ?? item["PublicationTitle"] ?? pub?.getShortTitle() ?? item['KeySymbol'] ?? ''),
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              color: subtitleColor,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ],
+                                      ),
                                     ),
-                                  ),
-                                  const SizedBox(width: 20),
-                                  Icon(
-                                    item["Type"] == "video"
-                                        ? JwIcons.video
-                                        : item["Type"] == "audio"
-                                        ? JwIcons.music
-                                        : icon,
-                                    color: isDarkMode ? Colors.white : Colors.black,
-                                    size: 20,
-                                  ),
-                                ],
+                                    const SizedBox(width: 20),
+                                    Icon(
+                                      getIcon(item, pub),
+                                      color: isDarkMode ? Colors.white : Colors.black,
+                                      size: 20,
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                           );
@@ -691,5 +761,103 @@ class History {
         );
       },
     );
+  }
+
+  IconData getIcon(Map item, Publication? pub) {
+    int? publicationTypeId = item['PublicationTypeId'] ?? pub?.category.id;
+    // 1. Cas spécifique du document avec PublicationTypeId
+    if (item["Type"] == 'document' && publicationTypeId != null) {
+      try {
+        return PublicationCategory.all
+            .firstWhere((cat) => cat.id == publicationTypeId)
+            .icon;
+      } 
+      catch (e) {
+        return JwIcons.document; // Sécurité si l'ID n'est pas trouvé
+      }
+    }
+
+    // 2. Autres types
+    switch (item["Type"]) {
+      case 'datedText':
+        return JwIcons.calendar;
+      case 'chapter':
+        return JwIcons.bible;
+      case 'video':
+        return JwIcons.video;
+      case 'audio':
+        return JwIcons.music;
+      default:
+        return JwIcons.document;
+    }
+  }
+
+  Future<void> createDbHistory(Database db) async {
+    await db.transaction((txn) async {
+      // 1. Création de la table avec le format de date par défaut correct
+      await txn.execute("""
+        CREATE TABLE IF NOT EXISTS "History" (
+          "HistoryId" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+          "BookNumber" INTEGER,
+          "ChapterNumber" INTEGER,
+          "FirstDatedTextOffset" INTEGER,
+          "LastDatedTextOffset" INTEGER,
+          "DocumentId" INTEGER,
+          "StartBlockIdentifier" INTEGER,
+          "EndBlockIdentifier" INTEGER,
+          "Track" INTEGER,
+          "IssueTagNumber" INTEGER DEFAULT 0,
+          "KeySymbol" TEXT,
+          "MepsLanguageId" INTEGER,
+          "DisplayTitle" TEXT,
+          "Type" TEXT,
+          "NavigationBottomBarIndex" INTEGER DEFAULT 0,
+          "ScrollPosition" INTEGER DEFAULT 0,
+          "VisitCount" INTEGER DEFAULT 1,
+          "LastVisited" TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+        );
+      """);
+
+      // 2. UN SEUL Trigger pour tout gérer
+      await txn.execute("""
+        CREATE TRIGGER IF NOT EXISTS tr_History_Update_All
+        AFTER UPDATE ON History
+        FOR EACH ROW
+        BEGIN
+          UPDATE History 
+          SET 
+            -- Met à jour la date ISO systématiquement
+            LastVisited = strftime('%Y-%m-%dT%H:%M:%SZ', 'now'),
+            
+            -- Logique d'incrémentation :
+            VisitCount = CASE 
+              -- CONDITION D'EXCEPTION : On ne fait rien si SEUL le scroll a bougé
+              -- (Tous les autres paramètres doivent être identiques à l'ancien record)
+              WHEN (
+                NEW.ScrollPosition IS NOT OLD.ScrollPosition AND
+                NEW.NavigationBottomBarIndex IS OLD.NavigationBottomBarIndex AND
+                NEW.DisplayTitle IS OLD.DisplayTitle AND
+                NEW.KeySymbol IS OLD.KeySymbol AND
+                NEW.ChapterNumber IS OLD.ChapterNumber AND
+                NEW.BookNumber IS OLD.BookNumber AND
+                NEW.StartBlockIdentifier IS OLD.StartBlockIdentifier AND
+                NEW.EndBlockIdentifier IS OLD.EndBlockIdentifier AND
+                NEW.DocumentId IS OLD.DocumentId AND
+                NEW.MepsLanguageId IS OLD.MepsLanguageId AND
+                NEW.Type IS OLD.Type AND
+                NEW.Track IS OLD.Track AND
+                NEW.IssueTagNumber IS OLD.IssueTagNumber AND
+                NEW.FirstDatedTextOffset IS OLD.FirstDatedTextOffset AND
+                NEW.LastDatedTextOffset IS OLD.LastDatedTextOffset
+              ) THEN OLD.VisitCount
+
+              -- TOUS LES AUTRES CAS : (+1)
+              -- Inclut : changement d'onglet, changement de titre, ou même contenu réouvert (NEW == OLD)
+              ELSE OLD.VisitCount + 1
+            END
+          WHERE HistoryId = NEW.HistoryId;
+        END;
+      """);
+    });
   }
 }

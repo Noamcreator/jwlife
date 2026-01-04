@@ -2,13 +2,13 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/app/services/global_key_service.dart';
 import 'package:jwlife/features/home/pages/daily_text_page.dart';
 import 'package:jwlife/features/document/local/document_page.dart';
 import 'package:jwlife/features/image/pages/full_screen_image_page.dart';
 import 'package:jwlife/features/video/video_player_page.dart';
 import 'package:jwlife/core/utils/utils_dialog.dart';
-import '../data/databases/history.dart';
 
 import '../core/icons.dart';
 import 'package:jwlife/i18n/i18n.dart';
@@ -437,7 +437,7 @@ class JwLifePageState extends State<JwLifePage> with WidgetsBindingObserver {
 
                                   final BuildContext context = navigatorKeys[index].currentContext!;
                                   HapticFeedback.lightImpact();
-                                  History.showHistoryDialog(context, bottomBarIndex: index);
+                                  JwLifeApp.history.showHistoryDialog(context, bottomBarIndex: index);
                                 },
 
                                 items: [

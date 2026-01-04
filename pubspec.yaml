@@ -3,7 +3,7 @@ description: >
   JW Life est une application Flutter visant à moderniser et améliorer JW Library
   en corrigeant ses bugs et en ajoutant des fonctionnalités utiles aux Témoins de
   Jéhovah.
-version: 1.3.4
+version: 1.4.0
 publish_to: "none"
 
 environment:

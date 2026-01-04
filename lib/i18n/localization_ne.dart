@@ -2746,7 +2746,7 @@ class AppLocalizationsNe extends AppLocalizations {
   String get settings_languages => 'भाषा';
 
   @override
-  String get settings_languages_upper => 'भाषा';
+  String get settings_languages_upper => 'भाषाहरू';
 
   @override
   String get settings_language_app => 'अनुप्रयोग भाषा';
@@ -3142,4 +3142,38 @@ class AppLocalizationsNe extends AppLocalizations {
 
   @override
   String get label_icon_commentary => 'अध्ययन टिप्पणी';
+
+  @override
+  String get label_verses_side_by_side => 'पदहरू साथसाथै';
+
+  @override
+  String get message_verses_side_by_side =>
+      'पहिलो दुई अनुवादहरू साथसाथै देखाउनुहोस्';
+
+  @override
+  String get settings_menu_display_upper => 'मेनु';
+
+  @override
+  String get settings_show_publication_description =>
+      'प्रकाशन विवरण देखाउनुहोस्';
+
+  @override
+  String get settings_show_publication_description_subtitle =>
+      'वेबसाइटमा भएको विवरण शीर्षक मुनि देखाउनुहोस्।';
+
+  @override
+  String get settings_show_document_description =>
+      'कागजातहरूको लागि विवरण देखाउनुहोस्';
+
+  @override
+  String get settings_show_document_description_subtitle =>
+      'वेबसाइटमा भएको विवरण कागजातहरू मुनि देखाउनुहोस्।';
+
+  @override
+  String get settings_menu_auto_open_single_document =>
+      'कागजात सीधा खोल्नुहोस्';
+
+  @override
+  String get settings_menu_auto_open_single_document_subtitle =>
+      'यदि केवल एक कागजात छ भने, मेनु नदेखाई यसलाई खोल्नुहोस्।';
 }

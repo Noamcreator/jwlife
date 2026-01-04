@@ -808,7 +808,7 @@
   "settings_download_over_cellular_subtitle": "Buna görə hesabınızdan pul tutula bilər.",
   "settings_how_jwl_uses_your_data": "«JW Library» tətbiqində fərdi məlumatlardan istifadə",
   "settings_languages": "Dil",
-  "settings_languages_upper": "DİL",
+  "settings_languages_upper": "DİLLƏR",
   "settings_language_app": "Tətbiqin Dili",
   "settings_language_library": "Kitabxana Dili",
   "settings_license": "Lisenziya müqaviləsi",
@@ -922,5 +922,14 @@
   "label_research_inputs_fields": "SAHƏLƏR",
   "label_research_wikipedia": "VİKİPEDİYA",
   "meps_language": "AJR",
-  "label_icon_commentary": "Tədris qeydi"
+  "label_icon_commentary": "Tədris qeydi",
+  "label_verses_side_by_side": "Ayələr yan-yana",
+  "message_verses_side_by_side": "İlk iki tərcüməni yan-yana göstərin",
+  "settings_menu_display_upper": "MENYU",
+  "settings_show_publication_description": "Nəşr təsvirini göstər",
+  "settings_show_publication_description_subtitle": "Veb-saytdakı təsviri başlığın altında göstər.",
+  "settings_show_document_description": "Sənədlər üçün təsviri göstər",
+  "settings_show_document_description_subtitle": "Veb-saytdakı təsviri sənədlərin altında göstər.",
+  "settings_menu_auto_open_single_document": "Sənədi birbaşa aç",
+  "settings_menu_auto_open_single_document_subtitle": "Yalnız bir sənəd varsa, menyunu göstərmədən onu açın."
 }

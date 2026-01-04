@@ -3053,4 +3053,34 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get label_icon_commentary => '학습 노트';
+
+  @override
+  String get label_verses_side_by_side => '구절을 나란히';
+
+  @override
+  String get message_verses_side_by_side => '처음 두 번역을 나란히 표시';
+
+  @override
+  String get settings_menu_display_upper => '메뉴';
+
+  @override
+  String get settings_show_publication_description => '출판물 설명 표시';
+
+  @override
+  String get settings_show_publication_description_subtitle =>
+      '웹사이트의 설명을 제목 아래에 표시합니다.';
+
+  @override
+  String get settings_show_document_description => '문서 설명 표시';
+
+  @override
+  String get settings_show_document_description_subtitle =>
+      '웹사이트의 설명을 문서 아래에 표시합니다.';
+
+  @override
+  String get settings_menu_auto_open_single_document => '문서 직접 열기';
+
+  @override
+  String get settings_menu_auto_open_single_document_subtitle =>
+      '문서가 하나만 있는 경우 메뉴를 표시하지 않고 엽니다.';
 }

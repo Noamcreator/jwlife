@@ -3042,4 +3042,34 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get label_icon_commentary => '学習ノート';
+
+  @override
+  String get label_verses_side_by_side => '節を並べて表示';
+
+  @override
+  String get message_verses_side_by_side => '最初の2つの翻訳を並べて表示する';
+
+  @override
+  String get settings_menu_display_upper => 'メニュー';
+
+  @override
+  String get settings_show_publication_description => '出版物の説明を表示する';
+
+  @override
+  String get settings_show_publication_description_subtitle =>
+      'ウェブサイト上の説明をタイトルの下に表示します。';
+
+  @override
+  String get settings_show_document_description => 'ドキュメントの説明を表示する';
+
+  @override
+  String get settings_show_document_description_subtitle =>
+      'ウェブサイト上の説明をドキュメントの下に表示します。';
+
+  @override
+  String get settings_menu_auto_open_single_document => 'ドキュメントを直接開く';
+
+  @override
+  String get settings_menu_auto_open_single_document_subtitle =>
+      'ドキュメントが1つしかない場合は、メニューを表示せずに開きます。';
 }

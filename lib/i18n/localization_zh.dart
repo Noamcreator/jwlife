@@ -3007,6 +3007,34 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get label_icon_commentary => '学习笔记';
+
+  @override
+  String get label_verses_side_by_side => '诗节并排';
+
+  @override
+  String get message_verses_side_by_side => '并排显示前两个译本';
+
+  @override
+  String get settings_menu_display_upper => '菜单';
+
+  @override
+  String get settings_show_publication_description => '显示出版物描述';
+
+  @override
+  String get settings_show_publication_description_subtitle => '在标题下方显示网站上的描述。';
+
+  @override
+  String get settings_show_document_description => '显示文档描述';
+
+  @override
+  String get settings_show_document_description_subtitle => '在文档下方显示网站上的描述。';
+
+  @override
+  String get settings_menu_auto_open_single_document => '直接打开文档';
+
+  @override
+  String get settings_menu_auto_open_single_document_subtitle =>
+      '如果只有一个文档，则直接打开而不显示菜单。';
 }
 
 /// The translations for Chinese, as used in Hong Kong (`zh_HK`).
@@ -6013,6 +6041,34 @@ class AppLocalizationsZhHk extends AppLocalizationsZh {
 
   @override
   String get label_icon_commentary => '學習筆記';
+
+  @override
+  String get label_verses_side_by_side => '詩節並排';
+
+  @override
+  String get message_verses_side_by_side => '並排顯示前兩個譯本';
+
+  @override
+  String get settings_menu_display_upper => '菜單';
+
+  @override
+  String get settings_show_publication_description => '顯示出版物描述';
+
+  @override
+  String get settings_show_publication_description_subtitle => '在標題下方顯示網站上的描述。';
+
+  @override
+  String get settings_show_document_description => '顯示文件描述';
+
+  @override
+  String get settings_show_document_description_subtitle => '在文件下方顯示網站上的描述。';
+
+  @override
+  String get settings_menu_auto_open_single_document => '直接開啟文件';
+
+  @override
+  String get settings_menu_auto_open_single_document_subtitle =>
+      '如果只有一個文件，則直接開啟而不顯示菜單。';
 }
 
 /// The translations for Chinese, as used in Taiwan (`zh_TW`).
@@ -9019,4 +9075,32 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get label_icon_commentary => '學習筆記';
+
+  @override
+  String get label_verses_side_by_side => '詩節並排';
+
+  @override
+  String get message_verses_side_by_side => '並排顯示前兩個譯本';
+
+  @override
+  String get settings_menu_display_upper => '菜單';
+
+  @override
+  String get settings_show_publication_description => '顯示出版物描述';
+
+  @override
+  String get settings_show_publication_description_subtitle => '在標題下方顯示網站上的描述。';
+
+  @override
+  String get settings_show_document_description => '顯示文件描述';
+
+  @override
+  String get settings_show_document_description_subtitle => '在文件下方顯示網站上的描述。';
+
+  @override
+  String get settings_menu_auto_open_single_document => '直接開啟文件';
+
+  @override
+  String get settings_menu_auto_open_single_document_subtitle =>
+      '如果只有一個文件，則直接開啟而不顯示菜單。';
 }

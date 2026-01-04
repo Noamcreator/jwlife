@@ -2742,7 +2742,7 @@ class AppLocalizationsFa extends AppLocalizations {
   String get settings_languages => 'زبان';
 
   @override
-  String get settings_languages_upper => 'زبان';
+  String get settings_languages_upper => 'زبان‌ها';
 
   @override
   String get settings_language_app => 'زبان برنامه';
@@ -3135,4 +3135,34 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get label_icon_commentary => 'یادداشت مطالعه';
+
+  @override
+  String get label_verses_side_by_side => 'آیات در کنار هم';
+
+  @override
+  String get message_verses_side_by_side => 'نمایش دو ترجمه اول در کنار هم';
+
+  @override
+  String get settings_menu_display_upper => 'منو';
+
+  @override
+  String get settings_show_publication_description => 'نمایش توضیحات نشریات';
+
+  @override
+  String get settings_show_publication_description_subtitle =>
+      'توضیحات موجود در وب‌سایت را زیر عنوان نشان دهید.';
+
+  @override
+  String get settings_show_document_description => 'نمایش توضیحات برای اسناد';
+
+  @override
+  String get settings_show_document_description_subtitle =>
+      'توضیحات موجود در وب‌سایت را زیر اسناد نشان دهید.';
+
+  @override
+  String get settings_menu_auto_open_single_document => 'باز کردن مستقیم سند';
+
+  @override
+  String get settings_menu_auto_open_single_document_subtitle =>
+      'اگر فقط یک سند وجود دارد، آن را بدون نمایش منو باز کنید.';
 }

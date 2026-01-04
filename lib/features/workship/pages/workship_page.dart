@@ -46,7 +46,7 @@ class WorkShipPage extends StatefulWidget {
 }
 
 class WorkShipPageState extends State<WorkShipPage> with TickerProviderStateMixin {
-  Congregation? _congregation;
+  final _congregationValue = ValueNotifier<Congregation?>(null);
   final _dateOfMeetingValue = ValueNotifier(DateTime.now());
 
   bool _isOtherPublicationsToggle = true;
@@ -57,6 +57,8 @@ class WorkShipPageState extends State<WorkShipPage> with TickerProviderStateMixi
 
   final ScrollController _scrollController = ScrollController();
   late TabController _tabController;
+
+  int _animKey = 0;
 
   @override
   void initState() {
@@ -84,6 +86,10 @@ class WorkShipPageState extends State<WorkShipPage> with TickerProviderStateMixi
     fetchFirstCongregation();
     List<Publication> dayPubs = await CatalogDb.instance.getPublicationsForTheDay(JwLifeSettings.instance.workshipLanguage.value, date: _dateOfMeetingValue.value);
 
+    setState(() {
+      _animKey++; 
+    });
+
     refreshMeetingsPubs(pubs: dayPubs);
   }
 
@@ -92,13 +98,53 @@ class WorkShipPageState extends State<WorkShipPage> with TickerProviderStateMixi
     if (congregation.isEmpty) {
       return;
     }
-    setState(() {
-      _congregation = congregation.firstOrNull;
-    });
+    _congregationValue.value = congregation.firstOrNull;
+  }
+
+  // Afficher un menu qui me propose de choisir toutes les congrégations
+  void showCongregationsMenu(Offset tapPosition) async {
+    // 1. Récupérer la liste des congrégations
+    final congregations = await JwLifeApp.userdata.getCongregations();
+    if (congregations.isEmpty) return;
+
+    // 2. Afficher le menu flottant
+    final selected = await showMenu<Congregation>(
+      context: context,
+      position: RelativeRect.fromLTRB(
+        tapPosition.dx,
+        tapPosition.dy,
+        tapPosition.dx,
+        tapPosition.dy,
+      ),
+      items: congregations.map((cong) {
+        return PopupMenuItem<Congregation>(
+          value: cong,
+          child: Row(
+            children: [
+              Icon(
+                JwIcons.kingdom_hall, 
+                color: _congregationValue.value?.guid == cong.guid ? Theme.of(context).primaryColor : Colors.grey
+              ),
+              const SizedBox(width: 10),
+              Text(cong.name),
+            ],
+          ),
+        );
+      }).toList(),
+    );
+
+    // 3. Mettre à jour la congrégation sélectionnée
+    if (selected != null) {
+      _congregationValue.value = selected;
+    }
   }
 
   void refreshSelectedDay(DateTime selectedDay) {
     _dateOfMeetingValue.value = selectedDay;
+
+    setState(() {
+    _animKey++; 
+    });
   }
 
   int getWeekOfYear(DateTime date) {
@@ -342,7 +388,7 @@ class WorkShipPageState extends State<WorkShipPage> with TickerProviderStateMixi
             text: i18n().action_history,
             icon: const Icon(JwIcons.arrow_circular_left_clock),
             onPressed: (anchorContext) {
-              History.showHistoryDialog(context);
+              JwLifeApp.history.showHistoryDialog(context);
             },
           ),
           IconTextButton(
@@ -350,7 +396,7 @@ class WorkShipPageState extends State<WorkShipPage> with TickerProviderStateMixi
             icon: const Icon(JwIcons.share),
             onPressed: (anchorContext) {
               String uri = JwOrgUri.meetings(
-                  wtlocale: JwLifeSettings.instance.libraryLanguage.value.symbol,
+                  wtlocale: JwLifeSettings.instance.workshipLanguage.value.symbol,
                   date: convertDateTimeToIntDate(_dateOfMeetingValue.value).toString()
               ).toString();
 
@@ -365,7 +411,7 @@ class WorkShipPageState extends State<WorkShipPage> with TickerProviderStateMixi
             icon: const Icon(JwIcons.qr_code),
             onPressed: (anchorContext) {
               String uri = JwOrgUri.meetings(
-                  wtlocale: JwLifeSettings.instance.libraryLanguage.value.symbol,
+                  wtlocale: JwLifeSettings.instance.workshipLanguage.value.symbol,
                   date: convertDateTimeToIntDate(_dateOfMeetingValue.value).toString()
               ).toString();
 
@@ -421,101 +467,183 @@ class WorkShipPageState extends State<WorkShipPage> with TickerProviderStateMixi
             SingleChildScrollView(
               padding: const EdgeInsets.all(10),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  _congregation == null || _congregation?.nextMeeting() == null
-                      ? const SizedBox.shrink()
-                      : Builder(
-                    builder: (context) {
-                      final meeting = _congregation!.nextMeeting();
+                  ValueListenableBuilder(
+                    valueListenable: _dateOfMeetingValue,
+                    builder: (context, value, child) {
+                      return ValueListenableBuilder(
+                        valueListenable: _congregationValue,
+                        builder: (context, congregation, child) {
+                          return congregation == null || congregation.nextMeeting(value) == null
+                              ? const SizedBox.shrink()
+                              : Builder(
+                            builder: (context) {
+                              final nextMeeting = congregation.nextMeeting(value);
+                              final nextNextMeeting = congregation.nextNextMeeting(value);
+                          
+                              if (nextMeeting == null) return const SizedBox.shrink();
+                          
+                              // --- Données Réunion 1 ---
+                              final date1 = nextMeeting["date"] as DateTime;
+                              final type = nextMeeting["type"] as String;
+                              final icon = (type == "midweek") ? JwIcons.sheep : JwIcons.watchtower;
+                          
+                              // --- Données Réunion 2 ---
+                              DateTime? date2;
+                              String? formatData2;
+                              
+                              if (nextNextMeeting != null) {
+                                date2 = nextNextMeeting["date"] as DateTime;
+                              }
+                          
+                              final locale = getSafeLocale();
+  
+                              // Formater la réunion 1
+                              final dateStr1 = DateFormat("EEEE d MMMM", locale).format(date1);
+                              final formatData1 = i18n().label_date_next_meeting(
+                                dateStr1, 
+                                DateFormat("HH", locale).format(date1), 
+                                DateFormat("mm", locale).format(date1)
+                              );
+                          
+                              // Formater la réunion 2 (si elle existe)
+                              if (date2 != null) {
+                                final dateStr2 = DateFormat("EEEE d MMMM", locale).format(date2);
+                                formatData2 = i18n().label_date_next_meeting(
+                                  dateStr2, 
+                                  DateFormat("HH", locale).format(date2), 
+                                  DateFormat("mm", locale).format(date2)
+                                );
+                              }
 
-                      if (meeting == null) return const SizedBox.shrink();
-
-                      final date = meeting["date"] as DateTime;
-                      final type = meeting["type"] as String;
-                      final isMidweek = type == "midweek";
-
-                      final icon = isMidweek ? JwIcons.sheep : JwIcons.watchtower;
-
-                      final locale = getSafeLocale();
-                      final dateStr = DateFormat("EEEE d MMMM", locale).format(date);
-                      final hourStr = DateFormat("HH", locale).format(date);
-                      final minuteStr = DateFormat("mm", locale).format(date);
-
-                      final formatData = i18n().label_date_next_meeting(dateStr, hourStr, minuteStr);
-
-                      return Material(
-                        color: Colors.transparent,
-                        child: InkWell(
-                          onTap: () => showPage(CongregationsPage()),
-                          child: Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.symmetric(vertical: 5),
-                            decoration: const BoxDecoration(
-                              color: Colors.transparent,
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.start,
-                              crossAxisAlignment: CrossAxisAlignment.center,
-                              children: [
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                                  child: Icon(
-                                    icon,
-                                    color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : const Color(0xFF686868),
-                                    size: 40,
+                              Offset tapPosition = Offset.zero;
+                          
+                              return Material(
+                                color: Colors.transparent,
+                                child: GestureDetector(
+                                  onTapDown: (details) => tapPosition = details.globalPosition,
+                                  child: InkWell(
+                                    onTap: () => showPage(CongregationsPage()),
+                                    onLongPress: () => showCongregationsMenu(tapPosition),
+                                    child: Container(
+                                      width: double.infinity,
+                                      padding: const EdgeInsets.symmetric(vertical: 5),
+                                      alignment: Alignment.center,
+                                      decoration: const BoxDecoration(
+                                        color: Colors.transparent,
+                                      ),
+                                      child: Row(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          const SizedBox(width: 20),
+                                          AnimatedSwitcher(
+                                            duration: const Duration(milliseconds: 300), // 300ms pour sortir, 300ms pour entrer = 600ms total
+                                            
+                                            layoutBuilder: (Widget? currentChild, List<Widget> previousChildren) {
+                                              if (previousChildren.isNotEmpty) {
+                                                return previousChildren.first; 
+                                              }
+                                              return currentChild ?? const SizedBox.shrink();
+                                            },
+                                                            
+                                            transitionBuilder: (Widget child, Animation<double> animation) {
+                                              final isRTL = Directionality.of(context) == TextDirection.rtl;
+                                              
+                                              // On définit le décalage vers le bord
+                                              final edgeOffset = isRTL ? const Offset(8.0, 0.0) : const Offset(-8.0, 0.0);
+                                                            
+                                              final isEntering = child.key == ValueKey<int>(_animKey);
+                                                            
+                                              return SlideTransition(
+                                                position: Tween<Offset>(
+                                                  // Entrée : Bord -> Centre (0.0)
+                                                  // Sortie : Centre (0.0) -> Bord
+                                                  begin: isEntering ? edgeOffset : Offset.zero,
+                                                  end: isEntering ? Offset.zero : edgeOffset,
+                                                ).animate(CurvedAnimation(
+                                                  parent: animation,
+                                                  // On utilise la même courbe pour les deux, mais inversée par le Tween
+                                                  curve: Curves.easeInOutQuart
+                                                )),
+                                                child: child,
+                                              );
+                                            },
+                                            
+                                            child: Icon(
+                                              icon,
+                                              key: ValueKey<int>(_animKey),
+                                              color: Theme.of(context).primaryColor,
+                                              size: 50,
+                                            ),
+                                          ),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.center,
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Text(
+                                                  congregation.name,
+                                                  textAlign: TextAlign.left,
+                                                  style: TextStyle(
+                                                    fontSize: 16,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: Theme
+                                                        .of(context)
+                                                        .brightness == Brightness.dark
+                                                        ? Colors.white70
+                                                        : const Color(0xFF686868),
+                                                  ),
+                                                ),
+                                                Text(
+                                                  formatData1,
+                                                  textAlign: TextAlign.left,
+                                                  style: TextStyle(
+                                                    fontSize: 16,
+                                                    color: Theme
+                                                        .of(context)
+                                                        .brightness == Brightness.dark
+                                                        ? Colors.white70
+                                                        : const Color(0xFF686868),
+                                                  ),
+                                                ),
+                                                if (formatData2 != null) ...[
+                                                  Text(
+                                                    formatData2,
+                                                    textAlign: TextAlign.left,
+                                                    style: TextStyle(
+                                                      fontSize: 16,
+                                                      color: Theme
+                                                          .of(context)
+                                                          .brightness == Brightness.dark
+                                                          ? Colors.white70
+                                                          : const Color(0xFF686868),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
                                   ),
                                 ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Text(
-                                        _congregation?.name ?? '',
-                                        textAlign: TextAlign.left,
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold,
-                                          color: Theme
-                                              .of(context)
-                                              .brightness == Brightness.dark
-                                              ? Colors.white70
-                                              : const Color(0xFF686868),
-                                        ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        formatData,
-                                        textAlign: TextAlign.left,
-                                        style: TextStyle(
-                                          fontSize: 18,
-                                          color: Theme
-                                              .of(context)
-                                              .brightness == Brightness.dark
-                                              ? Colors.white70
-                                              : const Color(0xFF686868),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
+                              );
+                            },
+                          );
+                        }
                       );
-                    },
+                    }
                   ),
 
-                  const SizedBox(height: 15),
+                  const SizedBox(height: 5),
 
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       IconButton(
-                        visualDensity: VisualDensity.compact,
+                        visualDensity: const VisualDensity(horizontal: -2), // Rend la liste plus compacte
                         padding: EdgeInsets.zero,
                         onPressed: () async {
                           DateTime newDate = _dateOfMeetingValue.value.subtract(const Duration(days: 7));
@@ -539,7 +667,7 @@ class WorkShipPageState extends State<WorkShipPage> with TickerProviderStateMixi
                         child: ValueListenableBuilder(
                           valueListenable: _dateOfMeetingValue,
                           builder: (context, value, _) {
-                            return Text(formatWeekRange(value));
+                            return Text(formatWeekRange(value), style: const TextStyle(fontSize: 15), maxLines: 2);
                           },
                         ),
                       ),
@@ -698,10 +826,6 @@ class WorkShipPageState extends State<WorkShipPage> with TickerProviderStateMixi
     required VoidCallback onToggle,
     required Widget child,
   }) {
-    TextDirection textDirection = JwLifeSettings.instance.libraryLanguage.value.isRtl 
-        ? TextDirection.rtl 
-        : TextDirection.ltr;
-
     return Column(
       children: [
         GestureDetector(
@@ -742,13 +866,10 @@ class WorkShipPageState extends State<WorkShipPage> with TickerProviderStateMixi
             curve: Curves.easeInOut,
             alignment: Alignment.topCenter,
             child: isExpanded
-                ? Directionality(
-                    textDirection: textDirection, 
-                    child: Container(
+                ? SizedBox(
                       width: double.infinity,
                       child: child,
-                    ),
-                  )
+                    )
                 : const SizedBox(width: double.infinity, height: 0),
           ),
         )
@@ -1022,10 +1143,16 @@ class WorkShipPageState extends State<WorkShipPage> with TickerProviderStateMixi
                       }
                     }
 
-                    return Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: children,
+                    final bool isRtl = JwLifeSettings.instance.workshipLanguage.value.isRtl;
+                    final TextDirection textDirection = isRtl ? TextDirection.rtl : TextDirection.ltr;
+
+                    return Directionality(
+                      textDirection: textDirection,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: children,
+                      ),
                     );
                   },
                 );
@@ -1118,7 +1245,7 @@ class WorkShipPageState extends State<WorkShipPage> with TickerProviderStateMixi
                         const SizedBox(width: 5),
                         IconButton(
                           onPressed: () {
-                            publication.cancelDownload(context);
+                            publication.cancelDownload();
                           },
                           visualDensity: VisualDensity.compact,
                           padding: EdgeInsets.zero,
@@ -1517,7 +1644,7 @@ class WorkShipPageState extends State<WorkShipPage> with TickerProviderStateMixi
               key: ValueKey('conv_${conventionPub.id}_$isDownloaded'),
               child: !isDownloaded
                   ? _buildDownloadState(context, conventionPub)
-                  : PublicationMenuView(
+                  : PublicationMenuPage(
                       publication: conventionPub,
                       showAppBar: false,
                     ),
@@ -1547,7 +1674,7 @@ class WorkShipPageState extends State<WorkShipPage> with TickerProviderStateMixi
               key: ValueKey('br_${circuitBrPub.id}_$isDownloaded'),
               child: !isDownloaded
                   ? _buildDownloadState(context, circuitBrPub)
-                  : PublicationMenuView(
+                  : PublicationMenuPage(
                       publication: circuitBrPub,
                       showAppBar: false,
                     ),
@@ -1577,7 +1704,7 @@ class WorkShipPageState extends State<WorkShipPage> with TickerProviderStateMixi
               key: ValueKey('co_${circuitCoPub.id}_$isDownloaded'),
               child: !isDownloaded
                   ? _buildDownloadState(context, circuitCoPub)
-                  : PublicationMenuView(
+                  : PublicationMenuPage(
                       publication: circuitCoPub,
                       showAppBar: false,
                     ),

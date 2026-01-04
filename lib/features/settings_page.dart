@@ -10,6 +10,7 @@ import 'package:intl/intl.dart';
 import 'package:jwlife/app/jwlife_app_bar.dart';
 import 'package:jwlife/app/startup/auto_update.dart';
 import 'package:jwlife/core/icons.dart';
+import 'package:jwlife/core/shared_preferences/shared_preferences_keys.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/core/utils/utils_language_dialog.dart';
 import 'package:jwlife/data/databases/catalog.dart';
@@ -18,7 +19,6 @@ import 'package:jwlife/i18n/i18n.dart';
 import 'package:jwlife/core/utils/utils_dialog.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:realm/realm.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite/sqflite.dart';
 import '../app/app_page.dart';
 import '../app/services/global_key_service.dart';
@@ -27,7 +27,6 @@ import '../app/services/settings_service.dart';
 import '../core/app_data/app_data_service.dart';
 import '../core/keys.dart';
 import '../core/constants.dart';
-import '../core/shared_preferences/shared_preferences_keys.dart';
 import '../core/shared_preferences/shared_preferences_utils.dart';
 import '../core/utils/directory_helper.dart';
 import '../core/utils/files_helper.dart';
@@ -53,6 +52,11 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
   String _selectedLocaleVernacular = 'English';
   Color? _selectedColor = Constants.defaultDarkPrimaryColor;
   Color? _bibleSelectedColor = Constants.defaultBibleColor;
+
+  // -- MENU --
+  bool _showPublicationDescription = SharedPreferencesKeys.showPublicationDescription.defaultValue;
+  bool _showDocumentDescription = SharedPreferencesKeys.showDocumentDescription.defaultValue;
+  bool _autoOpenSingleDocument = SharedPreferencesKeys.autoOpenSingleDocument.defaultValue;
 
   String catalogDate = '';
   String libraryDate = '';
@@ -110,6 +114,10 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
     final bibleReadingNotification = sharedPreferences.getBibleReadingNotification();
     final bibleReadingNotificationTime = sharedPreferences.getBibleReadingNotificationTime();
 
+    final showPublicationDescription = sharedPreferences.getShowPublicationDescription();
+    final showDocumentDescription = sharedPreferences.getShowDocumentDescription();
+    final autoOpenSingleDocument = sharedPreferences.getAutoOpenSingleDocument();
+
     final downloadNotification = sharedPreferences.getDownloadNotification();
 
     final info = await PackageInfo.fromPlatform();
@@ -141,6 +149,10 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
         _dailyTextNotificationTime = dailyTextNotificationTime;
         _bibleReadingNotification = bibleReadingNotification;
         _bibleReadingNotificationTime = bibleReadingNotificationTime;
+
+        _showPublicationDescription = showPublicationDescription;
+        _showDocumentDescription = showDocumentDescription;
+        _autoOpenSingleDocument = autoOpenSingleDocument; 
 
         _downloadNotification = downloadNotification;
 
@@ -703,7 +715,53 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
       ),
       const Divider(),
 
-      SettingsSectionHeader(i18n().settings_languages),
+      SettingsSectionHeader(i18n().settings_menu_display_upper),
+      SettingsTile(
+          title: i18n().settings_show_publication_description,
+          subtitle: i18n().settings_show_publication_description_subtitle,
+          trailing: Switch(
+            value: _showPublicationDescription,
+            onChanged: (bool value) {
+              setState(() {
+                _showPublicationDescription = value;
+              });
+              AppSharedPreferences.instance.setShowPublicationDescription(value);
+              JwLifeSettings.instance.showPublicationDescription = value;
+            },
+          ),
+      ),
+      SettingsTile(
+          title: i18n().settings_show_document_description,
+          subtitle: i18n().settings_show_document_description_subtitle,
+          trailing: Switch(
+            value: _showDocumentDescription,
+            onChanged: (bool value) {
+              setState(() {
+                _showDocumentDescription = value;
+              });
+              AppSharedPreferences.instance.setShowDocumentDescription(value);
+              JwLifeSettings.instance.showDocumentDescription = value;
+            },
+          ),
+      ),
+      SettingsTile(
+          title: i18n().settings_menu_auto_open_single_document,
+          subtitle: i18n().settings_menu_auto_open_single_document_subtitle,
+          trailing: Switch(
+            value: _autoOpenSingleDocument,
+            onChanged: (bool value) {
+              setState(() {
+                _autoOpenSingleDocument = value;
+              });
+              AppSharedPreferences.instance.setAutoOpenSingleDocument(value);
+              JwLifeSettings.instance.autoOpenSingleDocument = value;
+            },
+          ),
+      ),
+
+      const Divider(),
+
+      SettingsSectionHeader(i18n().settings_languages_upper),
       SettingsTile(
         title: i18n().settings_language_app,
         subtitle: _selectedLocaleVernacular,

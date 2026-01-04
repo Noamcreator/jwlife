@@ -9,7 +9,9 @@ import 'package:jwlife/data/models/publication_attribute.dart';
 import 'package:jwlife/data/models/publication_category.dart';
 import 'package:jwlife/data/models/meps_language.dart';
 import 'package:jwlife/features/document/local/dated_text_manager.dart';
+import 'package:jwlife/features/document/local/document_page.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:sqflite/sqflite.dart';
 
 import '../../core/app_data/app_data_service.dart';
 import '../../app/services/global_key_service.dart';
@@ -29,7 +31,7 @@ import '../repositories/PublicationRepository.dart';
 import 'audio.dart';
 
 class Publication {
-  final int id;
+  int id;
   MepsLanguage mepsLanguage;
   PublicationCategory category;
   List<PublicationAttribute> attributes;
@@ -80,6 +82,8 @@ class Publication {
   final ValueNotifier<bool> isFavoriteNotifier;
   final ValueNotifier<bool> hasUpdateNotifier;
 
+  bool canCancelDownload = false;
+
   Publication({
     required this.id,
     required this.mepsLanguage,
@@ -129,28 +133,70 @@ class Publication {
         isFavoriteNotifier = isFavoriteNotifier ?? ValueNotifier(false),
         hasUpdateNotifier = hasUpdateNotifier ?? ValueNotifier(false);
 
-  factory Publication.fromJson(Map<String, dynamic> json, {bool? isFavorite, MepsLanguage? language}) {
+  factory Publication.fromJson(Map<String, dynamic> json, {bool? isFavorite, MepsLanguage? language, bool updateValue = false}) {
     final keySymbol = json['KeySymbol'] ?? json['UndatedSymbol'] ?? '';
     final issueTagNumber = json['IssueTagNumber'] ?? 0;
     final mepsLanguageId = json['MepsLanguageId'] as int? ?? language?.id ?? 0;
 
-    // Recherche dans le repository une publications existante
-    Publication? existing = PublicationRepository().getPublicationWithMepsLanguageId(keySymbol, issueTagNumber, mepsLanguageId);
+    // 1. Recherche de l'existant
+    Publication? existing = PublicationRepository().getPublicationWithMepsLanguageId(
+      keySymbol, issueTagNumber, mepsLanguageId
+    );
 
-    if (existing != null) { // Si la publications est trouvée
-      if(!existing.isDownloadedNotifier.value) {
-        existing.hash = json['Hash'] ?? existing.hash;
-        existing.timeStamp = json['Timestamp'] ?? existing.timeStamp;
-        existing.path = json['Path'] ?? existing.path;
-        existing.databasePath = json['DatabasePath'];
-        existing.description = json['Description'] ?? existing.description;
-        existing.imageSqr = json['ImageSqr'] != null ? json['ImageSqr'].toString().startsWith("/data") ? json['ImageSqr'] : "https://app.jw-cdn.org/catalogs/publications/${json['ImageSqr']}" : existing.imageSqr;
-        existing.imageLsr = json['ImageLsr'] != null ? json['ImageLsr'].toString().startsWith("/data") ? json['ImageLsr'] : "https://app.jw-cdn.org/catalogs/publications/${json['ImageLsr']}" : existing.imageLsr;
-        existing.hasTopics = json['TopicSearch'] == 1;
-        existing.hasCommentary = json['VerseCommentary'] == 1;
-        existing.hasHeading = json['HeadingSearch'] == 1;
-        existing.isSingleDocument = json['isSingleDocument'] == 1;
+    // 2. Logiques d'extraction réutilisables
+    List<PublicationAttribute> extractAttributes() {
+      final idsString = json['PublicationAttributeIds'] as String?;
+      if (idsString?.isNotEmpty ?? false) {
+        final ids = idsString!.split(',').map((e) => int.tryParse(e.trim())).whereType<int>().toSet();
+        return PublicationAttribute.all.where((a) => ids.contains(a.id)).toList();
       }
+      
+      final attrId = json['PublicationAttributeId'];
+      if (attrId != null) {
+        return [PublicationAttribute.all.firstWhere((a) => a.id == attrId, orElse: () => PublicationAttribute.all.first)];
+      }
+
+      final typesString = json['AttributeTypes'] as String?;
+      if (typesString != null) {
+        final types = typesString.split(',').map((e) => e.trim()).toSet();
+        return PublicationAttribute.all.where((a) => types.contains(a.type)).toList();
+      }
+
+      final type = json['Attribute'] as String?;
+      if (type != null) {
+        return [PublicationAttribute.all.firstWhere((a) => a.type == type, orElse: () => PublicationAttribute.all.first)];
+      }
+
+      return [PublicationAttribute.all.first];
+    }
+
+    String? formatImageUrl(String? key, {bool isNetwork = false}) {
+      final val = json[key]?.toString();
+      if (val == null) return null;
+      final isLocal = val.startsWith("/data");
+      if (isNetwork) return isLocal ? null : "https://app.jw-cdn.org/catalogs/publications/$val";
+      return isLocal ? val : "https://app.jw-cdn.org/catalogs/publications/$val";
+    }
+
+    PublicationCategory extractCategory() {
+      final typeId = json['PublicationTypeId'];
+      if (typeId != null) return PublicationCategory.all.firstWhere((e) => e.id == typeId);
+      
+      final type = json['PublicationType'];
+      if (type != null) {
+        return PublicationCategory.all.firstWhere(
+          (e) => e.type == type || e.type2 == type, 
+          orElse: () => PublicationCategory.all.first
+        );
+      }
+      return PublicationCategory.all.first;
+    }
+
+    // 3. Cas : Mise à jour ou Existant
+    if (existing != null) {
+      existing.id = json['PublicationId'] ?? existing.id;
+
+      // Champs communs à mettre à jour peu importe l'état du téléchargement
       existing.reserved = json['Reserved'] ?? existing.reserved;
       existing.size = json['Size'] ?? existing.size;
       existing.expandedSize = json['ExpandedSize'] ?? existing.expandedSize;
@@ -159,28 +205,52 @@ class Publication {
       existing.lastUpdated = json['LastUpdated'] ?? existing.lastUpdated;
       existing.lastModified = json['LastModified'] ?? existing.lastModified;
       existing.conventionReleaseDayNumber = json['ConventionReleaseDayNumber'] ?? existing.conventionReleaseDayNumber;
-      existing.isFavoriteNotifier.value = isFavorite ?? existing.isFavoriteNotifier.value;
-      existing.networkImageSqr = json['ImageSqr'] != null ? json['ImageSqr'].toString().startsWith("/data") ? existing.networkImageSqr : "https://app.jw-cdn.org/catalogs/publications/${json['ImageSqr']}" : existing.networkImageSqr;
-      existing.networkImageLsr = json['ImageLsr'] != null ? json['ImageLsr'].toString().startsWith("/data") ? existing.networkImageLsr : "https://app.jw-cdn.org/catalogs/publications/${json['ImageLsr']}" : existing.networkImageLsr;
+      existing.networkImageSqr = formatImageUrl('ImageSqr', isNetwork: true) ?? existing.networkImageSqr;
+      existing.networkImageLsr = formatImageUrl('ImageLsr', isNetwork: true) ?? existing.networkImageLsr;
+
+      if (updateValue || !existing.isDownloadedNotifier.value) {
+        existing.title = json['Title'] ?? existing.title;
+        existing.issueTitle = json['IssueTitle'] ?? existing.issueTitle;
+        existing.shortTitle = json['ShortTitle'] ?? existing.shortTitle;
+        existing.coverTitle = json['CoverTitle'] ?? existing.coverTitle;
+        existing.year = json['Year'] ?? existing.year;
+        existing.symbol = json['Symbol'] ?? existing.symbol;
+        existing.hash = json['Hash'] ?? existing.hash;
+        existing.timeStamp = json['Timestamp'] ?? existing.timeStamp;
+        existing.path = json['Path'] ?? existing.path;
+        existing.databasePath = json['DatabasePath'] ?? existing.databasePath;
+        existing.description = json['Description'] ?? existing.description;
+        existing.imageSqr = formatImageUrl('ImageSqr') ?? existing.imageSqr;
+        existing.imageLsr = formatImageUrl('ImageLsr') ?? existing.imageLsr;
+        existing.hasTopics = json['TopicSearch'] == 1;
+        existing.hasCommentary = json['VerseCommentary'] == 1;
+        existing.hasHeading = json['HeadingSearch'] == 1;
+        existing.isSingleDocument = json['IsSingleDocument'] == 1;
+        
+        if (updateValue) {
+          existing.category = extractCategory();
+          existing.attributes = extractAttributes();
+          existing.isDownloadedNotifier.value = true;
+        }
+      }
+
+      if (isFavorite != null) existing.isFavoriteNotifier.value = isFavorite;
       existing.hasUpdateNotifier.value = existing.hasUpdate();
+      
       return existing;
     }
 
-    MepsLanguage mepsLanguage = language ?? (json['LanguageSymbol'] != null ? MepsLanguage.fromJson(json) : JwLifeSettings.instance.libraryLanguage.value);
+    // 4. Cas : Création d'une nouvelle publication
+    final mepsLanguage = language ?? (json['LanguageSymbol'] != null ? MepsLanguage.fromJson(json) : JwLifeSettings.instance.libraryLanguage.value);
+    final String? lastMod = json['LastModified'];
+    final String? ts = json['Timestamp'];
+    bool hasUpdateCalc = false;
 
-    String? lastModified = json['LastModified'];
-    String? timeStamp = json['Timestamp'];
-    bool hasUpdate = false;
-
-    if(lastModified != null && timeStamp != null ) {
-      DateTime lastModDate = DateTime.parse(lastModified);
-      DateTime pubDate = DateTime.parse(timeStamp);
-
-      hasUpdate = lastModDate.isAfter(pubDate);
+    if (lastMod != null && ts != null) {
+      hasUpdateCalc = DateTime.parse(lastMod).isAfter(DateTime.parse(ts));
     }
 
-    // Sinon, en créer une nouvelle
-    Publication publication = Publication(
+    final publication = Publication(
       id: json['Id'] ?? json['PublicationId'] ?? -1,
       mepsLanguage: mepsLanguage,
       title: json['Title'] ?? '',
@@ -191,59 +261,37 @@ class Publication {
       undatedReferenceTitle: json['UndatedReferenceTitle'] ?? '',
       description: json['Description'] ?? '',
       year: json['Year'] ?? 0,
-      issueTagNumber: json['IssueTagNumber'] ?? 0,
+      issueTagNumber: issueTagNumber,
       symbol: json['Symbol'] ?? keySymbol,
       keySymbol: keySymbol,
       reserved: json['Reserved'] ?? 0,
-      category: json['PublicationTypeId'] != null ? PublicationCategory.all.firstWhere((element) => element.id == json['PublicationTypeId']) : json['PublicationType'] != null ? PublicationCategory.all.firstWhere((element) => element.type == json['PublicationType'] || element.type2 == json['PublicationType']) : PublicationCategory.all.first,
-      attributes: (() {
-        final idsString = json['PublicationAttributeIds'] as String?;
-        if (idsString != null && idsString.isNotEmpty) {
-          final ids = idsString.split(',').map((e) => int.tryParse(e.trim())).whereType<int>().toSet();
-          return PublicationAttribute.all.where((a) => ids.contains(a.id)).toList();
-        }
-        else if (json['PublicationAttributeId'] != null) {
-          final id = json['PublicationAttributeId'] as int;
-          return [PublicationAttribute.all.firstWhere((a) => a.id == id, orElse: () => PublicationAttribute.all.first)];
-        }
-        else if (json['AttributeTypes'] != null) {
-          final typesAttributesString = json['AttributeTypes'] as String;
-          final typesAttributes = typesAttributesString.split(',').map((e) => e.trim());
-          return PublicationAttribute.all.where((a) => typesAttributes.contains(a.type)).toList();
-        }
-        else if (json['Attribute'] != null) {
-          final type = json['Attribute'] as String;
-          return [PublicationAttribute.all.firstWhere((a) => a.type == type, orElse: () => PublicationAttribute.all.first)];
-        }
-        return [PublicationAttribute.all.first];
-      })(),
+      category: extractCategory(),
+      attributes: extractAttributes(),
       size: json['Size'] ?? 0,
       expandedSize: json['ExpandedSize'] ?? 0,
       schemaVersion: json['SchemaVersion'] ?? 0,
       catalogedOn: json['CatalogedOn'] ?? '',
       lastUpdated: json['LastUpdated'] ?? '',
-      lastModified: lastModified,
+      lastModified: lastMod,
       conventionReleaseDayNumber: json['ConventionReleaseDayNumber'],
-      imageSqr: json['ImageSqr'] != null ? json['ImageSqr'].toString().startsWith("/data") ? json['ImageSqr'] : "https://app.jw-cdn.org/catalogs/publications/${json['ImageSqr']}" : null,
-      imageLsr: json['ImageLsr'] != null ? json['ImageLsr'].toString().startsWith("/data") ? json['ImageLsr'] : "https://app.jw-cdn.org/catalogs/publications/${json['ImageLsr']}" : null,
-      networkImageSqr: json['ImageSqr'] != null ? json['ImageSqr'].toString().startsWith("/data") ? null : "https://app.jw-cdn.org/catalogs/publications/${json['ImageSqr']}" : null,
-      networkImageLsr: json['ImageLsr'] != null ? json['ImageLsr'].toString().startsWith("/data") ? null : "https://app.jw-cdn.org/catalogs/publications/${json['ImageLsr']}" : null,
+      imageSqr: formatImageUrl('ImageSqr'),
+      imageLsr: formatImageUrl('ImageLsr'),
+      networkImageSqr: formatImageUrl('ImageSqr', isNetwork: true),
+      networkImageLsr: formatImageUrl('ImageLsr', isNetwork: true),
       hash: json['Hash'],
-      timeStamp: timeStamp,
+      timeStamp: ts,
       path: json['Path'],
       databasePath: json['DatabasePath'],
       hasTopics: json['TopicSearch'] == 1,
       hasCommentary: json['VerseCommentary'] == 1,
       hasHeading: json['HeadingSearch'] == 1,
-      isSingleDocument: json['isSingleDocument'] == 1,
-
+      isSingleDocument: json['IsSingleDocument'] == 1,
       isDownloadedNotifier: ValueNotifier(json['Hash'] != null && json['DatabasePath'] != null && json['Path'] != null),
       isFavoriteNotifier: ValueNotifier(isFavorite ?? AppDataService.instance.favorites.value.any((p) => p is Publication && (p.keySymbol == keySymbol && p.mepsLanguage.id == mepsLanguageId && p.issueTagNumber == issueTagNumber))),
-      hasUpdateNotifier: ValueNotifier(hasUpdate),
+      hasUpdateNotifier: ValueNotifier(hasUpdateCalc),
     );
 
     PublicationRepository().addPublication(publication);
-
     return publication;
   }
 
@@ -297,16 +345,17 @@ class Publication {
         isDownloadingNotifier.value = true;
         progressNotifier.value = 0;
 
+        canCancelDownload = true;
         final cancelToken = CancelToken();
         _cancelToken = cancelToken;
 
         _downloadOperation = CancelableOperation.fromFuture(
-          downloadJwpubFile(this, context, cancelToken, false),
+          downloadJwpubFile(this, cancelToken, false),
           onCancel: () {
-            // Ceci s'exécute si l'opération est annulée par `_downloadOperation.cancel()`
             isDownloadingNotifier.value = false;
             isDownloadedNotifier.value = false;
             progressNotifier.value = 0;
+            canCancelDownload = false;
             // Annuler la notification
             NotificationService().cancelNotification(hashCode);
           },
@@ -316,12 +365,10 @@ class Publication {
         bool hasBible = PublicationRepository().getAllBibles().isNotEmpty;
 
         if (pubDownloaded != null) {
-          // Téléchargement RÉUSSI
-
           // Notification de fin avec bouton "Ouvrir"
           isDownloadingNotifier.value = false;
-          isDownloadedNotifier.value = true;
           progressNotifier.value = 1.0;
+          canCancelDownload = false;
           notifyDownload(i18n().message_download_complete);
 
           if (category.id == 1) {
@@ -331,17 +378,15 @@ class Publication {
               AppSharedPreferences.instance.setLookUpBible(bibleKey);
             }
 
-            JwLifeSettings.instance.webViewData.addBibleToBibleSet(this);
+            JwLifeSettings.instance.webViewSettings.addBibleToBibleSet(this);
           }
-
-          GlobalKeyService.libraryKey.currentState?.refreshDownloadTab();
-          GlobalKeyService.libraryKey.currentState?.refreshPendingUpdateTab();
           return true; // <-- SUCCÈS
         }
         else {
           // Téléchargement annulé ou échoué (valueOrCancellation() retourne null)
           await NotificationService().cancelNotification(hashCode);
           isDownloadingNotifier.value = false;
+          canCancelDownload = false;
           return false; // <-- ÉCHEC/ANNULATION
         }
       }
@@ -349,38 +394,45 @@ class Publication {
     return false;
   }
 
-  Future<void> cancelDownload(BuildContext context, {void Function(double progress)? update}) async {
-    if (isDownloadingNotifier.value && _cancelToken != null && _downloadOperation != null) {
-      _cancelToken!.cancel();
-      _downloadOperation!.cancel();
-      _cancelToken = null;
-      _downloadOperation = null;
-      showBottomMessage(i18n().message_download_cancel);
-    }
-    if (isDownloadingNotifier.value) {
-      isDownloadingNotifier.value = false;
-      isDownloadedNotifier.value = false;
-      progressNotifier.value = 0;
-    }
-  }
+  Future<void> cancelDownload() async {
+  if (canCancelDownload && isDownloadingNotifier.value) {
+    // Annuler le token Dio (ce qui stoppe le flux réseau immédiatement)
+    _cancelToken?.cancel();
+    
+    // Annuler l'opération Async (ce qui déclenche le callback onCancel)
+    _downloadOperation?.cancel();
+    _updateOperation?.cancel();
 
-  Future<bool> update(BuildContext context) async {
+    _cancelToken = null;
+    _downloadOperation = null;
+    _updateOperation = null;
+
+    isDownloadingNotifier.value = false;
+    progressNotifier.value = hasUpdateNotifier.value ? 1 : 0;
+    
+    // Message dynamique selon le contexte
+    showBottomMessage(hasUpdateNotifier.value 
+        ? i18n().message_update_cancel 
+        : i18n().message_download_cancel);
+  }
+}
+
+  Future<bool> update(BuildContext context, {bool refreshUi = true}) async {
     if(await hasInternetConnection(context: context)) {
       if (!isDownloadingNotifier.value) {
-        progressNotifier.value = 0;
         isDownloadingNotifier.value = true;
-        isDownloadedNotifier.value = false;
+        progressNotifier.value = 0;
 
+        canCancelDownload = true;
         final cancelToken = CancelToken();
         _cancelToken = cancelToken;
 
         _updateOperation = CancelableOperation.fromFuture(
-          downloadJwpubFile(this, context, cancelToken, true),
+          downloadJwpubFile(this, cancelToken, true, refreshUi: refreshUi),
           onCancel: () {
             isDownloadingNotifier.value = false;
-            isDownloadedNotifier.value = true;
-            hasUpdateNotifier.value = true;
             progressNotifier.value = 0;
+            canCancelDownload = false;
             // Annuler la notification
             NotificationService().cancelNotification(hashCode);
           },
@@ -395,9 +447,9 @@ class Publication {
 
           // Notification de fin avec bouton "Ouvrir"
           isDownloadingNotifier.value = false;
-          isDownloadedNotifier.value = true;
           hasUpdateNotifier.value = false;
           progressNotifier.value = 1.0;
+          canCancelDownload = false;
           notifyDownload(i18n().message_download_complete);
 
           if (category.id == 1) {
@@ -407,13 +459,13 @@ class Publication {
               AppSharedPreferences.instance.setLookUpBible(bibleKey);
             }
           }
-
           return true; // <-- SUCCÈS
         }
         else {
           // Téléchargement annulé ou échoué
           await NotificationService().cancelNotification(hashCode);
           isDownloadingNotifier.value = false;
+          canCancelDownload = false;
           return false; // <-- ÉCHEC/ANNULATION
         }
       }
@@ -421,23 +473,7 @@ class Publication {
     return false;
   }
 
-  Future<void> cancelUpdate(BuildContext context, {void Function(double progress)? update}) async {
-    if (isDownloadingNotifier.value && _cancelToken != null && _updateOperation != null) {
-      _cancelToken!.cancel();
-      _updateOperation!.cancel();
-      _cancelToken = null;
-      _updateOperation = null;
-      showBottomMessage(i18n().message_update_cancel);
-    }
-    if (isDownloadingNotifier.value) {
-      isDownloadingNotifier.value = false;
-      isDownloadedNotifier.value = true;
-      hasUpdateNotifier.value = true;
-      progressNotifier.value = 0;
-    }
-  }
-
-  Future<void> remove(BuildContext context) async {
+  Future<void> remove() async {
     progressNotifier.value = -1;
     await documentsManager?.database.close();
     await datedTextManager?.database.close();
@@ -456,6 +492,7 @@ class Publication {
     isDownloadingNotifier.value = false;
     isDownloadedNotifier.value = false;
     hasUpdateNotifier.value = false;
+    canCancelDownload = false;
     progressNotifier.value = 0;
 
     showBottomMessage(i18n().message_delete_item(title));
@@ -492,7 +529,7 @@ class Publication {
       JwLifeSettings.instance.lookupBible.value = bibleKeyToUse;
       AppSharedPreferences.instance.setLookUpBible(bibleKeyToUse);
 
-      JwLifeSettings.instance.webViewData.removeBibleFromBibleSet(this);
+      JwLifeSettings.instance.webViewSettings.removeBibleFromBibleSet(this);
     }
 
     if(keySymbol == 'S-34') {
@@ -518,7 +555,26 @@ class Publication {
           },
         ));
       }
-      await showPage(PublicationMenuView(publication: this));
+      if(JwLifeSettings.instance.autoOpenSingleDocument && isSingleDocument) {
+        documentsManager = DocumentsManager(publication: this);
+        await documentsManager!.initializeDatabaseAndData();
+        try {
+          List<Map<String, dynamic>> result = await documentsManager!.database.rawQuery('''
+            SELECT Document.MepsDocumentId FROM Document
+            INNER JOIN PublicationViewItemDocument ON Document.DocumentId = PublicationViewItemDocument.DocumentId
+            LIMIT 1
+          ''');
+
+          showPageDocument(this, result.first['MepsDocumentId']);
+        }
+        catch (e) {
+          print('Erreur lors de la lecture du premier document: $e');
+          showPage(PublicationMenuPage(publication: this));
+        }
+      }
+      else {
+        await showPage(PublicationMenuPage(publication: this));
+      }
     }
     else {
       if(await hasInternetConnection(context: context)) {

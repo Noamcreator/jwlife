@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/app/jwlife_app_bar.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
@@ -137,10 +138,6 @@ class _PublicationSubcategoriesPageState extends State<PublicationSubcategoriesP
             }),
             actions: [
               IconTextButton(
-                icon: Icon(JwIcons.magnifying_glass),
-                onPressed: (BuildContext context) {},
-              ),
-              IconTextButton(
                 icon: const Icon(JwIcons.language),
                 onPressed: (BuildContext context) {
                   showLanguageDialog(context, firstSelectedLanguage: _mepsLanguage.value.symbol).then((language) async {
@@ -155,6 +152,13 @@ class _PublicationSubcategoriesPageState extends State<PublicationSubcategoriesP
                     }
                   });
                 },
+              ),
+              IconTextButton(
+                icon: const Icon(JwIcons.arrow_circular_left_clock),
+                text: i18n().action_history,
+                onPressed: (anchorContext) {
+                  JwLifeApp.history.showHistoryDialog(context);
+                }
               )
             ],
           ),

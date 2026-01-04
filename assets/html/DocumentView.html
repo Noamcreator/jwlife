@@ -57,31 +57,41 @@
         }
 
         #container {
-          display: flex;
-          transform: translateX(-100%);
-          height: 100lvh;
-          backface-visibility: hidden;
-          will-change: transform;
+            display: flex;
+            transform: translateX(-100%);
+            height: 100lvh;
+            will-change: transform;
+            touch-action: pan-y; /* Empêche le navigateur de gérer le swipe horizontal lui-même */
         }
 
         .page {
-          flex: 0 0 100%;
-          height: 100lvh;
-          overflow-y: auto;
-          margin: 0;
-          padding: 0;
-          position: relative;
+            flex: 0 0 100%;
+            height: 100lvh;
+            overflow-y: auto;
+            overflow-x: hidden; /* Empêche le scroll horizontal de la page elle-même */
+            position: relative;
+        }
+
+        table, .table-container {
+            -webkit-overflow-scrolling: touch; /* Défilement à inertie */
+            overflow-x: auto;
         }
 
         #page-center {
           opacity: 0;
           pointer-events: none;
-          transition: opacity 0.35s ease-in-out;
+          transition: opacity 0.3s ease-in-out;
         }
 
         #page-center.visible {
           opacity: 1;
           pointer-events: auto;
+        }
+
+        .zoomable-content {
+            width: 100% !important; /* Force à 100% */
+            transform-origin: center top;
+            will-change: transform;
         }
 
         .scroll-bar {

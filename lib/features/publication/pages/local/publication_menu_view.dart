@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/app/jwlife_app_bar.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
@@ -13,7 +14,6 @@ import 'package:jwlife/core/utils/utils_document.dart';
 import 'package:jwlife/core/utils/widgets_utils.dart';
 import 'package:jwlife/data/models/audio.dart';
 import 'package:jwlife/data/models/publication.dart';
-import 'package:jwlife/data/databases/history.dart';
 import 'package:jwlife/data/models/userdata/bookmark.dart';
 import 'package:jwlife/features/publication/models/menu/local/bible_color_group.dart';
 import 'package:jwlife/features/document/data/models/multimedia.dart';
@@ -42,18 +42,18 @@ const double breakpointMedium = 530.0;
 const double breakpointLarge = 800.0;
 const double breakpointBig = 900.0;
 
-class PublicationMenuView extends StatefulWidget {
+class PublicationMenuPage extends StatefulWidget {
   final Publication publication;
   final bool showAppBar;
   final bool canPop;
 
-  const PublicationMenuView({super.key, required this.publication, this.showAppBar = true, this.canPop = true});
+  const PublicationMenuPage({super.key, required this.publication, this.showAppBar = true, this.canPop = true});
 
   @override
-  PublicationMenuViewState createState() => PublicationMenuViewState();
+  PublicationMenuPageState createState() => PublicationMenuPageState();
 }
 
-class PublicationMenuViewState extends State<PublicationMenuView> with SingleTickerProviderStateMixin {
+class PublicationMenuPageState extends State<PublicationMenuPage> with SingleTickerProviderStateMixin {
   late PublicationMenuModel _model;
   bool _isLoading = true;
   TabController? _tabController;
@@ -124,7 +124,7 @@ class PublicationMenuViewState extends State<PublicationMenuView> with SingleTic
     return flatList;
   }
 
-  Widget _buildPublication() {
+  Widget _buildMenu() {
     // LOADING
     if (_isLoading) {
       return getLoadingWidget(Theme.of(context).primaryColor);
@@ -195,10 +195,7 @@ class PublicationMenuViewState extends State<PublicationMenuView> with SingleTic
     );
   }
 
-  Widget _buildTabSliverContent(
-      BuildContext context,
-      TabWithItems tab,
-      ) {
+  Widget _buildTabSliverContent(BuildContext context,TabWithItems tab) {
     final bool isNumberType = tab.tab['DataType'] == 'number';
     final bool isBibleBooks = tab.items.any((item) => item.isBibleBooks);
 
@@ -274,6 +271,7 @@ class PublicationMenuViewState extends State<PublicationMenuView> with SingleTic
   Widget _buildHeaderContent() {
     final imageLsr = widget.publication.imageLsr;
     final path = widget.publication.path;
+    final bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final bool hasImage = imageLsr is String && imageLsr.isNotEmpty && path != null;
     final String imagePath = hasImage ? '$path/${imageLsr.split('/').last}' : '';
 
@@ -319,11 +317,11 @@ class PublicationMenuViewState extends State<PublicationMenuView> with SingleTic
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Text(
             widget.publication.getCoverTitle(),
-            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, height: 1.2),
+            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, height: 1.2, color: isDarkMode ? Colors.white : Colors.black),
             textAlign: TextAlign.center,
           ),
         ),
-        if (widget.publication.description.isNotEmpty)
+        if (widget.publication.description.isNotEmpty && JwLifeSettings.instance.showPublicationDescription)
           Padding(
             padding: const EdgeInsets.all(12.0),
             child: TextHtmlWidget(text: widget.publication.description, style: TextStyle(fontSize: 13, color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black), textAlign: TextAlign.center, isSearch: false),
@@ -363,13 +361,16 @@ class PublicationMenuViewState extends State<PublicationMenuView> with SingleTic
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     final String subtitle = item.subTitle.replaceAll('​', '').trim();
-    final bool showSubTitle = subtitle.isNotEmpty && subtitle != item.title;
+    final bool showSubTitle = subtitle.isNotEmpty && subtitle != item.displayTitle;
 
     final String? path = widget.publication.path;
     final String imageFullPath = (item.showImage && item.imageFilePath.isNotEmpty && path != null) ? '$path/${item.imageFilePath}' : '';
 
+    final String description = item.description.replaceAll('​', '').trim();
+    final bool showDescription = JwLifeSettings.instance.showDocumentDescription ? (description.isNotEmpty && description != item.displayTitle) : false;
+
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      padding: EdgeInsets.only(top: 4, bottom: showDescription ? 8 : 4),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
@@ -383,32 +384,42 @@ class PublicationMenuViewState extends State<PublicationMenuView> with SingleTic
                     Container(
                       width: 60,
                       height: 60,
-                      margin: EdgeInsetsDirectional.only(end: 10),
+                      margin: const EdgeInsetsDirectional.only(end: 10, start: 5), // Ajout d'un petit start pour l'image
                       decoration: BoxDecoration(
                         color: isDark ? const Color(0xFF4f4f4f) : const Color(0xFF8e8e8e),
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: imageFullPath.isNotEmpty
                           ? ClipRRect(
-                        borderRadius: BorderRadius.circular(4),
-                        child: Image.file(
-                          File(imageFullPath),
-                          fit: BoxFit.cover,
-                          cacheWidth: 180,
-                        ),
-                      )
+                              borderRadius: BorderRadius.circular(4),
+                              child: Image.file(
+                                File(imageFullPath),
+                                fit: BoxFit.cover,
+                                cacheWidth: 180,
+                              ),
+                            )
                           : null,
                     ),
                   Expanded(
                     child: Padding(
-                      padding: const EdgeInsetsDirectional.only(top: 4.0, end: 30),
+                      padding: EdgeInsetsDirectional.only(
+                        // Si pas d'image, on met 16 de padding pour ne pas coller au bord
+                        start: 0,
+                        top: showDescription ? 2 : 4.0,
+                        end: 30,
+                        bottom: item.showImage ? 0 : 15
+                      ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           if (showSubTitle)
-                            Text(item.subTitle, style: TextStyle(color: isDark ? const Color(0xFFc0c0c0) : const Color(0xFF626262), fontSize: 14), maxLines: 1, overflow: TextOverflow.ellipsis),
+                            Text(item.subTitle, style: TextStyle(color: isDark ? const Color(0xFFc0c0c0) : const Color(0xFF626262), fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis),
                           const SizedBox(height: 2.0),
-                          Text(item.title.trim(), style: TextStyle(color: isDark ? const Color(0xFF9fb9e3) : const Color(0xFF4a6da7), fontSize: showSubTitle ? 15.0 : 16.0, height: 1.2), maxLines: 2, overflow: TextOverflow.ellipsis),
+                          Text(item.displayTitle, style: TextStyle(color: isDark ? const Color(0xFF9fb9e3) : const Color(0xFF4a6da7), fontSize: 16.5, height: 1.1), maxLines: 2, overflow: TextOverflow.ellipsis),
+                          if (showDescription) ...[
+                            const SizedBox(height: 2.0), // Espace pour que la description ne colle pas au titre
+                            Text(description, style: TextStyle(color: isDark ? Colors.white : Colors.black, fontSize: 12), maxLines: 4, overflow: TextOverflow.ellipsis),
+                          ],
                         ],
                       ),
                     ),
@@ -441,7 +452,7 @@ class PublicationMenuViewState extends State<PublicationMenuView> with SingleTic
           itemCount: items.length,
           itemBuilder: (context, index) {
             final item = items[index];
-            final String displayLabel = item.dataType == 'number' ? item.displayTitle : item.title;
+            final String displayLabel = item.title;
             return Material(
               color: const Color(0xFF757575),
               child: InkWell(
@@ -570,21 +581,26 @@ class PublicationMenuViewState extends State<PublicationMenuView> with SingleTic
   }
 
   Widget _buildBookItem(BuildContext context, ListItem item, double screenWidth) {
-    final int bibleBookId = item.bibleBookId ?? 0;
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+    final int bibleBookId = item.bibleBookNumber ?? 0;
     final int groupId = item.groupId ?? 0;
     final bool hasCommentary = item.hasCommentary ?? false;
     final bool hasAudio = _model.publication.audiosNotifier.value.any((audio) => audio.track == bibleBookId);
     final String displayTitle = _getBookDisplayTitle(item, screenWidth);
+    final bool isBookExist = item.isBookExist;
+
+    final Color colorBackgroundBookNoExist = isDark ? Color(0xFF3C3C3C) : Color(0xFFD8D8D8);
+    final Color colorTextBookNoExist = isDark ? Color(0xFF626262) : Color(0xFFA7A7A7);
 
     if (screenWidth < breakpointMedium) {
       return GestureDetector(
-        onTap: () => showPage(BibleChapterPage(bible: widget.publication, book: bibleBookId, bookName: item.largeTitle)),
+        onTap: () => isBookExist ? showPage(BibleChapterPage(bible: widget.publication, book: bibleBookId, bookName: item.largeTitle)) : null,
         child: Container(
-          decoration: BoxDecoration(color: BibleColorGroup.getGroupColorAt(groupId)),
+          decoration: BoxDecoration(color: isBookExist ? BibleColorGroup.getGroupColorAt(groupId) : colorBackgroundBookNoExist),
           child: Center(
             child: Padding(
               padding: const EdgeInsets.all(6.0),
-              child: Text(displayTitle, style: const TextStyle(color: Colors.white, fontSize: 16), maxLines: 1, overflow: TextOverflow.ellipsis),
+              child: Text(displayTitle, style: TextStyle(color: isBookExist ? Colors.white : colorTextBookNoExist, fontSize: 16), maxLines: 1, overflow: TextOverflow.ellipsis),
             ),
           ),
         ),
@@ -703,62 +719,66 @@ class PublicationMenuViewState extends State<PublicationMenuView> with SingleTic
         ? Colors.white
         : Colors.black;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Liste des éléments dans une colonne
-        _isLoading ? getLoadingWidget(Theme.of(context).primaryColor) : Column(
-          children: _model.tabsWithItems.first.items.map<Widget>((item) {
-            bool hasImageFilePath = _model.tabsWithItems.first.items.any((
-                item) => item.imageFilePath != '');
+    final bool isRtl = widget.publication.mepsLanguage.isRtl;
+    final TextDirection textDirection = isRtl ? TextDirection.rtl : TextDirection.ltr;
 
-            if (item.isTitle) {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8.0, vertical: 20.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          item.title,
-                          style: TextStyle(
-                            color: textColor,
-                            fontSize: 19.0,
-                            fontWeight: FontWeight.bold,
+
+    return Directionality(
+      textDirection: textDirection,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Liste des éléments dans une colonne
+          _isLoading ? getLoadingWidget(Theme.of(context).primaryColor) : Column(
+            children: _model.tabsWithItems.first.items.map<Widget>((item) {
+              _model.tabsWithItems.first.items.any((
+                  item) => item.imageFilePath != '');
+      
+              if (item.isTitle) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8.0, vertical: 20.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            item.title,
+                            style: TextStyle(
+                              color: textColor,
+                              fontSize: 19.0,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
-                        ),
-                        SizedBox(height: 2),
-                        Divider(
-                          color: Color(0xFFa7a7a7),
-                          height: 1,
-                        ),
-                        SizedBox(height: 10),
-                      ],
+                          SizedBox(height: 2),
+                          Divider(
+                            color: Color(0xFFa7a7a7),
+                            height: 1,
+                          ),
+                          SizedBox(height: 10),
+                        ],
+                      ),
                     ),
-                  ),
-                  ...item.subItems.map<Widget>((subItem) {
-                    return _buildNameItem(context, subItem);
-                  }),
-                ],
-              );
-            }
-            else {
-              return _buildNameItem(context, item);
-            }
-          }).toList(),
-        ),
-      ],
+                    ...item.subItems.map<Widget>((subItem) {
+                      return _buildNameItem(context, subItem);
+                    }),
+                  ],
+                );
+              }
+              else {
+                return _buildNameItem(context, item);
+              }
+            }).toList(),
+          ),
+        ],
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final bool isRtl = widget.publication.mepsLanguage.isRtl;
-    final TextDirection textDirection = isRtl ? TextDirection.rtl : TextDirection.ltr;
-
     return !widget.showAppBar ? _buildCircuitMenu()
         : AppPage(
       appBar: _isSearching
@@ -819,12 +839,12 @@ class PublicationMenuViewState extends State<PublicationMenuView> with SingleTic
           }),
           //IconTextButton(text: "Ajouter un widget sur l'écran d'accueil", icon: const Icon(JwIcons.article), onPressed: (anchorContext) async { /* ... */ }),
           IconTextButton(text: i18n().action_download_media, icon: const Icon(JwIcons.cloud_arrow_down), onPressed: (anchorContext) { showDownloadMediasDialog(context, widget.publication); }),
-          IconTextButton(text: i18n().action_history, icon: const Icon(JwIcons.arrow_circular_left_clock), onPressed: (anchorContext) { History.showHistoryDialog(context); }),
+          IconTextButton(text: i18n().action_history, icon: const Icon(JwIcons.arrow_circular_left_clock), onPressed: (anchorContext) { JwLifeApp.history.showHistoryDialog(context); }),
           IconTextButton(text: i18n().action_open_in_share, icon: const Icon(JwIcons.share), onPressed: (anchorContext) { widget.publication.shareLink(); }),
           IconTextButton(text: i18n().action_qr_code, icon: const Icon(JwIcons.qr_code), onPressed: (anchorContext) { String uri = widget.publication.shareLink(hide: true); showQrCodeDialog(context, widget.publication.getTitle(), uri); }),
         ],
       ),
-      body: _buildPublication(),
+      body: _buildMenu(),
     );
   }
 }

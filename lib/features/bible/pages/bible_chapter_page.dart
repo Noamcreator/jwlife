@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/app/jwlife_app_bar.dart';
 import 'package:jwlife/core/ui/app_dimens.dart';
 import 'package:jwlife/core/icons.dart';
@@ -11,8 +12,9 @@ import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/core/utils/utils_language_dialog.dart';
 import 'package:jwlife/core/utils/widgets_utils.dart';
+import 'package:jwlife/data/models/bible_book.dart';
+import 'package:jwlife/data/models/bible_chapter.dart';
 import 'package:jwlife/data/models/publication.dart';
-import 'package:jwlife/data/databases/history.dart';
 import 'package:jwlife/widgets/responsive_appbar_actions.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -26,7 +28,6 @@ import '../models/bible_chapter_model.dart';
 import 'bible_book_medias_page.dart';
 
 const double _kMinTwoColumnWidth = 800;
-const double _kHeaderImageHeight = 210.0;
 
 class BibleChapterPage extends StatefulWidget {
   final Publication bible;
@@ -48,14 +49,12 @@ class _BibleChapterPageState extends State<BibleChapterPage> {
     super.initState();
     _controller = BibleChapterController(bible: widget.bible, initialBookId: widget.book);
 
-    // Configuration du callback AVANT l'initialisation
     _controller.onStateChanged = () {
       if (mounted) {
         setState(() {});
       }
     };
 
-    // Lancer l'initialisation après que le callback soit configuré
     _controller.initialize();
     _pageController = PageController(initialPage: 0);
   }
@@ -64,7 +63,6 @@ class _BibleChapterPageState extends State<BibleChapterPage> {
     if (_controller.booksData.isNotEmpty && _pageController.hasClients) {
       final currentPage = _pageController.page?.round() ?? 0;
       if (currentPage != _controller.currentIndex) {
-        // Utiliser jumpToPage pour éviter les animations
         _pageController.jumpToPage(_controller.currentIndex);
       }
     }
@@ -75,26 +73,18 @@ class _BibleChapterPageState extends State<BibleChapterPage> {
     final currentBook = _controller.currentBook;
     final textDirection = widget.bible.mepsLanguage.isRtl ? TextDirection.rtl : TextDirection.ltr;
 
-    // Synchroniser le PageController après que l'état soit disponible
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _updatePageController();
     });
 
-    final hasCommentary = currentBook?.bookInfo['HasCommentary'] == 1;
+    final bool hasCommentary = currentBook?.hasCommentary ?? false;
     final isLargeScreen = MediaQuery.of(context).size.width > _kMinTwoColumnWidth;
 
     Widget? bodyContent;
-    if(currentBook != null) {
-      // --- Logique pour le body ---
+    if (currentBook != null) {
       if (isLargeScreen) {
-        bodyContent = Stack(
-          children: [
-            if (hasCommentary) _buildBookHeader(currentBook),
-            _buildTwoColumnLayout(currentBook),
-          ],
-        );
-      }
-      else {
+        bodyContent = _buildTwoColumnLayout(currentBook);
+      } else {
         bodyContent = _buildMobileLayout();
       }
     }
@@ -104,43 +94,49 @@ class _BibleChapterPageState extends State<BibleChapterPage> {
       appBar: JwLifeAppBar(
         backgroundColor: hasCommentary ? Colors.transparent : null,
         iconsColor: hasCommentary ? Colors.white : null,
-        title: !hasCommentary ? widget.bookName : "",
+        title: !hasCommentary ? (currentBook?.bookName ?? widget.bookName) : '',
         subTitle: !hasCommentary ? widget.bible.shortTitle : null,
         actions: [
           IconTextButton(
-            text: "Rechercher",
-            icon: Icon(JwIcons.magnifying_glass),
-            onPressed: (anchorContext) {},
+            text: i18n().action_search,
+            icon: const Icon(JwIcons.magnifying_glass),
+            onPressed: (anchorContext) {
+              // Action recherche
+            },
           ),
           if (!isLargeScreen)
             IconTextButton(
-              text: "Aperçu",
+              text: 'Aperçu',
               icon: Icon(currentBook?.isOverview ?? false ? JwIcons.grid_squares : JwIcons.outline),
-              onPressed: (anchorContext) {_controller.toggleOverview(); },
+              onPressed: (anchorContext) {
+                _controller.toggleOverview();
+              },
             ),
           IconTextButton(
             text: i18n().action_bookmarks,
-            icon: Icon(JwIcons.bookmark),
+            icon: const Icon(JwIcons.bookmark),
             onPressed: (anchorContext) async {
               Bookmark? bookmark = await showBookmarkDialog(context, widget.bible);
               if (bookmark != null) {
-                if(bookmark.location.bookNumber!= null && bookmark.location.chapterNumber != null) {
-                  showPageBibleChapter(widget.bible, bookmark.location.bookNumber!, bookmark.location.chapterNumber!, firstVerse: bookmark.blockIdentifier, lastVerse: bookmark.blockIdentifier);
-                }
-                else if(bookmark.location.mepsDocumentId != null) {
-                  showPageDocument(widget.bible, bookmark.location.mepsDocumentId!, startParagraphId: bookmark.blockIdentifier, endParagraphId: bookmark.blockIdentifier);
+                if (bookmark.location.bookNumber != null && bookmark.location.chapterNumber != null) {
+                  showPageBibleChapter(widget.bible, bookmark.location.bookNumber!, bookmark.location.chapterNumber!,
+                      firstVerse: bookmark.blockIdentifier, lastVerse: bookmark.blockIdentifier);
+                } else if (bookmark.location.mepsDocumentId != null) {
+                  showPageDocument(widget.bible, bookmark.location.mepsDocumentId!,
+                      startParagraphId: bookmark.blockIdentifier, endParagraphId: bookmark.blockIdentifier);
                 }
               }
             },
           ),
           IconTextButton(
             text: i18n().action_languages,
-            icon: Icon(JwIcons.language),
+            icon: const Icon(JwIcons.language),
             onPressed: (anchorContext) {
-              showLanguagePubDialog(context, null).then((bible) async {
-                if (bible != null) {
-                  String bibleKey = bible.getKey();
-                  JwLifeSettings.instance.lookupBible.value = bibleKey;
+              // On met null pour la bible car on veut toutes les bibles et pas uniquement la bible qu'on a sélectionnée
+              showLanguagePubDialog(context, null, bookNumber: currentBook?.bookNumber ?? widget.book).then((bibleLanguagePub) async {
+                if (bibleLanguagePub != null) {
+                  Navigator.of(context).pop();  
+                  showBibleBookView(context, bibleLanguagePub.keySymbol, bibleLanguagePub.mepsLanguage.id, currentBook?.bookNumber ?? widget.book);
                 }
               });
             },
@@ -149,12 +145,12 @@ class _BibleChapterPageState extends State<BibleChapterPage> {
             text: i18n().action_history,
             icon: const Icon(JwIcons.arrow_circular_left_clock),
             onPressed: (anchorContext) {
-              History.showHistoryDialog(context);
+              JwLifeApp.history.showHistoryDialog(context);
             },
           ),
           IconTextButton(
-            text: i18n().action_open_in_share,
-            icon: Icon(JwIcons.share),
+            text: i18n().action_share,
+            icon: const Icon(JwIcons.share),
             onPressed: (anchorContext) {
               SharePlus.instance.share(
                 ShareParams(
@@ -166,7 +162,7 @@ class _BibleChapterPageState extends State<BibleChapterPage> {
           ),
           IconTextButton(
             text: i18n().action_qr_code,
-            icon: Icon(JwIcons.qr_code),
+            icon: const Icon(JwIcons.qr_code),
             onPressed: (anchorContext) {
               Uri? uri = Uri.tryParse(_controller.getShareUri());
               showQrCodeDialog(context, widget.bookName, uri.toString());
@@ -174,11 +170,13 @@ class _BibleChapterPageState extends State<BibleChapterPage> {
           ),
         ],
       ),
-      body: Directionality(textDirection: textDirection, child: bodyContent ?? getLoadingWidget(Theme.of(context).primaryColor)),
+      body: Directionality(
+        textDirection: textDirection, 
+        child: bodyContent ?? getLoadingWidget(Theme.of(context).primaryColor)
+      ),
     );
   }
 
-  // --- Layout Mobile ---
   Widget _buildMobileLayout() {
     return PageView.builder(
       controller: _pageController,
@@ -190,84 +188,31 @@ class _BibleChapterPageState extends State<BibleChapterPage> {
     );
   }
 
-  // --- Layout Grand Écran ---
-  Widget _buildTwoColumnLayout(BibleBook bookData) {
-    final hasCommentary = bookData.bookInfo['HasCommentary'] == 1;
-
-    if (bookData.isLoading) {
-      return getLoadingWidget(Theme.of(context).primaryColor);
-    }
-
-    return Column(
-      children: [
-        // Header fixe en haut si commentaire
-        if (hasCommentary) _buildBookHeader(bookData, withTextOverlay: true),
-
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Colonne GAUCHE : Grille et Liens
-                Expanded(
-                  flex: 1,
-                  child: SingleChildScrollView(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildChapterGridContent(bookData),
-                        const SizedBox(height: 24),
-                        _buildBookLinks(bookData, context),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 24),
-                // Colonne DROITE : Vue HTML
-                Expanded(
-                  flex: 1,
-                  child: _buildHtmlView(bookData.overviewHtml!.isNotEmpty ? bookData.overviewHtml! : bookData.profileHtml ?? ''),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  // --- Widgets partagés ---
   Widget _buildBookPageContent(BibleBook bookData, {bool isLargeScreen = false}) {
     if (bookData.isLoading) return getLoadingWidget(Theme.of(context).primaryColor);
 
-    // Cas 1 : Grand Écran (Layout deux colonnes)
+    final double dynamicHeight = (MediaQuery.of(context).size.height * 0.20).clamp(120.0, 250.0);
+
     if (isLargeScreen) return _buildTwoColumnLayout(bookData);
 
-    // Cas 2 : Mobile - Affichage de l'Overview (HTML)
     if (bookData.isOverview) {
       return Column(
         children: [
-          // On garde le header même en mode overview si disponible
-          if (bookData.bookInfo['HasCommentary'] == 1)
-            _buildBookHeader(bookData, withTextOverlay: true),
+          if (bookData.hasCommentary) _buildBookHeader(bookData, withTextOverlay: true, height: dynamicHeight),
           Expanded(
-            child: _buildHtmlView(bookData.overviewHtml!.isNotEmpty ? bookData.overviewHtml! : bookData.profileHtml ?? ''),
+            child: _buildHtmlView((bookData.overviewHtml?.isNotEmpty ?? false) ? bookData.overviewHtml! : bookData.profileHtml ?? ''),
           ),
         ],
       );
     }
 
-    // Cas 3 : Mobile - Affichage Normal (Grille + Liens)
     return CustomScrollView(
       slivers: [
-        if (bookData.bookInfo['HasCommentary'] == 1)
+        if (bookData.hasCommentary)
           SliverToBoxAdapter(
-            child: _buildBookHeader(bookData, withTextOverlay: true),
+            child: _buildBookHeader(bookData, withTextOverlay: true, height: dynamicHeight),
           ),
-
         SliverPadding(
-          // On met le top à 0.0 pour supprimer l'espace sous le header
           padding: const EdgeInsets.all(16),
           sliver: SliverToBoxAdapter(
             child: Column(
@@ -283,16 +228,55 @@ class _BibleChapterPageState extends State<BibleChapterPage> {
     );
   }
 
-  Widget _buildBookHeader(BibleBook bookData, {bool withTextOverlay = false}) {
+  Widget _buildTwoColumnLayout(BibleBook bookData) {
+    final double dynamicHeight = (MediaQuery.of(context).size.height * 0.20).clamp(120.0, 250.0);
+
+    return Column(
+      children: [
+        if (bookData.hasCommentary) _buildBookHeader(bookData, withTextOverlay: true, height: dynamicHeight),
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  flex: 1,
+                  child: SingleChildScrollView(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildChapterGridContent(bookData),
+                        const SizedBox(height: 24),
+                        _buildBookLinks(bookData, context),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 24),
+                Expanded(
+                  flex: 1,
+                  child: _buildHtmlView((bookData.overviewHtml?.isNotEmpty ?? false) ? bookData.overviewHtml! : bookData.profileHtml ?? ''),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildBookHeader(BibleBook bookData, {bool withTextOverlay = false, required double height}) {
     return Stack(
       children: [
-        Image.file(
-          File('${widget.bible.path}/${bookData.bookInfo['FilePath']}'),
-          width: double.infinity,
-          height: _kHeaderImageHeight,
-          fit: BoxFit.cover,
-          cacheWidth: 1220,
-        ),
+        if (bookData.imagePath != null)
+          Image.file(
+            File('${widget.bible.path}/${bookData.imagePath}'),
+            width: double.infinity,
+            height: height,
+            fit: BoxFit.cover,
+            cacheWidth: 1220,
+          ),
         if (withTextOverlay)
           Positioned(
             bottom: 0,
@@ -302,7 +286,7 @@ class _BibleChapterPageState extends State<BibleChapterPage> {
               padding: const EdgeInsets.symmetric(vertical: 12.0),
               color: Colors.black.withOpacity(0.55),
               child: Text(
-                bookData.bookInfo['BookDisplayTitle'] ?? '',
+                bookData.bookDisplayTitle ?? '',
                 style: const TextStyle(fontSize: 21, color: Colors.white),
                 textAlign: TextAlign.center,
               ),
@@ -320,16 +304,13 @@ class _BibleChapterPageState extends State<BibleChapterPage> {
 
         return Column(
           children: [
-            // 1. Bouton Information Livre
-            if (bookData.bookInfo['Title'] != null)
+            if (bookData.introTitle != null)
               _buildMepsButton(
-                label: bookData.bookInfo['Title'],
+                label: bookData.introTitle!,
                 icon: JwIcons.information_circle,
-                onPressed: () => showPageDocument(widget.bible, bookData.bookInfo['MepsDocumentId']),
+                onPressed: () => showPageDocument(widget.bible, bookData.introDocumentId!),
               ),
-
-            // 2. Bouton Profile
-            if (bookData.profileHtml != null && bookData.profileHtml!.isNotEmpty && bookData.overviewHtml!.isNotEmpty)
+            if (bookData.profileHtml != null && bookData.profileHtml!.isNotEmpty && (bookData.overviewHtml?.isNotEmpty ?? false))
               Padding(
                 padding: const EdgeInsets.only(top: 10.0),
                 child: _buildMepsButton(
@@ -338,9 +319,7 @@ class _BibleChapterPageState extends State<BibleChapterPage> {
                   onPressed: () => _showProfileDialog(context, bookData.profileHtml!),
                 ),
               ),
-
-            // 3. Bouton Galerie Média
-            if (bookData.bookInfo['HasCommentary'] == 1)
+            if (bookData.hasCommentary)
               Padding(
                 padding: const EdgeInsets.only(top: 10.0),
                 child: _buildMepsButton(
@@ -355,7 +334,6 @@ class _BibleChapterPageState extends State<BibleChapterPage> {
     );
   }
 
-// Helper pour les boutons uniformes
   Widget _buildMepsButton({required String label, required IconData icon, required VoidCallback onPressed}) {
     return FilledButton(
       style: FilledButton.styleFrom(
@@ -381,7 +359,7 @@ class _BibleChapterPageState extends State<BibleChapterPage> {
   }
 
   Widget _buildChapterGridContent(BibleBook bookData) {
-    if (bookData.chapters == null || bookData.chapters!.isEmpty) {
+    if (bookData.chapters.isEmpty) {
       return const Center(child: Text('Chapitres non disponibles.'));
     }
 
@@ -392,29 +370,42 @@ class _BibleChapterPageState extends State<BibleChapterPage> {
         return GridView.builder(
           shrinkWrap: true,
           padding: EdgeInsets.zero,
-          physics: const NeverScrollableScrollPhysics(), // Important pour laisser le parent scroller
+          physics: const NeverScrollableScrollPhysics(),
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: crossAxisCount,
             crossAxisSpacing: kSpacing,
             mainAxisSpacing: kSpacing,
             childAspectRatio: 1.0,
           ),
-          itemCount: bookData.chapters!.length,
-          itemBuilder: (context, index) => _buildChapterContainer(bookData, bookData.chapters![index]),
+          itemCount: bookData.chapters.length,
+          itemBuilder: (context, index) {
+            final chapter = bookData.chapters[index];
+            return _buildChapterContainer(bookData, chapter);
+          },
         );
       },
     );
   }
 
-  Widget _buildChapterContainer(BibleBook bookData, dynamic chapter) {
+  Widget _buildChapterContainer(BibleBook bookData, BibleChapter chapter) {
+   final bool isDark = Theme.of(context).brightness == Brightness.dark;
+    final bool isChapterExist = chapter.isChapterExist;
+
+    final Color colorBackgroundChapterNoExist = isDark ? Color(0xFF303030) : Colors.transparent;
+    final Color colorTextChapterNoExist = isDark ? Color(0xFF626262) : Color(0xFFA7A7A7);
+
     return Material(
-      color: const Color(0xFF757575),
+      color: isChapterExist ? const Color(0xFF757575) : colorBackgroundChapterNoExist,
       child: InkWell(
-        onTap: () => _controller.onTapChapter(chapter['ChapterNumber']),
+        onTap: isChapterExist ? () => _controller.onTapChapter(chapter) : null,
         child: Center(
           child: Text(
-            formatNumber(chapter['ChapterNumber'], localeCode: widget.bible.mepsLanguage.primaryIetfCode),
-            style: const TextStyle(fontSize: 20.0, color: Colors.white, fontWeight: FontWeight.w500),
+            formatNumber(chapter.number, localeCode: widget.bible.mepsLanguage.primaryIetfCode),
+            style: TextStyle(
+              fontSize: 20.0,
+              color: isChapterExist ? Colors.white : colorTextChapterNoExist,
+              fontWeight: FontWeight.w500,
+            ),
           ),
         ),
       ),
@@ -450,23 +441,19 @@ class _BibleChapterPageState extends State<BibleChapterPage> {
         useShouldOverrideUrlLoading: true,
         mediaPlaybackRequiresUserGesture: false,
         transparentBackground: true,
+        verticalScrollBarEnabled: false,
+        horizontalScrollBarEnabled: false,
       ),
       gestureRecognizers: Set()
-
         ..add(
-
           Factory<VerticalDragGestureRecognizer>(
-
-                () => VerticalDragGestureRecognizer()..dragStartBehavior = DragStartBehavior.start,
-
+            () => VerticalDragGestureRecognizer()..dragStartBehavior = DragStartBehavior.start,
           ),
-
         ),
       initialData: InAppWebViewInitialData(
           data: html,
           mimeType: 'text/html',
-          baseUrl: WebUri('file://${JwLifeSettings.instance.webViewData.webappPath}/')
-      ),
+          baseUrl: WebUri('file://${JwLifeSettings.instance.webViewSettings.webappPath}/')),
     );
   }
 

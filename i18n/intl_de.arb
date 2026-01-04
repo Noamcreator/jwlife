@@ -808,7 +808,7 @@
   "settings_download_over_cellular_subtitle": "Es können Kosten anfallen.",
   "settings_how_jwl_uses_your_data": "Wie JW Library deine Daten verwendet",
   "settings_languages": "Sprache",
-  "settings_languages_upper": "SPRACHE",
+  "settings_languages_upper": "SPRACHEN",
   "settings_language_app": "App-Sprache",
   "settings_language_library": "Bibliothekssprache",
   "settings_license": "Lizenzvertrag",
@@ -922,5 +922,14 @@
   "label_research_inputs_fields": "FELDER",
   "label_research_wikipedia": "WIKIPEDIA",
   "meps_language": "X",
-  "label_icon_commentary": "Studiennote"
+  "label_icon_commentary": "Studiennote",
+  "label_verses_side_by_side": "Verse nebeneinander",
+  "message_verses_side_by_side": "Die ersten zwei Übersetzungen nebeneinander anzeigen",
+  "settings_menu_display_upper": "MENÜ",
+  "settings_show_publication_description": "Publikationsbeschreibung anzeigen",
+  "settings_show_publication_description_subtitle": "Die Beschreibung der Website unter dem Titel anzeigen.",
+  "settings_show_document_description": "Beschreibung für Dokumente anzeigen",
+  "settings_show_document_description_subtitle": "Die Beschreibung der Website unter den Dokumenten anzeigen.",
+  "settings_menu_auto_open_single_document": "Dokument direkt öffnen",
+  "settings_menu_auto_open_single_document_subtitle": "Wenn nur ein Dokument vorhanden ist, öffnen Sie es, ohne das Menü anzuzeigen."
 }

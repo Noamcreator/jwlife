@@ -66,7 +66,7 @@ class HomeSquarePublicationItem extends StatelessWidget {
             height: 40,
             child: IconButton(
               padding: EdgeInsets.zero,
-              onPressed: () => publication.cancelDownload(context),
+              onPressed: () => publication.cancelDownload(),
               icon: const Icon(
                 JwIcons.x,
                 color: Colors.white,

@@ -17,128 +17,122 @@ class TeachingToolboxSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-
-        // Toolbox – Médias en premier, puis Publications
-        ValueListenableBuilder<List<Media>>(
-          valueListenable: AppDataService.instance.teachingToolboxMedias,
-          builder: (context, medias, _) {
+    return ValueListenableBuilder<List<Media>>(
+      valueListenable: AppDataService.instance.teachingToolboxMedias,
+      builder: (context, medias, _) {
+        return ValueListenableBuilder<List<Publication?>>(
+          valueListenable: AppDataService.instance.teachingToolboxPublications,
+          builder: (context, pubs, _) {
             return ValueListenableBuilder<List<Publication?>>(
-              valueListenable: AppDataService.instance.teachingToolboxPublications,
-              builder: (context, pubs, _) {
-                final combined = [
-                  ...medias,
-                  ...pubs,
-                ];
+              valueListenable: AppDataService.instance.teachingToolboxTractsPublications,
+              builder: (context, tractsList, _) {
+                
+                final combinedMain = [...medias, ...pubs];
+                final hasMainItems = combinedMain.isNotEmpty;
+                final hasTracts = tractsList.isNotEmpty;
 
-                if (combined.isEmpty) return const SizedBox.shrink();
+                if (!hasMainItems && !hasTracts) return const SizedBox.shrink();
 
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        GestureDetector(
-                          onTap: () async {
-                            //showPage(NotesTagsPage());
+                    if (hasMainItems) ...[
+                      _buildHeader(context),
+                      const SizedBox(height: 4),
+                      SizedBox(
+                        height: 120,
+                        child: ListView.separated(
+                          padding: EdgeInsets.zero,
+                          scrollDirection: Axis.horizontal,
+                          itemCount: combinedMain.length,
+                          separatorBuilder: (_, __) => const SizedBox(width: 2),
+                          itemBuilder: (context, index) {
+                            return _buildToolboxItem(combinedMain[index], context);
                           },
-                          child: Row(
-                            children: [
-                              Text(
-                                i18n().navigation_ministry,
-                                style: Theme.of(context).extension<
-                                    JwLifeThemeStyles>()!.labelTitle,
-                              ),
-                              SizedBox(width: 2),
-                              Icon(
-                                JwIcons.chevron_right,
-                                color: Theme.of(context).secondaryHeaderColor,
-                                size: 24,
-                              ),
-                            ],
-                          ),
                         ),
-                        ValueListenableBuilder(
-                            valueListenable: JwLifeSettings.instance.teachingToolboxLanguage,
-                            builder: (context, mepsLanguage, child) {
-                              return GestureDetector(
-                                  onTap: () {
-                                    showLanguageDialog(context, firstSelectedLanguage: mepsLanguage.symbol).then((language) async {
-                                      if (language != null) {
-                                        if (language['Symbol'] != mepsLanguage.symbol) {
-                                          await AppSharedPreferences.instance.setTeachingToolboxLanguage(language);
-                                          AppDataService.instance.changeTeachingToolboxLanguageAndRefresh();
-                                        }
-                                      }
-                                    });
-                                  },
-                                  child: Text(
-                                      mepsLanguage.vernacular,
-                                      style: TextStyle(color: Theme.of(context).primaryColor)
-                                  )
-                              );
-                            }
-                        )
-                      ],
-                    ),
-                    SizedBox(
-                      height: 120,
-                      child: ListView.separated(
-                        padding: EdgeInsets.zero,
-                        scrollDirection: Axis.horizontal,
-                        itemCount: combined.length,
-                        separatorBuilder: (_, __) => const SizedBox(width: 2),
-                        itemBuilder: (context, index) {
-                          final item = combined[index];
-                          return _buildToolboxItem(item, context);
-                        },
                       ),
-                    ),
+                    ],
+
+                    if (hasMainItems && hasTracts) const SizedBox(height: 10),
+
+                    if (hasTracts) ...[
+                      SizedBox(
+                        height: 100,
+                        child: ListView.separated(
+                          padding: EdgeInsets.zero,
+                          scrollDirection: Axis.horizontal,
+                          itemCount: tractsList.length,
+                          separatorBuilder: (_, __) => const SizedBox(width: 2),
+                          itemBuilder: (context, index) {
+                            return _buildToolboxItem(tractsList[index], context);
+                          },
+                        ),
+                      ),
+                    ],
                   ],
                 );
               },
             );
           },
+        );
+      },
+    );
+  }
+
+  Widget _buildHeader(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        GestureDetector(
+          onTap: () async {},
+          child: Row(
+            children: [
+              Text(
+                i18n().navigation_ministry,
+                style: Theme.of(context).extension<JwLifeThemeStyles>()!.labelTitle,
+              ),
+              const SizedBox(width: 2),
+              Icon(
+                JwIcons.chevron_right,
+                color: Theme.of(context).secondaryHeaderColor,
+                size: 24,
+              ),
+            ],
+          ),
         ),
-
-        const SizedBox(height: 8),
-
-        // Tracts Publications
-        ValueListenableBuilder<List<Publication?>>(
-          valueListenable:
-          AppDataService.instance.teachingToolboxTractsPublications,
-          builder: (context, tractsList, _) {
-            if (tractsList.isEmpty) return const SizedBox.shrink();
-
-            return SizedBox(
-              height: 100,
-              child: ListView.separated(
-                padding: EdgeInsets.zero,
-                scrollDirection: Axis.horizontal,
-                itemCount: tractsList.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 2),
-                itemBuilder: (context, index) {
-                  final pub = tractsList[index];
-                  return _buildToolboxItem(pub, context);
-                },
+        ValueListenableBuilder(
+          valueListenable: JwLifeSettings.instance.teachingToolboxLanguage,
+          builder: (context, mepsLanguage, child) {
+            return GestureDetector(
+              onTap: () {
+                showLanguageDialog(context, firstSelectedLanguage: mepsLanguage.symbol).then((language) async {
+                  if (language != null && language['Symbol'] != mepsLanguage.symbol) {
+                    await AppSharedPreferences.instance.setTeachingToolboxLanguage(language);
+                    AppDataService.instance.changeTeachingToolboxLanguageAndRefresh();
+                  }
+                });
+              },
+              child: Text(
+                mepsLanguage.vernacular,
+                style: TextStyle(color: Theme.of(context).primaryColor),
               ),
             );
           },
-        ),
+        )
       ],
     );
   }
 
   Widget _buildToolboxItem(dynamic item, BuildContext context) {
+    if (item == null) {
+      // C'est ici que l'espace de -1 est géré
+      return const SizedBox(width: 18); 
+    }
     if (item is Media) {
       return HomeSquareMediaItemItem(media: item);
-    }
-    else if (item is Publication) {
+    } else if (item is Publication) {
       return HomeSquarePublicationItem(publication: item, toolbox: true);
     }
-    return const SizedBox(width: 20);
+    return const SizedBox.shrink();
   }
 }

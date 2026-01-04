@@ -2690,7 +2690,7 @@ class AppLocalizationsAm extends AppLocalizations {
   String get settings_languages => 'ቋንቋ';
 
   @override
-  String get settings_languages_upper => 'ቋንቋ';
+  String get settings_languages_upper => 'ቋንቋዎች';
 
   @override
   String get settings_language_app => 'የመተግበሪያ ቋንቋ';
@@ -3076,4 +3076,34 @@ class AppLocalizationsAm extends AppLocalizations {
 
   @override
   String get label_icon_commentary => 'የጥናት ማስታወሻ';
+
+  @override
+  String get label_verses_side_by_side => 'ቁጥሮች ጎን ለጎን';
+
+  @override
+  String get message_verses_side_by_side => 'የመጀመሪያዎቹን ሁለት ትርጉሞች ጎን ለጎን አሳይ';
+
+  @override
+  String get settings_menu_display_upper => 'ሜኑ';
+
+  @override
+  String get settings_show_publication_description => 'የህትመት መግለጫ አሳይ';
+
+  @override
+  String get settings_show_publication_description_subtitle =>
+      'በድረ-ገጹ ላይ ያለውን መግለጫ ከርዕሱ በታች አሳይ።';
+
+  @override
+  String get settings_show_document_description => 'ለሰነዶች መግለጫ አሳይ';
+
+  @override
+  String get settings_show_document_description_subtitle =>
+      'በድረ-ገጹ ላይ ያለውን መግለጫ ከሰነዶቹ በታች አሳይ።';
+
+  @override
+  String get settings_menu_auto_open_single_document => 'ሰነዱን በቀጥታ ክፈት';
+
+  @override
+  String get settings_menu_auto_open_single_document_subtitle =>
+      'አንድ ሰነድ ብቻ ካለ ሜኑውን ሳያሳዩ ይክፈቱት።';
 }

@@ -922,5 +922,14 @@
   "label_research_inputs_fields": "フィールド",
   "label_research_wikipedia": "ウィキペディア",
   "meps_language": "J",
-  "label_icon_commentary": "学習ノート"
+  "label_icon_commentary": "学習ノート",
+  "label_verses_side_by_side": "節を並べて表示",
+  "message_verses_side_by_side": "最初の2つの翻訳を並べて表示する",
+  "settings_menu_display_upper": "メニュー",
+  "settings_show_publication_description": "出版物の説明を表示する",
+  "settings_show_publication_description_subtitle": "ウェブサイト上の説明をタイトルの下に表示します。",
+  "settings_show_document_description": "ドキュメントの説明を表示する",
+  "settings_show_document_description_subtitle": "ウェブサイト上の説明をドキュメントの下に表示します。",
+  "settings_menu_auto_open_single_document": "ドキュメントを直接開く",
+  "settings_menu_auto_open_single_document_subtitle": "ドキュメントが1つしかない場合は、メニューを表示せずに開きます。"
 }

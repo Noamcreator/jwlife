@@ -808,7 +808,7 @@
   "settings_download_over_cellular_subtitle": "Isso poderá resultar em cobranças na sua conta.",
   "settings_how_jwl_uses_your_data": "Como o JW Library usa suas informações",
   "settings_languages": "Idioma",
-  "settings_languages_upper": "IDIOMA",
+  "settings_languages_upper": "IDIOMAS",
   "settings_language_app": "Idioma da Aplicação",
   "settings_language_library": "Idioma da Biblioteca",
   "settings_license": "Contrato de licença",
@@ -922,5 +922,14 @@
   "label_research_inputs_fields": "CAMPOS",
   "label_research_wikipedia": "WIKIPÉDIA",
   "meps_language": "T",
-  "label_icon_commentary": "Nota de estudo"
+  "label_icon_commentary": "Nota de estudo",
+  "label_verses_side_by_side": "Versículos lado a lado",
+  "message_verses_side_by_side": "Exibir as duas primeiras traduções lado a lado",
+  "settings_menu_display_upper": "MENU",
+  "settings_show_publication_description": "Mostrar descrição das publicações",
+  "settings_show_publication_description_subtitle": "Mostrar a descrição do site abaixo do título.",
+  "settings_show_document_description": "Mostrar descrição para os documentos",
+  "settings_show_document_description_subtitle": "Mostrar a descrição do site abaixo dos documentos.",
+  "settings_menu_auto_open_single_document": "Abrir o documento diretamente",
+  "settings_menu_auto_open_single_document_subtitle": "Se houver apenas um documento, abra-o sem exibir o menu."
 }

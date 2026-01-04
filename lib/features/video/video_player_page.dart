@@ -4,12 +4,12 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/uri/jworg_uri.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/data/models/video.dart' hide Subtitles;
-import 'package:jwlife/data/databases/history.dart';
 import 'package:jwlife/widgets/dialog/qr_code_dialog.dart';
 
 import 'package:share_plus/share_plus.dart';
@@ -108,7 +108,7 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
     _isFullScreen = MediaQuery.of(context).orientation == Orientation.landscape;
     GlobalKeyService.jwLifePageKey.currentState!.orientation = MediaQuery.of(context).orientation;
 
-    History.insertVideo(widget.video);
+    JwLifeApp.history.insertVideo(widget.video);
 
     if(widget.video.isDownloadedNotifier.value) {
       playLocalVideo();
@@ -218,7 +218,7 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
 
   /// S'occupe de la logique de lancement de la lecture pour une nouvelle vidéo.
   Future<void> _playNewVideo(Video newVideo) async {
-    History.insertVideo(newVideo);
+    JwLifeApp.history.insertVideo(newVideo);
 
     if(newVideo.isDownloadedNotifier.value) {
       await playLocalVideo(video: newVideo);

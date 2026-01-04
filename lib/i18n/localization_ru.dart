@@ -2762,7 +2762,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get settings_languages => 'Язык';
 
   @override
-  String get settings_languages_upper => 'ЯЗЫК';
+  String get settings_languages_upper => 'ЯЗЫКИ';
 
   @override
   String get settings_language_app => 'Язык приложения';
@@ -3161,4 +3161,38 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get label_icon_commentary => 'Учебная заметка';
+
+  @override
+  String get label_verses_side_by_side => 'Стихи бок о бок';
+
+  @override
+  String get message_verses_side_by_side =>
+      'Показывать первые два перевода бок о бок';
+
+  @override
+  String get settings_menu_display_upper => 'МЕНЮ';
+
+  @override
+  String get settings_show_publication_description =>
+      'Показывать описание публикаций';
+
+  @override
+  String get settings_show_publication_description_subtitle =>
+      'Показывать описание с веб-сайта под заголовком.';
+
+  @override
+  String get settings_show_document_description =>
+      'Показывать описание для документов';
+
+  @override
+  String get settings_show_document_description_subtitle =>
+      'Показывать описание с веб-сайта под документами.';
+
+  @override
+  String get settings_menu_auto_open_single_document =>
+      'Открыть документ напрямую';
+
+  @override
+  String get settings_menu_auto_open_single_document_subtitle =>
+      'Если имеется только один документ, открыть его без отображения меню.';
 }

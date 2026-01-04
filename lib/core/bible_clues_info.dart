@@ -60,7 +60,7 @@ class BibleCluesInfo {
   String getVerses(int book1, int chapter1, int verse1, int book2, int chapter2, int verse2, {String type = 'standardBookName'}) {
     // Récupération des infos des livres
     BibleBookName bookName1 = bibleBookNames.elementAt(book1 - 1);
-    String name1 = type == 'standardBookName' ? bookName1.standardBookName : type == 'standardBookAbbreviation' ? bookName1.standardBookAbbreviation : bookName1.standardBookName;
+    String name1 = type == 'standardBookName' ? bookName1.standardBookName : type == 'standardBookAbbreviation' ? bookName1.standardBookAbbreviation : bookName1.officialBookAbbreviation;
 
     // Déterminer si on doit afficher le chapitre pour le livre 1
     // On ne l'affiche pas si c'est un livre à chapitre unique (isSingleChapter == true)
@@ -86,7 +86,7 @@ class BibleCluesInfo {
     // CAS 1 : Livres différents
     if (book1 != book2) {
       BibleBookName bookName2 = bibleBookNames.elementAt(book2 - 1);
-      String name2 = type == 'standardBookName' ? bookName2.standardBookName : type == 'standardBookAbbreviation' ? bookName2.standardBookAbbreviation : bookName2.standardBookName;
+      String name2 = type == 'standardBookName' ? bookName2.standardBookName : type == 'standardBookAbbreviation' ? bookName2.standardBookAbbreviation : bookName2.officialBookAbbreviation;
       bool showChapter2 = !(bookName2.isSingleChapter);
 
       String ref1 = buildRef(showChapter1, formattedChapter1, formattedVerse1Text);

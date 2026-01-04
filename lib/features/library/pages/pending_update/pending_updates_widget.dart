@@ -8,7 +8,6 @@ import 'package:jwlife/features/library/widgets/rectangle_mediaItem_item.dart';
 import 'package:jwlife/i18n/i18n.dart'; // Import pour i18n
 
 import '../../../../core/utils/widgets_utils.dart';
-import '../../../../data/models/audio.dart';
 import '../../../../widgets/multiple_listenable_builder_widget.dart';
 import '../../../publication/pages/local/publication_menu_view.dart';
 import '../../models/pending_update/pending_update_model.dart';
@@ -60,7 +59,7 @@ class _PendingUpdatesWidgetState extends State<PendingUpdatesWidget> {
     );
   }
 
-  List<Widget> _buildSliverSection<T>(String? title, List<T> items, double contentPadding) {
+  List<Widget> _buildSliverSection<T>(List<T> items, double contentPadding) {
     // FILTRE : On ne garde que les éléments qui ont réellement une mise à jour
     final visibleItems = items.where((item) {
       if (item is Publication) return item.hasUpdateNotifier.value;
@@ -76,15 +75,8 @@ class _PendingUpdatesWidgetState extends State<PendingUpdatesWidget> {
     final double calculatedItemWidth = (screenWidth - (getContentPadding(screenWidth) * 2) - (kSpacing * (crossAxisCount - 1))) / crossAxisCount;
 
     return [
-      if (title != null)
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: EdgeInsets.only(left: contentPadding, right: contentPadding, top: 20.0, bottom: 5.0),
-            child: Text(title, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-          ),
-        ),
       SliverPadding(
-        padding: EdgeInsets.symmetric(horizontal: contentPadding, vertical: kSpacing),
+        padding: EdgeInsets.all(contentPadding),
         sliver: SliverGrid.builder(
           itemCount: visibleItems.length,
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
@@ -98,7 +90,7 @@ class _PendingUpdatesWidgetState extends State<PendingUpdatesWidget> {
             return GestureDetector(
               onTap: () {
                 if (item is Publication) {
-                  showPage(PublicationMenuView(publication: item));
+                  showPage(PublicationMenuPage(publication: item));
                 }
               },
               child: Container(
@@ -125,7 +117,7 @@ class _PendingUpdatesWidgetState extends State<PendingUpdatesWidget> {
 
         // Récupération de tous les notifiers pour vider la liste en temps réel dès qu'une MAJ est faite
         final allUpdateNotifiers = <ValueNotifier<bool>>[];
-        for (var item in [..._model.mixedItems, ..._model.groupedItems.values.expand((e) => e)]) {
+        for (var item in _model.mixedItems) {
           if (item is Publication) allUpdateNotifiers.add(item.hasUpdateNotifier);
           if (item is Media) allUpdateNotifiers.add(item.hasUpdateNotifier);
         }
@@ -138,21 +130,8 @@ class _PendingUpdatesWidgetState extends State<PendingUpdatesWidget> {
 
             // 1. Construction des sections de contenu
             if (_model.mixedItems.isNotEmpty) {
-              contentSections.addAll(_buildSliverSection(null, _model.mixedItems, contentPadding));
-            } else {
-              _model.groupedItems.forEach((key, list) {
-                if (list.isNotEmpty) {
-                  String title = "";
-                  if (list.first is Publication) {
-                    title = (list.first as Publication).category.getName();
-                  }
-                  else if (list.first is Media) {
-                    title = list.first is Audio ? i18n().pub_type_audio_programs : i18n().label_videos;
-                  }
-                  contentSections.addAll(_buildSliverSection<dynamic>(title, list, contentPadding));
-                }
-              });
-            }
+              contentSections.addAll(_buildSliverSection(_model.mixedItems, contentPadding));
+            } 
 
             // 2. Vérification si on a du contenu après filtrage
             if (contentSections.isEmpty) {

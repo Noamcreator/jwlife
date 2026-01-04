@@ -7,7 +7,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite/sqflite.dart';
 import '../../app/services/settings_service.dart';
 import '../../data/models/meps_language.dart';
-import '../../i18n/i18n.dart';
 import '../../i18n/localization.dart';
 import '../constants.dart';
 import 'shared_preferences_keys.dart'; // Assurez-vous d'importer vos clés
@@ -269,6 +268,16 @@ class AppSharedPreferences {
   Future<List<String>> getLatestLanguage() => _getLanguageByKey(SharedPreferencesKeys.latestLanguage);
   Future<void> setLatestLanguage(dynamic language) => _setLanguageByKey(SharedPreferencesKeys.latestLanguage, language);
 
+  // -- MENU --
+  bool getShowPublicationDescription() => _sp.getBool(SharedPreferencesKeys.showPublicationDescription.key) ?? SharedPreferencesKeys.showPublicationDescription.defaultValue;
+  void setShowPublicationDescription(bool value) => _sp.setBool(SharedPreferencesKeys.showPublicationDescription.key, value);
+
+  bool getShowDocumentDescription() => _sp.getBool(SharedPreferencesKeys.showDocumentDescription.key) ?? SharedPreferencesKeys.showDocumentDescription.defaultValue;
+  void setShowDocumentDescription(bool value) => _sp.setBool(SharedPreferencesKeys.showDocumentDescription.key, value);
+
+  bool getAutoOpenSingleDocument() => _sp.getBool(SharedPreferencesKeys.autoOpenSingleDocument.key) ?? SharedPreferencesKeys.autoOpenSingleDocument.defaultValue;
+  void setAutoOpenSingleDocument(bool value) => _sp.setBool(SharedPreferencesKeys.autoOpenSingleDocument.key, value);
+
   // --- WEB APP FOLDER ---
   String getWebAppVersion() {
     return _sp.getString(SharedPreferencesKeys.webAppDownloadVersion.key) ?? SharedPreferencesKeys.webAppDownloadVersion.defaultValue;
@@ -316,6 +325,14 @@ class AppSharedPreferences {
 
   Future<void> setBlockingHorizontallyMode(bool blocking) async {
     await _sp.setBool(SharedPreferencesKeys.blockingHorizontallyMode.key, blocking);
+  }
+
+  bool getVersesInParallel() {
+    return _sp.getBool(SharedPreferencesKeys.versesInParallel.key) ?? SharedPreferencesKeys.versesInParallel.defaultValue;
+  }
+
+  Future<void> setVersesInParallel(bool versesInParallel) async {
+    await _sp.setBool(SharedPreferencesKeys.versesInParallel.key, versesInParallel);
   }
 
   // --- PRONUNCIATION GUIDE ---

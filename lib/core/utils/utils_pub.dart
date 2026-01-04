@@ -109,7 +109,7 @@ PopupMenuItem getPubDownloadItem(BuildContext context, Publication publication) 
     ),
     onTap: () async {
       if (publication.isDownloadedNotifier.value) {
-         publication.remove(context);
+         publication.remove();
       }
       else {
         publication.download(context);
@@ -118,7 +118,7 @@ PopupMenuItem getPubDownloadItem(BuildContext context, Publication publication) 
   );
 }
 
-Future<String> extractPublicationDescription(Publication? publication, {String? symbol, int? issueTagNumber, String? mepsLanguage}) async {
+Future<String> fetchPublicationDescription(Publication? publication, {String? symbol, int? issueTagNumber, String? mepsLanguage}) async {
   String s = publication?.keySymbol ?? symbol ?? '';
   int iTn = publication?.issueTagNumber ?? issueTagNumber ?? 0;
   String mL = publication?.mepsLanguage.symbol ?? mepsLanguage ?? '';

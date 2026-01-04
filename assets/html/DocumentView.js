@@ -637,7 +637,11 @@ function wrapWordsWithSpan(article, isBible) {
 }
 
 function processTextNodes(element) {
-    if (!element || (element.classList && [...element.classList].some(c => skipClasses.has(c)))) {
+    const isSkipped = [...skipClasses].some(className => 
+        element.closest(`.${className}`)
+    );
+
+    if (!element || isSkipped) {
         return;
     }
 
@@ -689,18 +693,13 @@ function processTextNodes(element) {
     }
 }
 
-async function loadIndexPage(index, isFirst) {
+async function loadIndexPage(index) {
     const curr = await fetchPage(index);
     const isImageMode = curr.preferredPresentation === 'text' ? imageMode : !imageMode;
-    
-    pageCenter.innerHTML = ''; 
-
-    if(isFirst) {
-        pageCenter.classList.add('visible');
-    }
-
+  
     if (isImageMode && curr.svgs && curr.svgs.length > 0) {
         loadImageSvg(pageCenter, curr.svgs);
+        await window.flutter_inappwebview.callHandler('changePageAt', currentIndex);
     } 
     else {
         showFloatingButton();
@@ -711,6 +710,8 @@ async function loadIndexPage(index, isFirst) {
         const article = document.getElementById("article-center");
         wrapWordsWithSpan(article, isBible());
         paragraphsData = fetchAllParagraphsOfTheArticle(article);
+        await window.flutter_inappwebview.callHandler('changePageAt', currentIndex);
+        await loadUserdata();
     }
 
     container.style.transition = "none";
@@ -728,84 +729,109 @@ async function loadPrevAndNextPages(index) {
     const isImageModePrev = prev.preferredPresentation === 'text' ? imageMode : !imageMode;
     const isImageModeNext = next.preferredPresentation === 'text' ? imageMode : !imageMode;
 
-    pageLeft.innerHTML = '';
+    // Remplissage Page Gauche (pageLeft)
     if (isImageModePrev && prev.svgs && prev.svgs.length > 0) {
         loadImageSvg(pageLeft, prev.svgs);
-    } else {
+    } 
+    else {
         pageLeft.innerHTML = `<article id="article-left" class="${prev.className}">${prev.html}</article>`;
         adjustArticle('article-left', prev.link);
+        addVideoCover('article-left');
+        resizeAllTextAreaHeight(pageLeft);
     }
 
-    pageRight.innerHTML = '';
+    // Remplissage Page Droite (pageRight)
     if (isImageModeNext && next.svgs && next.svgs.length > 0) {
         loadImageSvg(pageRight, next.svgs);
-    } else {
+    } 
+    else {
         pageRight.innerHTML = `<article id="article-right" class="${next.className}">${next.html}</article>`;
         adjustArticle('article-right', next.link);
+        addVideoCover('article-right');
+        resizeAllTextAreaHeight(pageRight);
     }
 }
 
-// Fonction de chargement optimisée avec gestion des états
-async function loadPages(currentIndex) {
-    await window.flutter_inappwebview.callHandler('changePageAt', currentIndex);
+function restoreScrollPosition(page, index) {
+    if (!page) return;
 
-    await loadIndexPage(currentIndex, false);
+    // Récupération de la position sauvegardée pour cet index précis
+    const scroll = scrollTopPages[index] ?? 0;
+    
+    // Application immédiate pour éviter les sauts visuels
+    page.scrollTop = scroll;
 
-    function restoreScrollPosition(page, index) {
-        const scroll = scrollTopPages[index] ?? 0;
-        page.scrollTop = scroll;
-        scrollTopPages[index] = scroll;
-
-        // 🔄 Réinitialiser les états de direction
-        lastScrollTop = scroll;
-        lastDirection = null;
-        directionChangePending = false;
-        directionChangeStartTime = 0;
-        directionChangeStartScroll = 0;
-        directionChangeTargetDirection = null;
-
-        if (scroll === 0) {
-            appBarHeight = APPBAR_FIXED_HEIGHT;
-            bottomNavBarHeight = BOTTOMNAVBAR_FIXED_HEIGHT;
+    // Sécurité : Force la position au prochain cycle de rendu au cas où le contenu 
+    // HTML vient juste d'être injecté et n'a pas encore sa hauteur finale.
+    requestAnimationFrame(() => {
+        if (page && page.scrollTop !== scroll) {
+            page.scrollTop = scroll;
         }
+    });
+
+    // Réinitialisation des états de direction (évite que l'AppBar ne s'affole)
+    lastScrollTop = scroll;
+    lastDirection = null;
+    directionChangePending = false;
+    directionChangeStartTime = 0;
+    directionChangeStartScroll = 0;
+    directionChangeTargetDirection = null;
+
+    if (scroll === 0) {
+        appBarHeight = APPBAR_FIXED_HEIGHT;
+        bottomNavBarHeight = BOTTOMNAVBAR_FIXED_HEIGHT;
     }
+}
 
-    restoreScrollPosition(pageCenter, currentIndex);
+async function loadPages(currentIndex) {
+    // Verrouillage pour empêcher le listener de scroll d'écrire n'importe où
+    isNavigating = true; 
+
+    // 1. Charger la page centrale
+    await loadIndexPage(currentIndex);
+
+    // 2. Reset des états d'interaction
     pageCenter.scrollLeft = 0;
-
     currentGuid = '';
-    pressTimer = null;
-    firstLongPressTarget = null;
-    lastLongPressTarget = null;
     isLongPressing = false;
-    isLongTouchFix = false;
-    isSelecting = false;
-    isDragging = false;
     isVerticalScroll = false;
-    startX = 0;
-    startY = 0;
     currentTranslate = -100;
 
-    await loadUserdata();
+    // 3. Restaurer le scroll du centre (uniquement si déjà connu)
+    restoreScrollPosition(pageCenter, currentIndex);
+
     initializeBaseDialog();
+
+    // 4. Charger les voisins
     await loadPrevAndNextPages(currentIndex);
 
-    restoreScrollPosition(pageLeft, currentIndex - 1);
-    restoreScrollPosition(pageRight, currentIndex + 1);
+    // 5. Restaurer les scrolls des voisins seulement s'ils ont été enregistrés
+    if (scrollTopPages[currentIndex - 1] !== undefined) {
+        restoreScrollPosition(pageLeft, currentIndex - 1);
+    } else {
+        pageLeft.scrollTop = 0; // Force le haut de page si inconnu
+    }
+
+    if (scrollTopPages[currentIndex + 1] !== undefined) {
+        restoreScrollPosition(pageRight, currentIndex + 1);
+    } else {
+        pageRight.scrollTop = 0; // Force le haut de page si inconnu
+    }
+
+    // 6. Déverrouillage après stabilisation du DOM
+    setTimeout(() => {
+        isNavigating = false;
+    }, 150);
 }
 
 async function init() {
-    pageCenter.classList.remove('visible');
     pageCenter.scrollTop = 0;
     pageCenter.scrollLeft = 0;
 
-    await loadIndexPage(currentIndex, true);
+    pageCenter.classList.add('visible');
+    await loadIndexPage(currentIndex);
 
     setupScrollBar();
-
-    await window.flutter_inappwebview.callHandler('changePageAt', currentIndex);
-
-    await loadUserdata();
 
     if (wordsSelected.length > 0) {
         selectWords(wordsSelected, false);
@@ -823,7 +849,7 @@ async function init() {
         jumpToTextTag(textTag);
     }
 
-    loadPrevAndNextPages(currentIndex);
+    await loadPrevAndNextPages(currentIndex);
 }
 
 init();
@@ -1125,7 +1151,6 @@ function createToolbarButtonColor(styleIndex, targets, target, styleToolbar, isS
 
     // Couleurs selon le thème
     const baseColor = isDarkTheme() ? 'white' : '#4f4f4f';
-    const hoverColor = isDarkTheme() ? '#606060' : '#e6e6e6';
 
     button.style.cssText = `
         font-family: jw-icons-external;
@@ -1203,15 +1228,14 @@ function createToolbarButtonColor(styleIndex, targets, target, styleToolbar, isS
             // 🎨 CRÉATION DU CERCLE DE COULEUR 🎨
             const colorCircle = document.createElement('div');
             colorCircle.style.cssText = `
-            width: 25px;
-            height: 25px;
-            border-radius: 50%;
-            background-color: rgba(${rgbValue}, 1.0);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            box-shadow: 0 0 0 1px ${isDark ? 'rgba(255, 255, 255, 0.3)' : 'rgba(0, 0, 0, 0.15)'}; /* Bordure légère */
-          `;
+                width: 25px;
+                height: 25px;
+                border-radius: 50%;
+                background-color: rgba(${rgbValue}, 1.0);
+                display: flex;
+                justify-content: center;
+                align-items: center;
+            `;
 
             // --- Logique d'icône sélectionnée (Symbole: E634) ---
             // Si la couleur actuelle est la couleur de l'élément sélectionné ET nous sommes en mode "highlight existant"
@@ -1221,7 +1245,7 @@ function createToolbarButtonColor(styleIndex, targets, target, styleToolbar, isS
                 selectedIcon.innerHTML = '&#xE634;';
                 selectedIcon.style.cssText = `
               font-family: jw-icons-external; /* Même famille que le bouton retour */
-              font-size: 19px;
+              font-size: 16px;
               color: rgba(100, 100, 100, 0.5); /* Couleur semi-transparente souhaitée */
             `;
                 colorCircle.appendChild(selectedIcon);
@@ -1409,7 +1433,7 @@ function removeAllSelected() {
     selection.removeAllRanges();
 }
 
-function createToolbarBase({targets, blockRangeId, isSelected, target}) {
+function createToolbarBase({targets, blockRangeId, isSelected, target, whenCreateBlockRanges}) {
     if (!targets || targets.length === 0) return;
 
     // Horizontal : centré sur tous les targets
@@ -1492,9 +1516,29 @@ function createToolbarBase({targets, blockRangeId, isSelected, target}) {
     ];
 
     buttons.forEach(([icon, handler]) => toolbar.appendChild(createToolbarButton(icon, handler)));
+
+    if (whenCreateBlockRanges) {
+        // On définit le timer
+        let autoRemoveTimer = setTimeout(() => {
+            if (toolbar.parentNode) {
+                toolbar.style.transition = "opacity 0.3s ease-out";
+                toolbar.style.opacity = '0';
+                toolbar.style.pointerEvents = 'none';
+                
+                setTimeout(() => {
+                    toolbar.remove();
+                }, 300);
+            }
+        }, 3000);
+    
+        // Si on entre dans la toolbar, on annule la suppression
+        toolbar.addEventListener('mouseenter', () => {
+            clearTimeout(autoRemoveTimer);
+        });
+    }
 }
 
-function showToolbarBlockRange(target, blockRangeId) {
+function showToolbarBlockRange(target, blockRangeId, whenCreateBlockRanges) {
     const targets = pageCenter.querySelectorAll(`[${blockRangeAttr}="${blockRangeId}"]`);
     if (targets.length === 0) return;
 
@@ -1502,7 +1546,8 @@ function showToolbarBlockRange(target, blockRangeId) {
         targets,
         blockRangeId,
         isSelected: false,
-        target
+        target,
+        whenCreateBlockRanges
     });
 }
 
@@ -1515,6 +1560,7 @@ function showSelectedToolbar() {
         blockRangeId: null,
         isSelected: true,
         target: targets[0],
+        whenCreateBlockRanges: false
     });
 }
 
@@ -1685,7 +1731,6 @@ function showToolbar(article, paragraphs, pid, hasAudio, type) {
 async function fetchVerseInfo(paragraph, pid) {
     const verseInfo = await window.flutter_inappwebview.callHandler('fetchVerseInfo', {id: pid});
     showVerseInfoDialog(pageCenter, verseInfo, 'verse-info-$pid', pid, false);
-    closeToolbar();
 }
 
 const HEADER_HEIGHT = 45; // Hauteur fixe du header
@@ -2933,7 +2978,7 @@ function createNoteContent(contentContainer, options) {
     noteContentWrapper.classList.add('note-content-wrapper');
     noteContentWrapper.id = `data-note-guid-${noteGuid}`;
     noteContentWrapper.style.cssText = `
-            padding: 16px;
+            padding: 1.1em;
             box-sizing: border-box;
         `;
     noteContentWrapper.classList.add(noteClass);
@@ -2947,7 +2992,7 @@ function createNoteContent(contentContainer, options) {
             border: none;
             outline: none;
             resize: none;
-            font-size: 1.2em;
+            font-size: inherit;
             font-weight: bold;
             line-height: 1.3;
             background: transparent;
@@ -2980,7 +3025,7 @@ function createNoteContent(contentContainer, options) {
             margin: 4px 0;
         `;
 
-    // 📄 CONTENU
+        // 📄 CONTENU
     const contentElement = document.createElement('textarea');
     contentElement.className = 'note-content';
     contentElement.value = content || '';
@@ -2989,7 +3034,7 @@ function createNoteContent(contentContainer, options) {
             border: none;
             outline: none;
             resize: none;
-            font-size: inherit;
+            font-size: 0.95em;
             line-height: 1.5;
             background: transparent;
             color: inherit;
@@ -3535,13 +3580,13 @@ function createOptionsMenu(noteGuid, popup, isDark) {
 }
 
 // Fonction pour afficher le dialogue des différentes traductions de versets
-function showVerseDialog(article, dialogData, href, replace) {
+function showVerseDialog(article, dialogData, payload, replace) {
     showDialog({
         title: dialogData.title,
         type: 'verse',
         article: article,
         replace: replace,
-        href: href,
+        href: payload.clicked,
         contentRenderer: (contentContainer) => {
             dialogData.verses.forEach((item) => {
                 const headerBar = document.createElement('div');
@@ -3618,8 +3663,6 @@ function showVerseDialog(article, dialogData, href, replace) {
                 const article = document.createElement('div');
                 article.style.cssText = `
                     position: relative;
-                    padding-top: 10px;
-                    padding-bottom: 16px;
                 `;
                 
                 if(item.isVerseExisting) {
@@ -3686,6 +3729,9 @@ function showVerseDialog(article, dialogData, href, replace) {
                 }
                 else {
                     article.innerHTML = `<article id="verse-dialog" class="${item.className}">${dialogData.noVerseExistingText}</article>`;
+                    article.style.cssText = `
+                        padding: 15px 23px;
+                    `;
                 }
 
                 contentContainer.appendChild(headerBar);
@@ -3720,8 +3766,8 @@ function showVerseDialog(article, dialogData, href, replace) {
 
                 // 2. Vérification si des changements ont eu lieu AVANT de recharger les versets
                 if (hasChanges === true) {
-                    const dialogData = await window.flutter_inappwebview.callHandler('fetchVerses', href);
-                    showVerseDialog(article, dialogData, href, true);
+                    const dialogData = await window.flutter_inappwebview.callHandler('fetchVerses', payload);
+                    showVerseDialog(article, dialogData, payload, true);
                 } 
                 else {
                     console.log("Aucun changement de version, les versets ne sont pas rechargés.");
@@ -5020,7 +5066,6 @@ function callHandler(name, args) {
 
 function whenClickOnParagraph(article, target, selector, idAttr, type) {
     const matched = target.closest(selector);
-    if (!matched) { closeToolbar(); return; }
 
     const rawId = matched.getAttribute(idAttr);
     const parts = rawId.split('-');
@@ -5655,68 +5700,65 @@ function setupScrollBar() {
     scrollBarTimeout = setTimeout(hideScrollBar, 3000);
 }
 
+// --- VARIABLES D'ÉTAT (Assure-toi qu'elles sont déclarées) ---
 let lastScrollTop = 0;
 let lastDirection = null;
-
 let directionChangePending = false;
 let directionChangeStartTime = 0;
 let directionChangeStartScroll = 0;
 let directionChangeTargetDirection = null;
+let isNavigating = false; // TRÈS IMPORTANT : à mettre à true au début de changePage()
+
 let appBarHeight = APPBAR_FIXED_HEIGHT; // hauteur de l'AppBar
 let bottomNavBarHeight = BOTTOMNAVBAR_FIXED_HEIGHT; // hauteur de la BottomBar
 
 const DIRECTION_CHANGE_THRESHOLD_MS = 250;
 const DIRECTION_CHANGE_THRESHOLD_PX = 40;
 
-pageCenter.addEventListener("scroll", () => {
-    // Appelle la fonction pour afficher la barre et relancer le minuteur
+function handleScroll(pageElement) {
+    // 1. SÉCURITÉ : On bloque si on change de page
+    if (isNavigating || isLongPressing || isChangingParagraph) return;
+
+    const targetIndex = currentIndex;
+    const scrollTop = pageElement.scrollTop;
+
+    // 2. SAUVEGARDE : On enregistre la position pour l'index correspondant
+    if (targetIndex >= 0) {
+        scrollTopPages[targetIndex] = scrollTop;
+    }
+    
+    // Appelle ta fonction pour afficher et gérer le timer de la scrollbar
     showScrollBar();
-
-    // Votre code existant pour le défilement commence ici
     closeToolbar();
-    if (isLongPressing || isChangingParagraph) return;
 
-    const scrollTop = pageCenter.scrollTop;
-    const scrollHeight = pageCenter.scrollHeight;
-    const clientHeight = pageCenter.clientHeight;
+    const scrollHeight = pageElement.scrollHeight;
+    const clientHeight = pageElement.clientHeight;
 
+    // --- GESTION DE LA DIRECTION ET FLUTTER ---
     const scrollDelta = scrollTop - lastScrollTop;
     let scrollDirection = scrollDelta > 0 ? "down" : scrollDelta < 0 ? "up" : "none";
     const now = Date.now();
 
-    // If we reach the top of the page, force the direction to 'up' to show the controls.
-    if (scrollTop === 0) {
-        scrollDirection = "up";
-    }
+    if (scrollTop === 0) scrollDirection = "up";
 
-    // Détection de changement de direction pour la gestion des contrôles
-    if (
-        scrollDirection !== "none" &&
-        scrollDirection !== lastDirection &&
-        !directionChangePending
-    ) {
+    if (scrollDirection !== "none" && scrollDirection !== lastDirection && !directionChangePending) {
         directionChangePending = true;
         directionChangeStartTime = now;
         directionChangeStartScroll = scrollTop;
         directionChangeTargetDirection = scrollDirection;
     }
 
-    // Validation d’un geste franc pour afficher/masquer les contrôles et appeler l'handler Flutter
     if (directionChangePending && scrollDirection === directionChangeTargetDirection) {
         const timeDiff = now - directionChangeStartTime;
         const scrollDiff = Math.abs(scrollTop - directionChangeStartScroll);
 
-        // Si on est à scrollTop = 0, on force l'affichage
-        const isAtTop = scrollTop === 0;
-
-        if (isAtTop || (timeDiff < DIRECTION_CHANGE_THRESHOLD_MS && scrollDiff > DIRECTION_CHANGE_THRESHOLD_PX)) {
+        if (scrollTop === 0 || (timeDiff < DIRECTION_CHANGE_THRESHOLD_MS && scrollDiff > DIRECTION_CHANGE_THRESHOLD_PX)) {
             if (isFullscreenMode) {
                 window.flutter_inappwebview.callHandler('onScroll', scrollTop, scrollDirection);
                 lastDirection = scrollDirection;
                 directionChangePending = false;
 
                 const floatingButton = document.getElementById('dialogFloatingButton');
-
                 if (scrollDirection === 'down') {
                     controlsVisible = false;
                     if (floatingButton) {
@@ -5736,27 +5778,28 @@ pageCenter.addEventListener("scroll", () => {
         }
     }
 
-    // Mise à jour de la position de défilement à chaque scroll
     lastScrollTop = scrollTop;
-    scrollTopPages[currentIndex] = scrollTop;
 
-    // Calcul des hauteurs de barres en fonction de l'état des contrôles
+    // --- MISE À JOUR DE LA POSITION DE TA SCROLLBAR IMAGE ---
+    // On utilise exactement ta logique de calcul des hauteurs
     const currentAppBarHeight = APPBAR_FIXED_HEIGHT;
     const currentBottomNavBarHeight = controlsVisible ? (BOTTOMNAVBAR_FIXED_HEIGHT + (audioPlayerVisible ? AUDIO_PLAYER_HEIGHT : 0)) : 0;
 
-    // Mise à jour de la scrollbar en utilisant les hauteurs de barres dynamiques
     const visibleHeight = window.innerHeight - currentAppBarHeight - currentBottomNavBarHeight;
     const scrollableHeight = scrollHeight - clientHeight;
 
-    let scrollBarTop = currentAppBarHeight;
     if (scrollableHeight > 0) {
         const scrollRatio = scrollTop / scrollableHeight;
-        scrollBarTop = currentAppBarHeight + (visibleHeight - scrollBar.offsetHeight) * scrollRatio;
+        // On calcule la position Top pour que l'image de la scrollbar suive le document
+        const scrollBarTop = currentAppBarHeight + (visibleHeight - scrollBar.offsetHeight) * scrollRatio;
+        
+        // On applique le style à l'élément image créé dans setupScrollBar
+        scrollBar.style.top = `${scrollBarTop}px`;
     }
+}
 
-    scrollBar.style.top = `${scrollBarTop}px`;
-    // Votre code existant pour le défilement se termine ici
-});
+// Attachement des écouteurs
+pageCenter.addEventListener("scroll", () => handleScroll(pageCenter));
 
 // Variables globales
 let currentGuid = '';
@@ -5772,10 +5815,7 @@ let isVerticalScroll = false;
 let startX = 0;
 let startY = 0;
 let currentTranslate = -100;
-let currentScale = 1;
-let startDistance = 0;
 let isZooming = false;
-let isPanning = false;
 
 // Variables zoom/pan
 let scale = 1;
@@ -5789,6 +5829,7 @@ let initialPinchDistance = 0;
 let initialScale = 1;
 let pinchCenterX = 0;
 let pinchCenterY = 0;
+let touchStartElement = null;
 
 const throttle = (func) => {
     let scheduled = false;
@@ -5817,7 +5858,6 @@ const throttle = (func) => {
 async function onClickOnPage(article, event, infoPublication = null) {
     const target = event.target;
     const tagName = target.tagName;
-    const classList = target.classList;
 
     const closeToolbarResult = closeToolbar(article);
 
@@ -5826,7 +5866,7 @@ async function onClickOnPage(article, event, infoPublication = null) {
     }
 
     // 1. Ignorer les clics sur les champs de formulaire
-    if (tagName === 'TEXTAREA' || tagName === 'INPUT' || classList.contains('gen-field')) {
+    if (tagName === 'TEXTAREA' || tagName === 'INPUT') {
         return;
     }
 
@@ -5848,14 +5888,14 @@ async function onClickOnPage(article, event, infoPublication = null) {
 
     const linkHandled = await onClickOnLink(article, target, event, infoPublication);
 
-    if (linkHandled || closeToolbarResult) {
+    if (linkHandled || closeToolbarResult || target.closest('.gen-field')) {
         return;
     }
 
     // Si on a une cible avec un blockRangeAttr, on affiche la toolbar de surlignage
     const blockRangeId = target.getAttribute(blockRangeAttr);
     if (blockRangeId && article === pageCenter) {
-        showToolbarBlockRange(target, blockRangeId);
+        showToolbarBlockRange(target, blockRangeId, false);
         return;
     }
 
@@ -5896,9 +5936,35 @@ async function onClickOnLink(article, target, event, infoPublication = null) {
         } 
         // Cas : Versets (b)
         else if (linkClass.contains('b') || href.startsWith('jwpub://b/')) {
-            const verses = await window.flutter_inappwebview.callHandler('fetchVerses', href); 
-            if (verses) showVerseDialog(article, verses, href, false);
-        } 
+            const clickedHref = href;
+            const neighbors = [];
+        
+            // 1. Chercher tous les voisins PRÉCÉDENTS (à gauche)
+            let prev = matchedElement.previousElementSibling;
+            const leftNeighbors = [];
+            while (prev && (prev.classList.contains('b') || prev.getAttribute('href')?.startsWith('jwpub://b/'))) {
+                leftNeighbors.unshift(prev.getAttribute('href')); // unshift pour garder l'ordre chronologique
+                prev = prev.previousElementSibling;
+            }
+            neighbors.push(...leftNeighbors);
+        
+            // 2. Chercher tous les voisins SUIVANTS (à droite)
+            let next = matchedElement.nextElementSibling;
+            while (next && (next.classList.contains('b') || next.getAttribute('href')?.startsWith('jwpub://b/'))) {
+                neighbors.push(next.getAttribute('href'));
+                next = next.nextElementSibling;
+            }
+        
+            const payload = {
+                'clicked': clickedHref,
+                'others': neighbors
+            };
+        
+            const verses = await window.flutter_inappwebview.callHandler('fetchVerses', payload); 
+            if (verses) {
+                showVerseDialog(article, verses, payload, false);
+            }
+        }
         // Cas : Extraits de publications (xt)
         else if (linkClass.contains('xt') || href.startsWith('jwpub://p/')) {
             const extract = await window.flutter_inappwebview.callHandler('fetchExtractPublication', href, infoPublication);
@@ -6041,8 +6107,6 @@ document.addEventListener('selectionchange', () => {
     if (isInitialSelectionChange) {
         return;
     }
-
-    closeToolbar();
 });
 
 pageCenter.addEventListener('click', (event) => {
@@ -6504,7 +6568,7 @@ async function onLongPressEnd() {
 
         // Affichage de la toolbar à la position du premier mot
         if (tempArray.length > 0) {
-            showToolbarBlockRange(tempArray[0], currentGuid);
+            showToolbarBlockRange(tempArray[0], currentGuid, true);
         }
 
         // Groupement par paragraphe pour l'envoi Flutter
@@ -6870,6 +6934,7 @@ function indexTokensOptimized(groups) {
 }
 
 async function changePage(direction) {
+    isNavigating = true;
     try {
         // Réinitialisation du zoom
         const currentPage = container.children[1];
@@ -6889,6 +6954,7 @@ async function changePage(direction) {
             currentTranslate = -200;
             container.style.transform = "translateX(-200%)";
             setTimeout(async () => {
+                isNavigating = false;
                 currentIndex++;
                 currentTranslate = -100;
                 await loadPages(currentIndex);
@@ -6899,6 +6965,7 @@ async function changePage(direction) {
             currentTranslate = 0;
             container.style.transform = "translateX(0%)";
             setTimeout(async () => {
+                isNavigating = false;
                 currentIndex--;
                 currentTranslate = -100;
                 await loadPages(currentIndex);
@@ -6911,162 +6978,341 @@ async function changePage(direction) {
     }
 }
 
+// Fonction utilitaire pour obtenir le contenu zoomable actuel
 function getCurrentZoomableContent() {
     const currentPage = container.children[1];
     return currentPage?.querySelector('.zoomable-content');
 }
 
+// Calcule les limites - optimisé pour être appelé moins souvent
 function getBoundaries(element, currentScale) {
-    const parent = element.parentElement.getBoundingClientRect();
-    // Largeur réelle après modification de la width
-    const fullWidth = parent.width * currentScale;
-    const fullHeight = element.offsetHeight; // L'élément s'adapte en hauteur (height: auto)
-
-    const maxX = Math.max(0, (fullWidth - parent.width) / 2);
-    const maxY = Math.max(0, (fullHeight - parent.height) / 2);
-
+    const container = element.parentElement;
+    const containerWidth = container.clientWidth;
+    const containerHeight = container.clientHeight;
+    
+    // Dimensions réelles de l'élément après scale
+    const scaledWidth = element.offsetWidth * currentScale;
+    const scaledHeight = element.offsetHeight * currentScale;
+    
+    const maxX = Math.max(0, (scaledWidth - containerWidth) / 2);
+    const maxY = Math.max(0, (scaledHeight - containerHeight) / 2);
+    
     return { maxX, maxY };
 }
 
-// Applique les limites
-function constrainPosition(x, y, element, currentScale) {
-    const { maxX, maxY } = getBoundaries(element, currentScale);
-    
-    const constrainedX = Math.min(Math.max(x, -maxX), maxX);
-    const constrainedY = Math.min(Math.max(y, -maxY), maxY);
-    
-    return { x: constrainedX, y: constrainedY };
-}
-
-// Applique le transform
-function applyTransform(element, x, y, s) {
-    // Pour garder le SVG net, on change la taille réelle (width)
-    // et on utilise translate3d pour la position (matériellement accéléré)
-    element.style.width = `${s * 100}%`;
-    element.style.transform = `translate3d(${x}px, ${y}px, 0px)`;
+// Applique la transformation - OPTIMISÉ pour la performance
+function applyTransform(element, x, y, s, withTransition = false) {
+    // On utilise UNIQUEMENT transform pour être GPU-accéléré
+    element.style.transform = `translate3d(${x}px, ${y}px, 0) scale(${s})`;
+    element.style.transition = withTransition ? 'transform 0.3s ease' : 'none';
     
     element.dataset.scale = s.toString();
     element.dataset.translateX = x.toString();
     element.dataset.translateY = y.toString();
 }
 
-// --- LISTENERS CORRIGÉS ---
+// Contraint la position dans les limites
+function constrainPosition(element, x, y, s) {
+    const { maxX, maxY } = getBoundaries(element, s);
+    return {
+        x: Math.min(Math.max(x, -maxX), maxX),
+        y: Math.min(Math.max(y, -maxY), maxY)
+    };
+}
 
+function getHorizontalScrollParent(el) {
+    while (el && el !== pageCenter) {
+        const style = window.getComputedStyle(el);
+        const overflowX = style.getPropertyValue('overflow-x');
+        const isScrollable = (overflowX === 'auto' || overflowX === 'scroll');
+        
+        if (isScrollable && el.scrollWidth > el.clientWidth) {
+            return el;
+        }
+        el = el.parentElement;
+    }
+    return null;
+}
+
+// --- TOUCH START ---
 container.addEventListener('touchstart', (e) => {
     if (isLongPressing || isBlockingHorizontallyMode) return;
-
-    // Suppression des menus contextuels
-    document.querySelectorAll('.options-menu, .color-menu').forEach(el => el.remove());
+    
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+    touchStartElement = e.target;
+    isScrollLocked = false;
+    isVerticalScroll = false;
 
     const zoomTarget = getCurrentZoomableContent();
     if (zoomTarget) {
         scale = parseFloat(zoomTarget.dataset.scale) || 1;
+        posX = parseFloat(zoomTarget.dataset.translateX) || 0;
+        posY = parseFloat(zoomTarget.dataset.translateY) || 0;
     }
 
-    startX = e.touches[0].clientX;
-    startY = e.touches[0].clientY;
-    
-    // Si on a deux doigts, on prépare le zoom
-    if (e.touches.length === 2) {
+    if (e.touches.length === 2 && zoomTarget) {
+        // Mode pinch
         isZooming = true;
         isDragging = false;
-        const t1 = e.touches[0];
-        const t2 = e.touches[1];
-        initialPinchDistance = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+        isPanning = false;
+        
+        const touch1 = e.touches[0];
+        const touch2 = e.touches[1];
+        
+        initialPinchDistance = Math.hypot(
+            touch2.clientX - touch1.clientX,
+            touch2.clientY - touch1.clientY
+        );
         initialScale = scale;
+        
+        // Centre du pinch en coordonnées écran
+        const centerX = (touch1.clientX + touch2.clientX) / 2;
+        const centerY = (touch1.clientY + touch2.clientY) / 2;
+        
+        // Converti en coordonnées relatives au container (en %)
+        const rect = zoomTarget.parentElement.getBoundingClientRect();
+        pinchOriginX = ((centerX - rect.left) / rect.width) * 100;
+        pinchOriginY = ((centerY - rect.top) / rect.height) * 100;
+        
+        // Défini l'origine du transform pour que le zoom se fasse au point de pinch
+        zoomTarget.style.transformOrigin = `${pinchOriginX}% ${pinchOriginY}%`;
+        
     } else {
         isZooming = false;
         isDragging = true;
+        isPanning = false;
+        startPosX = posX;
+        startPosY = posY;
     }
 
-    isVerticalScroll = false;
     container.style.transition = "none";
-}, { passive: false }); // On passe à false pour pouvoir bloquer le scroll natif si besoin
+}, { passive: false });
 
+// --- TOUCH MOVE ---
 container.addEventListener('touchmove', (e) => {
     if (isLongPressing || isBlockingHorizontallyMode) {
         isDragging = false;
         return;
-    };
+    }
 
     const zoomTarget = getCurrentZoomableContent();
 
-    // 1. GESTION DU ZOOM (Netteté via width)
-    if (isZooming && e.touches.length === 2 && zoomTarget) {
+    // PINCH-TO-ZOOM (2 doigts)
+    if (e.touches.length === 2 && isZooming && zoomTarget) {
         if (e.cancelable) e.preventDefault();
-        const t1 = e.touches[0];
-        const t2 = e.touches[1];
-        const currentDistance = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
-        let newScale = initialScale * (currentDistance / initialPinchDistance);
-        scale = Math.min(Math.max(1, newScale), 5);
         
-        zoomTarget.style.width = `${scale * 100}%`;
-        zoomTarget.dataset.scale = scale;
+        const touch1 = e.touches[0];
+        const touch2 = e.touches[1];
+        
+        const currentDistance = Math.hypot(
+            touch2.clientX - touch1.clientX,
+            touch2.clientY - touch1.clientY
+        );
+        
+        // Calcule le nouveau scale
+        let newScale = initialScale * (currentDistance / initialPinchDistance);
+        newScale = Math.min(Math.max(newScale, 1), 5); // Limite 1x à 5x
+        
+        // Le centre du pinch actuel
+        const centerX = (touch1.clientX + touch2.clientX) / 2;
+        const centerY = (touch1.clientY + touch2.clientY) / 2;
+        
+        // Calcule le décalage nécessaire pour garder le point fixe
+        const rect = zoomTarget.parentElement.getBoundingClientRect();
+        const currentOriginX = ((centerX - rect.left) / rect.width) * 100;
+        const currentOriginY = ((centerY - rect.top) / rect.height) * 100;
+        
+        // Ajuste la position pour compenser le changement de scale et d'origine
+        const deltaOriginX = (currentOriginX - pinchOriginX) / 100 * rect.width;
+        const deltaOriginY = (currentOriginY - pinchOriginY) / 100 * rect.height;
+        
+        let newPosX = posX - deltaOriginX * (newScale - scale);
+        let newPosY = posY - deltaOriginY * (newScale - scale);
+        
+        // Mise à jour
+        scale = newScale;
+        
+        // Contraint dans les limites
+        const constrained = constrainPosition(zoomTarget, newPosX, newPosY, scale);
+        posX = constrained.x;
+        posY = constrained.y;
+        
+        applyTransform(zoomTarget, posX, posY, scale);
         return;
     }
 
-    // 2. GESTION DU SWIPE / SCROLL ARTICLE
+    // PAN (1 doigt)
     if (isDragging && e.touches.length === 1) {
         const x = e.touches[0].clientX;
         const y = e.touches[0].clientY;
         const dx = x - startX;
         const dy = y - startY;
 
-        // Si on n'est pas zoomé (scale 1), on gère le changement de page
-        if (scale <= 1) {
-            // Détection du type de mouvement
-            if (!isVerticalScroll && Math.abs(dy) > Math.abs(dx)) {
+        // Détecte scroll vertical
+        if (!isVerticalScroll && !isPanning) {
+            if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 10) {
                 isVerticalScroll = true;
+                return;
             }
+        }
 
-            if (!isVerticalScroll) {
-                // IMPORTANT : Si on bouge horizontalement, on bloque le scroll de l'article
-                if (Math.abs(dx) > 10) {
-                    if (e.cancelable) e.preventDefault(); 
-                    const percentage = dx / window.innerWidth * 100;
-                    const newTransform = (currentIndex === 0 && dx > 0) || (currentIndex === maxIndex && dx < 0) ?
-                        currentTranslate :
-                        currentTranslate + percentage;
+        if (isVerticalScroll) return;
 
-                    container.style.transform = `translateX(${newTransform}%)`;
-                }
+        const scrollableParent = getHorizontalScrollParent(touchStartElement);
+
+        // PAN quand zoomé
+        if (scale > 1 && zoomTarget) {
+            isPanning = true;
+            if (e.cancelable) e.preventDefault();
+            
+            const newPosX = startPosX + dx;
+            const newPosY = startPosY + dy;
+            
+            // Vérifie les limites
+            const { maxX, maxY } = getBoundaries(zoomTarget, scale);
+            
+            const isAtLeftEdge = newPosX >= maxX;
+            const isAtRightEdge = newPosX <= -maxX;
+            const wantsGoLeft = dx > 0;
+            const wantsGoRight = dx < 0;
+            
+            // Si on veut changer de page ET qu'on est au bord de l'image
+            const canChangePage = 
+                (isAtLeftEdge && wantsGoLeft && currentIndex > 0) ||
+                (isAtRightEdge && wantsGoRight && currentIndex < maxIndex);
+            
+            if (!canChangePage) {
+                // On panne normalement
+                const constrained = constrainPosition(zoomTarget, newPosX, newPosY, scale);
+                posX = constrained.x;
+                posY = constrained.y;
+                applyTransform(zoomTarget, posX, posY, scale);
+                isScrollLocked = true;
+                return;
             }
-        } else {
-            // Si on est ZOOMÉ, on laisse le scroll natif (pan-y) fonctionner 
-            // ou tu peux ajouter ta logique de PAN ici.
+            // Sinon on laisse passer pour le changement de page
+        }
+
+        // Tableaux scrollables
+        const tableCanScroll = scrollableParent && (
+            (dx > 0 && scrollableParent.scrollLeft > 2) || 
+            (dx < 0 && scrollableParent.scrollLeft + scrollableParent.clientWidth < scrollableParent.scrollWidth - 2)
+        );
+
+        if (tableCanScroll) {
+            isScrollLocked = true;
+            return;
+        }
+
+        // Blocage aux extrémités
+        const isTryingToGoBeforeFirst = (currentIndex === 0 && dx > 0);
+        const isTryingToGoAfterLast = (currentIndex === maxIndex && dx < 0);
+
+        if (isTryingToGoBeforeFirst || isTryingToGoAfterLast) {
+            return;
+        }
+
+        // Changement de page
+        if (Math.abs(dx) > 15 && !isScrollLocked && scale <= 1) {
+            if (e.cancelable) e.preventDefault();
+            const percentage = (dx / window.innerWidth) * 100;
+            container.style.transform = `translateX(${currentTranslate + percentage}%)`;
         }
     }
 }, { passive: false });
 
-container.addEventListener('touchend', async (e) => {
-    isZooming = false;
-    
+// --- TOUCH END ---
+container.addEventListener('touchend', (e) => {
     if (isLongPressing) {
         setLongPressing(false);
         isDragging = false;
+        isZooming = false;
+        isPanning = false;
         return;
     }
 
-    if (!isDragging || isBlockingHorizontallyMode) return;
-    isDragging = false;
-
-    // Si on scrollait l'article verticalement, on remet le container en place
-    if (isVerticalScroll) {
-        container.style.transition = "transform 0.2s ease-in-out";
-        container.style.transform = `translateX(${currentTranslate}%)`;
-        return;
+    const zoomTarget = getCurrentZoomableContent();
+    
+    // Fin du pinch - remet l'origine au centre
+    if (isZooming && zoomTarget) {
+        zoomTarget.style.transformOrigin = 'center top';
+        const constrained = constrainPosition(zoomTarget, posX, posY, scale);
+        posX = constrained.x;
+        posY = constrained.y;
+        applyTransform(zoomTarget, posX, posY, scale);
     }
 
-    // Calcul final pour changer de page
+    isZooming = false;
+    isPanning = false;
+
     const dx = e.changedTouches[0].clientX - startX;
-    const percentage = dx / window.innerWidth;
-    container.style.transition = "transform 0.2s ease-in-out";
+    const isAtBoundary = (currentIndex === 0 && dx > 0) || (currentIndex === maxIndex && dx < 0);
 
-    if (percentage < -0.15 && currentIndex < maxIndex) {
-        changePage('right');
-    } else if (percentage > 0.15 && currentIndex > 0) {
-        changePage('left');
+    if (isScrollLocked || isVerticalScroll || isAtBoundary || scale > 1) {
+        container.style.transition = "transform 0.2s ease-out";
+        container.style.transform = `translateX(${currentTranslate}%)`;
+        isScrollLocked = false;
+        return;
+    }
+
+    const percentage = dx / window.innerWidth;
+    container.style.transition = "transform 0.25s cubic-bezier(0.2, 0, 0, 1)";
+
+    if (Math.abs(percentage) > 0.15) {
+        if (percentage < 0 && currentIndex < maxIndex) {
+            changePage('right');
+        } else if (percentage > 0 && currentIndex > 0) {
+            changePage('left');
+        } else {
+            container.style.transform = `translateX(${currentTranslate}%)`;
+        }
     } else {
         container.style.transform = `translateX(${currentTranslate}%)`;
     }
 }, { passive: true });
+
+// Double-tap pour zoomer
+let lastTap = 0;
+container.addEventListener('touchend', (e) => {
+    const currentTime = Date.now();
+    const tapLength = currentTime - lastTap;
+    
+    if (tapLength < 300 && tapLength > 0) {
+        const zoomTarget = getCurrentZoomableContent();
+        if (zoomTarget && !isLongPressing && e.touches.length === 0) {
+            e.preventDefault();
+            
+            if (scale > 1) {
+                // Dézoome
+                scale = 1;
+                posX = 0;
+                posY = 0;
+                zoomTarget.style.transformOrigin = 'center top';
+            } else {
+                // Zoome au point du tap
+                const touch = e.changedTouches[0];
+                const rect = zoomTarget.parentElement.getBoundingClientRect();
+                
+                // Point du tap en %
+                const tapXPercent = ((touch.clientX - rect.left) / rect.width) * 100;
+                const tapYPercent = ((touch.clientY - rect.top) / rect.height) * 100;
+                
+                zoomTarget.style.transformOrigin = `${tapXPercent}% ${tapYPercent}%`;
+                scale = 2.5;
+                posX = 0;
+                posY = 0;
+            }
+            
+            applyTransform(zoomTarget, posX, posY, scale, true);
+            
+            setTimeout(() => {
+                if (scale === 1) {
+                    zoomTarget.style.transformOrigin = 'center top';
+                }
+            }, 300);
+        }
+    }
+    
+    lastTap = currentTime;
+}, { passive: false });

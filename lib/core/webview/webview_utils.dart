@@ -53,131 +53,141 @@ import '../utils/utils_database.dart';
 
      */
 
-// 1. On compile les Regex une seule fois (en dehors de la fonction)
 final RegExp _clRegex = RegExp(r'<span class="cl">(.*?)<\/span>');
 final RegExp _vlRegex = RegExp(r'<span class="vl">(.*?)<\/span>');
 
-Future<Map<String, dynamic>> fetchVerses(String link, Publication publication) async {
-  final List<String> linkSplit = link.split('/');
-  final String verses = linkSplit.last;
+Future<Map<String, dynamic>> fetchVerses(Map<String, dynamic> payload, Publication publication) async {
+  final String clickedHref = payload['clicked'];
+  final List<String> otherHrefs = List<String>.from(payload['others'] ?? []);
+  final List<String> allLinks = [clickedHref, ...otherHrefs];
 
-  final parts = verses.split('-');
-  final startParts = parts.first.split(':');
-  final endParts = parts.last.split(':');
+  // Helper interne pour parser les URLs de type bible
+  Map<String, int> parse(String href) {
+    final parts = href.split('/').last.split('-');
+    final sP = parts.first.split(':');
+    final eP = parts.last.split(':');
+    return {
+      'b1': int.parse(sP[0]), 'c1': int.parse(sP[1]), 'v1': int.parse(sP[2]),
+      'b2': int.parse(eP[0]), 'c2': int.parse(eP[1]), 'v2': int.parse(eP[2]),
+    };
+  }
 
-  final int book1 = int.parse(startParts[0]);
-  final int chapter1 = int.parse(startParts[1]);
-  final int verse1 = int.parse(startParts[2]);
+  // 1. ANALYSE DU LIEN PRINCIPAL (pour les métadonnées de la modale)
+  final m = parse(clickedHref);
+  final String titleLarge = JwLifeApp.bibleCluesInfo.getVerses(m['b1']!, m['c1']!, m['v1']!, m['b2']!, m['c2']!, m['v2']!, type: 'standardBookName');
+  final String titleMedium = JwLifeApp.bibleCluesInfo.getVerses(m['b1']!, m['c1']!, m['v1']!, m['b2']!, m['c2']!, m['v2']!, type: 'standardBookAbbreviation');
+  final String titleSmall = JwLifeApp.bibleCluesInfo.getVerses(m['b1']!, m['c1']!, m['v1']!, m['b2']!, m['c2']!, m['v2']!, type: 'officialBookAbbreviation');
 
-  final int book2 = int.parse(endParts[0]);
-  final int chapter2 = int.parse(endParts[1]);
-  final int verse2 = int.parse(endParts[2]);
+  // 2. PRÉ-CALCUL DES SEGMENTS (On le fait une seule fois pour toutes les bibles)
+  final List<Map<String, dynamic>> preparedLinks = [];
+  for (String link in allLinks) {
+    final v = parse(link);
+    final segments = await JwLifeApp.bibleCluesInfo.getBibleVerseId(v['b1']!, v['c1']!, v['v1']!, book2: v['b2'], chapter2: v['c2'], verse2: v['v2']);
+    final display = JwLifeApp.bibleCluesInfo.getVerses(v['b1']!, v['c1']!, v['v1']!, v['b2']!, v['c2']!, v['v2']!, type: 'standardBookName');
+    preparedLinks.add({'coords': v, 'segments': segments, 'display': display});
+  }
 
-  // Appel de ta nouvelle fonction simplifiée
-  final Map<String, Map<String, int>> bibleSegments = await JwLifeApp.bibleCluesInfo.getBibleVerseId(
-      book1, chapter1, verse1,
-      book2: book2, chapter2: chapter2, verse2: verse2
-  );
-
-  final String versesDisplayLarge = JwLifeApp.bibleCluesInfo.getVerses(book1, chapter1, verse1, book2, chapter2, verse2, type: 'standardBookName');
-  final String versesDisplayMedium= JwLifeApp.bibleCluesInfo.getVerses(book1, chapter1, verse1, book2, chapter2, verse2,  type: 'standardBookAbbreviation');
-  final String versesDisplaySmall = JwLifeApp.bibleCluesInfo.getVerses(book1, chapter1, verse1, book2, chapter2, verse2, type: 'officialBookAbbreviation');
+  final context = GlobalKeyService.jwLifePageKey.currentContext!;
+  final bool isDark = Theme.of(context).brightness == Brightness.dark;
+  List<Note> notes = [];
 
   try {
     final bibles = PublicationRepository().getOrderBibles();
-    final verses = await Future.wait(bibles.map((bible) async {
+    
+    final versesDataResults = await Future.wait(bibles.map((bible) async {
       Database? bibleDb = bible.documentsManager?.database ?? await openReadOnlyDatabase(bible.databasePath!);
-
-      // Déterminer la clé (NWT ou NWTR)
       final String typeKey = bible.keySymbol.contains('nwt') ? 'NWTR' : 'NWT';
-      final segment = bibleSegments[typeKey] ?? {'start': 0, 'end': 0};
-
-      final StringBuffer htmlBuffer = StringBuffer();
       final String langCode = bible.mepsLanguage.primaryIetfCode;
+      final StringBuffer htmlBuffer = StringBuffer();
 
-      if (segment['start'] != 0 && segment['end'] != 0) {
-        bool hasBeginParagraphOrdinalColumn = await checkIfColumnsExists(bibleDb, 'BibleVerse', ['BeginParagraphOrdinal']);
-        String columnToInclude = hasBeginParagraphOrdinalColumn ? ', BeginParagraphOrdinal' : '';
+      bool isVerseExisting = false;
+      List<BlockRange> blockRanges = [];
 
-        // Une seule requête pour tout l'intervalle
-        final List<Map<String, dynamic>> versesData = await bibleDb.rawQuery("""
-          SELECT Label, Content $columnToInclude 
-          FROM BibleVerse 
-          WHERE BibleVerseId BETWEEN ? AND ? 
-          ORDER BY BibleVerseId
-        """, [segment['start'], segment['end']]);
+      for (int i = 0; i < preparedLinks.length; i++) {
+        final linkData = preparedLinks[i];
+        final coords = linkData['coords'] as Map<String, int>;
+        final segment = linkData['segments'][typeKey] ?? {'start': -1, 'end': -1};
 
-        for (final verse in versesData) {
-          String label = verse['Label'] ?? '';
-          if (label.isNotEmpty) {
-            label = label.replaceAllMapped(_clRegex, (m) => '<span class="cl"><strong>${formatNumber(int.parse(m.group(1)!), localeCode: langCode)}</strong> </span>')
-                .replaceAllMapped(_vlRegex, (m) => '<span class="vl">${formatNumber(int.parse(m.group(1)!), localeCode: langCode)}</span>');
-          }
+        // Extraction des notes (uniquement sur la première bible de la liste pour éviter les doublons)
+        if (bibles.indexOf(bible) == 0) {
+          notes.addAll(context.read<NotesController>().getNotesByDocument(
+            firstBookNumber: coords['b1']!, lastBookNumber: coords['b1']!,
+            firstChapterNumber: coords['c1']!, lastChapterNumber: coords['c2']!,
+            firstBlockIdentifier: coords['v1']!, lastBlockIdentifier: coords['v2']!,
+          ));
+        }
 
-          htmlBuffer.write(label);
+        if (segment['start'] != -1 || segment['end'] != -1) {
+          bool hasPara = await checkIfColumnsExists(bibleDb, 'BibleVerse', ['BeginParagraphOrdinal']);
+          String col = hasPara ? ', BeginParagraphOrdinal' : '';
 
-          if (verse['Content'] != null) {
-            String decoded = decodeBlobContent(verse['Content'] as Uint8List, bible.hash!);
-            if (label.isEmpty) {
-              final pid = verse['BeginParagraphOrdinal'] ?? 0;
-              htmlBuffer.write('<p id="p$pid" data-pid="$pid" class="sw">$decoded</p>');
+          final List<Map<String, dynamic>> dbResults = await bibleDb.rawQuery(
+            "SELECT Label, Content $col FROM BibleVerse WHERE BibleVerseId BETWEEN ? AND ? ORDER BY BibleVerseId",
+            [segment['start'], segment['end']]
+          );
+
+          if (dbResults.isNotEmpty) {
+            isVerseExisting = true;
+            if (i == 0) {
+              // Style du verset principal
+              htmlBuffer.write('<div class="main-verse-focus" style="${allLinks.length == 1 ? "" : "background: rgba(74, 109, 167, 0.08);"} padding: 15px 23px;">');
             } else {
-              htmlBuffer.write(decoded);
+              // Style des versets liés (voisins)
+              htmlBuffer.write('<div style="font-size: 0.95em; font-weight: bold; color: ${isDark ? '#ffffff' : '#000000'}; margin-top: 15px; padding-left: 15px; padding-right: 15px;">${linkData['display']}</div>');
+              htmlBuffer.write('<div class="neighbor-verse" style="opacity: 0.9; padding: 5px 23px 15px 23px;">');
+            }
+
+            for (final row in dbResults) {
+              String label = row['Label'] ?? '';
+              if (label.isNotEmpty) {
+                label = label.replaceAllMapped(_clRegex, (m) => '<span class="cl"><strong>${formatNumber(int.parse(m.group(1)!), localeCode: langCode)}</strong> </span>')
+                             .replaceAllMapped(_vlRegex, (m) => '<span class="vl">${formatNumber(int.parse(m.group(1)!), localeCode: langCode)}</span>');
+              }
+              htmlBuffer.write(label);
+              if (row['Content'] != null) {
+                htmlBuffer.write(decodeBlobContent(row['Content'] as Uint8List, bible.hash!));
+              }
             }
           }
+          htmlBuffer.write('</div>');
         }
+        
+        // Récupération des blockRanges pour le surlignage
+        blockRanges.addAll(await JwLifeApp.userdata.getBlockRangesFromChapterNumber(
+          coords['b1']!, coords['c1']!, coords['c2']!, bible.keySymbol, bible.mepsLanguage.id, 
+          startVerse: coords['v1']!, endVerse: coords['v2']!
+        ));
       }
-
-      final blockRanges = await JwLifeApp.userdata.getBlockRangesFromChapterNumber(
-          book1, chapter1, chapter2, bible.keySymbol, bible.mepsLanguage.id,
-          startVerse: verse1, endVerse: verse2
-      );
-
-      final isVerseExisting = htmlBuffer.toString().isNotEmpty;
-      final className = isVerseExisting ? "bibleCitation html5 pub-${bible.keySymbol} jwac ml-${bible.mepsLanguage.symbol} ms-${bible.mepsLanguage.internalScriptName} dir-${bible.mepsLanguage.isRtl ? 'rtl' : 'ltr'} layout-reading layout-sidebar" : "document html5 layout-reading layout-sidebar";
 
       return {
         'type': 'verse',
         'isVerseExisting': isVerseExisting,
-        'content': htmlBuffer.toString(),
-        'className': className,
-        'imageUrl': bible.imageSqr,
+        'content': isVerseExisting ? htmlBuffer.toString() : '',
+        'className': isVerseExisting ? "bibleCitation html5 pub-${bible.keySymbol} jwac ml-${bible.mepsLanguage.symbol} ms-${bible.mepsLanguage.internalScriptName} dir-${bible.mepsLanguage.isRtl ? 'rtl' : 'ltr'}" : "document html5 jwac",
+        'imageUrl': bible.imageSqr ?? '/android_asset/flutter_assets/assets/images/pub_type_bible${isDark ? '_gray' : ''}.png',
         'bibleTitle': bible.shortTitle,
         'languageText': bible.mepsLanguage.vernacular,
         'audio': {},
         'keySymbol': bible.keySymbol,
         'mepsLanguageId': bible.mepsLanguage.id,
-        'display': bibles.indexOf(bible) == 0 ? 'left' : bibles.indexOf(bible) == 1 ? 'right' : 'center',
-        'blockRanges': blockRanges.map((br) => br.toMap()).toList(),
+        'display': JwLifeSettings.instance.webViewSettings.versesInParallel ? bibles.indexOf(bible) == 0 ? 'left' : bibles.indexOf(bible) == 1 ? 'right' : 'full' : 'full',
+        'blockRanges': blockRanges.map((br) => br.toMap()).toList()
       };
     }));
 
-    final context = GlobalKeyService.jwLifePageKey.currentContext!;
     return {
-      'verses': verses,
-      'title': versesDisplayLarge,
-      'allTiles': {
-        'large': versesDisplayLarge,
-        'medium': versesDisplayMedium,
-        'small': versesDisplaySmall,
-      },
+      'verses': versesDataResults,
+      'title': titleLarge,
+      'allTiles': { 'large': titleLarge, 'medium': titleMedium, 'small': titleSmall },
       'personalizedText': i18n().action_customize,
       'noVerseExistingText': i18n().message_verse_not_present,
-      'firstBookNumber': book1,
-      'lastBookNumber': book2,
-      'firstChapterNumber': chapter1,
-      'lastChapterNumber': chapter2,
-      'firstVerseNumber': verse1,
-      'lastVerseNumber': verse2,
-      'notes': context.read<NotesController>().getNotesByDocument(
-          firstBookNumber: book1, lastBookNumber: book2,
-          firstChapterNumber: chapter1, lastChapterNumber: chapter2,
-          firstBlockIdentifier: verse1, lastBlockIdentifier: verse2
-      ).map((n) => n.toMap()).toList(),
+      'firstBookNumber': m['b1'], 'lastBookNumber': m['b2'],
+      'firstChapterNumber': m['c1'], 'lastChapterNumber': m['c2'],
+      'firstVerseNumber': m['v1'], 'lastVerseNumber': m['v2'],
+      'notes': notes.map((n) => n.toMap()).toList(),
     };
-  } 
-  catch (e) {
-    return {'verses': [], 'title': versesDisplayLarge};
+  } catch (e) {
+    return {'verses': [], 'title': titleLarge};
   }
 }
 
@@ -224,8 +234,8 @@ Future<Map<String, dynamic>?> fetchExtractPublication(BuildContext context, Stri
       if (refPub == null || refPub.imageSqr == null) {
         String type = PublicationCategory.all.firstWhere((element) => element.type == extract['PublicationType']).image;
         bool isDark = Theme.of(context).brightness == Brightness.dark;
-        String path = isDark ? 'assets/images/${type}_gray.png' : 'assets/images/$type.png';
-        image = '/android_asset/flutter_assets/$path';
+        String path = isDark ? '${type}' : '$type';
+        image = '/android_asset/flutter_assets/assets/images/$path.png';
       }
 
       /// Décoder le contenu

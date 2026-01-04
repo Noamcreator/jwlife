@@ -366,8 +366,11 @@ class _FullScreenImagePageState extends State<FullScreenImagePage> {
                                       mediaItem.images?.squareImageUrl ??
                                       mediaItem.images?.wideFullSizeImageUrl ?? mediaItem.images?.wideImageUrl,
                                   icon: JwIcons.video,
-                                  fit: BoxFit.cover
-                                ) : Image.file(File('${widget.publication.path}/${media.filePath}'), fit: BoxFit.cover),
+                                  fit: BoxFit.fitHeight,
+                                  width: 80,
+                                  height: 80,
+
+                                ) : Image.file(File('${widget.publication.path}/${media.filePath}'), fit: BoxFit.fitHeight, width: 80, height: 80),
                               ),
                               isVideo ? Icon(JwIcons.play_circle, color: Colors.white, size: 30) : Container(),
                             ],

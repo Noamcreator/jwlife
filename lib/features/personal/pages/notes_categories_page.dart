@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:jwlife/app/jwlife_app.dart';
 import 'dart:async';
 import 'package:jwlife/app/jwlife_app_bar.dart';
 import 'package:jwlife/core/icons.dart';
@@ -6,7 +7,6 @@ import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/core/utils/utils_tag_dialogs.dart';
 import 'package:jwlife/data/controller/tags_controller.dart';
-import 'package:jwlife/data/databases/history.dart';
 import 'package:jwlife/data/models/userdata/tag.dart';
 import 'package:jwlife/data/models/userdata/note.dart';
 import 'package:jwlife/features/personal/pages/tag_page.dart';
@@ -75,7 +75,7 @@ class _NotesTagsPageState extends State<NotesTagsPage> {
             IconTextButton(
               icon: Icon(JwIcons.arrow_circular_left_clock),
               onPressed: (BuildContext context) {
-                History.showHistoryDialog(context);
+                JwLifeApp.history.showHistoryDialog(context);
               },
             ),
           ],

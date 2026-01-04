@@ -289,12 +289,12 @@ class AppDataService {
             }
           }
 
-          printTime('End: Dated Publications');
-
           if(isFirst) {
             // On affiche la page principal !
             GlobalKeyService.jwLifeAppKey.currentState!.finishInitialized();
           }
+
+          printTime('End: Dated Publications');
 
           if(isFirst) {
             printTime('Start: Frequently Used Publications');
@@ -306,19 +306,19 @@ class AppDataService {
 
             if(isFirst && isHistoryFileExist) {
               result2 = await txn.rawQuery('''
-              SELECT DISTINCT
-                SUM(hp.VisitCount) AS TotalVisits,
-                $publicationMepsSelectQuery
-              FROM history.History hp
-              INNER JOIN Publication p ON p.KeySymbol = hp.KeySymbol AND p.IssueTagNumber = hp.IssueTagNumber AND p.MepsLanguageId = hp.MepsLanguageId
-              INNER JOIN PublicationAsset pa ON p.Id = pa.PublicationId
-              INNER JOIN meps.Language ON p.MepsLanguageId = meps.Language.LanguageId
-              INNER JOIN meps.Script ON meps.Language.ScriptId = meps.Script.ScriptId
-              LEFT JOIN meps.Language AS fallback ON meps.Language.PrimaryFallbackLanguageId = fallback.LanguageId
-              LEFT JOIN PublicationAttributeMap pam ON p.Id = pam.PublicationId
-              GROUP BY p.KeySymbol, p.IssueTagNumber, p.MepsLanguageId
-              ORDER BY TotalVisits DESC
-              LIMIT 10;
+                SELECT DISTINCT
+                  SUM(hp.VisitCount) AS TotalVisits,
+                  $publicationMepsSelectQuery
+                FROM history.History hp
+                INNER JOIN Publication p ON p.KeySymbol = hp.KeySymbol AND p.IssueTagNumber = hp.IssueTagNumber AND p.MepsLanguageId = hp.MepsLanguageId
+                INNER JOIN PublicationAsset pa ON p.Id = pa.PublicationId
+                INNER JOIN meps.Language ON p.MepsLanguageId = meps.Language.LanguageId
+                INNER JOIN meps.Script ON meps.Language.ScriptId = meps.Script.ScriptId
+                LEFT JOIN meps.Language AS fallback ON meps.Language.PrimaryFallbackLanguageId = fallback.LanguageId
+                LEFT JOIN PublicationAttributeMap pam ON p.Id = pam.PublicationId
+                GROUP BY p.KeySymbol, p.IssueTagNumber, p.MepsLanguageId
+                ORDER BY TotalVisits DESC
+                LIMIT 10;
             ''');
 
               AppDataService.instance.frequentlyUsed.value = result2.map((item) => Publication.fromJson(item)).toList();
@@ -347,41 +347,50 @@ class AppDataService {
               ORDER BY ca.SortOrder;
             ''', [teachingToolboxLanguage.id, 2]);
 
+            List<Publication?> teachingToolboxPublications = [];
+            List<Publication?> teachingToolboxTractsPublications = [];
             if (result4.isNotEmpty) {
-              List<Publication?> teachingToolboxPublications = [];
-              List<Publication?> teachingToolboxTractsPublications = [];
+                List<int> availableTeachingToolBoxInt = [-1, 5, 8, -1, 9, -1, 15, 16, 17];
+                List<int> availableTeachingToolBoxTractsInt = [18, 19, 20, 21, 22, 23, 24, 25, 26];
 
-              List<int> availableTeachingToolBoxInt = [-1, 5, 8, -1, 9, -1, 15, 16, 17];
-              List<int> availableTeachingToolBoxTractsInt = [18, 19, 20, 21, 22, 23, 24, 25, 26];
-              for (int i = 0; i < availableTeachingToolBoxInt.length; i++) {
-                if (availableTeachingToolBoxInt[i] == -1) {
-                  teachingToolboxPublications.add(null);
-                }
-                else if (result4.any((e) => e['SortOrder'] == availableTeachingToolBoxInt[i])) {
-                  final pub = result4.firstWhereOrNull((e) => e['SortOrder'] == availableTeachingToolBoxInt[i]);
-                  if (pub != null) {
-                    teachingToolboxPublications.add(Publication.fromJson(pub, language: teachingToolboxLanguage));
+                // 1. Remplissage de la liste principale
+                for (int i = 0; i < availableTeachingToolBoxInt.length; i++) {
+                  if (availableTeachingToolBoxInt[i] == -1) {
+                    teachingToolboxPublications.add(null);
+                  } else {
+                    final pub = result4.firstWhereOrNull((e) => e['SortOrder'] == availableTeachingToolBoxInt[i]);
+                    if (pub != null) {
+                      teachingToolboxPublications.add(Publication.fromJson(pub, language: teachingToolboxLanguage));
+                    }
                   }
                 }
-              }
-              for (int i = 0; i < availableTeachingToolBoxTractsInt.length; i++) {
-                if (availableTeachingToolBoxTractsInt[i] == -1) {
-                  teachingToolboxTractsPublications.add(null);
-                }
-                else if (result4.any((e) => e['SortOrder'] == availableTeachingToolBoxTractsInt[i])) {
-                  final pub = result4.firstWhereOrNull((e) => e['SortOrder'] == availableTeachingToolBoxTractsInt[i]);
-                  if (pub != null) {
-                    teachingToolboxTractsPublications.add(Publication.fromJson(pub, language: teachingToolboxLanguage));
+
+                // 2. Remplissage des tracts
+                for (int i = 0; i < availableTeachingToolBoxTractsInt.length; i++) {
+                  if (availableTeachingToolBoxTractsInt[i] == -1) {
+                    teachingToolboxTractsPublications.add(null);
+                  } else {
+                    final pub = result4.firstWhereOrNull((e) => e['SortOrder'] == availableTeachingToolBoxTractsInt[i]);
+                    if (pub != null) {
+                      teachingToolboxTractsPublications.add(Publication.fromJson(pub, language: teachingToolboxLanguage));
+                    }
                   }
                 }
-              }
 
+                // --- LA CORRECTION : Supprimer les null inutiles à la fin ---
+                while (teachingToolboxPublications.isNotEmpty && teachingToolboxPublications.last == null) {
+                  teachingToolboxPublications.removeLast();
+                }
+                while (teachingToolboxTractsPublications.isNotEmpty && teachingToolboxTractsPublications.last == null) {
+                  teachingToolboxTractsPublications.removeLast();
+                }
+              }
               if(library) {
                 AppDataService.instance.teachingToolboxMedias.value = RealmLibrary.loadTeachingToolboxVideos(teachingToolboxLanguage);
               }
-              AppDataService.instance.teachingToolboxPublications.value = teachingToolboxPublications;
-              AppDataService.instance.teachingToolboxTractsPublications.value = teachingToolboxTractsPublications;
-            }
+                // Mise à jour de tes ValueNotifiers
+              this.teachingToolboxPublications.value = teachingToolboxPublications;
+              this.teachingToolboxTractsPublications.value = teachingToolboxTractsPublications;
 
             printTime('End: ToolBox Pubs');
           }
@@ -392,7 +401,7 @@ class AppDataService {
               SELECT
                 $publicationQuery
               WHERE p.MepsLanguageId = ?
-                AND p.Year >= strftime('%Y', 'now')
+                AND p.Year >= strftime('%Y', 'now', '-2 year')
                 AND pa.CatalogedOn >= date('now', '-50 days')
               ORDER BY pa.CatalogedOn DESC;
             ''', [latestLanguage.id]);
@@ -430,10 +439,6 @@ class AppDataService {
       GlobalKeyService.jwLifeAppKey.currentState!.finishInitialized();
     }
 
-    if(library && type != 'articles' && type != 'dailyText') {
-      checkUpdatesAndRefreshContent(null, isFirst: true, type: type);
-    }
-
     if(isCatalogFileExist) {
       if(type == 'all' || type == 'library') {
         RealmLibrary.updateLibraryCategories(libraryLanguage);
@@ -453,11 +458,15 @@ class AppDataService {
     }
 
     if(type == 'library') {
-      libraryLanguage.loadWolInfo();
+      await libraryLanguage.loadWolInfo();
+    }
+
+    if(library && type != 'articles' && type != 'dailyText') {
+      checkUpdatesAndRefreshContent(null, isFirst: true, type: type);
     }
 
     if(isFirst) {
-      Mepsunit.loadBibleCluesInfo(appLocalizations.meps_language);
+      await Mepsunit.loadBibleCluesInfo(appLocalizations.meps_language);
 
       final isConnected = await hasInternetConnection();
       if (isConnected) {

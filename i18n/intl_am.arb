@@ -808,7 +808,7 @@
   "settings_download_over_cellular_subtitle": "ክፍያ ልትጠየቅ ትችላለህ።",
   "settings_how_jwl_uses_your_data": "JW ላይብረሪ መረጃህን የሚጠቀምበት መንገድ",
   "settings_languages": "ቋንቋ",
-  "settings_languages_upper": "ቋንቋ",
+  "settings_languages_upper": "ቋንቋዎች",
   "settings_language_app": "የመተግበሪያ ቋንቋ",
   "settings_language_library": "የቤተ መጻሕፍት ቋንቋ",
   "settings_license": "የፍቃድ ስምምነት",
@@ -922,5 +922,14 @@
   "label_research_inputs_fields": "መስኮች",
   "label_research_wikipedia": "ውክፔዲያ",
   "meps_language": "AM",
-  "label_icon_commentary": "የጥናት ማስታወሻ"
+  "label_icon_commentary": "የጥናት ማስታወሻ",
+  "label_verses_side_by_side": "ቁጥሮች ጎን ለጎን",
+  "message_verses_side_by_side": "የመጀመሪያዎቹን ሁለት ትርጉሞች ጎን ለጎን አሳይ",
+  "settings_menu_display_upper": "ሜኑ",
+  "settings_show_publication_description": "የህትመት መግለጫ አሳይ",
+  "settings_show_publication_description_subtitle": "በድረ-ገጹ ላይ ያለውን መግለጫ ከርዕሱ በታች አሳይ።",
+  "settings_show_document_description": "ለሰነዶች መግለጫ አሳይ",
+  "settings_show_document_description_subtitle": "በድረ-ገጹ ላይ ያለውን መግለጫ ከሰነዶቹ በታች አሳይ።",
+  "settings_menu_auto_open_single_document": "ሰነዱን በቀጥታ ክፈት",
+  "settings_menu_auto_open_single_document_subtitle": "አንድ ሰነድ ብቻ ካለ ሜኑውን ሳያሳዩ ይክፈቱት።"
 }

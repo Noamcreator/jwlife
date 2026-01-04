@@ -25,7 +25,7 @@ String createReaderHtmlShell(
       List<String> wordsSelected = const []
     }) {
 
-  final webViewData = JwLifeSettings.instance.webViewData;
+  final webViewData = JwLifeSettings.instance.webViewSettings;
   final fontSize = webViewData.fontSize;
   bool isDarkMode = webViewData.theme == 'cc-theme--dark';
   String direction = publication.mepsLanguage.isRtl ? 'rtl' : 'ltr';

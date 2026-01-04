@@ -6,8 +6,10 @@ import 'package:http/http.dart' as http;
 import 'package:jwlife/app/jwlife_app_bar.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'package:jwlife/core/uri/jworg_uri.dart';
 import 'package:jwlife/core/utils/utils_video.dart';
 import 'package:jwlife/core/utils/webview_data.dart';
+import 'package:jwlife/data/models/audio.dart';
 import 'package:jwlife/data/realm/catalog.dart';
 
 import '../../../app/app_page.dart';
@@ -69,7 +71,7 @@ class _AlertsListPageState extends State<AlertsListPage> {
   }
 
   String convertAlertsToHtml(List<dynamic> alerts) {
-    WebViewData webViewData = JwLifeSettings.instance.webViewData;
+    WebViewSettings webViewData = JwLifeSettings.instance.webViewSettings;
 
     String htmlAlerts = '';
 
@@ -232,53 +234,75 @@ class _AlertsListPageState extends State<AlertsListPage> {
             final pub = uri.queryParameters['pub']?.toLowerCase();
             final docId = uri.queryParameters['docid'];
             final track = uri.queryParameters['track'];
+            final issue = uri.queryParameters['issue'];
             final fileformat = uri.queryParameters['fileformat'];
             final langwritten = _languageSymbol;
 
-            if ((pub != null || docId != null) && fileformat != null) {
-              showDocumentDialog(context, pub, docId, track, langwritten, fileformat);
+            if ((pub != null || docId != null)) {
+              showDocumentDialog(context, pub, docId, track, issue, langwritten, fileformat);
               return NavigationActionPolicy.CANCEL;
             }
           }
           else if (uri.host == 'www.jw.org' && uri.path == '/finder') {
+            JwOrgUri jwOrgUri = JwOrgUri.parse(uri.toString());
             printTime('Requested URL: $url');
-            final wtlocale = _languageSymbol;
-            if (uri.queryParameters.containsKey('lank')) {
-              RealmMediaItem? mediaItem;
-              if(uri.queryParameters.containsKey('lank')) {
-                final lank = uri.queryParameters['lank'];
-                mediaItem = getMediaItemFromLank(lank!, wtlocale);
+
+            if(jwOrgUri.isPublication) {
+              Publication? publication = await CatalogDb.instance.searchPub(jwOrgUri.pub!, jwOrgUri.issue!, jwOrgUri.wtlocale);
+              if (publication != null) {
+                publication.showMenu(context);
+              }
+            }
+            else if (jwOrgUri.isMediaItem) {
+              Duration startTime = Duration.zero;
+              Duration? endTime;
+
+              if (jwOrgUri.ts != null && jwOrgUri.ts!.isNotEmpty) {
+                final parts = jwOrgUri.ts!.split('-');
+                if (parts.isNotEmpty) {
+                  startTime = JwOrgUri.parseDuration(parts[0]) ?? Duration.zero;
+                }
+                if (parts.length > 1) {
+                  endTime = JwOrgUri.parseDuration(parts[1]);
+                }
               }
 
-              if(mediaItem != null) {
-                Video video = Video.fromJson(mediaItem: mediaItem);
-                video.showPlayer(context);
+              RealmMediaItem? mediaItem = getMediaItemFromLank(jwOrgUri.lank!, jwOrgUri.wtlocale);
+
+              if (mediaItem == null) return NavigationActionPolicy.ALLOW;
+
+              if(mediaItem.type == 'AUDIO') {
+                Audio audio = Audio.fromJson(mediaItem: mediaItem);
+                audio.showPlayer(context, initialPosition: startTime);
               }
               else {
+                Video video = Video.fromJson(mediaItem: mediaItem);
+                video.showPlayer(context, initialPosition: startTime);
+              }
+            }
+            else {
+              if(await hasInternetConnection(context: context)) {
                 return NavigationActionPolicy.ALLOW;
               }
-            }
-            else if (uri.queryParameters.containsKey('pub')) {
-              // Récupère les paramètres
-              final pub = uri.queryParameters['pub']?.toLowerCase();
-              final issueTagNumber = uri.queryParameters.containsKey('issueTagNumber') ? int.parse(uri.queryParameters['issueTagNumber']!) : 0;
-
-              Publication? publication = await CatalogDb.instance.searchPub(pub!, issueTagNumber, wtlocale);
-              if (publication != null) {
-                await publication.showMenu(context);
+              else {
+                return NavigationActionPolicy.CANCEL;
               }
-            }
-            else if (uri.queryParameters.containsKey('docid')) {
-              final docid = uri.queryParameters['docid'];
-
-              return NavigationActionPolicy.ALLOW;
             }
 
             // Annule la navigation pour gérer le lien manuellement
             return NavigationActionPolicy.CANCEL;
           }
-          // Permet la navigation pour tous les autres liens
-          return NavigationActionPolicy.ALLOW;
+          // On vérifie que c'est bien un lien vers le web et qu'on a une connexion internet
+          else if(url.startsWith('https://')) {
+            // Permet la navigation pour tous les autres liens
+            if(await hasInternetConnection(context: context)) {
+              return NavigationActionPolicy.ALLOW;
+            }
+            else {
+              return NavigationActionPolicy.CANCEL;
+            }
+          }
+          return NavigationActionPolicy.CANCEL;
         },
       ),
     );

@@ -24,7 +24,6 @@ import 'package:jwlife/data/models/audio.dart';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/repositories/PublicationRepository.dart';
 import 'package:jwlife/data/databases/catalog.dart';
-import 'package:jwlife/data/databases/history.dart';
 import 'package:jwlife/data/realm/catalog.dart';
 import 'package:jwlife/features/home/pages/search/search_page.dart';
 import 'package:jwlife/widgets/dialog/publication_dialogs.dart';
@@ -353,6 +352,8 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
         }
       }
     });
+
+    printTime('fourth init');
   }
 
   String? _lastSentNotes;
@@ -430,7 +431,7 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
             widget.publication,
             widget.publication.documentsManager!.selectedDocumentId,
             widget.publication.documentsManager!.documents.length - 1
-        ), baseUrl: WebUri('file://${JwLifeSettings.instance.webViewData.webappPath}/'));
+        ), baseUrl: WebUri('file://${JwLifeSettings.instance.webViewSettings.webappPath}/'));
       }
       else {
         _currentPageHistory = _pageHistory.removeLast(); // Revenir à la dernière page dans l'historique
@@ -526,155 +527,160 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
       backgroundColor: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF111111) : Colors.white,
       body: Stack(
           children: [
-        _isLoadedData ? SafeArea(
-            child: MediaQuery.removeViewInsets(
-              context: context,
-              removeBottom: true,
-              child: InAppWebView(
-                  initialSettings: InAppWebViewSettings(
-                    scrollBarStyle: null,
-                    verticalScrollBarEnabled: false,
-                    horizontalScrollBarEnabled: false,
-                    useShouldOverrideUrlLoading: true,
-                    mediaPlaybackRequiresUserGesture: false,
-                    useOnLoadResource: false,
-                    allowUniversalAccessFromFileURLs: true,
-                    allowFileAccess: true,
-                    allowContentAccess: true,
-                    useHybridComposition: true,
-                    layoutAlgorithm: LayoutAlgorithm.NORMAL,
-                    hardwareAcceleration: true,
-                    allowsLinkPreview: false,
-                  ),
-                  initialData: InAppWebViewInitialData(
-                      data: createReaderHtmlShell(
-                          widget.publication,
-                          widget.publication.documentsManager!.selectedDocumentId,
-                          widget.publication.documentsManager!.documents.length - 1,
-                          bookNumber: widget.bookNumber,
-                          chapterNumber: widget.chapterNumber,
-                          lastBookNumber: widget.lastBookNumber ?? widget.bookNumber,
-                          lastChapterNumber: widget.lastChapterNumber ?? widget.chapterNumber,
-                          startParagraphId: widget.startBlockIdentifierId,
-                          endParagraphId: widget.endBlockIdentifierId,
-                          startVerseId: widget.firstVerseNumber,
-                          endVerseId: widget.lastVerseNumber,
-                          textTag: widget.textTag,
-                          wordsSelected: widget.wordsSelected
+            if (_isLoadedData)
+              SafeArea(
+                child: MediaQuery.removeViewInsets(
+                  context: context,
+                  removeBottom: true,
+                  child: InAppWebView(
+                      initialSettings: InAppWebViewSettings(
+                        scrollBarStyle: null,
+                        verticalScrollBarEnabled: false,
+                        horizontalScrollBarEnabled: false,
+                        useShouldOverrideUrlLoading: true,
+                        mediaPlaybackRequiresUserGesture: false,
+                        useOnLoadResource: false,
+                        allowUniversalAccessFromFileURLs: true,
+                        allowFileAccess: true,
+                        allowContentAccess: true,
+                        useHybridComposition: true,
+                        layoutAlgorithm: LayoutAlgorithm.NORMAL,
+                        hardwareAcceleration: true,
+                        allowsLinkPreview: false,
                       ),
-                      baseUrl: WebUri('file://${JwLifeSettings.instance.webViewData.webappPath}/')
-                  ),
-                  onWebViewCreated: (controller) async {
-                    _controller = controller;
+                      initialData: InAppWebViewInitialData(
+                          data: createReaderHtmlShell(
+                              widget.publication,
+                              widget.publication.documentsManager!.selectedDocumentId,
+                              widget.publication.documentsManager!.documents.length - 1,
+                              bookNumber: widget.bookNumber,
+                              chapterNumber: widget.chapterNumber,
+                              lastBookNumber: widget.lastBookNumber ?? widget.bookNumber,
+                              lastChapterNumber: widget.lastChapterNumber ?? widget.chapterNumber,
+                              startParagraphId: widget.startBlockIdentifierId,
+                              endParagraphId: widget.endBlockIdentifierId,
+                              startVerseId: widget.firstVerseNumber,
+                              endVerseId: widget.lastVerseNumber,
+                              textTag: widget.textTag,
+                              wordsSelected: widget.wordsSelected
+                          ),
+                          baseUrl: WebUri('file://${JwLifeSettings.instance.webViewSettings.webappPath}/')
+                      ),
+                      onWebViewCreated: (controller) async {
+                        _controller = controller;
 
-                    registerWebViewJavaScriptChannel(controller);
-                  },
-                  shouldInterceptRequest: (controller, request) async {
-                    String requestedUrl = '${request.url}';
+                        registerWebViewJavaScriptChannel(controller);
+                      },
+                      shouldInterceptRequest: (controller, request) async {
+                        String requestedUrl = '${request.url}';
 
-                    if (requestedUrl.startsWith('jwpub-media://')) {
-                      printTime('Requested URL: $requestedUrl');
-                      final filePath = requestedUrl.replaceFirst('jwpub-media://', '');
-                      return await widget.publication.documentsManager!.getCurrentDocument().getImagePathFromDatabase(filePath);
-                    }
-                    return null;
-                  },
-                  shouldOverrideUrlLoading: (controller, navigationAction) async {
-                    WebUri uri = navigationAction.request.url!;
-                    String url = uri.uriValue.toString();
-
-                    if(url.startsWith('jwpub://')) {
-                      return NavigationActionPolicy.CANCEL;
-                    }
-                    else if (url.startsWith('webpubdl://')) {
-                      final uri = Uri.parse(url);
-
-                      final pub = uri.queryParameters['pub']?.toLowerCase();
-                      final docId = uri.queryParameters['docid'];
-                      final track = uri.queryParameters['track'];
-                      final fileformat = uri.queryParameters['fileformat'];
-                      final langwritten = uri.queryParameters['langwritten'] ?? widget.publication.mepsLanguage.symbol;
-
-                      if ((pub != null || docId != null) && fileformat != null) {
-                        showDocumentDialog(context, pub, docId, track, langwritten, fileformat);
-                        return NavigationActionPolicy.CANCEL;
-                      }
-                    }
-                    else if (uri.host == 'www.jw.org' && uri.path == '/finder') {
-                      JwOrgUri jwOrgUri = JwOrgUri.parse(uri.toString());
-                      printTime('Requested URL: $url');
-
-                      if(jwOrgUri.isPublication) {
-                        Publication? publication = await CatalogDb.instance.searchPub(jwOrgUri.pub!, jwOrgUri.issue!, jwOrgUri.wtlocale);
-                        if (publication != null) {
-                          publication.showMenu(context);
+                        if (requestedUrl.startsWith('jwpub-media://')) {
+                          printTime('Requested URL: $requestedUrl');
+                          final filePath = requestedUrl.replaceFirst('jwpub-media://', '');
+                          return await widget.publication.documentsManager!.getCurrentDocument().getImagePathFromDatabase(filePath);
                         }
-                      }
-                      else if (jwOrgUri.isMediaItem) {
-                        Duration startTime = Duration.zero;
-                        Duration? endTime;
+                        return null;
+                      },
+                      shouldOverrideUrlLoading: (controller, navigationAction) async {
+                        WebUri uri = navigationAction.request.url!;
+                        String url = uri.uriValue.toString();
 
-                        if (jwOrgUri.ts != null && jwOrgUri.ts!.isNotEmpty) {
-                          final parts = jwOrgUri.ts!.split('-');
-                          if (parts.isNotEmpty) {
-                            startTime = JwOrgUri.parseDuration(parts[0]) ?? Duration.zero;
-                          }
-                          if (parts.length > 1) {
-                            endTime = JwOrgUri.parseDuration(parts[1]);
-                          }
-                        }
-
-                        RealmMediaItem? mediaItem = getMediaItemFromLank(jwOrgUri.lank!, jwOrgUri.wtlocale);
-
-                        if (mediaItem == null) return NavigationActionPolicy.ALLOW;
-
-                        if(mediaItem.type == 'AUDIO') {
-                          Audio audio = Audio.fromJson(mediaItem: mediaItem);
-                          audio.showPlayer(context, initialPosition: startTime);
-                        }
-                        else {
-                          Video video = Video.fromJson(mediaItem: mediaItem);
-                          video.showPlayer(context, initialPosition: startTime);
-                        }
-                      }
-                      else {
-                        _pageHistory.add(widget.publication.documentsManager!.selectedDocumentId); // Ajouter la page actuelle à l'historique
-                        _currentPageHistory = -1;
-
-                        controlsKey.currentState?.toggleControls(true);
-
-                        if(await hasInternetConnection(context: context)) {
-                          return NavigationActionPolicy.ALLOW;
-                        }
-                        else {
+                        if(url.startsWith('jwpub://')) {
                           return NavigationActionPolicy.CANCEL;
                         }
+                        else if (url.startsWith('webpubdl://')) {
+                          final uri = Uri.parse(url);
+
+                          final pub = uri.queryParameters['pub']?.toLowerCase();
+                          final docId = uri.queryParameters['docid'];
+                          final track = uri.queryParameters['track'];
+                          final issue = uri.queryParameters['issue'];
+                          final fileformat = uri.queryParameters['fileformat'];
+                          final langwritten = uri.queryParameters['langwritten'] ?? widget.publication.mepsLanguage.symbol;
+
+                          if ((pub != null || docId != null)) {
+                            showDocumentDialog(context, pub, docId, track, issue, langwritten, fileformat);
+                            return NavigationActionPolicy.CANCEL;
+                          }
+                        }
+                        else if (uri.host == 'www.jw.org' && uri.path == '/finder') {
+                          JwOrgUri jwOrgUri = JwOrgUri.parse(uri.toString());
+                          printTime('Requested URL: $url');
+
+                          if(jwOrgUri.isPublication) {
+                            Publication? publication = await CatalogDb.instance.searchPub(jwOrgUri.pub!, jwOrgUri.issue!, jwOrgUri.wtlocale);
+                            if (publication != null) {
+                              publication.showMenu(context);
+                            }
+                          }
+                          else if (jwOrgUri.isMediaItem) {
+                            Duration startTime = Duration.zero;
+                            Duration? endTime;
+
+                            if (jwOrgUri.ts != null && jwOrgUri.ts!.isNotEmpty) {
+                              final parts = jwOrgUri.ts!.split('-');
+                              if (parts.isNotEmpty) {
+                                startTime = JwOrgUri.parseDuration(parts[0]) ?? Duration.zero;
+                              }
+                              if (parts.length > 1) {
+                                endTime = JwOrgUri.parseDuration(parts[1]);
+                              }
+                            }
+
+                            RealmMediaItem? mediaItem = getMediaItemFromLank(jwOrgUri.lank!, jwOrgUri.wtlocale);
+
+                            if (mediaItem == null) return NavigationActionPolicy.ALLOW;
+
+                            if(mediaItem.type == 'AUDIO') {
+                              Audio audio = Audio.fromJson(mediaItem: mediaItem);
+                              audio.showPlayer(context, initialPosition: startTime);
+                            }
+                            else {
+                              Video video = Video.fromJson(mediaItem: mediaItem);
+                              video.showPlayer(context, initialPosition: startTime);
+                            }
+                          }
+                          else {
+                            _pageHistory.add(widget.publication.documentsManager!.selectedDocumentId); // Ajouter la page actuelle à l'historique
+                            _currentPageHistory = -1;
+
+                            controlsKey.currentState?.toggleControls(true);
+
+                            if(await hasInternetConnection(context: context)) {
+                              return NavigationActionPolicy.ALLOW;
+                            }
+                            else {
+                              return NavigationActionPolicy.CANCEL;
+                            }
+                          }
+
+                          // Annule la navigation pour gérer le lien manuellement
+                          return NavigationActionPolicy.CANCEL;
+                        }
+                        // On vérifie que c'est bien un lien vers le web et qu'on a une connexion internet
+                        else if(url.startsWith('https://')) {
+                          _pageHistory.add(widget.publication.documentsManager!.selectedDocumentId); // Ajouter la page actuelle à l'historique
+                          _currentPageHistory = -1;
+
+                          controlsKey.currentState?.toggleControls(true);
+
+                          // Permet la navigation pour tous les autres liens
+                          if(await hasInternetConnection(context: context)) {
+                            return NavigationActionPolicy.ALLOW;
+                          }
+                          else {
+                            return NavigationActionPolicy.CANCEL;
+                          }
+                        }
+                        return NavigationActionPolicy.CANCEL;
+                      },
+                      onLoadStop: (controller, url) {
+                        //_notesController.addListener(_updateNotesListener);
+                        _tagsController.addListener(_updateTagsListener);
                       }
-
-                      // Annule la navigation pour gérer le lien manuellement
-                      return NavigationActionPolicy.CANCEL;
-                    }
-
-                    _pageHistory.add(widget.publication.documentsManager!.selectedDocumentId); // Ajouter la page actuelle à l'historique
-                    _currentPageHistory = -1;
-
-                    controlsKey.currentState?.toggleControls(true);
-
-                    // Permet la navigation pour tous les autres liens
-                    if(await hasInternetConnection(context: context)) {
-                      return NavigationActionPolicy.ALLOW;
-                    }
-                    else {
-                      return NavigationActionPolicy.CANCEL;
-                    }
-                  },
-                  onLoadStop: (controller, url) {
-                    //_notesController.addListener(_updateNotesListener);
-                    _tagsController.addListener(_updateTagsListener);
-                  }
-              ),
-            )
-        ) : Container(),
+                  ),
+                )
+            ),
 
             LoadingWidget(key: loadingKey),
 
@@ -699,7 +705,7 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
         callback: (args) {
         bool isShowDialog = args[0] as bool;
         _showDialog = isShowDialog;
-        },
+      },
     );
 
     controller.addJavaScriptHandler(
@@ -707,20 +713,20 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
         callback: (args) {
         bool isMaximized = args[0] as bool;
         controlsKey.currentState?.toggleMaximized(isMaximized);
-        },
+      },
     );
 
     controller.addJavaScriptHandler(
         handlerName: 'getSettings',
         callback: (args) {
-        final webViewData = JwLifeSettings.instance.webViewData;
+        final webViewData = JwLifeSettings.instance.webViewSettings;
 
         return {
             'isDark': webViewData.theme == 'cc-theme--dark',
             'isFullScreenMode': webViewData.isFullScreenMode,
             'isReadingMode': webViewData.isReadingMode,
             'isPreparingMode': webViewData.isBlockingHorizontallyMode,
-        };
+          };
         },
     );
 
@@ -755,84 +761,83 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
                 ),
             ]
         );
-
         return confirmed ?? false; // Retourne false si null
-        },
+      },
     );
 
     controller.addJavaScriptHandler(
         handlerName: 'getPage',
         callback: (args) async {
-        final index = args[0] as int;
-        if (index < 0 || index >= widget.publication.documentsManager!.documents.length) {
-            return {'title': '', 'html': '', 'className': '', 'audiosMarkers': '', 'isBibleChapter': false, 'link': '', 'svgs': '', 'preferredPresentation': 'text'};
-        }
+          final index = args[0] as int;
+          if (index < 0 || index >= widget.publication.documentsManager!.documents.length) {
+              return {'title': '', 'html': '', 'className': '', 'audiosMarkers': '', 'isBibleChapter': false, 'link': '', 'svgs': '', 'preferredPresentation': 'text'};
+          }
 
-        final doc = widget.publication.documentsManager!.documents[index];
+          final doc = widget.publication.documentsManager!.documents[index];
 
-        String html = '';
-        List<Map<String, dynamic>> audioMarkersJson = [];
+          String html = '';
+          List<Map<String, dynamic>> audioMarkersJson = [];
 
-        if(doc.isBibleChapter()) {
-            List<Uint8List> contentBlob = doc.getChapterContent();
+          if(doc.isBibleChapter()) {
+              List<Uint8List> contentBlob = doc.getChapterContent();
 
-            for(dynamic content in contentBlob) {
-            html += decodeBlobContent(
-                content,
-                widget.publication.hash!,
-            );
-            }
+              for(dynamic content in contentBlob) {
+                html += decodeBlobContent(
+                    content,
+                    widget.publication.hash!,
+                );
+              }
 
-            if (widget.publication.audiosNotifier.value.isNotEmpty) {
-            final audio = widget.publication.audiosNotifier.value.firstWhereOrNull((a) => a.bookNumber == doc.bookNumber && a.track == doc.chapterNumberBible);
-            if (audio != null && audio.markers.isNotEmpty) {
-                audioMarkersJson = audio.markers.map((m) => m.toJson()).toList();
-            }
-            }
-        }
-        else {
-            html = decodeBlobContent(doc.content!, widget.publication.hash!);
+              if (widget.publication.audiosNotifier.value.isNotEmpty) {
+                final audio = widget.publication.audiosNotifier.value.firstWhereOrNull((a) => a.bookNumber == doc.bookNumber && a.track == doc.chapterNumberBible);
+                if (audio != null && audio.markers.isNotEmpty) {
+                    audioMarkersJson = audio.markers.map((m) => m.toJson()).toList();
+                }
+              }
+          }
+          else {
+              html = decodeBlobContent(doc.content!, widget.publication.hash!);
 
-            if (widget.publication.audiosNotifier.value.isNotEmpty) {
-            final audio = widget.publication.audiosNotifier.value.firstWhereOrNull((a) => a.documentId == doc.mepsDocumentId);
-            if (audio != null && audio.markers.isNotEmpty) {
-                audioMarkersJson = audio.markers.map((m) => m.toJson()).toList();
-            }
-            }
-        }
-        final className = getArticleClass(widget.publication, doc);
+              if (widget.publication.audiosNotifier.value.isNotEmpty) {
+                final audio = widget.publication.audiosNotifier.value.firstWhereOrNull((a) => a.documentId == doc.mepsDocumentId);
+                if (audio != null && audio.markers.isNotEmpty) {
+                    audioMarkersJson = audio.markers.map((m) => m.toJson()).toList();
+                }
+              }
+          }
+          final className = getArticleClass(widget.publication, doc);
 
-        await doc.fetchSvgs();
+          await doc.fetchSvgs();
 
-        // On récupère tous les chemins et on les joint par une virgule
-        String svgsList = '';
-        if (doc.svgs.isNotEmpty) {
-            svgsList = doc.svgs.map((svg) =>
-            '${widget.publication.path}/${svg['FilePath']}'
-            ).join(',');
-        }
+          // On récupère tous les chemins et on les joint par une virgule
+          String svgsList = '';
+          if (doc.svgs.isNotEmpty) {
+              svgsList = doc.svgs.map((svg) =>
+              '${widget.publication.path}/${svg['FilePath']}'
+              ).join(',');
+          }
 
-        if(loadingKey.currentState!.isLoadingPage) {
-            loadingKey.currentState!.loadingFinish();
-        }
+          if(loadingKey.currentState!.isLoadingPage) {
+              loadingKey.currentState!.loadingFinish();
+          }
 
-        return {
-            'title': doc.getDisplayTitle(),
-            'html': html,
-            'className': className,
-            'audiosMarkers': audioMarkersJson,
-            'isBibleChapter': doc.isBibleChapter(),
-            'link': '',
-            'svgs': svgsList,
-            'preferredPresentation': doc.preferredPresentation == null && svgsList.isNotEmpty ? 'image' : 'text'
-        };
+          return {
+              'title': doc.getDisplayTitle(),
+              'html': html,
+              'className': className,
+              'audiosMarkers': audioMarkersJson,
+              'isBibleChapter': doc.isBibleChapter(),
+              'link': '',
+              'svgs': svgsList,
+              'preferredPresentation': doc.preferredPresentation == null && svgsList.isNotEmpty ? 'image' : 'text'
+          };
         },
     );
 
     controller.addJavaScriptHandler(
         handlerName: 'changePageAt',
         callback: (args) async {
-        await changePageAt(args[0] as int);
+          await changePageAt(args[0] as int);
         },
     );
 
@@ -849,19 +854,19 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
             'inputFields': document.inputFields,
             'bookmarks': document.bookmarks,
         };
-        },
+      },
     );
 
     controller.addJavaScriptHandler(
         handlerName: 'onScroll',
         callback: (args) async {
-        if (args[1] == "down") {
-            controlsKey.currentState?.toggleOnScroll(false);
-        }
-        else if (args[1] == "up") {
-            controlsKey.currentState?.toggleOnScroll(true);
-        }
-        },
+          if (args[1] == "down") {
+              controlsKey.currentState?.toggleOnScroll(false);
+          }
+          else if (args[1] == "up") {
+              controlsKey.currentState?.toggleOnScroll(true);
+          }
+      },
     );
 
     controller.addJavaScriptHandler(
@@ -1095,11 +1100,24 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
     );
 
     controller.addJavaScriptHandler(
-        handlerName: 'fetchVerses',
-        callback: (args) async {
-        Map<String, dynamic>? verses = await fetchVerses(args[0], widget.publication);
-        return verses;
-        },
+      handlerName: 'fetchVerses',
+      callback: (args) async {
+        Map<String, dynamic> payload;
+
+        if (args[0] is Map) {
+          payload = Map<String, dynamic>.from(args[0]);
+        } else if (args[0] is List && args[0].isNotEmpty && args[0][0] is Map) {
+          payload = Map<String, dynamic>.from(args[0][0]);
+        } else {
+          final List<String> hrefs = List<String>.from(args[0] is List ? args[0] : [args[0]]);
+          payload = {
+            'clicked': hrefs.first,
+            'others': hrefs.length > 1 ? hrefs.sublist(1) : []
+          };
+        }
+
+        return await fetchVerses(payload, widget.publication);
+      },
     );
 
     controller.addJavaScriptHandler(
@@ -1109,7 +1127,7 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
         if (extractPublication != null) {
             return extractPublication;
         }
-        },
+      },
     );
 
     controller.addJavaScriptHandler(
@@ -1630,10 +1648,7 @@ class _LoadingWidgetState extends State<LoadingWidget> {
         color: Theme.of(context).brightness == Brightness.dark
             ? const Color(0xFF111111)
             : Colors.white,
-        child: Center(
-          // Assurez-vous que getLoadingWidget existe et est accessible
-          child: getLoadingWidget(Theme.of(context).primaryColor),
-        ),
+        child: getLoadingWidget(Theme.of(context).primaryColor)
       ),
     );
   }
@@ -1851,21 +1866,21 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
                   },
                   onSuggestionTap: (item) async {
                     String query = item.item!.query;
-
+    
                     // Encodage JS sûr
                     final safeQuery = jsonEncode([query]); // Exemple : ["mot"]
-
+    
                     _controller.evaluateJavascript(source: "selectWords($safeQuery, true);");
-
+    
                     setState(() {
                       _isSearching = false;
                     });
                   },
                   onSubmit: (text) async {
                     final safeText = jsonEncode([text]);
-
+    
                     _controller.evaluateJavascript(source: "selectWords($safeText, true);");
-
+    
                     setState(() {
                       _isSearching = false;
                     });
@@ -1891,19 +1906,13 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
                 handleBackPress: widget.handleBackPress,
                 actions: [
                   // AUDIO
-                  if (current != null &&
-                      widget.publication.audiosNotifier.value.any(
-                            (audio) =>
-                        audio.documentId == current!.mepsDocumentId ||
-                            (audio.bookNumber == current.bookNumber &&
-                                audio.track == current.chapterNumberBible),
-                      ))
+                  if (current != null && widget.publication.audiosNotifier.value.any((audio) => audio.documentId == current!.mepsDocumentId || (audio.bookNumber == current.bookNumber && audio.track == current.chapterNumberBible),))
                     IconTextButton(
-                      text: "Écouter ou télécharger l'audio",
+                      text: "",
                       icon: Icon(JwIcons.headphones),
                       onPressed: (anchorContext) {
                         if (current == null) return;
-
+    
                         int? index;
                         if (current.isBibleChapter()) {
                           index = widget.publication.audiosNotifier.value.indexWhere(
@@ -1917,13 +1926,13 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
                             audio.documentId == current!.mepsDocumentId,
                           );
                         }
-
+    
                         if (index != -1) {
                           showAudioPopupMenu(anchorContext, widget.publication, index);
                         }
                       },
                     ),
-
+    
                   // RECHERCHE
                   IconTextButton(
                     text: i18n().action_search,
@@ -1932,7 +1941,7 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
                       setState(() => _isSearching = true);
                     },
                   ),
-
+    
                   // FAVORIS
                   IconTextButton(
                     text: i18n().action_bookmarks,
@@ -1950,7 +1959,7 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
                         blockType: 0,
                         blockIdentifier: null,
                       );
-
+    
                       if (bm != null) {
                         // Cas Bible (book + chapter)
                         if (bm.location.bookNumber != null &&
@@ -1960,11 +1969,11 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
                             doc.bookNumber == bm.location.bookNumber &&
                                 doc.chapterNumber == bm.location.chapterNumber,
                           );
-
+    
                           if (page != dm.selectedDocumentId) {
                             await widget.jumpToPage(page);
                           }
-
+    
                           if (bm.blockIdentifier != null) {
                             widget.jumpToVerse(bm.blockIdentifier!, bm.blockIdentifier!);
                           }
@@ -1974,11 +1983,11 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
                           final page = dm!.documents.indexWhere(
                                 (doc) => doc.mepsDocumentId == bm.location.mepsDocumentId,
                           );
-
+    
                           if (page != dm.selectedDocumentId) {
                             await widget.jumpToPage(page);
                           }
-
+    
                           if (bm.blockIdentifier != null) {
                             widget.jumpToParagraph(bm.blockIdentifier!, bm.blockIdentifier!);
                           }
@@ -1986,21 +1995,31 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
                       }
                     },
                   ),
-
+    
                   // LANGUES
                   IconTextButton(
                     text: i18n().action_languages,
                     icon: Icon(JwIcons.language),
                     onPressed: (anchorContext) async {
-                      showLanguagePubDialog(context, widget.publication).then((languagePub) {
-                        if (languagePub != null) {
-                          showPageDocument(languagePub, current!.mepsDocumentId);
-                        }
-                      });
+                      bool isBibleChapter = current?.isBibleChapter() ?? false;
+                      if(isBibleChapter) {
+                        showLanguagePubDialog(context, null, bookNumber: current!.bookNumber).then((languagePub) {
+                          if (languagePub != null) {
+                            showPageBibleChapter(languagePub, current!.bookNumber!, current.chapterNumber!);
+                          }
+                        });
+                      }
+                      else {
+                        showLanguagePubDialog(context, widget.publication, mepsDocumentId: current!.mepsDocumentId).then((languagePub) {
+                          if (languagePub != null) {
+                            showPageDocument(languagePub, current!.mepsDocumentId);
+                          }
+                        });
+                      }
                     },
                   ),
-
-
+    
+    
                   // NOTE
                   IconTextButton(
                     text: i18n().action_add_a_note,
@@ -2012,10 +2031,10 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
                       );
                     },
                   ),
-
-
+    
+    
                   // MÉDIAS
-                  if (current != null && current.hasMediaLinks)
+                  if (current != null && current.hasMediaLinks && !current.isBibleChapter())
                     IconTextButton(
                       text: i18n().navigation_meetings_show_media,
                       icon: const Icon(JwIcons.video_music),
@@ -2023,7 +2042,7 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
                         showPage(DocumentMediasView(document: current!));
                       },
                     ),
-
+    
                   // MENU
                   IconTextButton(
                     text: i18n().action_display_menu,
@@ -2032,16 +2051,16 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
                       widget.publication.showMenu(context);
                     },
                   ),
-
+    
                   // HISTORIQUE
                   IconTextButton(
                     text: i18n().action_history,
                     icon: const Icon(JwIcons.arrow_circular_left_clock),
                     onPressed: (anchorContext) {
-                      History.showHistoryDialog(context);
+                      JwLifeApp.history.showHistoryDialog(context);
                     },
                   ),
-
+    
                   // PARTAGER
                   IconTextButton(
                     text: i18n().action_open_in_share,
@@ -2050,7 +2069,7 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
                       current!.share();
                     },
                   ),
-
+    
                   // QR CODE
                   IconTextButton(
                     text: i18n().action_qr_code,
@@ -2064,7 +2083,7 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
                       );
                     },
                   ),
-
+    
                   // MODE IMAGE / TEXTE
                   if (current != null && current.svgs.isNotEmpty)
                     IconTextButton(
@@ -2078,7 +2097,7 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
                       ),
                       onPressed: (anchorContext) => switchImageMode(),
                     ),
-
+    
                   // GUIDES DE PRONONCIATION
                   if (current != null && current.hasPronunciationGuide)
                     IconTextButton(
@@ -2089,75 +2108,75 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
                           : i18n().action_display_yale,
                       icon: Icon(JwIcons.vernacular_text),
                       isSwitch: widget.publication.mepsLanguage.primaryIetfCode == 'ja'
-                          ? JwLifeSettings.instance.webViewData.isFuriganaActive
+                          ? JwLifeSettings.instance.webViewSettings.isFuriganaActive
                           : widget.publication.mepsLanguage.primaryIetfCode.contains('cmn')
-                          ? JwLifeSettings.instance.webViewData.isPinyinActive
-                          : JwLifeSettings.instance.webViewData.isYaleActive,
+                          ? JwLifeSettings.instance.webViewSettings.isPinyinActive
+                          : JwLifeSettings.instance.webViewSettings.isYaleActive,
                       onSwitchChange: (value) async {
                         final lang = widget.publication.mepsLanguage.primaryIetfCode;
-
+    
                         if (lang == 'ja') {
                           await AppSharedPreferences.instance.setFuriganaActive(value);
-                          JwLifeSettings.instance.webViewData
+                          JwLifeSettings.instance.webViewSettings
                               .updatePronunciationGuide(value, 'furigana');
                         } else if (lang.contains('cmn')) {
                           await AppSharedPreferences.instance.setPinyinActive(value);
-                          JwLifeSettings.instance.webViewData
+                          JwLifeSettings.instance.webViewSettings
                               .updatePronunciationGuide(value, 'pinyin');
                         } else {
                           await AppSharedPreferences.instance.setYaleActive(value);
-                          JwLifeSettings.instance.webViewData
+                          JwLifeSettings.instance.webViewSettings
                               .updatePronunciationGuide(value, 'yale');
                         }
-
+    
                         setState(() {});
                       },
                     ),
-
+    
                   // PARAMÈTRES TEXTE
                   IconTextButton(
                     text: i18n().action_text_settings,
                     icon: const Icon(Icons.text_increase),
                     onPressed: (anchorContext) => showFontSizeDialog(context, _controller),
                   ),
-
+    
                   // MODE PLEIN ÉCRAN
                   IconTextButton(
                     text: i18n().action_full_screen,
                     icon: const Icon(JwIcons.square_stack),
-                    isSwitch: JwLifeSettings.instance.webViewData.isFullScreenMode,
+                    isSwitch: JwLifeSettings.instance.webViewSettings.isFullScreenMode,
                     onSwitchChange: (value) async {
                       await AppSharedPreferences.instance.setFullscreenMode(value);
-                      JwLifeSettings.instance.webViewData.updateFullscreen(value);
+                      JwLifeSettings.instance.webViewSettings.updateFullscreen(value);
                       setState(() {});
                     },
                   ),
-
+    
                   // MODE LECTURE
                   IconTextButton(
                     text: i18n().action_reading_mode,
                     icon: const Icon(JwIcons.scroll),
-                    isSwitch: JwLifeSettings.instance.webViewData.isReadingMode,
+                    isSwitch: JwLifeSettings.instance.webViewSettings.isReadingMode,
                     onSwitchChange: (value) async {
                       await AppSharedPreferences.instance.setReadingMode(value);
-                      JwLifeSettings.instance.webViewData.updateReadingMode(value);
+                      JwLifeSettings.instance.webViewSettings.updateReadingMode(value);
                       setState(() {});
                     },
                   ),
-
+    
                   // BLOQUER LE DÉFILEMENT HORIZONTAL
                   IconTextButton(
                     text: i18n().action_blocking_horizontally_mode,
                     icon: const Icon(Icons.block),
                     isSwitch:
-                    JwLifeSettings.instance.webViewData.isBlockingHorizontallyMode,
+                    JwLifeSettings.instance.webViewSettings.isBlockingHorizontallyMode,
                     onSwitchChange: (value) async {
                       await AppSharedPreferences.instance.setBlockingHorizontallyMode(value);
-                      JwLifeSettings.instance.webViewData.updatePreparingMode(value);
+                      JwLifeSettings.instance.webViewSettings.updatePreparingMode(value);
                       setState(() {});
                     },
                   ),
-
+    
                   // DEBUG HTML
                   if (kDebugMode && current != null)
                     IconTextButton(

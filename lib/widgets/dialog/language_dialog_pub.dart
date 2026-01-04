@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
+import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/files_helper.dart';
 import 'package:jwlife/core/utils/utils_database.dart';
@@ -14,14 +15,22 @@ import 'package:sqflite/sqflite.dart';
 import '../../app/services/settings_service.dart';
 import '../../core/uri/jworg_uri.dart';
 import '../../core/utils/utils.dart';
-import '../../data/databases/history.dart';
 import '../../i18n/i18n.dart';
 import 'qr_code_dialog.dart';
 
 class LanguagesPubDialog extends StatefulWidget {
   final Publication? publication;
+  final int? mepsDocumentId;
+  final int? bookNumber;
+  final int? datedInt;
 
-  const LanguagesPubDialog({super.key, required this.publication});
+  const LanguagesPubDialog({
+    super.key,
+    required this.publication,
+    this.mepsDocumentId,
+    this.bookNumber,
+    this.datedInt,
+  });
 
   @override
   _LanguagesPubDialogState createState() => _LanguagesPubDialogState();
@@ -70,77 +79,61 @@ class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
   }
 
   Future<void> initSettings() async {
-    File catalogFile = await getCatalogDatabaseFile();
-
-    if (await catalogFile.exists()) {
-      try {
-        await _fetchAllPubLanguages();
-      }
-      catch (e) {
-        printTime('Error initSettings: $e');
-      }
-    }
+    await _fetchLanguagesData();
   }
 
-  Future<void> _fetchAllPubLanguages() async {
-    Database? db = CatalogDb.instance.database;
+  /// MÉTHODE UNIQUE ET OPTIMISÉE
+  Future<void> _fetchLanguagesData() async {
+    Database db = CatalogDb.instance.database;
 
     File mepsUnitFile = await getMepsUnitDatabaseFile();
 
     await attachDatabases(db, {'meps': mepsUnitFile.path});
 
-    // PrimaryIetfCode de la langue source
     String sourceLanguageLocale = JwLifeSettings.instance.locale.languageCode;
+    
+    // 1. Construction dynamique des clauses SQL
+    List<dynamic> queryArgs = [sourceLanguageLocale];
+    String joins = "";
+    String whereClauses = "WHERE 1=1";
 
-    List<dynamic> arguments = [];
-    String baseQuery;
-
-    // ==========================================================
-    // CAS 1 : Publication avec issueTagNumber == 0
-    // ==========================================================
-    if (widget.publication != null && widget.publication!.issueTagNumber == 0) {
-      baseQuery = '''
-      SELECT 
-        Publication.*,
-        PublicationAsset.ExpandedSize,
-        mepsLang.Symbol AS LanguageSymbol,
-        COALESCE(translatedName.Name, mepsLang.EnglishName) AS LanguageName,
-        mepsLang.VernacularName
-      FROM Publication
-      INNER JOIN PublicationAsset 
-        ON Publication.Id = PublicationAsset.PublicationId  
-      JOIN meps.Language AS mepsLang
-        ON Publication.MepsLanguageId = mepsLang.LanguageId
-      
-      -- Langue source basée sur PrimaryIetfCode
-      LEFT JOIN meps.Language AS sourceLang
-        ON sourceLang.PrimaryIetfCode = ?
-      
-      -- Traduction du nom de la langue de Publication
-      LEFT JOIN meps.LocalizedLanguageName AS lln
-        ON lln.TargetLanguageId = mepsLang.LanguageId
-        AND lln.SourceLanguageId = sourceLang.LanguageId
-      
-      LEFT JOIN meps.LanguageName AS translatedName
-        ON translatedName.LanguageNameId = lln.LanguageNameId
-      
-      WHERE 
-        Publication.KeySymbol = ?
-      
-      ORDER BY LanguageName COLLATE NOCASE
-      ''';
-
-      arguments = [
-        sourceLanguageLocale,
-        widget.publication!.keySymbol,
-      ];
+    // Gestion du DocumentId
+    if (widget.mepsDocumentId != null) {
+      joins += " INNER JOIN PublicationDocument ON Publication.Id = PublicationDocument.PublicationId";
+      whereClauses += " AND PublicationDocument.DocumentId = ?";
+      queryArgs.add(widget.mepsDocumentId);
+    }
+    else if (widget.bookNumber != null) {
+      joins += " INNER JOIN AvailableBibleBook ON Publication.Id = AvailableBibleBook.PublicationId";
+      whereClauses += " AND AvailableBibleBook.Book = ?";
+      queryArgs.add(widget.bookNumber);
+    }
+    else if (widget.datedInt != null) {
+      // Obtenez la date du jour au format AAAA-mm-jj
+      String formattedDate = '';
+      DateTime date = DateTime.parse(widget.datedInt.toString());
+      formattedDate = "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
+      joins += " INNER JOIN DatedText ON Publication.Id = DatedText.PublicationId";
+      whereClauses += " AND ? BETWEEN DatedText.Start AND DatedText.End";
+      queryArgs.add(formattedDate);
     }
 
-    // ==========================================================
-    // CAS 2 : Publication avec issueTagNumber != 0
-    // ==========================================================
-    else if (widget.publication != null && widget.publication!.issueTagNumber != 0) {
-      baseQuery = '''
+    // Gestion de la Publication (KeySymbol & IssueTag)
+    if (widget.publication != null) {
+      whereClauses += " AND Publication.KeySymbol = ?";
+      queryArgs.add(widget.publication!.keySymbol);
+
+      if (widget.publication!.issueTagNumber != 0) {
+        whereClauses += " AND Publication.IssueTagNumber = ?";
+        queryArgs.add(widget.publication!.issueTagNumber);
+      }
+    }
+    else {
+      whereClauses += " AND Publication.PublicationTypeId = ?";
+      queryArgs.add(1);
+    }
+
+    final String finalQuery = '''
       SELECT 
         Publication.*,
         PublicationAsset.ExpandedSize,
@@ -149,86 +142,27 @@ class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
         mepsLang.VernacularName
       FROM Publication
       INNER JOIN PublicationAsset ON Publication.Id = PublicationAsset.PublicationId  
-      JOIN meps.Language AS mepsLang ON Publication.MepsLanguageId = mepsLang.LanguageId
-      
-      LEFT JOIN meps.Language AS sourceLang
-        ON sourceLang.PrimaryIetfCode = ?
-      
-      LEFT JOIN meps.LocalizedLanguageName AS lln
-        ON lln.TargetLanguageId = mepsLang.LanguageId
-        AND lln.SourceLanguageId = sourceLang.LanguageId
-      
-      LEFT JOIN meps.LanguageName AS translatedName
-        ON translatedName.LanguageNameId = lln.LanguageNameId
-      
-      WHERE 
-        Publication.KeySymbol = ?
-        AND Publication.IssueTagNumber = ?
-      
+      $joins
+      INNER JOIN meps.Language AS mepsLang ON Publication.MepsLanguageId = mepsLang.LanguageId
+      LEFT JOIN meps.Language AS sourceLang ON sourceLang.PrimaryIetfCode = ?
+      LEFT JOIN meps.LocalizedLanguageName AS lln ON lln.TargetLanguageId = mepsLang.LanguageId AND lln.SourceLanguageId = sourceLang.LanguageId
+      LEFT JOIN meps.LanguageName AS translatedName ON translatedName.LanguageNameId = lln.LanguageNameId
+      $whereClauses
       ORDER BY LanguageName COLLATE NOCASE
-      ''';
+    ''';
 
-      arguments = [
-        sourceLanguageLocale,
-        widget.publication!.keySymbol,
-        widget.publication!.issueTagNumber,
-      ];
-    }
-
-    // ==========================================================
-    // CAS 3 : Pas de publication → PublicationTypeId = 1
-    // ==========================================================
-    else {
-      baseQuery = '''
-      SELECT 
-        Publication.*,
-        PublicationAsset.ExpandedSize,
-        mepsLang.Symbol AS LanguageSymbol,
-        COALESCE(translatedName.Name, mepsLang.EnglishName) AS LanguageName,
-        mepsLang.VernacularName
-      FROM Publication
-      INNER JOIN PublicationAsset 
-        ON Publication.Id = PublicationAsset.PublicationId  
-      JOIN meps.Language AS mepsLang
-        ON Publication.MepsLanguageId = mepsLang.LanguageId
-      
-      LEFT JOIN meps.Language AS sourceLang
-        ON sourceLang.PrimaryIetfCode = ?
-      
-      LEFT JOIN meps.LocalizedLanguageName AS lln
-        ON lln.TargetLanguageId = mepsLang.LanguageId
-        AND lln.SourceLanguageId = sourceLang.LanguageId
-      
-      LEFT JOIN meps.LanguageName AS translatedName
-        ON translatedName.LanguageNameId = lln.LanguageNameId
-      
-      WHERE 
-        Publication.PublicationTypeId = 1
-      
-      ORDER BY LanguageName COLLATE NOCASE
-      ''';
-
-      arguments = [
-        sourceLanguageLocale,
-      ];
-    }
-
-    // ==========================================================
-    // EXECUTION
-    // ==========================================================
-
-    List<Map<String, dynamic>> response =
-    await db.rawQuery(baseQuery, arguments);
-
+    List<Map<String, dynamic>> response = await db.rawQuery(finalQuery, queryArgs);
     await detachDatabases(db, ['meps']);
 
     List<Map<String, dynamic>> languagesModifiable = List.from(response);
 
+    // 2. Ajout des publications téléchargées hors ligne
     if(widget.publication != null) {
-      Database mepsDb = await openReadOnlyDatabase(mepsUnitFile.path);
-      for(Publication pub in PublicationRepository().getAllDownloadedPublications()) {
-        if(widget.publication!.keySymbol == pub.keySymbol && widget.publication!.issueTagNumber == pub.issueTagNumber) {
-          if(!languagesModifiable.any((l) => l['MepsLanguageId'] == pub.mepsLanguage.id)) {
+      if(widget.mepsDocumentId != null) {
+        List<Publication> downloadedMepsDocs = await JwLifeApp.pubCollections.getDocumentsFromAvailable(widget.mepsDocumentId!);
+        for (Publication pub in downloadedMepsDocs) {
+          bool alreadyInList = languagesModifiable.any((l) => l['MepsLanguageId'] == pub.mepsLanguage.id);
+          if (!alreadyInList) {
             languagesModifiable.add({
               'LanguageSymbol': pub.mepsLanguage.symbol,
               'LanguageName': pub.mepsLanguage.vernacular,
@@ -243,28 +177,98 @@ class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
           }
         }
       }
-
-      await mepsDb.close();
+      else if(widget.bookNumber != null) {
+        List<Publication> downloadedBibles = await JwLifeApp.pubCollections.getBiblesBookFromAvailable(widget.bookNumber!);
+        for (Publication bible in downloadedBibles) {
+          bool alreadyInList = languagesModifiable.any((l) => l['MepsLanguageId'] == bible.mepsLanguage.id);
+          if (!alreadyInList) {
+            languagesModifiable.add({
+              'LanguageSymbol': bible.mepsLanguage.symbol,
+              'LanguageName': bible.mepsLanguage.vernacular,
+              'VernacularName': bible.mepsLanguage.vernacular,
+              'KeySymbol': bible.keySymbol,
+              'IssueTagNumber': bible.issueTagNumber,
+              'MepsLanguageId': bible.mepsLanguage.id,
+              'ShortTitle': bible.shortTitle,
+              'Title': bible.title
+            });
+          }
+        }
+      }
+      else if(widget.datedInt != null) {
+        List<Publication> downloadedDatedTexts = await JwLifeApp.pubCollections.getDatedTextsFromAvailable(widget.datedInt!, widget.datedInt!);
+        for (Publication datedText in downloadedDatedTexts) {
+          bool alreadyInList = languagesModifiable.any((l) => l['MepsLanguageId'] == datedText.mepsLanguage.id);
+          if (!alreadyInList) {
+            languagesModifiable.add({
+              'LanguageSymbol': datedText.mepsLanguage.symbol,
+              'LanguageName': datedText.mepsLanguage.vernacular,
+              'VernacularName': datedText.mepsLanguage.vernacular,
+              'KeySymbol': datedText.keySymbol,
+              'IssueTagNumber': datedText.issueTagNumber,
+              'MepsLanguageId': datedText.mepsLanguage.id,
+              'ShortTitle': datedText.shortTitle,
+              'Title': datedText.title
+            });
+          }
+        }
+      }
+      else {
+        final downloadedPubs = PublicationRepository().getAllDownloadedPublications();
+        for (Publication pub in downloadedPubs) {
+          if (widget.publication!.keySymbol == pub.keySymbol && widget.publication!.issueTagNumber == pub.issueTagNumber) {
+            bool alreadyInList = languagesModifiable.any((l) => l['MepsLanguageId'] == pub.mepsLanguage.id);
+            if (!alreadyInList) {
+              languagesModifiable.add({
+                'LanguageSymbol': pub.mepsLanguage.symbol,
+                'LanguageName': pub.mepsLanguage.vernacular,
+                'VernacularName': pub.mepsLanguage.vernacular,
+                'KeySymbol': pub.keySymbol,
+                'IssueTagNumber': pub.issueTagNumber,
+                'MepsLanguageId': pub.mepsLanguage.id,
+                'IssueTitle': pub.issueTitle.isEmpty ? null : pub.issueTitle,
+                'ShortTitle': pub.shortTitle,
+                'Title': pub.title
+              });
+            }
+          }
+        }
+      }
+    }
+    else {
+      final downloadedBibels = PublicationRepository().getAllBibles();
+      for (Publication bible in downloadedBibels) {
+        bool alreadyInList = languagesModifiable.any((l) => l['MepsLanguageId'] == bible.mepsLanguage.id);
+        if (!alreadyInList) {
+          languagesModifiable.add({
+            'LanguageSymbol': bible.mepsLanguage.symbol,
+            'LanguageName': bible.mepsLanguage.vernacular,
+            'VernacularName': bible.mepsLanguage.vernacular,
+            'KeySymbol': bible.keySymbol,
+            'IssueTagNumber': bible.issueTagNumber,
+            'MepsLanguageId': bible.mepsLanguage.id,
+            'ShortTitle': bible.shortTitle,
+            'Title': bible.title
+          });
+        }
+      }
     }
 
-    List<Map<String, dynamic>> mostUsedLanguages =
-    await getUpdatedMostUsedLanguages(selectedLanguage, languagesModifiable);
+    // 3. Calcul des recommandations
+    List<Map<String, dynamic>> mostUsed = await getUpdatedMostUsedLanguages(selectedLanguage, languagesModifiable);
+    _recommendedLanguages = languagesModifiable.where((lang) => isRecommended(lang, mostUsed)).toList();
+    _recommendedLanguageMepsIds = _recommendedLanguages.map((l) => l['MepsLanguageId'] as int).toSet();
 
-    _recommendedLanguages = languagesModifiable.where((lang) {
-      return isRecommended(lang, mostUsedLanguages);
-    }).toList();
-
-    _recommendedLanguageMepsIds =
-        _recommendedLanguages.map((l) => l['MepsLanguageId'] as int).toSet();
-
-    setState(() {
-      _allLanguagesList = languagesModifiable;
-      _applySearchAndSort();
-    });
+    if (mounted) {
+      setState(() {
+        _allLanguagesList = languagesModifiable;
+        _applySearchAndSort();
+      });
+    }
   }
 
   Future<List<Map<String, dynamic>>> getUpdatedMostUsedLanguages(String? selectedLanguageSymbol, List<Map<String, dynamic>> allLanguagesList) async {
-    List<Map<String, dynamic>> mostUsedLanguages = await History.getMostUsedLanguages();
+    List<Map<String, dynamic>> mostUsedLanguages = await JwLifeApp.history.getMostUsedLanguages();
     List<Map<String, dynamic>> mostUsedLanguagesList = List.from(mostUsedLanguages);
 
     final selectedLang = allLanguagesList.firstWhere(
@@ -629,7 +633,7 @@ class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
 
                             if(publication != null) {
                               if(publication!.isDownloadedNotifier.value) {
-                                await publication!.remove(context);
+                                await publication!.remove();
                               }
                               else {
                                 setState(() {
@@ -673,7 +677,7 @@ class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
                     onPressed: () async {
                       if(isDownloading) {
                         if(_publication != null) {
-                          _publication!.cancelDownload(context);
+                          _publication!.cancelDownload();
                           setState(() {
                             _publication = null;
                           });

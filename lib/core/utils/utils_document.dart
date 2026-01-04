@@ -13,10 +13,10 @@ import 'package:jwlife/core/utils/utils_audio.dart';
 import 'package:jwlife/core/utils/webview_data.dart';
 import 'package:jwlife/data/databases/mepsunit.dart';
 import 'package:jwlife/data/models/publication.dart';
-import 'package:jwlife/data/repositories/PublicationRepository.dart';
 import 'package:jwlife/data/databases/catalog.dart';
 import 'package:jwlife/data/models/userdata/bookmark.dart';
 import 'package:jwlife/core/utils/utils_dialog.dart';
+import 'package:jwlife/features/bible/pages/bible_chapter_page.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../app/jwlife_app.dart';
@@ -79,7 +79,7 @@ Future<void> showDownloadProgressDialog(BuildContext context, Publication public
         label: i18n().action_cancel_uppercase,
         closeDialog: false,
         onPressed: (buildContext) async {
-          await publication.cancelDownload(context);
+          await publication.cancelDownload();
         },
       ),
       // ⭐ AJOUT DU BOUTON MASQUER
@@ -149,13 +149,16 @@ class __DownloadDialogContentState extends State<_DownloadDialogContent> {
       // ⭐ Changement de comportement ici : l'ouverture de la publication n'a lieu que si `openOnSuccess` est vrai
       if (widget.publication.isDownloadedNotifier.value && widget.openOnSuccess) {
         if(widget.mepsDocId == null && widget.bookNumber == null && widget.chapterNumber == null && widget.date == null && widget.startParagraphId == null && widget.endParagraphId == null && widget.textTag == null && widget.wordsSelected == null) {
-          await showPage(PublicationMenuView(publication: widget.publication));
+          await showPage(PublicationMenuPage(publication: widget.publication));
         }
         else if (widget.bookNumber != null && widget.chapterNumber != null) {
           await showPageBibleChapter(widget.publication, widget.bookNumber!, widget.chapterNumber!, firstVerse: widget.startParagraphId, lastVerse: widget.endParagraphId);
         }
         else if (widget.date != null) {
           await showPageDailyText(widget.publication, date: widget.date!);
+        }
+        else if (widget.bookNumber != null) {
+          await showBibleBookView(context, widget.publication.keySymbol, widget.publication.mepsLanguage.id, widget.bookNumber!);
         }
         else {
           await showPageDocument(widget.publication, widget.mepsDocId!, startParagraphId: widget.startParagraphId, endParagraphId: widget.endParagraphId, textTag: widget.textTag, wordsSelected: widget.wordsSelected);
@@ -224,8 +227,8 @@ Future<void> showImportPublication(BuildContext context, String keySymbol, int i
   );
 }
 
-Future<void> showDocumentView(BuildContext context, int mepsDocId, int currentLanguageId, {int? startParagraphId, int? endParagraphId, String? textTag, List<String>? wordsSelected}) async {
-  Publication? publication = await JwLifeApp.pubCollections.getDocumentFromMepsDocumentId(mepsDocId, currentLanguageId);
+Future<void> showDocumentView(BuildContext context, int mepsDocId, int mepsLanguageId, {int? startParagraphId, int? endParagraphId, String? textTag, List<String>? wordsSelected}) async {
+  Publication? publication = await JwLifeApp.pubCollections.getDocumentFromAvailable(mepsDocId, mepsLanguageId);
 
   if (publication != null) {
     if (publication.isDownloadedNotifier.value) {
@@ -237,12 +240,12 @@ Future<void> showDocumentView(BuildContext context, int mepsDocId, int currentLa
   }
   else {
     if(await hasInternetConnection(context: context)) {
-      publication = await CatalogDb.instance.searchPubFromMepsDocumentId(mepsDocId, currentLanguageId);
+      publication = await CatalogDb.instance.searchPubFromMepsDocumentId(mepsDocId, mepsLanguageId);
       if (publication != null) {
         await showDownloadPublicationDialog(context, publication, mepsDocId: mepsDocId, startParagraphId: startParagraphId, endParagraphId: endParagraphId, textTag: textTag, wordsSelected: wordsSelected);
       }
       else {
-        String? symbol = await Mepsunit.getMepsLanguageSymbolFromId(currentLanguageId);
+        String? symbol = await Mepsunit.getMepsLanguageSymbolFromId(mepsLanguageId);
         String uri = JwOrgUri.document(
             wtlocale: symbol ?? '',
             docid: mepsDocId,
@@ -256,8 +259,29 @@ Future<void> showDocumentView(BuildContext context, int mepsDocId, int currentLa
   }
 }
 
-Future<void> showChapterView(BuildContext context, String keySymbol, int currentLanguageId, int bookNumber, int chapterNumber, {int? lastBookNumber, int? lastChapterNumber, firstVerseNumber, int? lastVerseNumber, List<String>? wordsSelected}) async {
-  Publication? bible = PublicationRepository().getAllBibles().firstWhereOrNull((p) => p.keySymbol == keySymbol && p.mepsLanguage.id == currentLanguageId);
+Future<void> showBibleBookView(BuildContext context, String keySymbol, int mepsLanguageId, int bookNumber) async {
+  Publication? bible = await JwLifeApp.pubCollections.getBibleBookFromAvailable(bookNumber, keySymbol, mepsLanguageId);
+
+  if (bible != null) {
+    if (bible.isDownloadedNotifier.value) {
+      await showPage(BibleChapterPage(bible: bible, book: bookNumber));
+    }
+    else {
+      await showDownloadPublicationDialog(context, bible, bookNumber: bookNumber);
+    }
+  }
+  else {
+    if(await hasInternetConnection(context: context)) {
+      bible = await CatalogDb.instance.searchPubFromBookNumber(bookNumber, keySymbol, mepsLanguageId);
+      if (bible != null) {
+        await showDownloadPublicationDialog(context, bible, bookNumber: bookNumber);
+      }
+    }
+  }
+}
+
+Future<void> showChapterView(BuildContext context, String keySymbol, int mepsLanguageId, int bookNumber, int chapterNumber, {int? lastBookNumber, int? lastChapterNumber, firstVerseNumber, int? lastVerseNumber, List<String>? wordsSelected}) async {
+  Publication? bible = await JwLifeApp.pubCollections.getBibleBookFromAvailable(bookNumber, keySymbol, mepsLanguageId);
 
   if (bible != null) {
     if (bible.isDownloadedNotifier.value) {
@@ -269,7 +293,7 @@ Future<void> showChapterView(BuildContext context, String keySymbol, int current
   }
   else {
     if(await hasInternetConnection(context: context)) {
-      bible = await CatalogDb.instance.searchPub(keySymbol, 0, currentLanguageId);
+      bible = await CatalogDb.instance.searchPubFromBookNumber(bookNumber, keySymbol, mepsLanguageId);
       if (bible != null) {
         await showDownloadPublicationDialog(context, bible, bookNumber: bookNumber, chapterNumber: chapterNumber, startParagraphId: firstVerseNumber, endParagraphId: lastVerseNumber, wordsSelected: wordsSelected);
       }
@@ -277,19 +301,45 @@ Future<void> showChapterView(BuildContext context, String keySymbol, int current
   }
 }
 
-Future<void> showDailyText(BuildContext context, Publication publication, {DateTime? date}) async {
-  if (publication.isDownloadedNotifier.value) {
-    await showPageDailyText(publication, date: date);
+Future<void> showDailyText(BuildContext context, int start, int end, String keySymbol, int mepsLanguageId) async {
+  Publication? dailyText = await JwLifeApp.pubCollections.getDatedTextFromAvailable(start, end, keySymbol, mepsLanguageId);
+  DateTime date = DateTime.parse(start.toString());
+if (dailyText != null) {
+   if (dailyText.isDownloadedNotifier.value) {
+      await showPageDailyText(dailyText, date: date);
+    }
+    else {
+      if(await hasInternetConnection(context: context)) {
+        await showDownloadPublicationDialog(context, dailyText, date: date);
+      }
+    }
   }
   else {
     if(await hasInternetConnection(context: context)) {
-      await showDownloadPublicationDialog(context, publication, date: date);
+      dailyText = await CatalogDb.instance.searchPubFromDatedText(start, keySymbol, mepsLanguageId);
+      if (dailyText != null) {
+        await showDownloadPublicationDialog(context, dailyText, date: date);
+      }
+      else {
+        String? symbol = await Mepsunit.getMepsLanguageSymbolFromId(mepsLanguageId);
+        String uri = JwOrgUri.dailyText(
+            wtlocale: symbol ?? '',
+            date: start.toString()
+        ).toString();
+
+
+        await launchUrl(Uri.parse(uri));
+      }
     }
   }
 }
 
 String createHtmlContent(String html, String articleClasses, String javascript) {
-  WebViewData webViewData = JwLifeSettings.instance.webViewData;
+  WebViewSettings webViewData = JwLifeSettings.instance.webViewSettings;
+  
+  // On définit le nom de la classe en fonction du mode sombre
+  String themeClass = webViewData.theme;
+
   String htmlContent = '''
     <!DOCTYPE html>
     <html style="overflow-x: hidden; height: 100%;">
@@ -297,31 +347,41 @@ String createHtmlContent(String html, String articleClasses, String javascript) 
         <meta charset="UTF-8">
         <meta name="viewport" content="initial-scale=1.0, user-scalable=no">
         <link rel="stylesheet" href="jw-styles.css" />
-      </head>
-      <body class="${webViewData.theme}"> 
         <style>
+          /* Fond global appliqué à html et body */
+          html, body {
+            background-color: ${webViewData.theme == 'cc-theme--dark' ? '#121212' : '#ffffff'};
+            margin: 0;
+            padding: 0;
+          }
+
           body {
             user-select: none;
             font-size: ${webViewData.fontSize}px;
           }
           
-          /* Sélecteurs pour cibler le body avec la classe du thème */
-          body.cc-theme--dark {
-            background-color: #000000;
+          /* Styles pour le mode sombre (appliqué au body et à l'article) */
+          .cc-theme--dark {
+            background-color: #000000 !important;
+            color: #ffffff;
           }
           
-          body.cc-theme--light {
-            background-color: #f1f1f1;
+          /* Styles pour le mode clair */
+          .cc-theme--light {
+            background-color: #f1f1f1 !important;
+            color: #000000;
           }
-          
-          /* Ajout du padding à l'élément article */
+
+          /* Gestion spécifique de l'article */
           #article {
-            padding-top: 20px;    // Marge intérieure en haut
-            padding-bottom: 20px; // Marge intérieure en bas
+            padding-top: 20px;
+            padding-bottom: 20px;
+            min-height: 100vh; /* S'assure que l'article couvre toute la hauteur */
           }
-          
         </style>
-        <article id="article" class="$articleClasses">
+      </head>
+      <body class="$themeClass"> 
+        <article id="article" class="$articleClasses $themeClass">
           $html
         </article>
         <script>
@@ -347,13 +407,13 @@ String getArticleClass(Publication publication, Document document) {
   String showRuby = '';
   if(document.hasPronunciationGuide) {
     final languageCode = publication.mepsLanguage.primaryIetfCode;
-    if (languageCode == 'ja' && JwLifeSettings.instance.webViewData.isFuriganaActive) {
+    if (languageCode == 'ja' && JwLifeSettings.instance.webViewSettings.isFuriganaActive) {
       showRuby = 'showRuby';
     }
-    else if (languageCode.contains('cmn') && JwLifeSettings.instance.webViewData.isPinyinActive) {
+    else if (languageCode.contains('cmn') && JwLifeSettings.instance.webViewSettings.isPinyinActive) {
       showRuby = 'showRuby';
     }
-    else if (JwLifeSettings.instance.webViewData.isYaleActive) {
+    else if (JwLifeSettings.instance.webViewSettings.isYaleActive) {
       showRuby = 'showRuby';
     }
   }
@@ -376,7 +436,7 @@ String getArticleClass(Publication publication, Document document) {
 }
 
 Future<void> showFontSizeDialog(BuildContext context, InAppWebViewController? controller) async {
-  double fontSize = JwLifeSettings.instance.webViewData.fontSize;
+  double fontSize = JwLifeSettings.instance.webViewSettings.fontSize;
   showDialog(
     context: context,
     builder: (BuildContext context) {
@@ -414,7 +474,7 @@ Future<void> showFontSizeDialog(BuildContext context, InAppWebViewController? co
 
                           // Mise à jour en temps réel dans la WebView
                           controller?.evaluateJavascript(source: "resizeFont($fontSize);");
-                          JwLifeSettings.instance.webViewData.updateFontSize(fontSize);
+                          JwLifeSettings.instance.webViewSettings.updateFontSize(fontSize);
                           AppSharedPreferences.instance.setFontSize(fontSize);
                         },
                       ),

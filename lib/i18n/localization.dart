@@ -5001,7 +5001,7 @@ abstract class AppLocalizations {
   /// No description provided for @settings_languages_upper.
   ///
   /// In fr, this message translates to:
-  /// **'Langue'**
+  /// **'LANGUES'**
   String get settings_languages_upper;
 
   /// No description provided for @settings_language_app.
@@ -5690,6 +5690,60 @@ abstract class AppLocalizations {
   /// In fr, this message translates to:
   /// **'Note d\'étude'**
   String get label_icon_commentary;
+
+  /// No description provided for @label_verses_side_by_side.
+  ///
+  /// In fr, this message translates to:
+  /// **'Versets côte à côte'**
+  String get label_verses_side_by_side;
+
+  /// No description provided for @message_verses_side_by_side.
+  ///
+  /// In fr, this message translates to:
+  /// **'Afficher les deux premières traductions côte à côte'**
+  String get message_verses_side_by_side;
+
+  /// No description provided for @settings_menu_display_upper.
+  ///
+  /// In fr, this message translates to:
+  /// **'MENU'**
+  String get settings_menu_display_upper;
+
+  /// No description provided for @settings_show_publication_description.
+  ///
+  /// In fr, this message translates to:
+  /// **'Afficher la description des publications'**
+  String get settings_show_publication_description;
+
+  /// No description provided for @settings_show_publication_description_subtitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Afficher la description qui a sur le site internet en dessous du titre.'**
+  String get settings_show_publication_description_subtitle;
+
+  /// No description provided for @settings_show_document_description.
+  ///
+  /// In fr, this message translates to:
+  /// **'Afficher la description pour les documents'**
+  String get settings_show_document_description;
+
+  /// No description provided for @settings_show_document_description_subtitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Afficher la description qui a sur le site internet en dessous des documents'**
+  String get settings_show_document_description_subtitle;
+
+  /// No description provided for @settings_menu_auto_open_single_document.
+  ///
+  /// In fr, this message translates to:
+  /// **'Ouvrir directement le document'**
+  String get settings_menu_auto_open_single_document;
+
+  /// No description provided for @settings_menu_auto_open_single_document_subtitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Si un seul document est présent, l\'ouvrir sans afficher le menu.'**
+  String get settings_menu_auto_open_single_document_subtitle;
 }
 
 class _AppLocalizationsDelegate

@@ -2752,7 +2752,7 @@ class AppLocalizationsAz extends AppLocalizations {
   String get settings_languages => 'Dil';
 
   @override
-  String get settings_languages_upper => 'DİL';
+  String get settings_languages_upper => 'DİLLƏR';
 
   @override
   String get settings_language_app => 'Tətbiqin Dili';
@@ -3148,4 +3148,36 @@ class AppLocalizationsAz extends AppLocalizations {
 
   @override
   String get label_icon_commentary => 'Tədris qeydi';
+
+  @override
+  String get label_verses_side_by_side => 'Ayələr yan-yana';
+
+  @override
+  String get message_verses_side_by_side =>
+      'İlk iki tərcüməni yan-yana göstərin';
+
+  @override
+  String get settings_menu_display_upper => 'MENYU';
+
+  @override
+  String get settings_show_publication_description => 'Nəşr təsvirini göstər';
+
+  @override
+  String get settings_show_publication_description_subtitle =>
+      'Veb-saytdakı təsviri başlığın altında göstər.';
+
+  @override
+  String get settings_show_document_description =>
+      'Sənədlər üçün təsviri göstər';
+
+  @override
+  String get settings_show_document_description_subtitle =>
+      'Veb-saytdakı təsviri sənədlərin altında göstər.';
+
+  @override
+  String get settings_menu_auto_open_single_document => 'Sənədi birbaşa aç';
+
+  @override
+  String get settings_menu_auto_open_single_document_subtitle =>
+      'Yalnız bir sənəd varsa, menyunu göstərmədən onu açın.';
 }

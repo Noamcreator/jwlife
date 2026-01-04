@@ -808,7 +808,7 @@
   "settings_download_over_cellular_subtitle": "Ez megnövelheti az adatforgalmi díjat.",
   "settings_how_jwl_uses_your_data": "Hogyan kezeli a JW Library az adataidat?",
   "settings_languages": "Nyelv",
-  "settings_languages_upper": "NYELV",
+  "settings_languages_upper": "NYELVEK",
   "settings_language_app": "Alkalmazás nyelve",
   "settings_language_library": "Könyvtár nyelve",
   "settings_license": "Licencszerződés",
@@ -922,5 +922,14 @@
   "label_research_inputs_fields": "MEZŐK",
   "label_research_wikipedia": "WIKIPÉDIA",
   "meps_language": "H",
-  "label_icon_commentary": "Tanulmányi feljegyzés"
+  "label_icon_commentary": "Tanulmányi feljegyzés",
+  "label_verses_side_by_side": "Versek egymás mellett",
+  "message_verses_side_by_side": "Az első két fordítás megjelenítése egymás mellett",
+  "settings_menu_display_upper": "MENÜ",
+  "settings_show_publication_description": "Kiadvány leírásának megjelenítése",
+  "settings_show_publication_description_subtitle": "A weboldalon található leírás megjelenítése a cím alatt.",
+  "settings_show_document_description": "Dokumentumok leírásának megjelenítése",
+  "settings_show_document_description_subtitle": "A weboldalon található leírás megjelenítése a dokumentumok alatt.",
+  "settings_menu_auto_open_single_document": "Dokumentum közvetlen megnyitása",
+  "settings_menu_auto_open_single_document_subtitle": "Ha csak egy dokumentum van jelen, nyissa meg a menü megjelenítése nélkül."
 }

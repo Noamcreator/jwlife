@@ -283,7 +283,7 @@ class _SubtitlesPageState extends State<SubtitlesPage> {
     <meta charset="utf-8">
     <style>
         body {
-          font-size: ${JwLifeSettings.instance.webViewData.fontSize}px;
+          font-size: ${JwLifeSettings.instance.webViewSettings.fontSize}px;
           overflow-y: scroll;
         }
         body.cc-theme--dark {
@@ -303,7 +303,7 @@ class _SubtitlesPageState extends State<SubtitlesPage> {
           line-height: 1.5;
         }
     </style>
-    <body class="${JwLifeSettings.instance.webViewData.theme}">
+    <body class="${JwLifeSettings.instance.webViewSettings.theme}">
       <article id="article" class="jwac docClass-31 ms-ROMAN ml-F dir-ltr layout-reading layout-sidebar">
         ${buffer.toString()}
       </article>
@@ -319,7 +319,7 @@ class _SubtitlesPageState extends State<SubtitlesPage> {
     final html = _buildHtmlContent();
     _controller?.loadData(
         data: html,
-        baseUrl: WebUri('file://${JwLifeSettings.instance.webViewData.webappPath}/')
+        baseUrl: WebUri('file://${JwLifeSettings.instance.webViewSettings.webappPath}/')
     ).then((_) {
       if (widget.query != null && widget.query!.isNotEmpty) {
         _search(widget.query!);
@@ -452,7 +452,7 @@ class _SubtitlesPageState extends State<SubtitlesPage> {
           InAppWebView(
             initialData: InAppWebViewInitialData(
                 data: _buildHtmlContent(),
-                baseUrl: WebUri('file://${JwLifeSettings.instance.webViewData.webappPath}/')),
+                baseUrl: WebUri('file://${JwLifeSettings.instance.webViewSettings.webappPath}/')),
             onWebViewCreated: (controller) {
               _controller = controller;
 

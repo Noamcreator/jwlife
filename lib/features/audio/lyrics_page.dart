@@ -60,7 +60,7 @@ class _LyricsPageState extends State<LyricsPage> {
           <meta charset="utf-8">
           <style> 
             body {
-              font-size: ${JwLifeSettings.instance.webViewData.fontSize}px;
+              font-size: ${JwLifeSettings.instance.webViewSettings.fontSize}px;
               overflow-y: scroll;
             }
             body.cc-theme--dark {
@@ -76,7 +76,7 @@ class _LyricsPageState extends State<LyricsPage> {
               background-size: auto 75%;
             }
           </style>
-          <body class="${JwLifeSettings.instance.webViewData.theme}">
+          <body class="${JwLifeSettings.instance.webViewSettings.theme}">
             <article id="article" class="jwac docClass-31 ms-${JwLifeSettings.instance.libraryLanguage.value.internalScriptName} ml-${widget.mepsLanguage} dir-${JwLifeSettings.instance.libraryLanguage.value.isRtl ? 'rtl' : 'ltr'} layout-reading layout-sidebar">
               $htmlContent
             </article>
@@ -162,7 +162,7 @@ class _LyricsPageState extends State<LyricsPage> {
         ),
         initialData: InAppWebViewInitialData(
             data: '',
-            baseUrl: WebUri('file://${JwLifeSettings.instance.webViewData.webappPath}/')
+            baseUrl: WebUri('file://${JwLifeSettings.instance.webViewSettings.webappPath}/')
         ),
         onWebViewCreated: (controller) {
           _controller = controller;

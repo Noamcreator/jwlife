@@ -53,45 +53,59 @@ class Congregation {
     };
   }
 
+  /// Retourne la DEUXIÈME réunion à venir
+  Map<String, dynamic>? nextNextMeeting(DateTime date) {
+    final first = nextMeeting(date);
+    if (first == null) return null;
+
+    // Pour trouver la suivante, on repart de la date de la première réunion
+    // en ajoutant 1h46 (fin de réunion + 1 min de marge)
+    final firstDate = first["date"] as DateTime;
+    final dateAfterFirst = firstDate.add(const Duration(hours: 1, minutes: 46));
+
+    return nextMeeting(dateAfterFirst);
+  }
+
   /// Retourne la prochaine réunion : { "date": DateTime, "type": "midweek"|"weekend" }
-  Map<String, dynamic>? nextMeeting() {
-    final midweek = getMidweekMeeting();
-    final weekend = getWeekendMeeting();
+  Map<String, dynamic>? nextMeeting(DateTime date) {
+    final midweek = getMidweekMeeting(date);
+    final weekend = getWeekendMeeting(date);
 
     if (midweek == null && weekend == null) return null;
     if (midweek == null) return {"date": weekend, "type": "weekend"};
     if (weekend == null) return {"date": midweek, "type": "midweek"};
 
-    return midweek.isBefore(weekend) ? {"date": midweek, "type": "midweek"} : {"date": weekend, "type": "weekend"};
+    return midweek.isBefore(weekend)
+        ? {"date": midweek, "type": "midweek"}
+        : {"date": weekend, "type": "weekend"};
   }
 
-  DateTime? getMidweekMeeting() =>
+  DateTime? getMidweekMeeting(DateTime date) =>
       (midweekWeekday == null || midweekTime == null)
           ? null
-          : _computeNextMeeting(midweekWeekday!, midweekTime!);
+          : _computeNextMeeting(midweekWeekday!, midweekTime!, date);
 
-  DateTime? getWeekendMeeting() =>
+  DateTime? getWeekendMeeting(DateTime date) =>
       (weekendWeekday == null || weekendTime == null)
           ? null
-          : _computeNextMeeting(weekendWeekday!, weekendTime!);
+          : _computeNextMeeting(weekendWeekday!, weekendTime!, date);
 
-  DateTime? _computeNextMeeting(int weekday, String time) {
+  DateTime? _computeNextMeeting(int weekday, String time, DateTime date) {
     final parts = time.split(':');
     if (parts.length < 2) return null;
 
     final hour = int.tryParse(parts[0]) ?? 0;
     final minute = int.tryParse(parts[1]) ?? 0;
 
-    final now = DateTime.now();
-    final todayWeekday = now.weekday;
+    final todayWeekday = date.weekday;
 
     var daysToAdd = weekday - todayWeekday;
     if (daysToAdd < 0) daysToAdd += 7;
 
     var meeting = DateTime(
-      now.year,
-      now.month,
-      now.day,
+      date.year,
+      date.month,
+      date.day,
       hour,
       minute,
     ).add(Duration(days: daysToAdd));
@@ -99,8 +113,8 @@ class Congregation {
     // Fin de la réunion (1h45 après le début)
     final meetingEnd = meeting.add(const Duration(hours: 1, minutes: 45));
 
-    // Si on est déjà après la fin -> prendre la semaine suivante
-    if (now.isAfter(meetingEnd)) {
+    // Si on est déjà après la fin de la réunion de ce jour-là -> prendre la semaine suivante
+    if (date.isAfter(meetingEnd)) {
       meeting = meeting.add(const Duration(days: 7));
     }
 

@@ -11,6 +11,7 @@ import 'package:jwlife/core/ui/theme.dart';
 import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/data/controller/block_ranges_controller.dart';
 import 'package:jwlife/data/controller/tags_controller.dart';
+import 'package:jwlife/data/databases/history.dart';
 import 'package:jwlife/data/databases/media_collections.dart';
 import 'package:jwlife/data/databases/pub_collections.dart';
 import 'package:jwlife/data/models/publication_attribute.dart';
@@ -48,6 +49,7 @@ class _JwLifePageContainer extends StatelessWidget {
 class JwLifeApp extends StatefulWidget {
   static final PubCollections pubCollections = PubCollections();
   static final MediaCollections mediaCollections = MediaCollections();
+  static final History history = History();
   static final Userdata userdata = Userdata();
   static final JwLifeAudioPlayer audioPlayer = JwLifeAudioPlayer();
   static BibleCluesInfo bibleCluesInfo = BibleCluesInfo(bibleBookNames: []);
@@ -81,8 +83,8 @@ class JwLifeAppState extends State<JwLifeApp> {
       bool isDark = currentResolvedBrightness == Brightness.dark;
       String theme = isDark ? 'dark' : 'light';
 
-      if(JwLifeSettings.instance.webViewData.theme != theme) {
-        JwLifeSettings.instance.webViewData.updateTheme(isDark);
+      if(JwLifeSettings.instance.webViewSettings.theme != theme) {
+        JwLifeSettings.instance.webViewSettings.updateTheme(isDark);
       }
     }
 
@@ -100,7 +102,7 @@ class JwLifeAppState extends State<JwLifeApp> {
     bool isDark = resolvedBrightness == Brightness.dark;
 
     JwLifeSettings.instance.themeMode = themeMode;
-    JwLifeSettings.instance.webViewData.updateTheme(isDark);
+    JwLifeSettings.instance.webViewSettings.updateTheme(isDark);
 
     final theme = themeMode == ThemeMode.dark ? 'dark' : themeMode == ThemeMode.light ? 'light' : 'system';
     AppSharedPreferences.instance.setTheme(theme);
@@ -211,6 +213,7 @@ class JwLifeAppState extends State<JwLifeApp> {
     await Future.wait([
       JwLifeApp.pubCollections.init(),
       JwLifeApp.mediaCollections.init(),
+      JwLifeApp.history.init(),
       TilesCache().init(),
       JwLifeApp.userdata.init()
     ]);
@@ -219,7 +222,7 @@ class JwLifeAppState extends State<JwLifeApp> {
     final isDark = _themeMode == ThemeMode.system ? MediaQuery.of(context).platformBrightness == Brightness.dark : _themeMode == ThemeMode.dark;
 
     // Étape 5 : Initialisation finale
-    JwLifeSettings.instance.webViewData.init(isDark);
+    JwLifeSettings.instance.webViewSettings.init(isDark);
 
     AppDataService.instance.loadAllContentData();
   }

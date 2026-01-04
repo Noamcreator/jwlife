@@ -2,10 +2,10 @@ import 'dart:collection';
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/app/services/settings_service.dart';
 import 'package:jwlife/core/utils/utils_jwpub.dart';
 import 'package:jwlife/core/utils/utils_pub.dart';
-import 'package:jwlife/data/databases/history.dart';
 import 'package:jwlife/data/models/audio.dart';
 import 'package:jwlife/data/models/media.dart';
 import 'package:jwlife/data/models/publication.dart';
@@ -101,7 +101,7 @@ class DownloadPageModel with ChangeNotifier {
 
       // 1. On gère d'abord les tris qui demandent la base de données
       if (sortType == 'frequently_used' || sortType == 'rarely_used') {
-        _mixedItems = await History.searchUsedItems(_mixedItems, sortType);
+        _mixedItems = await JwLifeApp.history.searchUsedItems(_mixedItems, sortType);
       }
 
       // 2. On gère les autres tris synchrones
@@ -161,7 +161,7 @@ class DownloadPageModel with ChangeNotifier {
               if (f == result.files.last) {
                 CatalogDb.instance.updateCatalogCategories(JwLifeSettings.instance.libraryLanguage.value);
                 await _loadData();
-                showPage(PublicationMenuView(publication: jwpub));
+                showPage(PublicationMenuPage(publication: jwpub));
               }
             }
           }

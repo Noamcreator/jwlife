@@ -1,11 +1,9 @@
 import 'dart:typed_data';
 
-import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/core/uri/jworg_uri.dart';
 import 'package:jwlife/data/models/publication.dart';
-import 'package:jwlife/data/databases/history.dart';
 import 'package:jwlife/data/models/userdata/bookmark.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
@@ -76,7 +74,7 @@ class DatedText {
     if(!hasAlreadyBeenRead) {
       await loadUserdata();
     }
-    History.insertDocument(getTitle(), publication, mepsDocumentId, null, null);
+    JwLifeApp.history.insertDatedText(getTitle(), publication, firstDateOffset, lastDateOffset);
     hasAlreadyBeenRead = true;
   }
 

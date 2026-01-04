@@ -808,7 +808,7 @@
   "settings_download_over_cellular_subtitle": "Может взиматься плата за передачу данных.",
   "settings_how_jwl_uses_your_data": "Как JW Library использует ваши данные",
   "settings_languages": "Язык",
-  "settings_languages_upper": "ЯЗЫК",
+  "settings_languages_upper": "ЯЗЫКИ",
   "settings_language_app": "Язык приложения",
   "settings_language_library": "Язык библиотеки",
   "settings_license": "Лицензионное соглашение",
@@ -922,5 +922,14 @@
   "label_research_inputs_fields": "ПОЛЯ",
   "label_research_wikipedia": "ВИКИПЕДИЯ",
   "meps_language": "U",
-  "label_icon_commentary": "Учебная заметка"
+  "label_icon_commentary": "Учебная заметка",
+  "label_verses_side_by_side": "Стихи бок о бок",
+  "message_verses_side_by_side": "Показывать первые два перевода бок о бок",
+  "settings_menu_display_upper": "МЕНЮ",
+  "settings_show_publication_description": "Показывать описание публикаций",
+  "settings_show_publication_description_subtitle": "Показывать описание с веб-сайта под заголовком.",
+  "settings_show_document_description": "Показывать описание для документов",
+  "settings_show_document_description_subtitle": "Показывать описание с веб-сайта под документами.",
+  "settings_menu_auto_open_single_document": "Открыть документ напрямую",
+  "settings_menu_auto_open_single_document_subtitle": "Если имеется только один документ, открыть его без отображения меню."
 }

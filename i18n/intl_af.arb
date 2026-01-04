@@ -808,7 +808,7 @@
   "settings_download_over_cellular_subtitle": "Dit kan datakoste tot gevolg hê.",
   "settings_how_jwl_uses_your_data": "Hoe JW Library jou data gebruik",
   "settings_languages": "Taal",
-  "settings_languages_upper": "Taal",
+  "settings_languages_upper": "TALE",
   "settings_language_app": "Toepassingstaal",
   "settings_language_library": "Biblioteektaal",
   "settings_license": "Lisensie-ooreenkoms",
@@ -922,5 +922,14 @@
   "label_research_inputs_fields": "VELDE",
   "label_research_wikipedia": "WIKIPEDIA",
   "meps_language": "AF",
-  "label_icon_commentary": "Studienota"
+  "label_icon_commentary": "Studienota",
+  "label_verses_side_by_side": "Verse langs mekaar",
+  "message_verses_side_by_side": "Vertoon die eerste twee vertalings langs mekaar",
+  "settings_menu_display_upper": "SPYSKAART",
+  "settings_show_publication_description": "Wys publikasiebeskrywing",
+  "settings_show_publication_description_subtitle": "Wys die beskrywing vanaf die webwerf onder die titel.",
+  "settings_show_document_description": "Wys beskrywing vir dokumente",
+  "settings_show_document_description_subtitle": "Wys die beskrywing vanaf die webwerf onder die dokumente.",
+  "settings_menu_auto_open_single_document": "Maak dokument direk oop",
+  "settings_menu_auto_open_single_document_subtitle": "As daar net een dokument is, maak dit oop sonder om die spyskaart te wys."
 }

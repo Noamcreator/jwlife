@@ -1,8 +1,9 @@
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
+import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/app/jwlife_app_bar.dart';
 import 'package:jwlife/core/icons.dart';
-import 'package:jwlife/data/databases/history.dart';
+import 'package:jwlife/data/models/bible_book.dart';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/widgets/image_cached_widget.dart';
 import 'package:jwlife/widgets/responsive_appbar_actions.dart';
@@ -13,7 +14,6 @@ import '../../../core/utils/widgets_utils.dart';
 import '../../../i18n/i18n.dart';
 import '../../document/data/models/multimedia.dart';
 import '../../image/pages/full_screen_image_page.dart';
-import '../models/bible_chapter_model.dart';
 
 class BibleBookMediasView extends StatefulWidget {
   final Publication bible;
@@ -41,11 +41,11 @@ class _BibleBookMediasViewState extends State<BibleBookMediasView> {
       isLoading = true;
     });
 
-    int? bookNumber = widget.bibleBook.bookInfo['BibleBookId'] as int?;
+    int? bookNumber = widget.bibleBook.bookNumber;
     int? firstVerseId = widget.bibleBook.firstVerseId;
     int? lastVerseId = widget.bibleBook.lastVerseId;
 
-    if (bookNumber != null && firstVerseId != null && lastVerseId != null) {
+    if (firstVerseId != null && lastVerseId != null) {
       // Logique de requête inchangée
       List<Map<String, dynamic>> results = await widget.bible.documentsManager!.database.rawQuery(''' 
         SELECT 
@@ -142,7 +142,7 @@ class _BibleBookMediasViewState extends State<BibleBookMediasView> {
   }
 
   String _getChapterTitle(int chapterId) {
-    final bibleDocument = widget.bible.documentsManager!.documents.firstWhereOrNull((d) => d.bookNumber == widget.bibleBook.bookInfo['BibleBookId'] && d.chapterNumber == chapterId);
+    final bibleDocument = widget.bible.documentsManager!.documents.firstWhereOrNull((d) => d.bookNumber == widget.bibleBook.bookNumber && d.chapterNumber == chapterId);
     return bibleDocument?.getDisplayTitle() ?? '';
   }
 
@@ -216,12 +216,12 @@ class _BibleBookMediasViewState extends State<BibleBookMediasView> {
     return AppPage(
       appBar: JwLifeAppBar(
         title: i18n().label_media_gallery,
-        subTitle: widget.bibleBook.bookInfo['BookName'],
+        subTitle: widget.bibleBook.bookName,
         actions: [
           IconTextButton(
             icon: const Icon(JwIcons.arrow_circular_left_clock),
             onPressed: (BuildContext context) {
-              History.showHistoryDialog(context);
+              JwLifeApp.history.showHistoryDialog(context);
             },
           )
         ],

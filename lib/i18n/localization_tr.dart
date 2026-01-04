@@ -2750,7 +2750,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get settings_languages => 'Dil';
 
   @override
-  String get settings_languages_upper => 'DİL';
+  String get settings_languages_upper => 'DİLLER';
 
   @override
   String get settings_language_app => 'Uygulama Dili';
@@ -3145,4 +3145,37 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get label_icon_commentary => 'Çalışma notu';
+
+  @override
+  String get label_verses_side_by_side => 'Ayetler yan yana';
+
+  @override
+  String get message_verses_side_by_side =>
+      'İlk iki çeviriyi yan yana görüntüle';
+
+  @override
+  String get settings_menu_display_upper => 'MENÜ';
+
+  @override
+  String get settings_show_publication_description =>
+      'Yayın açıklamasını göster';
+
+  @override
+  String get settings_show_publication_description_subtitle =>
+      'Web sitesindeki açıklamayı başlığın altında göster.';
+
+  @override
+  String get settings_show_document_description =>
+      'Belgeler için açıklamayı göster';
+
+  @override
+  String get settings_show_document_description_subtitle =>
+      'Web sitesindeki açıklamayı belgelerin altında göster.';
+
+  @override
+  String get settings_menu_auto_open_single_document => 'Belgeyi doğrudan aç';
+
+  @override
+  String get settings_menu_auto_open_single_document_subtitle =>
+      'Yalnızca bir belge varsa, menüyü görüntülemeden açın.';
 }

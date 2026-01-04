@@ -25,11 +25,17 @@ class SharedPreferencesKeys {
   // Web app
   static const webAppDownloadVersion = PrefKey('webapp_version', '');
 
+  // Menu
+  static const showPublicationDescription = PrefKey('show_publication_description', true);
+  static const showDocumentDescription = PrefKey('show_document_description', true);
+  static const autoOpenSingleDocument = PrefKey('auto_open_single_document', false);
+
   // Document
   static const fontSize = PrefKey('font_size', 20.0);
   static const fullscreenMode = PrefKey('fullscreen', true);
   static const readingMode = PrefKey('reading', false);
   static const blockingHorizontallyMode = PrefKey('blocking_horizontally', false);
+  static const versesInParallel = PrefKey('verses_in_parallel', false);
 
   // Prononciation guide
   static const furiganaActive = PrefKey('furigana_active', false);

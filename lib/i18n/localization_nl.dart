@@ -2774,7 +2774,7 @@ class AppLocalizationsNl extends AppLocalizations {
   String get settings_languages => 'Taal';
 
   @override
-  String get settings_languages_upper => 'Taal';
+  String get settings_languages_upper => 'TALEN';
 
   @override
   String get settings_language_app => 'Applicatietaal';
@@ -3170,4 +3170,38 @@ class AppLocalizationsNl extends AppLocalizations {
 
   @override
   String get label_icon_commentary => 'Studienotitie';
+
+  @override
+  String get label_verses_side_by_side => 'Verzen naast elkaar';
+
+  @override
+  String get message_verses_side_by_side =>
+      'Toon de eerste twee vertalingen naast elkaar';
+
+  @override
+  String get settings_menu_display_upper => 'MENU';
+
+  @override
+  String get settings_show_publication_description =>
+      'Publicatiebeschrijving weergeven';
+
+  @override
+  String get settings_show_publication_description_subtitle =>
+      'Toon de beschrijving van de website onder de titel.';
+
+  @override
+  String get settings_show_document_description =>
+      'Beschrijving voor documenten weergeven';
+
+  @override
+  String get settings_show_document_description_subtitle =>
+      'Toon de beschrijving van de website onder de documenten.';
+
+  @override
+  String get settings_menu_auto_open_single_document =>
+      'Document rechtstreeks openen';
+
+  @override
+  String get settings_menu_auto_open_single_document_subtitle =>
+      'Als er slechts één document aanwezig is, open het dan zonder het menu weer te geven.';
 }

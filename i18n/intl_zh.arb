@@ -922,5 +922,14 @@
   "label_research_inputs_fields": "字段",
   "label_research_wikipedia": "维基百科",
   "meps_language": "CHS",
-  "label_icon_commentary": "学习笔记"
+  "label_icon_commentary": "学习笔记",
+  "label_verses_side_by_side": "诗节并排",
+  "message_verses_side_by_side": "并排显示前两个译本",
+  "settings_menu_display_upper": "菜单",
+  "settings_show_publication_description": "显示出版物描述",
+  "settings_show_publication_description_subtitle": "在标题下方显示网站上的描述。",
+  "settings_show_document_description": "显示文档描述",
+  "settings_show_document_description_subtitle": "在文档下方显示网站上的描述。",
+  "settings_menu_auto_open_single_document": "直接打开文档",
+  "settings_menu_auto_open_single_document_subtitle": "如果只有一个文档，则直接打开而不显示菜单。"
 }

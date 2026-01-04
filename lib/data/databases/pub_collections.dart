@@ -3,7 +3,6 @@ import 'dart:io';
 import 'package:jwlife/core/utils/files_helper.dart';
 import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/core/utils/utils_jwpub.dart';
-import 'package:jwlife/data/databases/catalog.dart';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/repositories/PublicationRepository.dart';
 import 'package:jwlife/features/document/local/dated_text_manager.dart';
@@ -20,7 +19,7 @@ class PubCollections {
     final pubCollections = await getPubCollectionsDatabaseFile();
     _database = await openDatabase(
         pubCollections.path,
-        version: 2,
+        version: 3,
         onCreate: (db, version) async {
           await createDbPubCollection(db);
         },
@@ -31,6 +30,49 @@ class PubCollections {
 
             // Ajout de la colonne IsSingleDocument
             await addColumnSafe(db, 'Publication', 'IsSingleDocument', 'INTEGER DEFAULT 0');
+          }
+          if(oldVersion == 2 && newVersion == 3) {
+            // Création de la table Document
+            await db.execute("""
+              CREATE TABLE IF NOT EXISTS "AvailableBibleBook" (
+                "AvailableBibleBookId"	INTEGER NOT NULL,
+                "PublicationId"	INTEGER,
+                "Book"	INTEGER,
+                PRIMARY KEY("AvailableBibleBookId" AUTOINCREMENT),
+                FOREIGN KEY("PublicationId") REFERENCES "Publication"("PublicationId")
+              );
+            """);
+
+            // Création de la table DatedText
+            await db.execute("""
+              CREATE TABLE IF NOT EXISTS "DatedText" (
+                "DatedTextId"	INTEGER NOT NULL,
+                "PublicationId"	INTEGER,
+                "Start"	INTEGER NOT NULL,
+                "End"	INTEGER NOT NULL,
+                "Class"	INTEGER NOT NULL,
+                PRIMARY KEY("DatedTextId" AUTOINCREMENT),
+                FOREIGN KEY("PublicationId") REFERENCES "Publication"("PublicationId")
+              );
+            """);
+
+            // Ajouter les index
+            await db.execute("CREATE UNIQUE INDEX AvailableBibleBook_UserKey ON AvailableBibleBook(Book, PublicationId);");
+            await db.execute("CREATE UNIQUE INDEX DatedText_UserKey ON DatedText(Start, End, Class, PublicationId);");
+            await db.execute("CREATE UNIQUE INDEX Document_UserKey ON Document (PublicationId, MepsDocumentId);");
+            await db.execute("CREATE INDEX IX_DatedText_PublicationId ON DatedText(PublicationId);");
+            await db.execute("CREATE INDEX IX_Document_LanguageIndex_MepsDocumentId_PublicationId ON Document (LanguageIndex, MepsDocumentId, PublicationId);");
+            await db.execute("CREATE INDEX IX_Image_Signature ON Image (Signature);");
+            await db.execute("CREATE INDEX IX_Publication_Path_PublicationId_Hash_Timestamp ON Publication (Path, PublicationId, Hash, Timestamp);");
+            await db.execute("CREATE INDEX IX_Publication_KeySymbol_MepsLanguageId_IssueTagNumber_PublicationId ON Publication (KeySymbol, MepsLanguageId, IssueTagNumber, PublicationId);");
+            await db.execute("CREATE INDEX IX_Publication_MepsLanguageId_PublicationType_IssueTagNumber ON Publication (MepsLanguageId, PublicationType, IssueTagNumber);");
+            await db.execute("CREATE INDEX IX_Publication_PublicationCategorySymbol_PublicationType_MepsLanguageId ON Publication (PublicationCategorySymbol, PublicationType, MepsLanguageId);");
+            await db.execute("CREATE INDEX IX_Publication_PublicationType ON Publication (PublicationType);");
+            await db.execute("CREATE UNIQUE INDEX Image_UserKey ON Image(PublicationId, Path);");
+            await db.execute("CREATE UNIQUE INDEX PublicationAttribute_UserKey ON PublicationAttribute(PublicationId, Attribute);");
+            await db.execute("CREATE UNIQUE INDEX PublicationIssueAttribute_UserKey ON PublicationIssueAttribute(PublicationId, Attribute);");
+            await db.execute("CREATE UNIQUE INDEX PublicationIssueProperty_UserKey ON PublicationIssueProperty(PublicationId);");
+            await db.execute("CREATE UNIQUE INDEX Publication_UserKey ON Publication(KeySymbol, MepsLanguageId, IssueTagNumber);");
           }
         }
     );
@@ -98,17 +140,17 @@ class PubCollections {
     printTime('fetchDownloadPublications end');
   }
 
-  Future<Publication?> getDocumentFromMepsDocumentId(int mepsDocId, int currentLanguageId) async {
+  Future<Publication?> getBibleBookFromAvailable(int bookNumber, String keySymbol, int mepsLanguageId) async {
     List<Map<String, dynamic>> result = await _database.rawQuery('''
       SELECT 
         p.KeySymbol,
         p.IssueTagNumber,
         p.MepsLanguageId
       FROM Publication p
-      LEFT JOIN Document d ON p.PublicationId = d.PublicationId
-      WHERE d.MepsDocumentId = ? AND p.MepsLanguageId = ?
+      INNER JOIN AvailableBibleBook a ON p.PublicationId = a.PublicationId
+      WHERE a.Book = ? AND p.KeySymbol = ? AND p.MepsLanguageId = ?
       LIMIT 1
-    ''', [mepsDocId, currentLanguageId]);
+    ''', [bookNumber, keySymbol, mepsLanguageId]);
 
     if (result.isNotEmpty) {
       return PublicationRepository().getPublicationWithMepsLanguageId(result.first['KeySymbol'], result.first['IssueTagNumber'], result.first['MepsLanguageId']);
@@ -116,7 +158,112 @@ class PubCollections {
     return null;
   }
 
-  Future<Publication?> insertPublicationFromManifest(dynamic manifestData, String path, {Publication? publication, bool reOpenDocumentsManager = false, bool reOpenDatedTextManager = false}) async {
+  Future<Publication?> getDatedTextFromAvailable(int start, int end, String keySymbol, int mepsLanguageId) async {
+    List<Map<String, dynamic>> result = await _database.rawQuery('''
+      SELECT 
+        p.KeySymbol,
+        p.IssueTagNumber,
+        p.MepsLanguageId
+      FROM Publication p
+      INNER JOIN DatedText d ON p.PublicationId = d.PublicationId
+      WHERE d.Start = ? AND d.End = ? AND p.KeySymbol = ? AND p.MepsLanguageId = ?
+      LIMIT 1
+    ''', [start, end, keySymbol, mepsLanguageId]);
+
+    if (result.isNotEmpty) {
+      return PublicationRepository().getPublicationWithMepsLanguageId(result.first['KeySymbol'], result.first['IssueTagNumber'], result.first['MepsLanguageId']);
+    }
+    return null;
+  }
+
+  Future<Publication?> getDocumentFromAvailable(int mepsDocId, int mepsLanguageId) async {
+    List<Map<String, dynamic>> result = await _database.rawQuery('''
+      SELECT 
+        p.KeySymbol,
+        p.IssueTagNumber,
+        d.LanguageIndex
+      FROM Publication p
+      INNER JOIN Document d ON p.PublicationId = d.PublicationId
+      WHERE d.MepsDocumentId = ? AND p.MepsLanguageId = ?
+      LIMIT 1
+    ''', [mepsDocId, mepsLanguageId]);
+
+    if (result.isNotEmpty) {
+      return PublicationRepository().getPublicationWithMepsLanguageId(result.first['KeySymbol'], result.first['IssueTagNumber'], result.first['LanguageIndex']);
+    }
+    return null;
+  }
+
+  Future<List<Publication>> getBiblesBookFromAvailable(int bookNumber) async {
+    List<Map<String, dynamic>> result = await _database.rawQuery('''
+        SELECT p.KeySymbol
+        FROM Publication p
+        INNER JOIN AvailableBibleBook a ON p.PublicationId = a.PublicationId
+        WHERE a.Book = ?
+      ''', [bookNumber]);
+
+    if (result.isNotEmpty) {
+      // On extrait tous les KeySymbols trouvés
+      List<String> symbols = result.map((row) => row['KeySymbol'] as String).toList();
+      
+      // On filtre la liste globale pour ne garder que les correspondances
+      return PublicationRepository()
+          .getAllBibles()
+          .where((b) => symbols.contains(b.keySymbol))
+          .toList();
+    }
+    return [];
+  }
+
+  Future<List<Publication>> getDatedTextsFromAvailable(int start, int end) async {
+    List<Map<String, dynamic>> result = await _database.rawQuery('''
+        SELECT p.KeySymbol
+        FROM Publication p
+        INNER JOIN DatedText d ON p.PublicationId = d.PublicationId
+        WHERE d.Start = ? AND d.End = ?
+      ''', [start, end]); // Suppression de keySymbol ici
+
+    if (result.isNotEmpty) {
+      List<String> symbols = result.map((row) => row['KeySymbol'] as String).toList();
+
+      return PublicationRepository()
+          .getAllDownloadedPublications()
+          .where((p) => symbols.contains(p.keySymbol))
+          .toList();
+    }
+    return [];
+  }
+
+  Future<List<Publication>> getDocumentsFromAvailable(int mepsDocId) async {
+    List<Map<String, dynamic>> result = await _database.rawQuery('''
+        SELECT 
+          p.KeySymbol,
+          p.IssueTagNumber
+        FROM Publication p
+        INNER JOIN Document d ON p.PublicationId = d.PublicationId
+        WHERE d.MepsDocumentId = ?
+      ''', [mepsDocId]);
+
+    if (result.isNotEmpty) {
+      // On crée un Set de clés uniques "SYMBOL-ISSUETAG" pour une recherche rapide O(1)
+      final Set<String> targetKeys = result.map((row) {
+        final symbol = row['KeySymbol'] as String;
+        final issueTag = row['IssueTagNumber'] ?? 0; // Gère le cas null
+        return "$symbol-$issueTag";
+      }).toSet();
+
+      return PublicationRepository()
+          .getAllDownloadedPublications()
+          .where((p) {
+            // On compare la clé composite de l'objet Publication avec notre Set
+            return targetKeys.contains("${p.keySymbol}-${p.issueTagNumber}");
+          })
+          .toList();
+    }
+    return [];
+  }
+
+  Future<Publication?> insertPublicationFromManifest(dynamic manifestData, Publication? publication, String path, {bool reOpenDocumentsManager = false, bool reOpenDatedTextManager = false}) async {
     try {
       dynamic pub = manifestData['publication'];
       String timeStamp = manifestData['timestamp'];
@@ -131,22 +278,7 @@ class PubCollections {
         keySymbol = publication.keySymbol;
       }
       else {
-        String? keySymbolCatalog = await CatalogDb.instance.getKeySymbolFromCatalogue(symbol, issueTagNum, languageId);
-
-        if(keySymbolCatalog != null) {
-          keySymbol = keySymbolCatalog;
-        }
-        else {
-          keySymbol = pub['undatedSymbol'] ?? symbol;
-        }
-      }
-
-      // Vérifier si la publication existe déjà
-      Publication? existPub = PublicationRepository().getByCompositeKeyForDownloadWithMepsLanguageId(keySymbol, issueTagNum, languageId);
-
-      // Comparer les timestamps si la publication existe déjà
-      if (existPub?.timeStamp == timeStamp) {
-        return existPub;
+         keySymbol = pub['undatedSymbol'] ?? symbol;
       }
 
       // Préparation de la base de données de publication
@@ -157,7 +289,22 @@ class PubCollections {
       bool hasHeadingSearch = await checkIfTableExists(publicationDb, 'Heading') && (await publicationDb.rawQuery("SELECT COUNT(*) FROM Heading")).first['COUNT(*)'] as int > 0;
       bool hasVerseCommentaryTable = await checkIfTableExists(publicationDb, 'VerseCommentary') && (await publicationDb.rawQuery("SELECT COUNT(*) FROM VerseCommentary")).first['COUNT(*)'] as int > 0;
 
-      String description = await extractPublicationDescription(publication, symbol: keySymbol, issueTagNumber: issueTagNum, mepsLanguage: 'F');
+      String description = '';
+      bool hasDocumentMetadataTable = await checkIfTableExists(publicationDb, 'DocumentMetadata');
+
+      if(hasDocumentMetadataTable) {
+        final documentMetadataDescription = await publicationDb.query(
+          'DocumentMetadata',
+          columns: ['Value'],
+          where: 'MetadataKey = ? AND DocumentId = ?',
+          whereArgs: ['WEB:OnSiteAdDescription', 0],
+        );
+        description = documentMetadataDescription.isNotEmpty ? documentMetadataDescription.first['Value'] as String : '';
+      }
+      else {
+        description = await fetchPublicationDescription(publication, symbol: keySymbol, issueTagNumber: issueTagNum, mepsLanguage: 'F');
+      }
+
       String hashPublication = getPublicationHash(languageId, symbol, year, issueTagNum);
 
       Map<String, dynamic> pubDb = {
@@ -191,22 +338,36 @@ class PubCollections {
 
       int publicationId;
 
-      if (existPub != null) {
-        // Mise à jour de la publication existante
-        publicationId = existPub.id;
+      if (publication != null && publication.isDownloadedNotifier.value) {
+        // Cas : MISE À JOUR
+        publicationId = publication.id;
         pubDb['PublicationId'] = publicationId;
-        await _database.update('Publication', pubDb, where: 'PublicationId = ?', whereArgs: [publicationId]);
 
-        // Suppression des anciennes données liées
-        await _database.delete('Image', where: 'PublicationId = ?', whereArgs: [publicationId]);
-        await _database.delete('PublicationAttribute', where: 'PublicationId = ?', whereArgs: [publicationId]);
-        await _database.delete('PublicationIssueAttribute', where: 'PublicationId = ?', whereArgs: [publicationId]);
-        await _database.delete('PublicationIssueProperty', where: 'PublicationId = ?', whereArgs: [publicationId]);
-        await _database.delete('Document', where: 'PublicationId = ?', whereArgs: [publicationId]);
-      }
+        await _database.transaction((txn) async {
+          // Mise à jour de la publication principale
+          await txn.update(
+            'Publication', 
+            pubDb, 
+            where: 'PublicationId = ?', 
+            whereArgs: [publicationId],
+          );
+
+          // Suppression groupée des anciennes données liées
+          final tables = [
+            'AvailableBibleBook', 'DatedText', 'Document', 
+            'Image', 'PublicationAttribute', 'PublicationIssueAttribute', 
+            'PublicationIssueProperty', 'Publication'
+          ];
+
+          for (var table in tables) {
+            await txn.delete(table, where: 'PublicationId = ?', whereArgs: [publicationId]);
+          }
+        });
+      } 
       else {
-        // Insertion d'une nouvelle publication
+        // Cas : INSERTION (si publication est null OU n'est pas encore téléchargée)
         publicationId = await _database.insert('Publication', pubDb);
+        pubDb['PublicationId'] = publicationId;
       }
 
       // Utilisation de batch pour des insertions groupées
@@ -267,18 +428,67 @@ class PubCollections {
         }
       }
 
-      // Insertion des documents
-      List<Map<String, dynamic>> documentList = await publicationDb.query('Document', columns: ['MepsDocumentId', 'MepsLanguageIndex']);
-      for (var document in documentList) {
-        batch.insert('Document', {
-          'LanguageIndex': document['MepsLanguageIndex'],
-          'MepsDocumentId': document['MepsDocumentId'],
-          'PublicationId': publicationId
-        });
+      bool hasPublicationViewItemDocument = await checkIfTableExists(publicationDb, 'PublicationViewItemDocument');
+      bool hasDocumentTable = await checkIfTableExists(publicationDb, 'Document');
+      bool hasDatedTextTable = await checkIfTableExists(publicationDb, 'DatedText');
+      bool hasBibleBookTable = await checkIfTableExists(publicationDb, 'BibleBook');
+
+      if (hasPublicationViewItemDocument) {
+        // On exécute la requête directement sur publicationDb
+        final List<Map<String, dynamic>> result = await publicationDb.rawQuery(
+          'SELECT COUNT(*) FROM PublicationViewItemDocument'
+        );
+
+        // Sqflite.firstIntValue est l'utilitaire idéal pour extraire le chiffre du COUNT
+        final int count = Sqflite.firstIntValue(result) ?? 0;
+
+        // Si un seul document est trouvé, on met à jour la variable pubDb
+        if (count == 1) {
+          pubDb['IsSingleDocument'] = 1;
+        }
+      }
+      if(hasDocumentTable) {
+        // Insertion des documents
+        final documents = await publicationDb.query('Document', columns: ['MepsDocumentId', 'MepsLanguageIndex']);
+        for (var document in documents) {
+          batch.insert('Document', {
+            'LanguageIndex': document['MepsLanguageIndex'],
+            'MepsDocumentId': document['MepsDocumentId'],
+            'PublicationId': publicationId
+          });
+        }
       }
 
-      if(documentList.length == 1) {
-        pubDb['IsSingleDocument'] = 1;
+      if (hasDatedTextTable) {
+          final List<Map<String, dynamic>> datedTexts = await publicationDb.rawQuery('''
+            SELECT 
+              DT.FirstDateOffset, 
+              DT.LastDateOffset,
+              D.Class 
+            FROM DatedText DT
+            INNER JOIN Document D ON DT.DocumentId = D.DocumentId
+          ''');
+
+          // 2. Insertion en batch
+          for (var datedText in datedTexts) {
+            batch.insert('DatedText', {
+              'Start': datedText['FirstDateOffset'],
+              'End': datedText['LastDateOffset'],
+              'Class': datedText['Class'],
+              'PublicationId': publicationId
+            });
+          }
+        }
+
+      if(hasBibleBookTable) {
+        // Insertion des bibles
+        final bibles = await publicationDb.query('BibleBook', columns: ['BibleBookId']);
+        for (var bible in bibles) {
+          batch.insert('AvailableBibleBook', {
+            'Book': bible['BibleBookId'],
+            'PublicationId': publicationId
+          });
+        }
       }
 
       // Exécution du batch
@@ -313,18 +523,18 @@ class PubCollections {
       var imageLsr = imagesDb.where((element) => element['Type'] == 'lsr' && element['Width'] == 1200 && element['Height'] == 600).toList();
       pubDb['ImageLsr'] = imageLsr.isNotEmpty ? imageLsr.first['Path'] : null;
 
-      if(publication != null) {
-        if(reOpenDocumentsManager) {
-          publication.documentsManager ??= DocumentsManager(publication: publication);
-          await publication.documentsManager!.initializeDatabaseAndData();
-        }
-        else if (reOpenDatedTextManager) {
-          publication.datedTextManager ??= DatedTextManager(publication: publication);
-          await publication.documentsManager!.initializeDatabaseAndData();
-        }
+      Publication finalPub = Publication.fromJson(pubDb, updateValue: true);
+
+      if(reOpenDocumentsManager) {
+        finalPub.documentsManager ??= DocumentsManager(publication: finalPub);
+        await finalPub.documentsManager!.initializeDatabaseAndData();
+      }
+      else if (reOpenDatedTextManager) {
+        finalPub.datedTextManager ??= DatedTextManager(publication: finalPub);
+        await finalPub.datedTextManager!.initializeDatabaseAndData();
       }
 
-      return Publication.fromJson(pubDb);
+      return finalPub;
     }
     catch (e) {
       print("Erreur lors de l'insertion ou de la mise à jour de la publication : $e");
@@ -334,7 +544,6 @@ class PubCollections {
 
   Future<void> deletePublication(Publication publication) async {
     await _database.transaction((txn) async {
-      // 1. Récupérer l'ID de la publication à supprimer
       final List<Map<String, dynamic>> results = await txn.query(
         'Publication',
         columns: ['PublicationId'],
@@ -342,27 +551,53 @@ class PubCollections {
         whereArgs: [publication.keySymbol, publication.issueTagNumber, publication.mepsLanguage.id],
       );
 
-      if (results.isEmpty) {
-        // La publication n'existe pas, rien à faire
-        return;
-      }
+      if (results.isEmpty) return;
 
       int publicationId = results.first['PublicationId'] as int;
 
-      // 2. Supprimer les enregistrements liés dans les autres tables
-      await txn.delete('Document', where: 'PublicationId = ?', whereArgs: [publicationId]);
-      await txn.delete('Image', where: 'PublicationId = ?', whereArgs: [publicationId]);
-      await txn.delete('PublicationAttribute', where: 'PublicationId = ?', whereArgs: [publicationId]);
-      await txn.delete('PublicationIssueAttribute', where: 'PublicationId = ?', whereArgs: [publicationId]);
-      await txn.delete('PublicationIssueProperty', where: 'PublicationId = ?', whereArgs: [publicationId]);
+      // Utilisation d'un batch pour regrouper les suppressions
+      final batch = txn.batch();
+      
+      final tables = [
+        'AvailableBibleBook', 'DatedText', 'Document', 
+        'Image', 'PublicationAttribute', 'PublicationIssueAttribute', 
+        'PublicationIssueProperty', 'Publication'
+      ];
 
-      // 3. Supprimer la publication elle-même
-      await txn.delete('Publication', where: 'PublicationId = ?', whereArgs: [publicationId]);
+      for (var table in tables) {
+        batch.delete(table, where: 'PublicationId = ?', whereArgs: [publicationId]);
+      }
+
+      await batch.commit(noResult: true); // noResult: true accélère encore l'exécution
     });
   }
 
   Future<void> createDbPubCollection(Database db) async {
     return await db.transaction((txn) async {
+      // Création de la table Document
+      await txn.execute("""
+        CREATE TABLE IF NOT EXISTS "AvailableBibleBook" (
+          "AvailableBibleBookId"	INTEGER NOT NULL,
+          "PublicationId"	INTEGER,
+          "Book"	INTEGER,
+          PRIMARY KEY("AvailableBibleBookId" AUTOINCREMENT),
+          FOREIGN KEY("PublicationId") REFERENCES "Publication"("PublicationId")
+        );
+      """);
+
+      // Création de la table DatedText
+      await txn.execute("""
+        CREATE TABLE IF NOT EXISTS "DatedText" (
+          "DatedTextId"	INTEGER NOT NULL,
+          "PublicationId"	INTEGER,
+          "Start"	INTEGER NOT NULL,
+          "End"	INTEGER NOT NULL,
+          "Class"	INTEGER NOT NULL,
+          PRIMARY KEY("DatedTextId" AUTOINCREMENT),
+          FOREIGN KEY("PublicationId") REFERENCES "Publication"("PublicationId")
+        );
+      """);
+
       // Création de la table Document
       await txn.execute("""
         CREATE TABLE IF NOT EXISTS "Document" (
@@ -459,6 +694,24 @@ class PubCollections {
           FOREIGN KEY("PublicationId") REFERENCES "Publication"("PublicationId")
         );
       """);
+
+      // Ajouter les index
+      await txn.execute("CREATE UNIQUE INDEX AvailableBibleBook_UserKey ON AvailableBibleBook(Book, PublicationId);");
+      await txn.execute("CREATE UNIQUE INDEX DatedText_UserKey ON DatedText(Start, End, Class, PublicationId);");
+      await txn.execute("CREATE UNIQUE INDEX Document_UserKey ON Document (PublicationId, MepsDocumentId);");
+      await txn.execute("CREATE INDEX IX_DatedText_PublicationId ON DatedText(PublicationId);");
+      await txn.execute("CREATE INDEX IX_Document_LanguageIndex_MepsDocumentId_PublicationId ON Document (LanguageIndex, MepsDocumentId, PublicationId);");
+      await txn.execute("CREATE INDEX IX_Image_Signature ON Image (Signature);");
+      await txn.execute("CREATE INDEX IX_Publication_Path_PublicationId_Hash_Timestamp ON Publication (Path, PublicationId, Hash, Timestamp);");
+      await txn.execute("CREATE INDEX IX_Publication_KeySymbol_MepsLanguageId_IssueTagNumber_PublicationId ON Publication (KeySymbol, MepsLanguageId, IssueTagNumber, PublicationId);");
+      await txn.execute("CREATE INDEX IX_Publication_MepsLanguageId_PublicationType_IssueTagNumber ON Publication (MepsLanguageId, PublicationType, IssueTagNumber);");
+      await txn.execute("CREATE INDEX IX_Publication_PublicationCategorySymbol_PublicationType_MepsLanguageId ON Publication (PublicationCategorySymbol, PublicationType, MepsLanguageId);");
+      await txn.execute("CREATE INDEX IX_Publication_PublicationType ON Publication (PublicationType);");
+      await txn.execute("CREATE UNIQUE INDEX Image_UserKey ON Image(PublicationId, Path);");
+      await txn.execute("CREATE UNIQUE INDEX PublicationAttribute_UserKey ON PublicationAttribute(PublicationId, Attribute);");
+      await txn.execute("CREATE UNIQUE INDEX PublicationIssueAttribute_UserKey ON PublicationIssueAttribute(PublicationId, Attribute);");
+      await txn.execute("CREATE UNIQUE INDEX PublicationIssueProperty_UserKey ON PublicationIssueProperty(PublicationId);");
+      await txn.execute("CREATE UNIQUE INDEX Publication_UserKey ON Publication(KeySymbol, MepsLanguageId, IssueTagNumber);");
     });
   }
 }

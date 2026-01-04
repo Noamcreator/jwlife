@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/app/jwlife_app_bar.dart';
 import 'package:jwlife/core/app_data/app_data_service.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/widgets_utils.dart';
-import 'package:jwlife/data/databases/history.dart';
 import 'package:jwlife/features/library/models/downloads/download_model.dart';
 import 'package:jwlife/features/library/pages/pending_update/pending_updates_widget.dart';
 import 'package:jwlife/features/library/pages/publications/publications_categories_widget.dart';
@@ -176,7 +176,7 @@ class LibraryPageState extends State<LibraryPage> with TickerProviderStateMixin 
             onPressed: (buildContext) => showPage(SearchLibraryPage()),
           ),
           // Condition pour afficher Tri ou Langue
-          if (isDownloadTab || isPendingUpdatesTab)
+          if (isDownloadTab)
             IconTextButton(
               icon: const Icon(JwIcons.arrows_up_down), // Remplace par JwIcons.sort si disponible
               onPressed: (context) {
@@ -259,15 +259,25 @@ class LibraryPageState extends State<LibraryPage> with TickerProviderStateMixin 
                   ),
                 ).then((value) {
                   if (value != null) {
-                    if(isDownloadTab) {
-                      _downloadModel.sortItems(value);
-                    }
-                    else if(isPendingUpdatesTab) {
-                      _pendingUpdatesModel.sortItems(value);
-                    }
+                    _downloadModel.sortItems(value);
                   }
                 });
               }
+            )
+          else if (isPendingUpdatesTab)
+            IconTextButton(
+              icon: const Icon(JwIcons.cloud_arrow_down),
+              onPressed: (context) async {
+                  bool? hasUpdate = await _pendingUpdatesModel.updateAll(context);
+                  if(hasUpdate != null) {
+                      if(hasUpdate) {
+                          showBottomMessage(i18n().message_catalog_success);
+                      }
+                      else {
+                          showBottomMessage(i18n().message_catalog_up_to_date);
+                      }
+                  }
+              },
             )
           else
             IconTextButton(
@@ -276,7 +286,7 @@ class LibraryPageState extends State<LibraryPage> with TickerProviderStateMixin 
             ),
           IconTextButton(
             icon: const Icon(JwIcons.arrow_circular_left_clock),
-            onPressed: History.showHistoryDialog,
+            onPressed: JwLifeApp.history.showHistoryDialog,
           ),
         ],
       ),

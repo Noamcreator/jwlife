@@ -808,7 +808,7 @@
   "settings_download_over_cellular_subtitle": "Cela peut entraîner des frais.",
   "settings_how_jwl_uses_your_data": "Comment JW Library utilise vos données",
   "settings_languages": "Langue",
-  "settings_languages_upper": "Langue",
+  "settings_languages_upper": "LANGUES",
   "settings_language_app": "Langue de l'Application",
   "settings_language_library": "Langue de la Bibliothèque",
   "settings_license": "Contrat de licence",
@@ -922,5 +922,14 @@
   "label_research_inputs_fields": "CHAMPS",
   "label_research_wikipedia": "WIKIPÉDIA",
   "meps_language": "F",
-  "label_icon_commentary": "Note d'étude"
+  "label_icon_commentary": "Note d'étude",
+  "label_verses_side_by_side": "Versets côte à côte",
+  "message_verses_side_by_side": "Afficher les deux premières traductions côte à côte",
+  "settings_menu_display_upper": "MENU",
+  "settings_show_publication_description": "Afficher la description des publications",
+  "settings_show_publication_description_subtitle": "Afficher la description qui a sur le site internet en dessous du titre.",
+  "settings_show_document_description": "Afficher la description pour les documents",
+  "settings_show_document_description_subtitle": "Afficher la description qui a sur le site internet en dessous des documents",
+  "settings_menu_auto_open_single_document": "Ouvrir directement le document",
+  "settings_menu_auto_open_single_document_subtitle": "Si un seul document est présent, l'ouvrir sans afficher le menu."
 }

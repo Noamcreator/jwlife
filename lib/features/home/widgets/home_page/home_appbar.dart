@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/app/jwlife_app_bar.dart';
 import 'package:jwlife/core/app_data/app_data_service.dart';
 import 'package:jwlife/core/uri/jworg_uri.dart';
 import 'package:jwlife/core/uri/utils_uri.dart';
 import 'package:jwlife/core/utils/utils_language_dialog.dart';
-import 'package:jwlife/data/models/meps_language.dart';
 import 'package:jwlife/widgets/responsive_appbar_actions.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
@@ -12,7 +12,6 @@ import '../../../../app/services/settings_service.dart';
 import '../../../../core/icons.dart';
 import '../../../../core/shared_preferences/shared_preferences_utils.dart';
 import '../../../../core/ui/text_styles.dart';
-import '../../../../data/databases/history.dart';
 import '../../../../i18n/i18n.dart';
 import '../../../../widgets/dialog/qr_code_dialog.dart';
 import '../../../../widgets/multiple_listenable_builder_widget.dart';
@@ -46,7 +45,7 @@ class _HomeAppBarState extends State<HomeAppBar> {
   }
 
   void onOpenHistory(BuildContext context) {
-    History.showHistoryDialog(context);
+    JwLifeApp.history.showHistoryDialog(context);
   }
 
   Future<void> onOpenQrScanner(BuildContext context) async {

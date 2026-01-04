@@ -1,54 +1,38 @@
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:jwlife/data/models/publication.dart';
-import 'package:sqflite/sqflite.dart';
-import 'package:jwlife/core/utils/utils_document.dart';
+import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/core/utils/utils_jwpub.dart';
-
-import '../../../core/uri/jworg_uri.dart';
-import '../../../core/utils/common_ui.dart';
-import '../../../core/utils/utils_database.dart';
+import 'package:jwlife/data/models/bible_book.dart';
+import 'package:jwlife/data/models/bible_chapter.dart';
+import 'package:sqflite/sqflite.dart';
+import 'package:jwlife/data/models/publication.dart';
+import 'package:jwlife/core/utils/files_helper.dart';
+import 'package:jwlife/core/utils/utils_document.dart';
+import 'package:jwlife/core/utils/utils_database.dart';
+import 'package:jwlife/core/uri/jworg_uri.dart';
 import '../../document/local/documents_manager.dart';
-import '../../publication/models/menu/local/words_suggestions_model.dart';
-
-// Classe pour encapsuler les données d'un livre
-class BibleBook {
-  final Map<String, dynamic> bookInfo;
-  List<dynamic>? chapters;
-  String? overviewHtml;
-  String? profileHtml;
-  int? firstVerseId;
-  int? lastVerseId;
-  bool isLoading;
-  bool isOverview;
-
-  BibleBook(this.bookInfo)
-      : isLoading = true,
-        isOverview = false;
-}
 
 class BibleChapterController {
   final Publication bible;
   final int initialBookId;
 
-  // Variables d'état
   bool _isInitialLoading = true;
-  List<BibleBook> _booksData = [];
+  List<BibleBook> _books = [];
   int _currentIndex = 0;
 
-  // Getters pour l'accès public
   bool get isInitialLoading => _isInitialLoading;
-  List<BibleBook> get booksData => _booksData;
+  List<BibleBook> get booksData => _books;
   int get currentIndex => _currentIndex;
-  BibleBook? get currentBook => (_booksData.isNotEmpty) ? _booksData[_currentIndex] : null;
+  BibleBook? get currentBook => (_books.isNotEmpty) ? _books[_currentIndex] : null;
 
-  // Callback pour notifier la page
   VoidCallback? onStateChanged;
+
+  bool _isMepsAttached = false;
 
   BibleChapterController({required this.bible, required this.initialBookId});
 
   void _notifyListeners() {
-    // Utiliser WidgetsBinding pour s'assurer que la notification se fait après la frame actuelle
     WidgetsBinding.instance.addPostFrameCallback((_) {
       onStateChanged?.call();
     });
@@ -56,36 +40,29 @@ class BibleChapterController {
 
   Future<void> initialize() async {
     try {
-      // 1. Charger la liste de tous les livres
       await _fetchBooks();
-
-      // 2. Charger les données spécifiques du livre initial
-      if (_booksData.isNotEmpty) {
+      if (_books.isNotEmpty) {
+        // Charge le premier livre affiché
         await _loadBookData(_currentIndex);
       }
     } catch (e) {
       debugPrint('Erreur lors de l\'initialisation: $e');
     } finally {
-      // 3. Toujours marquer l'initialisation comme terminée
       _isInitialLoading = false;
       _notifyListeners();
     }
   }
 
-  // --- Logique de chargement des données ---
-
   Future<void> _fetchBooks() async {
     try {
-      // 1. Initialisation sécurisée du manager
       if (bible.documentsManager == null) {
         bible.documentsManager = DocumentsManager(publication: bible);
         await bible.documentsManager!.initializeDatabaseAndData();
-        bible.wordsSuggestionsModel ??= WordsSuggestionsModel(bible);
       }
 
       final database = bible.documentsManager!.database;
 
-      // 2. Vérifications de structure en parallèle pour gagner du temps
+      // 1. Vérification de la structure de la base pour les colonnes optionnelles
       final resultsStructure = await Future.wait([
         checkIfTableExists(database, 'Multimedia'),
         checkIfTableExists(database, 'DocumentMultimedia'),
@@ -99,10 +76,12 @@ class BibleChapterController {
       final bool hasOutline = columns.contains('OutlineDocumentId');
       final bool hasOverview = columns.contains('OverviewDocumentId');
 
-      // 3. Construction de la requête SQL dynamique
-      // On n'ajoute les JOIN que si les colonnes existent dans la table BibleBook
-      String selectFields = 'BibleBook.*, d1.*';
-      String joins = 'LEFT JOIN Document d1 ON BibleBook.IntroDocumentId = d1.DocumentId';
+      // 2. Construction de la requête SQL
+      String selectFields = 'BibleBook.*, d1.Title AS IntroTitle, d1.MepsDocumentId AS IntroMepsDocumentId, dTitle.Title AS BookName';
+      String joins = '''
+        LEFT JOIN Document d1 ON BibleBook.IntroDocumentId = d1.DocumentId
+        LEFT JOIN Document dTitle ON BibleBook.BookDocumentId = dTitle.DocumentId
+      ''';
 
       if (hasOutline) {
         selectFields += ', d2.Content AS OutlineContent';
@@ -118,7 +97,6 @@ class BibleChapterController {
         selectFields += ', NULL AS OverviewContent';
       }
 
-      // Gestion du chemin multimédia
       String multimediaSubquery = 'NULL AS FilePath';
       if (multimediaExists && docMultimediaExists) {
         multimediaSubquery = '''
@@ -130,157 +108,115 @@ class BibleChapterController {
          LIMIT 1) AS FilePath''';
       }
 
-      final String finalQuery = '''
-      SELECT $selectFields, $multimediaSubquery
-      FROM BibleBook
-      $joins
-    ''';
-
-      // 4. Exécution et mapping
+      final String finalQuery = 'SELECT $selectFields, $multimediaSubquery FROM BibleBook $joins';
       final List<Map<String, dynamic>> results = await database.rawQuery(finalQuery);
 
-      _booksData = results.map((book) => BibleBook(book)).toList();
+      _books = results.map((map) {
+        final book = BibleBook.fromMap(map);
+        
+        final dynamic overviewBlob = map['OverviewContent'] ?? map['OutlineContent'];
+        final dynamic profileBlob = map['Profile'];
+        
+        book.overviewHtml = _decodeHtml(overviewBlob);
+        book.profileHtml = _decodeHtml(profileBlob);
+        
+        return book;
+      }).toList();
 
-      // 5. Gestion de l'index
-      _currentIndex = _booksData.indexWhere(
-              (book) => book.bookInfo['BibleBookId'] == initialBookId
-      );
-
+      // 4. Déterminer l'index du livre sélectionné au départ
+      _currentIndex = _books.indexWhere((book) => book.bookNumber == initialBookId);
       if (_currentIndex == -1) _currentIndex = 0;
 
-    } catch (e, stacktrace) {
+    } catch (e) {
       debugPrint('Erreur lors de la récupération des livres: $e');
-      debugPrint(stacktrace.toString());
-      _booksData = [];
       rethrow;
     }
   }
 
   Future<void> _loadBookData(int bookIndex) async {
-    if (bookIndex < 0 || bookIndex >= _booksData.length) return;
+    if (bookIndex < 0 || bookIndex >= _books.length) return;
 
-    BibleBook bookData = _booksData[bookIndex];
+    BibleBook bookData = _books[bookIndex];
+    if (!bookData.isLoading && bookData.chapters.isNotEmpty) return;
 
-    // Si le livre est déjà chargé, on sort
-    if (!bookData.isLoading && bookData.chapters != null) return;
+    bookData.isLoading = true;
+    _notifyListeners();
 
-    // Marquer comme en chargement
-    if (!bookData.isLoading) {
-      bookData.isLoading = true;
-      // Notifier immédiatement pour afficher le loader
-      if (bookIndex == _currentIndex && !_isInitialLoading) {
-        _notifyListeners();
-      }
-    }
+    Database database = bible.documentsManager!.database;
 
     try {
-      Database database = bible.documentsManager!.database;
+      // 1. On n'attache que si ce n'est pas déjà fait
+      if (!_isMepsAttached) {
+        File mepsFile = await getMepsUnitDatabaseFile();
+        await attachDatabases(database, {'meps': mepsFile.path});
+        _isMepsAttached = true;
+      }
 
-      // Charger les chapitres
       List<Map<String, dynamic>> chaptersResults = await database.rawQuery('''
-        SELECT
-          BibleChapter.ChapterNumber,
-          BibleChapter.FirstVerseId,
-          BibleChapter.LastVerseId,
-          Document.MepsDocumentId
-        FROM BibleChapter
-        INNER JOIN BibleBook ON BibleChapter.BookNumber = BibleBook.BibleBookId
-        INNER JOIN Document ON BibleBook.BookDocumentId = Document.DocumentId
-        WHERE BookNumber = ?
-      ''', [bookData.bookInfo['BibleBookId']]);
+        SELECT 
+          br.ChapterNumber,
+          CASE WHEN bc.ChapterNumber IS NOT NULL THEN 1 ELSE 0 END AS IsExist
+        FROM meps.BibleRange br
+        INNER JOIN meps.BibleInfo bi ON bi.BibleInfoId = br.BibleInfoId
+        LEFT JOIN BibleChapter bc ON bc.ChapterNumber = br.ChapterNumber AND bc.BookNumber = br.BookNumber
+        INNER JOIN BibleBook bb ON bb.BibleBookId = br.BookNumber
+        INNER JOIN Publication p ON p.PublicationId = bb.PublicationId
+        WHERE br.BookNumber = ? 
+          AND bi.Name = p.BibleVersionForCitations 
+          AND br.ChapterNumber IS NOT NULL
+        ORDER BY br.ChapterNumber ASC
+      ''', [bookData.bookNumber]);
 
-      // Générer le HTML de l'aperçu
-      String overviewHtml = _generateHtmlContent(
-          bookData.bookInfo['OverviewContent'] ?? bookData.bookInfo['OutlineContent']
-      );
-
-      // Générer le HTML du profil
-      String profileHtml = _generateHtmlContent(
-          bookData.bookInfo['Profile']
-      );
-
-      // Mettre à jour les données du livre
-      bookData.chapters = chaptersResults;
-      bookData.overviewHtml = overviewHtml;
-      bookData.profileHtml = profileHtml;
-
-      bookData.firstVerseId = chaptersResults.first['FirstVerseId'];
-      bookData.lastVerseId = chaptersResults.last['LastVerseId'];
-
-    } catch (e) {
+      bookData.chapters = chaptersResults.map((map) => BibleChapter.fromMap(map)).toList(); 
+    } 
+    catch (e) {
       debugPrint('Erreur lors du chargement des données du livre: $e');
       bookData.chapters = [];
-      bookData.overviewHtml = '<h1>Erreur de chargement</h1><p>Impossible de charger le contenu du livre.</p>';
-      bookData.profileHtml = '<h1>Erreur de chargement</h1>';
-    } finally {
-      // TOUJOURS mettre à jour l'état et notifier, même en cas d'erreur
+    } 
+    finally {
       bookData.isLoading = false;
-      // Notifier même si ce n'est pas le livre courant (pour le préchargement)
+      bool otherLoading = _books.any((b) => b.isLoading);
+      if (!otherLoading && _isMepsAttached) {
+        try {
+          await detachDatabases(database, ['meps']);
+          _isMepsAttached = false;
+        } catch (e) {
+          debugPrint('Erreur lors du detach: $e');
+        }
+      }
+      
       _notifyListeners();
     }
   }
 
-  String _generateHtmlContent(dynamic contentBlob) {
-    if (contentBlob == null) return '';
-
-    try {
-      final decodedHtml = decodeBlobContent(
-        contentBlob as Uint8List,
-        bible.hash!,
-      );
-
-      return createHtmlContent(
-          decodedHtml,
-          '''jwac layout-reading layout-sidebar''',
-          ''
-      );
-    } catch (e) {
-      debugPrint('Erreur lors de la génération du HTML: $e');
-      return '<p>Erreur de génération du contenu</p>';
-    }
+  String? _decodeHtml(dynamic blob) {
+    if (blob == null) return null;
+    final decoded = decodeBlobContent(blob as Uint8List, bible.hash!);
+    return createHtmlContent(decoded, 'jwac layout-reading', '');
   }
 
-  // --- Logique d'interaction UI ---
-
   void onPageChanged(int index) {
-    if (index == _currentIndex) return; // Éviter les notifications inutiles
-
     _currentIndex = index;
-    _notifyListeners();
-
-    // Charger les données du nouveau livre si nécessaire (sans attendre)
     _loadBookData(index);
-
-    // Précharger les livres adjacents en arrière-plan
-    if (index > 0) _loadBookData(index - 1);
-    if (index < _booksData.length - 1) _loadBookData(index + 1);
+    _notifyListeners();
   }
 
   void toggleOverview() {
-    if (currentBook != null) {
-      currentBook!.isOverview = !currentBook!.isOverview;
-      _notifyListeners();
-    }
+    currentBook?.isOverview = !(currentBook?.isOverview ?? false);
+    _notifyListeners();
   }
 
   String getShareUri() {
-    if (currentBook == null) return '';
-
     return JwOrgUri.bibleBook(
-        wtlocale: bible.mepsLanguage.symbol,
-        pub: bible.keySymbol,
-        book: currentBook!.bookInfo['BibleBookId']
+      wtlocale: bible.mepsLanguage.symbol,
+      pub: bible.keySymbol,
+      book: currentBook?.bookNumber ?? 0
     ).toString();
   }
 
-  void onTapChapter(int chapterNumber) {
-    if (currentBook != null) {
-      showPageBibleChapter(bible, currentBook!.bookInfo['BibleBookId'], chapterNumber);
-    }
+  void onTapChapter(BibleChapter chapter) {
+    showPageBibleChapter(bible, currentBook!.bookNumber, chapter.number);
   }
 
-  // Méthode pour nettoyer les ressources si nécessaire
-  void dispose() {
-    onStateChanged = null;
-  }
+  void dispose() => onStateChanged = null;
 }

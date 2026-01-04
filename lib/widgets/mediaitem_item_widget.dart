@@ -230,12 +230,11 @@ class _MediaItemItemWidgetState extends State<MediaItemItemWidget> {
   }
 
   Widget _buildMediaImage() {
-    final wideImageUrl = widget.media.networkImageLsr;
-    final squareImageUrl = widget.media.networkImageSqr;
-    final isWide = wideImageUrl != null;
+    final wideImageUrl = widget.media.networkImageLsr ?? widget.media.networkFullSizeImageLsr;
+    final squareImageUrl = widget.media.networkImageSqr ?? widget.media.networkFullSizeImageSqr;
     final imageUrl = wideImageUrl ?? squareImageUrl;
 
-    if (isWide || imageUrl == null) {
+    if (imageUrl == null) {
       return _buildCachedImage(imageUrl);
     }
 
@@ -260,9 +259,9 @@ class _MediaItemItemWidgetState extends State<MediaItemItemWidget> {
                 alignment: Alignment.center,
                 child: Image.file(
                   tile.file,
-                  width: 85,
-                  height: 85,
-                  fit: BoxFit.cover,
+                  width: widget.width,
+                  height: widget.width / 2,
+                  fit: BoxFit.fitHeight,
                 ),
               ),
             );
@@ -345,7 +344,7 @@ class _MediaItemItemWidgetState extends State<MediaItemItemWidget> {
         icon: widget.media is Audio ? JwIcons.headphones__simple : JwIcons.video,
         height: widget.width / 2,
         width: widget.width,
-        fit: BoxFit.cover,
+        fit: BoxFit.fitHeight,
       ),
     );
   }

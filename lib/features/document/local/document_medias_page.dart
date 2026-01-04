@@ -1,10 +1,10 @@
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
+import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/app/jwlife_app_bar.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/core/utils/utils_video.dart';
-import 'package:jwlife/data/databases/history.dart';
 import 'package:jwlife/data/models/media.dart';
 import 'package:jwlife/data/realm/catalog.dart';
 import 'package:jwlife/data/realm/realm_library.dart';
@@ -40,57 +40,33 @@ class _DocumentMediasViewState extends State<DocumentMediasView> {
     super.initState();
     setState(() {
       videos = widget.document.multimedias.where((media) => media.mimeType == 'video/mp4').toList();
-      images = widget.document.multimedias.where((media) => media.mimeType != 'video/mp4' && !widget.document.multimedias.any((media2) => media.id == media2.linkMultimediaId)).toList();
+      images = widget.document.multimedias.where((media) => 
+        media.mimeType != 'video/mp4' && 
+        !widget.document.multimedias.any((media2) => media.id == media2.linkMultimediaId && media2.mimeType == 'video/mp4')
+      ).toList();
     });
   }
 
-  // Fonction pour calculer le nombre de colonnes selon la largeur de l'écran (version compacte)
   int _getCrossAxisCount(double screenWidth) {
-    if (screenWidth > 1200) {
-      return 6; // Très large écran - plus de colonnes
-    } else if (screenWidth > 900) {
-      return 4; // Écran large
-    } else if (screenWidth > 600) {
-      return 3; // Écran moyen (tablettes)
-    } else if (screenWidth > 400) {
-      return 2; // Mobiles en paysage
-    } else {
-      return 2; // Petits mobiles - minimum 2 colonnes
-    }
+    if (screenWidth > 1200) return 6;
+    if (screenWidth > 900) return 4;
+    if (screenWidth > 600) return 3;
+    return 2;
   }
 
-  // Fonction pour calculer l'espacement selon la largeur de l'écran (version compacte)
   double _getSpacing(double screenWidth) {
-    if (screenWidth > 1200) {
-      return 12.0; // Réduit
-    }
-    else if (screenWidth > 900) {
-      return 10.0; // Réduit
-    }
-    else if (screenWidth > 600) {
-      return 8.0; // Réduit
-    }
-    else {
-      return 6.0; // Réduit
-    }
+    if (screenWidth > 1200) return 12.0;
+    if (screenWidth > 900) return 10.0;
+    if (screenWidth > 600) return 8.0;
+    return 6.0;
   }
 
-  // Fonction pour calculer le ratio d'aspect selon le type de contenu (version compacte)
+  // Ratio pour les vidéos (ton original) et pour les images (1200/675)
   double _getAspectRatio(double screenWidth, bool isVideo) {
-    // Ratios plus compacts pour afficher plus d'éléments
     if (isVideo) {
-      return screenWidth > 600 ? 16 / 10.5 : 16 / 11.4; // Légèrement plus carré
+      return screenWidth > 600 ? 16 / 10.5 : 16 / 11.4;
     }
-
-    // Pour les images, ratios plus compacts
-    if (screenWidth > 1200) {
-      return 1.2; // Plus carré sur grands écrans
-    }
-    else if (screenWidth > 600) {
-      return 1.4; // Presque carré sur tablettes
-    } else {
-      return 1.6; // Légèrement rectangulaire sur mobiles
-    }
+    return 1200 / 675; // Ratio 16:9 forcé pour la grille d'images
   }
 
   @override
@@ -106,7 +82,7 @@ class _DocumentMediasViewState extends State<DocumentMediasView> {
         actions: [
           IconTextButton(
             icon: const Icon(JwIcons.arrow_circular_left_clock),
-            onPressed: History.showHistoryDialog
+            onPressed: JwLifeApp.history.showHistoryDialog
           ),
           IconTextButton(
               icon: const Icon(JwIcons.video_music),
@@ -114,8 +90,10 @@ class _DocumentMediasViewState extends State<DocumentMediasView> {
                 String categoryKey = 'SJJMeetings';
                 String languageSymbol = widget.document.publication.mepsLanguage.symbol;
                 RealmResults<RealmCategory> category = RealmLibrary.realm.all<RealmCategory>().query("Key == \$0 AND LanguageSymbol == \$1", [categoryKey, languageSymbol]);
-                showPage(AudioItemsPage(category: category.first));
-                            }
+                if (category.isNotEmpty) {
+                  showPage(AudioItemsPage(category: category.first));
+                }
+              }
           ),
         ],
       ),
@@ -126,13 +104,13 @@ class _DocumentMediasViewState extends State<DocumentMediasView> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Section Vidéos
+            // Section Vidéos (Inchangée)
             if (videos.isNotEmpty) ...[
               Padding(
                 padding: EdgeInsets.only(bottom: spacing),
                 child: Text(
                   i18n().label_videos,
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                 ),
               ),
               GridView.builder(
@@ -158,7 +136,7 @@ class _DocumentMediasViewState extends State<DocumentMediasView> {
               SizedBox(height: spacing),
             ],
 
-            // Section Images
+            // Section Images (Format 1200/675 avec contain)
             if (images.isNotEmpty) ...[
               if (videos.isNotEmpty) ...[
                 SizedBox(height: spacing),
@@ -167,7 +145,7 @@ class _DocumentMediasViewState extends State<DocumentMediasView> {
                 padding: EdgeInsets.only(bottom: spacing),
                 child: Text(
                   i18n().label_pictures,
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                 ),
               ),
               GridView.builder(
@@ -192,10 +170,12 @@ class _DocumentMediasViewState extends State<DocumentMediasView> {
     );
   }
 
+  // Widget Vidéo : Strictement identique à ton original
   Widget videoTile(BuildContext context, Media media, double screenWidth) {
     return MediaItemItemWidget(media: media, timeAgoText: false, width: 190);
   }
 
+  // Widget Image : Ratio fixé et adaptation "contain"
   Widget imageTile(BuildContext context, Multimedia media, double screenWidth) {
     final double captionFontSize = screenWidth > 600 ? 11.0 : 9.0;
 
@@ -206,61 +186,66 @@ class _DocumentMediasViewState extends State<DocumentMediasView> {
           showPage(FullScreenImagePage(publication: widget.document.publication, multimedias: widget.document.multimedias, multimedia: multimedia));
         }
       },
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8.0),
-            child: ImageCachedWidget(
-              imageUrl: '${widget.document.publication.path}/${media.filePath}',
-              icon: JwIcons.video,
-              height: double.infinity,
-              width: double.infinity,
-              fit: BoxFit.contain,
-            ),
-          ),
-          if (media.caption.isNotEmpty)
-            Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              child: Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.transparent,
-                      Colors.black.withOpacity(0.8),
-                    ],
-                  ),
-                  borderRadius: const BorderRadius.only(
-                    bottomLeft: Radius.circular(8.0),
-                    bottomRight: Radius.circular(8.0),
-                  ),
-                ),
-                padding: EdgeInsets.all(screenWidth > 600 ? 8.0 : 4.0),
-                child: Text(
-                  media.caption,
-                  style: TextStyle(
-                    fontSize: captionFontSize,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.white,
-                    shadows: [
-                      Shadow(
-                        offset: Offset(1, 1),
-                        blurRadius: 2,
-                        color: Colors.black.withOpacity(0.8),
-                      ),
-                    ],
-                  ),
-                  textAlign: TextAlign.center,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.black.withOpacity(0.03), // Fond très léger pour garder la structure
+          borderRadius: BorderRadius.circular(8.0),
+        ),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            ClipRRect(
+              child: ImageCachedWidget(
+                imageUrl: '${widget.document.publication.path}/${media.filePath}',
+                icon: JwIcons.image,
+                height: double.infinity,
+                width: double.infinity,
+                fit: BoxFit.contain,
               ),
             ),
-        ],
+            if (media.caption.isNotEmpty)
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.transparent,
+                        Colors.black.withOpacity(0.8),
+                      ],
+                    ),
+                    borderRadius: const BorderRadius.only(
+                      bottomLeft: Radius.circular(8.0),
+                      bottomRight: Radius.circular(8.0),
+                    ),
+                  ),
+                  padding: EdgeInsets.all(screenWidth > 600 ? 8.0 : 4.0),
+                  child: Text(
+                    media.caption,
+                    style: TextStyle(
+                      fontSize: captionFontSize,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.white,
+                      shadows: [
+                        Shadow(
+                          offset: const Offset(1, 1),
+                          blurRadius: 2,
+                          color: Colors.black.withOpacity(0.8),
+                        ),
+                      ],
+                    ),
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }

@@ -1,10 +1,10 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/app/jwlife_app_bar.dart';
 
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/utils.dart';
-import 'package:jwlife/data/databases/history.dart';
 import 'package:jwlife/data/models/meps_language.dart';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/models/publication_category.dart';
@@ -167,79 +167,77 @@ class _PublicationsItemsPageState extends State<PublicationsItemsPage> {
                     },
                   ),
                   IconTextButton(
-                      icon: const Icon(JwIcons.arrows_up_down),
-                      text: i18n().action_sort_by,
-                      onPressed: (anchorContext) {
-                        // 1. Définir les options du menu (les `PopupMenuItem`s)
-                        final List<PopupMenuEntry> menuItems = [
-                          // --- Tri par Titre ---
-                          // Option 1.1 : Tri par Titre (A-Z)
+                    icon: const Icon(JwIcons.arrows_up_down),
+                    text: i18n().action_sort_by,
+                    onPressed: (anchorContext) {
+                      // 1. Définir les options du menu
+                      // On précise le type <String> car tes 'value' sont des String
+                      final List<PopupMenuEntry<String>> menuItems = [
+                        if (widget.year == null) ...[
                           PopupMenuItem(
-                            value: 'title_asc', // champ: title, ordre: ascendant
+                            value: 'title_asc',
                             child: Text(i18n().label_sort_title_asc),
                           ),
-                          // Option 1.2 : Tri par Titre (Z-A)
                           PopupMenuItem(
-                            value: 'title_desc', // champ: title, ordre: descendant
+                            value: 'title_desc',
                             child: Text(i18n().label_sort_title_desc),
                           ),
-
-                          // Ajouter un séparateur visuel si vous le souhaitez (non obligatoire)
                           const PopupMenuDivider(),
+                        ],
 
-                          // --- Tri par Année ---
-                          // Option 2.1 : Tri par Année (Le plus récent d'abord)
-                          PopupMenuItem(
-                            value: 'year_desc', // champ: year, ordre: descendant (car année > -> plus récent)
-                            child: Text(i18n().label_sort_year_desc),
-                          ),
-                          // Option 2.2 : Tri par Année (Le plus ancien d'abord)
-                          PopupMenuItem(
-                            value: 'year_asc', // champ: year, ordre: ascendant
-                            child: Text(i18n().label_sort_year_asc),
-                          ),
+                        PopupMenuItem(
+                          value: 'year_desc',
+                          child: Text(i18n().label_sort_year_desc),
+                        ),
+                        PopupMenuItem(
+                          value: 'year_asc',
+                          child: Text(i18n().label_sort_year_asc),
+                        ),
 
-                          // Ajouter un séparateur visuel si vous le souhaitez
+                        if (widget.year == null) ...[
                           const PopupMenuDivider(),
-
-                          // --- Tri par Symbole (Exemple) ---
-                          // Option 3.1 : Tri par Symbole (A-Z)
                           PopupMenuItem(
                             value: 'symbol_asc',
                             child: Text(i18n().label_sort_symbol_asc),
                           ),
-                          // Option 3.2 : Tri par Symbole (Z-A)
                           PopupMenuItem(
                             value: 'symbol_desc',
                             child: Text(i18n().label_sort_symbol_desc),
                           ),
-                        ];
+                        ],
+                      ];
 
-                        // 2. Afficher le menu avec les options
-                        showMenu(
-                          context: context,
-                          elevation: 8.0,
-                          items: menuItems,
-                          initialValue: null,
-                          position: RelativeRect.fromDirectional(
-                            textDirection: Directionality.of(context),
-                            start: MediaQuery.of(context).size.width - 210,
-                            top: 40,
-                            end: 10,
-                            bottom: 0,
-                          ),
-                        ).then((value) {
-                          if (value != null) {
-                            _model.sortPublications(value);
-                          }
-                        });
-                      }
+                      // 2. Calculer la position dynamiquement à partir de l'anchorContext
+                      final RenderBox button = anchorContext.findRenderObject() as RenderBox;
+                      final RenderBox overlay = Navigator.of(context).overlay!.context.findRenderObject() as RenderBox;
+                      
+                      // Définit la position du menu par rapport au bouton
+                      final RelativeRect position = RelativeRect.fromRect(
+                        Rect.fromPoints(
+                          button.localToGlobal(Offset.zero, ancestor: overlay),
+                          button.localToGlobal(button.size.bottomRight(Offset.zero), ancestor: overlay),
+                        ),
+                        Offset.zero & overlay.size,
+                      );
+
+                      // 3. Afficher le menu
+                      showMenu<String>(
+                        context: context,
+                        elevation: 8.0,
+                        items: menuItems,
+                        position: position,
+                      ).then((value) {
+                        if (value != null) {
+                          _model.sortPublications(value);
+                        }
+                      });
+                    },
                   ),
                   IconTextButton(
                       icon: const Icon(JwIcons.arrow_circular_left_clock),
                       text: i18n().action_history,
                       onPressed: (anchorContext) {
-                        History.showHistoryDialog(context);
+                        JwLifeApp.history.showHistoryDialog(context);
                       }
                   )
                 ]

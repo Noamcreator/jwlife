@@ -208,14 +208,6 @@ class PublicationsItemsViewModel with ChangeNotifier {
       bool isIssueTagNumber = allPublications.every((pub) => pub.issueTagNumber != 0);
 
       allPublications.sort((a, b) {
-        int comparison;
-        if(isIssueTagNumber) {
-          comparison = a.issueTagNumber.compareTo(b.issueTagNumber);
-        }
-        else {
-          comparison = a.year.compareTo(b.year);
-        }
-
         if (isIssueTagNumber) {
           return (order == 'desc') ? b.issueTagNumber.compareTo(a.issueTagNumber) : a.issueTagNumber.compareTo(b.issueTagNumber);
         }
@@ -232,7 +224,7 @@ class PublicationsItemsViewModel with ChangeNotifier {
       List<Publication> allPublications = mapToSort.values.expand((list) => list).toList();
 
       allPublications.sort((a, b) {
-        final comparison = a.keySymbol.compareTo(b.keySymbol);
+        final comparison = a.keySymbol.toLowerCase().compareTo(b.keySymbol.toLowerCase());
         return order == 'desc' ? -comparison : comparison;
       });
 
@@ -246,7 +238,7 @@ class PublicationsItemsViewModel with ChangeNotifier {
     // A. Tri interne des publications
     mapToSort.forEach((attribute, publicationsFromAttribute) {
       if (category.hasYears) {
-        publicationsFromAttribute.sort((a, b) => b.issueTagNumber.compareTo(a.issueTagNumber));
+        publicationsFromAttribute.sort((a, b) => a.issueTagNumber.compareTo(b.issueTagNumber));
         return;
       }
 
@@ -255,12 +247,12 @@ class PublicationsItemsViewModel with ChangeNotifier {
 
       publicationsFromAttribute.sort((a, b) {
         if (shouldSortByYearInternal) {
-          final int primaryComparison = b.year.compareTo(a.year);
-
-          if (primaryComparison == 0) {
-            return b.issueTagNumber.compareTo(a.issueTagNumber);
+          if (a.issueTagNumber != 0 && b.issueTagNumber != 0) {
+            return a.issueTagNumber.compareTo(b.issueTagNumber);
           }
-          return primaryComparison;
+          else {
+            return b.year.compareTo(a.year);
+          }
         }
 
         // --- Logique de Tri par Critère Utilisateur (Titre) ---

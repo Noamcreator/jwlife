@@ -12,17 +12,30 @@ class DocumentsManager {
   late Database database;
   int selectedDocumentId = -1;
   List<Document> documents = [];
+  bool _isInitializing = false;
+  bool initialized = false;
 
   DocumentsManager({required this.publication, this.initMepsDocumentId, this.initBookNumber, this.initChapterNumber});
 
   // Méthode privée pour initialiser la base de données
   Future<void> initializeDatabaseAndData() async {
+    if (initialized || _isInitializing) return;
+
+    _isInitializing = true;
     try {
+      // 1. Ouverture de la base de données
       database = await openReadOnlyDatabase(publication.databasePath!);
-      await fetchDocuments();
-    }
+
+      // 2. Chargement des données
+      await fetchDocuments(); 
+      
+      initialized = true;
+    } 
     catch (e) {
       printTime('Error initializing database: $e');
+    } 
+    finally {
+      _isInitializing = false;
     }
   }
 

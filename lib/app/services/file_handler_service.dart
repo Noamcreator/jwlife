@@ -468,7 +468,7 @@ class FileHandlerService {
         CatalogDb.instance.updateCatalogCategories(JwLifeSettings.instance.libraryLanguage.value);
       }
       else {
-        showPage(PublicationMenuView(publication: jwpub));
+        showPage(PublicationMenuPage(publication: jwpub));
       }
 
       // Réinitialiser après succès

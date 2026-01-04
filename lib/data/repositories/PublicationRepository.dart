@@ -36,7 +36,7 @@ class PublicationRepository {
   }
 
   Publication? getByCompositeKeyForDownloadWithMepsLanguageId(String keySymbol, int issueTagNumber, int mepsLanguageId) {
-    return getAllDownloadedPublications().firstWhereOrNull((p) => p.keySymbol == keySymbol && p.issueTagNumber == issueTagNumber && p.mepsLanguage.id == mepsLanguageId);
+    return getAllDownloadedPublications().firstWhereOrNull((p) => p.keySymbol == keySymbol || p.symbol == keySymbol && p.issueTagNumber == issueTagNumber && p.mepsLanguage.id == mepsLanguageId);
   }
 
   /// Retourne toutes les bibles
@@ -45,7 +45,7 @@ class PublicationRepository {
   }
 
   List<Publication> getOrderBibles() {
-    List<String> biblesSet = JwLifeSettings.instance.webViewData.biblesSet;
+    List<String> biblesSet = JwLifeSettings.instance.webViewSettings.biblesSet;
 
     // On filtre d'abord pour ne garder que celles présentes dans biblesSet
     final filteredBibles = getAllBibles().where((bible) {
@@ -75,7 +75,7 @@ class PublicationRepository {
     String keySymbol = parts[0];
     String mepsLanguageSymbol = parts[1];
 
-    return getAllPublications().firstWhereOrNull((p) => p.keySymbol == keySymbol && p.mepsLanguage.symbol == mepsLanguageSymbol) ?? getAllBibles().first;
+    return getAllBibles().firstWhereOrNull((p) => p.keySymbol == keySymbol && p.mepsLanguage.symbol == mepsLanguageSymbol) ?? getAllBibles().first;
   }
 
   /// Retourne une instance unique d'une publication si elle existe, sinon l'original

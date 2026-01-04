@@ -2771,7 +2771,7 @@ class AppLocalizationsAf extends AppLocalizations {
   String get settings_languages => 'Taal';
 
   @override
-  String get settings_languages_upper => 'Taal';
+  String get settings_languages_upper => 'TALE';
 
   @override
   String get settings_language_app => 'Toepassingstaal';
@@ -3166,4 +3166,38 @@ class AppLocalizationsAf extends AppLocalizations {
 
   @override
   String get label_icon_commentary => 'Studienota';
+
+  @override
+  String get label_verses_side_by_side => 'Verse langs mekaar';
+
+  @override
+  String get message_verses_side_by_side =>
+      'Vertoon die eerste twee vertalings langs mekaar';
+
+  @override
+  String get settings_menu_display_upper => 'SPYSKAART';
+
+  @override
+  String get settings_show_publication_description =>
+      'Wys publikasiebeskrywing';
+
+  @override
+  String get settings_show_publication_description_subtitle =>
+      'Wys die beskrywing vanaf die webwerf onder die titel.';
+
+  @override
+  String get settings_show_document_description =>
+      'Wys beskrywing vir dokumente';
+
+  @override
+  String get settings_show_document_description_subtitle =>
+      'Wys die beskrywing vanaf die webwerf onder die dokumente.';
+
+  @override
+  String get settings_menu_auto_open_single_document =>
+      'Maak dokument direk oop';
+
+  @override
+  String get settings_menu_auto_open_single_document_subtitle =>
+      'As daar net een dokument is, maak dit oop sonder om die spyskaart te wys.';
 }

@@ -14,8 +14,8 @@ Future<dynamic> showLanguageDialog(BuildContext context, {String? firstSelectedL
   );
 }
 
-Future<Publication?> showLanguagePubDialog(BuildContext context, Publication? publication) async {
-  LanguagesPubDialog languagePubDialog = LanguagesPubDialog(publication: publication);
+Future<Publication?> showLanguagePubDialog(BuildContext context, Publication? publication, {int? mepsDocumentId, int? bookNumber, int? datedInt}) async {
+  LanguagesPubDialog languagePubDialog = LanguagesPubDialog(publication: publication, mepsDocumentId: mepsDocumentId, bookNumber: bookNumber, datedInt: datedInt);
   return await showDialog(
       context: context,
       builder: (context) => languagePubDialog

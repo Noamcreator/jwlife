@@ -64,7 +64,10 @@ class CatalogDb {
   ''';
 
   static final String publicationMepsQuery = '''
-    $publicationQuery
+    $publicationMepsSelectQuery
+    FROM Publication p
+    INNER JOIN PublicationAsset pa ON p.Id = pa.PublicationId
+    LEFT JOIN PublicationAttributeMap pam ON p.Id = pam.PublicationId
     INNER JOIN meps.Language ON p.MepsLanguageId = meps.Language.LanguageId
     INNER JOIN meps.Script ON meps.Language.ScriptId = meps.Script.ScriptId
     LEFT JOIN meps.Language AS fallback ON meps.Language.PrimaryFallbackLanguageId = fallback.LanguageId
@@ -153,17 +156,6 @@ class CatalogDb {
       printTime('Error getPublicationsForTheDay: $e');
       return [];
     }
-  }
-
-  Future<List<Map<String, dynamic>>> getAllAvailableBibleBookFromPub(int languageId, String keySymbol, int issueTagNumber) async {
-    final publications = await database.rawQuery('''
-      SELECT Book
-      FROM AvailableBibleBook
-      INNER JOIN Publication ON AvailableBibleBook.PublicationId = Publication.Id
-      WHERE Publication.MepsLanguageId = ? AND Publication.KeySymbol = ? AND Publication.IssueTagNumber = ?
-    ''', [languageId, keySymbol, issueTagNumber]);
-
-    return publications.isNotEmpty ? publications : [];
   }
 
   /// Rechercher une publication par symbole et la date d'issue.
@@ -339,6 +331,37 @@ class CatalogDb {
     return null;
   }
 
+  /// Rechercher une publication par bookNumber, le keySymbol et la langue.
+  Future<Publication?> searchPubFromBookNumber(int book, String keySymbol, int mepsLanguageId) async {
+    final mepsFile = await getMepsUnitDatabaseFile();
+
+    if (allFilesExist([mepsFile])) {
+      try {
+        await attachDatabases(database, {'meps': mepsFile.path});
+
+        final publications = await database.rawQuery('''
+          SELECT DISTINCT
+            $publicationMepsSelectQuery
+          FROM AvailableBibleBook ab
+          INNER JOIN Publication p ON ab.PublicationId = p.Id
+          INNER JOIN PublicationAsset pa ON p.Id = pa.PublicationId
+          INNER JOIN meps.Language ON p.MepsLanguageId = meps.Language.LanguageId
+          INNER JOIN meps.Script ON meps.Language.ScriptId = meps.Script.ScriptId
+          LEFT JOIN meps.Language AS fallback ON meps.Language.PrimaryFallbackLanguageId = fallback.LanguageId
+          LEFT JOIN PublicationAttributeMap pam ON p.Id = pam.PublicationId
+          WHERE ab.Book = ? AND p.KeySymbol = ? AND p.MepsLanguageId = ?
+          LIMIT 1
+        ''', [book, keySymbol, mepsLanguageId]);
+
+        return publications.isNotEmpty ? Publication.fromJson(publications.first) : null;
+      }
+      finally {
+        await detachDatabases(database, ['meps']);
+      }
+    }
+    return null;
+  }
+
   /// Rechercher une publication par mepsDocumentId et la langue.
   Future<Publication?> searchPubFromMepsDocumentId(int mepsDocumentId, int mepsLanguageId) async {
     final mepsFile = await getMepsUnitDatabaseFile();
@@ -364,6 +387,47 @@ class CatalogDb {
         return publications.isNotEmpty ? Publication.fromJson(publications.first) : null;
       }
       finally {
+        await detachDatabases(database, ['meps']);
+      }
+    }
+    return null;
+  }
+
+  /// Rechercher une publication où la date fournie est comprise entre Start et End
+  Future<Publication?> searchPubFromDatedText(int dateAsInt, String keySymbol, int mepsLanguageId) async {
+    final mepsFile = await getMepsUnitDatabaseFile();
+
+    // Obtenez la date du jour au format AAAA-mm-jj
+    String formattedDate = '';
+    DateTime date = DateTime.parse(dateAsInt.toString());
+    formattedDate = "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
+
+    if (allFilesExist([mepsFile])) {
+      try {
+        await attachDatabases(database, {'meps': mepsFile.path});
+
+        // La logique : on cherche si dateAsInt est entre la colonne Start et la colonne End
+        final publications = await database.rawQuery('''
+          SELECT DISTINCT
+            $publicationMepsSelectQuery
+          FROM DatedText dt
+          INNER JOIN Publication p ON dt.PublicationId = p.Id
+          INNER JOIN PublicationAsset pa ON p.Id = pa.PublicationId
+          INNER JOIN meps.Language ON p.MepsLanguageId = meps.Language.LanguageId
+          INNER JOIN meps.Script ON meps.Language.ScriptId = meps.Script.ScriptId
+          LEFT JOIN meps.Language AS fallback ON meps.Language.PrimaryFallbackLanguageId = fallback.LanguageId
+          LEFT JOIN PublicationAttributeMap pam ON p.Id = pam.PublicationId
+          WHERE ? BETWEEN dt.Start AND dt.End 
+            AND p.KeySymbol = ? 
+            AND p.MepsLanguageId = ?
+          LIMIT 1
+        ''', [formattedDate, keySymbol, mepsLanguageId]);
+
+        return publications.isNotEmpty ? Publication.fromJson(publications.first) : null;
+      } catch (e) {
+        print('Erreur lors de la requête : $e');
+        return null;
+      } finally {
         await detachDatabases(database, ['meps']);
       }
     }
@@ -546,6 +610,7 @@ class CatalogDb {
       final List<Map<String, dynamic>> results = await database.rawQuery('''
         SELECT
           p.KeySymbol,
+          p.Symbol,
           p.IssueTagNumber,
           p.MepsLanguageId,
           pa.LastModified,
@@ -572,6 +637,7 @@ class CatalogDb {
           pub.lastUpdated = lastUpdated;
           pub.size = size;
           pub.expandedSize = expandedSize;
+          pub.hasUpdateNotifier.value = pub.hasUpdate();
         }
       }
 

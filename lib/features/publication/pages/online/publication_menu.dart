@@ -81,7 +81,7 @@ class _PublicationMenuState extends State<PublicationMenu> with SingleTickerProv
     });
 
     // Lancer l'extraction de la description en parallèle
-    extractPublicationDescription(widget.publication).then((desc) {
+    fetchPublicationDescription(widget.publication).then((desc) {
       setState(() {
         description = desc;
       });

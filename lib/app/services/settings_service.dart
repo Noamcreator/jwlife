@@ -15,12 +15,16 @@ class JwLifeSettings {
   ThemeData darkData = AppTheme.getDarkTheme(Constants.defaultDarkPrimaryColor);
   List<MapEntry<Locale, String>> appLocalesMeps = [];
   Locale locale = Locale(AppSharedPreferences.instance.getLocale());
-  WebViewData webViewData = WebViewData();
+  WebViewSettings webViewSettings = WebViewSettings();
   Color lightPrimaryColor = Constants.defaultLightPrimaryColor;
   Color darkPrimaryColor = Constants.defaultDarkPrimaryColor;
   Color bibleColor = Constants.defaultBibleColor;
 
-  bool notificationDownload = false;
+  bool showPublicationDescription = AppSharedPreferences.instance.getShowPublicationDescription();
+  bool showDocumentDescription = AppSharedPreferences.instance.getShowDocumentDescription();
+  bool autoOpenSingleDocument = AppSharedPreferences.instance.getAutoOpenSingleDocument();
+
+  bool notificationDownload = AppSharedPreferences.instance.getDownloadNotification();  
 
   // --- NOTIFIERS DE LANGUES ---
   final libraryLanguage = ValueNotifier<MepsLanguage>(_defaultMeps());
@@ -59,7 +63,6 @@ class JwLifeSettings {
     teachingToolboxLanguage.value = _mapListToMeps(await sharedPreferences.getTeachingToolboxLanguage());
     latestLanguage.value = _mapListToMeps(await sharedPreferences.getLatestLanguage());
 
-    notificationDownload = sharedPreferences.getDownloadNotification();
     lookupBible.value = sharedPreferences.getLookUpBible();
   }
 

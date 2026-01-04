@@ -2730,7 +2730,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get settings_languages => 'اللغة';
 
   @override
-  String get settings_languages_upper => 'اللغة';
+  String get settings_languages_upper => 'اللغات';
 
   @override
   String get settings_language_app => 'لغة التطبيق';
@@ -3123,4 +3123,34 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get label_icon_commentary => 'ملاحظة دراسية';
+
+  @override
+  String get label_verses_side_by_side => 'آيات جنبا إلى جنب';
+
+  @override
+  String get message_verses_side_by_side => 'عرض أول ترجمتين جنباً إلى جنب';
+
+  @override
+  String get settings_menu_display_upper => 'القائمة';
+
+  @override
+  String get settings_show_publication_description => 'إظهار وصف المنشورات';
+
+  @override
+  String get settings_show_publication_description_subtitle =>
+      'إظهار الوصف الموجود على الموقع الإلكتروني تحت العنوان.';
+
+  @override
+  String get settings_show_document_description => 'إظهار وصف المستندات';
+
+  @override
+  String get settings_show_document_description_subtitle =>
+      'إظهار الوصف الموجود على الموقع الإلكتروني تحت المستندات.';
+
+  @override
+  String get settings_menu_auto_open_single_document => 'فتح المستند مباشرة';
+
+  @override
+  String get settings_menu_auto_open_single_document_subtitle =>
+      'إذا كان هناك مستند واحد فقط، فافتحه دون عرض القائمة.';
 }

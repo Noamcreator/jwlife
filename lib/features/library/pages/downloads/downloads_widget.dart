@@ -110,7 +110,7 @@ class _DownloadWidgetState extends State<DownloadWidget> {
             return GestureDetector(
               onTap: () {
                 if (item is Publication) {
-                  showPage(PublicationMenuView(publication: item));
+                  showPage(PublicationMenuPage(publication: item));
                 } else if (item is Media) {
                   item.showPlayer(context);
                 }

@@ -2778,7 +2778,7 @@ class AppLocalizationsIt extends AppLocalizations {
   String get settings_languages => 'Lingua';
 
   @override
-  String get settings_languages_upper => 'LINGUA';
+  String get settings_languages_upper => 'LINGUE';
 
   @override
   String get settings_language_app => 'Lingua dell\'Applicazione';
@@ -3176,4 +3176,38 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String get label_icon_commentary => 'Nota di studio';
+
+  @override
+  String get label_verses_side_by_side => 'Versetti affiancati';
+
+  @override
+  String get message_verses_side_by_side =>
+      'Mostra le prime due traduzioni affiancate';
+
+  @override
+  String get settings_menu_display_upper => 'MENU';
+
+  @override
+  String get settings_show_publication_description =>
+      'Mostra descrizione delle pubblicazioni';
+
+  @override
+  String get settings_show_publication_description_subtitle =>
+      'Mostra la descrizione del sito web sotto il titolo.';
+
+  @override
+  String get settings_show_document_description =>
+      'Mostra descrizione per i documenti';
+
+  @override
+  String get settings_show_document_description_subtitle =>
+      'Mostra la descrizione del sito web sotto i documenti.';
+
+  @override
+  String get settings_menu_auto_open_single_document =>
+      'Apri direttamente il documento';
+
+  @override
+  String get settings_menu_auto_open_single_document_subtitle =>
+      'Se è presente un solo documento, aprilo senza visualizzare il menu.';
 }

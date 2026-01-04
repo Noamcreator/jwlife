@@ -2750,7 +2750,7 @@ class AppLocalizationsAs extends AppLocalizations {
   String get settings_languages => 'ভাষা';
 
   @override
-  String get settings_languages_upper => 'ভাষা';
+  String get settings_languages_upper => 'ভাষাসমূহ';
 
   @override
   String get settings_language_app => 'এপ্লিকেচনৰ ভাষা';
@@ -3144,4 +3144,37 @@ class AppLocalizationsAs extends AppLocalizations {
 
   @override
   String get label_icon_commentary => 'অধ্যয়ন টোকা';
+
+  @override
+  String get label_verses_side_by_side => 'পদবোৰ কাষে কাষে';
+
+  @override
+  String get message_verses_side_by_side =>
+      'প্ৰথম দুটা অনুবাদ কাষে কাষে দেখুৱাওক';
+
+  @override
+  String get settings_menu_display_upper => 'মেনু';
+
+  @override
+  String get settings_show_publication_description => 'প্ৰকাশনৰ বিৱৰণ দেখুৱাওক';
+
+  @override
+  String get settings_show_publication_description_subtitle =>
+      'ৱেবছাইটত থকা বিৱৰণটো শিৰোনামৰ তলত দেখুৱাওক।';
+
+  @override
+  String get settings_show_document_description =>
+      'দস্তাবেজৰ বাবে বিৱৰণ দেখুৱাওক';
+
+  @override
+  String get settings_show_document_description_subtitle =>
+      'ৱেবছাইটত থকা বিৱৰণটো দস্তাবেজৰ তলত দেখুৱাওক।';
+
+  @override
+  String get settings_menu_auto_open_single_document =>
+      'দস্তাবেজটো পোনপটীয়াকৈ খোলক';
+
+  @override
+  String get settings_menu_auto_open_single_document_subtitle =>
+      'যদি কেৱল এটা দস্তাবেজ থাকে, তেন্তে মেনু নোখোৱাকৈয়ে ইয়াক খোলক।';
 }

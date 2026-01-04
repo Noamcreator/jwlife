@@ -8,7 +8,6 @@ import 'package:jwlife/core/utils/utils.dart';
 import 'package:sqflite/sqflite.dart';
 import '../../app/services/settings_service.dart';
 import '../../i18n/i18n.dart';
-import '../../i18n/localization.dart';
 
 class LanguagesAppDialog extends StatefulWidget {
   const LanguagesAppDialog({super.key,});

@@ -44,7 +44,7 @@ class RectangleTopicItem extends StatelessWidget {
             height: 40,
             child: IconButton(
               padding: EdgeInsets.zero,
-              onPressed: () => publication.cancelDownload(context),
+              onPressed: () => publication.cancelDownload(),
               icon: const Icon(
                 JwIcons.x,
                 color: Color(0xFF9d9d9d),

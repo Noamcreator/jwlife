@@ -4,19 +4,20 @@ import 'package:archive/archive.dart';
 import 'package:collection/collection.dart';
 import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
-import 'package:flutter/material.dart';
 import 'package:jwlife/app/jwlife_app.dart';
+import 'package:jwlife/app/services/global_key_service.dart';
 import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/data/models/publication.dart';
 
 import 'dart:typed_data';
 import 'package:encrypt/encrypt.dart' as encrypt;
+import 'package:jwlife/data/repositories/PublicationRepository.dart';
 
 import '../api/api.dart';
 import '../keys.dart';
 import 'directory_helper.dart';
 
-Future<Publication?> downloadJwpubFile(Publication publication, BuildContext context, CancelToken? cancelToken, bool update) async {
+Future<Publication?> downloadJwpubFile(Publication publication, CancelToken? cancelToken, bool update, {bool refreshUi = true}) async {
   final queryParams = {
     'pub': publication.keySymbol,
     'issue': publication.issueTagNumber.toString(),
@@ -66,30 +67,14 @@ Future<Publication?> downloadJwpubFile(Publication publication, BuildContext con
   publication.progressNotifier.value = -1;
 
   if (responseJwpub.statusCode != 200) {
-    publication.progressNotifier.value = 0.0;
+    publication.progressNotifier.value = 0;
     throw Exception('Erreur lors du téléchargement du fichier JWPUB');
   }
 
-  return await jwpubUnzip(responseJwpub.data!, publication: publication, update: update);
+  return await jwpubUnzip(responseJwpub.data!, publication: publication, update: update, refreshUi: refreshUi);
 }
 
-Future<Publication?> jwpubUnzip(Uint8List bytes, {Publication? publication, bool update = false}) async {
-  bool reOpenDocumentsManager = false;
-  bool reOpenDatedTextManager = false;
-
-  if (update && publication != null) {
-    // 1. On vérifie si l'une des bases est ouverte avant de fermer
-    reOpenDocumentsManager = publication.documentsManager != null;
-    reOpenDatedTextManager = publication.datedTextManager != null;
-
-    // 2. Fermeture sécurisée avec l'opérateur ?.
-    await publication.documentsManager?.database.close();
-    await publication.datedTextManager?.database.close();
-
-    // 3. Suppression
-    await removePublication(publication);
-  }
-
+Future<Publication?> jwpubUnzip(Uint8List bytes, {Publication? publication, bool update = false, bool refreshUi = true}) async {
   // Décoder l'archive principale
   final archive = ZipDecoder().decodeBytes(bytes);
 
@@ -99,6 +84,47 @@ Future<Publication?> jwpubUnzip(Uint8List bytes, {Publication? publication, bool
 
   final manifestData = jsonDecode(utf8.decode(manifestFile.content));
   final name = manifestData['name'];
+
+  dynamic pub = manifestData['publication'];
+  String timeStamp = manifestData['timestamp'];
+  int languageId = pub['language'] ?? publication?.mepsLanguage.id ?? 0;
+  String symbol = pub['symbol'] ?? publication?.symbol ?? '';
+  int issueTagNum = pub['issueId'] ?? publication?.issueTagNumber ?? 0;
+  String keySymbol = pub['undatedSymbol'] ?? symbol ?? publication?.keySymbol ?? '';
+
+  publication ??= PublicationRepository().getByCompositeKeyForDownloadWithMepsLanguageId(keySymbol, issueTagNum, languageId);
+
+  // Comparer les timestamps si la publication existe déjà et si elle est à jour
+  if(publication != null) {
+    if (publication.timeStamp == timeStamp && publication.isDownloadedNotifier.value) {
+      return publication;
+    }
+  }
+
+  // L'utilisateur ne peut plus annuler la téléchargement car on est en train de la mettre à jour ou de copier les fichiers
+  publication?.canCancelDownload = false;
+
+  bool reOpenDocumentsManager = false;
+  bool reOpenDatedTextManager = false;
+
+  if (publication != null) {
+    if(update || publication.isDownloadedNotifier.value) {
+      // 1. On vérifie si l'une des bases est ouverte avant de fermer
+      reOpenDocumentsManager = publication.documentsManager != null;
+      reOpenDatedTextManager = publication.datedTextManager != null;
+
+      // 2. Fermeture sécurisée avec l'opérateur ?.
+      await publication.documentsManager?.database.close();
+      await publication.datedTextManager?.database.close();
+
+      // 3. Fermer les documents managers
+      publication.documentsManager = null;
+      publication.datedTextManager = null;
+
+      // 3. Suppression
+      await removePublication(publication, update: update || publication.isDownloadedNotifier.value);
+    }
+  }
 
   // Déterminer le dossier de destination
   final appDir = await getAppPublications();
@@ -123,9 +149,13 @@ Future<Publication?> jwpubUnzip(Uint8List bytes, {Publication? publication, bool
 
   printTime('Fichiers extraits dans : ${destinationDir.path}');
 
-  Publication? pub = await JwLifeApp.pubCollections.insertPublicationFromManifest(manifestData, destinationDir.path, publication: publication, reOpenDocumentsManager: reOpenDocumentsManager, reOpenDatedTextManager: reOpenDatedTextManager);
-  if(pub != null) {
-    return pub;
+  Publication? finalPub = await JwLifeApp.pubCollections.insertPublicationFromManifest(manifestData, publication, destinationDir.path, reOpenDocumentsManager: reOpenDocumentsManager, reOpenDatedTextManager: reOpenDatedTextManager);
+  if(finalPub != null) {
+    if(refreshUi) {
+      GlobalKeyService.libraryKey.currentState?.refreshDownloadTab();
+      GlobalKeyService.libraryKey.currentState?.refreshPendingUpdateTab();
+    }
+    return finalPub;
   }
   else {
     // Supprimer le dossier de destination
@@ -134,7 +164,7 @@ Future<Publication?> jwpubUnzip(Uint8List bytes, {Publication? publication, bool
   }
 }
 
-Future<void> removePublication(Publication pub) async {
+Future<void> removePublication(Publication pub, {bool update = false}) async {
   Directory path = Directory(pub.path!);
   if (await path.exists()) {
     try {
@@ -148,7 +178,9 @@ Future<void> removePublication(Publication pub) async {
     printTime('Directory ${path.path} does not exist.');
   }
 
-  await JwLifeApp.pubCollections.deletePublication(pub);
+  if (!update) {
+    await JwLifeApp.pubCollections.deletePublication(pub);
+  }
 }
 
 /// Calcule le hash SHA-256 à partir des identifiants donnés

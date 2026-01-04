@@ -7,7 +7,6 @@ import 'package:jwlife/app/services/global_key_service.dart';
 import 'package:jwlife/core/uri/jworg_uri.dart';
 import 'package:jwlife/data/controller/block_ranges_controller.dart';
 import 'package:jwlife/data/models/publication.dart';
-import 'package:jwlife/data/databases/history.dart';
 import 'package:jwlife/data/models/userdata/block_range.dart';
 import 'package:jwlife/data/models/userdata/bookmark.dart';
 import 'package:provider/provider.dart';
@@ -173,13 +172,13 @@ class Document {
       await loadUserdata();
     }
     if (isBibleChapter()) {
-      History.insertBibleChapter(getDisplayTitle(), publication, bookNumber!, chapterNumber!, startBlockIdentifier, endBlockIdentifier);
+      JwLifeApp.history.insertBibleChapter(getDisplayTitle(), publication, bookNumber!, chapterNumber!, startBlockIdentifier, endBlockIdentifier);
     }
     else {
       if (!hasAlreadyBeenRead) {
         await fetchMedias();
       }
-      History.insertDocument(title, publication, mepsDocumentId, startBlockIdentifier, endBlockIdentifier);
+      JwLifeApp.history.insertDocument(title, publication, mepsDocumentId, startBlockIdentifier, endBlockIdentifier);
     }
 
     hasAlreadyBeenRead = true;

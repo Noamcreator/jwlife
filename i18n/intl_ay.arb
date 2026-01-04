@@ -808,7 +808,7 @@
   "settings_download_over_cellular_subtitle": "Uktï ajllïtajja, Internetamajj gastasispawa.",
   "settings_how_jwl_uses_your_data": "Cómo usa sus datos JW Library",
   "settings_languages": "Aru",
-  "settings_languages_upper": "ARU",
+  "settings_languages_upper": "ARUNAKA",
   "settings_language_app": "Aplicación Arusa",
   "settings_language_library": "Biblioteca Arusa",
   "settings_license": "Licencia acuerdo",
@@ -922,5 +922,14 @@
   "label_research_inputs_fields": "YATIYÄWINAKA",
   "label_research_wikipedia": "WIKIPEDIA",
   "meps_language": "AP",
-  "label_icon_commentary": "Yatiqañ qillqa"
+  "label_icon_commentary": "Yatiqañ qillqa",
+  "label_verses_side_by_side": "T'aqanaka paralliluta",
+  "message_verses_side_by_side": "Nayrïr pä t'aqanaka parallilut uñacht'ayaña",
+  "settings_menu_display_upper": "MENU",
+  "settings_show_publication_description": "Uñachayaña qillqatanakataki",
+  "settings_show_publication_description_subtitle": "Uñachayaña uka qillqata jach'a sutita manqhana.",
+  "settings_show_document_description": "Uñachayaña qillqatanakataki",
+  "settings_show_document_description_subtitle": "Uñachayaña uka qillqata qillqatanaka manqhana.",
+  "settings_menu_auto_open_single_document": "Qillqata jank'aki jist'araña",
+  "settings_menu_auto_open_single_document_subtitle": "Maya qillqata utjchi ukhaxa, jist'araña jan menu uñachayasa."
 }

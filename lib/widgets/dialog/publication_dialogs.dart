@@ -194,13 +194,14 @@ Future<String?> _showOnlineVideoDialog(BuildContext context, Video video, dynami
 }
 
 // Fonction pour afficher le dialogue de téléchargement
-Future<String?> showDocumentDialog(BuildContext context, String? pub, String? docId, String? track, String langwritten, String fileformat) async {
+Future<String?> showDocumentDialog(BuildContext context, String? pub, String? docId, String? track, String? issue, String langwritten, String? fileformat) async {
   if(await hasInternetConnection(context: context)) {
     final queryParams = <String, String>{
       if (pub != null) 'pub': pub,
       if (docId != null) 'docid': docId,
-      'fileformat': fileformat,
+      'fileformat': fileformat ?? '',
       if (track != null) 'track': track,
+      if (issue != null) 'issue': issue,
       'langwritten': langwritten,
       'output': 'json',
       'alllangs': '0',
@@ -219,7 +220,7 @@ Future<String?> showDocumentDialog(BuildContext context, String? pub, String? do
 
       // Vérifier si la requête a réussi (code 200)
       if (response.statusCode == 200) {
-        _showPdfDialog(context, response.data, langwritten);
+        _showFilesDownloadDialog(context, response.data, langwritten);
       }
       else {
         // Si la requête échoue, afficher un message d'erreur
@@ -235,7 +236,7 @@ Future<String?> showDocumentDialog(BuildContext context, String? pub, String? do
   return '';
 }
 
-Future<String?> _showPdfDialog(BuildContext context, dynamic jsonData, String langwritten) async {
+Future<String?> _showFilesDownloadDialog(BuildContext context, dynamic jsonData, String langwritten) async {
   dynamic file = jsonData['files'][langwritten]['PDF'][0];
 
   return showJwDialog<String>(
@@ -288,223 +289,259 @@ Future<bool> showCustomizeVersesDialog(BuildContext context) async {
   List<Publication> allBibles = PublicationRepository().getAllBibles();
   List<Publication> initialOrderedBibles = PublicationRepository().getOrderBibles();
 
-  // On crée une copie immédiate des clés initiales pour la comparaison finale.
   final List<String> initialKeys = initialOrderedBibles.map((p) => p.getKey()).toList();
-
+  final bool initialVersesInParallel = JwLifeSettings.instance.webViewSettings.versesInParallel;
   final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
-  final result = await showDialog<List<Publication>>(
+  // --- TA LOGIQUE ET TON BOOLEAN CONSERVÉS ---
+  bool versesInParallel = initialVersesInParallel;
+  final result = await showDialog<Map<String, dynamic>>(
     context: context,
     builder: (BuildContext dialogContext) {
       return StatefulBuilder(
         builder: (context, setState) {
-          // currentOrderedBibles est l'état courant DANS le dialogue.
-          // Il est initialisé avec la version la plus récente de initialOrderedBibles,
-          // qui est mise à jour après chaque action dans le dialogue (ajout/suppression/réordre)
-          // pour maintenir la persistance de l'état au sein du StatefulBuilder.
           List<Publication> currentOrderedBibles = List.from(initialOrderedBibles);
           Set<String> orderedBibleCodes = currentOrderedBibles.map((p) => p.getKey()).toSet();
 
-          // Liste des autres bibles disponibles, non encore dans la liste ordonnée
           List<Publication> otherBibles = allBibles
               .where((p) => !orderedBibleCodes.contains(p.getKey()))
               .toList()
             ..sort((a, b) {
               int langCompare = a.mepsLanguage.symbol.compareTo(b.mepsLanguage.symbol);
               if (langCompare != 0) return langCompare;
-              return a.shortTitle.compareTo(b.shortTitle); // Changement de 'symbol' à 'shortTitle' pour la version
+              return a.shortTitle.compareTo(b.shortTitle);
             });
 
-          // CORRECTION 1 : La fonction retourne la liste des widgets (ListTile) pour la section AUTRES
-          List<Widget> buildOtherBiblesList() {
-            return otherBibles.map((bible) {
-              return ListTile(
-                key: ValueKey(bible.getKey()),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 10), // Ajouté pour uniformité avec ReorderableListView
-                leading: const CircleAvatar(
-                  radius: 15,
-                  backgroundColor: Colors.green,
-                  child: Icon(JwIcons.plus, color: Colors.white, size: 20),
-                ),
-                title: Text(
-                  bible.mepsLanguage.vernacular,
-                  style: const TextStyle(fontSize: 15),
-                ),
-                subtitle: Text(
-                  bible.shortTitle,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: isDarkMode
-                        ? Color(0xFFc0c0c0)
-                        : Color(0xFF5a5a5a),
-                  ),
-                ),
-                onTap: () {
-                  // Action pour ajouter une Bible à la liste ordonnée
-                  setState(() {
-                    currentOrderedBibles.add(bible);
-                    // Mettre à jour l'état de la liste pour la prochaine construction
-                    initialOrderedBibles = List.from(currentOrderedBibles);
-                  });
-                },
-              );
-            }).toList();
-          }
-
-          // Stocker la liste des widgets pour une utilisation unique
-          final otherBiblesWidgets = buildOtherBiblesList();
-
           return Dialog(
-            insetPadding: const EdgeInsets.all(30),
+            // Réduction du padding externe pour plus de place
+            insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
             child: Container(
-              // Suppression du padding horizontal pour que les ListTiles gèrent leur propre padding
-              padding: const EdgeInsets.symmetric(vertical: 0, horizontal: 20),
-              constraints: const BoxConstraints(maxHeight: 600, maxWidth: 400),
+              // Suppression du padding horizontal du container pour que les listes touchent les bords
+              padding: const EdgeInsets.symmetric(vertical: 0, horizontal: 0),
+              constraints: const BoxConstraints(maxHeight: 700, maxWidth: 400),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Titre
+                  // --- TITRE (Padding ajusté) ---
                   Padding(
-                    padding: EdgeInsets.symmetric(vertical: 20),
+                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
                     child: Text(
                       i18n().label_icon_parallel_translations,
-                      style: TextStyle(fontFamily: 'Roboto', fontSize: 20, fontWeight: FontWeight.bold),
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFFC7C7C7)),
                     ),
                   ),
 
-                  Divider(color: isDarkMode ? Colors.black : const Color(0xFFf1f1f1), height: 0),
+                  Divider(color: isDarkMode ? Colors.black : const Color(0xFFf1f1f1), height: 1),
 
-                  const SizedBox(height: 30),
-
-                  Text(
-                    i18n().messages_help_download_bibles,
-                    style: TextStyle(fontSize: 16, color: Colors.grey),
-                    textAlign: TextAlign.center,
-                  ),
-
-                  const SizedBox(height: 30),
-
-                  // Liste des Bibles sélectionnées
                   Expanded(
-                    child: currentOrderedBibles.isEmpty
-                        ? const Center(child: Text('Aucune version sélectionnée.'))
-                        : ReorderableListView(
-                      shrinkWrap: true,
-                      onReorder: (int oldIndex, int newIndex) {
-                        setState(() {
-                          if (newIndex > oldIndex) newIndex -= 1;
-                          final Publication item = currentOrderedBibles.removeAt(oldIndex);
-                          currentOrderedBibles.insert(newIndex, item);
-                          // Met à jour la référence pour les prochains builds (si setState est appelé ailleurs)
-                          initialOrderedBibles = List.from(currentOrderedBibles);
-                        });
-                      },
-                      children: currentOrderedBibles.map((bible) {
-                        final bool isLastBible = currentOrderedBibles.length == 1;
-                        return ListTile(
-                          key: ValueKey(bible.getKey()),
-                          dense: true,
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 10),
-                          leading: CircleAvatar(
-                            radius: 15,
-                            backgroundColor: isLastBible ? Colors.grey[300] : Colors.red,
-                            child: Icon(JwIcons.minus, color: isLastBible ? Colors.grey : Colors.white, size: 20),
-                          ),
-                          title: Text(
-                            bible.mepsLanguage.vernacular,
-                            style: const TextStyle(fontSize: 15),
-                          ),
-                          subtitle: Text(
-                            bible.shortTitle,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: isDarkMode
-                                  ? Color(0xFFc0c0c0)
-                                  : Color(0xFF5a5a5a),
+                    child: CustomScrollView(
+                      slivers: [
+                        // Section 1: Toggle versets côté à côté (Gardé intact)
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(25, 20, 25, 10),
+                            child: Text(
+                              i18n().messages_help_download_bibles,
+                              style: const TextStyle(fontSize: 15, color: Colors.grey),
+                              textAlign: TextAlign.center,
                             ),
                           ),
-                          trailing: Icon(Icons.drag_handle, color: isDarkMode
-                              ? Color(0xFFc0c0c0)
-                              : Color(0xFF5a5a5a),
-                          ), // Icône de réorganisation
-                          onTap: () {
-                            // Action pour retirer une Bible de la liste ordonnée
-                            if (!isLastBible) {
-                              setState(() {
-                                currentOrderedBibles.removeWhere((p) => p.getKey() == bible.getKey());
-                                // Met à jour la référence pour les prochains builds
-                                initialOrderedBibles = List.from(currentOrderedBibles);
-                              });
-                            }
+                        ),
+                        
+                        // Section 1: Toggle versets côté à côté (Gardé intact)
+                        SliverToBoxAdapter(
+                          child: Column(
+                            children: [
+                              SwitchListTile(
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 20),
+                                title: Text(
+                                  i18n().label_verses_side_by_side,
+                                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+                                ),
+                                subtitle: Text(
+                                  i18n().message_verses_side_by_side,
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: isDarkMode ? const Color(0xFFc0c0c0) : const Color(0xFF5a5a5a),
+                                  ),
+                                ),
+                                value: versesInParallel,
+                                onChanged: (bool value) {
+                                  setState(() {
+                                    JwLifeSettings.instance.webViewSettings.updateVersesInParallel(value);
+                                    versesInParallel = value;
+                                  });
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        // Section 2: Liste réordonnable (Padding condensé)
+                        SliverReorderableList(
+                          itemCount: currentOrderedBibles.length,
+                          onReorder: (int oldIndex, int newIndex) {
+                            setState(() {
+                              if (newIndex > oldIndex) newIndex -= 1;
+                              final Publication item = currentOrderedBibles.removeAt(oldIndex);
+                              currentOrderedBibles.insert(newIndex, item);
+                              initialOrderedBibles = List.from(currentOrderedBibles);
+                            });
                           },
-                        );
-                      }).toList(),
+                          itemBuilder: (context, index) {
+                            final bible = currentOrderedBibles[index];
+                            final bool isLastBible = currentOrderedBibles.length == 1;
+
+                            return Material(
+                              key: ValueKey(bible.getKey()),
+                              color: Colors.transparent,
+                              child: ReorderableDelayedDragStartListener(
+                                index: index,
+                                child: Column(
+                                  children: [
+                                    ListTile(
+                                      dense: true,
+                                      visualDensity: const VisualDensity(vertical: -2), // Rend la liste plus compacte
+                                      contentPadding: const EdgeInsets.symmetric(horizontal: 20),
+                                      leading: GestureDetector(
+                                        onTap: isLastBible ? null : () {
+                                          setState(() {
+                                            currentOrderedBibles.removeWhere((p) => p.getKey() == bible.getKey());
+                                            initialOrderedBibles = List.from(currentOrderedBibles);
+                                          });
+                                        },
+                                        child: CircleAvatar(
+                                          radius: 13,
+                                          backgroundColor: isLastBible ? Colors.grey[300] : Colors.red,
+                                          child: const Icon(Icons.remove, color: Colors.white, size: 19),
+                                        ),
+                                      ),
+                                      title: Text(
+                                        bible.mepsLanguage.vernacular,
+                                        style: TextStyle(fontSize: 15, color: isDarkMode ? Colors.white : Colors.black),
+                                      ),
+                                      subtitle: Text(
+                                        bible.shortTitle,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: isDarkMode ? const Color(0xFFc0c0c0) : const Color(0xFF5a5a5a),
+                                        ),
+                                      ),
+                                      trailing: ReorderableDragStartListener(
+                                        index: index,
+                                        child: Icon(
+                                          Icons.drag_handle,
+                                          size: 22,
+                                          color: isDarkMode ? const Color(0xFFc0c0c0) : const Color(0xFF5a5a5a),
+                                        ),
+                                      ),
+                                    ),
+                                    Divider(color: isDarkMode ? Colors.black : const Color(0xFFf1f1f1), height: 1),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+
+                        // Section 3: Autres bibles
+                        if (otherBibles.isNotEmpty) ...[
+                          SliverToBoxAdapter(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                                  child: Text(
+                                    i18n().label_not_included_uppercase,
+                                    style: const TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFFC0C0C0),
+                                    ),
+                                  ),
+                                ),
+                                Divider(color: isDarkMode ? Colors.black : const Color(0xFFf1f1f1), height: 1),
+                              ],
+                            ),
+                          ),
+
+                          SliverList(
+                            delegate: SliverChildBuilderDelegate(
+                              (context, index) {
+                                final bible = otherBibles[index];
+                                return Column(
+                                  children: [
+                                    ListTile(
+                                      dense: true,
+                                      visualDensity: VisualDensity.compact,
+                                      contentPadding: const EdgeInsets.symmetric(horizontal: 20),
+                                      leading: GestureDetector(
+                                        onTap: () {
+                                          setState(() {
+                                            currentOrderedBibles.add(bible);
+                                            initialOrderedBibles = List.from(currentOrderedBibles);
+                                          });
+                                        },
+                                        child: const CircleAvatar(
+                                          radius: 13,
+                                          backgroundColor: Colors.green,
+                                          child: Icon(JwIcons.plus, color: Colors.white, size: 19),
+                                        ),
+                                      ),
+                                      title: Text(
+                                        bible.mepsLanguage.vernacular,
+                                        style: TextStyle(fontSize: 15, color: isDarkMode ? Colors.white : Colors.black),
+                                      ),
+                                      subtitle: Text(
+                                        bible.shortTitle,
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: isDarkMode ? const Color(0xFFC1C1C1) : const Color(0xFF5a5a5a),
+                                        ),
+                                      ),
+                                    ),
+                                    Divider(color: isDarkMode ? Colors.black : const Color(0xFFf1f1f1), height: 1),
+                                  ],
+                                );
+                              },
+                              childCount: otherBibles.length,
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                   ),
 
-                  // 2. Séparateur et titre "Autres"
-                  if (otherBibles.isNotEmpty) ...[
-                    Divider(color: isDarkMode ? Colors.black : const Color(0xFFf1f1f1)),
-                    Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 20, vertical: 5),
-                      child: Text(
-                        i18n().label_not_included_uppercase,
-                        style: TextStyle(fontFamily: 'Roboto', fontWeight: FontWeight.bold, color: Colors.grey),
-                      ),
-                    ),
+                  Divider(color: isDarkMode ? Colors.black : const Color(0xFFf1f1f1), height: 1),
 
-                    // CORRECTION 2 : Utilisation correcte de ListView.separated
-                    Expanded(
-                      child: ListView.separated(
-                        shrinkWrap: true,
-                        itemCount: otherBibles.length,
-                        separatorBuilder: (_, __) => Divider(color: isDarkMode ? Colors.black : const Color(0xFFf1f1f1), height: 0),
-                        itemBuilder: (context, index) => otherBiblesWidgets[index], // Utilisation de la liste pré-calculée
-                      ),
-                    ),
-                  ],
-
-                  Divider(color: isDarkMode ? Colors.black : const Color(0xFFf1f1f1)),
-
-                  // Boutons bas
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      // Le bouton 'ANNULER' renvoie null
-                      TextButton(
-                        onPressed: () => Navigator.pop(context), // Ferme sans renvoyer de résultat (annuler -> null)
-                        child: Text(
-                          i18n().action_cancel_uppercase,
-                          style: TextStyle(
-                            fontFamily: 'Roboto',
-                            letterSpacing: 1,
-                            fontWeight: FontWeight.bold,
-                            color: Theme.of(context).primaryColor,
+                  // --- BOUTONS BAS (Alignement et couleur ajustés) ---
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, {
+                            'bibles': currentOrderedBibles,
+                            'versesInParallel': versesInParallel,
+                          }),
+                          child: Text(
+                            i18n().action_done_uppercase,
+                            style: TextStyle(
+                              fontFamily: 'Roboto',
+                              letterSpacing: 1,
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).primaryColor,
+                            ),
                           ),
                         ),
-                      ),
-                      // Le bouton 'TERMINÉ' renvoie la liste finale (currentOrderedBibles)
-                      TextButton(
-                        onPressed: () => Navigator.pop(context, currentOrderedBibles),
-                        child: Text(
-                          i18n().action_done_uppercase,
-                          style: TextStyle(
-                            fontFamily: 'Roboto',
-                            letterSpacing: 1,
-                            fontWeight: FontWeight.bold,
-                            color: Theme.of(context).primaryColor,
-                          ),
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-
-                  const SizedBox(height: 10),
                 ],
               ),
             ),
@@ -514,37 +551,35 @@ Future<bool> showCustomizeVersesDialog(BuildContext context) async {
     },
   );
 
-  // --- LOGIQUE DE RETOUR Future<bool> ---
+  // --- LOGIQUE DE RETOUR RESTÉE INTACTE ---
   if (result != null) {
-    // L'utilisateur a cliqué sur 'TERMINÉ'
-
-    // 1. Mise à jour des données (sauvegarde de la nouvelle liste ordonnée)
-    JwLifeSettings.instance.webViewData.updateBiblesSet(result);
-
-    // 2. Vérification s'il y a eu un changement (ajout, suppression ou changement d'ordre)
-    final resultKeys = result.map((p) => p.getKey()).toList();
-
+    final List<Publication> finalBibles = result['bibles'];
+    final bool finalVersesInParallel = result['versesInParallel'];
+    
+    JwLifeSettings.instance.webViewSettings.updateBiblesSet(finalBibles);
+    
+    final resultKeys = finalBibles.map((p) => p.getKey()).toList();
     bool hasChanges = false;
 
-    // a) Vérification du nombre d'éléments
     if (initialKeys.length != resultKeys.length) {
       hasChanges = true;
-    } else {
-      // b) Vérification de l'ordre
+    } 
+    else {
       for (int i = 0; i < initialKeys.length; i++) {
         if (initialKeys[i] != resultKeys[i]) {
-          hasChanges = true; // Changement d'ordre
+          hasChanges = true;
           break;
         }
       }
     }
 
-    return hasChanges;
+    if(initialVersesInParallel != finalVersesInParallel) {
+      hasChanges = true;
+    }
 
-  } else {
-    // L'utilisateur a annulé (résultat est null)
-    return false;
+    return hasChanges;
   }
+  return false;
 }
 
 // Remplacez votre fonction _showActionSheet par celle-ci

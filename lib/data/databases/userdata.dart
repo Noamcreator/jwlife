@@ -1056,8 +1056,8 @@ class Userdata {
       ''', [colorIndex, styleIndex, userMarkGuid]);
 
       // on enregistre dans la base de donnée les nouveau highlight
-      if(JwLifeSettings.instance.webViewData.styleIndex != styleIndex || JwLifeSettings.instance.webViewData.colorIndex != colorIndex) {
-        JwLifeSettings.instance.webViewData.updateStyleAndColorIndex(styleIndex, colorIndex);
+      if(JwLifeSettings.instance.webViewSettings.styleIndex != styleIndex || JwLifeSettings.instance.webViewSettings.colorIndex != colorIndex) {
+        JwLifeSettings.instance.webViewSettings.updateStyleAndColorIndex(styleIndex, colorIndex);
         AppSharedPreferences.instance.setStyleIndex(styleIndex);
         AppSharedPreferences.instance.setColorIndex(colorIndex);
       }
@@ -1123,8 +1123,8 @@ class Userdata {
       }
 
       // on enregistre dans la base de donnée les nouveau highlight
-      if(JwLifeSettings.instance.webViewData.styleIndex != styleIndex || JwLifeSettings.instance.webViewData.colorIndex != colorIndex) {
-        JwLifeSettings.instance.webViewData.updateStyleAndColorIndex(styleIndex, colorIndex);
+      if(JwLifeSettings.instance.webViewSettings.styleIndex != styleIndex || JwLifeSettings.instance.webViewSettings.colorIndex != colorIndex) {
+        JwLifeSettings.instance.webViewSettings.updateStyleAndColorIndex(styleIndex, colorIndex);
         AppSharedPreferences.instance.setStyleIndex(styleIndex);
         AppSharedPreferences.instance.setColorIndex(colorIndex);
       }
@@ -3704,7 +3704,6 @@ class Userdata {
 
 
       // --- 3. Création des index (Un appel par index) ---
-
       await txn.execute(""" CREATE INDEX IF NOT EXISTS "IX_BlockRange_UserMarkId" ON "BlockRange" ("UserMarkId"); """);
       await txn.execute(""" CREATE INDEX IF NOT EXISTS "IX_Location_KeySymbol_MepsLanguage_BookNumber_ChapterNumber" ON "Location" ("KeySymbol", "MepsLanguage", "BookNumber", "ChapterNumber"); """);
       await txn.execute(""" CREATE INDEX IF NOT EXISTS "IX_Location_MepsLanguage_DocumentId" ON "Location" ("MepsLanguage", "DocumentId"); """);

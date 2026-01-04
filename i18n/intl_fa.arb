@@ -808,7 +808,7 @@
   "settings_download_over_cellular_subtitle": "این کار ممکن است هزینه داشته باشد.",
   "settings_how_jwl_uses_your_data": "چطور JW Library از داده‌های شما استفاده می‌کند",
   "settings_languages": "زبان",
-  "settings_languages_upper": "زبان",
+  "settings_languages_upper": "زبان‌ها",
   "settings_language_app": "زبان برنامه",
   "settings_language_library": "زبان کتابخانه",
   "settings_license": "قرارداد مجوز",
@@ -922,5 +922,14 @@
   "label_research_inputs_fields": "فیلدها",
   "label_research_wikipedia": "ویکی‌پدیا",
   "meps_language": "PR",
-  "label_icon_commentary": "یادداشت مطالعه"
+  "label_icon_commentary": "یادداشت مطالعه",
+  "label_verses_side_by_side": "آیات در کنار هم",
+  "message_verses_side_by_side": "نمایش دو ترجمه اول در کنار هم",
+  "settings_menu_display_upper": "منو",
+  "settings_show_publication_description": "نمایش توضیحات نشریات",
+  "settings_show_publication_description_subtitle": "توضیحات موجود در وب‌سایت را زیر عنوان نشان دهید.",
+  "settings_show_document_description": "نمایش توضیحات برای اسناد",
+  "settings_show_document_description_subtitle": "توضیحات موجود در وب‌سایت را زیر اسناد نشان دهید.",
+  "settings_menu_auto_open_single_document": "باز کردن مستقیم سند",
+  "settings_menu_auto_open_single_document_subtitle": "اگر فقط یک سند وجود دارد، آن را بدون نمایش منو باز کنید."
 }

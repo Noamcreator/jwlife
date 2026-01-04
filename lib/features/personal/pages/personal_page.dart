@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/data/models/userdata/playlist.dart';
 import 'package:jwlife/i18n/i18n.dart';
 
@@ -7,7 +8,6 @@ import '../../../app/jwlife_app_bar.dart';
 import '../../../app/services/global_key_service.dart';
 import '../../../core/icons.dart';
 import '../../../core/utils/utils_import_export.dart';
-import '../../../data/databases/history.dart';
 import '../../../widgets/responsive_appbar_actions.dart';
 import 'study_page.dart';
 
@@ -98,7 +98,7 @@ class PersonalPageState extends State<PersonalPage> {
                 });
               }
           ),
-          IconTextButton(text: i18n().action_history, icon: Icon(JwIcons.arrow_circular_left_clock), onPressed: (anchorContext) { History.showHistoryDialog(context); }),
+          IconTextButton(text: i18n().action_history, icon: Icon(JwIcons.arrow_circular_left_clock), onPressed: (anchorContext) { JwLifeApp.history.showHistoryDialog(context); }),
         ],
       ),
       body: StudyTabView(

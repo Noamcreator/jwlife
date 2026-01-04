@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/core/utils/utils.dart';
-import 'package:jwlife/data/databases/history.dart';
 import 'package:jwlife/widgets/responsive_appbar_actions.dart';
 
 import '../../../app/app_page.dart';
 import '../../../app/jwlife_app_bar.dart';
-import '../../../app/services/global_key_service.dart';
 import '../../../core/icons.dart';
 import '../../../i18n/i18n.dart';
 import 'activity_report_page.dart';
@@ -45,7 +44,7 @@ class PredicationPageState extends State<PredicationPage> {
           ),
           IconTextButton(
             icon: const Icon(JwIcons.arrow_circular_left_clock),
-            onPressed: (BuildContext context) => History.showHistoryDialog(context),
+            onPressed: (BuildContext context) => JwLifeApp.history.showHistoryDialog(context),
           ),
         ],
       ),

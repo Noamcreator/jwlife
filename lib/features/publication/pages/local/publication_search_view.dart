@@ -501,7 +501,7 @@ class _PublicationSearchViewState extends State<PublicationSearchView> {
           ),
           IconTextButton(
             icon: const Icon(JwIcons.arrow_circular_left_clock),
-            onPressed: (BuildContext context) => History.showHistoryDialog(context),
+            onPressed: (BuildContext context) => JwLifeApp.history.showHistoryDialog(context),
           ),
         ],
       ),

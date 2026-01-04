@@ -808,7 +808,7 @@
   "settings_download_over_cellular_subtitle": "Dit leidt wellicht tot datakosten.",
   "settings_how_jwl_uses_your_data": "Gebruik van uw gegevens door JW Library",
   "settings_languages": "Taal",
-  "settings_languages_upper": "Taal",
+  "settings_languages_upper": "TALEN",
   "settings_language_app": "Applicatietaal",
   "settings_language_library": "Bibliotheek Taal",
   "settings_license": "Licentieovereenkomst",
@@ -922,5 +922,14 @@
   "label_research_inputs_fields": "VELDEN",
   "label_research_wikipedia": "WIKIPEDIA",
   "meps_language": "O",
-  "label_icon_commentary": "Studienotitie"
+  "label_icon_commentary": "Studienotitie",
+  "label_verses_side_by_side": "Verzen naast elkaar",
+  "message_verses_side_by_side": "Toon de eerste twee vertalingen naast elkaar",
+  "settings_menu_display_upper": "MENU",
+  "settings_show_publication_description": "Publicatiebeschrijving weergeven",
+  "settings_show_publication_description_subtitle": "Toon de beschrijving van de website onder de titel.",
+  "settings_show_document_description": "Beschrijving voor documenten weergeven",
+  "settings_show_document_description_subtitle": "Toon de beschrijving van de website onder de documenten.",
+  "settings_menu_auto_open_single_document": "Document rechtstreeks openen",
+  "settings_menu_auto_open_single_document_subtitle": "Als er slechts één document aanwezig is, open het dan zonder het menu weer te geven."
 }

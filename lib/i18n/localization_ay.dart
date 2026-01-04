@@ -2795,7 +2795,7 @@ class AppLocalizationsAy extends AppLocalizations {
   String get settings_languages => 'Aru';
 
   @override
-  String get settings_languages_upper => 'ARU';
+  String get settings_languages_upper => 'ARUNAKA';
 
   @override
   String get settings_language_app => 'Aplicación Arusa';
@@ -3188,4 +3188,38 @@ class AppLocalizationsAy extends AppLocalizations {
 
   @override
   String get label_icon_commentary => 'Yatiqañ qillqa';
+
+  @override
+  String get label_verses_side_by_side => 'T\'aqanaka paralliluta';
+
+  @override
+  String get message_verses_side_by_side =>
+      'Nayrïr pä t\'aqanaka parallilut uñacht\'ayaña';
+
+  @override
+  String get settings_menu_display_upper => 'MENU';
+
+  @override
+  String get settings_show_publication_description =>
+      'Uñachayaña qillqatanakataki';
+
+  @override
+  String get settings_show_publication_description_subtitle =>
+      'Uñachayaña uka qillqata jach\'a sutita manqhana.';
+
+  @override
+  String get settings_show_document_description =>
+      'Uñachayaña qillqatanakataki';
+
+  @override
+  String get settings_show_document_description_subtitle =>
+      'Uñachayaña uka qillqata qillqatanaka manqhana.';
+
+  @override
+  String get settings_menu_auto_open_single_document =>
+      'Qillqata jank\'aki jist\'araña';
+
+  @override
+  String get settings_menu_auto_open_single_document_subtitle =>
+      'Maya qillqata utjchi ukhaxa, jist\'araña jan menu uñachayasa.';
 }

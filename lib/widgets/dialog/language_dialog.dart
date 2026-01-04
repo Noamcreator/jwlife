@@ -2,10 +2,10 @@ import 'dart:io';
 import 'dart:async';
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
+import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/files_helper.dart';
 import 'package:jwlife/core/utils/utils.dart';
-import 'package:jwlife/data/databases/history.dart';
 import 'package:jwlife/data/models/media.dart';
 import 'package:jwlife/data/repositories/MediaRepository.dart';
 import 'package:sqflite/sqflite.dart';
@@ -150,7 +150,7 @@ class _LanguageDialogState extends State<LanguageDialog> {
       String selectedLanguageSymbol,
       List<Map<String, dynamic>> allLanguages) async {
     List<Map<String, dynamic>> mostUsedLanguages =
-    await History.getMostUsedLanguages();
+    await JwLifeApp.history.getMostUsedLanguages();
     List<Map<String, dynamic>> mostUsedLanguagesList =
     List.from(mostUsedLanguages);
 

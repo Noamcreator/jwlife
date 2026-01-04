@@ -2770,7 +2770,7 @@ class AppLocalizationsHu extends AppLocalizations {
   String get settings_languages => 'Nyelv';
 
   @override
-  String get settings_languages_upper => 'NYELV';
+  String get settings_languages_upper => 'NYELVEK';
 
   @override
   String get settings_language_app => 'Alkalmazás nyelve';
@@ -3171,4 +3171,38 @@ class AppLocalizationsHu extends AppLocalizations {
 
   @override
   String get label_icon_commentary => 'Tanulmányi feljegyzés';
+
+  @override
+  String get label_verses_side_by_side => 'Versek egymás mellett';
+
+  @override
+  String get message_verses_side_by_side =>
+      'Az első két fordítás megjelenítése egymás mellett';
+
+  @override
+  String get settings_menu_display_upper => 'MENÜ';
+
+  @override
+  String get settings_show_publication_description =>
+      'Kiadvány leírásának megjelenítése';
+
+  @override
+  String get settings_show_publication_description_subtitle =>
+      'A weboldalon található leírás megjelenítése a cím alatt.';
+
+  @override
+  String get settings_show_document_description =>
+      'Dokumentumok leírásának megjelenítése';
+
+  @override
+  String get settings_show_document_description_subtitle =>
+      'A weboldalon található leírás megjelenítése a dokumentumok alatt.';
+
+  @override
+  String get settings_menu_auto_open_single_document =>
+      'Dokumentum közvetlen megnyitása';
+
+  @override
+  String get settings_menu_auto_open_single_document_subtitle =>
+      'Ha csak egy dokumentum van jelen, nyissa meg a menü megjelenítése nélkül.';
 }
