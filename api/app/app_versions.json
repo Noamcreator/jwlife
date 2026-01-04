@@ -111,6 +111,12 @@
         "version":  "1.3.4",
         "name":  "jw-life-1-3-4.apk",
         "timestamp":  "2025-12-31T14:51:17Z",
-        "changelog":  "##### 📢 Mise à jour – v1.3.4 (31/12/2025)\n\n##### 🎨 Interface & Design\n- Correction de l’affichage et du fonctionnement de la barre d’outils des couleurs dans le WebView suite aux changements introduits dans la version précédente.\n\n##### ⚙️ Optimisation\n- L’actualisation par glissement vers le bas sur la page d’accueil n’entraîne plus de ralentissements de l’interface ni du WebView.\n- Le rond de chargement lors de l’ouverture d’un WebView est désormais fluide et ne provoque plus de saccades.\n- Mise en cache des images des chapitres de la Bible en taille réduite afin d’améliorer la rapidité d’affichage.\n- Mise en cache optimisée des images des documents utilisés lors des réunions pour accélérer leur chargement.\n\n##### 🐞 Corrections & Stabilité\n- Correction des ralentissements liés au chargement des WebView.\n- Amélioration de la stabilité générale de l’application lors du rafraîchissement du contenu."
+        "changelog":  "##### 📢 Mise à jour – v1.3.4 (31/12/2025)\n\n##### 🎨 Interface \u0026 Design\n- Correction de l’affichage et du fonctionnement de la barre d’outils des couleurs dans le WebView suite aux changements introduits dans la version précédente.\n\n##### ⚙️ Optimisation\n- L’actualisation par glissement vers le bas sur la page d’accueil n’entraîne plus de ralentissements de l’interface ni du WebView.\n- Le rond de chargement lors de l’ouverture d’un WebView est désormais fluide et ne provoque plus de saccades.\n- Mise en cache des images des chapitres de la Bible en taille réduite afin d’améliorer la rapidité d’affichage.\n- Mise en cache optimisée des images des documents utilisés lors des réunions pour accélérer leur chargement.\n\n##### 🐞 Corrections \u0026 Stabilité\n- Correction des ralentissements liés au chargement des WebView.\n- Amélioration de la stabilité générale de l’application lors du rafraîchissement du contenu."
+    },
+    {
+        "version":  "1.4.0",
+        "name":  "jw-life-1-4-0.apk",
+        "timestamp":  "2026-01-04T05:18:21Z",
+        "changelog":  ""
     }
 ]
