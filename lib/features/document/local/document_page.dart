@@ -916,7 +916,7 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
 
             _blockRangesController.removeBlockRange(userMarkGuid);
 
-            final note = _notesController.getNotesByDocument(document: document).firstWhereOrNull((n) => n.guid == userMarkGuid);
+            final note = _notesController.getNotesByDocument(document: document).firstWhereOrNull((n) => n.userMarkGuid == userMarkGuid);
 
             if(note != null) {
             if(showAlertDialog) {
@@ -948,8 +948,8 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
                 );
 
                 if(confirmed == true) {
-                controller.evaluateJavascript(source: 'removeNote("${note.guid}", false)');
-                _notesController.removeNote(note.guid);
+                  controller.evaluateJavascript(source: 'removeNote("${note.guid}", false)');
+                  _notesController.removeNote(note.guid);
                 }
                 else {
                 controller.evaluateJavascript(source: 'repositionNote("${note.guid}")');

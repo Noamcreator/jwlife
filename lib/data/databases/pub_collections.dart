@@ -336,6 +336,22 @@ class PubCollections {
         'IsSingleDocument': 0,
       };
 
+      bool hasPublicationViewItemDocument = await checkIfTableExists(publicationDb, 'PublicationViewItemDocument');
+      if (hasPublicationViewItemDocument) {
+        // On exécute la requête directement sur publicationDb
+        final List<Map<String, dynamic>> result = await publicationDb.rawQuery(
+          'SELECT COUNT(*) FROM PublicationViewItemDocument'
+        );
+
+        // Sqflite.firstIntValue est l'utilitaire idéal pour extraire le chiffre du COUNT
+        final int count = Sqflite.firstIntValue(result) ?? 0;
+
+        // Si un seul document est trouvé, on met à jour la variable pubDb
+        if (count == 1) {
+          pubDb['IsSingleDocument'] = 1;
+        }
+      }
+
       int publicationId;
 
       if (publication != null && publication.isDownloadedNotifier.value) {
@@ -428,25 +444,10 @@ class PubCollections {
         }
       }
 
-      bool hasPublicationViewItemDocument = await checkIfTableExists(publicationDb, 'PublicationViewItemDocument');
       bool hasDocumentTable = await checkIfTableExists(publicationDb, 'Document');
       bool hasDatedTextTable = await checkIfTableExists(publicationDb, 'DatedText');
       bool hasBibleBookTable = await checkIfTableExists(publicationDb, 'BibleBook');
 
-      if (hasPublicationViewItemDocument) {
-        // On exécute la requête directement sur publicationDb
-        final List<Map<String, dynamic>> result = await publicationDb.rawQuery(
-          'SELECT COUNT(*) FROM PublicationViewItemDocument'
-        );
-
-        // Sqflite.firstIntValue est l'utilitaire idéal pour extraire le chiffre du COUNT
-        final int count = Sqflite.firstIntValue(result) ?? 0;
-
-        // Si un seul document est trouvé, on met à jour la variable pubDb
-        if (count == 1) {
-          pubDb['IsSingleDocument'] = 1;
-        }
-      }
       if(hasDocumentTable) {
         // Insertion des documents
         final documents = await publicationDb.query('Document', columns: ['MepsDocumentId', 'MepsLanguageIndex']);

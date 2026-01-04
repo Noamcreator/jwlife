@@ -30,12 +30,12 @@ class History {
     final historyFile = await getHistoryDatabaseFile();
     _database = await openDatabase(
         historyFile.path, 
-        version: 2, 
+        version: 3,
         onCreate: (db, version) async {
           await createDbHistory(db);
         },
         onUpgrade: (db, oldVersion, newVersion) async {
-          if (oldVersion == 1 && newVersion == 2) {
+          if (oldVersion == 2 && newVersion == 3) {
             await db.transaction((txn) async {
               // 1. Renommer l'ancienne table
               await txn.execute("ALTER TABLE History RENAME TO History_old;");

@@ -462,7 +462,7 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
 
                               _blockRangesController.removeBlockRange(userMarkGuid);
 
-                              final note = _notesController.getNotesByDocument(datedText: datedText).firstWhereOrNull((n) => n.guid == userMarkGuid);
+                              final note = _notesController.getNotesByDocument(datedText: datedText).firstWhereOrNull((n) => n.userMarkGuid == userMarkGuid);
 
                               if(note != null) {
                                 if(showAlertDialog) {

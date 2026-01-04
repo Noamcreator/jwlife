@@ -283,6 +283,8 @@ function loadImageSvg(pageElement, svgPaths) {
         existingContainer.remove();
     }
 
+    pageElement.innerHTML = '';
+
     const svgContainer = document.createElement('div');
     svgContainer.className = 'svg-wrapper-container';
     Object.assign(svgContainer.style, {
@@ -2930,6 +2932,8 @@ async function openNoteDialog(noteGuid) {
         console.error('Note non trouvée pour le GUID:', noteGuid);
         return;
     }
+
+    closeToolbar();
 
     const options = {
         title: note.DialogTitle || 'Note',

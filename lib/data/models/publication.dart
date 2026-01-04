@@ -9,9 +9,7 @@ import 'package:jwlife/data/models/publication_attribute.dart';
 import 'package:jwlife/data/models/publication_category.dart';
 import 'package:jwlife/data/models/meps_language.dart';
 import 'package:jwlife/features/document/local/dated_text_manager.dart';
-import 'package:jwlife/features/document/local/document_page.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:sqflite/sqflite.dart';
 
 import '../../core/app_data/app_data_service.dart';
 import '../../app/services/global_key_service.dart';
