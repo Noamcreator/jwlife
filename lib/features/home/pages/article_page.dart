@@ -1,9 +1,9 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:jwlife/app/jwlife_app_bar.dart';
 import 'package:jwlife/app/services/settings_service.dart';
 import 'package:jwlife/core/ui/text_styles.dart';
+import 'package:jwlife/core/webview/webview_utils.dart';
 
 import '../../../app/app_page.dart';
 import '../../../core/utils/utils.dart';
@@ -59,17 +59,7 @@ class _ArticlePageState extends State<ArticlePage> {
         children: [
           // Le WebView est toujours présent en fond
           InAppWebView(
-            initialSettings: InAppWebViewSettings(
-              javaScriptEnabled: true,
-              useHybridComposition: true,
-              hardwareAcceleration: true,
-              cacheEnabled: false,
-              clearCache: true,
-              cacheMode: CacheMode.LOAD_NO_CACHE,
-              allowUniversalAccessFromFileURLs: true,
-              minimumViewportInset: EdgeInsets.zero,
-              maximumViewportInset: EdgeInsets.zero,
-            ),
+            initialSettings: getWebViewSettings(),
             initialUrlRequest: URLRequest(
               url: WebUri(widget.link),
             ),

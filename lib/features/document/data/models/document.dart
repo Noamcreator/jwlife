@@ -5,6 +5,7 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/app/services/global_key_service.dart';
 import 'package:jwlife/core/uri/jworg_uri.dart';
+import 'package:jwlife/core/utils/utils_database.dart';
 import 'package:jwlife/data/controller/block_ranges_controller.dart';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/models/userdata/block_range.dart';
@@ -186,15 +187,18 @@ class Document {
 
   Future<void> fetchMedias() async {
     try {
+      bool hasSuppressZoom = await checkIfColumnsExists(database, 'Multimedia', ['SuppressZoom']);
+
       // Récupérer les données de la base
       List<Map<String, dynamic>> response = await database.rawQuery('''
-          SELECT DISTINCT m.*, dm.BeginParagraphOrdinal, dm.EndParagraphOrdinal
+          SELECT m.*, dm.BeginParagraphOrdinal, dm.EndParagraphOrdinal
           FROM Multimedia m
-          JOIN DocumentMultimedia dm ON dm.MultimediaId = m.MultimediaId
+          INNER JOIN DocumentMultimedia dm ON dm.MultimediaId = m.MultimediaId
           WHERE m.MimeType IN ('image/jpeg', 'video/mp4')
-            AND m.CategoryType != 25
             AND m.CategoryType != 9
-            AND dm.DocumentId = ?;
+            ${hasSuppressZoom ? 'AND m.SuppressZoom = 0' : ''}
+            AND dm.DocumentId = ?
+          GROUP BY m.MultimediaId
     ''', [documentId]);
 
       List<Multimedia> medias = response.map((e) => Multimedia.fromMap(e)).toList();

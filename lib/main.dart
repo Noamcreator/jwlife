@@ -15,7 +15,6 @@ import 'app/startup/copy_assets.dart';
 import 'core/shared_preferences/shared_preferences_utils.dart';
 import 'core/uri/jworg_uri.dart';
 import 'core/webview/html_template_service.dart';
-import 'data/databases/mepsunit.dart';
 import 'data/realm/realm_library.dart';
 import 'i18n/i18n.dart';
 import 'i18n/localization.dart';

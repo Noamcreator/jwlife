@@ -10,7 +10,6 @@ import 'directory_helper.dart';
 class WebViewSettings {
   late String theme;
   late String backgroundColor;
-  late String cssCode;
   late double fontSize;
   late int colorIndex;
   late int styleIndex;

@@ -1176,15 +1176,32 @@ function createToolbarButtonColor(styleIndex, targets, target, styleToolbar, isS
 
         colorToolbar.style.top = styleToolbar.style.top;
 
-        // Fonction utilitaire pour obtenir la valeur RGB d'une variable CSS
-        const getRgbValue = (colorName) => {
-            // Lis la valeur de la variable CSS --color-[name]-rgb à partir du document
-            // (Cette valeur change automatiquement entre :root et .cc-theme--dark)
-            return getComputedStyle(document.documentElement).getPropertyValue(`--color-${colorName}-rgb`).trim();
-        };
-
         // Détermination de l'icône de retour
         const isDark = isDarkTheme(); // Supposée fonction pour vérifier le thème
+
+        // Fonction utilitaire pour obtenir la valeur RGB d'une variable CSS
+        const getRgbValue = (colorName) => {
+            const rawRgb = getComputedStyle(document.documentElement)
+                .getPropertyValue(`--color-${colorName}-rgb`)
+                .trim();
+        
+            if (!rawRgb) return { main: '128,128,128', border: '100,100,100' };
+        
+            let [r, g, b] = rawRgb.split(',').map(num => parseInt(num));
+            const max = Math.max(r, g, b);
+        
+            if (isDark) {
+                // Mode Dark : On sature pour le fond, et on assombrit pour la bordure
+                const mainRgb = [r, g, b].map(v => (v === max ? v : Math.round(v * 0.87))).join(', ');
+                const borderRgb = [r, g, b].map(v => Math.round(v * 0.65)).join(', ');
+                return { main: mainRgb, border: borderRgb };
+            } else {
+                // Mode Light : On garde la couleur originale, bordure nettement plus foncée
+                const mainRgb = [r, g, b].join(', ');
+                const borderRgb = [r, g, b].map(v => Math.round(v * 0.8)).join(', ');
+                return { main: mainRgb, border: borderRgb };
+            }
+        };
 
         // Bouton retour (Symbole: E639)
         const backButton = document.createElement('button');
@@ -1225,7 +1242,7 @@ function createToolbarButtonColor(styleIndex, targets, target, styleToolbar, isS
             if (index == 0) return;
             const colorButton = document.createElement('button');
             const colorIndex = index; // Les index de couleur commencent à 1
-            const rgbValue = getRgbValue(colorName);
+            const colors = getRgbValue(colorName);
 
             // 🎨 CRÉATION DU CERCLE DE COULEUR 🎨
             const colorCircle = document.createElement('div');
@@ -1233,7 +1250,9 @@ function createToolbarButtonColor(styleIndex, targets, target, styleToolbar, isS
                 width: 25px;
                 height: 25px;
                 border-radius: 50%;
-                background-color: rgba(${rgbValue}, 1.0);
+                background-color: rgb(${colors.main});
+                border: 1px solid rgb(${colors.border});
+                box-sizing: border-box;
                 display: flex;
                 justify-content: center;
                 align-items: center;
@@ -1733,6 +1752,7 @@ function showToolbar(article, paragraphs, pid, hasAudio, type) {
 async function fetchVerseInfo(paragraph, pid) {
     const verseInfo = await window.flutter_inappwebview.callHandler('fetchVerseInfo', {id: pid});
     showVerseInfoDialog(pageCenter, verseInfo, 'verse-info-$pid', pid, false);
+    closeToolbar();
 }
 
 const HEADER_HEIGHT = 45; // Hauteur fixe du header
@@ -7228,7 +7248,7 @@ container.addEventListener('touchmove', (e) => {
 
 // --- TOUCH END ---
 container.addEventListener('touchend', (e) => {
-    if (isLongPressing) {
+    if (isLongPressing || isBlockingHorizontallyMode) {
         setLongPressing(false);
         isDragging = false;
         isZooming = false;

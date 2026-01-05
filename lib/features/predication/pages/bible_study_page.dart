@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:jwlife/core/icons.dart';
+import 'package:jwlife/core/utils/widgets_utils.dart';
 import 'package:jwlife/widgets/responsive_appbar_actions.dart';
 import '../../../app/app_page.dart';
 import '../../../app/jwlife_app_bar.dart';
@@ -53,7 +54,7 @@ class BibleStudyPageState extends State<BibleStudyPage> {
       ),
       body: SafeArea(
         child: studiesData.isEmpty
-            ? _buildEmptyState(theme)
+            ? emptyStateWidget('Aucun cours biblique', JwIcons.persons_bible_study)
             : ListView.separated(
           padding: const EdgeInsets.symmetric(vertical: 16),
           itemCount: studiesData.length,
@@ -103,24 +104,6 @@ class BibleStudyPageState extends State<BibleStudyPage> {
       onTap: () {
         // Naviguer vers le détail de l'étudiant et l'historique de ses études
       },
-    );
-  }
-
-  Widget _buildEmptyState(ThemeData theme) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(JwIcons.persons_bible_study, size: 80, color: Colors.grey.withOpacity(0.3)),
-          const SizedBox(height: 16),
-          const Text('Aucun cours biblique', style: TextStyle(color: Colors.grey, fontSize: 18)),
-          const SizedBox(height: 8),
-          TextButton(
-            onPressed: () {},
-            child: const Text('Commencer une étude'),
-          )
-        ],
-      ),
     );
   }
 }

@@ -6,7 +6,6 @@ import 'package:jwlife/core/uri/jworg_uri.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/core/utils/utils_document.dart';
 import 'package:jwlife/data/models/publication.dart';
-import 'package:jwlife/data/databases/history.dart';
 import 'package:jwlife/widgets/responsive_appbar_actions.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -213,8 +212,8 @@ class _PublicationSearchViewState extends State<PublicationSearchView> {
     final Color linkColor = Theme.of(context).brightness == Brightness.dark
         ? const Color(0xFFa0b9e2)
         : const Color(0xFF4a6da6);
-    const TextStyle baseTextStyle = TextStyle(fontSize: 18);
-    const TextStyle boldTextStyle = TextStyle(fontWeight: FontWeight.bold, fontSize: 18);
+    const TextStyle baseTextStyle = TextStyle(fontSize: 18, fontFamily: 'Roboto');
+    const TextStyle boldTextStyle = TextStyle(fontWeight: FontWeight.bold, fontSize: 18, fontFamily: 'Roboto');
 
     String verseRef = JwLifeApp.bibleCluesInfo.getVerses(
         verse['bookNumber'], verse['chapterNumber'], verse['verseNumber'],
@@ -342,123 +341,137 @@ class _PublicationSearchViewState extends State<PublicationSearchView> {
   }
 
   Widget _buildUnifiedResultsList() {
-    if (_isLoading) {
-      return getLoadingWidget(Theme.of(context).primaryColor);
-    }
+  if (_isLoading) {
+    return getLoadingWidget(Theme.of(context).primaryColor);
+  }
 
-    bool isBible = widget.publication.isBible();
-    int totalResults = (isBible ? _model.nbWordResultsInVerses : 0) + _model.nbWordResultsInDocuments;
-    int totalItems = (isBible ? _model.verses.length : 0) + _model.documents.length + 1;
+  bool isBible = widget.publication.isBible();
+  int totalResults = (isBible ? _model.nbWordResultsInVerses : 0) + _model.nbWordResultsInDocuments;
+  
+  // On garde toujours au moins 2 éléments si vide (l'en-tête + le message vide)
+  // Sinon : l'en-tête (1) + les versets + les documents
+  int totalItems = (totalResults == 0) 
+      ? 2 
+      : (isBible ? _model.verses.length : 0) + _model.documents.length + 1;
 
-    if (totalItems <= 1) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(JwIcons.magnifying_glass, size: 60, color: Theme.of(context).hintColor),
-
-            const SizedBox(height: 20),
-            Text(
-              i18n().message_no_topics_found,
-              style: TextStyle(fontSize: 18, color: Theme.of(context).hintColor),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      );
-    }
-
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 10),
-      itemCount: totalItems,
-      itemBuilder: (context, index) {
-        if (index == 0) {
-          return Padding(
-            padding: const EdgeInsets.only(top: 10, bottom: 10),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.only(top: 10),
-                  child: Text(
-                    totalResults == 0 ? i18n().search_results_none : totalResults == 1 ? i18n().search_results_occurence : i18n().search_results_occurences(formatNumber(totalResults)),
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
+  return ListView.builder(
+    padding: const EdgeInsets.symmetric(horizontal: 10),
+    itemCount: totalItems,
+    itemBuilder: (context, index) {
+      // --- INDEX 0 : L'EN-TÊTE (Toujours affiché) ---
+      if (index == 0) {
+        return Padding(
+          padding: const EdgeInsets.only(top: 10, bottom: 10),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(top: 10),
+                child: Text(
+                  totalResults == 0 ? i18n().search_results_none : totalResults == 1 ? i18n().search_results_occurence : i18n().search_results_occurences(formatNumber(totalResults)),
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Row(
-                      children: [
-                        Checkbox(
-                          value: _exactMatch,
-                          onChanged: (bool? value) {
-                            searchQuery(_query, newSearch: false, isExactMatch: value ?? false, sortMode: _sortMode);
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Row(
+                    children: [
+                      Checkbox(
+                        value: _exactMatch,
+                        onChanged: (bool? value) {
+                          searchQuery(_query, newSearch: false, isExactMatch: value ?? false, sortMode: _sortMode);
+                        },
+                      ),
+                      Text(i18n().search_match_exact_phrase),
+                    ],
+                  ),
+                  if (isBible)
+                    Container(
+                      margin: const EdgeInsets.only(top: 5),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Theme.of(context).brightness == Brightness.dark ? Colors.white : const Color(0xFF626262), width: 0.5),
+                        borderRadius: BorderRadius.circular(5),
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<int>(
+                          elevation: 0,
+                          isDense: true,
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          value: _sortMode,
+                          dropdownColor: Theme.of(context).brightness == Brightness.dark
+                              ? const Color(0xFF292929)
+                              : Colors.white,
+                          onChanged: (int? newValue) {
+                            if (newValue != null) {
+                              setState(() {
+                                _sortMode = newValue;
+                                _model.sortVerses(_sortMode);
+                              });
+                            }
                           },
-                        ),
-                        Text(i18n().search_match_exact_phrase),
-                      ],
-                    ),
-                    if (isBible)
-                      Container(
-                        margin: const EdgeInsets.only(top: 5),
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Theme.of(context).brightness == Brightness.dark ? Colors.white : const Color(0xFF626262), width: 0.5),
-                          borderRadius: BorderRadius.circular(5),
-                        ),
-                        child: DropdownButtonHideUnderline(
-                          child: DropdownButton<int>(
-                            elevation: 0,
-                            isDense: true,
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            value: _sortMode,
-                            dropdownColor: Theme.of(context).brightness == Brightness.dark
-                                ? const Color(0xFF292929)
-                                : Colors.white,
-                            onChanged: (int? newValue) {
-                              if (newValue != null) {
-                                setState(() {
-                                  _sortMode = newValue;
-                                  _model.sortVerses(_sortMode);
-                                });
-                              }
-                            },
-                            items: [
-                              DropdownMenuItem<int>(value: 0, child: Text(i18n().search_results_per_chronological, style: TextStyle(fontSize: 14))),
-                              DropdownMenuItem<int>(value: 1, child: Text(i18n().search_results_per_top_verses, style: TextStyle(fontSize: 14))),
-                              DropdownMenuItem<int>(value: 2, child: Text(i18n().search_results_per_occurences, style: TextStyle(fontSize: 14))),
-                            ],
-                          ),
+                          items: [
+                            DropdownMenuItem<int>(value: 0, child: Text(i18n().search_results_per_chronological, style: TextStyle(fontSize: 14))),
+                            DropdownMenuItem<int>(value: 1, child: Text(i18n().search_results_per_top_verses, style: TextStyle(fontSize: 14))),
+                            DropdownMenuItem<int>(value: 2, child: Text(i18n().search_results_per_occurences, style: TextStyle(fontSize: 14))),
+                          ],
                         ),
                       ),
-                  ],
+                    ),
+                ],
+              ),
+            ],
+          ),
+        );
+      }
+
+      // --- INDEX 1 : État vide (si aucun résultat) ---
+      if (totalResults == 0 && index == 1) {
+        return Padding(
+          padding: const EdgeInsets.only(top: 100), // Centre visuellement sous l'en-tête
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(JwIcons.magnifying_glass, size: 60, color: Theme.of(context).hintColor),
+                const SizedBox(height: 20),
+                Text(
+                  i18n().message_no_topics_found,
+                  style: TextStyle(fontSize: 18, color: Theme.of(context).hintColor),
+                  textAlign: TextAlign.center,
                 ),
               ],
             ),
-          );
-        }
+          ),
+        );
+      }
 
-        final resultIndex = index - 1;
-
-        if (isBible) {
-          if (resultIndex < _model.verses.length) {
-            return _buildVerseItem(_model.verses[resultIndex]);
-          }
-          else {
-            final docIndex = resultIndex - _model.verses.length;
-            if (docIndex >= 0 && docIndex < _model.documents.length) {
-              return _buildDocumentItem(_model.documents[docIndex]);
-            }
-            return const SizedBox.shrink();
-          }
+      // --- AUTRES INDEX : Les résultats réels ---
+      final resultIndex = index - 1;
+      
+      if (isBible) {
+        if (resultIndex < _model.verses.length) {
+          return _buildVerseItem(_model.verses[resultIndex]);
         }
         else {
+          final docIndex = resultIndex - _model.verses.length;
+          if (docIndex >= 0 && docIndex < _model.documents.length) {
+            return _buildDocumentItem(_model.documents[docIndex]);
+          }
+          return const SizedBox.shrink();
+        }
+      }
+      else {
+        // Pour les publications non-Bible, on s'assure de ne pas dépasser la taille
+        if (resultIndex < _model.documents.length) {
           return _buildDocumentItem(_model.documents[resultIndex]);
         }
-      },
-    );
-  }
+        return const SizedBox.shrink();
+      }
+    },
+  );
+}
 
   @override
   Widget build(BuildContext context) {

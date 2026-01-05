@@ -37,12 +37,7 @@ class _JwLifePageContainer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        JwLifePage(key: GlobalKeyService.jwLifePageKey),
-        WebViewManager.instance.preloaderWidget()
-      ],
-    );
+    return JwLifePage(key: GlobalKeyService.jwLifePageKey);
   }
 }
 
@@ -182,23 +177,28 @@ class JwLifeAppState extends State<JwLifeApp> {
         FallbackLocalizationDelegate(),
       ],
       supportedLocales: AppLocalizations.supportedLocales,
-      home: ValueListenableBuilder(
-        valueListenable: _initialized,
-        builder: (context, value, child) {
-          if (value) {
-            return MultiProvider(
-                providers: [
-                  ChangeNotifierProvider(create: (_) => BlockRangesController()),
-                  ChangeNotifierProvider(create: (_) => NotesController()..loadNotes()),
-                  ChangeNotifierProvider(create: (_) => TagsController()..loadTags()),
-                ],
-                child: const _JwLifePageContainer()
-            );
-          }
-          else {
-            return const SplashScreen();
-          }
-        },
+      home: Stack(
+        children: [
+          ValueListenableBuilder(
+            valueListenable: _initialized,
+            builder: (context, value, child) {
+              if (value) {
+                return MultiProvider(
+                    providers: [
+                      ChangeNotifierProvider(create: (_) => BlockRangesController()),
+                      ChangeNotifierProvider(create: (_) => NotesController()..loadNotes()),
+                      ChangeNotifierProvider(create: (_) => TagsController()..loadTags()),
+                    ],
+                    child: const _JwLifePageContainer()
+                );
+              }
+              else {
+                return const SplashScreen();
+              }
+            },
+          ),
+          WebViewManager.instance.preloaderWidget(),
+        ],
       ),
     );
   }

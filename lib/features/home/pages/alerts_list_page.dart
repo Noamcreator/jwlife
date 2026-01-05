@@ -9,6 +9,7 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:jwlife/core/uri/jworg_uri.dart';
 import 'package:jwlife/core/utils/utils_video.dart';
 import 'package:jwlife/core/utils/webview_data.dart';
+import 'package:jwlife/core/webview/webview_utils.dart';
 import 'package:jwlife/data/models/audio.dart';
 import 'package:jwlife/data/realm/catalog.dart';
 
@@ -200,19 +201,7 @@ class _AlertsListPageState extends State<AlertsListPage> {
         ],
       ),
       body: _isLoadingHtml ? getLoadingWidget(Theme.of(context).primaryColor) : InAppWebView(
-        initialSettings: InAppWebViewSettings(
-          scrollBarStyle: null,
-          verticalScrollBarEnabled: false,
-          horizontalScrollBarEnabled: false,
-          useShouldOverrideUrlLoading: true,
-          mediaPlaybackRequiresUserGesture: false,
-          useOnLoadResource: false,
-          allowUniversalAccessFromFileURLs: true,
-          allowFileAccess: true,
-          allowContentAccess: true,
-          useHybridComposition: true,
-          hardwareAcceleration: true,
-        ),
+        initialSettings: getWebViewSettings(),
         initialData: InAppWebViewInitialData(
           data: _htmlContent,
           mimeType: 'text/html',

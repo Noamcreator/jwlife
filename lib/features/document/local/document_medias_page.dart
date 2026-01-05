@@ -1,16 +1,21 @@
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
+import 'package:html/parser.dart';
 import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/app/jwlife_app_bar.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
+import 'package:jwlife/core/utils/utils.dart';
+import 'package:jwlife/core/utils/utils_database.dart';
 import 'package:jwlife/core/utils/utils_video.dart';
 import 'package:jwlife/data/models/media.dart';
+import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/realm/catalog.dart';
 import 'package:jwlife/data/realm/realm_library.dart';
 import 'package:jwlife/features/library/pages/audios/audios_items_page.dart';
 import 'package:jwlife/widgets/image_cached_widget.dart';
 import 'package:realm/realm.dart';
+import 'package:sqflite/sqflite.dart';
 
 import '../../../../../app/app_page.dart';
 import '../../../../../data/models/video.dart';
@@ -34,10 +39,12 @@ class DocumentMediasView extends StatefulWidget {
 class _DocumentMediasViewState extends State<DocumentMediasView> {
   List<Multimedia> videos = [];
   List<Multimedia> images = [];
+  List<Map<String, dynamic>> extractsMedias = [];
 
   @override
   void initState() {
     super.initState();
+    fetchOtherImagesInExtractPublications();
     setState(() {
       videos = widget.document.multimedias.where((media) => media.mimeType == 'video/mp4').toList();
       images = widget.document.multimedias.where((media) => 
@@ -45,6 +52,80 @@ class _DocumentMediasViewState extends State<DocumentMediasView> {
         !widget.document.multimedias.any((media2) => media.id == media2.linkMultimediaId && media2.mimeType == 'video/mp4')
       ).toList();
     });
+  }
+
+  Future<void> fetchOtherImagesInExtractPublications() async {
+    Database databasePub = widget.document.publication.documentsManager!.database;
+    try {
+      List<Map<String, dynamic>> response = await databasePub.rawQuery('''
+        SELECT ext.Caption, ext.RefMepsDocumentId, ext.RefBeginParagraphOrdinal, ext.RefEndParagraphOrdinal
+        FROM Extract ext
+        INNER JOIN Document d ON dext.DocumentId = d.DocumentId
+        INNER JOIN DocumentExtract dext ON ext.ExtractId = dext.ExtractId
+        WHERE d.MepsDocumentId = ?;
+      ''', [widget.document.mepsDocumentId]);
+
+      for(Map<String, dynamic> extract in response) {
+        if(extract['RefMepsDocumentId'] != null) {
+           Publication? publicationPubExtract = await JwLifeApp.pubCollections.getDocumentFromAvailable(extract['RefMepsDocumentId'] as int, widget.document.mepsLanguageId);
+          if(publicationPubExtract != null && publicationPubExtract.isDownloadedNotifier.value) {
+            Database databaseExtract = publicationPubExtract.documentsManager == null ? await openReadOnlyDatabase(publicationPubExtract.databasePath!) : publicationPubExtract.documentsManager!.database;
+            bool hasSuppressZoom = await checkIfColumnsExists(databaseExtract, 'Multimedia', ['SuppressZoom']);
+
+            // Préparation dynamique des arguments
+            String paragraphFilter = "";
+            List<dynamic> queryParams = [extract['RefMepsDocumentId']];
+
+            // Si les ordinals sont nuls, on ne rajoute pas le filtre (prend tout le document)
+            if (extract['RefBeginParagraphOrdinal'] != null && extract['RefEndParagraphOrdinal'] != null) {
+              paragraphFilter = "AND dm.BeginParagraphOrdinal >= ? AND dm.EndParagraphOrdinal <= ?";
+              queryParams.add(extract['RefBeginParagraphOrdinal']);
+              queryParams.add(extract['RefEndParagraphOrdinal']);
+            }
+
+            List<Map<String, dynamic>> responseExtract = await databaseExtract.rawQuery('''
+              SELECT DISTINCT m.*
+              FROM Multimedia m
+              INNER JOIN DocumentMultimedia dm ON dm.MultimediaId = m.MultimediaId
+              INNER JOIN Document d ON dm.DocumentId = d.DocumentId
+              WHERE d.MepsDocumentId = ?
+                AND m.MimeType IN ('image/jpeg', 'video/mp4')
+                AND m.CategoryType != 9
+                AND m.CategoryType != 4
+                ${hasSuppressZoom ? 'AND m.SuppressZoom = 0' : ''}
+                $paragraphFilter
+            ''', queryParams);
+
+            List<Multimedia> medias = responseExtract.map((e) => Multimedia.fromMap(e)).toList();
+
+            if(medias.isNotEmpty) {
+              var doc = parse(extract['Caption']);
+              String caption = doc.querySelector('.etitle')?.text ?? '';
+
+              setState(() {
+                extractsMedias.add({
+                  'title': caption,
+                  'medias': medias,
+                  'publication': publicationPubExtract
+                });
+              });
+            }
+
+            if (publicationPubExtract.documentsManager == null) await databaseExtract.close();
+          }
+        }
+      }
+    }
+    catch (e) {
+      printTime('Error: $e');
+    }
+  }
+
+  Widget _buildEmptyState() {
+    return SliverFillRemaining(
+      hasScrollBody: false,
+      child: emptyStateWidget(i18n().message_no_media_title, JwIcons.square_stack),      
+    );
   }
 
   int _getCrossAxisCount(double screenWidth) {
@@ -55,18 +136,17 @@ class _DocumentMediasViewState extends State<DocumentMediasView> {
   }
 
   double _getSpacing(double screenWidth) {
-    if (screenWidth > 1200) return 12.0;
-    if (screenWidth > 900) return 10.0;
-    if (screenWidth > 600) return 8.0;
+    if (screenWidth > 1200) return 10.0;
+    if (screenWidth > 900) return 8.0;
+    if (screenWidth > 600) return 6.0;
     return 6.0;
   }
 
-  // Ratio pour les vidéos (ton original) et pour les images (1200/675)
   double _getAspectRatio(double screenWidth, bool isVideo) {
     if (isVideo) {
       return screenWidth > 600 ? 16 / 10.5 : 16 / 11.4;
     }
-    return 1200 / 675; // Ratio 16:9 forcé pour la grille d'images
+    return 1200 / 675; 
   }
 
   @override
@@ -97,22 +177,15 @@ class _DocumentMediasViewState extends State<DocumentMediasView> {
           ),
         ],
       ),
-      body: (videos.isEmpty && images.isEmpty)
-          ? getLoadingWidget(Theme.of(context).primaryColor)
+      body: (videos.isEmpty && images.isEmpty && extractsMedias.isEmpty)
+          ? _buildEmptyState()
           : SingleChildScrollView(
         padding: EdgeInsets.all(spacing),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Section Vidéos (Inchangée)
+            // --- Section Vidéos Principales ---
             if (videos.isNotEmpty) ...[
-              Padding(
-                padding: EdgeInsets.only(bottom: spacing),
-                child: Text(
-                  i18n().label_videos,
-                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                ),
-              ),
               GridView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
@@ -126,21 +199,16 @@ class _DocumentMediasViewState extends State<DocumentMediasView> {
                 itemBuilder: (context, index) {
                   final media = videos[index];
                   RealmMediaItem? mediaItem = getMediaItem(media.keySymbol, media.track, media.mepsDocumentId, media.issueTagNumber, media.mepsLanguageId, isVideo: media.mimeType == 'video/mp4');
-                  if (mediaItem == null) {
-                    return Container();
-                  }
+                  if (mediaItem == null) return Container();
                   Video video = Video.fromJson(mediaItem: mediaItem);
                   return videoTile(context, video, screenWidth);
                 },
               ),
-              SizedBox(height: spacing),
+              SizedBox(height: 4),
             ],
 
-            // Section Images (Format 1200/675 avec contain)
+            // --- Section Images Principales ---
             if (images.isNotEmpty) ...[
-              if (videos.isNotEmpty) ...[
-                SizedBox(height: spacing),
-              ],
               Padding(
                 padding: EdgeInsets.only(bottom: spacing),
                 child: Text(
@@ -160,46 +228,79 @@ class _DocumentMediasViewState extends State<DocumentMediasView> {
                 itemCount: images.length,
                 itemBuilder: (context, index) {
                   final media = images[index];
-                  return imageTile(context, media, screenWidth);
+                  return imageTile(context, media, screenWidth, widget.document.publication);
                 },
               ),
+              SizedBox(height: 8),
             ],
+
+            // --- Section Extraits (Titre + Médias) ---
+            if (extractsMedias.isNotEmpty) 
+              for (var extract in extractsMedias) ...[
+                Padding(
+                  padding: EdgeInsets.only(top: spacing),
+                  child: Text(
+                    extract['title'] ?? "",
+                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: crossAxisCount,
+                    crossAxisSpacing: spacing,
+                    mainAxisSpacing: spacing,
+                    childAspectRatio: _getAspectRatio(screenWidth, false), // On garde un ratio image par défaut
+                  ),
+                  itemCount: (extract['medias'] as List<Multimedia>).length,
+                  itemBuilder: (context, index) {
+                    final Multimedia media = extract['medias'][index];
+                    final Publication publication = extract['publication'];
+                    
+                    if (media.mimeType == 'video/mp4') {
+                       RealmMediaItem? mediaItem = getMediaItem(media.keySymbol, media.track, media.mepsDocumentId, media.issueTagNumber, media.mepsLanguageId, isVideo: true);
+                       if (mediaItem == null) return Container();
+                       return videoTile(context, Video.fromJson(mediaItem: mediaItem), screenWidth);
+                    } else {
+                       return imageTile(context, media, screenWidth, publication);
+                    }
+                  },
+                ),
+                SizedBox(height: 4),
+              ],
           ],
         ),
       ),
     );
   }
 
-  // Widget Vidéo : Strictement identique à ton original
   Widget videoTile(BuildContext context, Media media, double screenWidth) {
-    return MediaItemItemWidget(media: media, timeAgoText: false, width: 190);
+    return MediaItemItemWidget(media: media, timeAgoText: false, width: 180);
   }
 
-  // Widget Image : Ratio fixé et adaptation "contain"
-  Widget imageTile(BuildContext context, Multimedia media, double screenWidth) {
+  Widget imageTile(BuildContext context, Multimedia media, double screenWidth, Publication publication) {
     final double captionFontSize = screenWidth > 600 ? 11.0 : 9.0;
 
-    return GestureDetector(
-      onTap: () {
-        Multimedia? multimedia = widget.document.multimedias.firstWhereOrNull((img) => img.filePath.toLowerCase() == media.filePath.toLowerCase());
-        if (multimedia != null) {
-          showPage(FullScreenImagePage(publication: widget.document.publication, multimedias: widget.document.multimedias, multimedia: multimedia));
-        }
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.03), // Fond très léger pour garder la structure
-          borderRadius: BorderRadius.circular(8.0),
-        ),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          showPage(FullScreenImagePage(
+            publication: publication, 
+            multimedias: [media], // Pour l'extrait, on affiche le média seul ou on pourrait passer la liste de l'extrait
+            multimedia: media
+          ));
+        },
         child: Stack(
           alignment: Alignment.center,
           children: [
             ClipRRect(
               child: ImageCachedWidget(
-                imageUrl: '${widget.document.publication.path}/${media.filePath}',
+                imageUrl: '${publication.path}/${media.filePath}',
                 icon: JwIcons.image,
                 height: double.infinity,
-                width: double.infinity,
+                width: 180,
                 fit: BoxFit.contain,
               ),
             ),
@@ -217,10 +318,6 @@ class _DocumentMediasViewState extends State<DocumentMediasView> {
                         Colors.transparent,
                         Colors.black.withOpacity(0.8),
                       ],
-                    ),
-                    borderRadius: const BorderRadius.only(
-                      bottomLeft: Radius.circular(8.0),
-                      bottomRight: Radius.circular(8.0),
                     ),
                   ),
                   padding: EdgeInsets.all(screenWidth > 600 ? 8.0 : 4.0),

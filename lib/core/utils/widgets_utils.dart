@@ -15,3 +15,28 @@ Widget getLoadingWidget(Color color) {
     ),
   );
 }
+
+Widget emptyStateWidget(String title, IconData icon) {
+  return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              size: 100,
+              color: Colors.grey.withOpacity(0.3),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 18,
+                color: Colors.grey,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      );
+}

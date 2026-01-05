@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:jwlife/app/services/settings_service.dart';
+import 'package:jwlife/core/utils/utils.dart';
+import 'package:jwlife/core/webview/webview_javascript.dart';
+import 'package:jwlife/features/document/local/dated_text_manager.dart';
+import 'package:jwlife/features/document/local/documents_manager.dart';
 import 'package:jwlife/features/home/pages/daily_text_page.dart';
 import 'package:jwlife/features/personal/pages/note_page.dart';
 import 'package:jwlife/features/document/local/document_page.dart';
 import 'package:jwlife/features/image/pages/full_screen_image_page.dart';
+import 'package:jwlife/features/publication/models/menu/local/words_suggestions_model.dart';
 import 'package:jwlife/features/video/video_player_page.dart';
 
 import '../../app/services/global_key_service.dart';
@@ -16,6 +21,26 @@ Future<void> showPageDocument(Publication publication, int mepsDocumentId, {int?
   final GlobalKey<DocumentPageState> documentPageKey = GlobalKey<DocumentPageState>();
   GlobalKeyService.jwLifePageKey.currentState!.webViewPageKeys[GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex.value].add(documentPageKey);
 
+  if(publication.documentsManager != null) {
+      publication.documentsManager!.selectedDocumentId = publication.documentsManager!.documents.indexWhere((element) => element.mepsDocumentId == mepsDocumentId);
+  }
+  else {
+    publication.documentsManager = DocumentsManager(publication: publication, initMepsDocumentId: mepsDocumentId);
+    await publication.documentsManager!.initializeDatabaseAndData();
+
+    publication.wordsSuggestionsModel = WordsSuggestionsModel(publication);
+  }
+
+  String htmlContent = createReaderHtmlShell(
+    publication,
+    publication.documentsManager!.selectedDocumentId,
+    publication.documentsManager!.documents.length - 1,
+    startParagraphId: startParagraphId,
+    endParagraphId: endParagraphId,
+    textTag: textTag,
+    wordsSelected: wordsSelected ?? []
+  );
+
   await showPage(DocumentPage(
       key: documentPageKey,
       publication: publication,
@@ -23,25 +48,53 @@ Future<void> showPageDocument(Publication publication, int mepsDocumentId, {int?
       startBlockIdentifierId: startParagraphId,
       endBlockIdentifierId: endParagraphId,
       textTag: textTag,
-      wordsSelected: wordsSelected ?? []
+      wordsSelected: wordsSelected ?? [],
+      htmlContent: htmlContent,
     )
   );
 }
 
-Future<void> showPageBibleChapter(Publication bible, int book, int chapter, {int? lastBookNumber, int? lastChapterNumber, int? firstVerse, int? lastVerse, List<String>? wordsSelected}) async {
+Future<void> showPageBibleChapter(Publication bible, int bookNumber, int chapterNumber, {int? lastBookNumber, int? lastChapterNumber, int? firstVerse, int? lastVerse, List<String>? wordsSelected}) async {
   final GlobalKey<DocumentPageState> documentPageKey = GlobalKey<DocumentPageState>();
   GlobalKeyService.jwLifePageKey.currentState!.webViewPageKeys[GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex.value].add(documentPageKey);
+
+  if(bible.documentsManager != null) {
+    bible.documentsManager!.initBookNumber = bookNumber;
+    bible.documentsManager!.initChapterNumber = chapterNumber;
+    bible.documentsManager!.selectedDocumentId = bible.documentsManager!.documents.indexWhere((element) => element.bookNumber == bookNumber && element.chapterNumberBible == chapterNumber);
+  }
+  else {
+    bible.documentsManager = DocumentsManager(publication: bible, initBookNumber: bookNumber, initChapterNumber: chapterNumber);
+    await bible.documentsManager!.initializeDatabaseAndData();
+    bible.documentsManager!.selectedDocumentId = bible.documentsManager!.documents.indexWhere((element) => element.bookNumber == bookNumber && element.chapterNumberBible == chapterNumber);
+
+    bible.wordsSuggestionsModel = WordsSuggestionsModel(bible);
+  }
+
+  String htmlContent = createReaderHtmlShell(
+    bible,
+    bible.documentsManager!.selectedDocumentId,
+    bible.documentsManager!.documents.length - 1,
+    bookNumber: bookNumber,
+    chapterNumber: chapterNumber,
+    lastBookNumber: lastBookNumber,
+    lastChapterNumber: lastChapterNumber,
+    startVerseId: firstVerse,
+    endVerseId: lastVerse,
+    wordsSelected: wordsSelected ?? []
+  );
 
   await showPage(DocumentPage.bible(
       key: documentPageKey,
       bible: bible,
-      bookNumber: book,
-      chapterNumber: chapter,
+      bookNumber: bookNumber,
+      chapterNumber: chapterNumber,
       lastBookNumber: lastBookNumber,
       lastChapterNumber: lastChapterNumber,
       firstVerseNumber: firstVerse,
       lastVerseNumber: lastVerse,
-      wordsSelected: wordsSelected ?? []
+      wordsSelected: wordsSelected ?? [],
+      htmlContent: htmlContent,
     )
   );
 }
@@ -50,7 +103,22 @@ Future<void> showPageDailyText(Publication publication, {DateTime? date}) async 
   final GlobalKey<DailyTextPageState> dailyTextKey = GlobalKey<DailyTextPageState>();
   GlobalKeyService.jwLifePageKey.currentState!.webViewPageKeys[GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex.value].add(dailyTextKey);
 
-  await showPage(DailyTextPage(key: dailyTextKey, publication: publication, date: date));
+  if(publication.datedTextManager != null) {
+    int index = convertDateTimeToIntDate(date ?? DateTime.now());
+    publication.datedTextManager!.selectedDatedTextId = publication.datedTextManager!.datedTexts.indexWhere((element) => element.firstDateOffset == index);
+  }
+  else {
+    publication.datedTextManager = DatedTextManager(publication: publication, initDateTime: date ?? DateTime.now());
+    await publication.datedTextManager!.initializeDatabaseAndData();
+  }
+
+  String htmlContent = createReaderHtmlShell(
+      publication,
+      publication.datedTextManager!.selectedDatedTextId,
+      publication.datedTextManager!.datedTexts.length - 1
+  );
+
+  await showPage(DailyTextPage(key: dailyTextKey, publication: publication, date: date, htmlContent: htmlContent));
 }
 
 Future<void> showPage(Widget page) async {

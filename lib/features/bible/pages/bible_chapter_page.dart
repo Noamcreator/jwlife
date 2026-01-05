@@ -12,10 +12,14 @@ import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/core/utils/utils_language_dialog.dart';
 import 'package:jwlife/core/utils/widgets_utils.dart';
+import 'package:jwlife/core/webview/webview_utils.dart';
 import 'package:jwlife/data/models/bible_book.dart';
 import 'package:jwlife/data/models/bible_chapter.dart';
 import 'package:jwlife/data/models/publication.dart';
+import 'package:jwlife/features/publication/models/menu/local/words_suggestions_model.dart';
+import 'package:jwlife/features/publication/pages/local/publication_search_view.dart';
 import 'package:jwlife/widgets/responsive_appbar_actions.dart';
+import 'package:jwlife/widgets/searchfield/searchfield_widget.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../../app/app_page.dart';
@@ -43,6 +47,8 @@ class BibleChapterPage extends StatefulWidget {
 class _BibleChapterPageState extends State<BibleChapterPage> {
   late final BibleChapterController _controller;
   late final PageController _pageController;
+
+  bool _isSearching = false;
 
   @override
   void initState() {
@@ -91,7 +97,42 @@ class _BibleChapterPageState extends State<BibleChapterPage> {
 
     return AppPage(
       extendBodyBehindAppBar: hasCommentary,
-      appBar: JwLifeAppBar(
+      appBar: _isSearching
+          ? AppBar(
+          backgroundColor: hasCommentary ? Colors.transparent : null,
+          leading: IconButton(icon: Icon(JwIcons.chevron_left, color: hasCommentary ? Colors.white : null), onPressed: () { setState(() { _isSearching = false; }); }),
+
+          // BARRE DE RECHERCHE CORRIGÉE
+          title: SearchFieldWidget(
+            query: '',
+
+            // onSearchTextChanged: Appel du modèle pour lancer la recherche (void)
+            onSearchTextChanged: (text) {
+              // Vérifie que wordsSuggestionsModel est initialisé lors du clic sur Rechercher
+              widget.bible.wordsSuggestionsModel?.fetchSuggestions(text);
+            },
+
+            // onSuggestionTap: Utilisation de item.item.caption pour le mot suggéré
+            onSuggestionTap: (item) async {
+              // item.item est de type SuggestionItem (avec .caption pour le texte du mot)
+              final String query = item.item!.query;
+              showPage(PublicationSearchView(query: query, publication: widget.bible));
+              setState(() { _isSearching = false; });
+            },
+
+            onSubmit: (text) async {
+              setState(() { _isSearching = false; });
+              showPage(PublicationSearchView(query: text, publication: widget.bible));
+            },
+
+            onTapOutside: (event) {
+              setState(() { _isSearching = false; });
+            },
+
+            // suggestionsNotifier: Utilisation du ValueNotifier du modèle
+            suggestionsNotifier: widget.bible.wordsSuggestionsModel?.suggestionsNotifier ?? ValueNotifier([]),
+          )
+      ) : JwLifeAppBar(
         backgroundColor: hasCommentary ? Colors.transparent : null,
         iconsColor: hasCommentary ? Colors.white : null,
         title: !hasCommentary ? (currentBook?.bookName ?? widget.bookName) : '',
@@ -101,7 +142,9 @@ class _BibleChapterPageState extends State<BibleChapterPage> {
             text: i18n().action_search,
             icon: const Icon(JwIcons.magnifying_glass),
             onPressed: (anchorContext) {
-              // Action recherche
+              // Initialisation du modèle lors du clic sur rechercher
+              widget.bible.wordsSuggestionsModel ??= WordsSuggestionsModel(widget.bible);
+              setState(() { _isSearching = true; });
             },
           ),
           if (!isLargeScreen)
@@ -437,13 +480,7 @@ class _BibleChapterPageState extends State<BibleChapterPage> {
     if (html.isEmpty) return Center(child: Text(i18n().message_no_content));
 
     return InAppWebView(
-      initialSettings: InAppWebViewSettings(
-        useShouldOverrideUrlLoading: true,
-        mediaPlaybackRequiresUserGesture: false,
-        transparentBackground: true,
-        verticalScrollBarEnabled: false,
-        horizontalScrollBarEnabled: false,
-      ),
+      initialSettings: getWebViewSettings(),
       gestureRecognizers: Set()
         ..add(
           Factory<VerticalDragGestureRecognizer>(

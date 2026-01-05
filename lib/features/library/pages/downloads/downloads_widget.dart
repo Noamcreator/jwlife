@@ -35,28 +35,7 @@ class _DownloadWidgetState extends State<DownloadWidget> {
   Widget _buildEmptyState() {
     return SliverFillRemaining(
       hasScrollBody: false,
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              JwIcons.publication_video_music,
-              size: 100,
-              color: Colors.grey.withOpacity(0.3),
-            ),
-            const SizedBox(height: 20),
-            Text(
-              i18n().messages_empty_downloads, // Assure-toi que cette clé existe ou utilise "Aucun téléchargement"
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 18,
-                color: Colors.grey,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
-      ),
+      child: emptyStateWidget(i18n().messages_empty_downloads, JwIcons.publication_video_music),
     );
   }
 

@@ -1,12 +1,11 @@
-import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart' hide Element;
+import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:html/dom.dart';
 import 'package:html/parser.dart';
 import 'package:jwlife/app/services/global_key_service.dart';
-import 'package:jwlife/core/bible_clues_info.dart';
 import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/core/utils/utils_document.dart';
 import 'package:jwlife/core/utils/utils_jwpub.dart';
@@ -26,7 +25,6 @@ import '../../data/models/userdata/note.dart';
 import '../../data/repositories/PublicationRepository.dart';
 import '../../features/document/local/documents_manager.dart';
 import '../../i18n/i18n.dart';
-import '../utils/files_helper.dart';
 import '../utils/utils_database.dart';
 
 /*
@@ -1386,4 +1384,23 @@ Future<List<Map<String, dynamic>>> fetchVerseFootnotes(BuildContext context, Pub
   }
 
   return [];
+}
+
+InAppWebViewSettings getWebViewSettings() {
+  return InAppWebViewSettings(
+    scrollBarStyle: null,
+    verticalScrollBarEnabled: false,
+    horizontalScrollBarEnabled: false,
+    useShouldOverrideUrlLoading: true,
+    mediaPlaybackRequiresUserGesture: false,
+    useOnLoadResource: false,
+    allowUniversalAccessFromFileURLs: true,
+    allowFileAccess: true,
+    allowContentAccess: true,
+    useHybridComposition: true,
+    hardwareAcceleration: true,
+    allowsLinkPreview: false,
+    disableDefaultErrorPage: true,
+    transparentBackground: true,
+  );
 }

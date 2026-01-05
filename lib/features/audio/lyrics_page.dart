@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:html/parser.dart';
 import 'package:jwlife/app/jwlife_app_bar.dart';
-import 'package:jwlife/data/models/meps_language.dart';
+import 'package:jwlife/core/webview/webview_utils.dart';
 import 'package:jwlife/widgets/responsive_appbar_actions.dart';
 
 import '../../app/app_page.dart';
@@ -147,19 +147,7 @@ class _LyricsPageState extends State<LyricsPage> {
         ],
       ),
       body: InAppWebView(
-        initialSettings: InAppWebViewSettings(
-          scrollBarStyle: null,
-          verticalScrollBarEnabled: false,
-          horizontalScrollBarEnabled: false,
-          useShouldOverrideUrlLoading: true,
-          mediaPlaybackRequiresUserGesture: false,
-          useOnLoadResource: false,
-          allowUniversalAccessFromFileURLs: true,
-          allowFileAccess: true,
-          allowContentAccess: true,
-          useHybridComposition: true,
-          hardwareAcceleration: true,
-        ),
+        initialSettings: getWebViewSettings(),
         initialData: InAppWebViewInitialData(
             data: '',
             baseUrl: WebUri('file://${JwLifeSettings.instance.webViewSettings.webappPath}/')

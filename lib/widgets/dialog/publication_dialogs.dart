@@ -9,9 +9,13 @@ import 'package:jwlife/app/services/settings_service.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/core/utils/utils.dart';
+import 'package:jwlife/core/utils/utils_audio.dart';
 import 'package:jwlife/core/utils/utils_dialog.dart';
 import 'package:jwlife/core/utils/utils_playlist.dart';
+import 'package:jwlife/core/utils/utils_video.dart';
+import 'package:jwlife/data/models/audio.dart';
 import 'package:jwlife/data/models/publication.dart';
+import 'package:jwlife/data/realm/catalog.dart';
 import 'package:jwlife/data/repositories/PublicationRepository.dart';
 import 'package:jwlife/widgets/image_cached_widget.dart';
 import 'package:open_file/open_file.dart';
@@ -673,4 +677,162 @@ void _shareImage(String imagePath) async {
   } catch (e) {
     print('Erreur lors du partage : $e');
   }
+}
+
+void showMediaDialog(BuildContext context, Iterable<RealmMediaItem> items) {
+  // 1. Définition de l'ordre de priorité des symboles
+  final symbolPriority = {'sjjm': 1, 'sjjc': 2, 'pksjj': 3};
+
+  // 2. Tri général selon la priorité du symbole
+  final sortedItems = items.toList()
+    ..sort((a, b) => (symbolPriority[a.pubSymbol] ?? 99)
+        .compareTo(symbolPriority[b.pubSymbol] ?? 99));
+
+  // 3. Séparation Audios et Vidéos
+  final audios = sortedItems.where((i) => i.type != 'VIDEO').toList();
+  final videos = sortedItems.where((i) => i.type == 'VIDEO').toList();
+
+  showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      // Utilisation d'un Dialog simple pour plus de liberté sur le design
+      return Dialog(
+        insetPadding: const EdgeInsets.symmetric(horizontal: 40, vertical: 24),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(2)), // Bordures plus carrées comme sur l'image
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (audios.isNotEmpty) ...[
+                buildSectionHeader(context, i18n().pub_type_audio_programs),
+                ...audios.map((item) => buildMediaTile(context, item)),
+              ],
+              if (videos.isNotEmpty) ...[
+                buildSectionHeader(context, i18n().label_videos),
+                ...videos.map((item) => buildMediaTile(context, item)),
+              ],
+              
+              // Zone du bouton ANNULER
+              Padding(
+                padding: const EdgeInsets.only(right: 8, bottom: 8, top: 4),
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: Text(
+                      i18n().action_cancel_uppercase,
+                      style: TextStyle(
+                        fontFamily: 'Roboto',
+                        letterSpacing: 1,
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).primaryColor,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    },
+  );
+}
+
+// Widget pour les titres de section (Gris clair)
+Widget buildSectionHeader(BuildContext context, String title) {
+  bool isDark = Theme.of(context).brightness == Brightness.dark;
+  return Container(
+    width: double.infinity,
+    padding: EdgeInsets.symmetric(vertical: 4, horizontal: 16),
+    color: isDark ? Color(0xFF282828) : Color(0xFFD8D8D8),
+    child: Text(title, style: TextStyle(fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black)),
+  );
+}
+
+// Widget pour chaque ligne de média
+Widget buildMediaTile(BuildContext context, RealmMediaItem item) {
+  final imageUrl = item.images?.squareImageUrl ?? item.images?.squareFullSizeImageUrl;
+  final media = item.type == 'VIDEO' ? Video.fromJson(mediaItem: item) : Audio.fromJson(mediaItem: item);
+
+  return ListTile(
+    leading: SizedBox(
+      width: 50,
+      height: 50,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          // L'image mise en cache
+          ClipRRect(
+            borderRadius: BorderRadius.zero, // Rectangle strict comme demandé
+            child: ImageCachedWidget(
+              imageUrl: imageUrl,
+              // On utilise l'icône correspondante si l'image charge mal
+              icon: item.type == 'VIDEO' ? JwIcons.video : JwIcons.headphones__simple,
+              height: 50,
+              width: 50,
+            ),
+          ),
+          // L'icône de téléchargement superposée au centre (style JW Library)
+          Icon(
+            JwIcons.cloud_arrow_down, 
+            color: Colors.white.withOpacity(0.9),
+            size: 24,
+          ),
+        ],
+      ),
+    ),
+    title: Text(
+      item.title ?? '',
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: TextStyle(fontSize: 14),
+    ),
+    subtitle: Text(formatDuration(item.duration)),
+    trailing: RepaintBoundary(
+      child: PopupMenuButton(
+
+        useRootNavigator: true,
+        popUpAnimationStyle: AnimationStyle.lerp(
+          const AnimationStyle(curve: Curves.ease),
+          const AnimationStyle(curve: Curves.ease),
+          0.5,
+        ),
+        icon: const Icon(Icons.more_horiz, color: Color(0xFF9d9d9d)),
+        itemBuilder: (context) => media is Audio
+            ? [
+          if (media.isDownloadedNotifier.value && media.filePath != null) getAudioShareFileItem(media),
+          getAudioShareItem(media),
+          getAudioAddPlaylistItem(context, media),
+          getAudioLanguagesItem(context, media),
+          getAudioFavoriteItem(media),
+          getAudioDownloadItem(context, media),
+          getAudioLyricsItem(context, media),
+          getCopyLyricsItem(media)
+        ] : media is Video ? [
+          if (media.isDownloadedNotifier.value && media.filePath != null) getVideoShareFileItem(media),
+          getVideoShareItem(media),
+          getVideoQrCode(context, media),
+          getVideoAddPlaylistItem(context, media),
+          getVideoLanguagesItem(context, media),
+          getVideoFavoriteItem(media),
+          getVideoDownloadItem(context, media),
+          getShowSubtitlesItem(context, media),
+          getCopySubtitlesItem(context, media),
+        ]
+            : [],
+      ),
+    ),
+    onTap: () {
+      Navigator.pop(context);
+      if (item.type == 'VIDEO') {
+        final video = Video.fromJson(mediaItem: item);
+        video.showPlayer(context);
+      } else {
+        final audio = Audio.fromJson(mediaItem: item);
+        audio.showPlayer(context);
+      }
+    },
+  );
 }

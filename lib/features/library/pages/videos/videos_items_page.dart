@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:jwlife/app/jwlife_app_bar.dart';
+import 'package:jwlife/core/utils/widgets_utils.dart';
 import 'package:jwlife/widgets/responsive_appbar_actions.dart';
 import 'package:provider/provider.dart';
 import 'package:jwlife/core/icons.dart';
@@ -27,7 +28,7 @@ class VideoItemsPage extends StatelessWidget {
 
           Widget bodyContent;
           if (model.filteredVideos.isEmpty && !model.isSearching) {
-            bodyContent = _buildEmptyState(context);
+            bodyContent = emptyStateWidget(i18n().message_no_items_videos, JwIcons.video_stack);
           } else {
             bodyContent = Directionality(textDirection: model.language.isRtl! ? TextDirection.rtl : TextDirection.ltr, child: _buildContentList(context, model));
           }
@@ -75,22 +76,6 @@ class VideoItemsPage extends StatelessWidget {
           onPressed: (BuildContext context) => model.showLanguageSelection(context),
         ),
       ],
-    );
-  }
-
-  Widget _buildEmptyState(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Text(
-          i18n().message_no_items_videos,
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 18,
-            color: Theme.of(context).hintColor,
-          ),
-        ),
-      ),
     );
   }
 
