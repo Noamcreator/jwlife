@@ -1279,164 +1279,165 @@ class WorkShipPageState extends State<WorkShipPage> with TickerProviderStateMixi
         builder: (context, audioList, child) {
           Audio? audio = audioList.firstWhereOrNull((audio) => audio.documentId == midweekMeeting['MepsDocumentId']);
 
-          return Material(
-            color: Colors.transparent,
-            child: InkWell(
-                onTap: () => showDocumentView(context, midweekMeeting['MepsDocumentId'], midweekPub.mepsLanguage.id),
-                child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4.0),
-                    child: Stack(
-                      children: [
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Container(
-                              width: 60,
-                              height: 60,
-                              margin: EdgeInsetsDirectional.only(end: 10),
-                              decoration: BoxDecoration(
-                                color: isDark ? const Color(0xFF4f4f4f) : const Color(0xFF8e8e8e),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(4.0),
-                                child: Image.file(
-                                  File(imageFullPath),
-                                  frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
-                                    if (frame == null) {
-                                      return Container(color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF4f4f4f) : const Color(0xFF8e8e8e));
-                                    }
-                                    return child;
-                                  },
-                                  fit: BoxFit.cover,
-                                  cacheWidth: 180,
-                                ),
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4.0),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                  onTap: () => showDocumentView(context, midweekMeeting['MepsDocumentId'], midweekPub.mepsLanguage.id),
+                  child: Stack(
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            width: 60,
+                            height: 60,
+                            margin: const EdgeInsetsDirectional.only(end: 10, start: 5),
+                            decoration: BoxDecoration(
+                              color: isDark ? const Color(0xFF4f4f4f) : const Color(0xFF8e8e8e),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(4.0),
+                              child: Image.file(
+                                File(imageFullPath),
+                                frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+                                  if (frame == null) {
+                                    return Container(color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF4f4f4f) : const Color(0xFF8e8e8e));
+                                  }
+                                  return child;
+                                },
+                                fit: BoxFit.cover,
+                                cacheWidth: 180,
                               ),
                             ),
-                            Expanded(
-                              child: Padding(
-                                padding: const EdgeInsetsDirectional.only(top: 4.0, end: 30),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    if (midweekMeeting['Subtitle'] != null)
-                                      Text(midweekMeeting['Subtitle'], style: contextStyle, maxLines: 1, overflow: TextOverflow.ellipsis),
-                                    const SizedBox(height: 2.0),
-                                    Text(midweekMeeting['Title'].trim(), style: titleStyle, maxLines: 2, overflow: TextOverflow.ellipsis),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        PositionedDirectional(
-                          top: -15.0,
-                          end:  -7,
-                          child: PopupMenuButton(
-                            // On utilise padding: EdgeInsets.zero pour annuler l'espace par défaut autour de l'icône
-                            padding: EdgeInsets.zero,
-                            icon: Icon(Icons.more_horiz, color: Color(0xFF9d9d9d)),
-                            itemBuilder: (context) {
-                              List<PopupMenuEntry> items = [
-                                PopupMenuItem(child: Row(children: [
-                                  Icon(JwIcons.share, color: Theme
-                                      .of(context)
-                                      .brightness == Brightness.dark
-                                      ? Colors.white
-                                      : Colors.black),
-                                  const SizedBox(width: 8.0),
-                                  Text(i18n().action_open_in_share,
-                                      style: TextStyle(color: Theme
-                                          .of(context)
-                                          .brightness == Brightness.dark
-                                          ? Colors.white
-                                          : Colors.black))
-                                ]), onTap: () {
-                                  midweekPub.documentsManager?.getDocumentFromMepsDocumentId(midweekMeeting['MepsDocumentId']).share();
-                                }),
-                                PopupMenuItem(child: Row(children: [
-                                  Icon(JwIcons.qr_code, color: Theme
-                                      .of(context)
-                                      .brightness == Brightness.dark
-                                      ? Colors.white
-                                      : Colors.black),
-                                  const SizedBox(width: 8.0),
-                                  Text(i18n().action_qr_code,
-                                      style: TextStyle(color: Theme
-                                          .of(context)
-                                          .brightness == Brightness.dark ? Colors
-                                          .white : Colors.black))
-                                ]), onTap: () {
-                                  String? uri = midweekPub.documentsManager?.getDocumentFromMepsDocumentId(midweekMeeting['MepsDocumentId']).share(hide: true);
-                                  if(uri != null) {
-                                    showQrCodeDialog(context, midweekMeeting['Title'], uri);
-                                  }
-                                }),
-                              ];
-                              if (audio != null && audio.fileSize !=
-                                  null) { // Ajout de la vérification audio.fileSize != null
-                                items.add(PopupMenuItem(child: Row(children: [
-                                  Icon(JwIcons.cloud_arrow_down, color: Theme
-                                      .of(context)
-                                      .brightness == Brightness.dark
-                                      ? Colors.white
-                                      : Colors.black),
-                                  const SizedBox(width: 8.0),
-                                  ValueListenableBuilder<bool>(
-                                      valueListenable: audio.isDownloadingNotifier,
-                                      builder: (context, isDownloading, child) {
-                                        return Text(isDownloading ? i18n()
-                                            .message_download_in_progress : audio
-                                            .isDownloadedNotifier.value
-                                            ? i18n()
-                                            .action_remove_audio_size(
-                                            formatFileSize(audio.fileSize!))
-                                            : i18n()
-                                            .action_download_audio_size(
-                                            formatFileSize(audio.fileSize!)),
-                                            style: TextStyle(color: Theme
-                                                .of(context)
-                                                .brightness == Brightness.dark
-                                                ? Colors
-                                                .white
-                                                : Colors.black));
-                                      }),
-                                ]), onTap: () {
-                                  if (audio.isDownloadedNotifier.value) {
-                                    audio.remove(context);
-                                  } else {
-                                    audio.download(context);
-                                  }
-                                }),
-                                );
-                                items.add(PopupMenuItem(child: Row(children: [
-                                  Icon(
-                                      JwIcons.headphones__simple, color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black),
-                                  const SizedBox(width: 8.0),
-                                  Text(
-                                      i18n().action_play_audio,
-                                      style: TextStyle(color: Theme
-                                          .of(context)
-                                          .brightness == Brightness.dark
-                                          ? Colors.white
-                                          : Colors.black))
-                                ]), onTap: () {
-                                  int index = midweekPub.audiosNotifier.value.indexWhere((audio) =>
-                                  audio.documentId ==
-                                      midweekMeeting['MepsDocumentId']);
-                                  if (index != -1) {
-                                    showAudioPlayerPublicationLink(context, midweekPub, index);
-                                  }
-                                }),
-                                );
-                              }
-                              return items;
-                            },
                           ),
+                          Expanded(
+                            child: Padding(
+                              padding: const EdgeInsetsDirectional.only(top: 4.0, end: 30),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  if (midweekMeeting['Subtitle'] != null)
+                                    Text(midweekMeeting['Subtitle'], style: contextStyle, maxLines: 1, overflow: TextOverflow.ellipsis),
+                                  const SizedBox(height: 2.0),
+                                  Text(midweekMeeting['Title'].trim(), style: titleStyle, maxLines: 2, overflow: TextOverflow.ellipsis),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      PositionedDirectional(
+                        top: -15.0,
+                        end:  -7,
+                        child: PopupMenuButton(
+                          // On utilise padding: EdgeInsets.zero pour annuler l'espace par défaut autour de l'icône
+                          padding: EdgeInsets.zero,
+                          icon: Icon(Icons.more_horiz, color: Color(0xFF9d9d9d)),
+                          itemBuilder: (context) {
+                            List<PopupMenuEntry> items = [
+                              PopupMenuItem(child: Row(children: [
+                                Icon(JwIcons.share, color: Theme
+                                    .of(context)
+                                    .brightness == Brightness.dark
+                                    ? Colors.white
+                                    : Colors.black),
+                                const SizedBox(width: 8.0),
+                                Text(i18n().action_open_in_share,
+                                    style: TextStyle(color: Theme
+                                        .of(context)
+                                        .brightness == Brightness.dark
+                                        ? Colors.white
+                                        : Colors.black))
+                              ]), onTap: () {
+                                midweekPub.documentsManager?.getDocumentFromMepsDocumentId(midweekMeeting['MepsDocumentId']).share();
+                              }),
+                              PopupMenuItem(child: Row(children: [
+                                Icon(JwIcons.qr_code, color: Theme
+                                    .of(context)
+                                    .brightness == Brightness.dark
+                                    ? Colors.white
+                                    : Colors.black),
+                                const SizedBox(width: 8.0),
+                                Text(i18n().action_qr_code,
+                                    style: TextStyle(color: Theme
+                                        .of(context)
+                                        .brightness == Brightness.dark ? Colors
+                                        .white : Colors.black))
+                              ]), onTap: () {
+                                String? uri = midweekPub.documentsManager?.getDocumentFromMepsDocumentId(midweekMeeting['MepsDocumentId']).share(hide: true);
+                                if(uri != null) {
+                                  showQrCodeDialog(context, midweekMeeting['Title'], uri);
+                                }
+                              }),
+                            ];
+                            if (audio != null && audio.fileSize !=
+                                null) { // Ajout de la vérification audio.fileSize != null
+                              items.add(PopupMenuItem(child: Row(children: [
+                                Icon(JwIcons.cloud_arrow_down, color: Theme
+                                    .of(context)
+                                    .brightness == Brightness.dark
+                                    ? Colors.white
+                                    : Colors.black),
+                                const SizedBox(width: 8.0),
+                                ValueListenableBuilder<bool>(
+                                    valueListenable: audio.isDownloadingNotifier,
+                                    builder: (context, isDownloading, child) {
+                                      return Text(isDownloading ? i18n()
+                                          .message_download_in_progress : audio
+                                          .isDownloadedNotifier.value
+                                          ? i18n()
+                                          .action_remove_audio_size(
+                                          formatFileSize(audio.fileSize!))
+                                          : i18n()
+                                          .action_download_audio_size(
+                                          formatFileSize(audio.fileSize!)),
+                                          style: TextStyle(color: Theme
+                                              .of(context)
+                                              .brightness == Brightness.dark
+                                              ? Colors
+                                              .white
+                                              : Colors.black));
+                                    }),
+                              ]), onTap: () {
+                                if (audio.isDownloadedNotifier.value) {
+                                  audio.remove(context);
+                                } else {
+                                  audio.download(context);
+                                }
+                              }),
+                              );
+                              items.add(PopupMenuItem(child: Row(children: [
+                                Icon(
+                                    JwIcons.headphones__simple, color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black),
+                                const SizedBox(width: 8.0),
+                                Text(
+                                    i18n().action_play_audio,
+                                    style: TextStyle(color: Theme
+                                        .of(context)
+                                        .brightness == Brightness.dark
+                                        ? Colors.white
+                                        : Colors.black))
+                              ]), onTap: () {
+                                int index = midweekPub.audiosNotifier.value.indexWhere((audio) =>
+                                audio.documentId ==
+                                    midweekMeeting['MepsDocumentId']);
+                                if (index != -1) {
+                                  showAudioPlayerPublicationLink(context, midweekPub, index);
+                                }
+                              }),
+                              );
+                            }
+                            return items;
+                          },
                         ),
-                      ],
-                    )
-                )
+                      ),
+                      _buildDownloadIndicator(midweekPub, midweekMeeting['MepsDocumentId']),
+                    ],
+                  )
+              ),
             ),
           );
         }
@@ -1615,12 +1616,44 @@ class WorkShipPageState extends State<WorkShipPage> with TickerProviderStateMixi
                             },
                           ),
                         ),
+                        _buildDownloadIndicator(weekendPub, weekendMeeting['MepsDocumentId']),
                       ],
                     )
                 )),
           );
         }
       ),
+    );
+  }
+
+   Widget _buildDownloadIndicator(Publication publication, int mepsDocumentId) {
+    return ValueListenableBuilder<List<Audio>>(
+      valueListenable: publication.audiosNotifier,
+      builder: (context, audios, _) {
+        final audio = audios.firstWhereOrNull((a) => a.documentId == mepsDocumentId);
+        if (audio == null) return const SizedBox.shrink();
+
+        return ValueListenableBuilder<bool>(
+          valueListenable: audio.isDownloadingNotifier,
+          builder: (context, isDownloading, _) {
+            if (!isDownloading) return const SizedBox.shrink();
+            return PositionedDirectional(
+              bottom: 5,
+              start: 70,
+              end: 40,
+              child: ValueListenableBuilder<double>(
+                valueListenable: audio.progressNotifier,
+                builder: (context, progress, _) => LinearProgressIndicator(
+                  value: progress,
+                  minHeight: 2,
+                  backgroundColor: Colors.transparent,
+                  color: Theme.of(context).primaryColor,
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 

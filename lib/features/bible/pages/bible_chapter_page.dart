@@ -21,6 +21,7 @@ import 'package:jwlife/features/publication/pages/local/publication_search_view.
 import 'package:jwlife/widgets/responsive_appbar_actions.dart';
 import 'package:jwlife/widgets/searchfield/searchfield_widget.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:sqflite/sqflite.dart';
 
 import '../../../app/app_page.dart';
 import '../../../app/services/settings_service.dart';
@@ -243,7 +244,7 @@ class _BibleChapterPageState extends State<BibleChapterPage> {
         children: [
           if (bookData.hasCommentary) _buildBookHeader(bookData, withTextOverlay: true, height: dynamicHeight),
           Expanded(
-            child: _buildHtmlView((bookData.overviewHtml?.isNotEmpty ?? false) ? bookData.overviewHtml! : bookData.profileHtml ?? ''),
+            child: _buildHtmlView((bookData.overviewHtml?.isNotEmpty ?? false) ? bookData.overviewHtml! : bookData.profileHtml ?? '', bookData),
           ),
         ],
       );
@@ -299,7 +300,7 @@ class _BibleChapterPageState extends State<BibleChapterPage> {
                 const SizedBox(width: 24),
                 Expanded(
                   flex: 1,
-                  child: _buildHtmlView((bookData.overviewHtml?.isNotEmpty ?? false) ? bookData.overviewHtml! : bookData.profileHtml ?? ''),
+                  child: _buildHtmlView((bookData.overviewHtml?.isNotEmpty ?? false) ? bookData.overviewHtml! : bookData.profileHtml ?? '', bookData),
                 ),
               ],
             ),
@@ -359,7 +360,7 @@ class _BibleChapterPageState extends State<BibleChapterPage> {
                 child: _buildMepsButton(
                   label: 'Profile',
                   icon: JwIcons.information_circle,
-                  onPressed: () => _showProfileDialog(context, bookData.profileHtml!),
+                  onPressed: () => _showProfileDialog(context, bookData),
                 ),
               ),
             if (bookData.hasCommentary)
@@ -455,7 +456,7 @@ class _BibleChapterPageState extends State<BibleChapterPage> {
     );
   }
 
-  void _showProfileDialog(BuildContext context, String htmlContent) {
+  void _showProfileDialog(BuildContext context, BibleBook bookData) {
     showDialog(
       context: context,
       builder: (context) => Dialog(
@@ -464,7 +465,7 @@ class _BibleChapterPageState extends State<BibleChapterPage> {
           height: MediaQuery.of(context).size.height * 0.6,
           child: Column(
             children: [
-              Expanded(child: _buildHtmlView(htmlContent)),
+              Expanded(child: _buildHtmlView(bookData.profileHtml ?? '', bookData)),
               TextButton(
                 onPressed: () => Navigator.pop(context),
                 child: Text(i18n().action_close_upper),
@@ -476,7 +477,7 @@ class _BibleChapterPageState extends State<BibleChapterPage> {
     );
   }
 
-  Widget _buildHtmlView(String html) {
+  Widget _buildHtmlView(String html, BibleBook bookData) {
     if (html.isEmpty) return Center(child: Text(i18n().message_no_content));
 
     return InAppWebView(
@@ -488,9 +489,43 @@ class _BibleChapterPageState extends State<BibleChapterPage> {
           ),
         ),
       initialData: InAppWebViewInitialData(
-          data: html,
-          mimeType: 'text/html',
-          baseUrl: WebUri('file://${JwLifeSettings.instance.webViewSettings.webappPath}/')),
+        data: html,
+        mimeType: 'text/html',
+        baseUrl: WebUri('file://${JwLifeSettings.instance.webViewSettings.webappPath}/')
+      ),
+      shouldOverrideUrlLoading: (controller, navigationAction) async {
+        WebUri uri = navigationAction.request.url!;
+        String url = uri.uriValue.toString();
+
+        if (url.startsWith('jwpub://c')) {
+          try {
+            final mainPart = uri.toString().replaceAll('jwpub://c/', '');
+            final mainSegments = mainPart.split('/');
+            if (mainSegments.length < 2) return NavigationActionPolicy.CANCEL;
+
+            final langAndBook = mainSegments[0].split(':');
+            final rangeChapterAndVerse = mainSegments[1].split('-');
+
+            //final int bookDocId = int.parse(langAndBook[1]);
+            //int bookNumber = 0;
+            final String firstVerseRange = rangeChapterAndVerse[0];
+            final String lastVerseRange = rangeChapterAndVerse[1];
+
+            final int firstChapter = int.parse(firstVerseRange.split(':')[0]);
+            final int lastChapter = int.parse(lastVerseRange.split(':')[0]);
+
+            final int firstVerse = int.parse(firstVerseRange.split(':')[1]);
+            final int lastVerse = int.parse(lastVerseRange.split(':')[1]);
+
+            showChapterView(context, widget.bible.keySymbol, widget.bible.mepsLanguage.id, bookData.bookNumber, firstChapter, lastChapterNumber: lastChapter, firstVerseNumber: firstVerse, lastVerseNumber: lastVerse);
+          } 
+          catch (e) {
+            print('Error: $e');
+            return NavigationActionPolicy.CANCEL;
+          }
+        }
+        
+      }
     );
   }
 

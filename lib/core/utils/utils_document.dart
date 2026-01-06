@@ -473,7 +473,7 @@ Future<void> showFontSizeDialog(BuildContext context, InAppWebViewController? co
                           });
 
                           // Mise à jour en temps réel dans la WebView
-                          controller?.evaluateJavascript(source: "resizeFont($fontSize);");
+                          controller?.evaluateJavascript(source: "resizeFont(null, $fontSize);");
                           JwLifeSettings.instance.webViewSettings.updateFontSize(fontSize);
                           AppSharedPreferences.instance.setFontSize(fontSize);
                         },

@@ -142,7 +142,10 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
     if (index <= widget.publication.datedTextManager!.datedTexts.length - 1 && index >= 0) {
       widget.publication.datedTextManager!.selectedDatedTextId = index;
       controlsKey.currentState?.changeTitle();
-      await widget.publication.datedTextManager!.getCurrentDatedText().changePageAt();
+
+      DatedText currentDatedText = widget.publication.datedTextManager!.getCurrentDatedText();
+      await currentDatedText.changePageAt();
+      controlsKey.currentState?.changePageAt(index);
     }
   }
 

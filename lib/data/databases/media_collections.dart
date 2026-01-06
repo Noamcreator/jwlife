@@ -201,7 +201,7 @@ class MediaCollections {
       ],
     );
 
-    String? imageUrl = media is Audio ? media.networkFullSizeImageSqr : media.networkFullSizeImageLsr;
+    String? imageUrl = media is Audio ? media.networkFullSizeImageSqr ?? media.networkImageSqr ?? media.imagePath : media.networkFullSizeImageLsr ?? media.networkImageLsr ?? media.imagePath;
     String imagePath = '';
     if (imageUrl != null && imageUrl.startsWith('https')) {
       Tile? tile = await TilesCache().getOrDownloadImage(imageUrl);

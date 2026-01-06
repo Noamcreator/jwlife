@@ -374,8 +374,6 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
 
   Future<void> changePageAt(int index) async {
     if (index <= widget.publication.documentsManager!.documents.length - 1 && index >= 0) {
-      controlsKey.currentState?.changePageAt(index);
-
       int? startBlockIdentifier;
       int? endBlockIdentifier;
       String? textTag;
@@ -644,15 +642,15 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
               )
           ),
 
-            LoadingWidget(key: loadingKey),
+          LoadingWidget(key: loadingKey),
 
-            ControlsOverlay(key: controlsKey,
-              publication: widget.publication,
-              notesController: _notesController,
-              handleBackPress: handleBackPress,
-              jumpToPage: _jumpToPage,
-              jumpToParagraph: _jumpToParagraph,
-              jumpToVerse: _jumpToVerse
+          ControlsOverlay(key: controlsKey,
+            publication: widget.publication,
+            notesController: _notesController,
+            handleBackPress: handleBackPress,
+            jumpToPage: _jumpToPage,
+            jumpToParagraph: _jumpToParagraph,
+            jumpToVerse: _jumpToVerse
           ),
         ]
       )
@@ -1128,7 +1126,7 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
     controller.addJavaScriptHandler(
         handlerName: 'fetchCommentaries',
         callback: (args) async {
-        Map<String, dynamic> versesCommentaries = await fetchCommentaries(context, widget.publication, args[0]);
+        Map<String, dynamic>? versesCommentaries = await fetchCommentaries(context, widget.publication, args[0], _jumpToPage, _jumpToVerse);
         return versesCommentaries;
         },
     );
@@ -1499,8 +1497,16 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
         String verseNumber = args[0]['query'].toString();
 
         String query = JwLifeApp.bibleCluesInfo.getVerse(int.parse(book), int.parse(chapter), int.parse(verseNumber));
-        showPage(SearchPage(query: query));
-        },
+
+        // 1. Mettre en pause le JavaScript et les timers du WebView
+        await controller.pause();
+
+        // 2. Naviguer vers la nouvelle page et attendre la fermeture de celle-ci
+        await showPage(SearchPage(query: query));
+
+        // 3. Une fois revenu sur la page initiale, relancer le WebView
+        await controller.resume();
+      },
     );
 
     // Gestionnaire pour les modifications des champs de formulaire
@@ -1646,6 +1652,9 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
   bool _controlsVisible = true;
   bool _controlsVisibleSave = true;
 
+  Document? _currentDocument;
+
+  bool _hasAudio = false;
   Iterable<RealmMediaItem> realmMediasItems = [];
 
   void initInAppWebViewController(InAppWebViewController controller) {
@@ -1784,37 +1793,38 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
   @override
   void initState() {
     super.initState();
+    _updateDocumentInfo();
+  }
 
+  // 2. Crée une fonction pour mettre à jour les infos du document
+  void _updateDocumentInfo() {
     final dm = widget.publication.documentsManager;
 
-    Document? current;
-    if (dm != null &&
-        dm.selectedDocumentId != -1 &&
-        dm.selectedDocumentId < dm.documents.length) {
-      current = dm.getCurrentDocument();
+    if (dm != null && dm.selectedDocumentId != -1 && dm.selectedDocumentId < dm.documents.length) {
+      _currentDocument = dm.getCurrentDocument();
     }
 
-    if(current != null) {
-      _title = current.getDisplayTitle();
-    }
-
-    realmMediasItems = current != null && widget.publication.keySymbol.contains('sjj') ? RealmLibrary.realm.all<RealmMediaItem>().where((mediaItem) => 
+     realmMediasItems = _currentDocument != null && widget.publication.keySymbol.contains('sjj') ? RealmLibrary.realm.all<RealmMediaItem>().where((mediaItem) => 
     (mediaItem.pubSymbol == 'sjjm' || mediaItem.pubSymbol == 'sjjc' || mediaItem.pubSymbol == 'pksjj') && 
-    mediaItem.track == current!.chapterNumber && mediaItem.languageSymbol == current.publication.mepsLanguage.symbol) : [];
+    mediaItem.track == _currentDocument!.chapterNumber && mediaItem.languageSymbol == _currentDocument!.publication.mepsLanguage.symbol) : [];
+
+    if (_currentDocument != null) {
+      _title = _currentDocument!.getDisplayTitle();
+      // On pré-calcule la présence d'audio ICI, pas dans le build
+      _hasAudio = widget.publication.audiosNotifier.value.any((audio) => 
+        audio.documentId == _currentDocument!.mepsDocumentId || 
+        (audio.bookNumber == _currentDocument!.bookNumber && audio.track == _currentDocument!.chapterNumberBible)
+      ) || realmMediasItems.isNotEmpty;
+    }
+
+    printTime('build');
   }
+
 
   @override
   Widget build(BuildContext context) {
     final dm = widget.publication.documentsManager;
-
-    Document? current;
-    if (dm != null &&
-        dm.selectedDocumentId != -1 &&
-        dm.selectedDocumentId < dm.documents.length) {
-      current = dm.getCurrentDocument();
-    }
-
-    final bool isShowingText = current?.preferredPresentation == 'text' ? !_isImageMode : _isImageMode;
+    final bool isShowingText = _currentDocument?.preferredPresentation == 'text' ? !_isImageMode : _isImageMode;
 
     return Stack(
       children: [
@@ -1824,7 +1834,6 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
           right: 0,
           child: Visibility(
             visible: _controlsVisible,
-            maintainState: true,
               child: _isSearching ? AppBar(
                   titleSpacing: 0,
                   actionsPadding: const EdgeInsets.only(left: 10, right: 5),
@@ -1876,29 +1885,29 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
                 actions: [
                   // AUDIO
                   
-                if (current != null && (widget.publication.audiosNotifier.value.any((audio) => audio.documentId == current!.mepsDocumentId || (audio.bookNumber == current.bookNumber && audio.track == current.chapterNumberBible))) || realmMediasItems.isNotEmpty) 
+                if (_hasAudio) 
                   IconTextButton(
                       text: "",
                       icon: Icon(JwIcons.headphones),
                       onPressed: (anchorContext) {
-                        if (current == null) return;
+                        if (_currentDocument == null) return;
 
-                        if (current.publication.keySymbol.contains('sjj')) {
+                        if (_currentDocument!.publication.keySymbol.contains('sjj')) {
                           showMediaDialog(context, realmMediasItems);
                         }
     
                         int? index;
-                        if (current.isBibleChapter()) {
+                        if (_currentDocument!.isBibleChapter()) {
                           index = widget.publication.audiosNotifier.value.indexWhere(
                                 (audio) =>
-                            audio.bookNumber == current!.bookNumber &&
-                                audio.track == current.chapterNumberBible,
+                            audio.bookNumber == _currentDocument!.bookNumber &&
+                                audio.track == _currentDocument!.chapterNumberBible,
                           );
                         } 
                         else {
                           index = widget.publication.audiosNotifier.value.indexWhere(
                                 (audio) =>
-                            audio.documentId == current!.mepsDocumentId,
+                            audio.documentId == _currentDocument!.mepsDocumentId,
                           );
                         }
     
@@ -1926,10 +1935,10 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
                         context,
                         widget.publication,
                         webViewController: _controller,
-                        mepsDocumentId: current!.mepsDocumentId,
-                        bookNumber: current.bookNumber,
-                        chapterNumber: current.chapterNumber,
-                        title: current.getDisplayTitle(),
+                        mepsDocumentId: _currentDocument!.mepsDocumentId,
+                        bookNumber: _currentDocument!.bookNumber,
+                        chapterNumber: _currentDocument!.chapterNumber,
+                        title: _currentDocument!.getDisplayTitle(),
                         snippet: '',
                         blockType: 0,
                         blockIdentifier: null,
@@ -1954,7 +1963,7 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
                           }
                         }
                         // Cas publications classiques
-                        else if (bm.location.mepsDocumentId != current.mepsDocumentId) {
+                        else if (bm.location.mepsDocumentId != _currentDocument!.mepsDocumentId) {
                           final page = dm!.documents.indexWhere(
                                 (doc) => doc.mepsDocumentId == bm.location.mepsDocumentId,
                           );
@@ -1976,18 +1985,18 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
                     text: i18n().action_languages,
                     icon: Icon(JwIcons.language),
                     onPressed: (anchorContext) async {
-                      bool isBibleChapter = current?.isBibleChapter() ?? false;
+                      bool isBibleChapter = _currentDocument?.isBibleChapter() ?? false;
                       if(isBibleChapter) {
-                        showLanguagePubDialog(context, null, bookNumber: current!.bookNumber).then((languagePub) {
+                        showLanguagePubDialog(context, null, bookNumber: _currentDocument!.bookNumber).then((languagePub) {
                           if (languagePub != null) {
-                            showPageBibleChapter(languagePub, current!.bookNumber!, current.chapterNumber!);
+                            showPageBibleChapter(languagePub, _currentDocument!.bookNumber!, _currentDocument!.chapterNumber!);
                           }
                         });
                       }
                       else {
-                        showLanguagePubDialog(context, widget.publication, mepsDocumentId: current!.mepsDocumentId).then((languagePub) {
+                        showLanguagePubDialog(context, widget.publication, mepsDocumentId: _currentDocument!.mepsDocumentId).then((languagePub) {
                           if (languagePub != null) {
-                            showPageDocument(languagePub, current!.mepsDocumentId);
+                            showPageDocument(languagePub, _currentDocument!.mepsDocumentId);
                           }
                         });
                       }
@@ -2001,20 +2010,20 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
                     icon: const Icon(JwIcons.note_plus),
                     onPressed: (anchorContext) async {
                       await widget.notesController.addNote(
-                        title: current!.getDisplayTitle(),
-                        document: current,
+                        title: _currentDocument!.getDisplayTitle(),
+                        document: _currentDocument,
                       );
                     },
                   ),
     
     
                   // MÉDIAS
-                  if (current != null && current.hasMediaLinks && !current.isBibleChapter())
+                  if (_currentDocument != null && _currentDocument!.hasMediaLinks && !_currentDocument!.isBibleChapter())
                     IconTextButton(
                       text: i18n().navigation_meetings_show_media,
                       icon: const Icon(JwIcons.video_music),
                       onPressed: (anchorContext) {
-                        showPage(DocumentMediasView(document: current!));
+                        showPage(DocumentMediasView(document: _currentDocument!));
                       },
                     ),
     
@@ -2041,7 +2050,7 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
                     text: i18n().action_open_in_share,
                     icon: const Icon(JwIcons.share),
                     onPressed: (anchorContext) {
-                      current!.share();
+                      _currentDocument!.share();
                     },
                   ),
     
@@ -2050,17 +2059,17 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
                     text: i18n().action_qr_code,
                     icon: const Icon(JwIcons.qr_code),
                     onPressed: (anchorContext) {
-                      final uri = current!.share(hide: true);
+                      final uri = _currentDocument!.share(hide: true);
                       showQrCodeDialog(
                         context,
-                        current.getDisplayTitle(),
+                        _currentDocument!.getDisplayTitle(),
                         uri,
                       );
                     },
                   ),
     
                   // MODE IMAGE / TEXTE
-                  if (current != null && current.svgs.isNotEmpty)
+                  if (_currentDocument != null && _currentDocument!.svgs.isNotEmpty)
                     IconTextButton(
                       // Si on affiche l'image, le bouton doit proposer de passer au texte
                       text: isShowingText
@@ -2074,7 +2083,7 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
                     ),
     
                   // GUIDES DE PRONONCIATION
-                  if (current != null && current.hasPronunciationGuide)
+                  if (_currentDocument != null && _currentDocument!.hasPronunciationGuide)
                     IconTextButton(
                       text: widget.publication.mepsLanguage.primaryIetfCode == 'ja'
                           ? i18n().action_display_furigana
@@ -2153,12 +2162,12 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
                   ),
     
                   // DEBUG HTML
-                  if (kDebugMode && current != null)
+                  if (kDebugMode && _currentDocument != null)
                     IconTextButton(
                       text: "Voir le html",
                       icon: const Icon(JwIcons.square_stack),
                       onPressed: (anchorContext) async {
-                        final doc = current!;
+                        final doc = _currentDocument!;
                         final content = doc.isBibleChapter()
                             ? doc.chapterContent!
                             : doc.content!;
@@ -2172,6 +2181,40 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
               )
           )
         ),
+        PositionedDirectional(
+          top: 56,
+          start: 0,
+          end: 0,
+          child: SafeArea(
+            child: Visibility(
+              visible: _controlsVisible,
+              child: ValueListenableBuilder<List<Audio>>(
+                valueListenable: widget.publication.audiosNotifier,
+                builder: (context, audios, _) {
+                  final audio = audios.firstWhereOrNull((a) => a.documentId == _currentDocument!.mepsDocumentId);
+                  if (audio == null) return const SizedBox.shrink();
+            
+                  return ValueListenableBuilder<bool>(
+                    valueListenable: audio.isDownloadingNotifier,
+                    builder: (context, isDownloading, _) {
+                      if (!isDownloading) return const SizedBox.shrink();
+                      
+                      return ValueListenableBuilder<double>(
+                        valueListenable: audio.progressNotifier,
+                        builder: (context, progress, _) => LinearProgressIndicator(
+                          value: progress,
+                          minHeight: 2,
+                          backgroundColor: Colors.transparent,
+                          color: Theme.of(context).primaryColor,
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ),
+        )
       ],
     );
   }

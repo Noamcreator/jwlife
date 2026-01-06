@@ -265,7 +265,12 @@ function toggleAudioPlayer(visible) {
     floatingButton.style.bottom = `${BOTTOMNAVBAR_FIXED_HEIGHT + (audioPlayerVisible ? AUDIO_PLAYER_HEIGHT : 0) + 15}px`;
 
     const curr = cachedPages[currentIndex];
+    const prev = cachedPages[currentIndex - 1];
+    const next = cachedPages[currentIndex + 1];
+
     adjustArticle('article-center', curr.link);
+    adjustArticle('article-left', prev.link);
+    adjustArticle('article-right', next.link);
 }
 
 async function fetchPage(index) {
@@ -316,8 +321,8 @@ function loadImageSvg(pageElement, svgPaths) {
         display: 'flex',
         flexDirection: 'column',
         transition: 'none',
-        touchAction: 'pan-y', // <--- IMPORTANT: Autorise le scroll vertical natif
-        transformOrigin: 'center top', // <--- Zoom à partir du haut
+        touchAction: 'pan-y',
+        transformOrigin: 'center top',
         willChange: 'transform, width'
     });
 
@@ -426,9 +431,11 @@ function adjustArticle(articleId, link) {
         paddingTop = `${APPBAR_FIXED_HEIGHT}px`;
     }
 
-    if (link !== '') {
+    const hasLink = article.querySelector('a.publication-link');
+    if (link !== '' && !hasLink) {
         // Création du lien
         const linkElement = document.createElement('a');
+        linkElement.className = 'publication-link';
         linkElement.href = link;
         linkElement.textContent = "{{PUBLICATION_SHORT_TITLE}}";
 
@@ -440,8 +447,9 @@ function adjustArticle(articleId, link) {
         article.insertAdjacentElement('beforeend', linkElement);
 
         article.style.paddingTop = `${APPBAR_FIXED_HEIGHT}px`;
-        article.style.paddingBottom = `${BOTTOMNAVBAR_FIXED_HEIGHT + 30}px`;
-    } else {
+        article.style.paddingBottom = `${BOTTOMNAVBAR_FIXED_HEIGHT + (audioPlayerVisible ? AUDIO_PLAYER_HEIGHT : 0) + 30}px`;
+    } 
+    else {
         article.style.paddingTop = paddingTop;
         article.style.paddingBottom = `${BOTTOMNAVBAR_FIXED_HEIGHT + (audioPlayerVisible ? AUDIO_PLAYER_HEIGHT : 0) + 30}px`;
     }
@@ -772,7 +780,7 @@ function restoreScrollPosition(page, index) {
     });
 
     // Réinitialisation des états de direction (évite que l'AppBar ne s'affole)
-    lastScrollTop = scroll;
+    lastScrollTop = 0;
     lastDirection = null;
     directionChangePending = false;
     directionChangeStartTime = 0;
@@ -787,7 +795,7 @@ function restoreScrollPosition(page, index) {
 
 async function loadPages(currentIndex) {
     // Verrouillage pour empêcher le listener de scroll d'écrire n'importe où
-    isNavigating = true; 
+    isNavigating = true;
 
     // 1. Charger la page centrale
     await loadIndexPage(currentIndex);
@@ -830,10 +838,12 @@ async function init() {
     pageCenter.scrollTop = 0;
     pageCenter.scrollLeft = 0;
 
+    setupScrollBar();
+
     pageCenter.classList.add('visible');
     await loadIndexPage(currentIndex);
 
-    setupScrollBar();
+    showScrollBar(true);
 
     if (wordsSelected.length > 0) {
         selectWords(wordsSelected, false);
@@ -843,8 +853,10 @@ async function init() {
         jumpToIdSelector(pageCenter.id, '[data-pid]', 'data-pid', startParagraphId, endParagraphId);
     } 
     else if (startVerseId != null && endVerseId != null) {
-        const hasSameChapter = bookNumber === lastBookNumber && chapterNumber === lastChapterNumber;
+        const hasSameChapter = (bookNumber === lastBookNumber && chapterNumber === lastChapterNumber) || lastBookNumber === null || lastChapterNumber === null;
         const endIdForJump = hasSameChapter ? endVerseId : null;
+        console.log('startVerseId', startVerseId);
+        console.log('endVerseId', endIdForJump);
         jumpToIdSelector(pageCenter.id, '.v', 'id', startVerseId, endIdForJump);
     } 
     else if (textTag != null) {
@@ -5627,11 +5639,12 @@ function changeNoteColor(noteGuid, newColorIndex) {
     });
 }
 
-function resizeFont(size) {
+function resizeFont(page, size) {
+    page = page ?? pageCenter;
     document.body.style.fontSize = size + 'px';
-    resizeAllTextAreaHeight(pageCenter);
-    repositionAllNotes(pageCenter);
-    repositionAllBookmarks(pageCenter);
+    resizeAllTextAreaHeight(page);
+    repositionAllNotes(page);
+    repositionAllBookmarks(page);
 }
 
 function setLongPressing(value) {
@@ -5656,8 +5669,18 @@ function hideScrollBar() {
     });
 }
 
-function showScrollBar() {
+function showScrollBar(init = false) {
     clearTimeout(scrollBarTimeout);
+
+    const scrollHeight = pageCenter.scrollHeight;
+    const clientHeight = pageCenter.clientHeight;
+
+    // --- 0. GESTION DU CONTENU NON SCROLLABLE ---
+    // Si le contenu tient dans la page sans scroller
+    if ((scrollHeight - 10) <= clientHeight) {
+        hideScrollBar();
+        return; // On stoppe tout
+    }
 
     scrollBar.style.transition = 'none';
     scrollBar.style.display = 'block';
@@ -5665,7 +5688,9 @@ function showScrollBar() {
     scrollBar.style.transition = 'opacity 0.5s ease-in-out';
     scrollBar.style.opacity = '1';
 
-    scrollBarTimeout = setTimeout(hideScrollBar, 500);
+    if(!init) {
+        scrollBarTimeout = setTimeout(hideScrollBar, 500);
+    }
 }
 
 function setupScrollBar() {
@@ -5673,6 +5698,7 @@ function setupScrollBar() {
     scrollBar.className = 'scroll-bar';
     scrollBar.src = speedBarScroll;
     scrollBar.style.transition = 'opacity 0.5s ease-in-out'; // Pour une disparition en douceur
+    scrollBar.style.opacity = '0';
 
     scrollBar.addEventListener("touchstart", (e) => {
         if (e.touches.length !== 1) return;
@@ -5689,10 +5715,9 @@ function setupScrollBar() {
 
         // Calcul des hauteurs de barres en fonction de l'état des contrôles
         const currentAppBarHeight = APPBAR_FIXED_HEIGHT;
-        const currentBottomNavBarHeight = controlsVisible ? (BOTTOMNAVBAR_FIXED_HEIGHT + (audioPlayerVisible ? AUDIO_PLAYER_HEIGHT : 0)) : 0;
 
         // La hauteur visible dépend maintenant de l'état des contrôles
-        const visibleHeight = window.innerHeight - currentAppBarHeight - currentBottomNavBarHeight;
+        const visibleHeight = window.innerHeight - currentAppBarHeight - bottomNavBarHeight;
 
         // Les positions min et max de la scrollbar dépendent aussi de l'état des contrôles
         const minTop = currentAppBarHeight;
@@ -5719,9 +5744,6 @@ function setupScrollBar() {
     });
 
     document.body.appendChild(scrollBar);
-
-    // Appelle la fonction une première fois pour cacher la barre au chargement
-    scrollBarTimeout = setTimeout(hideScrollBar, 3000);
 }
 
 // --- VARIABLES D'ÉTAT (Assure-toi qu'elles sont déclarées) ---
@@ -5731,17 +5753,27 @@ let directionChangePending = false;
 let directionChangeStartTime = 0;
 let directionChangeStartScroll = 0;
 let directionChangeTargetDirection = null;
-let isNavigating = false; // TRÈS IMPORTANT : à mettre à true au début de changePage()
+let isNavigating = false;
 
 let appBarHeight = APPBAR_FIXED_HEIGHT; // hauteur de l'AppBar
-let bottomNavBarHeight = BOTTOMNAVBAR_FIXED_HEIGHT; // hauteur de la BottomBar
+let bottomNavBarHeight = controlsVisible ? (BOTTOMNAVBAR_FIXED_HEIGHT + (audioPlayerVisible ? AUDIO_PLAYER_HEIGHT : 0)) : 0;
 
 const DIRECTION_CHANGE_THRESHOLD_MS = 250;
 const DIRECTION_CHANGE_THRESHOLD_PX = 40;
 
 function handleScroll(pageElement) {
-    // 1. SÉCURITÉ : On bloque si on change de page
-    if (isNavigating || isLongPressing || isChangingParagraph) return;
+    if (isNavigating || isLongPressing || isChangingParagraph || !isFullscreenMode) return;
+
+    const scrollHeight = pageElement.scrollHeight;
+    const clientHeight = pageElement.clientHeight;
+
+    // --- 0. GESTION DU CONTENU NON SCROLLABLE ---
+    // Si le contenu tient dans la page sans scroller
+
+    if ((scrollHeight - 5) <= clientHeight) {
+        hideScrollBar();
+        return; // On stoppe tout
+    }
 
     const targetIndex = currentIndex;
     const scrollTop = pageElement.scrollTop;
@@ -5754,9 +5786,6 @@ function handleScroll(pageElement) {
     // Appelle ta fonction pour afficher et gérer le timer de la scrollbar
     showScrollBar();
     closeToolbar();
-
-    const scrollHeight = pageElement.scrollHeight;
-    const clientHeight = pageElement.clientHeight;
 
     // --- GESTION DE LA DIRECTION ET FLUTTER ---
     const scrollDelta = scrollTop - lastScrollTop;
@@ -5777,24 +5806,22 @@ function handleScroll(pageElement) {
         const scrollDiff = Math.abs(scrollTop - directionChangeStartScroll);
 
         if (scrollTop === 0 || (timeDiff < DIRECTION_CHANGE_THRESHOLD_MS && scrollDiff > DIRECTION_CHANGE_THRESHOLD_PX)) {
-            if (isFullscreenMode) {
-                window.flutter_inappwebview.callHandler('onScroll', scrollTop, scrollDirection);
-                lastDirection = scrollDirection;
-                directionChangePending = false;
+            window.flutter_inappwebview.callHandler('onScroll', scrollTop, scrollDirection);
+            lastDirection = scrollDirection;
+            directionChangePending = false;
 
-                const floatingButton = document.getElementById('dialogFloatingButton');
-                if (scrollDirection === 'down') {
-                    controlsVisible = false;
-                    if (floatingButton) {
-                        floatingButton.style.opacity = '0';
-                        floatingButton.style.pointerEvents = 'none';
-                    }
-                } else if (scrollDirection === 'up') {
-                    controlsVisible = true;
-                    if (floatingButton) {
-                        floatingButton.style.opacity = '1';
-                        floatingButton.style.pointerEvents = 'auto';
-                    }
+            const floatingButton = document.getElementById('dialogFloatingButton');
+            if (scrollDirection === 'down') {
+                controlsVisible = false;
+                if (floatingButton) {
+                    floatingButton.style.opacity = '0';
+                    floatingButton.style.pointerEvents = 'none';
+                }
+            } else if (scrollDirection === 'up') {
+                controlsVisible = true;
+                if (floatingButton) {
+                    floatingButton.style.opacity = '1';
+                    floatingButton.style.pointerEvents = 'auto';
                 }
             }
         } else if (timeDiff >= DIRECTION_CHANGE_THRESHOLD_MS) {
@@ -5807,9 +5834,8 @@ function handleScroll(pageElement) {
     // --- MISE À JOUR DE LA POSITION DE TA SCROLLBAR IMAGE ---
     // On utilise exactement ta logique de calcul des hauteurs
     const currentAppBarHeight = APPBAR_FIXED_HEIGHT;
-    const currentBottomNavBarHeight = controlsVisible ? (BOTTOMNAVBAR_FIXED_HEIGHT + (audioPlayerVisible ? AUDIO_PLAYER_HEIGHT : 0)) : 0;
-
-    const visibleHeight = window.innerHeight - currentAppBarHeight - currentBottomNavBarHeight;
+    bottomNavBarHeight = controlsVisible ? (BOTTOMNAVBAR_FIXED_HEIGHT + (audioPlayerVisible ? AUDIO_PLAYER_HEIGHT : 0)) : 0;
+    const visibleHeight = window.innerHeight - currentAppBarHeight - bottomNavBarHeight;
     const scrollableHeight = scrollHeight - clientHeight;
 
     if (scrollableHeight > 0) {

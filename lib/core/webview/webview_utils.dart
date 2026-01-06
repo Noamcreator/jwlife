@@ -313,6 +313,8 @@ Future<Map<String, dynamic>?> fetchExtractPublication(BuildContext context, Stri
 
         // Appeler _jumpToParagraph uniquement si un paragraphe est présent
         if (startParagraph != null) {
+          await Future.delayed(Duration(milliseconds: 200));
+          
           String articleId = extractPublication != null ? 'containerDialog' : 'page-center';
           jumpToParagraph(startParagraph, endParagraph ?? startParagraph, articleId: articleId);
         }
@@ -618,16 +620,87 @@ Future<Map<String, dynamic>> fetchVersesReference(BuildContext context, Publicat
   };
 }
 
-Future<Map<String, dynamic>> fetchCommentaries(BuildContext context, Publication publication, String link) async {
+Future<Map<String, dynamic>?> fetchCommentaries(BuildContext context, Publication publication, String link, Function(int) jumpToPage, Function(int, int, {String articleId}) jumpToVerse) async {
   final Map<String, dynamic> resultData = {'items': [], 'title': i18n().label_icon_commentary};
 
   try {
     // 1. Parsing du lien
     final parts = link.split(r'$p');
-    if (parts.length != 2) return resultData;
 
+    // 2. Accès Base de données
+    final bible = publication.isBible() ? publication : PublicationRepository().getLookUpBible();
+    if (bible == null) return resultData;
+
+    Database? db;
+    bool mustCloseDb = false;
+
+    if (bible.documentsManager?.database != null) {
+      db = bible.documentsManager!.database;
+    } else if (bible.databasePath != null) {
+      db = await openReadOnlyDatabase(bible.databasePath!);
+      mustCloseDb = true;
+    }
+
+    if (db == null) return resultData;
+    
     final mainPart = parts[0].replaceAll('jwpub://c/', '');
     final mainSegments = mainPart.split('/');
+
+    if(parts.length == 1) {
+      final langAndBook = mainSegments[0].split(':');
+      final rangeChapterAndVerse = mainSegments[1].split('-');
+
+      final int bookDocId = int.parse(langAndBook[1]);
+      int bookNumber = 0;
+      final String firstVerseRange = rangeChapterAndVerse[0];
+      final String lastVerseRange = rangeChapterAndVerse[1];
+
+      final int firstChapter = int.parse(firstVerseRange.split(':')[0]);
+      final int lastChapter = int.parse(lastVerseRange.split(':')[0]);
+
+      final int firstVerse = int.parse(firstVerseRange.split(':')[1]);
+      final int lastVerse = int.parse(lastVerseRange.split(':')[1]);
+
+      try {
+        // 3. Récupération du verset
+        final verseResponse = await db.rawQuery('''
+          SELECT 
+              c.BookNumber
+          FROM BibleVerse v
+          INNER JOIN BibleChapter c ON c.ChapterNumber = ?
+          INNER JOIN Document d ON c.BookNumber = d.ChapterNumber
+          WHERE d.MepsDocumentId = ?
+            AND v.BibleVerseId = (c.FirstVerseId + ? - (c.FirstVerseId - (SELECT LastVerseId FROM BibleChapter WHERE BibleChapterId = c.BibleChapterId - 1)));
+        ''', [firstChapter, bookDocId, firstVerse]);
+
+        if (verseResponse.isEmpty) return resultData;
+
+        bookNumber = verseResponse.first['BookNumber'] as int? ?? 0;
+
+        if(bible.isBible()) {
+          final currentDocument = bible.documentsManager!.getCurrentDocument();
+          if(bible.documentsManager!.documents.any((doc) => doc.bookNumber == bookNumber && doc.chapterNumberBible == firstChapter)) {
+            if (currentDocument != bible.documentsManager!.documents.firstWhereOrNull((doc) => doc.bookNumber == bookNumber && doc.chapterNumberBible == firstChapter)) {
+              int index = bible.documentsManager!.getIndexFromBookNumberAndChapterNumber(bookNumber, firstChapter);
+              await jumpToPage(index);
+            }
+
+            await Future.delayed(Duration(milliseconds: 200));
+
+            // Appeler _jumpToParagraph uniquement si un paragraphe est présent
+            jumpToVerse(firstVerse, lastVerse, articleId: 'page-center');
+          }
+          else {
+            await showChapterView(context, bible.keySymbol, bible.mepsLanguage.id, bookNumber, firstChapter, lastChapterNumber: lastChapter, firstVerseNumber: firstVerse, lastVerseNumber: lastVerse);
+          }
+        }
+      }
+      finally {
+        if (mustCloseDb) await db.close();
+      }
+
+      return null;
+    }
     if (mainSegments.length < 2) return resultData;
 
     final langAndBook = mainSegments[0].split(':');
@@ -646,22 +719,6 @@ Future<Map<String, dynamic>> fetchCommentaries(BuildContext context, Publication
     final int commDocId = int.parse(langAndDocComm[1]);
     final int startP = int.parse(paragraphs[0]);
     final int endP = int.parse(paragraphs.length > 1 ? paragraphs[1] : paragraphs[0]);
-
-    // 2. Accès Base de données
-    final bible = publication.isBible() ? publication : PublicationRepository().getLookUpBible();
-    if (bible == null) return resultData;
-
-    Database? db;
-    bool mustCloseDb = false;
-
-    if (bible.documentsManager?.database != null) {
-      db = bible.documentsManager!.database;
-    } else if (bible.databasePath != null) {
-      db = await openReadOnlyDatabase(bible.databasePath!);
-      mustCloseDb = true;
-    }
-
-    if (db == null) return resultData;
 
     try {
       // 3. Récupération du verset

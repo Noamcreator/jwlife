@@ -49,8 +49,6 @@ class TilesCache {
   }
 
   Future<void> _addImageToDatabase(String filename, File file) async {
-    tiles.add(Tile(fileName: filename, file: file));
-
     await _database.insert(
       'TilesCache',
       {'FileName': filename, 'FilePath': file.path},
@@ -67,6 +65,7 @@ class TilesCache {
       await file.writeAsBytes(response.data);
 
       if (await file.exists()) {
+        tiles.add(Tile(fileName: filename, file: file));
         _addImageToDatabase(filename, file);
         return Tile(fileName: filename, file: file);
       }
@@ -88,7 +87,8 @@ class TilesCache {
 
       if (existingPath != null) {
         return existingPath;
-      } else {
+      } 
+      else {
         return await downloadImage(imageUrl, filename);
       }
     }
