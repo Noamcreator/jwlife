@@ -372,7 +372,7 @@ class PubCollections {
           final tables = [
             'AvailableBibleBook', 'DatedText', 'Document', 
             'Image', 'PublicationAttribute', 'PublicationIssueAttribute', 
-            'PublicationIssueProperty', 'Publication'
+            'PublicationIssueProperty'
           ];
 
           for (var table in tables) {

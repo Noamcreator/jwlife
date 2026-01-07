@@ -374,6 +374,8 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
 
   Future<void> changePageAt(int index) async {
     if (index <= widget.publication.documentsManager!.documents.length - 1 && index >= 0) {
+      widget.publication.documentsManager!.selectedDocumentId = index;
+      
       int? startBlockIdentifier;
       int? endBlockIdentifier;
       String? textTag;
@@ -1708,9 +1710,9 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
 
   void changePageAt(int index) {
     setState(() {
-      widget.publication.documentsManager!.selectedDocumentId = index;
       _title = widget.publication.documentsManager!.getCurrentDocument().getDisplayTitle();
       _controlsVisible = true;
+      _updateDocumentInfo();
     });
     GlobalKeyService.jwLifePageKey.currentState!.toggleBottomNavBarVisibility(_controlsVisible);
   }
@@ -2009,10 +2011,12 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
                     text: i18n().action_add_a_note,
                     icon: const Icon(JwIcons.note_plus),
                     onPressed: (anchorContext) async {
-                      await widget.notesController.addNote(
+                      Note note = await widget.notesController.addNote(
                         title: _currentDocument!.getDisplayTitle(),
                         document: _currentDocument,
                       );
+
+                      _controller.evaluateJavascript(source: "addNoteToDocument('${note.guid}', ${_currentDocument?.isBibleChapter() ?? false});");
                     },
                   ),
     

@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:jwlife/core/shared_preferences/shared_preferences_utils.dart';
 import 'package:jwlife/core/utils/utils.dart';
 import 'package:realm/realm.dart';
-import '../../app/services/settings_service.dart';
 import '../../data/models/audio.dart';
 import '../../data/realm/catalog.dart';
 import '../../data/realm/realm_library.dart';

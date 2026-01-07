@@ -4999,6 +4999,15 @@ function getAllSelectedTargets(allowedSelector = null) {
     return selectedElements;
 }
 
+function addNoteToDocument(guid, isBible) {
+    const firstParagraphEntry = Array.from(paragraphsData.values())[0];
+    const firstParagraphElement = firstParagraphEntry ? firstParagraphEntry.paragraphs[0] : null;
+
+    addNoteWithGuid(pageCenter, firstParagraphElement, null, guid, 0, isBible, true);
+    closeToolbar();
+    removeAllSelected();
+}
+
 async function addNote(paragraph, id, isBible, title) {
     const noteGuid = await window.flutter_inappwebview.callHandler('addNote', {
         Title: title,
@@ -5145,6 +5154,11 @@ async function loadUserdata() {
     const notesMap = new Map();
     const bookmarksMap = new Map();
 
+    const firstParagraphEntry = Array.from(paragraphsData.values())[0];
+    const firstParagraphElement = firstParagraphEntry ? firstParagraphEntry.paragraphs[0] : null;
+
+    const processedNoteGuids = new Set(); // Pour éviter les doublons
+
     // Indexation des surlignages (BlockRanges)
     blockRanges.forEach(h => {
         // La clé utilise le format string "BlockType-Identifier" (ex: "2-15" ou "1-12")
@@ -5153,22 +5167,54 @@ async function loadUserdata() {
         blockRangeMap.get(key).push(h);
     });
 
-    // Indexation des notes - CLÉ MODIFIÉE POUR UTILISER DES ENTIERS
+    // Indexation des notes
     notes.forEach(n => {
-        // Le BlockIdentifier est désormais un nombre (int)
+        // GÉRER LE CAS BlockType === 0 (Notes générales)
+        if (n.BlockIdentifier === null && n.BlockType === 0 && firstParagraphElement) {
+            if (!processedNoteGuids.has(n.Guid)) {
+                addNoteWithGuid(
+                    pageCenter,
+                    firstParagraphElement, // On attache au premier paragraphe
+                    null,
+                    n.Guid,
+                    n.ColorIndex ?? 0,
+                    isBible(),
+                    false
+                );
+                processedNoteGuids.add(n.Guid);
+            }
+            return; // On passe à la note suivante
+        }
+
+        // Cas standard (BlockIdentifier présent)
         const key = n.BlockIdentifier;
-        if (!notesMap.has(key)) notesMap.set(key, []);
-        notesMap.get(key).push(n);
+        if (key !== null) {
+            if (!notesMap.has(key)) notesMap.set(key, []);
+            notesMap.get(key).push(n);
+        }
     });
 
     // Indexation des signets (Bookmarks)
     bookmarks.forEach(b => {
-        // La clé utilise le format string "BlockType-Identifier"
+        // CAS SPÉCIAL : BlockType 0 et Identifier null
+        if (b.BlockIdentifier === null && b.BlockType === 0) {
+            if (firstParagraphEntry) {
+                // On l'ajoute directement au premier paragraphe disponible
+                addBookmark(
+                    pageCenter, 
+                    firstParagraphEntry, 
+                    b.BlockType, 
+                    b.BlockIdentifier, 
+                    b.Slot
+                );
+            }
+            return; // On ne l'ajoute pas à la Map standard car il est déjà traité
+        }
+
+        // Cas standard : Clé "BlockType-Identifier"
         const key = `${b.BlockType}-${b.BlockIdentifier}`;
         bookmarksMap.set(key, b);
     });
-
-    const processedNoteGuids = new Set(); // Pour éviter les doublons
 
     // Itérer sur paragraphsData (Map<int ID, { paragraphs: HTMLElement[], id: int, isVerse: boolean, ... }>)
     paragraphsData.forEach((paragraphInfo, numericId) => {
