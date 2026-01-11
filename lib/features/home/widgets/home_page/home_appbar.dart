@@ -82,13 +82,12 @@ class _HomeAppBarState extends State<HomeAppBar> {
   @override
   Widget build(BuildContext context) {
     if (isSearching) {
-      return AppBar(
-        leading: IconButton(
-          icon: const Icon(JwIcons.chevron_left),
-          onPressed: onCloseSearch,
-        ),
-        titleSpacing: 0.0,
-        title: SearchFieldAll(onClose: onCloseSearch),
+      return JwLifeAppBar(
+        titleWidget: SearchFieldAll(onClose: onCloseSearch),
+        handleBackPress: () {
+          onCloseSearch();
+          return false;
+        },
       );
     }
 

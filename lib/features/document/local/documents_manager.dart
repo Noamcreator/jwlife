@@ -1,4 +1,6 @@
+import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/data/models/publication.dart';
+import 'package:jwlife/data/models/userdata/bookmark.dart';
 import 'package:sqflite/sqflite.dart';
 
 import '../../../../../core/utils/utils.dart';
@@ -12,13 +14,15 @@ class DocumentsManager {
   late Database database;
   int selectedDocumentId = -1;
   List<Document> documents = [];
+  List<Bookmark> bookmarks = [];
   bool _isInitializing = false;
   bool initialized = false;
+  bool bibleDocumentsInitialized = false;
 
   DocumentsManager({required this.publication, this.initMepsDocumentId, this.initBookNumber, this.initChapterNumber});
 
   // Méthode privée pour initialiser la base de données
-  Future<void> initializeDatabaseAndData() async {
+  Future<void> initializeDatabaseAndData({bool fromMenu = false}) async {
     if (initialized || _isInitializing) return;
 
     _isInitializing = true;
@@ -26,10 +30,32 @@ class DocumentsManager {
       // 1. Ouverture de la base de données
       database = await openReadOnlyDatabase(publication.databasePath!);
 
-      // 2. Chargement des données
-      await fetchDocuments(); 
+      if(!publication.isBible() || !fromMenu) {
+        // 2. Chargement des documents pour la Bible
+        await fetchDocuments();
+      }
+
+      bookmarks = await JwLifeApp.userdata.getBookmarksFromPub(publication);
       
       initialized = true;
+    } 
+    catch (e) {
+      printTime('Error initializing database: $e');
+    } 
+    finally {
+      _isInitializing = false;
+    }
+  }
+
+  // Méthode privée pour initialiser la base de données spécifique à la Bible
+  Future<void> initializeBibleDocuments() async {
+    if (bibleDocumentsInitialized || _isInitializing) return;
+
+    _isInitializing = true;
+    try {
+      await fetchDocuments();
+      
+      bibleDocumentsInitialized = true;
     } 
     catch (e) {
       printTime('Error initializing database: $e');
@@ -122,5 +148,27 @@ class DocumentsManager {
 
   int getIndexFromBookNumberAndChapterNumber(int bookNumber, int chapterNumber) {
     return documents.indexWhere((element) => element.bookNumber == bookNumber && element.chapterNumberBible == chapterNumber);
+  }
+
+  int getIndexFromBookMepsDocumentIdAndChapterNumber(int mepsDocumentId, int chapterNumber) {
+    return documents.indexWhere((element) => element.mepsDocumentId == mepsDocumentId && element.chapterNumberBible == chapterNumber);
+  }
+
+  void addBookmark(Bookmark bookmark) {
+    bookmarks.add(bookmark);
+  }
+
+  void removeBookmark(Bookmark bookmark) {
+    bookmarks.remove(bookmark);
+  }
+
+  List<Bookmark> getBookmarksFromCurrentDocument() {
+    Document currentDocument = getCurrentDocument();
+    bool isBibleChapter = currentDocument.isBibleChapter();
+
+    if (isBibleChapter) {
+      return bookmarks.where((bookmark) => bookmark.location.bookNumber == currentDocument.bookNumber && bookmark.location.chapterNumber == currentDocument.chapterNumberBible).toList();
+    }
+    return bookmarks.where((bookmark) => bookmark.location.mepsDocumentId == currentDocument.mepsDocumentId).toList();
   }
 }

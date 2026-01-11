@@ -806,6 +806,7 @@ async function loadPages(currentIndex) {
     isLongPressing = false;
     isVerticalScroll = false;
     currentTranslate = -100;
+    controlsVisible = true;
 
     // 3. Restaurer le scroll du centre (uniquement si déjà connu)
     restoreScrollPosition(pageCenter, currentIndex);
@@ -850,14 +851,14 @@ async function init() {
     }
 
     if (startParagraphId != null && endParagraphId != null) {
-        jumpToIdSelector(pageCenter.id, '[data-pid]', 'data-pid', startParagraphId, endParagraphId);
+        jumpToBlockId(pageCenter.id, startParagraphId, endParagraphId);
     } 
     else if (startVerseId != null && endVerseId != null) {
         const hasSameChapter = (bookNumber === lastBookNumber && chapterNumber === lastChapterNumber) || lastBookNumber === null || lastChapterNumber === null;
         const endIdForJump = hasSameChapter ? endVerseId : null;
         console.log('startVerseId', startVerseId);
         console.log('endVerseId', endIdForJump);
-        jumpToIdSelector(pageCenter.id, '.v', 'id', startVerseId, endIdForJump);
+        jumpToBlockId(pageCenter.id, startVerseId, endIdForJump);
     } 
     else if (textTag != null) {
         jumpToTextTag(textTag);
@@ -868,16 +869,23 @@ async function init() {
 
 init();
 
-async function jumpToPage(index) {
+async function jumpToPage(index, startBlockId, endBlockId, articleId) {
     closeToolbar();
     if (index < 0 || index > maxIndex) return;
 
     currentIndex = index;
     await loadPages(index);
+
+    if (startBlockId !== null && endBlockId !== null) {
+        jumpToBlockId(articleId, startBlockId, endBlockId);
+    }
 }
 
-async function jumpToIdSelector(articleId, selector, idAttr, begin, end) {
+async function jumpToBlockId(articleId, begin, end) {
     closeToolbar();
+
+    const selector = isBible() ? '.v' : '[data-pid]';
+    const idAttr = isBible() ? 'id' : 'data-pid';
 
     const paragraphsDataTemp = articleId === 'page-center' ? paragraphsData : paragraphsDataDialog;
 
@@ -1645,8 +1653,7 @@ function showToolbar(article, paragraphs, pid, hasAudio, type) {
             ['&#xE681;', () => addNote(paragraph, pid, true, '')],
             ['&#xE62A;', () => callHandler('bookmark', {
                 snippet: allParagraphsText,
-                id: pid,
-                isBible: true
+                id: pid
             })],
             ['&#xE651;', () => callHandler('copyText', {
                 text: allParagraphsText
@@ -1666,8 +1673,7 @@ function showToolbar(article, paragraphs, pid, hasAudio, type) {
             ['&#xE681;', () => addNote(paragraph, pid, false, '')],
             ['&#xE62A;', () => callHandler('bookmark', {
                 snippet: paragraph.innerText,
-                id: pid,
-                isBible: false
+                id: pid
             })],
             ['&#xE68E;', () => callHandler('visit', {
                 id: pid,
@@ -4913,7 +4919,7 @@ function showVerseCommentaryDialog(article, dialogData, href) {
                     `;
 
                 articleCommentary.addEventListener('click', async (event) => {
-                    onClickOnPage(articleCommentary, event);
+                    onClickOnPage(articleCommentary, event, dialogData);
                 });
 
                 contentContainer.appendChild(articleCommentary);
@@ -5361,8 +5367,16 @@ function addBookmark(article, paragraphInfo, blockType, blockIdentifier, slot) {
         article = pageCenter;
     }
     if (!paragraphInfo) {
-        paragraphInfo = paragraphsData.get(blockIdentifier);
-        if (!paragraphInfo) return;
+        if(blockIdentifier != null) {
+            paragraphInfo = paragraphsData.get(blockIdentifier);
+            if (!paragraphInfo) return;
+        }
+        else {
+            const firstParagraphEntry = Array.from(paragraphsData.values())[0];
+            const firstParagraphElement = firstParagraphEntry ? firstParagraphEntry.paragraphs[0] : null;
+            paragraphInfo = firstParagraphEntry;
+            if (!paragraphInfo) return;
+        }
     }
 
     const imgSrc = bookmarkAssets[slot];
@@ -6061,16 +6075,16 @@ async function onClickOnLink(article, target, event, infoPublication = null) {
                 showVerseDialog(article, verses, payload, false);
             }
         }
-        // Cas : Extraits de publications (xt)
-        else if (linkClass.contains('xt') || href.startsWith('jwpub://p/')) {
-            const extract = await window.flutter_inappwebview.callHandler('fetchExtractPublication', href, infoPublication);
-            if (extract) showExtractPublicationDialog(article, extract, href);
-        } 
         // Cas : Extrait de commentaires (jwpub://c/)
         else if (href.startsWith('jwpub://c/')) {
             const commentary = await window.flutter_inappwebview.callHandler('fetchCommentaries', href);
             if (commentary) showVerseCommentaryDialog(article, commentary, href);
         }
+        // Cas : Extraits de publications (xt)
+        else if (linkClass.contains('xt') || href.startsWith('jwpub://p/')) {
+            const extract = await window.flutter_inappwebview.callHandler('fetchExtractPublication', href, infoPublication);
+            if (extract) showExtractPublicationDialog(article, extract, href);
+        } 
         return true;
     }
 
@@ -6137,6 +6151,8 @@ let isInitialSelectionChange = false;
 // Empêche le menu contextuel du navigateur (qui apparaît suite à un clic droit ou un appui long)
 pageCenter.addEventListener('contextmenu', (event) => {
     const linkElement = event.target.closest('a');
+
+    setLongPressing(false);
 
     if ((isLongTouchFix || isSelecting) && !isReadingMode && !linkElement) {
         isLongTouchFix = false;

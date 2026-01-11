@@ -30,47 +30,53 @@ class _SubtitlesPageState extends State<SubtitlesPage> {
   InAppWebViewController? _controller;
 
   final TextEditingController _searchController = TextEditingController();
-  int _currentMatchIndex = -1;
-  int _totalMatches = 0;
-  String _lastQuery = "";
-
-  bool _isSearching = false;
-  bool _isLoading = true;
+  
+  final ValueNotifier<int> _currentMatchIndex = ValueNotifier(-1);
+  final ValueNotifier<int> _totalMatches = ValueNotifier(0);
+  final ValueNotifier<bool> _isSearching = ValueNotifier(false);
+  final ValueNotifier<bool> _isLoading = ValueNotifier(true);
+  
+  bool _webViewReady = false;
+  String? _pendingQuery;
 
   @override
   void initState() {
     super.initState();
-    if (widget.video.isDownloadedNotifier.value) {
-      fetchLocalSubtitles(widget.video);
-    }
-    else {
-      fetchOnlineSubtitles();
+    
+    if (widget.query != null && widget.query!.isNotEmpty) {
+      _isSearching.value = true;
+      _searchController.text = widget.query!;
+      _pendingQuery = widget.query!;
     }
 
-    if (widget.query != null && widget.query!.isNotEmpty) {
-      _searchController.text = widget.query!;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        setState(() {
-          _isSearching = true;
-        });
-        _search(widget.query!);
-      });
+    if (widget.video.isDownloadedNotifier.value) {
+      _fetchLocalSubtitles(widget.video);
+    } else {
+      _fetchOnlineSubtitles();
     }
   }
 
-  void fetchLocalSubtitles(Video localVideo) async {
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _currentMatchIndex.dispose();
+    _totalMatches.dispose();
+    _isSearching.dispose();
+    _isLoading.dispose();
+    super.dispose();
+  }
+
+  void _fetchLocalSubtitles(Video localVideo) async {
     try {
       await _subtitles.loadSubtitlesFromFile(File(localVideo.subtitlesFilePath));
       _loadWebView();
     } catch (e) {
-      debugPrint('Erreur lors du chargement des sous-titres locaux : $e');
-      setState(() {
-        _isLoading = false;
-      });
+      debugPrint('Erreur sous-titres locaux : $e');
+      _isLoading.value = false;
     }
   }
 
-  void fetchOnlineSubtitles() async {
+  void _fetchOnlineSubtitles() async {
     try {
       final link = 'https://b.jw-cdn.org/apis/mediator/v1/media-items/${widget.video.mepsLanguage}/${widget.video.naturalKey}';
       final response = await Api.httpGetWithHeaders(link, responseType: ResponseType.json);
@@ -78,12 +84,9 @@ class _SubtitlesPageState extends State<SubtitlesPage> {
         await _subtitles.loadSubtitles(response.data['media'][0]);
       }
       _loadWebView();
-    }
-    catch (e) {
-      debugPrint('Erreur lors du chargement des sous-titres en ligne : $e');
-      setState(() {
-        _isLoading = false;
-      });
+    } catch (e) {
+      debugPrint('Erreur sous-titres en ligne : $e');
+      _isLoading.value = false;
     }
   }
 
@@ -97,179 +100,95 @@ class _SubtitlesPageState extends State<SubtitlesPage> {
 
     const jsCode = r"""
     var searchResults = [];
-    var currentIndex = 0;
+    var isReady = false;
     
+    const skipClasses = new Set(["fn", "m", "cl", "vl", "dc-button--primary", "gen-field", "parNum", "word", "escape", "punctuation"]);
+
     function wrapWordsWithSpan(article) {
         const paragraphs = article.querySelectorAll('[data-pid]');
-        paragraphs.forEach((p) => {
-            processTextNodes(p);
-        });
+        for (let i = 0; i < paragraphs.length; i++) {
+            processTextNodes(paragraphs[i]);
+        }
     }
 
     function processTextNodes(element) {
-        const skipClasses = new Set(["fn", "m", "cl", "vl", "dc-button--primary", "gen-field"]);
-       
-        function walkNodes(node) {
-            if (node.nodeType === Node.TEXT_NODE) {
-                const text = node.textContent;
-                const newHTML = processText(text);
-                const temp = document.createElement('div');
-                temp.innerHTML = newHTML.html;
-                            
-                const parent = node.parentNode;
-                while (temp.firstChild) {
-                    parent.insertBefore(temp.firstChild, node);
-                }
-                parent.removeChild(node);
-            } 
-            else if (node.nodeType === Node.ELEMENT_NODE) {
-              // VÉRIFIER D'ABORD avant de descendre dans les enfants !
-              if (node.classList && [...skipClasses].some(c => node.classList.contains(c))) {
-                  return; // Stop ici, ne traite PAS les enfants
-              }
-              
-              if ((node.closest && node.closest("sup")) || 
-                  (node.classList && (node.classList.contains('word') || 
-                                     node.classList.contains('escape') || 
-                                     node.classList.contains('punctuation')))) {
-                  return;
-              }
-              
-              const children = Array.from(node.childNodes);
-              children.forEach(child => walkNodes(child));
-          }
-        }
-        walkNodes(element);
-    }
-    
-    function processText(text) {
-        let html = '';
-        let i = 0;
-        while (i < text.length) {
-            let currentChar = text[i];
-            
-            if (isSpace(currentChar)) {
-                let spaceSequence = '';
-                while (i < text.length && isSpace(text[i])) {
-                    spaceSequence += text[i];
-                    i++;
-                }
-                html += `<span class="escape">${spaceSequence}</span>`;
-            } else if (isLetterOrDigit(currentChar) || isPunctuationPart(text, i)) {
-                let word = '';
-                while (i < text.length && (isLetterOrDigit(text[i]) || isPunctuationPart(text, i))) {
-                    word += text[i];
-                    i++;
-                }
-                html += `<span class="word">${word}</span>`;
-            } else {
-                html += `<span class="punctuation">${currentChar}</span>`;
-                i++;
+        const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT, null, false);
+        const nodes = [];
+        let currentNode;
+        while (currentNode = walker.nextNode()) nodes.push(currentNode);
+
+        const combinedRegex = /[\p{L}\p{N}]+(?:[^\p{L}\p{N}\s][\p{L}\p{N}]+)*|\s+|[^\p{L}\p{N}\s]/gu;
+
+        for (let i = 0; i < nodes.length; i++) {
+            const node = nodes[i];
+            const text = node.textContent;
+            const fragment = document.createDocumentFragment();
+            let match;
+            while ((match = combinedRegex.exec(text)) !== null) {
+                const token = match[0];
+                const span = document.createElement('span');
+                if (/[\p{L}\p{N}]/u.test(token)) span.className = 'word';
+                else if (/\s+/.test(token)) span.className = 'escape';
+                else span.className = 'punctuation';
+                span.textContent = token;
+                fragment.appendChild(span);
             }
+            node.parentNode.replaceChild(fragment, node);
         }
-        return { html: html };
-    }
-    
-    function isLetterOrDigit(char) {
-        const code = char.charCodeAt(0);
-        return (code >= 65 && code <= 90) || 
-               (code >= 97 && code <= 122) || 
-               (code >= 192 && code <= 255) || 
-               (code >= 48 && code <= 57) ||
-               char === 'œ' || char === 'Œ' ||
-               char === 'æ' || char === 'Æ';
-    }
-    
-    function isSpace(char) {
-        return char === ' ' || char === '\u00A0';
-    }
-    
-    function isPunctuationPart(text, index) {
-        const char = text[index];
-        if (isLetterOrDigit(char) || isSpace(char)) return false;
-        
-        const prevChar = index > 0 ? text[index - 1] : '';
-        const nextChar = index < text.length - 1 ? text[index + 1] : '';
-        
-        return (isLetterOrDigit(prevChar) || isLetterOrDigit(nextChar));
     }
 
     function highlightSearch(query) {
         const article = document.querySelector('article');
-        article.querySelectorAll('.searched-word').forEach(span => {
-            span.classList.remove('searched-word');
-        });
+        article.querySelectorAll('.searched-word').forEach(span => span.classList.remove('searched-word'));
         
         if (!query) {
-            return { totalMatches: 0, firstMatchId: null, searchResults: [] };
+            searchResults = [];
+            return { totalMatches: 0 };
         }
         
         searchResults = [];
-        currentIndex = 0;
         const regex = new RegExp(query, 'gi');
-        
-        article.querySelectorAll(".word").forEach((span, idx) => {
+        article.querySelectorAll(".word").forEach((span) => {
             if (regex.test(span.textContent)) {
                 span.classList.add("searched-word");
                 const parentP = span.closest('p');
-                if (parentP) {
-                    searchResults.push(parentP.dataset.pid);
-                }
+                if (parentP) searchResults.push(parentP.dataset.pid);
             }
         });
         
-        const uniquePids = [...new Set(searchResults)];
-        searchResults = uniquePids.sort((a, b) => parseInt(a) - parseInt(b));
-        
-        let firstMatchId = null;
-        if (searchResults.length > 0) {
-            firstMatchId = "p" + searchResults[0];
-        }
-        
-        return { 
-            totalMatches: searchResults.length, 
-            firstMatchId: firstMatchId, 
-            searchResults: searchResults
-        };
+        searchResults = [...new Set(searchResults)].sort((a, b) => parseInt(a) - parseInt(b));
+        return { totalMatches: searchResults.length };
     }
 
     function scrollToResult(index) {
         if (searchResults.length === 0) return;
-        
-        let targetId = "p" + searchResults[index];
+        const targetId = "p" + searchResults[index];
         const element = document.getElementById(targetId);
-        if (element) {
-            element.scrollIntoView({ behavior: "smooth", block: "center" });
-        }
+        if (element) element.scrollIntoView({ behavior: "smooth", block: "center" });
     }
 
     function copySubtitles() {
         let allText = '';
-        const paragraphs = document.querySelectorAll('p');
-        paragraphs.forEach(p => {
-            allText += p.textContent + '\n';
-        });
-        
+        document.querySelectorAll('p').forEach(p => allText += p.textContent + '\n');
         const textarea = document.createElement('textarea');
         textarea.value = allText;
         document.body.appendChild(textarea);
         textarea.select();
         document.execCommand('copy');
         document.body.removeChild(textarea);
-        return true;
     }
     
     document.addEventListener('DOMContentLoaded', () => {
-        const paragraphs = document.querySelectorAll('p');
-        paragraphs.forEach(p => {
+        document.querySelectorAll('p').forEach(p => {
             p.addEventListener('click', (event) => {
                 const pid = event.currentTarget.dataset.pid;
                 window.flutter_inappwebview.callHandler('startVideo', parseInt(pid) - 1);
             });
         });
+        wrapWordsWithSpan(document.querySelector('article'));
+        isReady = true;
+        window.flutter_inappwebview.callHandler('onWebViewReady');
     });
-    
-    wrapWordsWithSpan(document.querySelector('article'));
     """;
 
     return '''
@@ -279,93 +198,85 @@ class _SubtitlesPageState extends State<SubtitlesPage> {
       <meta content="text/html" charset="UTF-8">
       <meta name="viewport" content="initial-scale=1.0, user-scalable=no">
       <link rel="stylesheet" href="jw-styles.css" />
+      <style>
+          body { font-size: ${JwLifeSettings.instance.webViewSettings.fontSize}px;}
+          body.cc-theme--dark { background-color: #121212; color: #e0e0e0; }
+          body.cc-theme--light { background-color: #ffffff; color: #1a1a1a; }
+          .searched-word { background-color: rgba(255, 185, 46, 0.8);}
+      </style>
     </head>
-    <meta charset="utf-8">
-    <style>
-        body {
-          font-size: ${JwLifeSettings.instance.webViewSettings.fontSize}px;
-          overflow-y: scroll;
-        }
-        body.cc-theme--dark {
-          background-color: #121212;
-          color: #e0e0e0;
-        }
-        body.cc-theme--light {
-          background-color: #ffffff;
-          color: #1a1a1a;
-        }
-        .searched-word {
-          background-color: rgba(255, 185, 46, 0.8);
-          border-radius: 2px;
-        }
-        p {
-          margin: 1em 0;
-          line-height: 1.5;
-        }
-    </style>
     <body class="${JwLifeSettings.instance.webViewSettings.theme}">
       <article id="article" class="jwac docClass-31 ms-ROMAN ml-F dir-ltr layout-reading layout-sidebar">
         ${buffer.toString()}
       </article>
-      <script>
-        $jsCode
-      </script>
+      <script>$jsCode</script>
     </body>
   </html>
   ''';
   }
 
-  void _loadWebView() {
+  Future<void> _loadWebView() async {
     final html = _buildHtmlContent();
-    _controller?.loadData(
+    await _controller?.loadData(
         data: html,
         baseUrl: WebUri('file://${JwLifeSettings.instance.webViewSettings.webappPath}/')
-    ).then((_) {
-      if (widget.query != null && widget.query!.isNotEmpty) {
-        _search(widget.query!);
-      }
-      setState(() {
-        _isLoading = false;
-      });
-    });
+    );
+    _isLoading.value = false;
   }
 
-  void _search(String query) async {
+  Future<void> _performSearch(String query) async {
+    if (_controller == null) return;
+    
     if (query.isEmpty) {
-      await _controller?.evaluateJavascript(source: "highlightSearch('');");
-      setState(() {
-        _totalMatches = 0;
-        _currentMatchIndex = -1;
-      });
+      await _controller!.evaluateJavascript(source: "highlightSearch('');");
+      _totalMatches.value = 0;
+      _currentMatchIndex.value = -1;
       return;
     }
 
-    if (query != _lastQuery) {
-      _lastQuery = query;
-      final result = await _controller?.evaluateJavascript(source: "highlightSearch('$query');");
-      _totalMatches = result['totalMatches'] as int? ?? 0;
-      _currentMatchIndex = _totalMatches > 0 ? 0 : -1;
-    } else {
-      _currentMatchIndex = (_currentMatchIndex + 1) % _totalMatches;
+    try {
+      final result = await _controller!.evaluateJavascript(source: "highlightSearch('$query');");
+      
+      if (result != null && result is Map) {
+        final total = result['totalMatches'] as int? ?? 0;
+        _totalMatches.value = total;
+        _currentMatchIndex.value = total > 0 ? 0 : -1;
+        
+        if (total > 0) {
+          await _controller!.evaluateJavascript(source: "scrollToResult(0);");
+        }
+      }
+    } catch (e) {
+      debugPrint('Erreur recherche: $e');
     }
+  }
 
-    if (_totalMatches > 0) {
-      await _controller?.evaluateJavascript(source: "scrollToResult($_currentMatchIndex);");
+  void _search(String query) async {
+    if (!_webViewReady) {
+      _pendingQuery = query;
+      return;
     }
-    setState(() {});
+    
+    await _performSearch(query);
+  }
+
+  void _nextResult() async {
+    if (_totalMatches.value > 0) {
+      _currentMatchIndex.value = (_currentMatchIndex.value + 1) % _totalMatches.value;
+      await _controller?.evaluateJavascript(source: "scrollToResult(${_currentMatchIndex.value});");
+    }
+  }
+
+  void _previousResult() async {
+    if (_totalMatches.value > 0) {
+      _currentMatchIndex.value = (_currentMatchIndex.value - 1 + _totalMatches.value) % _totalMatches.value;
+      await _controller?.evaluateJavascript(source: "scrollToResult(${_currentMatchIndex.value});");
+    }
   }
 
   void _copySubtitles() async {
     await _controller?.evaluateJavascript(source: "copySubtitles();");
-    if (mounted) {
-      showBottomMessage('Sous-titres copiés');
-    }
-  }
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
+    if (mounted) showBottomMessage('Sous-titres copiés');
   }
 
   @override
@@ -374,78 +285,81 @@ class _SubtitlesPageState extends State<SubtitlesPage> {
 
     return AppPage(
       backgroundColor: isDarkMode ? const Color(0xFF111111) : Colors.white,
-      appBar: _isSearching ? AppBar(
-        titleSpacing: 0.0,
-        title: SearchBar(
-          autoFocus: true,
-          hintText: 'Rechercher...',
-          controller: _searchController,
-          onChanged: _search,
-          onSubmitted: _search,
-          constraints: const BoxConstraints(minHeight: 48),
-          trailing: [
-            if (_totalMatches > 0)
-              Text(
-                '${_currentMatchIndex + 1}/$_totalMatches',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            if (_totalMatches > 0)
-              IconButton(
-                icon: const Icon(Icons.keyboard_arrow_up),
-                onPressed: () {
-                  _currentMatchIndex = (_currentMatchIndex - 1 + _totalMatches) % _totalMatches;
-                  _controller?.evaluateJavascript(source: "scrollToResult($_currentMatchIndex);");
-                  setState(() {});
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(kToolbarHeight),
+        child: ValueListenableBuilder<bool>(
+          valueListenable: _isSearching,
+          builder: (context, isSearching, _) {
+            if (isSearching) {
+              return JwLifeAppBar(
+                titleWidget: SearchBar(
+                  hintText: 'Rechercher...',
+                  controller: _searchController,
+                  onChanged: (query) {
+                    _pendingQuery = null;
+                    _performSearch(query);
+                  },
+                  onSubmitted: _performSearch,
+                  constraints: const BoxConstraints(minHeight: 48),
+                  trailing: [
+                    ValueListenableBuilder<int>(
+                      valueListenable: _totalMatches,
+                      builder: (context, total, _) {
+                        if (total == 0) return const SizedBox.shrink();
+                        return ValueListenableBuilder<int>(
+                          valueListenable: _currentMatchIndex,
+                          builder: (context, index, _) {
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 8),
+                              child: Text('${index + 1}/$total', style: Theme.of(context).textTheme.bodySmall),
+                            );
+                          },
+                        );
+                      },
+                    ),
+                    ValueListenableBuilder<int>(
+                      valueListenable: _totalMatches,
+                      builder: (context, total, _) => IconButton(
+                        icon: const Icon(Icons.keyboard_arrow_up),
+                        onPressed: total > 0 ? _previousResult : null,
+                      ),
+                    ),
+                    ValueListenableBuilder<int>(
+                      valueListenable: _totalMatches,
+                      builder: (context, total, _) => IconButton(
+                        icon: const Icon(Icons.keyboard_arrow_down),
+                        onPressed: total > 0 ? _nextResult : null,
+                      ),
+                    ),
+                  ],
+                ),
+                handleBackPress: () {
+                  _searchController.clear();
+                  _pendingQuery = null;
+                  _controller?.evaluateJavascript(source: "highlightSearch('');");
+                  _totalMatches.value = 0;
+                  _currentMatchIndex.value = -1;
+                  _isSearching.value = false;
                 },
-              ),
-            if (_totalMatches > 0)
-              IconButton(
-                icon: const Icon(Icons.keyboard_arrow_down),
-                onPressed: () {
-                  _currentMatchIndex = (_currentMatchIndex + 1) % _totalMatches;
-                  _controller?.evaluateJavascript(source: "scrollToResult($_currentMatchIndex);");
-                  setState(() {});
-                },
-              ),
-          ],
-        ),
-        leading: IconButton(
-          icon: const Icon(JwIcons.chevron_left),
-          onPressed: () {
-            if (_isSearching) {
-              setState(() {
-                _isSearching = false;
-                _searchController.clear();
-                _totalMatches = 0;
-                _currentMatchIndex = -1;
-                _lastQuery = "";
-              });
-              _controller?.evaluateJavascript(source: "highlightSearch('');");
+              );
             } else {
-              Navigator.of(context).pop();
+              return JwLifeAppBar(
+                title: widget.video.title,
+                subTitle: 'Sous-titres',
+                actions: [
+                  IconTextButton(
+                    icon: const Icon(JwIcons.magnifying_glass),
+                    onPressed: (BuildContext context) => _isSearching.value = true,
+                  ),
+                  IconTextButton(
+                    icon: const Icon(JwIcons.document_stack),
+                    onPressed: (BuildContext context) => _copySubtitles(),
+                  ),
+                ],
+              );
             }
           },
         ),
-
-      ) : JwLifeAppBar(
-        title: widget.video.title,
-        subTitle: 'Sous-titres',
-        actions: [
-          if (!_isSearching)
-            IconTextButton(
-              icon: const Icon(JwIcons.magnifying_glass),
-              onPressed: (BuildContext context) {
-                setState(() {
-                  _isSearching = true;
-                });
-              },
-            ),
-          if (!_isSearching)
-            IconTextButton(
-              icon: const Icon(JwIcons.document_stack),
-              onPressed: (BuildContext context) =>_copySubtitles,
-            ),
-        ],
       ),
       body: Stack(
         children: [
@@ -455,28 +369,45 @@ class _SubtitlesPageState extends State<SubtitlesPage> {
                 baseUrl: WebUri('file://${JwLifeSettings.instance.webViewSettings.webappPath}/')),
             onWebViewCreated: (controller) {
               _controller = controller;
-
+              
+              controller.addJavaScriptHandler(
+                handlerName: 'onWebViewReady',
+                callback: (args) async {
+                  _webViewReady = true;
+                  if (_pendingQuery != null && _pendingQuery!.isNotEmpty) {
+                    await Future.delayed(const Duration(milliseconds: 500));
+                    await _performSearch(_pendingQuery!);
+                    _pendingQuery = null;
+                  }
+                },
+              );
+              
               controller.addJavaScriptHandler(
                 handlerName: 'startVideo',
                 callback: (args) {
                   if (args.isNotEmpty && args[0] is int) {
-                    int pid = args[0];
-                    Subtitle subtitle = _subtitles.getSubtitles()[pid];
-                    widget.video.showPlayer(context, initialPosition: subtitle.startTime);
+                    int idx = args[0];
+                    if (idx >= 0 && idx < _subtitles.getSubtitles().length) {
+                       Subtitle subtitle = _subtitles.getSubtitles()[idx];
+                       widget.video.showPlayer(context, initialPosition: subtitle.startTime);
+                    }
                   }
                 },
               );
             },
           ),
-          if (_isLoading)
-            Positioned.fill(
-              child: Container(
-                color: isDarkMode ? const Color(0xFF111111) : Colors.white,
-                child: Center(
-                  child: getLoadingWidget(Theme.of(context).primaryColor),
+          ValueListenableBuilder<bool>(
+            valueListenable: _isLoading,
+            builder: (context, loading, _) {
+              if (!loading) return const SizedBox.shrink();
+              return Positioned.fill(
+                child: Container(
+                  color: isDarkMode ? const Color(0xFF111111) : Colors.white,
+                  child: Center(child: getLoadingWidget(Theme.of(context).primaryColor)),
                 ),
-              ),
-            ),
+              );
+            },
+          ),
         ],
       ),
     );

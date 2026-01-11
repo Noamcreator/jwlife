@@ -149,17 +149,19 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
     }
   }
 
-  Future<void> _jumpToParagraph(int beginParagraphOrdinal, int endParagraphOrdinal, {String articleId = 'page-center'}) async {
-    await _controller.evaluateJavascript(source: "jumpToIdSelector('[data-pid]', 'data-pid', $beginParagraphOrdinal, $endParagraphOrdinal);");
+  Future<void> _jumpToBlockId(int firstBlockId, int lastBlockId, {String? articleId}) async {
+    articleId ??= 'page-center';
+    await _controller.evaluateJavascript(source: "jumpToBlockId('$articleId', $firstBlockId, $lastBlockId);");
   }
 
-  Future<void> _jumpToPage(int page) async {
+  Future<void> _jumpToPage(int page, {int? startBlockId, int? endBlockId, String? articleId}) async {
+    articleId ??= 'page-center';
     if (page != widget.publication.datedTextManager!.selectedDatedTextId) {
       _pageHistory.add(widget.publication.datedTextManager!.selectedDatedTextId); // Ajouter la page actuelle à l'historique
       _currentPageHistory = page;
 
       widget.publication.datedTextManager!.selectedDatedTextId = page;
-      await _controller.evaluateJavascript(source: 'jumpToPage($page);');
+      await _controller.evaluateJavascript(source: "jumpToPage($page, $startBlockId, $endBlockId, '$articleId');");
 
       controlsKey.currentState?.toggleControls(true);
     }
@@ -678,7 +680,7 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
 
                         if(infoPublication != null) {
                           // Récupération sécurisée des valeurs
-                          final rawIssueTag = infoPublication['issueTagNumber'];
+                          final rawIssueTag = infoPublication['issueTagNumber'] ?? 0;
                           final rawMepsLanguageId = infoPublication['mepsLanguageId'];
                           final rawMepsDocumentId = infoPublication['mepsDocumentId'];
 
@@ -693,10 +695,37 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
                           );
                         }
 
-                        Map<String, dynamic>? extractPublication = await fetchExtractPublication(context, 'daily', widget.publication, publication, mepsDocumentId, href, _jumpToPage, _jumpToParagraph);
+                        Map<String, dynamic>? extractPublication = await fetchExtractPublication(
+                          context, 
+                          'daily', 
+                          widget.publication, 
+                          publication, 
+                          mepsDocumentId, 
+                          href, 
+                          (page, startBlockId, endBlockId, articleId) => _jumpToPage(
+                            page, 
+                            startBlockId: startBlockId, 
+                            endBlockId: endBlockId, 
+                            articleId: articleId
+                          ),
+                          (firstBlockId, lastBlockId, {articleId}) => _jumpToBlockId(
+                            firstBlockId, 
+                            lastBlockId, 
+                            articleId: articleId
+                          ),
+                        );
+
                         if (extractPublication != null) {
                           return extractPublication;
                         }
+                      },
+                    );
+
+                    controller.addJavaScriptHandler(
+                      handlerName: 'fetchCommentaries',
+                      callback: (args) async {
+                        Map<String, dynamic>? versesCommentaries = await fetchCommentaries(context, widget.publication, args[0], _jumpToPage, _jumpToBlockId);
+                        return versesCommentaries;
                       },
                     );
 
@@ -744,7 +773,9 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
                             );
                           }
                           else if (document['type'] != null && (document['type'] == 'verse' || document['type'] == 'verse-references' || document['type'] == 'commentary')) {
-                            Map<String, dynamic> verse = args[1];
+                            Map<String, dynamic> verse = args.length == 1 ? args[0] : args[1];
+                            String keySymbol = document['keySymbol'];
+                            int mepsLanguageId = document['mepsLanguageId'];
                             int bookNumber1 = verse['firstBookNumber'] ?? verse['bookNumber'];
                             int bookNumber2 = verse['lastBookNumber'] ?? bookNumber1;
                             int chapterNumber1 = verse['firstChapterNumber'] ?? verse['chapterNumber'];
@@ -755,8 +786,8 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
 
                             await showChapterView(
                               context,
-                              document["keySymbol"],
-                              document["mepsLanguageId"],
+                              keySymbol,
+                              mepsLanguageId,
                               bookNumber1,
                               chapterNumber1,
                               lastBookNumber: bookNumber2,
@@ -811,7 +842,7 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
 
                           // Aller au paragraphe dans la même page
                           if (bookmark.blockIdentifier != null) {
-                            _jumpToParagraph(bookmark.blockIdentifier!, bookmark.blockIdentifier!);
+                            _jumpToBlockId(bookmark.blockIdentifier!, bookmark.blockIdentifier!);
                           }
                         }
                       },
@@ -995,8 +1026,7 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
               ControlsOverlay(key: controlsKey,
                   publication: widget.publication,
                   handleBackPress: handleBackPress,
-                  jumpToPage: _jumpToPage,
-                  jumpToParagraph: _jumpToParagraph
+                  jumpToPage: _jumpToPage
               ),
             ]
         )
@@ -1049,10 +1079,9 @@ class _LoadingWidgetState extends State<LoadingWidget> {
 class ControlsOverlay extends StatefulWidget {
   final Publication publication;
   final Function() handleBackPress;
-  final Function(int page) jumpToPage;
-  final Function(int beginParagraphOrdinal, int endParagraphOrdinal) jumpToParagraph;
+  final Function(int page, {int? startBlockId, int? endBlockId, String? articleId}) jumpToPage;
 
-  const ControlsOverlay({super.key, required this.publication, required this.handleBackPress, required this.jumpToPage, required this.jumpToParagraph});
+  const ControlsOverlay({super.key, required this.publication, required this.handleBackPress, required this.jumpToPage});
 
   @override
   _ControlsOverlayState createState() => _ControlsOverlayState();
@@ -1109,6 +1138,7 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
     setState(() {
       widget.publication.datedTextManager!.selectedDatedTextId = index;
       _controlsVisible = true;
+      
     });
     GlobalKeyService.jwLifePageKey.currentState!.toggleBottomNavBarVisibility(_controlsVisible);
   }

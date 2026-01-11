@@ -663,7 +663,7 @@ void showAudioPopupMenu(BuildContext context, Publication publication, int audio
 }
 
 Future<Bookmark?> showBookmarkDialog(BuildContext context, Publication publication, {InAppWebViewController? webViewController, int? mepsDocumentId, int? bookNumber, int? chapterNumber, String? title, String? snippet, int? blockType, int? blockIdentifier}) async {
-  List<Bookmark> bookmarks = await JwLifeApp.userdata.getBookmarksFromPub(publication);
+  List<Bookmark> bookmarks = publication.documentsManager!.bookmarks;
 
   bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
   String bookmarkPath = isDarkMode
@@ -716,7 +716,7 @@ Future<Bookmark?> showBookmarkDialog(BuildContext context, Publication publicati
                                         bookmarks.add(bookmark);
                                       });
                                       if(publication.documentsManager != null) {
-                                        publication.documentsManager!.getCurrentDocument().addBookmark(bookmark);
+                                        publication.documentsManager!.addBookmark(bookmark);
                                       }
                                       if(webViewController != null) {
                                         webViewController.evaluateJavascript(source: 'addBookmark(null, null, ${bookmark.blockType}, ${bookmark.blockIdentifier}, ${bookmark.slot})');
@@ -730,7 +730,7 @@ Future<Bookmark?> showBookmarkDialog(BuildContext context, Publication publicati
                                         bookmarks.add(bookmark);
                                       });
                                       if(publication.documentsManager != null) {
-                                        publication.documentsManager!.getCurrentDocument().addBookmark(bookmark);
+                                        publication.documentsManager!.addBookmark(bookmark);
                                       }
                                       if(webViewController != null) {
                                         webViewController.evaluateJavascript(source: 'addBookmark(null, null, ${bookmark.blockType}, ${bookmark.blockIdentifier}, ${bookmark.slot})');
@@ -799,11 +799,11 @@ Future<Bookmark?> showBookmarkDialog(BuildContext context, Publication publicati
                                                       setState(() {
                                                         bookmarks.remove(bookmark);
                                                       });
-                                                      if(publication.documentsManager != null) {
-                                                        publication.documentsManager!.getCurrentDocument().removeBookmark(bookmark);
-                                                      }
                                                       if(webViewController != null) {
                                                         webViewController.evaluateJavascript(source: 'removeBookmark(null, ${bookmark.blockIdentifier}, ${bookmark.slot})');
+                                                      }
+                                                      if(publication.documentsManager != null) {
+                                                        publication.documentsManager!.removeBookmark(bookmark);
                                                       }
                                                     }
                                                   },
@@ -818,13 +818,13 @@ Future<Bookmark?> showBookmarkDialog(BuildContext context, Publication publicati
                                                           bookmarks.remove(bookmark);
                                                           bookmarks.add(updatedBookmark);
                                                         });
-                                                        if(publication.documentsManager != null) {
-                                                          publication.documentsManager!.getCurrentDocument().removeBookmark(bookmark);
-                                                          publication.documentsManager!.getCurrentDocument().addBookmark(updatedBookmark);
-                                                        }
                                                         if(webViewController != null) {
                                                           webViewController.evaluateJavascript(source: 'removeBookmark(null, ${bookmark.blockIdentifier}, ${bookmark.slot})');
                                                           webViewController.evaluateJavascript(source: 'addBookmark(null, null, ${updatedBookmark.blockType}, ${updatedBookmark.blockIdentifier}, ${updatedBookmark.slot})');
+                                                        }
+                                                        if(publication.documentsManager != null) {
+                                                          publication.documentsManager!.removeBookmark(bookmark);
+                                                          publication.documentsManager!.addBookmark(updatedBookmark);
                                                         }
                                                       }
                                                     }
@@ -836,8 +836,8 @@ Future<Bookmark?> showBookmarkDialog(BuildContext context, Publication publicati
                                                           bookmarks.add(updatedBookmark);
                                                         });
                                                         if(publication.documentsManager != null) {
-                                                          publication.documentsManager!.getCurrentDocument().removeBookmark(bookmark);
-                                                          publication.documentsManager!.getCurrentDocument().addBookmark(updatedBookmark);
+                                                          publication.documentsManager!.removeBookmark(bookmark);
+                                                          publication.documentsManager!.addBookmark(updatedBookmark);
                                                         }
                                                         if(webViewController != null) {
                                                           webViewController.evaluateJavascript(source: 'removeBookmark(null, ${bookmark.blockIdentifier}, ${bookmark.slot})');

@@ -782,11 +782,9 @@ class PublicationMenuPageState extends State<PublicationMenuPage> with SingleTic
     return !widget.showAppBar ? _buildCircuitMenu()
         : AppPage(
       appBar: _isSearching
-          ? AppBar(
-          leading: IconButton(icon: const Icon(JwIcons.chevron_left), onPressed: () { setState(() { _isSearching = false; }); }),
-
+          ? JwLifeAppBar(
           // BARRE DE RECHERCHE CORRIGÉE
-          title: SearchFieldWidget(
+          titleWidget: SearchFieldWidget(
             query: '',
 
             // onSearchTextChanged: Appel du modèle pour lancer la recherche (void)
@@ -814,7 +812,11 @@ class PublicationMenuPageState extends State<PublicationMenuPage> with SingleTic
 
             // suggestionsNotifier: Utilisation du ValueNotifier du modèle
             suggestionsNotifier: widget.publication.wordsSuggestionsModel?.suggestionsNotifier ?? ValueNotifier([]),
-          )
+          ),
+          handleBackPress: () {
+            setState(() { _isSearching = false; });
+            return false;
+          },
       ) : JwLifeAppBar(
         canPop: widget.canPop,
         title: widget.publication.getShortTitle(),

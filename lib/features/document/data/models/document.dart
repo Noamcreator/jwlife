@@ -9,7 +9,6 @@ import 'package:jwlife/core/utils/utils_database.dart';
 import 'package:jwlife/data/controller/block_ranges_controller.dart';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/models/userdata/block_range.dart';
-import 'package:jwlife/data/models/userdata/bookmark.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:sqflite/sqflite.dart';
@@ -67,7 +66,6 @@ class Document {
   List<Multimedia> multimedias;
   List<Map<String, dynamic>> svgs = [];
   List<Map<String, dynamic>> inputFields = [];
-  List<Map<String, dynamic>> bookmarks = [];
 
   bool hasAlreadyBeenRead = false;
 
@@ -261,22 +259,22 @@ class Document {
     if(isBibleChapter()) {
       results = await Future.wait([
         JwLifeApp.userdata.getBlockRangesFromChapterNumber(bookNumber!, chapterNumberBible!, chapterNumberBible!, publication.keySymbol, mepsLanguageId),
-        JwLifeApp.userdata.getBookmarksFromChapterNumber(bookNumber!, chapterNumberBible!, publication.keySymbol),
+        //JwLifeApp.userdata.getBookmarksFromChapterNumber(bookNumber!, chapterNumberBible!, publication.keySymbol),
       ]);
 
       blockRanges = results[0];
-      bookmarks = results[1];
+      //bookmarks = results[1];
     }
     else {
       results = await Future.wait([
         JwLifeApp.userdata.getBlockRangesFromDocumentId(mepsDocumentId, mepsLanguageId),
         JwLifeApp.userdata.getInputFieldsFromDocumentId(mepsDocumentId),
-        JwLifeApp.userdata.getBookmarksFromDocumentId(mepsDocumentId, mepsLanguageId),
+        //JwLifeApp.userdata.getBookmarksFromDocumentId(mepsDocumentId, mepsLanguageId),
       ]);
 
       blockRanges = results[0];
       inputFields = results[1];
-      bookmarks = results[2];
+      //bookmarks = results[2];
     }
 
     context.read<BlockRangesController>().loadBlockRanges(blockRanges);
@@ -369,22 +367,6 @@ class Document {
 
   bool isBibleChapter() {
     return bookNumber != null && chapterNumberBible != null;
-  }
-
-  void addBookmark(Bookmark bookmark) {
-    bookmarks.add({
-      'Slot': bookmark.slot,
-      'BlockType': bookmark.blockType,
-      'BlockIdentifier': bookmark.blockIdentifier
-    });
-  }
-
-  void removeBookmark(Bookmark bookmark) {
-    bookmarks.removeWhere((item) =>
-    item['Slot'] == bookmark.slot &&
-        item['BlockType'] == bookmark.blockType &&
-        item['BlockIdentifier'] == bookmark.blockIdentifier
-    );
   }
 
   Future<void> updateOrInsertInputFieldValue(String tag, String value) async {

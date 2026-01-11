@@ -27,4 +27,15 @@ class Bookmark {
       location: Location.fromMap(map),
     );
   }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'Slot': slot,
+      'Title': title,
+      'Snippet': snippet,
+      'BlockType': blockType,
+      'BlockIdentifier': blockIdentifier,
+      'Location': location.toMap(),
+    };
+  }
 }

@@ -223,7 +223,6 @@ class SearchLibraryPageState extends State<SearchLibraryPage> {
       appBar: JwLifeAppBar(
         titleWidget: TextField(
           controller: _searchController,
-          style: const TextStyle(fontSize: 18),
           decoration: InputDecoration(
             hintText: i18n().search_hint,
             labelStyle: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black),

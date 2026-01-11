@@ -45,9 +45,8 @@ class VideoItemsPage extends StatelessWidget {
   // --- Méthodes de construction des composants UI (Widgets) ---
 
   PreferredSizeWidget _buildSearchingAppBar(BuildContext context, VideoItemsModel model) {
-    return AppBar(
-      titleSpacing: 0.0,
-      title: SearchFieldWidget(
+    return JwLifeAppBar(
+      titleWidget: SearchFieldWidget(
         query: '',
         onSearchTextChanged: model.filterVideos,
         onSuggestionTap: (item) {},
@@ -55,10 +54,10 @@ class VideoItemsPage extends StatelessWidget {
         onTapOutside: (event) => model.setIsSearching(false),
         suggestionsNotifier: ValueNotifier([]),
       ),
-      leading: IconButton(
-        icon: const Icon(JwIcons.chevron_left),
-        onPressed: () => model.cancelSearch(),
-      ),
+      handleBackPress: () {
+        model.cancelSearch();
+        return false;
+      },
     );
   }
 

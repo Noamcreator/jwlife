@@ -5,7 +5,7 @@ import 'package:jwlife/widgets/responsive_appbar_actions.dart';
 import '../core/icons.dart';
 
 class JwLifeAppBar extends StatelessWidget implements PreferredSizeWidget {
-  final String title;
+  final String? title;
   final Widget? titleWidget;
   final String? subTitle;
   final Widget? subTitleWidget;
@@ -17,7 +17,7 @@ class JwLifeAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   const JwLifeAppBar({
     super.key,
-    required this.title,
+    this.title,
     this.titleWidget,
     this.subTitle,
     this.subTitleWidget,
@@ -30,7 +30,7 @@ class JwLifeAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bool canPopState = canPop ?? Navigator.of(context).canPop();
+    final bool canPopState = (canPop ?? Navigator.of(context).canPop()) || handleBackPress != null;
 
     final textStyleTitle = Theme.of(context).extension<JwLifeThemeStyles>()!.appBarTitle;
     final textStyleSubtitle = Theme.of(context).extension<JwLifeThemeStyles>()!.appBarSubTitle;
@@ -45,18 +45,21 @@ class JwLifeAppBar extends StatelessWidget implements PreferredSizeWidget {
           handleBackPress?.call() ?? GlobalKeyService.jwLifePageKey.currentState?.handleBack(context);
         },
       ) : null,
-      title: titleWidget ??
-          (title.isEmpty && (subTitle != null || subTitleWidget != null)
+      title: titleWidget != null ? Padding(
+        padding: const EdgeInsets.only(right: 8),
+        child: titleWidget,
+      ) :
+          (title!.isEmpty && (subTitle != null || subTitleWidget != null)
               ? subTitleWidget ?? Text(subTitle!, style: textStyleSubtitle) // Cas : Titre vide -> Subtitle au centre
               : (subTitle != null || subTitleWidget != null)
               ? Column( // Cas : Les deux existent -> Colonne à gauche
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title, style: textStyleTitle),
+              Text(title!, style: textStyleTitle),
               subTitleWidget ?? Text(subTitle!, style: textStyleSubtitle),
             ],
           )
-              : Text(title, style: textStyleTitle) // Cas : Titre seul
+              : Text(title!, style: textStyleTitle) // Cas : Titre seul
           ),
       titleSpacing: canPopState ? 0.0 : null,
       actions: actions != null ? [ResponsiveAppBarActions(allActions: actions!, canPop: canPopState, iconsColor: iconsColor)] : null,

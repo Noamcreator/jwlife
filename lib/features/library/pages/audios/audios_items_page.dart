@@ -176,9 +176,8 @@ class _AudioItemsPageState extends State<AudioItemsPage> {
 
     return AppPage(
       appBar: _isSearching
-          ? AppBar(
-        titleSpacing: 0.0,
-        title: SearchFieldWidget(
+          ? JwLifeAppBar(
+        titleWidget: SearchFieldWidget(
           query: '',
           onSearchTextChanged: (text) {
             _filterAudios(text);
@@ -197,15 +196,13 @@ class _AudioItemsPageState extends State<AudioItemsPage> {
           },
           suggestionsNotifier: ValueNotifier([]),
         ),
-        leading: IconButton(
-          icon: const Icon(JwIcons.chevron_left),
-          onPressed: () {
-            setState(() {
-              _isSearching = false;
-              _filterAudios('');
-            });
-          },
-        ),
+        handleBackPress: () {
+          setState(() {
+            _isSearching = false;
+            _filterAudios('');
+          });
+          return false;
+        },
       )
           : JwLifeAppBar(
         title: _category?.name ?? '',

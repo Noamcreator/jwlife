@@ -387,7 +387,8 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
                                   onSelected: (value) => GlobalKeyService.jwLifePageKey.currentState!.togglePopMenuOpen(false),
                                   onCanceled: () => GlobalKeyService.jwLifePageKey.currentState!.togglePopMenuOpen(false),
                                   constraints: const BoxConstraints(minWidth: 2.0),
-                                  offset: Offset(30, mediaItem != null ? -350 : -260),
+                                  offset: Offset(30, mediaItem != null ? -430 : -240),
+                                  position: PopupMenuPosition.over,
                                   popUpAnimationStyle: AnimationStyle(
                                     curve: Curves.fastLinearToSlowEaseIn,
                                     duration: const Duration(milliseconds: 200),
@@ -417,7 +418,7 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
                                               reverseCurve: Curves.fastLinearToSlowEaseIn,
                                               reverseDuration: const Duration(milliseconds: 200),
                                             ),
-                                            position: RelativeRect.fromLTRB(30, 150, 0, 0),
+                                            position: RelativeRect.fromLTRB(30, 182, 0, 0),
                                             items: <PopupMenuEntry<double>>[
                                               _speedItem(2.0),
                                               _speedItem(1.8),
@@ -459,7 +460,7 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
                                         onTap: () async {
                                           final value = await showMenu<String>(
                                             context: context,
-                                            position: RelativeRect.fromLTRB(30, 625, 0, 0),
+                                            position: RelativeRect.fromLTRB(30, 660, 0, 0),
                                             popUpAnimationStyle: AnimationStyle(
                                               curve: Curves.fastLinearToSlowEaseIn,
                                               duration: const Duration(milliseconds: 200),
@@ -509,7 +510,7 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
                                               reverseCurve: Curves.fastLinearToSlowEaseIn,
                                               reverseDuration: const Duration(milliseconds: 200),
                                             ),
-                                            position: RelativeRect.fromLTRB(30, 580, 0, 0),
+                                            position: RelativeRect.fromLTRB(30, 612, 0, 0),
                                             items: [
                                               PopupMenuItem<String>(
                                                 value: 'off',
@@ -574,7 +575,7 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
                                               reverseCurve: Curves.fastLinearToSlowEaseIn,
                                               reverseDuration: const Duration(milliseconds: 200),
                                             ),
-                                            position: RelativeRect.fromLTRB(30, 480, 0, 0),
+                                            position: RelativeRect.fromLTRB(30, 515, 0, 0),
                                             items: const [
                                               PopupMenuItem<String>(value: 'pitch2', child: Text('+2 demi-tons au-dessus')),
                                               PopupMenuItem<String>(value: 'pitch1', child: Text('+1 demi-ton au-dessus')),

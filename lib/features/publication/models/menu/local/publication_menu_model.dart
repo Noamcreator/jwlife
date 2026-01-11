@@ -1,6 +1,5 @@
 import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/features/publication/models/menu/local/tab_items.dart';
-import 'package:jwlife/features/publication/models/menu/local/words_suggestions_model.dart';
 
 import '../../../../../core/utils/files_helper.dart';
 import '../../../../../core/utils/utils_database.dart';
@@ -26,8 +25,8 @@ class PublicationMenuModel {
 
   Future<void> init() async {
     publication.documentsManager ??= DocumentsManager(publication: publication);
-    await publication.documentsManager!.initializeDatabaseAndData();
-    publication.wordsSuggestionsModel ??= WordsSuggestionsModel(publication);
+
+    await publication.documentsManager!.initializeDatabaseAndData(fromMenu: true);
 
     final db = publication.documentsManager!.database;
 
@@ -56,6 +55,10 @@ class PublicationMenuModel {
     _hasDocumentMetadataTable = results[3];
 
     await _fetchItems();
+
+    if(publication.isBible()) {
+      publication.documentsManager!.initializeBibleDocuments();
+    }
   }
 
   Future<void> _fetchItems() async {

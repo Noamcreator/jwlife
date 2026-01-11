@@ -8,6 +8,7 @@ import 'package:jwlife/core/utils/utils_jwpub.dart';
 import 'package:jwlife/data/models/publication_attribute.dart';
 import 'package:jwlife/data/models/publication_category.dart';
 import 'package:jwlife/data/models/meps_language.dart';
+import 'package:jwlife/data/models/userdata/bookmark.dart';
 import 'package:jwlife/features/document/local/dated_text_manager.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -69,7 +70,7 @@ class Publication {
   WordsSuggestionsModel? wordsSuggestionsModel;
 
   final ValueNotifier<List<Audio>> audiosNotifier;
-
+  
   CancelableOperation? _downloadOperation;
   CancelableOperation? _updateOperation;
   CancelToken? _cancelToken;

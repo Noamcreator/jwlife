@@ -113,8 +113,8 @@ class _PublicationsItemsPageState extends State<PublicationsItemsPage> {
           builder: (context, title, child) {
             return AppPage(
               appBar: isSearching
-                  ? AppBar(
-                title: SearchFieldWidget(
+                  ? JwLifeAppBar(
+                titleWidget: SearchFieldWidget(
                   query: '',
                   onSearchTextChanged: (text) {
                     _model.filterPublications(text);
@@ -134,14 +134,12 @@ class _PublicationsItemsPageState extends State<PublicationsItemsPage> {
                   },
                   suggestionsNotifier: ValueNotifier([]),
                 ),
-                leading: IconButton(
-                  icon: const Icon(JwIcons.chevron_left),
-                  onPressed: () {
-                    _model.setIsSearching(false);
-                    _searchController.clear();
-                    _model.filterPublications('');
-                  },
-                ),
+                handleBackPress: () {
+                  _model.setIsSearching(false);
+                  _searchController.clear();
+                  _model.filterPublications('');
+                  return false;
+                },
               ) : JwLifeAppBar(
                 title: title,
                 subTitle: _model.mepsLanguage?.vernacular ?? widget.mepsLanguage.vernacular,

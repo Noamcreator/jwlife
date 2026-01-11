@@ -1,9 +1,12 @@
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/app/services/global_key_service.dart';
 import 'package:jwlife/core/icons.dart';
+import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/i18n/i18n.dart';
+import 'package:jwlife/widgets/responsive_appbar_actions.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../app/app_page.dart';
@@ -79,6 +82,8 @@ class _CongregationsPageState extends State<CongregationsPage> {
         '/api/public/meeting-search/weekly-meetings',
         queryParams
     );
+
+    print('URL de recherche : $url');
 
     final response = await Api.httpGetWithHeadersUri(url);
     if (response.statusCode == 200) {
@@ -209,19 +214,31 @@ class _CongregationsPageState extends State<CongregationsPage> {
 
   Future<void> _updateCongregation(Congregation congregation) async {
     try {
-      await JwLifeApp.userdata.updateCongregation(congregation.guid, congregation);
+      List<Congregation> congregations = await _fetchCongregations(congregation.name);
 
-      // Mettre à jour la liste locale pour refléter la modification
-      setState(() {
-        int index = _congregations.indexWhere((item) => item.guid == congregation.guid);
-        if (index != -1) {
-          _congregations[index] = congregation;
+      if (congregations.isNotEmpty) {
+          // Si la congrégation existe déjà, on la supprime
+         Congregation? newCongregation = congregations.firstWhereOrNull((c) => c.guid == congregation.guid);
+
+        if(newCongregation != null) {
+          // 1. Mise à jour dans la base de données/API via le provider
+          await JwLifeApp.userdata.updateCongregation(congregation.guid, newCongregation);
+
+          // 2. Mettre à jour la liste locale pour refléter la modification dans l'UI
+          setState(() {
+            int index = _congregations.indexWhere((item) => item.guid == newCongregation.guid);
+            if (index != -1) {
+              _congregations[index] = newCongregation;
+            }
+          });
+
+          debugPrint('Congrégation ${congregation.guid} mise à jour avec succès.');
         }
-      });
-
-      debugPrint('Congrégation mise à jour avec succès.');
-    } catch (e) {
+      }
+    } 
+    catch (e) {
       debugPrint('Erreur lors de la mise à jour : $e');
+      // Optionnel : ajouter un feedback utilisateur ici (SnackBar, etc.)
     }
   }
 
@@ -261,6 +278,19 @@ class _CongregationsPageState extends State<CongregationsPage> {
     );
   }
 
+  Future<void> _allUpdateCongregations() async {
+    try {
+      for(Congregation congregation in _congregations) {
+        await _updateCongregation(congregation);
+      }
+
+      showBottomMessage('Toutes les assemblées locales ont été mises à jour avec succès.');
+    } catch (e) {
+      debugPrint('Erreur lors de la mise à jour : $e');
+      // Optionnel : ajouter un feedback utilisateur ici (SnackBar, etc.)
+    }
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -268,6 +298,9 @@ class _CongregationsPageState extends State<CongregationsPage> {
       appBar: JwLifeAppBar(
         title: i18n().action_congregations,
         subTitle: _congregations.isNotEmpty ? _congregations[0].name : null,
+        actions: [
+          IconTextButton(text: '', icon: Icon(JwIcons.cloud_arrow_down), onPressed: (anchorContext) => _allUpdateCongregations()),
+        ]
       ),
       body: Column(
         children: [
@@ -421,7 +454,7 @@ class _CongregationsPageState extends State<CongregationsPage> {
 
                         // Le bouton Menu Popup
                         PopupMenuButton<String>(
-                          icon: const Icon(Icons.more_horiz, color: Colors.white54),
+                          icon: Icon(Icons.more_horiz, color: isDark ? Colors.white54 : Colors.black54),
                           color: isDark ? const Color(0xFF2A2A2A) : Colors.white,
                           onSelected: (value) async {
                             switch (value) {

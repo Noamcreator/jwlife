@@ -110,14 +110,13 @@ class Userdata {
     // Vider les notes, les blockRanges, les bookmarks des documents et datedTexts
     for(Publication publication in PublicationRepository().getAllPublications()) {
       if(publication.documentsManager != null) {
+        publication.documentsManager!.bookmarks.clear();
         for(Document document in publication.documentsManager!.documents) {
-          document.bookmarks.clear();
           document.hasAlreadyBeenRead = false;
         }
       }
       else if(publication.datedTextManager != null) {
         for(DatedText datedText in publication.datedTextManager!.datedTexts) {
-          datedText.bookmarks.clear();
           datedText.hasAlreadyBeenRead = false;
         }
       }
@@ -1974,7 +1973,8 @@ class Userdata {
         locationId = existing.isNotEmpty
             ? existing.first['LocationId'] as int
             : await _database.insert('Location', location);
-      } else {
+      } 
+      else {
         Map<String, dynamic> location = {
           'DocumentId': mepsDocumentId,
           'IssueTagNumber': issueTagNumber,
