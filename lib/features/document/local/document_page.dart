@@ -416,6 +416,9 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
 
       controlsKey.currentState?.toggleControls(true);
     }
+    else {
+       await _controller.evaluateJavascript(source: "jumpToBlockId('$articleId', $startBlockId, $endBlockId);");
+    }
   }
 
   Future<bool> _canHandleBackPress() async {
@@ -552,19 +555,7 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
                       return NavigationActionPolicy.CANCEL;
                     }
                     else if (url.startsWith('webpubdl://')) {
-                      final uri = Uri.parse(url);
-                                
-                      final pub = uri.queryParameters['pub']?.toLowerCase();
-                      final docId = uri.queryParameters['docid'];
-                      final track = uri.queryParameters['track'];
-                      final issue = uri.queryParameters['issue'];
-                      final fileformat = uri.queryParameters['fileformat'];
-                      final langwritten = uri.queryParameters['langwritten'] ?? widget.publication.mepsLanguage.symbol;
-                                
-                      if ((pub != null || docId != null)) {
-                        showDocumentDialog(context, pub, docId, track, issue, langwritten, fileformat);
-                        return NavigationActionPolicy.CANCEL;
-                      }
+                      return NavigationActionPolicy.CANCEL;
                     }
                     else if (uri.host == 'www.jw.org' && uri.path == '/finder') {
                       JwOrgUri jwOrgUri = JwOrgUri.parse(uri.toString());
@@ -1553,7 +1544,7 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
         int? issue = uri.queryParameters['issue'] != null ? int.parse(uri.queryParameters['issue']!) : null;
         int? docId = uri.queryParameters['docid'] != null ? int.parse(uri.queryParameters['docid']!) : null;
         int? track = uri.queryParameters['track'] != null ? int.parse(uri.queryParameters['track']!) : null;
-        String? langwritten = uri.queryParameters['langwritten'] ?? JwLifeSettings.instance.libraryLanguage.value.symbol;
+        String? langwritten = uri.queryParameters['langwritten'] ?? widget.publication.mepsLanguage.symbol;
         int? langId = uri.queryParameters['langId'] != null ? int.parse(uri.queryParameters['langId']!) : null;
 
         if(langId != null) {
@@ -1580,6 +1571,27 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
           // dialog pour importer le média
 
           //showImportPublication(context, keySymbol, issueTagNumber, mepsLanguageId)
+        }
+      }
+    );
+
+    controller.addJavaScriptHandler(
+      handlerName: 'showDocumentDialog',
+      callback: (args) async {
+        String href = args[0];
+
+        // Extraire les paramètres
+        final uri = Uri.parse(href);
+                                
+        final pub = uri.queryParameters['pub']?.toLowerCase(); 
+        final docId = uri.queryParameters['docid'];
+        final track = uri.queryParameters['track'];
+        final issue = uri.queryParameters['issue'];
+        final fileformat = uri.queryParameters['fileformat'];
+        final langwritten = uri.queryParameters['langwritten'] ?? widget.publication.mepsLanguage.symbol;
+                  
+        if ((pub != null || docId != null)) {
+          showDocumentDialog(context, pub, docId, track, issue, langwritten, fileformat);
         }
       }
     );

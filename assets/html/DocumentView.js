@@ -203,7 +203,7 @@ function updateAllNotesUI(notesList) {
             const paragraphInfo = paragraphsDataDialog.get(note.BlockIdentifier);
             const isBible = isBible();
 
-            addNoteWithGuid(pageCenter, paragraphInfo.paragraphs[0], null, note.Guid, 0, isBible, true);
+            addNoteWithGuid(pageCenter, paragraphInfo, null, note.Guid, 0, isBible, true);
         }
     });
 }
@@ -1544,7 +1544,7 @@ function createToolbarBase({targets, blockRangeId, isSelected, target, whenCreat
     toolbar.appendChild(createToolbarButtonColor(2, targets, target, toolbar, isSelected));
 
     const buttons = [
-        ['&#xE681;', () => isSelected ? addNote(paragraphs[0], id, isVerse, text) : addNoteWithBlockRange(text, target, blockRangeId)],
+        ['&#xE681;', () => isSelected ? addNote(paragraphInfo, id, isVerse, text) : addNoteWithBlockRange(text, target, blockRangeId)],
         ...(!isSelected && blockRangeId ? [
             ['&#xE6C5;', () => removeBlockRange(blockRangeId)]
         ] : []),
@@ -1605,8 +1605,9 @@ function showSelectedToolbar() {
     });
 }
 
-function showToolbar(article, paragraphs, pid, hasAudio, type) {
-    const paragraph = paragraphs[0];
+function showToolbar(article, paragraphInfo, pid, hasAudio, type) {
+    const paragraphs = paragraphInfo.paragraphs;
+    const paragraph = paragraphInfo.paragraphs[0];
 
     // Ici on dim les autres si pas de blockRange
     dimOthers(article, paragraphs);
@@ -1650,7 +1651,7 @@ function showToolbar(article, paragraphs, pid, hasAudio, type) {
     if (type === 'verse') {
         buttons = [
             ['&#xE658;', () => fetchVerseInfo(paragraph, pid)],
-            ['&#xE681;', () => addNote(paragraph, pid, true, '')],
+            ['&#xE681;', () => addNote(paragraphInfo, pid, true, '')],
             ['&#xE62A;', () => callHandler('bookmark', {
                 snippet: allParagraphsText,
                 id: pid
@@ -1670,7 +1671,7 @@ function showToolbar(article, paragraphs, pid, hasAudio, type) {
         ];
     } else {
         buttons = [
-            ['&#xE681;', () => addNote(paragraph, pid, false, '')],
+            ['&#xE681;', () => addNote(paragraphInfo, pid, false, '')],
             ['&#xE62A;', () => callHandler('bookmark', {
                 snippet: paragraph.innerText,
                 id: pid
@@ -2912,7 +2913,8 @@ function showFloatingButton() {
             const dialogType = lastClosedDialog.type || 'default';
             floatingButton.innerHTML = DIALOG_ICONS[dialogType] || DIALOG_ICONS['default'];
             floatingButton.onclick = restoreLastDialog;
-        } else {
+        } 
+        else {
             // État 2: Ouvrir le baseDialog
             floatingButton.innerHTML = DIALOG_ICONS['base'];
             floatingButton.onclick = showBaseDialog;
@@ -2942,6 +2944,7 @@ function updateFloatingButtonForClose() {
 
         if (controlsVisible) {
             floatingButton.style.opacity = '1';
+            closeToolbar();
         }
     } 
     else {
@@ -3746,7 +3749,7 @@ function showVerseDialog(article, dialogData, payload, replace) {
 
                         addNoteWithGuid(
                             article,
-                            paragraphInfo.paragraphs[0],
+                            paragraphInfo,
                             matchingBlockRange?.UserMarkGuid ?? null,
                             note.Guid,
                             note.ColorIndex ?? 0,
@@ -3951,7 +3954,7 @@ function showVerseReferencesDialog(article, dialogData, href) {
 
                     addNoteWithGuid(
                         article,
-                        paragraphInfo.paragraphs[0],
+                        paragraphInfo,
                         matchingBlockRange?.UserMarkGuid ?? null,
                         note.Guid,
                         note.ColorIndex ?? 0,
@@ -4181,7 +4184,7 @@ function showVerseInfoDialog(article, verseInfo, href, pid, replace) {
 
                                             addNoteWithGuid(
                                                 tempArticle, 
-                                                paragraphInfo.paragraphs[0],
+                                                paragraphInfo,
                                                 matchingBlockRange?.UserMarkGuid ?? null,
                                                 note.Guid,
                                                 note.ColorIndex ?? 0,
@@ -4348,7 +4351,7 @@ function showVerseInfoDialog(article, verseInfo, href, pid, replace) {
 
                                 addNoteWithGuid(
                                     article,
-                                    paragraphInfo.paragraphs[0],
+                                    paragraphInfo,
                                     matchingBlockRange?.UserMarkGuid ?? null,
                                     note.Guid,
                                     note.ColorIndex ?? 0,
@@ -4734,7 +4737,7 @@ function showExtractPublicationDialog(article, dialogData, href) {
 
                     addNoteWithGuid(
                         article,
-                        paragraphInfo.paragraphs[0],
+                        paragraphInfo,
                         matchingBlockRange?.UserMarkGuid || null,
                         note.Guid,
                         note.ColorIndex ?? 0,
@@ -4762,12 +4765,24 @@ function showExtractPublicationDialog(article, dialogData, href) {
                 }
             });
 
-            contentContainer.querySelectorAll('img').forEach(img => {
+            const images = contentContainer.querySelectorAll('img');
+            let hasError = false;
+
+            images.forEach(img => {
                 img.onerror = () => {
-                    img.style.display = 'none';
+                    img.remove();
+                    hasError = true;
+
+                    // On utilise un timeout pour ne pas recalculer 50 fois 
+                    // si 50 images tombent en erreur en même temps
+                    clearTimeout(window.repositionTimer);
+                    window.repositionTimer = setTimeout(() => {
+                        repositionAllNotes(contentContainer);
+                    }, 50); 
                 };
             });
 
+            // Premier calcul au cas où il n'y a pas d'erreur
             repositionAllNotes(contentContainer);
         }
     });
@@ -4898,7 +4913,7 @@ function showVerseCommentaryDialog(article, dialogData, href) {
 
                 addNoteWithGuid(
                     verse,
-                    paragraphInfo.paragraphs[0],
+                    paragraphInfo,
                     matchingBlockRange?.UserMarkGuid ?? null,
                     note.Guid,
                     note.ColorIndex ?? 0,
@@ -5006,15 +5021,14 @@ function getAllSelectedTargets(allowedSelector = null) {
 }
 
 function addNoteToDocument(guid, isBible) {
-    const firstParagraphEntry = Array.from(paragraphsData.values())[0];
-    const firstParagraphElement = firstParagraphEntry ? firstParagraphEntry.paragraphs[0] : null;
+    const paragraphInfo = Array.from(paragraphsData.values())[0];
 
-    addNoteWithGuid(pageCenter, firstParagraphElement, null, guid, 0, isBible, true);
+    addNoteWithGuid(pageCenter, paragraphInfo, null, guid, 0, isBible, true);
     closeToolbar();
     removeAllSelected();
 }
 
-async function addNote(paragraph, id, isBible, title) {
+async function addNote(paragraphInfo, id, isBible, title) {
     const noteGuid = await window.flutter_inappwebview.callHandler('addNote', {
         Title: title,
         BlockType: (id != null) ? (isBible ? 2 : 1) : 1,
@@ -5023,7 +5037,7 @@ async function addNote(paragraph, id, isBible, title) {
         ColorIndex: 0
     });
 
-    addNoteWithGuid(pageCenter, paragraph, null, noteGuid.uuid, 0, isBible, true);
+    addNoteWithGuid(pageCenter, paragraphInfo, null, noteGuid.uuid, 0, isBible, true);
     closeToolbar();
     removeAllSelected();
 }
@@ -5082,7 +5096,7 @@ async function addNoteWithBlockRange(title, blockRangeTarget, userMarkGuid) {
 
     addNoteWithGuid(
         pageCenter,
-        paragraphs[0],
+        paragraphInfo,
         userMarkGuid,
         noteGuid.uuid,
         colorIndex,
@@ -5132,10 +5146,10 @@ function whenClickOnParagraph(article, target, selector, idAttr, type) {
         }
     }
 
-    const data = article === pageCenter ? paragraphsData.get(finalId) : paragraphsDataDialog.get(finalId);
+    const paragraphInfo = article === pageCenter ? paragraphsData.get(finalId) : paragraphsDataDialog.get(finalId);
 
-    if (data) {
-        showToolbar(article, data.paragraphs, finalId, hasAudio, type);
+    if (paragraphInfo) {
+        showToolbar(article, paragraphInfo, finalId, hasAudio, type);
     }
 }
 
@@ -5160,8 +5174,7 @@ async function loadUserdata() {
     const notesMap = new Map();
     const bookmarksMap = new Map();
 
-    const firstParagraphEntry = Array.from(paragraphsData.values())[0];
-    const firstParagraphElement = firstParagraphEntry ? firstParagraphEntry.paragraphs[0] : null;
+    const paragraphInfo = Array.from(paragraphsData.values())[0];
 
     const processedNoteGuids = new Set(); // Pour éviter les doublons
 
@@ -5176,11 +5189,11 @@ async function loadUserdata() {
     // Indexation des notes
     notes.forEach(n => {
         // GÉRER LE CAS BlockType === 0 (Notes générales)
-        if (n.BlockIdentifier === null && n.BlockType === 0 && firstParagraphElement) {
+        if (n.BlockIdentifier === null && n.BlockType === 0 && paragraphInfo) {
             if (!processedNoteGuids.has(n.Guid)) {
                 addNoteWithGuid(
                     pageCenter,
-                    firstParagraphElement, // On attache au premier paragraphe
+                    paragraphInfo,
                     null,
                     n.Guid,
                     n.ColorIndex ?? 0,
@@ -5204,11 +5217,11 @@ async function loadUserdata() {
     bookmarks.forEach(b => {
         // CAS SPÉCIAL : BlockType 0 et Identifier null
         if (b.BlockIdentifier === null && b.BlockType === 0) {
-            if (firstParagraphEntry) {
+            if (paragraphInfo) {
                 // On l'ajoute directement au premier paragraphe disponible
                 addBookmark(
                     pageCenter, 
-                    firstParagraphEntry, 
+                    paragraphInfo, 
                     b.BlockType, 
                     b.BlockIdentifier, 
                     b.Slot
@@ -5257,7 +5270,7 @@ async function loadUserdata() {
 
             addNoteWithGuid(
                 pageCenter,
-                paragraphs[0],
+                paragraphInfo,
                 matchingBlockRange?.UserMarkGuid || null,
                 note.Guid,
                 note.ColorIndex ?? 0,
@@ -5524,17 +5537,8 @@ function optimizedResize(contentContainer) {
     }, 50); 
 }
 
-function addNoteWithGuid(article, target, userMarkGuid, noteGuid, colorIndex, isBible, open) {
-    if (!target) {
-        const blockRangeTarget = article.querySelector(`[${blockRangeAttr}="${userMarkGuid}"]`);
-        if (blockRangeTarget) {
-            target = isBible ? blockRangeTarget.closest('.v') : blockRangeTarget.closest('p');
-        }
-    }
-
-    if (!target) {
-        return;
-    }
+function addNoteWithGuid(article, paragraphInfo, userMarkGuid, noteGuid, colorIndex, isBible, open) {
+    if (!paragraphInfo) return;
 
     const idAttr = isBible ? 'id' : 'data-pid';
     const articleElement = article.querySelector('article');
@@ -5543,8 +5547,13 @@ function addNoteWithGuid(article, target, userMarkGuid, noteGuid, colorIndex, is
     // Chercher le premier élément surligné si userMarkGuid est donné
     let firstBlockRangeElement = null;
     if (userMarkGuid) {
-        firstBlockRangeElement = target.querySelector(`[${blockRangeAttr}="${userMarkGuid}"]`);
-    }
+        // On transforme la liste en tableau (si c'est une NodeList) pour utiliser .find()
+        firstBlockRangeElement = Array.from(paragraphInfo.paragraphs)
+        .map(p => p.matches(`[${blockRangeAttr}="${userMarkGuid}"]`) 
+                ? p 
+                : p.querySelector(`[${blockRangeAttr}="${userMarkGuid}"]`))
+        .find(el => el !== null);
+        }
 
     // Créer le carré de note
     const noteIndicator = document.createElement('div');
@@ -5553,7 +5562,7 @@ function addNoteWithGuid(article, target, userMarkGuid, noteGuid, colorIndex, is
     if (userMarkGuid) {
         noteIndicator.setAttribute(noteBlockRangeAttr, userMarkGuid);
     }
-    noteIndicator.setAttribute(noteBlockIdAttr, target.getAttribute(idAttr));
+    noteIndicator.setAttribute(noteBlockIdAttr, paragraphInfo.id);
     const classes = Array.from(articleElement.classList);
     const pubClass = classes.find(cls => cls.startsWith('pub-'));
     const mlClass = classes.find(cls => cls.startsWith('ml-'));
@@ -5568,8 +5577,8 @@ function addNoteWithGuid(article, target, userMarkGuid, noteGuid, colorIndex, is
     noteIndicator.classList.add(`note-indicator-${colorName}`);
 
     // Détecter si le target (paragraphe) est dans une liste ul/ol
-    const targetUl = target.closest('ul');
-    const isInList = target.tagName === 'P' && target.hasAttribute(idAttr) && targetUl && targetUl.classList.contains('source');
+    const targetUl = paragraphInfo.paragraphs[0].closest('ul');
+    const isInList = paragraphInfo.paragraphs[0].tagName === 'P' && paragraphInfo.paragraphs[0].hasAttribute(idAttr) && targetUl && targetUl.classList.contains('source');
 
     // Clic pour afficher la note
     noteIndicator.addEventListener('click', (e) => {
@@ -5601,17 +5610,19 @@ function addNoteWithGuid(article, target, userMarkGuid, noteGuid, colorIndex, is
                 noteIndicator.style.left = '3.3px';
                 noteIndicator.style.right = 'auto';
             }
-        } else {
-            getNotePosition(article, target, noteIndicator);
+        } 
+        else {
+            getNotePosition(article, paragraphInfo.paragraphs[0], noteIndicator);
 
             // Positionner à droite si élément est à droite
-            const elementRect = target.getBoundingClientRect();
+            const elementRect = paragraphInfo.paragraphs[0].getBoundingClientRect();
             const windowWidth = window.innerWidth || document.documentElement.clientWidth;
 
             if (elementRect.left > windowWidth / 2) {
                 noteIndicator.style.right = isRtl ? 'auto' : '3.3px';
                 noteIndicator.style.left = isRtl ? '3.3px' : 'auto';
-            } else {
+            } 
+            else {
                 noteIndicator.style.left = isRtl ? 'auto' : '3.3px';
                 noteIndicator.style.right = isRtl ? '3.3px' : 'auto';
             }
@@ -5980,7 +5991,7 @@ async function onClickOnPage(article, event, infoPublication = null) {
         return;
     }
 
-    if (tagName === 'IMG') {
+    if (tagName === 'IMG' && !target.classList.contains('suppressZoom')) {
         const videoLink = target.closest('a[data-video]');
 
         // 2. Vérifie si un tel élément parent a été trouvé
@@ -6084,7 +6095,10 @@ async function onClickOnLink(article, target, event, infoPublication = null) {
         else if (linkClass.contains('xt') || href.startsWith('jwpub://p/')) {
             const extract = await window.flutter_inappwebview.callHandler('fetchExtractPublication', href, infoPublication);
             if (extract) showExtractPublicationDialog(article, extract, href);
-        } 
+        }
+        else if (href.startsWith('webpubdl://')) {
+            window.flutter_inappwebview.callHandler('showDocumentDialog', href);
+        }
         return true;
     }
 

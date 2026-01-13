@@ -911,6 +911,27 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
                     );
 
                     controller.addJavaScriptHandler(
+                      handlerName: 'showDocumentDialog',
+                      callback: (args) async {
+                        String href = args[0];
+
+                        // Extraire les paramètres
+                        final uri = Uri.parse(href);
+                                                
+                        final pub = uri.queryParameters['pub']?.toLowerCase();
+                        final docId = uri.queryParameters['docid'];
+                        final track = uri.queryParameters['track'];
+                        final issue = uri.queryParameters['issue'];
+                        final fileformat = uri.queryParameters['fileformat'];
+                        final langwritten = uri.queryParameters['langwritten'] ?? widget.publication.mepsLanguage.symbol;
+                                  
+                        if ((pub != null || docId != null)) {
+                          showDocumentDialog(context, pub, docId, track, issue, langwritten, fileformat);
+                        }
+                      }
+                    );
+
+                    controller.addJavaScriptHandler(
                       handlerName: 'openCustomizeVersesDialog',
                       callback: (args) async {
                         bool hasChanges = await showCustomizeVersesDialog(context);
@@ -925,23 +946,8 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
                     WebUri uri = navigationAction.request.url!;
                     String url = uri.uriValue.toString();
 
-                    if(url.startsWith('jwpub://')) {
+                    if(url.startsWith('jwpub://') || url.startsWith('webpubdl://')) {
                       return NavigationActionPolicy.CANCEL;
-                    }
-                    else if (url.startsWith('webpubdl://')) {
-                      final uri = Uri.parse(url);
-
-                      final pub = uri.queryParameters['pub']?.toLowerCase();
-                      final docId = uri.queryParameters['docid'];
-                      final track = uri.queryParameters['track'];
-                      final issue = uri.queryParameters['issue'];
-                      final fileformat = uri.queryParameters['fileformat'];
-                      final langwritten = uri.queryParameters['langwritten'] ?? widget.publication.mepsLanguage.symbol;
-                      
-                      if ((pub != null || docId != null)) {
-                        showDocumentDialog(context, pub, docId, track, issue, langwritten, fileformat);
-                        return NavigationActionPolicy.CANCEL;
-                      }
                     }
                     else if (uri.host == 'www.jw.org' && uri.path == '/finder') {
                         JwOrgUri jwOrgUri = JwOrgUri.parse(uri.toString());
