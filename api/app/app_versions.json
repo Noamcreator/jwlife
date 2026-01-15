@@ -159,6 +159,6 @@
         "version":  "1.4.7",
         "name":  "jw-life-1-4-7.apk",
         "timestamp":  "2026-01-15T21:35:04Z",
-        "changelog":  ""
+        "changelog":  "##### 📢 Mise à jour – v1.4.7 (15/01/2025)\n\n##### 🚀 Nouvelles Fonctionnalités\n- Ajout de l’ouverture persistante des notes depuis l’onglet Personnel : lorsqu’on clique sur une note, celle-ci s’affiche désormais au-dessus de la barre de navigation sous forme réduite, ce qui permet de la rouvrir depuis n’importe quel onglet. Un simple clic permet de l’ouvrir en plein écran. Le comportement est identique à celui de JW Library.\n\n##### 🧩 Améliorations de l’Expérience\n- Réduction légère de la hauteur du lecteur audio afin qu’il prenne moins de place à l’écran, notamment lorsqu’une note est affichée au-dessus, pour une meilleure lisibilité globale.\n\n##### 🐞 Corrections & Stabilité\n- Correction d’un problème lors du changement de page dans un WebView contenant un document : lorsque les barres supérieure et inférieure n’étaient pas affichées, elles réapparaissaient correctement, mais étaient ensuite supprimées à l’ouverture d’une fenêtre. Ce comportement est désormais corrigé.\n- Correction d’un bug où, lors du changement de page dans un WebView, le bouton flottant n’apparaissait pas automatiquement s’il n’était pas visible avant le changement de page, obligeant l’utilisateur à scroller pour le faire apparaître.\n\n##### 📦 Mises à Jour Techniques\n- Mise à jour de Flutter : 3.38.6 → 3.38.7"
     }
 ]
