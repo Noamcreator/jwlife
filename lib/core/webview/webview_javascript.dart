@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:jwlife/app/services/global_key_service.dart';
+import 'package:jwlife/core/ui/app_dimens.dart';
 import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/data/models/publication.dart';
 
@@ -33,6 +34,7 @@ String createReaderHtmlShell(
   bool isReadingMode = webViewData.isReadingMode;
   bool isBlockingHorizontallyMode = webViewData.isBlockingHorizontallyMode;
   bool audioPlayerVisible = GlobalKeyService.jwLifePageKey.currentState?.audioWidgetVisible.value ?? false;
+  bool noteWidgetVisible = GlobalKeyService.jwLifePageKey.currentState?.noteWidgetVisible.value ?? false;
 
   final lightPrimaryColor = toHex(JwLifeSettings.instance.lightPrimaryColor);
   final darkPrimaryColor = toHex(JwLifeSettings.instance.darkPrimaryColor);
@@ -45,7 +47,10 @@ String createReaderHtmlShell(
     '{{PUBLICATION_SHORT_TITLE}}': publication.getShortTitle(),
     '{{PUBLICATION_PATH}}': publication.path ?? '',
     '{{FONT_SIZE}}': fontSize.toString(),
+    '{{APPBAR_HEIGHT}}': kToolbarHeight.toString(),
     '{{BOTTOM_NAVBAR_HEIGHT}}': (kBottomNavigationBarHeight-1).toString(),
+    '{{AUDIO_PLAYER_HEIGHT}}': kAudioWidgetHeight.toString(),
+    '{{NOTE_WIDGET_HEIGHT}}': kNoteHeight.toString(),
     '{{THEME}}': webViewData.theme,
     '{{DIRECTION}}': direction,
     '{{CURRENT_INDEX}}': firstIndex.toString(),
@@ -57,6 +62,7 @@ String createReaderHtmlShell(
     '{{IS_READING_MODE}}': isReadingMode.toString(),
     '{{IS_BLOCKING}}': isBlockingHorizontallyMode.toString(),
     '{{AUDIO_VISIBLE}}': audioPlayerVisible.toString(),
+    '{{NOTE_VISIBLE}}': noteWidgetVisible.toString(),
     '{{START_PARAGRAPH_ID}}': startParagraphId?.toString() ?? 'null',
     '{{END_PARAGRAPH_ID}}': endParagraphId?.toString() ?? 'null',
     '{{START_VERSE_ID}}': startVerseId?.toString() ?? 'null',

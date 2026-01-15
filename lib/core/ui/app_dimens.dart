@@ -1,4 +1,5 @@
-const double kAudioHeight = 80;
+const double kAudioWidgetHeight = 68;
+const double kNoteHeight = 48;
 
 // Largeur maximale des tuiles pour les grilles responsives
 const double kMaxItemWidth = 300.0;

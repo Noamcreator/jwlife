@@ -141,6 +141,7 @@ class _NotePageState extends State<NotePage> {
   @override
   void initState() {
     super.initState();
+
     _note = widget.note;
 
     _notesController = context.read<NotesController>();
@@ -190,6 +191,9 @@ class _NotePageState extends State<NotePage> {
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _scrollToQuery();
+
+      // Affiche le widget avec la note sur la page principale
+      JwLifeApp.noteController.show(widget.note);
     });
   }
 

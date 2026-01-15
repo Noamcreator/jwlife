@@ -12,6 +12,7 @@ let isReadingMode = {{IS_READING_MODE}};
 let isBlockingHorizontallyMode = {{IS_BLOCKING}};
 let controlsVisible = true;
 let audioPlayerVisible = {{AUDIO_VISIBLE}};
+let noteWidgetVisible = {{NOTE_VISIBLE}};
 
 const startParagraphId = {{START_PARAGRAPH_ID}};
 const endParagraphId = {{END_PARAGRAPH_ID}};
@@ -50,9 +51,10 @@ const speedBarScroll = `images/speedbar_thumb_regular.png`;
 let scrollBar = null;
 
 // Valeurs fixes de hauteur des barres
-const APPBAR_FIXED_HEIGHT = 56;
+const APPBAR_FIXED_HEIGHT = {{APPBAR_HEIGHT}};
 const BOTTOMNAVBAR_FIXED_HEIGHT = {{BOTTOM_NAVBAR_HEIGHT}};
-const AUDIO_PLAYER_HEIGHT = 80;
+const AUDIO_PLAYER_FIXED_HEIGHT = {{AUDIO_PLAYER_HEIGHT}};
+const NOTE_WIDGET_FIXED_HEIGHT = {{NOTE_WIDGET_HEIGHT}};
 
 let paragraphsData = new Map();
 let paragraphsDataDialog = new Map();
@@ -259,10 +261,28 @@ function changePrimaryColor(lightColor, darkColor) {
     floatingButton.style.backgroundColor = isDarkTheme() ? darkPrimaryColor : lightPrimaryColor;
 }
 
+function getDynamicBottomPadding(additionalPadding = 0) {
+    return BOTTOMNAVBAR_FIXED_HEIGHT + (audioPlayerVisible ? AUDIO_PLAYER_FIXED_HEIGHT : 0) + (noteWidgetVisible ? NOTE_WIDGET_FIXED_HEIGHT : 0) + additionalPadding;
+}
+
 function toggleAudioPlayer(visible) {
     const floatingButton = document.getElementById('dialogFloatingButton');
     audioPlayerVisible = visible;
-    floatingButton.style.bottom = `${BOTTOMNAVBAR_FIXED_HEIGHT + (audioPlayerVisible ? AUDIO_PLAYER_HEIGHT : 0) + 15}px`;
+    floatingButton.style.bottom = `${getDynamicBottomPadding(15)}px`;
+
+    const curr = cachedPages[currentIndex];
+    const prev = cachedPages[currentIndex - 1];
+    const next = cachedPages[currentIndex + 1];
+
+    adjustArticle('article-center', curr.link);
+    adjustArticle('article-left', prev.link);
+    adjustArticle('article-right', next.link);
+}
+
+function toggleNoteWidget(visible) {
+    const floatingButton = document.getElementById('dialogFloatingButton');
+    noteWidgetVisible = visible;
+    floatingButton.style.bottom = `${getDynamicBottomPadding(15)}px`;
 
     const curr = cachedPages[currentIndex];
     const prev = cachedPages[currentIndex - 1];
@@ -447,11 +467,11 @@ function adjustArticle(articleId, link) {
         article.insertAdjacentElement('beforeend', linkElement);
 
         article.style.paddingTop = `${APPBAR_FIXED_HEIGHT}px`;
-        article.style.paddingBottom = `${BOTTOMNAVBAR_FIXED_HEIGHT + (audioPlayerVisible ? AUDIO_PLAYER_HEIGHT : 0) + 30}px`;
+        article.style.paddingBottom = `${getDynamicBottomPadding(30)}px`;
     } 
     else {
         article.style.paddingTop = paddingTop;
-        article.style.paddingBottom = `${BOTTOMNAVBAR_FIXED_HEIGHT + (audioPlayerVisible ? AUDIO_PLAYER_HEIGHT : 0) + 30}px`;
+        article.style.paddingBottom = `${getDynamicBottomPadding(30)}px`;
     }
 
     transformFlipbookHtml(article);
@@ -1790,22 +1810,22 @@ function applyDialogStyles(type, dialog, isFullscreen, savedPosition = null) {
         `;
 
     if (isFullscreen) {
-        const bottomOffset = type == 'note' ? 0 : BOTTOMNAVBAR_FIXED_HEIGHT + (audioPlayerVisible ? AUDIO_PLAYER_HEIGHT : 0);
+        const bottomOffset = type == 'note' ? 0 : getDynamicBottomPadding();
 
         dialog.classList.add('fullscreen');
         // ✅ CORRECTION: S'assurer que le positionnement est basé sur top/bottom/left/right et non translate
         dialog.style.cssText = `
-                ${baseStyles}
-                top: ${APPBAR_FIXED_HEIGHT}px;
-                left: 0;
-                right: 0;
-                bottom: ${bottomOffset}px;
-                width: 100vw;
-                height: calc(100vh - ${APPBAR_FIXED_HEIGHT + bottomOffset}px);
-                transform: none !important;
-                margin: 0;
-                border-radius: 0px;
-            `;
+            ${baseStyles}
+            top: ${APPBAR_FIXED_HEIGHT}px;
+            left: 0;
+            right: 0;
+            bottom: ${bottomOffset}px;
+            width: 100vw;
+            height: calc(100vh - ${APPBAR_FIXED_HEIGHT + bottomOffset}px);
+            transform: none !important;
+            margin: 0;
+            border-radius: 0px;
+        `;
         const resizeHandle = dialog.querySelector('.resize-handle');
         if (resizeHandle) resizeHandle.style.display = 'none';
 
@@ -1873,7 +1893,7 @@ function applyContentContainerStyles(type, contentContainer, isFullscreen) {
 
     // MaxHeight par défaut pour le scroll si le dialogue n'est pas redimensionné
     const maxHeight = isFullscreen ?
-        `calc(100vh - ${APPBAR_FIXED_HEIGHT + BOTTOMNAVBAR_FIXED_HEIGHT + (audioPlayerVisible ? AUDIO_PLAYER_HEIGHT : 0) + HEADER_HEIGHT}px)` :
+        `calc(100vh - ${APPBAR_FIXED_HEIGHT + getDynamicBottomPadding() + HEADER_HEIGHT}px)` :
         '60vh';
 
     const backgroundColor = type === 'note' ? null : (isDarkTheme() ? '#121212' : '#ffffff');
@@ -2017,7 +2037,7 @@ function setupDragSystem(header, dialog) {
 
         let maxDialogTop = window.innerHeight - headerRect.height;
         if (controlsVisible) {
-            maxDialogTop -= BOTTOMNAVBAR_FIXED_HEIGHT + (audioPlayerVisible ? AUDIO_PLAYER_HEIGHT : 0);
+            maxDialogTop -= getDynamicBottomPadding();
         }
 
         dialog.style.left = `${Math.max(0, Math.min(newLeft, maxLeft))}px`;
@@ -2093,7 +2113,7 @@ function setupResizeSystem(type, handle, dialog, contentContainer) {
         let newWidth = startWidth + deltaX;
         let newHeight = startHeight + deltaY;
 
-        const maxBottom = window.innerHeight - (controlsVisible ? BOTTOMNAVBAR_FIXED_HEIGHT + (audioPlayerVisible ? AUDIO_PLAYER_HEIGHT : 0) : 0);
+        const maxBottom = window.innerHeight - (controlsVisible ? getDynamicBottomPadding() : 0);
 
         newWidth = Math.max(MIN_WIDTH, newWidth);
         newWidth = Math.min(newWidth, window.innerWidth - startLeft);
@@ -2521,6 +2541,10 @@ function initializeBaseDialog() {
         type: 'base',
         dialogId: 'customDialog-base',
     };
+
+    const floatingButton = document.getElementById('dialogFloatingButton');
+    floatingButton.style.opacity = '1';
+    floatingButton.style.pointerEvents = 'auto';
 }
 
 function hideAllDialogs() {
@@ -2893,7 +2917,7 @@ function createFloatingButton() {
     floatingButton.id = 'dialogFloatingButton';
     floatingButton.innerHTML = DIAMOND;
     // Positionnement dynamique
-    floatingButton.style.bottom = `${BOTTOMNAVBAR_FIXED_HEIGHT + (audioPlayerVisible ? AUDIO_PLAYER_HEIGHT : 0) + 15}px`;
+    floatingButton.style.bottom = `${getDynamicBottomPadding(15)}px`;
 
     // Couleur du texte ou icône
     floatingButton.style.color = isDark ? '#333333' : '#ffffff';
@@ -5827,7 +5851,7 @@ let directionChangeTargetDirection = null;
 let isNavigating = false;
 
 let appBarHeight = APPBAR_FIXED_HEIGHT; // hauteur de l'AppBar
-let bottomNavBarHeight = controlsVisible ? (BOTTOMNAVBAR_FIXED_HEIGHT + (audioPlayerVisible ? AUDIO_PLAYER_HEIGHT : 0)) : 0;
+let bottomNavBarHeight = controlsVisible ? getDynamicBottomPadding() : 0;
 
 const DIRECTION_CHANGE_THRESHOLD_MS = 250;
 const DIRECTION_CHANGE_THRESHOLD_PX = 40;
@@ -5905,7 +5929,7 @@ function handleScroll(pageElement) {
     // --- MISE À JOUR DE LA POSITION DE TA SCROLLBAR IMAGE ---
     // On utilise exactement ta logique de calcul des hauteurs
     const currentAppBarHeight = APPBAR_FIXED_HEIGHT;
-    bottomNavBarHeight = controlsVisible ? (BOTTOMNAVBAR_FIXED_HEIGHT + (audioPlayerVisible ? AUDIO_PLAYER_HEIGHT : 0)) : 0;
+    bottomNavBarHeight = controlsVisible ? getDynamicBottomPadding() : 0;
     const visibleHeight = window.innerHeight - currentAppBarHeight - bottomNavBarHeight;
     const scrollableHeight = scrollHeight - clientHeight;
 

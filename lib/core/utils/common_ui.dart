@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:jwlife/app/services/settings_service.dart';
+import 'package:jwlife/core/ui/app_dimens.dart';
 import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/core/webview/webview_javascript.dart';
 import 'package:jwlife/features/document/local/dated_text_manager.dart';
@@ -186,7 +187,9 @@ void showBottomMessageWithAction(String message, SnackBarAction? action) {
 
   final isDark = Theme.of(context).brightness == Brightness.dark;
   final isAudioPlayerVisible = pageState.audioWidgetVisible.value;
-  final bottomPadding = isAudioPlayerVisible ? 130.0 : 55.0;
+  final isNoteWidgetVisible = pageState.noteWidgetVisible.value;
+  final dynamicPadding = (isAudioPlayerVisible ? kAudioWidgetHeight : 0) + (isNoteWidgetVisible ? kNoteHeight : 0);
+  final finalBottomPadding = dynamicPadding + kBottomNavigationBarHeight;
 
   final messenger = ScaffoldMessenger.of(context);
 
@@ -199,7 +202,7 @@ void showBottomMessageWithAction(String message, SnackBarAction? action) {
       action: action,
       duration: const Duration(seconds: 2),
       behavior: SnackBarBehavior.floating,
-      margin: EdgeInsets.fromLTRB(10, 0, 10, bottomPadding + 10),
+      margin: EdgeInsets.fromLTRB(10, 0, 10, finalBottomPadding + 10),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       backgroundColor: isDark ? const Color(0xFFf1f1f1) : const Color(0xFF3c3c3c),
       content: Text(

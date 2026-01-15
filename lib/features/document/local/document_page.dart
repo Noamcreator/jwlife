@@ -514,6 +514,11 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
     updateBottomBar();
   }
 
+  Future<void> toggleNoteWidget(bool visible) async {
+    await _controller.evaluateJavascript(source: "toggleNoteWidget($visible);");
+    updateBottomBar();
+  }
+
   Future<void> updateBottomBar() async {
     controlsKey.currentState?.refreshWidget();
   }
@@ -1751,6 +1756,7 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
     setState(() {
       _title = widget.publication.documentsManager!.getCurrentDocument().getDisplayTitle();
       _controlsVisible = true;
+      _controlsVisibleSave = true;
       _updateDocumentInfo();
     });
     GlobalKeyService.jwLifePageKey.currentState!.toggleBottomNavBarVisibility(_controlsVisible);

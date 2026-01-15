@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:jwlife/app/services/global_key_service.dart';
+import 'package:jwlife/core/ui/app_dimens.dart';
 import 'package:jwlife/core/utils/utils_audio.dart';
 import 'package:jwlife/data/models/audio.dart';
 import 'package:jwlife/data/realm/catalog.dart' as realm;
@@ -44,6 +45,8 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
   double _speed = 1.0;
   int _pitch = 0;
 
+  static const double kImageHeight = 42;
+
   late final StreamSubscription<PlayerState> _playerStateSub;
   late final StreamSubscription<SequenceState?> _sequenceStateSub;
   late final StreamSubscription<Duration?> _durationSub;
@@ -77,8 +80,8 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
           _currentImageWidget = ImageCachedWidget(
             imageUrl: tag.artUri!.toString(),
             icon: JwIcons.headphones__simple,
-            width: 50,
-            height: 50,
+            width: kImageHeight,
+            height: kImageHeight,
           );
           _currentExtras = tag.extras;
         });
@@ -179,7 +182,7 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
         showPage(FullAudioView());
       },
       child: Container(
-        height: 80,
+        height: kAudioWidgetHeight,
         color: Theme.of(context).brightness == Brightness.dark
             ? const Color(0xFF3c3c3c)
             : const Color(0xFFe8e8e8),
@@ -217,22 +220,20 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
                       ImageCachedWidget(
                           imageUrl: "",
                           icon: JwIcons.headphones__simple,
-                          height: 50,
-                          width: 50
+                          height: kImageHeight,
+                          width: kImageHeight
                       )
               ),
             ),
 
             // Contenu principal
             PositionedDirectional(
-              top: 20,
-              start: 62,
+              top: 18,
+              start: 53,
               end: 10,
-              bottom: -10,
+              bottom: -15,
               child: Row(
                 children: [
-                  const SizedBox(width: 10),
-
                   // Contenu de droite (titre + boutons)
                   Expanded(
                     child: Column(
@@ -241,6 +242,7 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
+                            const SizedBox(width: 10),
                             Expanded(
                               child: _currentExtras?["stream"] ?? true == true
                                   ? Row(
@@ -291,24 +293,22 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
                             Row(
                               children: [
                                 // Bouton précédent/restart
-                                GestureDetector(
-                                  onTap: () {
+                                IconButton(
+                                  visualDensity: const VisualDensity(horizontal: -4, vertical: -4),
+                                  onPressed: () {
                                     if (jwAudioPlayer.player.position.inSeconds == 0) {
                                       jwAudioPlayer.previous();
-                                    }
-                                    else {
+                                    } else {
                                       jwAudioPlayer.player.seek(Duration.zero);
                                     }
                                   },
-                                  child: Container(
-                                    padding: const EdgeInsetsDirectional.only(end: 16),
-                                    child: const Icon(JwIcons.triangle_to_bar_left, size: 22),
-                                  ),
+                                  icon: const Icon(JwIcons.triangle_to_bar_left, size: 22),
                                 ),
 
                                 // Bouton play/pause
-                                GestureDetector(
-                                  onTap: () {
+                                IconButton(
+                                  visualDensity: const VisualDensity(horizontal: -4, vertical: -4),
+                                  onPressed: () {
                                     setState(() {
                                       if (_isPlaying) {
                                         jwAudioPlayer.pause();
@@ -317,64 +317,48 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
                                       }
                                     });
                                   },
-                                  child: Container(
-                                    padding: const EdgeInsetsDirectional.only(end: 16),
-                                    child: Icon(
-                                        _isPlaying ? JwIcons.pause : JwIcons.play,
-                                        size: 22
-                                    ),
+                                  icon: Icon(
+                                    _isPlaying ? JwIcons.pause : JwIcons.play,
+                                    size: 22,
                                   ),
                                 ),
 
                                 // Bouton suivant
-                                GestureDetector(
-                                  onTap: jwAudioPlayer.player.hasNext ? () => jwAudioPlayer.next() : null,
-                                  child: Container(
-                                    padding: const EdgeInsetsDirectional.only(end: 16),
-                                    child: Icon(
-                                      JwIcons.triangle_to_bar_right,
-                                      size: 22,
-                                      color: jwAudioPlayer.player.hasNext ? null : Colors.grey,
-                                    ),
+                                IconButton(
+                                  visualDensity: const VisualDensity(horizontal: -4, vertical: -4),
+                                  onPressed: jwAudioPlayer.player.hasNext ? () => jwAudioPlayer.next() : null,
+                                  icon: Icon(
+                                    JwIcons.triangle_to_bar_right,
+                                    size: 22,
+                                    color: jwAudioPlayer.player.hasNext ? null : Colors.grey,
                                   ),
                                 ),
 
                                 // Bouton retour de 5 secondes
-                                GestureDetector(
-                                  onTap: () {
-                                    // reculer 5 secondes
-                                    jwAudioPlayer.player.seek(jwAudioPlayer.player.position - Duration(seconds: 5));
+                                IconButton(
+                                  visualDensity: const VisualDensity(horizontal: -4, vertical: -4),
+                                  onPressed: () {
+                                    jwAudioPlayer.player.seek(jwAudioPlayer.player.position - const Duration(seconds: 5));
                                   },
-                                  child: Container(
-                                    padding: const EdgeInsetsDirectional.only(end: 16),
-                                    child: Icon(
-                                      JwIcons.arrow_circular_left_5,
-                                      size: 22,
-                                    ),
-                                  ),
+                                  icon: const Icon(JwIcons.arrow_circular_left_5, size: 22),
                                 ),
 
                                 // Bouton avancer de 15 secondes
-                                GestureDetector(
-                                  onTap: () {
-                                    // avancer 15 secondes
-                                    jwAudioPlayer.player.seek(jwAudioPlayer.player.position + Duration(seconds: 15));
+                                IconButton(
+                                  visualDensity: const VisualDensity(horizontal: -4, vertical: -4),
+                                  onPressed: () {
+                                    jwAudioPlayer.player.seek(jwAudioPlayer.player.position + const Duration(seconds: 15));
                                   },
-                                  child: Container(
-                                    padding: const EdgeInsetsDirectional.only(end: 16),
-                                    child: Icon(
-                                      JwIcons.arrow_circular_right_15,
-                                      size: 22,
-                                    ),
-                                  ),
+                                  icon: const Icon(JwIcons.arrow_circular_right_15, size: 22),
                                 ),
 
                                 // Bouton volume
-                                GestureDetector(
-                                  onTap: () {
+                                IconButton(
+                                  visualDensity: const VisualDensity(horizontal: -4, vertical: -4),
+                                  onPressed: () {
                                     jwAudioPlayer.player.setVolume(jwAudioPlayer.player.volume == 0.0 ? 1.0 : 0.0);
                                   },
-                                  child: Icon(jwAudioPlayer.player.volume == 0.0 ? JwIcons.sound_x : JwIcons.sound, size: 22),
+                                  icon: Icon(jwAudioPlayer.player.volume == 0.0 ? JwIcons.sound_x : JwIcons.sound, size: 22),
                                 ),
                               ],
                             ),
@@ -382,7 +366,10 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
                               children: [
                                 // Menu des paramètres
                                 PopupMenuButton(
-                                  icon: Icon(JwIcons.gear, size: 22),
+                                  icon: const Icon(JwIcons.gear, size: 22),
+                                  style: IconButton.styleFrom(
+                                    visualDensity: const VisualDensity(horizontal: -4, vertical: -4),
+                                  ),
                                   onOpened: () => GlobalKeyService.jwLifePageKey.currentState!.togglePopMenuOpen(true),
                                   onSelected: (value) => GlobalKeyService.jwLifePageKey.currentState!.togglePopMenuOpen(false),
                                   onCanceled: () => GlobalKeyService.jwLifePageKey.currentState!.togglePopMenuOpen(false),
@@ -625,8 +612,9 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
                                 ),
 
                                 // Bouton fermer
-                                GestureDetector(
-                                  onTap: () async {
+                                IconButton(
+                                  visualDensity: const VisualDensity(horizontal: -4, vertical: -4),
+                                  onPressed: () async {
                                     await jwAudioPlayer.close();
                                     setState(() {
                                       _currentImageWidget = null;
@@ -636,7 +624,7 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
                                       _duration = Duration.zero;
                                     });
                                   },
-                                  child: const Icon(JwIcons.x, size: 22),
+                                  icon: const Icon(JwIcons.x, size: 22),
                                 ),
                               ],
                             )

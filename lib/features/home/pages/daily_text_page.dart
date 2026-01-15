@@ -242,6 +242,11 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
     updateBottomBar();
   }
 
+  Future<void> toggleNoteWidget(bool visible) async {
+    await _controller.evaluateJavascript(source: "toggleNoteWidget($visible);");
+    updateBottomBar();
+  }
+
   Future<void> updateBottomBar() async {
     controlsKey.currentState?.refreshWidget();
   }

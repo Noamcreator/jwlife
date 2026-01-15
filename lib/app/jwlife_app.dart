@@ -17,6 +17,8 @@ import 'package:jwlife/data/databases/pub_collections.dart';
 import 'package:jwlife/data/models/publication_attribute.dart';
 import 'package:jwlife/data/models/publication_category.dart';
 import 'package:jwlife/data/databases/userdata.dart';
+import 'package:jwlife/data/models/userdata/note.dart';
+import 'package:jwlife/features/note/note_controller.dart';
 import 'package:provider/provider.dart';
 
 import '../core/shared_preferences/shared_preferences_utils.dart';
@@ -47,6 +49,7 @@ class JwLifeApp extends StatefulWidget {
   static final History history = History();
   static final Userdata userdata = Userdata();
   static final JwLifeAudioPlayer audioPlayer = JwLifeAudioPlayer();
+  static final NoteController noteController = NoteController();
   static BibleCluesInfo bibleCluesInfo = BibleCluesInfo(bibleBookNames: []);
 
   const JwLifeApp({super.key});

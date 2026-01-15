@@ -4,9 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/app/services/global_key_service.dart';
+import 'package:jwlife/data/models/userdata/note.dart';
 import 'package:jwlife/features/home/pages/daily_text_page.dart';
 import 'package:jwlife/features/document/local/document_page.dart';
 import 'package:jwlife/features/image/pages/full_screen_image_page.dart';
+import 'package:jwlife/features/note/note_widget.dart';
 import 'package:jwlife/features/video/video_player_page.dart';
 import 'package:jwlife/core/utils/utils_dialog.dart';
 
@@ -28,6 +30,7 @@ class JwLifePageState extends State<JwLifePage> with WidgetsBindingObserver {
   final ValueNotifier<List<bool>> navBarIsTransparentNotifier = ValueNotifier<List<bool>>([false, false, false, false, false, false]);
 
   final ValueNotifier<bool> audioWidgetVisible = ValueNotifier<bool>(false);
+  final ValueNotifier<bool> noteWidgetVisible = ValueNotifier<bool>(false);
   final ValueNotifier<int> currentNavigationBottomBarIndex = ValueNotifier<int>(0);
   final ValueNotifier<bool> controlsVisible = ValueNotifier<bool>(true);
 
@@ -87,6 +90,23 @@ class JwLifePageState extends State<JwLifePage> with WidgetsBindingObserver {
         }
         else if (state is DailyTextPageState) {
           state.toggleAudioPlayer(isVisible);
+        }
+      }
+    }
+  }
+
+  void toggleNoteWidgetVisibility(bool isVisible) {
+    noteWidgetVisible.value = isVisible;
+
+    for (var keys in GlobalKeyService.jwLifePageKey.currentState!.webViewPageKeys) {
+      for (var key in keys) {
+        final state = key.currentState;
+
+        if (state is DocumentPageState) {
+          state.toggleNoteWidget(isVisible);
+        }
+        else if (state is DailyTextPageState) {
+          state.toggleNoteWidget(isVisible);
         }
       }
     }
@@ -399,6 +419,16 @@ class JwLifePageState extends State<JwLifePage> with WidgetsBindingObserver {
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
+                              // --- NOTE WIDGET ---
+                              ValueListenableBuilder<bool>(
+                                valueListenable: noteWidgetVisible,
+                                builder: (context, noteVisible, child) {
+                                  if (!noteVisible || isTransparent) return const SizedBox.shrink();
+                                  return child!;
+                                },
+                                child: const NoteWidget(),
+                              ),
+
                               // --- AUDIO WIDGET ---
                               ValueListenableBuilder<bool>(
                                 valueListenable: audioWidgetVisible,
