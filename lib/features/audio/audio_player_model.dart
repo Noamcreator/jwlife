@@ -211,7 +211,7 @@ class JwLifeAudioPlayer {
 
 
   Future<void> playAudio(Audio audio, {Duration initialPosition = Duration.zero}) async {
-    JwLifeApp.history.insertAudioMediaItem(audio);
+    JwLifeApp.history.insertAudio(audio);
 
     if(audio.isDownloadedNotifier.value) {
       await setPlaylist([audio]);
@@ -233,7 +233,7 @@ class JwLifeAudioPlayer {
         firstAudio = audios[Random().nextInt(audios.length)];
       }
 
-      JwLifeApp.history.insertAudioMediaItem(firstAudio);
+      JwLifeApp.history.insertAudio(firstAudio);
 
       setRandomMode(randomMode);
       await fetchAudiosCategoryData(category, audios, firstAudio, true);
@@ -248,7 +248,7 @@ class JwLifeAudioPlayer {
         firstAudio = downloadedAudios[Random().nextInt(downloadedAudios.length)];
       }
 
-      JwLifeApp.history.insertAudioMediaItem(firstAudio);
+      JwLifeApp.history.insertAudio(firstAudio);
 
       setRandomMode(randomMode);
       await fetchAudiosCategoryData(category, downloadedAudios, firstAudio, false);

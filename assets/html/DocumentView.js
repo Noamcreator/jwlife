@@ -491,11 +491,14 @@ function transformFlipbookHtml(articleElement) {
             'cc-flipbookGallery',
             'cc-flipbookGallery--js'
         );
+
         figure.setAttribute('data-has-client-components', 'true');
 
         // Récupérer toutes les images existantes
         const imgs = Array.from(figure.querySelectorAll('img.gen-flipbook'));
         if (imgs.length === 0) return;
+
+        const figcaption = figure.querySelector('figcaption');
 
         // Construire le markup slick dynamique
         const slickSlides = imgs.map((img, index) => {
@@ -521,28 +524,32 @@ function transformFlipbookHtml(articleElement) {
 
         // Structure complète slick
         const slickHTML = `
-          <div class="slick-initialized slick-slider slick-dotted">
+        <div class="slick-initialized slick-slider slick-dotted">
             <div class="cc-flipbookGallery-navigation-previous slick-arrow" style="cursor:pointer;">
-              <svg class="svg-inline--fa jwi-chevron-left fa-w-16" focusable="false" aria-hidden="true" data-prefix="jwf-jw-icons-external" data-icon="chevron-left" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="currentColor" d="M15.5 19a.493.493 0 01-.315-.112l-8-6.5a.5.5 0 010-.776l8-6.5a.5.5 0 11.63.776L8.293 12l7.522 6.112A.5.5 0 0115.5 19z"></path></svg>
+            <svg class="svg-inline--fa jwi-chevron-left fa-w-16" focusable="false" aria-hidden="true" data-prefix="jwf-jw-icons-external" data-icon="chevron-left" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="currentColor" d="M15.5 19a.493.493 0 01-.315-.112l-8-6.5a.5.5 0 010-.776l8-6.5a.5.5 0 11.63.776L8.293 12l7.522 6.112A.5.5 0 0115.5 19z"></path></svg>
             </div>
             <div class="slick-list draggable">
-              <div class="slick-track" style="opacity: 1; width: 100%;">
+            <div class="slick-track" style="opacity: 1; width: 100%;">
                 ${slickSlides}
-              </div>
+            </div>
             </div>
             <div class="cc-flipbookGallery-navigation-next slick-arrow" style="cursor:pointer;">
-              <svg class="svg-inline--fa jwi-chevron-right fa-w-16" focusable="false" aria-hidden="true" data-prefix="jwf-jw-icons-external" data-icon="chevron-right" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="currentColor" d="M8.5 19a.5.5 0 01-.39-.18.52.52 0 01.07-.71L15.71 12 8.18 5.89a.5.5 0 01.64-.78l8 6.5a.51.51 0 010 .78l-8 6.5a.56.56 0 01-.32.11z"></path></svg>
+            <svg class="svg-inline--fa jwi-chevron-right fa-w-16" focusable="false" aria-hidden="true" data-prefix="jwf-jw-icons-external" data-icon="chevron-right" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="currentColor" d="M8.5 19a.5.5 0 01-.39-.18.52.52 0 01.07-.71L15.71 12 8.18 5.89a.5.5 0 01.64-.78l8 6.5a.51.51 0 010 .78l-8 6.5a.56.56 0 01-.32.11z"></path></svg>
             </div>
             <ul class="cc-flipbookGallery-navigation-dots" role="tablist">
-              ${imgs.map((_, i) => `
-      <li class="${i === 0 ? 'slick-active' : ''}" role="presentation">
-      <button type="button" role="tab" id="slick-slide-control0${i}" aria-controls="slick-slide0${i}" aria-label="${i + 1} of ${imgs.length}" tabindex="${i === 0 ? 0 : -1}" ${i === 0 ? 'aria-selected="true"' : ''}>${i + 1}</button>
-      </li>`).join('')}
+            ${imgs.map((_, i) => `
+                <li class="${i === 0 ? 'slick-active' : ''}" role="presentation">
+                <button type="button" role="tab" id="slick-slide-control0${i}" aria-controls="slick-slide0${i}" aria-label="${i + 1} of ${imgs.length}" tabindex="${i === 0 ? 0 : -1}" ${i === 0 ? 'aria-selected="true"' : ''}>${i + 1}</button>
+                </li>`).join('')}
             </ul>
-          </div>`;
+        </div>
+        ${figcaption ? figcaption.outerHTML : ''}
+        `;
 
         // Remplacer le contenu du figure par la structure complète
         figure.innerHTML = slickHTML;
+
+        console.log(div.innerHTML);
 
         // === AJOUT LOGIQUE DE NAVIGATION ===
         const slides = Array.from(figure.querySelectorAll('.slick-slide'));
@@ -1039,10 +1046,10 @@ async function jumpToBlockId(articleId, begin, end) {
     }
 }
 
-async function jumpToTextTag(textarea) {
+async function jumpToTextTag(textTag) {
     closeToolbar();
 
-    if (!textarea) {
+    if (!textTag) {
         return;
     }
 
@@ -1050,7 +1057,8 @@ async function jumpToTextTag(textarea) {
 
     // Calcul de la position verticale dans le container scrollable
     const pageCenterRect = pageCenter.getBoundingClientRect();
-    const textareaRect = textarea.getBoundingClientRect();
+    const textArea = pageCenter.querySelector(`[id="${textTag}"]`);
+    const textareaRect = textArea.getBoundingClientRect();
 
     // Calculer la position relative de textarea dans pageCenter (scrollable)
     // scrollTop + (position textarea dans la fenêtre - position container dans la fenêtre)
@@ -1060,7 +1068,7 @@ async function jumpToTextTag(textarea) {
     const screenHeight = pageCenter.clientHeight;
     const visibleHeight = screenHeight - appBarHeight - bottomNavBarHeight - 40;
 
-    let scrollToY = offsetTop - appBarHeight - 20 - (visibleHeight / 2) + (textarea.offsetHeight / 2);
+    let scrollToY = offsetTop - appBarHeight - 20 - (visibleHeight / 2) + (textArea.offsetHeight / 2);
     scrollToY = Math.max(scrollToY, 0);
     pageCenter.scrollTop = scrollToY;
 
@@ -2163,7 +2171,7 @@ function setupResizeSystem(type, handle, dialog, contentContainer) {
             contentContainer.style.height = '';
         } else {
             //dialog.style.height = 'fit-content';
-            dialog.style.height = MIN_HEIGHTM;
+            dialog.style.height = MIN_HEIGHT;
             //dialog.removeAttribute('data-resized-height');
             //dialog.removeAttribute('data-resized-width');
             dialog.setAttribute('data-resized-height', dialog.style.height);
@@ -2543,8 +2551,10 @@ function initializeBaseDialog() {
     };
 
     const floatingButton = document.getElementById('dialogFloatingButton');
-    floatingButton.style.opacity = '1';
-    floatingButton.style.pointerEvents = 'auto';
+    if(floatingButton) {
+        floatingButton.style.opacity = '1';
+        floatingButton.style.pointerEvents = 'auto';
+    }
 }
 
 function hideAllDialogs() {
@@ -4975,29 +4985,54 @@ function showFootNoteDialog(article, footnote, href) {
         article: article,
         href: href,
         contentRenderer: (contentContainer) => {
-            const footnoteContainer = document.createElement('div');
-            footnoteContainer.style.cssText = `
+            const footnoteContent = document.createElement('div');
+            footnoteContent.innerHTML = `<article id="footnote-dialog" class="${footnote.className}">${footnote.content}</article>`;
+            footnoteContent.style.cssText = `
                 padding-inline: 20px;
             `;
 
-            const footnoteContent = document.createElement('div');
-            footnoteContent.innerHTML = footnote.content;
-            footnoteContent.style.cssText = `
-                line-height: 1.7;
-                font-size: inherit;
-            `;
+            wrapWordsWithSpan(footnoteContent, false);
 
-            footnoteContent.addEventListener('click', async (event) => {
-                onClickOnPage(footnoteContainer, event);
+            paragraphsDataDialog = fetchAllParagraphsOfTheArticle(footnoteContent, false);
+
+            footnote.blockRanges.forEach(b => {
+
+                const paragraphInfo = [...paragraphsDataDialog.values()].find(p => p.id === b.Identifier);
+
+                if (!paragraphInfo || !paragraphInfo.paragraphs?.length) {
+                    return;
+                }
+                addBlockRange(paragraphInfo, b.StartToken-1, b.EndToken-1, b.UserMarkGuid, b.StyleIndex, b.ColorIndex);
             });
 
-            footnoteContainer.appendChild(footnoteContent);
-            contentContainer.appendChild(footnoteContainer);
+            footnote.notes.forEach(note => {
+                const matchingBlockRange = footnote.blockRanges.find(b => b.UserMarkGuid === note.UserMarkGuid);
+                const paragraphInfo = paragraphsDataDialog.get(note.BlockIdentifier)
+
+                addNoteWithGuid(
+                    footnoteContent,
+                    paragraphInfo,
+                    matchingBlockRange?.UserMarkGuid || null,
+                    note.Guid,
+                    note.ColorIndex ?? 0,
+                    false,
+                    false
+                );
+            });
+
+            footnoteContent.addEventListener('click', async (event) => {
+                onClickOnPage(footnoteContent, event);
+            });
+
+            contentContainer.appendChild(footnoteContent);
         }
     });
 }
 
 function getAllBlockRanges(guid) {
+    if (!guid) {
+        return pageCenter.querySelectorAll(`[${blockRangeAttr}]`);
+    }
     return pageCenter.querySelectorAll(`[${blockRangeAttr}="${guid}"]`);
 }
 

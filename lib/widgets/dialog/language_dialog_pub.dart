@@ -583,6 +583,7 @@ class _LanguagesPubDialogState extends State<LanguagesPubDialog> {
                   top: 0,
                   bottom: 0,
                   child: PopupMenuButton(
+                    useRootNavigator: true,
                     icon: const Icon(
                       Icons.more_horiz,
                       color: Color(0xFF9d9d9d),

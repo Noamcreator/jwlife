@@ -255,6 +255,7 @@ class _AllSearchTabState extends State<AllSearchTab> {
                             shape: BoxShape.circle,
                           ),
                           child: PopupMenuButton(
+                            useRootNavigator: true,
                             padding: EdgeInsets.zero,
                             icon: const Icon(Icons.more_vert, color: Colors.white, size: 22),
                             itemBuilder: (context) => [
@@ -262,9 +263,10 @@ class _AllSearchTabState extends State<AllSearchTab> {
                               getVideoShareItem(video),
                               getVideoQrCode(context, video),
                               getVideoAddPlaylistItem(context, video),
+                              getVideoAddNoteItem(context, video),
                               getVideoLanguagesItem(context, video),
                               getVideoFavoriteItem(video),
-                              getVideoDownloadItem(context, video),
+                               if (video.isDownloadedNotifier.value && ! video.isDownloadingNotifier.value) getVideoDownloadItem(context, video),
                               getShowSubtitlesItem(context, video),
                               getCopySubtitlesItem(context, video),
                             ],
@@ -385,6 +387,7 @@ class _AllSearchTabState extends State<AllSearchTab> {
                             shape: BoxShape.circle,
                           ),
                           child: PopupMenuButton(
+                            useRootNavigator: true,
                             padding: EdgeInsets.zero,
                             icon: const Icon(Icons.more_vert, color: Colors.white, size: 22),
                             itemBuilder: (context) => [
@@ -394,7 +397,7 @@ class _AllSearchTabState extends State<AllSearchTab> {
                               getAudioAddPlaylistItem(context, audio),
                               getAudioLanguagesItem(context, audio),
                               getAudioFavoriteItem(audio),
-                              getAudioDownloadItem(context, audio),
+                              if (audio.isDownloadedNotifier.value && !audio.isDownloadingNotifier.value) getAudioDownloadItem(context, audio),
                               getAudioLyricsItem(context, audio),
                               getCopyLyricsItem(audio),
                             ],

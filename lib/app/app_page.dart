@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:jwlife/app/services/global_key_service.dart';
+import 'package:jwlife/features/personal/pages/note_page.dart';
+
 import '../core/ui/app_dimens.dart';
 
 class AppPage extends StatelessWidget {
@@ -7,6 +9,7 @@ class AppPage extends StatelessWidget {
   final Color? backgroundColor;
   final Widget body;
   final bool isWebview;
+  final bool isNotePage;
   final bool extendBodyBehindAppBar;
   final Widget? floatingActionButton;
 
@@ -16,6 +19,7 @@ class AppPage extends StatelessWidget {
     this.backgroundColor,
     required this.body,
     this.isWebview = false,
+    this.isNotePage = false,
     this.extendBodyBehindAppBar = false,
     this.floatingActionButton,
   });
@@ -29,7 +33,7 @@ class AppPage extends StatelessWidget {
           valueListenable: GlobalKeyService.jwLifePageKey.currentState!.audioWidgetVisible,
           builder: (context, audioVisible, child) {
             final double topPadding = isWebview || extendBodyBehindAppBar ? 0 : kToolbarHeight;
-            final double bottomPadding = isWebview ? 0 : (kBottomNavigationBarHeight + (audioVisible ? kAudioWidgetHeight : 0) + (noteVisible ? kNoteHeight : 0));
+            final double bottomPadding = isWebview || isNotePage ? 0 : (kBottomNavigationBarHeight + (audioVisible ? kAudioWidgetHeight : 0) + (noteVisible ? kNoteHeight : 0));
         
             final EdgeInsets pagePadding = EdgeInsets.only(
               top: topPadding,
@@ -37,7 +41,7 @@ class AppPage extends StatelessWidget {
             );
         
             return MediaQuery.removeViewInsets(
-                removeBottom: true, // empêche rebuild clavier
+                removeBottom: isNotePage ? false : true, // empêche rebuild clavier
                 context: context,
                 child: Container(
                   color: backgroundColor ?? Theme.of(context).scaffoldBackgroundColor,

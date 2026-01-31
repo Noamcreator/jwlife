@@ -333,7 +333,7 @@ class _AudioItemsPageState extends State<AudioItemsPage> {
                             getAudioAddPlaylistItem(context, audio),
                             getAudioLanguagesItem(context, audio),
                             getAudioFavoriteItem(audio),
-                            getAudioDownloadItem(context, audio),
+                            if (audio.isDownloadedNotifier.value && !audio.isDownloadingNotifier.value) getAudioDownloadItem(context, audio),
                             getAudioLyricsItem(context, audio),
                             getCopyLyricsItem(audio),
                           ],

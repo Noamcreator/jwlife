@@ -1,5 +1,4 @@
 import 'package:jwlife/core/app_data/app_data_service.dart';
-import 'package:jwlife/data/models/meps_language.dart';
 
 import '../api/api.dart';
 import '../utils/utils.dart';

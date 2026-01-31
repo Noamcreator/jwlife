@@ -52,6 +52,7 @@ class Publication {
   String catalogedOn;
   String lastUpdated;
   String? lastModified;
+  String? generallyAvailableDate;
   int? conventionReleaseDayNumber;
   String? imageSqr;
   String? imageLsr;
@@ -106,6 +107,7 @@ class Publication {
     this.catalogedOn = '',
     this.lastUpdated = '',
     this.lastModified,
+    this.generallyAvailableDate,
     this.conventionReleaseDayNumber,
     this.imageSqr,
     this.imageLsr,
@@ -203,6 +205,7 @@ class Publication {
       existing.catalogedOn = json['CatalogedOn'] ?? existing.catalogedOn;
       existing.lastUpdated = json['LastUpdated'] ?? existing.lastUpdated;
       existing.lastModified = json['LastModified'] ?? existing.lastModified;
+      existing.generallyAvailableDate = json['GenerallyAvailableDate'] ?? existing.generallyAvailableDate;
       existing.conventionReleaseDayNumber = json['ConventionReleaseDayNumber'] ?? existing.conventionReleaseDayNumber;
       existing.networkImageSqr = formatImageUrl('ImageSqr', isNetwork: true) ?? existing.networkImageSqr;
       existing.networkImageLsr = formatImageUrl('ImageLsr', isNetwork: true) ?? existing.networkImageLsr;
@@ -272,6 +275,7 @@ class Publication {
       catalogedOn: json['CatalogedOn'] ?? '',
       lastUpdated: json['LastUpdated'] ?? '',
       lastModified: lastMod,
+      generallyAvailableDate: json['GenerallyAvailableDate'],
       conventionReleaseDayNumber: json['ConventionReleaseDayNumber'],
       imageSqr: formatImageUrl('ImageSqr'),
       imageLsr: formatImageUrl('ImageLsr'),
@@ -648,7 +652,7 @@ class Publication {
 
   String getRelativeDateText() {
     try {
-      DateTime firstPublished = DateTime.parse(catalogedOn);
+      DateTime firstPublished = DateTime.parse(generallyAvailableDate ?? catalogedOn);
 
       return "${mepsLanguage.vernacular} · ${timeAgo(firstPublished)}";
     } catch (e) {

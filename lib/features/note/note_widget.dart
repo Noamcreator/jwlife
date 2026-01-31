@@ -43,6 +43,8 @@ class _NoteWidgetState extends State<NoteWidget> {
       return const SizedBox.shrink();
     }
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return GestureDetector(
       onTap: () {
         showPage(NotePage(note: note!));
@@ -56,11 +58,11 @@ class _NoteWidgetState extends State<NoteWidget> {
         child: Row(
           children: [
             // Icône de gauche : Chevron Up
-            const Padding(
+            Padding(
               padding: EdgeInsets.symmetric(horizontal: 12),
               child: Icon(
                 JwIcons.chevron_up,
-                color: Colors.white,
+                color: isDark ? Colors.white : Color(0xFF626262),
                 size: 23,
               ),
             ),
@@ -71,28 +73,30 @@ class _NoteWidgetState extends State<NoteWidget> {
                 padding: const EdgeInsets.symmetric(horizontal: 18),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center, // Centre verticalement
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     if (note!.title != null && note!.title!.isNotEmpty)
                       Text(
                         note!.title!,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Colors.white,
+                        style: TextStyle(
+                          color: isDark ? Colors.white : Colors.black,
                           height: 1.2,
                           fontSize: 12.5,
                         ),
+                        textAlign: TextAlign.center,
                       ),
                     Text(
                       note!.content ?? "",
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Color(0xFFC9C9C9),
+                      style: TextStyle(
+                        color: isDark ? Color(0xFFC9C9C9) : Color(0xFF7D7D7D),
                         height: 1.2,
                         fontSize: 11.5,
                       ),
+                      textAlign: TextAlign.center,                   
                     ),
                   ],
                 ),
@@ -104,9 +108,9 @@ class _NoteWidgetState extends State<NoteWidget> {
               padding: const EdgeInsets.only(right: 8),
               child: IconButton(
                 visualDensity: VisualDensity.compact,
-                icon: const Icon(
+                icon: Icon(
                   JwIcons.x,
-                  color: Colors.white,
+                  color: isDark ? Colors.white : Color(0xFF626262),
                   size: 23,
                 ),
                 onPressed: () {

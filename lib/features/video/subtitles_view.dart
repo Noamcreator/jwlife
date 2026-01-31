@@ -68,9 +68,12 @@ class _SubtitlesPageState extends State<SubtitlesPage> {
 
   void _fetchLocalSubtitles(Video localVideo) async {
     try {
-      await _subtitles.loadSubtitlesFromFile(File(localVideo.subtitlesFilePath));
-      _loadWebView();
-    } catch (e) {
+      if (localVideo.subtitlesFilePath != null) {
+        await _subtitles.loadSubtitlesFromFile(File(localVideo.subtitlesFilePath!));
+        _loadWebView();
+      }
+    } 
+    catch (e) {
       debugPrint('Erreur sous-titres locaux : $e');
       _isLoading.value = false;
     }

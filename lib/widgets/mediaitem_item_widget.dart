@@ -1,4 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:jwlife/app/jwlife_app.dart';
+import 'package:jwlife/core/utils/common_ui.dart';
+import 'package:jwlife/data/controller/notes_controller.dart';
+import 'package:jwlife/data/models/userdata/note.dart';
+import 'package:jwlife/features/personal/pages/note_page.dart';
+import 'package:jwlife/i18n/i18n.dart';
+import 'package:jwlife/widgets/dialog/confirm_dialog.dart';
+import 'package:provider/provider.dart';
 
 import '../core/icons.dart';
 import '../core/ui/text_styles.dart';
@@ -99,6 +107,9 @@ class _MediaItemItemWidgetState extends State<MediaItemItemWidget> {
                     _buildPopupMenu(context),
                     // Information sur la durée (Positionné en HAUT-DÉBUT)
                     _buildMediaInfoOverlay(),
+
+                    // Indicateur de note
+                    _buildNoteIndicator(context),
 
                     // icônes / favoris (Positionné en BAS-FIN)
                     ValueListenableBuilder<bool>(
@@ -229,6 +240,51 @@ class _MediaItemItemWidgetState extends State<MediaItemItemWidget> {
     );
   }
 
+  Widget _buildNoteIndicator(BuildContext context) {
+    final notesController = context.watch<NotesController>();
+    Note? note = notesController.getNotesByItem(media: widget.media).firstOrNull;
+
+    return note != null
+        ? PositionedDirectional(
+            bottom: 5,
+            start: 4,
+            child: GestureDetector(
+              onTap: () {
+                showPage(NotePage(note: note));
+              },
+              onLongPress: () {
+                // suppression du note
+                showConfirmDialog(
+                  context,
+                  title: i18n().action_delete_note,
+                  content: i18n().message_confirm_delete,
+                  onConfirm: () {
+                    notesController.removeNote(note.guid);
+                  },
+                );
+              },
+              child: Container(
+                width: 16,
+                height: 16,
+                decoration: BoxDecoration(
+                  color: note.getIndicatorColor(context),
+                  // --- Ajout de l'ombre ici ---
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.5), // Couleur de l'ombre
+                      spreadRadius: 4, // Étendue de l'ombre
+                      blurRadius: 4,   // Flou de l'ombre
+                      offset: const Offset(0, 0), // Position (x, y)
+                    ),
+                  ],
+                  // ----------------------------
+                ),
+              ),
+            ),
+          )
+        : const SizedBox.shrink();
+  }
+
   Widget _buildMediaImage() {
     final wideImageUrl = widget.media.networkImageLsr ?? widget.media.networkFullSizeImageLsr;
     final squareImageUrl = widget.media.networkImageSqr ?? widget.media.networkFullSizeImageSqr;
@@ -295,7 +351,7 @@ class _MediaItemItemWidgetState extends State<MediaItemItemWidget> {
             getAudioAddPlaylistItem(context, widget.media as Audio),
             getAudioLanguagesItem(context, widget.media as Audio),
             getAudioFavoriteItem(widget.media as Audio),
-            getAudioDownloadItem(context, widget.media as Audio),
+            if (widget.media.isDownloadedNotifier.value && ! widget.media.isDownloadingNotifier.value) getAudioDownloadItem(context, widget.media as Audio),
             getAudioLyricsItem(context, widget.media as Audio),
             getCopyLyricsItem(widget.media as Audio),
           ] : [
@@ -303,9 +359,10 @@ class _MediaItemItemWidgetState extends State<MediaItemItemWidget> {
             getVideoShareItem(widget.media as Video),
             getVideoQrCode(context, widget.media as Video),
             getVideoAddPlaylistItem(context, widget.media as Video),
+            getVideoAddNoteItem(context, widget.media as Video),
             getVideoLanguagesItem(context, widget.media as Video),
             getVideoFavoriteItem(widget.media as Video),
-            getVideoDownloadItem(context, widget.media as Video),
+            if (widget.media.isDownloadedNotifier.value && ! widget.media.isDownloadingNotifier.value) getVideoDownloadItem(context, widget.media as Video),
             getShowSubtitlesItem(context, widget.media as Video),
             getCopySubtitlesItem(context, widget.media as Video),
           ];

@@ -7,6 +7,7 @@ import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/core/utils/utils_language_dialog.dart';
 import 'package:jwlife/core/utils/utils_playlist.dart';
+import 'package:jwlife/data/databases/meps_languages.dart';
 import 'package:jwlife/data/models/audio.dart';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/realm/catalog.dart';
@@ -45,7 +46,7 @@ void showAudioPlayerPublicationLink(BuildContext context, Publication publicatio
 }
 
 RealmMediaItem? getAudioItem(String? keySymbol, int? track, int? documentId, int? issueTagNumber, int? mepsLanguageId) {
-  String languageSymbol = JwLifeSettings.instance.libraryLanguage.value.symbol;
+  String languageSymbol = mepsLanguageId != null ? MepsLanguages.getMepsLanguageSymbolFromId(mepsLanguageId) ?? JwLifeSettings.instance.libraryLanguage.value.symbol : JwLifeSettings.instance.libraryLanguage.value.symbol;
   var queryParts = <String>[];
   if (keySymbol != null && keySymbol != '') queryParts.add("PubSymbol == '$keySymbol'");
   if (track != null && track != 0) queryParts.add("Track == '$track'");

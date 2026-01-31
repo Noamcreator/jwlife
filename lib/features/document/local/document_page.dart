@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:audio_service/audio_service.dart' as audio_service;
 import 'package:collection/collection.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -10,6 +11,7 @@ import 'package:just_audio/just_audio.dart';
 import 'package:jwlife/app/app_page.dart';
 import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/app/jwlife_app_bar.dart';
+import 'package:jwlife/core/api/api.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/core/utils/utils.dart';
@@ -20,6 +22,7 @@ import 'package:jwlife/core/utils/utils_search.dart';
 import 'package:jwlife/core/utils/utils_video.dart';
 import 'package:jwlife/data/controller/block_ranges_controller.dart';
 import 'package:jwlife/data/controller/tags_controller.dart';
+import 'package:jwlife/data/databases/meps_languages.dart';
 import 'package:jwlife/data/models/audio.dart';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/realm/realm_library.dart';
@@ -28,6 +31,8 @@ import 'package:jwlife/data/databases/catalog.dart';
 import 'package:jwlife/data/realm/catalog.dart';
 import 'package:jwlife/features/document/local/documents_manager.dart';
 import 'package:jwlife/features/home/pages/search/search_page.dart';
+import 'package:jwlife/features/publication/models/menu/local/words_suggestions_model.dart';
+import 'package:jwlife/widgets/dialog/confirm_dialog.dart';
 import 'package:jwlife/widgets/dialog/publication_dialogs.dart';
 import 'package:jwlife/core/utils/utils_dialog.dart';
 import 'package:jwlife/widgets/dialog/qr_code_dialog.dart';
@@ -357,7 +362,7 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
   // Dans init ou onLoadStop, tu crées des fonctions pour pouvoir les retirer :
   void _updateNotesListener() {
     if (!mounted) return;
-    final notes = _notesController.getNotesByDocument(document: widget.publication.documentsManager!.getCurrentDocument()).map((note) => note.toMap()).toList();
+    final notes = _notesController.getNotesByItem(document: widget.publication.documentsManager!.getCurrentDocument()).map((note) => note.toMap()).toList();
     final jsonNotes = jsonEncode(notes);
     if (jsonNotes == _lastSentNotes) return;
     _lastSentNotes = jsonNotes;
@@ -690,36 +695,23 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
     controller.addJavaScriptHandler(
       handlerName: 'showConfirmationDialog',
       callback: (args) async {
-        // Récupérer les paramètres envoyés depuis JS
         final Map<String, dynamic> params = args.isNotEmpty ? args[0] : {};
         final String title = params['title'] ?? 'Confirmation';
         final String message = params['message'] ?? 'Êtes-vous sûr ?';
 
-        // Affiche un dialog Flutter et retourne la réponse
-        final bool? confirmed = await showJwDialog(
-          context: context,
-          titleText: title,
-          contentText: message,
-          buttonAxisAlignment: MainAxisAlignment.end,
-          buttons: [
-            JwDialogButton(
-              label: i18n().action_no.toUpperCase(),
-              closeDialog: false,
-              onPressed: (buildContext) async {
-                Navigator.of(buildContext).pop(false);
-              }
-            ),
-            JwDialogButton(
-              label: i18n().action_yes.toUpperCase(),
-              closeDialog: false,
-              onPressed: (buildContext) async {
-                Navigator.of(buildContext).pop(true);
-              }
-            )
-          ]
+        bool result = false;
+
+        await showConfirmDialog(
+          context,
+          title: title,
+          content: message,
+          onConfirm: () {
+            result = true;
+          },
         );
-        return confirmed ?? false; // Retourne false si null
-      }
+
+        return result;
+      },
     );
 
     controller.addJavaScriptHandler(
@@ -805,7 +797,7 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
 
         return {
           'blockRanges': _blockRangesController.getBlockRangesByDocument(document: document).map((blockRange) => blockRange.toMap()).toList(),
-          'notes': _notesController.getNotesByDocument(document: document).map((note) => note.toMap()).toList(),
+          'notes': _notesController.getNotesByItem(document: document).map((note) => note.toMap()).toList(),
           'tags': _tagsController.tags.map((tag) => tag.toMap()).toList(),
           'inputFields': document.inputFields,
           'bookmarks': documentManager.getBookmarksFromCurrentDocument().map((bookmark) => bookmark.toMap()).toList(),
@@ -872,7 +864,7 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
 
         _blockRangesController.removeBlockRange(userMarkGuid);
 
-        final note = _notesController.getNotesByDocument(document: document).firstWhereOrNull((n) => n.userMarkGuid == userMarkGuid);
+        final note = _notesController.getNotesByItem(document: document).firstWhereOrNull((n) => n.userMarkGuid == userMarkGuid);
 
         if(note != null) {
           if(showAlertDialog) {
@@ -1166,7 +1158,7 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
       callback: (args) async {
         Document document = widget.publication.documentsManager!.getCurrentDocument();
         int book = document.bookNumber!;
-        int chapter = document.chapterNumber!;
+        int chapter = document.chapterNumberBible!;
         int verse = args[0]['id'];
         // Préparation des segments
 
@@ -1175,12 +1167,12 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
 
         Future<List<Map<String, dynamic>>> verseCommentaries = fetchVerseCommentaries(context, widget.publication, verseId, false);
         Future<List<Map<String, dynamic>>> verseMedias = fetchVerseMedias(context, widget.publication, verseId);
-        Future<List<Map<String, dynamic>>> verseVersions = fetchOtherVerseVersion(context, widget.publication, book, chapter, verse, verseId);
+        Future<List<Map<String, dynamic>>> verseVersions = fetchOtherVerseVersion(context, widget.publication, book, chapter, verse, bibleSegments);
         Future<List<Map<String, dynamic>>> verseResearchGuide = fetchVerseResearchGuide(context, verseId, false);
         Future<List<Map<String, dynamic>>> verseFootnotes = fetchVerseFootnotes(context, widget.publication, verseId);
 
         final verseInfo = {
-          'title': JwLifeApp.bibleCluesInfo.getVerse(document.bookNumber!, document.chapterNumber!, verse),
+          'title': JwLifeApp.bibleCluesInfo.getVerse(document.bookNumber!, document.chapterNumberBible!, verse),
           'commentary': await verseCommentaries,
           'medias': await verseMedias,
           'versions': await verseVersions,
@@ -1237,7 +1229,7 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
               bool hasSameChapter = bookNumber1 == bookNumber2 && chapterNumber1 == chapterNumber2;
               int? lastVerseNumber = hasSameChapter ? firstVerseNumber : null;
 
-              if (bookNumber1 != widget.publication.documentsManager!.getCurrentDocument().bookNumber || chapterNumber1 != widget.publication.documentsManager!.getCurrentDocument().chapterNumber) {
+              if (bookNumber1 != widget.publication.documentsManager!.getCurrentDocument().bookNumber || chapterNumber1 != widget.publication.documentsManager!.getCurrentDocument().chapterNumberBible) {
                 int index = widget.publication.documentsManager!.getIndexFromBookNumberAndChapterNumber(bookNumber1, chapterNumber1);
                 if(firstVerseNumber != null) {
                   await _jumpToPage(index, startBlockId: firstVerseNumber, endBlockId: lastVerseNumber ?? firstVerseNumber);
@@ -1299,15 +1291,15 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
           printTime('blockIdentifier: $blockIdentifier');
           printTime('blockType: $blockType');
           printTime('bookNumber: ${currentDoc.bookNumber}');
-          printTime('chapterNumber: ${currentDoc.chapterNumber}');
+          printTime('chapterNumber: ${currentDoc.chapterNumberBible}');
 
           bookmark = await showBookmarkDialog(
             context,
             widget.publication,
             webViewController: _controller,
             bookNumber: currentDoc.bookNumber,
-            chapterNumber: currentDoc.chapterNumber,
-            title: '${currentDoc.displayTitle} ${currentDoc.chapterNumber}:$blockIdentifier',
+            chapterNumber: currentDoc.chapterNumberBible,
+            title: '${currentDoc.displayTitle} ${currentDoc.chapterNumberBible}:$blockIdentifier',
             snippet: snippet.trim(),
             blockType: blockType,
             blockIdentifier: blockIdentifier,
@@ -1519,7 +1511,7 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
       handlerName: 'searchVerse',
       callback: (args) async {
         String book = widget.publication.documentsManager!.getCurrentDocument().bookNumber.toString();
-        String chapter = widget.publication.documentsManager!.getCurrentDocument().chapterNumber.toString();
+        String chapter = widget.publication.documentsManager!.getCurrentDocument().chapterNumberBible.toString();
         String verseNumber = args[0]['query'].toString();
 
         String query = JwLifeApp.bibleCluesInfo.getVerse(int.parse(book), int.parse(chapter), int.parse(verseNumber));
@@ -1563,19 +1555,48 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
           video.showPlayer(context);
         }
         else {
-          Video video = Video(
-          keySymbol: pub,
-          issueTagNumber: issue,
-          mepsLanguage: langwritten,
-          track: track,
-          documentId: docId,
+          final Map<String, String> queryParameters = {
+            'langwritten': MepsLanguages.getMepsLanguageSymbolFromId(langId ?? 0) ?? '',
+          };
+
+          if (pub != null) {
+            queryParameters['pub'] = (pub.isNotEmpty ? pub : null)!;
+          }
+          if (issue != null && issue != 0) {
+            queryParameters['issue'] = issue.toString();
+          }
+          if (docId != null && docId != 0) {
+            queryParameters['docid'] = docId.toString();
+          }
+          if (track != null) {
+            queryParameters['track'] = track.toString();
+          }
+
+          // 2. Construction de l'URL sécurisée
+          final uri = Uri.https(
+            'app.jw-cdn.org',
+            '/apis/pub-media/GETPUBMEDIALINKS',
+            queryParameters,
           );
 
-          video.showPlayer(context);
+          link = uri.toString();
 
-          // dialog pour importer le média
+          final response = await Api.httpGetWithHeaders(link, responseType: ResponseType.json);
+          if (response.statusCode == 200) {
+            Video video = Video(
+              keySymbol: pub,
+              issueTagNumber: issue,
+              mepsLanguage: langwritten,
+              track: track,
+              documentId: docId,
+            );
 
-          //showImportPublication(context, keySymbol, issueTagNumber, mepsLanguageId)
+            video.showPlayer(context);
+          }
+          else {
+            // dialog pour importer le média
+            showImportMedia(context, keySymbol: pub, documentId: docId, issueTagNumber: issue, mepsLanguageId: langId);
+          }
         }
       }
     );
@@ -1904,7 +1925,7 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
                   titleWidget: SearchFieldWidget(
                   query: '',
                   onSearchTextChanged: (text) {
-                    widget.publication.wordsSuggestionsModel!.fetchSuggestions(text);
+                    widget.publication.wordsSuggestionsModel?.fetchSuggestions(text);
                   },
                   onSuggestionTap: (item) async {
                     String query = item.item!.query;
@@ -1983,6 +2004,7 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
                     text: i18n().action_search,
                     icon: Icon(JwIcons.magnifying_glass),
                     onPressed: (anchorContext) {
+                      widget.publication.wordsSuggestionsModel ??= WordsSuggestionsModel(widget.publication);
                       setState(() => _isSearching = true);
                     },
                   ),
@@ -1998,7 +2020,7 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
                         webViewController: _controller,
                         mepsDocumentId: _currentDocument!.mepsDocumentId,
                         bookNumber: _currentDocument!.bookNumber,
-                        chapterNumber: _currentDocument!.chapterNumber,
+                        chapterNumber: _currentDocument!.chapterNumberBible,
                         title: _currentDocument!.getDisplayTitle(),
                         snippet: '',
                         blockType: 0,
@@ -2012,7 +2034,7 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
                           final page = dm!.documents.indexWhere(
                                 (doc) =>
                             doc.bookNumber == bm.location.bookNumber &&
-                                doc.chapterNumber == bm.location.chapterNumber,
+                                doc.chapterNumberBible == bm.location.chapterNumber,
                           );
     
                           if (page != dm.selectedDocumentId) {
@@ -2029,9 +2051,7 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
                         }
                         // Cas publications classiques
                         else if (bm.location.mepsDocumentId != _currentDocument!.mepsDocumentId) {
-                          final page = dm!.documents.indexWhere(
-                                (doc) => doc.mepsDocumentId == bm.location.mepsDocumentId,
-                          );
+                          final page = dm!.documents.indexWhere((doc) => doc.mepsDocumentId == bm.location.mepsDocumentId);
     
                           if (page != dm.selectedDocumentId) {
                             if(bm.blockIdentifier != null) {
@@ -2058,7 +2078,7 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
                       if(isBibleChapter) {
                         showLanguagePubDialog(context, null, bookNumber: _currentDocument!.bookNumber).then((languagePub) {
                           if (languagePub != null) {
-                            showPageBibleChapter(languagePub, _currentDocument!.bookNumber!, _currentDocument!.chapterNumber!);
+                            showPageBibleChapter(languagePub, _currentDocument!.bookNumber!, _currentDocument!.chapterNumberBible!);
                           }
                         });
                       }

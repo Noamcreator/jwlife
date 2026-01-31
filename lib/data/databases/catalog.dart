@@ -26,7 +26,9 @@ class CatalogDb {
   static final String publicationSelectQuery = '''
     p.*,
     pa.LastModified, 
+    pa.LastUpdated,
     pa.CatalogedOn,
+    pa.GenerallyAvailableDate,
     pa.Size,
     pa.ExpandedSize,
     pa.SchemaVersion,
@@ -93,10 +95,12 @@ class CatalogDb {
 
       List<Map<String, dynamic>> hasPubForConventionDay = await database.rawQuery('''
           SELECT EXISTS (
-              SELECT 1
-              FROM PublicationAsset
-              WHERE ConventionReleaseDayNumber IS NOT NULL
-                AND MepsLanguageId = ?
+            SELECT 1
+            FROM PublicationAsset
+            WHERE ConventionReleaseDayNumber IS NOT NULL
+              AND MepsLanguageId = ?
+              AND GenerallyAvailableDate IS NOT NULL
+              AND date('now') <= date(GenerallyAvailableDate)
           ) AS HasConventionReleaseDayNumber;
         ''', [language.id]);
 

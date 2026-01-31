@@ -57,7 +57,7 @@ class NotificationService {
 
     // Gérer les actions des notifications (bouton "Ouvrir")
     await notificationPlugin.initialize(
-      initSettings,
+      settings: initSettings,
       onDidReceiveNotificationResponse: _onNotificationTapped,
       onDidReceiveBackgroundNotificationResponse: notificationTapBackground
     );
@@ -83,7 +83,7 @@ class NotificationService {
 
   // Annuler une notification
   Future<void> cancelNotification(int id) async {
-    await notificationPlugin.cancel(id);
+    await notificationPlugin.cancel(id: id);
   }
 
   NotificationDetails notificationDetails() {
@@ -123,10 +123,10 @@ class NotificationService {
 
       print('Tentative d\'affichage de notification: $title - $body');
       await notificationPlugin.show(
-          id,
-          title,
-          body,
-          notificationDetails()
+          id: id,
+          title: title,
+          body: body,
+          notificationDetails: notificationDetails()
       );
       print('Notification envoyée avec succès');
     } catch (e) {
@@ -163,10 +163,10 @@ class NotificationService {
       );
 
       await notificationPlugin.show(
-        id,
-        title,
-        body,
-        NotificationDetails(android: androidDetails),
+        id: id,
+        title: title,
+        body: body,
+        notificationDetails: NotificationDetails(android: androidDetails),
       );
     } catch (e) {
       print('Erreur notification de progression: $e');
@@ -188,8 +188,8 @@ class NotificationService {
         'completion_channel_id',
         'Téléchargements terminés',
         channelDescription: 'Notifications de fin de téléchargement',
-        importance: Importance.high,
-        priority: Priority.high,
+        importance: Importance.low,
+        priority: Priority.defaultPriority,
         enableVibration: true,
         playSound: true,
         ongoing: false,
@@ -204,10 +204,10 @@ class NotificationService {
       );
 
       await notificationPlugin.show(
-        id,
-        title,
-        body,
-        NotificationDetails(android: androidDetails),
+        id: id,
+        title: title,
+        body: body,
+        notificationDetails: NotificationDetails(android: androidDetails),
         payload: payload,
       );
     } catch (e) {
@@ -267,17 +267,17 @@ class NotificationService {
       }
 
       await notificationPlugin.zonedSchedule(
-        100, // ID fixe pour pouvoir l'annuler/modifier
-        'Texte du jour',
-        'Cliquez ici pour lire le texte du jour',
-        scheduledDate,
-        notificationDetails,
+        id: 100,
+        scheduledDate: scheduledDate,
+        notificationDetails: notificationDetails,
+        androidScheduleMode: AndroidScheduleMode.exact,
+        title: 'Texte du jour',
+        body: 'Cliquez ici pour lire le texte du jour',
         matchDateTimeComponents: DateTimeComponents.time, // Répète chaque jour à la même heure
         payload: JwOrgUri.dailyText(
           wtlocale: JwLifeSettings.instance.dailyTextLanguage.value.symbol,
           date: 'today'
         ).toString(),
-        androidScheduleMode: AndroidScheduleMode.exact,
       );
 
       print('Notification quotidienne programmée pour ${hour}h${minute.toString().padLeft(2, '0')}');
@@ -339,18 +339,18 @@ class NotificationService {
       Publication? bible = PublicationRepository().getLookUpBible();
       if(bible != null) {
         await notificationPlugin.zonedSchedule(
-          101, // ID fixe pour pouvoir l'annuler/modifier
-          'Lecture de la Bible',
-          'Cliquez ici pour ouvrir la Bible',
-          scheduledDate,
-          notificationDetails,
+          id: 101,
+          scheduledDate: scheduledDate,
+          notificationDetails: notificationDetails,
+          androidScheduleMode: AndroidScheduleMode.exact,
+          title: 'Lecture de la Bible',
+          body: 'Cliquez ici pour ouvrir la Bible',
           matchDateTimeComponents: DateTimeComponents.time,
           payload: JwOrgUri.bibleBook(
             wtlocale: bible.mepsLanguage.symbol,
             pub: bible.keySymbol,
             book: 1,
           ).toString(),
-          androidScheduleMode: AndroidScheduleMode.exact,
         );
       }
       else {
@@ -374,12 +374,12 @@ class NotificationService {
 
   // Annuler le rappel quotidien
   Future<void> cancelDailyTextReminder() async {
-    await notificationPlugin.cancel(100);
+    await cancelNotification(100);
     print('Rappel quotidien annulé');
   }
 
   Future<void> cancelBibleReadingReminder() async {
-    await notificationPlugin.cancel(101);
+    await cancelNotification(101);
     print('Rappel quotidien annulé');
   }
 

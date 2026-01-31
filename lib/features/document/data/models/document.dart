@@ -171,7 +171,7 @@ class Document {
       await loadUserdata();
     }
     if (isBibleChapter()) {
-      JwLifeApp.history.insertBibleChapter(getDisplayTitle(), publication, bookNumber!, chapterNumber!, startBlockIdentifier, endBlockIdentifier);
+      JwLifeApp.history.insertBibleChapter(getDisplayTitle(), publication, bookNumber!, chapterNumberBible!, startBlockIdentifier, endBlockIdentifier);
     }
     else {
       if (!hasAlreadyBeenRead) {
@@ -362,7 +362,7 @@ class Document {
   }
 
   String getDisplayTitle() {
-    return isBibleChapter() ? '$displayTitle ${formatNumber(chapterNumber ?? 0, localeCode: publication.mepsLanguage.primaryIetfCode)}' : displayTitle.isNotEmpty ? displayTitle.trim() : title;
+    return isBibleChapter() ? '$displayTitle ${formatNumber(chapterNumberBible ?? 0, localeCode: publication.mepsLanguage.primaryIetfCode)}' : displayTitle.isNotEmpty ? displayTitle.trim() : title;
   }
 
   bool isBibleChapter() {

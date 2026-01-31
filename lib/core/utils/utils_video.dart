@@ -9,7 +9,14 @@ import 'package:jwlife/core/uri/jworg_uri.dart';
 import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/core/utils/utils_language_dialog.dart';
 import 'package:jwlife/core/utils/utils_playlist.dart';
+import 'package:jwlife/data/controller/notes_controller.dart';
+import 'package:jwlife/data/databases/meps_languages.dart';
+import 'package:jwlife/data/databases/mepsunit.dart';
+import 'package:jwlife/data/models/userdata/note.dart';
 import 'package:jwlife/data/models/video.dart' hide Subtitles;
+import 'package:jwlife/features/document/data/models/multimedia.dart';
+import 'package:jwlife/features/personal/pages/note_page.dart';
+import 'package:provider/provider.dart';
 import 'package:realm/realm.dart';
 
 import 'package:share_plus/share_plus.dart';
@@ -40,9 +47,14 @@ RealmMediaItem? getMediaItem(String? keySymbol, int? track, int? documentId, int
     queryParts.add("IssueDate == '$issueStr'");
   }
 
-  String languageSymbol = JwLifeSettings.instance.libraryLanguage.value.symbol;
-  if (mepsLanguage != null && mepsLanguage is String) {
-    languageSymbol = mepsLanguage;
+  String? languageSymbol = JwLifeSettings.instance.libraryLanguage.value.symbol;
+  if (mepsLanguage != null) {
+    if(mepsLanguage is String) {
+      languageSymbol = mepsLanguage;
+    }
+    else if(mepsLanguage is int) {
+      languageSymbol = MepsLanguages.getMepsLanguageSymbolFromId(mepsLanguage);
+    }
   }
   if (mepsLanguage != null) queryParts.add("LanguageSymbol == '$languageSymbol'");
 
@@ -133,6 +145,23 @@ PopupMenuItem getVideoAddPlaylistItem(BuildContext context, Video video) {
     ),
     onTap: () {
       showAddItemToPlaylistDialog(context, video);
+    },
+  );
+}
+
+PopupMenuItem getVideoAddNoteItem(BuildContext context, Video video) {
+  NotesController notesController = context.read<NotesController>();
+  return PopupMenuItem(
+    child: Row(
+      children: [
+        Icon(JwIcons.note_plus),
+        SizedBox(width: 8),
+        Text(i18n().action_add_a_note),
+      ],
+    ),
+    onTap: () async {
+      Note note = await notesController.addNote(title: video.title, media: video);
+      showPage(NotePage(note: note));
     },
   );
 }
@@ -235,7 +264,7 @@ PopupMenuItem getShowSubtitlesItem(BuildContext context, Video video, {String qu
       ],
     ),
     onTap: () async {
-      if (video.isDownloadedNotifier.value) {
+      if (video.isDownloadedNotifier.value && video.subtitlesFilePath != null) {
         showPage(SubtitlesPage(
             video: video,
             query: query
@@ -264,8 +293,8 @@ PopupMenuItem getCopySubtitlesItem(BuildContext context, Video video) {
     ),
     onTap: () async {
       Subtitles subtitles = Subtitles();
-      if (video.isDownloadedNotifier.value) {
-        File file = File(video.subtitlesFilePath);
+      if (video.isDownloadedNotifier.value && video.subtitlesFilePath != null) {
+        File file = File(video.subtitlesFilePath!);
         await subtitles.loadSubtitlesFromFile(file);
       }
       else {
@@ -275,10 +304,10 @@ PopupMenuItem getCopySubtitlesItem(BuildContext context, Video video) {
 
           if (response.statusCode == 200) {
             await subtitles.loadSubtitles(response.data['media'][0]);
-            Clipboard.setData(ClipboardData(text: subtitles.toString())).then((value) => showBottomMessage("Sous-titres copiés dans le presse-papier"));
           }
         }
       }
+      Clipboard.setData(ClipboardData(text: subtitles.toString())).then((value) => showBottomMessage("Sous-titres copiés dans le presse-papier"));
     },
   );
 }
@@ -406,4 +435,77 @@ Future<int?> showVideoDownloadMenu(BuildContext context, List<dynamic> files, Of
     items: items,
     elevation: 8.0,
   );
+}
+
+Future<Video?> getVideoApi({Multimedia? multimedia}) async {
+  final currentVideo = multimedia;
+  if(currentVideo == null) return null;
+
+  String? pub = currentVideo.keySymbol;
+  int? issue = currentVideo.issueTagNumber;
+  int? docId = currentVideo.mepsDocumentId;
+  int? track = currentVideo.track;
+  int? mepsLanguageId = currentVideo.mepsLanguageId;
+
+  final Map<String, String> queryParameters = {
+    'langwritten': MepsLanguages.getMepsLanguageSymbolFromId(mepsLanguageId ?? 0) ?? '',
+  };
+
+  if (pub != null) {
+    queryParameters['pub'] = pub;
+  }
+  if (issue != 0) {
+    queryParameters['issue'] = issue.toString();
+  }
+  if (docId != null) {
+    queryParameters['docid'] = docId.toString();
+  }
+  if (track != null) {
+    queryParameters['track'] = track.toString();
+  }
+
+  // 2. Construction de l'URL sécurisée
+  final uri = Uri.https(
+    'app.jw-cdn.org',
+    '/apis/pub-media/GETPUBMEDIALINKS',
+    queryParameters,
+  );
+
+  final apiUrl = uri.toString();
+
+  printTime('apiUrl: $apiUrl');
+
+  try {
+    final response = await Api.httpGetWithHeaders(apiUrl, responseType: ResponseType.json);
+
+    if (response.statusCode == 200) {
+      String? lang = queryParameters['langwritten'];
+      final file = response.data['files'][lang]['MP4'][0];
+
+      final videoMap = {
+        'KeySymbol': file['pub'],
+        'DocumentId': file['docid'],
+        'BookNumber': file['booknum'],
+        'IssueTagNumber': issue,
+        'Track': track,
+        'MepsLanguage': lang,
+        'Title': file['title'] ?? '',
+        'Duration': file['duration'],
+        'NaturalKey': file['languageAgnosticNaturalKey'],
+        'FrameHeight': file['frameHeight'],
+        'FrameWidth': file['frameWidth'],
+        'Label': file['label'],
+        'BitRate': file['bitRate'],
+        'FileUrl': file['file']['url'],
+      };
+
+      return Video.fromJson(json: videoMap);
+    }
+    else {
+      printTime('Loading error: ${response.statusCode}');
+    }
+  }
+  catch (e) {
+    printTime('An exception occurred: $e');
+  }
 }

@@ -295,7 +295,7 @@ class History {
     int? documentId = video.documentId;
     int? issueTagNumber = video.issueTagNumber;
     String? displayTitle = video.title;
-    int mepsLanguageId = JwLifeSettings.instance.libraryLanguage.value.id;
+    int? mepsLanguageId = video.getMepsLanguageId();
 
     String whereClause = "Type = ?";
     List<dynamic> whereArgs = ["video"];
@@ -318,6 +318,11 @@ class History {
     if (issueTagNumber != null) {
       whereClause += " AND IssueTagNumber = ?";
       whereArgs.add(issueTagNumber);
+    }
+
+    if (mepsLanguageId != null) {
+      whereClause += " AND MepsLanguageId = ?";
+      whereArgs.add(mepsLanguageId);
     }
 
     List<Map<String, dynamic>> existing = await _database.query(
@@ -349,75 +354,14 @@ class History {
       });
     }
   }
-
-  Future<void> insertAudioMediaItem(Audio audio) async {
-    String? keySymbol = audio.keySymbol;
-    int? track = audio.track;
-    int? documentId = audio.documentId;
-    int? issueTagNumber = audio.issueTagNumber;
-    String? displayTitle = audio.title;
-    int mepsLanguageId = JwLifeSettings.instance.libraryLanguage.value.id;
-
-    String whereClause = "Type = ?";
-    List<dynamic> whereArgs = ["audio"];
-
-    if (keySymbol != null) {
-      whereClause += " AND KeySymbol = ?";
-      whereArgs.add(keySymbol);
-    }
-
-    if (track != null) {
-      whereClause += " AND Track = ?";
-      whereArgs.add(track);
-    }
-
-    if (documentId != null) {
-      whereClause += " AND DocumentId = ?";
-      whereArgs.add(documentId);
-    }
-
-    if (issueTagNumber != null) {
-      whereClause += " AND IssueTagNumber = ?";
-      whereArgs.add(issueTagNumber);
-    }
-
-    List<Map<String, dynamic>> existing = await _database.query(
-      "History",
-      where: whereClause,
-      whereArgs: whereArgs,
-    );
-
-    if (existing.isNotEmpty) {
-      await _database.update(
-        "History",
-        {
-          "NavigationBottomBarIndex": GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex.value,
-        },
-        where: "HistoryId = ?",
-        whereArgs: [existing.first["HistoryId"]],
-      );
-    }
-    else {
-      await _database.insert("History", {
-        "DisplayTitle": displayTitle,
-        "DocumentId": documentId,
-        "KeySymbol": keySymbol,
-        "Track": track,
-        "IssueTagNumber": issueTagNumber ?? 0,
-        "MepsLanguageId": mepsLanguageId,
-        "Type": "audio",
-        "NavigationBottomBarIndex": GlobalKeyService.jwLifePageKey.currentState!.currentNavigationBottomBarIndex.value,
-      });
-    };
-  }
-
+  
   Future<void> insertAudio(Audio audio) async {
     String? keySymbol = audio.keySymbol;
     int? track = audio.track;
     int? documentId = audio.documentId;
     int? issueTagNumber = audio.issueTagNumber;
     String? displayTitle = audio.title;
-    int mepsLanguageId = JwLifeSettings.instance.libraryLanguage.value.id;
+    int? mepsLanguageId = audio.getMepsLanguageId();
 
     String whereClause = "Type = ?";
     List<dynamic> whereArgs = ["audio"];
@@ -441,6 +385,12 @@ class History {
       whereClause += " AND IssueTagNumber = ?";
       whereArgs.add(issueTagNumber);
     }
+
+    if (mepsLanguageId != null) {
+      whereClause += " AND MepsLanguageId = ?";
+      whereArgs.add(mepsLanguageId);
+    }
+
 
     List<Map<String, dynamic>> existing = await _database.query(
       "History",

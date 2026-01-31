@@ -1,11 +1,11 @@
 import 'package:collection/collection.dart';
 import 'package:jwlife/app/services/settings_service.dart';
+import 'package:jwlife/data/databases/meps_languages.dart';
 import 'package:jwlife/data/repositories/PublicationRepository.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../app/services/global_key_service.dart';
 import '../../data/databases/catalog.dart';
-import '../../data/databases/mepsunit.dart';
 import '../../data/models/audio.dart';
 import '../../data/models/publication.dart';
 import '../../data/models/video.dart';
@@ -29,7 +29,7 @@ Future<void> handleUri(JwOrgUri uri) async {
       }
     }
     else if (uri.isDocument) {
-      int? mepsLanguageId = await Mepsunit.getMepsLanguageIdFromSymbol(uri.wtlocale);
+      int? mepsLanguageId = MepsLanguages.getMepsLanguageIdFromSymbol(uri.wtlocale);
       if (mepsLanguageId == null) return;
 
       int? startParagraphId;

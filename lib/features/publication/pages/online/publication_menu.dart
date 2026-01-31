@@ -545,6 +545,7 @@ class _PublicationMenuState extends State<PublicationMenu> with SingleTickerProv
                         ),
                       ),
                       PopupMenuButton(
+                        useRootNavigator: true,
                         popUpAnimationStyle: AnimationStyle.lerp(
                           AnimationStyle(curve: Curves.ease),
                           AnimationStyle(curve: Curves.ease),

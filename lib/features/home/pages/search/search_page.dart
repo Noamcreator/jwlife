@@ -100,6 +100,7 @@ class _SearchPageState extends State<SearchPage> {
         ),
         actions: [
           PopupMenuButton<int>(
+            useRootNavigator: true,
             style: ButtonStyle(visualDensity: VisualDensity.compact),
             icon: Icon(JwIcons.three_dots_horizontal),
             onSelected: selectTab,

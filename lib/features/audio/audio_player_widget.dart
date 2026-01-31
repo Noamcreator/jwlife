@@ -366,6 +366,7 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
                               children: [
                                 // Menu des paramètres
                                 PopupMenuButton(
+                                  useRootNavigator: true,
                                   icon: const Icon(JwIcons.gear, size: 22),
                                   style: IconButton.styleFrom(
                                     visualDensity: const VisualDensity(horizontal: -4, vertical: -4),
@@ -798,6 +799,7 @@ class _FullAudioViewState extends State<FullAudioView> {
                       ),
                       actions: [
                         PopupMenuButton(
+                          useRootNavigator: true,
                           icon: Icon(JwIcons.three_dots_horizontal, color: Colors.white),
                           itemBuilder: (context) => [
                             if (audio.isDownloadedNotifier.value && audio.filePath != null) getAudioShareFileItem(audio),
@@ -806,7 +808,7 @@ class _FullAudioViewState extends State<FullAudioView> {
                             getAudioAddPlaylistItem(context, audio),
                             getAudioLanguagesItem(context, audio),
                             getAudioFavoriteItem(audio),
-                            getAudioDownloadItem(context, audio),
+                            if (audio.isDownloadedNotifier.value && !audio.isDownloadingNotifier.value) getAudioDownloadItem(context, audio),
                             getAudioLyricsItem(context, audio),
                             getCopyLyricsItem(audio)
                           ]

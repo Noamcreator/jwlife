@@ -6,6 +6,7 @@ import 'package:jwlife/core/uri/jworg_uri.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/core/utils/utils_document.dart';
 import 'package:jwlife/data/models/publication.dart';
+import 'package:jwlife/features/publication/models/menu/local/words_suggestions_model.dart';
 import 'package:jwlife/widgets/responsive_appbar_actions.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -510,7 +511,10 @@ class _PublicationSearchViewState extends State<PublicationSearchView> {
         actions: [
           IconTextButton(
             icon: const Icon(JwIcons.magnifying_glass),
-            onPressed: (BuildContext context) => setState(() => _isSearching = true),
+            onPressed: (BuildContext context) {
+              widget.publication.wordsSuggestionsModel ??= WordsSuggestionsModel(widget.publication);
+              setState(() => _isSearching = true);
+            },
           ),
           IconTextButton(
             icon: const Icon(JwIcons.arrow_circular_left_clock),

@@ -232,8 +232,10 @@ class Userdata {
             final result = await txn.rawQuery('''
                 SELECT DISTINCT
                   p.*,
-                  pa.LastModified, 
+                  pa.LastModified,
+                  pa.LastUpdated,
                   pa.CatalogedOn,
+                  pa.GenerallyAvailableDate,
                   pa.Size,
                   pa.ExpandedSize,
                   pa.SchemaVersion,
@@ -299,7 +301,9 @@ class Userdata {
         L.DocumentId,
         L.IssueTagNumber,
         L.KeySymbol,
-        L.MepsLanguage
+        L.MepsLanguage,
+        L.Track,
+        L.Type
     FROM Note N
     LEFT JOIN Location L ON L.LocationId = N.LocationId
     LEFT JOIN UserMark UM ON UM.UserMarkId = N.UserMarkId
@@ -374,14 +378,15 @@ class Userdata {
       }
       else if (object is Document) {
         bool isBibleChapter = object.isBibleChapter();
-        locationId = await insertLocation(object.bookNumber, object.chapterNumber, isBibleChapter ? null : object.mepsDocumentId, null, object.publication.issueTagNumber, object.publication.keySymbol, object.publication.mepsLanguage.id, type: 0);
+        locationId = await insertLocation(object.bookNumber, object.chapterNumberBible, isBibleChapter ? null : object.mepsDocumentId, null, object.publication.issueTagNumber, object.publication.keySymbol, object.publication.mepsLanguage.id, type: 0);
       }
       else if (object is Audio) {
-        locationId = await insertLocation(null, null, null, object.track, object.issueTagNumber, object.keySymbol, 3, type: 2);
-        //TODO changer pour avoir le bon mepsLanguage ID
+        int? mepsLanguageId = object.getMepsLanguageId();
+        locationId = await insertLocation(null, null, object.documentId, object.track, object.issueTagNumber, object.keySymbol, mepsLanguageId, type: 2);
       }
       else if (object is Video) {
-        locationId = await insertLocation(null, null, null, object.track, object.issueTagNumber, object.keySymbol, 3, type: 3);
+        int? mepsLanguageId = object.getMepsLanguageId();
+        locationId = await insertLocation(null, null, object.documentId, object.track, object.issueTagNumber, object.keySymbol, mepsLanguageId, type: 3);
       }
       else {
         return;
@@ -440,7 +445,7 @@ class Userdata {
         bool isBibleChapter = object.isBibleChapter();
         locationId = await _getLocationId(
           bookNumber: isBibleChapter ? object.bookNumber : null,
-          chapterNumber: isBibleChapter ? object.chapterNumber : null,
+          chapterNumber: isBibleChapter ? object.chapterNumberBible : null,
           mepsDocumentId: isBibleChapter ? null : object.mepsDocumentId,
           issueTagNumber: object.publication.issueTagNumber,
           keySymbol: object.publication.keySymbol,
@@ -449,11 +454,13 @@ class Userdata {
         );
       }
       else if (object is Media) {
+        int? mepsLanguageId = object.getMepsLanguageId();
+
         locationId = await _getLocationId(
           track: object.track,
           issueTagNumber: object.issueTagNumber,
           keySymbol: object.keySymbol,
-          mepsLanguageId: 3, // TODO dynamique
+          mepsLanguageId: mepsLanguageId,
           type: object is Audio ? 2 : 3,
         );
       }
@@ -488,9 +495,7 @@ class Userdata {
         }
 
         if (object is Media && item is Media) {
-          return !(item.keySymbol == object.keySymbol &&
-              item.issueTagNumber == object.issueTagNumber &&
-              item.track == object.track);
+          return !((item.keySymbol == object.keySymbol || item.documentId == object.documentId) && item.issueTagNumber == object.issueTagNumber && item.track == object.track);
         }
 
         if (object is Map && item is Map) {
@@ -538,11 +543,11 @@ class Userdata {
     final batch = _database.batch();
 
     batch.rawDelete('''
-    DELETE FROM TagMap
-    WHERE TagId IN (
-      SELECT TagId FROM Tag WHERE Type = 0
-    )
-  ''');
+      DELETE FROM TagMap
+      WHERE TagId IN (
+        SELECT TagId FROM Tag WHERE Type = 0
+      )
+    ''');
 
     for (int i = 0; i < updated.length; i++) {
       final item = updated[i];
@@ -570,7 +575,7 @@ class Userdata {
       ''', [
           i,
           item.bookNumber,
-          item.chapterNumber,
+          item.chapterNumberBible,
           isBibleChapter ? null : item.mepsDocumentId,
           item.publication.issueTagNumber,
           item.publication.keySymbol,
@@ -580,23 +585,27 @@ class Userdata {
       }
 
       else if (item is Audio) {
+        int? mepsLanguageId = item.getMepsLanguageId();
+
         batch.rawInsert('''
         INSERT INTO TagMap (TagId, LocationId, Position)
         SELECT Tag.TagId, Location.LocationId, ?
         FROM Tag
-        JOIN Location ON Location.Track = ? AND Location.IssueTagNumber = ? AND Location.KeySymbol = ? AND Location.MepsLanguage = ? AND Location.Type = ?
+        JOIN Location ON Location.Track = ? AND Location.IssueTagNumber = ? AND (Location.KeySymbol = ? OR Location.DocumentId = ?) AND Location.MepsLanguage = ? AND Location.Type = ?
         WHERE Tag.Type = 0
-      ''', [i, item.track, item.issueTagNumber ?? 0, item.keySymbol, 3, 2]);
+      ''', [i, item.track, item.issueTagNumber ?? 0, item.keySymbol, item.documentId, mepsLanguageId ?? 0, 2]);
       }
 
       else if (item is Video) {
+        int? mepsLanguageId = item.getMepsLanguageId();
+
         batch.rawInsert('''
         INSERT INTO TagMap (TagId, LocationId, Position)
         SELECT Tag.TagId, Location.LocationId, ?
         FROM Tag
-        JOIN Location ON Location.Track = ? AND Location.IssueTagNumber = ? AND Location.KeySymbol = ? AND Location.MepsLanguage = ? AND Location.Type = ?
+        JOIN Location ON Location.Track = ? AND Location.IssueTagNumber = ? AND (Location.KeySymbol = ? OR Location.DocumentId = ?) AND Location.MepsLanguage = ? AND Location.Type = ?
         WHERE Tag.Type = 0
-      ''', [i, item.track, item.issueTagNumber ?? 0, item.keySymbol, 3, 3]);
+      ''', [i, item.track, item.issueTagNumber ?? 0, item.keySymbol, item.documentId, mepsLanguageId ?? 0, 3]);
       }
 
       else if (item is Map<String, dynamic>) {
@@ -749,11 +758,21 @@ class Userdata {
     }
   }
 
-  Future<int?> insertLocationWithDocument(Document? document, {DatedText? datedText, bool language = true}) async {
-    if(document == null && datedText == null) return null;
-    Publication publication = datedText?.publication ?? document!.publication;
-    int mepsDocumentId = document?.mepsDocumentId ?? datedText!.mepsDocumentId;
-    int? locationId = await insertLocation(document?.bookNumber, document?.chapterNumber, mepsDocumentId, null, publication.issueTagNumber, publication.keySymbol, language ? publication.mepsLanguage.id : null);
+  Future<int?> insertLocationWithItem({Document? document, DatedText? datedText, Media? media, bool language = true}) async {
+    if(document == null && datedText == null && media == null) return null;
+    int? locationId;
+
+    if(media != null) {
+      int? mepsLanguageId = language ? media.getMepsLanguageId() : null;
+      locationId = await insertLocation(null, null, media.documentId, media.track, media.issueTagNumber, media.keySymbol, mepsLanguageId, type: media is Audio ? 2 : 3);
+    }
+    else {
+      Publication publication = datedText?.publication ?? document!.publication;
+      int mepsDocumentId = document?.mepsDocumentId ?? datedText!.mepsDocumentId;
+
+      locationId = await insertLocation(document?.bookNumber, document?.chapterNumberBible, mepsDocumentId, null, publication.issueTagNumber, publication.keySymbol, language ? publication.mepsLanguage.id : null);
+    }
+    
     return locationId;
   }
 
@@ -924,7 +943,7 @@ class Userdata {
   Future<void> updateOrInsertInputField(Document document, String tag, String value) async {
     try {
       // Étape 1 : Obtenir ou insérer le LocationId via insertLocation
-      final int? locationId = await insertLocationWithDocument(document, language: false);
+      final int? locationId = await insertLocationWithItem(document: document, language: false);
 
       // Étape 2 : Insérer ou mettre à jour l'entrée InputField
       await _database.rawInsert('''
@@ -1074,7 +1093,7 @@ class Userdata {
     if(document == null && datedText == null) return [];
 
     try {
-      int? locationId = await insertLocationWithDocument(document, datedText: datedText);
+      int? locationId = await insertLocationWithItem(document: document, datedText: datedText);
 
       final userMarkId = await _database.insert('UserMark', {
         'ColorIndex': colorIndex,
@@ -1288,7 +1307,7 @@ class Userdata {
       }
 
       // Si on n’a pas encore de locationId, on l’obtient via insertLocation
-      locationId ??= await insertLocationWithDocument(document, datedText: datedText);
+      locationId ??= await insertLocationWithItem(document: document, datedText: datedText);
 
       final timestamp = DateTime.now().toIso8601String();
 
@@ -1361,6 +1380,7 @@ class Userdata {
     int? identifier,
     Document? document,
     DatedText? datedText,
+    Media? media,
   }) async {
     try {
       // ---- NORMALISATION DES NULLS ----
@@ -1371,7 +1391,7 @@ class Userdata {
       final safeColorIndex = colorIndex ?? 0;
       final safeBlockType = blockType ?? 0;
 
-      int? locationId = await insertLocationWithDocument(document, datedText: datedText);
+      int? locationId = await insertLocationWithItem(document: document, datedText: datedText, media: media);
       final timestamp = DateTime.now().toIso8601String();
 
       int? userMarkId;
@@ -1426,6 +1446,8 @@ class Userdata {
         });
       }
 
+      int? mepsLanguageId = datedText?.publication.mepsLanguage.id ?? document?.publication.mepsLanguage.id ?? media?.getMepsLanguageId();
+
       // --- RETURN NOTE ---
       return Note(
         guid: guid,
@@ -1439,19 +1461,18 @@ class Userdata {
         tagsId: safeTagsIds,
         userMarkGuid: userMarkGuid,
         location: Location(
-          type: 0,
+          type: document != null || datedText != null ? 0 : media != null ? media is Audio ? 2 : media is Video ? 3 : 0 : 0,
           bookNumber: document?.bookNumber,
           chapterNumber: document?.chapterNumberBible,
-          mepsDocumentId: datedText?.mepsDocumentId ?? document?.mepsDocumentId,
-          mepsLanguageId: datedText?.publication.mepsLanguage.id ??
-              document?.publication.mepsLanguage.id,
-          issueTagNumber: datedText?.publication.issueTagNumber ??
-              document?.publication.issueTagNumber,
-          keySymbol: datedText?.publication.keySymbol ??
-              document?.publication.keySymbol,
+          mepsDocumentId: datedText?.mepsDocumentId ?? document?.mepsDocumentId ?? media?.documentId,
+          mepsLanguageId: mepsLanguageId,
+          issueTagNumber: datedText?.publication.issueTagNumber ?? document?.publication.issueTagNumber ?? media?.issueTagNumber,
+          keySymbol: datedText?.publication.keySymbol ?? document?.publication.keySymbol ?? media?.keySymbol,
+          track: media?.track,
         ),
       );
-    } catch (e) {
+    } 
+    catch (e) {
       printTime('Erreur lors de l\'ajout de la note : $e');
       throw Exception('Failed to add note for the given DocumentId and BlockIdentifier.');
     }
@@ -2054,7 +2075,8 @@ class Userdata {
           type: 0,
         ),
       );
-    } catch (e) {
+    } 
+    catch (e) {
       printTime('Erreur lors de la mise à jour du bookmark : $e');
       return null;
     }

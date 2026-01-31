@@ -500,16 +500,14 @@ class _BibleChapterPageState extends State<BibleChapterPage> {
         if (url.startsWith('jwpub://c')) {
           try {
             final mainPart = uri.toString().replaceAll('jwpub://c/', '');
+            print('mainPart: $mainPart');
             final mainSegments = mainPart.split('/');
             if (mainSegments.length < 2) return NavigationActionPolicy.CANCEL;
 
-            final langAndBook = mainSegments[0].split(':');
             final rangeChapterAndVerse = mainSegments[1].split('-');
 
-            //final int bookDocId = int.parse(langAndBook[1]);
-            //int bookNumber = 0;
             final String firstVerseRange = rangeChapterAndVerse[0];
-            final String lastVerseRange = rangeChapterAndVerse[1];
+            final String lastVerseRange = rangeChapterAndVerse.length > 1 ? rangeChapterAndVerse[1] : firstVerseRange;
 
             final int firstChapter = int.parse(firstVerseRange.split(':')[0]);
             final int lastChapter = int.parse(lastVerseRange.split(':')[0]);

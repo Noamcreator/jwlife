@@ -12,6 +12,7 @@ import 'package:jwlife/core/utils/webview_data.dart';
 import 'package:jwlife/core/webview/webview_utils.dart';
 import 'package:jwlife/data/models/audio.dart';
 import 'package:jwlife/data/realm/catalog.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../app/app_page.dart';
 import '../../../app/services/settings_service.dart';
@@ -106,33 +107,33 @@ class _AlertsListPageState extends State<AlertsListPage> {
     // -------------------------
 
     String htmlContent = '''
-    <!DOCTYPE html>
-    <html style="overflow: hidden;">
-    <meta content="text/html" charset="UTF-8">
-    <meta name="viewport" content="initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <link rel="stylesheet" href="jw-styles.css" />
-      <head>
-        <meta charset="UTF-8">
-        <style>
-          body {
-            font-size: ${webViewData.fontSize}px;
-            background-color: ${webViewData.backgroundColor};
-          }
-        </style>
-      </head>
-      <body class='${webViewData.theme}'>
-        <main role="main" id="content" class="topWhiteSpace">
-          <article id="article" class="jwac layout-reading layout-sidebar">
-            <div id="newsAlerts" class="jsAlertModule alertContainer cms-clearfix jsAlertsLoaded">
-              <div class="jsAlertList">
-                $htmlAlerts
+      <!DOCTYPE html>
+      <html style="overflow: hidden;">
+      <meta content="text/html" charset="UTF-8">
+      <meta name="viewport" content="initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+      <link rel="stylesheet" href="jw-styles.css" />
+        <head>
+          <meta charset="UTF-8">
+          <style>
+            body {
+              font-size: ${webViewData.fontSize}px;
+              background-color: ${webViewData.backgroundColor};
+            }
+          </style>
+        </head>
+        <body class='${webViewData.theme}'>
+          <main role="main" id="content" class="topWhiteSpace">
+            <article id="article" class="jwac layout-reading layout-sidebar">
+              <div id="newsAlerts" class="jsAlertModule alertContainer cms-clearfix jsAlertsLoaded">
+                <div class="jsAlertList">
+                  $htmlAlerts
+                </div> 
               </div> 
-            </div> 
-          </article>
-        </main>
-      </body>   
-    </html>
-  ''';
+            </article>
+          </main>
+        </body>   
+      </html>
+    ''';
 
     return htmlContent;
   }
@@ -258,7 +259,11 @@ class _AlertsListPageState extends State<AlertsListPage> {
 
               RealmMediaItem? mediaItem = getMediaItemFromLank(jwOrgUri.lank!, jwOrgUri.wtlocale);
 
-              if (mediaItem == null) return NavigationActionPolicy.ALLOW;
+              if (mediaItem == null) {
+                 url = '$url&wtlocale=$_languageSymbol';
+                 await launchUrl(Uri.parse(url));
+                 return NavigationActionPolicy.CANCEL;
+              }
 
               if(mediaItem.type == 'AUDIO') {
                 Audio audio = Audio.fromJson(mediaItem: mediaItem);
@@ -271,7 +276,11 @@ class _AlertsListPageState extends State<AlertsListPage> {
             }
             else {
               if(await hasInternetConnection(context: context)) {
-                return NavigationActionPolicy.ALLOW;
+                url = '$url&wtlocale=$_languageSymbol';
+
+                await launchUrl(Uri.parse(url));
+ 
+                return NavigationActionPolicy.CANCEL;
               }
               else {
                 return NavigationActionPolicy.CANCEL;
@@ -285,7 +294,7 @@ class _AlertsListPageState extends State<AlertsListPage> {
           else if(url.startsWith('https://')) {
             // Permet la navigation pour tous les autres liens
             if(await hasInternetConnection(context: context)) {
-              return NavigationActionPolicy.ALLOW;
+              return NavigationActionPolicy.CANCEL;
             }
             else {
               return NavigationActionPolicy.CANCEL;

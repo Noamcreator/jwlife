@@ -1,5 +1,6 @@
 import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/features/publication/models/menu/local/tab_items.dart';
+import 'package:jwlife/features/publication/models/menu/local/words_suggestions_model.dart';
 
 import '../../../../../core/utils/files_helper.dart';
 import '../../../../../core/utils/utils_database.dart';

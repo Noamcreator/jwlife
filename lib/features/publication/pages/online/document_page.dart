@@ -280,6 +280,7 @@ class _PagesDocumentViewState extends State<PagesDocumentView> {
             onPressed: () {},
           ),
           PopupMenuButton(
+            useRootNavigator: true,
             icon: const Icon(Icons.more_vert),
             itemBuilder: (BuildContext context) {
               return <PopupMenuEntry<String>>[

@@ -3,6 +3,7 @@ import 'package:jwlife/app/services/settings_service.dart';
 import 'package:jwlife/core/ui/app_dimens.dart';
 import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/core/webview/webview_javascript.dart';
+import 'package:jwlife/data/models/userdata/note.dart';
 import 'package:jwlife/features/document/local/dated_text_manager.dart';
 import 'package:jwlife/features/document/local/documents_manager.dart';
 import 'package:jwlife/features/home/pages/daily_text_page.dart';
@@ -125,19 +126,14 @@ Future<void> showPageDailyText(Publication publication, {DateTime? date}) async 
 Future<void> showPage(Widget page) async {
   GlobalKeyService.jwLifePageKey.currentState!.addPageToTab(page);
 
-  final isTransparentFullscreenPage = page is VideoPlayerPage || page is PlaylistPlayerPage || page is FullScreenImagePage || page is FullAudioView;
+  final isTransparentFullscreenPage = page is VideoPlayerPage || page is PlaylistPlayerPage || page is FullScreenImagePage || page is FullAudioView || page is NotePage;
 
   GlobalKeyService.jwLifePageKey.currentState!.toggleNavBarTransparent(isTransparentFullscreenPage);
 
-  final isResizeToAvoidBottomInset = page is NotePage;
-
   final isControlsVisible = GlobalKeyService.jwLifePageKey.currentState!.controlsVisible.value;
 
-  if(page is VideoPlayerPage || page is PlaylistPlayerPage) {
+  if(page is VideoPlayerPage || page is PlaylistPlayerPage || page is NotePage) {
     GlobalKeyService.jwLifePageKey.currentState!.toggleNavBarVisibility(false);
-  }
-  else {
-    GlobalKeyService.jwLifePageKey.currentState!.toggleBottomNavBarVisibility(isResizeToAvoidBottomInset ? false : true);
   }
 
   final isBottomTransition = page is FullAudioView || page is NotePage || JwLifeSettings.instance.pageTransition == 'bottom';

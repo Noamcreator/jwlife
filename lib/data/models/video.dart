@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:jwlife/data/databases/meps_languages.dart';
 import 'package:jwlife/data/realm/catalog.dart';
 import '../../core/app_data/app_data_service.dart';
 import '../../app/services/settings_service.dart';
@@ -148,21 +149,55 @@ class Video extends Media {
   }
 
   /// Exemple d’helper spécifique aux vidéos
-  String get subtitlesFilePath => filePath!.replaceAll('.mp4', '.vtt');
+  String? get subtitlesFilePath => subtitles?.filePath;
 
   @override
   Future<void> download(BuildContext context, {int? resolution, Offset? tapPosition}) async {
     if (await hasInternetConnection(context: context)) {
       if (!isDownloadingNotifier.value && !isDownloadedNotifier.value) {
-        String link = 'https://b.jw-cdn.org/apis/mediator/v1/media-items/$mepsLanguage/$naturalKey';
+        String link = '';
+        if(naturalKey == null || naturalKey!.isEmpty) {
+          final Map<String, String> queryParameters = {
+            'langwritten': MepsLanguages.getMepsLanguageSymbolFromId(mepsLanguageId ?? 0) ?? '',
+          };
+
+          if (keySymbol != null) {
+            queryParameters['pub'] = (keySymbol!.isNotEmpty ? keySymbol : null)!;
+          }
+          if (issueTagNumber != null && issueTagNumber != 0) {
+            queryParameters['issue'] = issueTagNumber.toString();
+          }
+          if (documentId != null && documentId != 0) {
+            queryParameters['docid'] = documentId.toString();
+          }
+          if (track != null) {
+            queryParameters['track'] = track.toString();
+          }
+
+          // 2. Construction de l'URL sécurisée
+          final uri = Uri.https(
+            'app.jw-cdn.org',
+            '/apis/pub-media/GETPUBMEDIALINKS',
+            queryParameters,
+          );
+
+          link = uri.toString();
+        }
+        else {
+          link = 'https://b.jw-cdn.org/apis/mediator/v1/media-items/$mepsLanguage/$naturalKey';
+        }
+
         final response = await Api.httpGetWithHeaders(link, responseType: ResponseType.json);
         if (response.statusCode == 200) {
           // Si 'file' est null, assigne le résultat de showVideoDownloadDialog à 'file'.
-          resolution ??= await showVideoDownloadMenu(context, response.data['media'][0]['files'], tapPosition ?? Offset.zero);
+          final files = (naturalKey == null || naturalKey!.isEmpty) ? response.data['files'][mepsLanguageId ?? 'E']['MP4'] : response.data['media'][0]['files'];
+          resolution ??= await showVideoDownloadMenu(context, files, tapPosition ?? Offset.zero);
 
           if(resolution == null) return;
 
-          await super.performDownload(context, response.data['media'][0], resolution: resolution);
+          fileUrl = (naturalKey == null || naturalKey!.isEmpty) ? files[resolution]['file']['url'] : null;
+
+          await super.performDownload(context, files, resolution: resolution);
         }
       }
     }
@@ -211,10 +246,10 @@ class Subtitles {
     return Subtitles(
       subtitleId: json['SubtitleId'] ?? -1,
       videoId: json['VideoId'] ?? -1,
-      checkSum: json['Checksum'],
-      timeStamp: json['ModifiedDateTime'],
+      checkSum: json['SubtitleChecksum'] ?? json['Checksum'],
+      timeStamp: json['SubtitleModifiedDateTime'] ?? json['ModifiedDateTime'],
       mepsLanguage: json['MepsLanguage'],
-      filePath: json['FilePath'],
+      filePath: json['SubtitleFilePath'] ?? json['FilePath'] ?? '',
     );
   }
 }

@@ -199,7 +199,9 @@ String timeAgo(DateTime dateTime, {DateTime? dateTimeCompare}) {
     // Utilisation de formatNumber
     final String formattedHours = formatNumber(hours, format: integerFormat);
     return i18n().label_whats_new_multiple_hours_ago(formattedHours);
-  } else if (diff.inDays < 30) {
+  }
+  // Si il y a moins de 60 jours, afficher le nombre de jours
+  else if (diff.inDays < 60) {
     final days = diff.inDays;
     if (days == 0) return i18n().label_whats_new_today;
     if (days == 1) return i18n().label_whats_new_1_day_ago;

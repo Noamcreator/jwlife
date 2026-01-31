@@ -142,7 +142,7 @@ class _BibleBookMediasViewState extends State<BibleBookMediasView> {
   }
 
   String _getChapterTitle(int chapterId) {
-    final bibleDocument = widget.bible.documentsManager!.documents.firstWhereOrNull((d) => d.bookNumber == widget.bibleBook.bookNumber && d.chapterNumber == chapterId);
+    final bibleDocument = widget.bible.documentsManager!.documents.firstWhereOrNull((d) => d.bookNumber == widget.bibleBook.bookNumber && d.chapterNumberBible == chapterId);
     return bibleDocument?.getDisplayTitle() ?? '';
   }
 

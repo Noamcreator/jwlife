@@ -54,7 +54,7 @@ class HomeSquareMediaItemItem extends StatelessWidget {
                           getAudioAddPlaylistItem(context, media as Audio),
                           getAudioLanguagesItem(context, media as Audio),
                           getAudioFavoriteItem(media as Audio),
-                          getAudioDownloadItem(context, media as Audio),
+                          if (media.isDownloadedNotifier.value && !media.isDownloadingNotifier.value) getAudioDownloadItem(context, media as Audio),
                           getAudioLyricsItem(context, media as Audio),
                           getCopyLyricsItem(media as Audio)
                         ]
@@ -63,9 +63,10 @@ class HomeSquareMediaItemItem extends StatelessWidget {
                           getVideoShareItem(media as Video),
                           getVideoQrCode(context, media as Video),
                           getVideoAddPlaylistItem(context, media as Video),
+                          getVideoAddNoteItem(context, media as Video),
                           getVideoLanguagesItem(context, media as Video),
                           getVideoFavoriteItem(media as Video),
-                          getVideoDownloadItem(context, media as Video),
+                          if (media.isDownloadedNotifier.value && ! media.isDownloadingNotifier.value) getVideoDownloadItem(context, media as Video),
                           getShowSubtitlesItem(context, media as Video),
                           getCopySubtitlesItem(context, media as Video),
                         ] : [],

@@ -321,9 +321,10 @@ class _RectanglePlaylistItemItemState extends State<RectanglePlaylistItemItem> {
                             getVideoShareItem(media),
                             getVideoQrCode(context, media),
                             getVideoAddPlaylistItem(context, media),
+                            getVideoAddNoteItem(context, media),
                             getVideoLanguagesItem(context, media),
                             getVideoFavoriteItem(media),
-                            getVideoDownloadItem(context, media),
+                            if (media.isDownloadedNotifier.value && ! media.isDownloadingNotifier.value) getVideoDownloadItem(context, media),
                             getShowSubtitlesItem(context, media),
                             getCopySubtitlesItem(context, media),
                           ]);
@@ -338,7 +339,7 @@ class _RectanglePlaylistItemItemState extends State<RectanglePlaylistItemItem> {
                             getAudioAddPlaylistItem(context, media),
                             getAudioLanguagesItem(context, media),
                             getAudioFavoriteItem(media),
-                            getAudioDownloadItem(context, media),
+                            if (media.isDownloadedNotifier.value && !media.isDownloadingNotifier.value) getAudioDownloadItem(context, media),
                             getAudioLyricsItem(context, media),
                             getCopyLyricsItem(media),
                           ]);

@@ -319,7 +319,7 @@ class AppDataService {
                 GROUP BY p.KeySymbol, p.IssueTagNumber, p.MepsLanguageId
                 ORDER BY TotalVisits DESC
                 LIMIT 10;
-            ''');
+              ''');
 
               AppDataService.instance.frequentlyUsed.value = result2.map((item) => Publication.fromJson(item)).toList();
             }
@@ -402,8 +402,12 @@ class AppDataService {
                 $publicationQuery
               WHERE p.MepsLanguageId = ?
                 AND p.Year >= strftime('%Y', 'now', '-2 year')
-                AND pa.CatalogedOn >= date('now', '-50 days')
-              ORDER BY pa.CatalogedOn DESC;
+                AND (
+                  pa.CatalogedOn >= date('now', '-50 days')
+                  OR pa.GenerallyAvailableDate >= date('now', '-50 days')
+                )
+              ORDER BY
+                COALESCE(pa.GenerallyAvailableDate, pa.CatalogedOn) DESC;
             ''', [latestLanguage.id]);
 
             AppDataService.instance.latestPublications.value = result3.map((item) => Publication.fromJson(item, language: latestLanguage)).toList();
@@ -457,13 +461,14 @@ class AppDataService {
       if (type == 'all' || type == 'workship') refreshPublicTalks();
     }
 
+    if(library && type != 'articles' && type != 'dailyText') {
+      checkUpdatesAndRefreshContent(null, isFirst: true, type: type);
+    }
+
     if(type == 'library') {
       await libraryLanguage.loadWolInfo();
     }
 
-    if(library && type != 'articles' && type != 'dailyText') {
-      checkUpdatesAndRefreshContent(null, isFirst: true, type: type);
-    }
 
     if(isFirst) {
       await Mepsunit.loadBibleCluesInfo(appLocalizations.meps_language);

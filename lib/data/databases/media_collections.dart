@@ -41,8 +41,9 @@ class MediaCollections {
     }
 
     List<Map<String, dynamic>> videosResult = await _database.rawQuery('''
-      SELECT Video.*, MediaKey.* FROM Video
+      SELECT Video.*, MediaKey.*, Subtitle.SubtitleId, Subtitle.ModifiedDateTime AS SubtitleModifiedDateTime, Subtitle.Checksum AS SubtitleChecksum, Subtitle.FilePath AS SubtitleFilePath FROM Video
       LEFT JOIN MediaKey ON Video.MediaKeyId = MediaKey.MediaKeyId
+      LEFT JOIN Subtitle ON Video.VideoId = Subtitle.VideoId
       ''');
 
     if (videosResult.isNotEmpty) {
@@ -281,7 +282,7 @@ class MediaCollections {
         "FrameHeight": video.frameHeight,
         "FrameWidth": video.frameWidth,
         "Label": video.label,
-        "SpecialtyDescription": video.specialtyDescription, // à compléter si nécessaire
+        "SpecialtyDescription": video.specialtyDescription,
         "FilePath": video.filePath,
         "Source": video.source,
         "ModifiedDateTime": video.lastModified,
@@ -334,18 +335,32 @@ class MediaCollections {
         where: "MediaKeyId = ?",
         whereArgs: [mediaKeyId],
       );
-    } else if (media is Video) {
-      await _database.delete(
+    } 
+    else if (media is Video) {
+      // Récupérer les id de la vidéo
+      final videoId = await _database.query(
         "Video",
+        columns: ["VideoId"],
         where: "MediaKeyId = ?",
         whereArgs: [mediaKeyId],
       );
 
-      await _database.delete(
-        "Subtitle",
-        where: "VideoId = ?",
-        whereArgs: [mediaKeyId],
-      );
+      if (videoId.isNotEmpty) {
+        final videoIdResult = videoId.first["VideoId"] as int;
+
+        // Supprimer les dépendances
+        await _database.delete(
+          "Video",
+          where: "VideoId = ?",
+          whereArgs: [videoIdResult],
+        );
+
+        await _database.delete(
+          "Subtitle",
+          where: "VideoId = ?",
+          whereArgs: [videoIdResult],
+        );
+      }
     }
 
     // Enfin, supprimer la clé

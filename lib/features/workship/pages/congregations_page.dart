@@ -454,6 +454,7 @@ class _CongregationsPageState extends State<CongregationsPage> {
 
                         // Le bouton Menu Popup
                         PopupMenuButton<String>(
+                          useRootNavigator: true,
                           icon: Icon(Icons.more_horiz, color: isDark ? Colors.white54 : Colors.black54),
                           color: isDark ? const Color(0xFF2A2A2A) : Colors.white,
                           onSelected: (value) async {

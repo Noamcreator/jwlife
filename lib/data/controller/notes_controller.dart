@@ -2,6 +2,7 @@ import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:jwlife/core/utils/utils.dart';
+import 'package:jwlife/data/models/media.dart';
 import 'package:jwlife/features/document/data/models/dated_text.dart';
 
 import '../../app/jwlife_app.dart';
@@ -27,7 +28,7 @@ class NotesController extends ChangeNotifier {
     }
   }
 
-  Future<Note> addNote({String? title, String? content, List<int>? tagsIds, int? styleIndex, int? colorIndex, int? blockType, int? identifier, Document? document, DatedText? datedText}) async {
+  Future<Note> addNote({String? title, String? content, List<int>? tagsIds, int? styleIndex, int? colorIndex, int? blockType, int? identifier, Document? document, DatedText? datedText, Media? media}) async {
     Note note = await JwLifeApp.userdata.addNote(
         title: title,
         content: content,
@@ -37,7 +38,8 @@ class NotesController extends ChangeNotifier {
         document: document,
         blockType: blockType,
         identifier: identifier,
-        datedText: datedText
+        datedText: datedText,
+        media: media
     );
 
     // éviter doublon
@@ -74,6 +76,12 @@ class NotesController extends ChangeNotifier {
 
     final before = notes.length;
     notes.removeWhere((n) => n.guid == guid);
+
+    if(JwLifeApp.noteController.isVisible) {
+      if(JwLifeApp.noteController.note?.guid == guid) {
+        JwLifeApp.noteController.hide();
+      }
+    }
 
     if (notes.length != before) notifyListeners();
   }
@@ -112,9 +120,10 @@ class NotesController extends ChangeNotifier {
     return notes.firstWhereOrNull((n) => n.guid == guid);
   }
 
-  List<Note> getNotesByDocument({
+  List<Note> getNotesByItem({
     Document? document,
     DatedText? datedText,
+    Media? media,
     int? mepsDocumentId,
     String? keySymbol,
     int? mepsLanguageId,
@@ -143,10 +152,16 @@ class NotesController extends ChangeNotifier {
       ).toList();
     }
 
-    else if (datedText != null) {;
+    else if (datedText != null) {
       return notes.where((n) {
           final block = n.blockIdentifier ?? -1;
           return n.location.mepsDocumentId == datedText.mepsDocumentId && block >= datedText.beginParagraphOrdinal && block <= datedText.endParagraphOrdinal;
+      }).toList();
+    }
+
+    else if (media != null) {
+      return notes.where((n) {
+        return (n.location.keySymbol == media.keySymbol || n.location.mepsDocumentId == media.documentId) && (n.location.issueTagNumber ?? 0) == (media.issueTagNumber ?? 0) && n.location.track == media.track;
       }).toList();
     }
 

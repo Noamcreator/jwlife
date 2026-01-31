@@ -792,7 +792,6 @@ Widget buildMediaTile(BuildContext context, RealmMediaItem item) {
     subtitle: Text(formatDuration(item.duration)),
     trailing: RepaintBoundary(
       child: PopupMenuButton(
-
         useRootNavigator: true,
         popUpAnimationStyle: AnimationStyle.lerp(
           const AnimationStyle(curve: Curves.ease),
@@ -807,7 +806,7 @@ Widget buildMediaTile(BuildContext context, RealmMediaItem item) {
           getAudioAddPlaylistItem(context, media),
           getAudioLanguagesItem(context, media),
           getAudioFavoriteItem(media),
-          getAudioDownloadItem(context, media),
+          if (media.isDownloadedNotifier.value && !media.isDownloadingNotifier.value) getAudioDownloadItem(context, media),
           getAudioLyricsItem(context, media),
           getCopyLyricsItem(media)
         ] : media is Video ? [
@@ -815,9 +814,10 @@ Widget buildMediaTile(BuildContext context, RealmMediaItem item) {
           getVideoShareItem(media),
           getVideoQrCode(context, media),
           getVideoAddPlaylistItem(context, media),
+          getVideoAddNoteItem(context, media),
           getVideoLanguagesItem(context, media),
           getVideoFavoriteItem(media),
-          getVideoDownloadItem(context, media),
+          if (media.isDownloadedNotifier.value && ! media.isDownloadingNotifier.value) getVideoDownloadItem(context, media),
           getShowSubtitlesItem(context, media),
           getCopySubtitlesItem(context, media),
         ]

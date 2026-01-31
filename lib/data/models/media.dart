@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import 'package:async/async.dart';
 import 'package:jwlife/app/services/settings_service.dart';
+import 'package:jwlife/data/databases/meps_languages.dart';
 import 'package:jwlife/data/realm/catalog.dart';
 import 'package:jwlife/data/realm/realm_library.dart';
 import 'package:realm/realm.dart';
@@ -21,6 +22,7 @@ abstract class Media {
   int? track;
   int? bookNumber;
   String? mepsLanguage;
+  int? mepsLanguageId;
   String categoryKey;
   String title;
   int? version;
@@ -111,7 +113,7 @@ abstract class Media {
     }
   }
 
-  Future<bool> performDownload(BuildContext context, Map<String, dynamic>? mediaJson, {int? resolution = 0}) async {
+  Future<bool> performDownload(BuildContext context, List<dynamic>? mediasFilesData, {int? resolution = 0}) async {
     if(!isDownloadingNotifier.value) {
       isDownloadingNotifier.value = true;
       progressNotifier.value = 0;
@@ -120,7 +122,7 @@ abstract class Media {
       _cancelToken = cancelToken;
 
       _downloadOperation = CancelableOperation.fromFuture(
-        downloadMedia(context, this, fileUrl, mediaJson, cancelToken, false, resolution: resolution),
+        downloadMedia(context, this, fileUrl, mediasFilesData, cancelToken, false, resolution: resolution),
         onCancel: () {
           isDownloadingNotifier.value = false;
           isDownloadedNotifier.value = false;
@@ -167,7 +169,7 @@ abstract class Media {
     }
   }
 
-  Future<bool> update(BuildContext context, Map<String, dynamic> mediaJson) async {
+  Future<bool> update(BuildContext context, {List<dynamic>? mediasFilesData}) async {
     if(!isDownloadingNotifier.value) {
       progressNotifier.value = 0;
       isDownloadingNotifier.value = true;
@@ -177,7 +179,7 @@ abstract class Media {
       _cancelToken = cancelToken;
 
       _updateOperation = CancelableOperation.fromFuture(
-        downloadMedia(context, this, fileUrl, mediaJson, cancelToken, true, resolution: 0), // TODO mettre le bon file pour la mise à jour
+        downloadMedia(context, this, fileUrl, mediasFilesData, cancelToken, true, resolution: 0), // TODO mettre le bon file pour la mise à jour
         onCancel: () {
           isDownloadingNotifier.value = false;
           isDownloadedNotifier.value = false;
@@ -258,5 +260,9 @@ abstract class Media {
 
   String getCategoryName() {
     return RealmLibrary.realm.all<RealmCategory>().query("Key == '$categoryKey' AND LanguageSymbol == '$mepsLanguage'").firstOrNull?.name ?? categoryKey;
+  }
+
+  int? getMepsLanguageId() {
+    return mepsLanguageId ?? (mepsLanguage != null ? MepsLanguages.getMepsLanguageIdFromSymbol(mepsLanguage!) : null);
   }
 }

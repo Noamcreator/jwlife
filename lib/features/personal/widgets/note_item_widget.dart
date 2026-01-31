@@ -1,8 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/utils.dart';
+import 'package:jwlife/core/utils/utils_audio.dart';
+import 'package:jwlife/core/utils/utils_video.dart';
 import 'package:jwlife/data/controller/tags_controller.dart';
 import 'package:jwlife/data/databases/catalog.dart';
+import 'package:jwlife/data/models/audio.dart';
+import 'package:jwlife/data/models/media.dart';
+import 'package:jwlife/data/models/video.dart';
+import 'package:jwlife/data/realm/catalog.dart';
 import 'package:provider/provider.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:collection/collection.dart';
@@ -43,53 +49,55 @@ class NoteItemWidget extends StatefulWidget {
 
     final loc = note.location;
 
-    if (loc.keySymbol == null ||
-        loc.issueTagNumber == null ||
-        loc.mepsLanguageId == null) {
-      return _cache[note.guid] = {'pub': null, 'docTitle': ''};
-    }
 
-    Publication? pub = PublicationRepository()
-        .getAllPublications()
-        .firstWhereOrNull((p) =>
-    p.keySymbol == loc.keySymbol &&
-        p.issueTagNumber == loc.issueTagNumber &&
-        p.mepsLanguage.id == loc.mepsLanguageId);
-
-    pub ??= await CatalogDb.instance.searchPubNoMepsLanguage(
-      loc.keySymbol!,
-      loc.issueTagNumber!,
-      loc.mepsLanguageId!,
-    );
-
+    Publication? pub;
+    Media? media;
     String docTitle = '';
 
-    if (pub != null && pub.isDownloadedNotifier.value) {
-      if (pub.isBible() &&
-          loc.bookNumber != null &&
-          loc.chapterNumber != null) {
-        docTitle = JwLifeApp.bibleCluesInfo.getVerse(
-          loc.bookNumber!,
-          loc.chapterNumber!,
-          note.blockIdentifier ?? 0,
-        );
-      } else {
-        if (pub.documentsManager == null) {
-          final db = await openReadOnlyDatabase(pub.databasePath!);
-          final rows = await db.rawQuery(
-            'SELECT Title FROM Document WHERE MepsDocumentId = ?',
-            [loc.mepsDocumentId],
+    if(loc.type == 1 || loc.type == 0) {
+      pub = PublicationRepository().getAllPublications().firstWhereOrNull((p) => p.keySymbol == loc.keySymbol && p.issueTagNumber == loc.issueTagNumber && p.mepsLanguage.id == loc.mepsLanguageId);
+
+      pub ??= await CatalogDb.instance.searchPubNoMepsLanguage(loc.keySymbol!,loc.issueTagNumber!, loc.mepsLanguageId!);
+
+      if (pub != null && pub.isDownloadedNotifier.value) {
+        if (pub.isBible() &&
+            loc.bookNumber != null &&
+            loc.chapterNumber != null) {
+          docTitle = JwLifeApp.bibleCluesInfo.getVerse(
+            loc.bookNumber!,
+            loc.chapterNumber!,
+            note.blockIdentifier ?? 0,
           );
-          if (rows.isNotEmpty) docTitle = rows.first['Title'] as String;
-        } else {
-          final doc = pub.documentsManager!.documents.firstWhereOrNull(
-                  (d) => d.mepsDocumentId == loc.mepsDocumentId);
-          docTitle = doc?.title ?? '';
+        } 
+        else {
+          if (pub.documentsManager == null) {
+            final db = await openReadOnlyDatabase(pub.databasePath!);
+            final rows = await db.rawQuery(
+              'SELECT Title FROM Document WHERE MepsDocumentId = ?',
+              [loc.mepsDocumentId],
+            );
+            if (rows.isNotEmpty) docTitle = rows.first['Title'] as String;
+          } 
+          else {
+            final doc = pub.documentsManager!.documents.firstWhereOrNull((d) => d.mepsDocumentId == loc.mepsDocumentId);
+            docTitle = doc?.title ?? '';
+          }
         }
       }
     }
-
-    return _cache[note.guid] = {'pub': pub, 'docTitle': docTitle};
+    else if (loc.type == 2 || loc.type == 3) {
+      RealmMediaItem? realmMediaItem = getMediaItem(loc.keySymbol, loc.track, loc.mepsDocumentId, loc.issueTagNumber, loc.mepsLanguageId);
+      if (realmMediaItem != null) {
+        if(realmMediaItem.type == 'AUDIO') {
+          media = Audio.fromJson(mediaItem: realmMediaItem);
+        }
+        else {
+          media = Video.fromJson(mediaItem: realmMediaItem);
+        }
+      }
+    }
+ 
+    return _cache[note.guid] = {'pub': pub, 'media': media, 'docTitle': docTitle};
   }
 
   @override
@@ -192,6 +200,7 @@ class _NoteItemWidgetState extends State<NoteItemWidget> {
       future: future,
       builder: (context, snapshot) {
         final pub = snapshot.data?['pub'];
+        final media = snapshot.data?['media'];
         final docTitle = snapshot.data?['docTitle'] ?? '';
 
         return Stack(
@@ -246,7 +255,7 @@ class _NoteItemWidgetState extends State<NoteItemWidget> {
                           widget.highlightQuery,
                           contentStyle,
                           contentHL,
-                          maxLines: pub != null ? 7 : 9,
+                          maxLines: pub != null || media != null ? 7 : 9,
                         ),
 
                         const SizedBox(height: 10),
@@ -263,12 +272,11 @@ class _NoteItemWidgetState extends State<NoteItemWidget> {
                                 .map((tag) => Padding(
                               padding: const EdgeInsets.only(right: 4),
                               child: _buildTagButton(context, tag),
-                            ))
-                                .toList(),
+                            )).toList(),
                           ),
                         ),
 
-                        if (pub != null) ...[
+                        if (pub != null || media != null) ...[
                           const SizedBox(height: 12),
                           Divider(color: Colors.grey.shade600, height: 1),
                           const SizedBox(height: 10),
@@ -285,8 +293,8 @@ class _NoteItemWidgetState extends State<NoteItemWidget> {
                                   startParagraphId: widget.note.blockIdentifier,
                                   endParagraphId: widget.note.blockIdentifier,
                                 );
-                              } else if (loc.bookNumber != null &&
-                                  loc.chapterNumber != null) {
+                              } 
+                              else if (loc.bookNumber != null && loc.chapterNumber != null) {
                                 showChapterView(
                                   context,
                                   loc.keySymbol!,
@@ -297,12 +305,36 @@ class _NoteItemWidgetState extends State<NoteItemWidget> {
                                   lastVerseNumber: widget.note.blockIdentifier,
                                 );
                               }
+                              else if (loc.type == 2) {
+                               RealmMediaItem? mediaItem = getAudioItem(
+                                  loc.keySymbol,
+                                  loc.track,
+                                  loc.mepsDocumentId,
+                                  loc.issueTagNumber,
+                                  loc.mepsLanguageId,
+                                );
+
+                                Audio audio = Audio.fromJson(mediaItem: mediaItem);
+                                audio.showPlayer(context);
+                              }
+                              else if (loc.type == 3) {
+                                RealmMediaItem? mediaItem = getMediaItem(
+                                  loc.keySymbol,
+                                  loc.track,
+                                  loc.mepsDocumentId,
+                                  loc.issueTagNumber,
+                                  loc.mepsLanguageId,
+                                );
+
+                                Video video = Video.fromJson(mediaItem: mediaItem);
+                                video.showPlayer(context);
+                              }
                             },
                             child: Row(
                               children: [
                                 ImageCachedWidget(
-                                  imageUrl: pub.imageSqr,
-                                  icon: pub.category.icon,
+                                  imageUrl: pub?.imageSqr ?? (media?.networkImageSqr ?? media?.imagePath),
+                                  icon: pub != null ? pub.category.icon : media is Audio ? JwIcons.headphones__simple : JwIcons.video,
                                   height: 30,
                                   width: 30,
                                 ),
@@ -312,14 +344,14 @@ class _NoteItemWidgetState extends State<NoteItemWidget> {
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        docTitle.isEmpty ? pub.getShortTitle() : docTitle,
+                                        pub != null ? docTitle.isEmpty ? pub.getShortTitle() : docTitle : media?.title ?? '',
                                         style: const TextStyle(fontSize: 14, height: 1),
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
                                       ),
                                       const SizedBox(height: 3),
                                       Text(
-                                        docTitle.isEmpty ? pub.getSymbolAndIssue() : pub.getShortTitle(),
+                                        pub != null ? docTitle.isEmpty ? pub.getSymbolAndIssue() : pub.getShortTitle() : media is Audio ? i18n().pub_type_audio_programs : media is Video ? i18n().label_videos : media?.title ?? '',
                                         style: TextStyle(fontSize: 11, height: 1, color: Color(0xFFA0A0A0)),
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,

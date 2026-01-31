@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:async';
 import 'dart:io';
 import 'package:dio/dio.dart';
@@ -230,13 +229,13 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
 
   // ============== GESTION DES RÉSOLUTIONS ==============
 
-  void _updateAvailableResolutions(dynamic media, {bool isGetPubMedia = false}) {
+  void _updateAvailableResolutions(dynamic media, {bool isGetPubMedia = false, String langwritten = 'E'}) {
     String listName = isGetPubMedia ? 'MP4' : 'files';
     String download = isGetPubMedia ? 'file' : 'progressiveDownloadURL';
 
-    if (media == null || media[listName] == null) return;
+    if (media[langwritten]?[listName] == null && media[listName] == null) return;
 
-    final files = media[listName] as List<dynamic>;
+    final files = isGetPubMedia ? media[langwritten][listName] : media[listName] as List<dynamic>;
     _availableResolutions = files
         .where((file) =>
     file['mimetype'] == 'video/mp4' &&
@@ -258,16 +257,16 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
     return _availableResolutions.first;
   }
 
-  Future<void> fetchMedia(dynamic media, {String? desiredResolution, bool isGetPubMedia = false}) async {
+  Future<void> fetchMedia(dynamic media, {String? desiredResolution, bool isGetPubMedia = false, String langwritten = 'E'}) async {
     String listName = isGetPubMedia ? 'MP4' : 'files';
     String download = isGetPubMedia ? 'file' : 'progressiveDownloadURL';
 
-    if (media == null || media[listName] == null) {
+    if (media == null || (media[langwritten]?[listName] == null && media[listName] == null)) {
       printTime('Données média invalides');
       return;
     }
 
-    final files = media[listName] as List<dynamic>;
+    final files = isGetPubMedia ? media[langwritten][listName] : media[listName] as List<dynamic>;
 
     String resolutionToPlay = desiredResolution ?? _getBestAvailableResolution();
 
@@ -330,7 +329,7 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
     await playOnlineVideo(videoUrl);
   }
 
-// MODIFICATION : Ajout d'un paramètre optionnel 'video'
+  // MODIFICATION : Ajout d'un paramètre optionnel 'video'
   Future<void> getVideoApi({Video? video}) async {
     final currentVideo = video ?? widget.video;
 
@@ -378,11 +377,11 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
       if (pub != null) {
         queryParameters['pub'] = pub;
       }
-      if (issue != null) {
+      if (issue != null && issue != 0) {
         queryParameters['issue'] = issue.toString();
       }
-      if (docId != null) {
-        queryParameters['docId'] = docId.toString();
+      if (docId != null && docId != 0) {
+        queryParameters['docid'] = docId.toString();
       }
       if (track != null) {
         queryParameters['track'] = track.toString();
@@ -400,13 +399,12 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
       printTime('apiUrl: $apiUrl');
 
       try {
-        final response = await Api.httpGetWithHeaders(apiUrl);
+        final response = await Api.httpGetWithHeaders(apiUrl, responseType: ResponseType.json);
 
         if (response.statusCode == 200) {
-          final data = json.decode(response.data);
-          _onlineMediaData = data['files'][langwritten];
-          _updateAvailableResolutions(_onlineMediaData, isGetPubMedia: true);
-          fetchMedia(_onlineMediaData, isGetPubMedia: true);
+          _onlineMediaData = response.data['files'];
+          _updateAvailableResolutions(_onlineMediaData, isGetPubMedia: true, langwritten: langwritten);
+          fetchMedia(_onlineMediaData, isGetPubMedia: true, langwritten: langwritten);  
         }
         else {
           printTime('Loading error: ${response.statusCode}');
@@ -1525,8 +1523,8 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
     Subtitles subtitles = Subtitles();
 
     if (_subtitles.isEmpty) {
-      if (widget.video.isDownloadedNotifier.value) {
-        File file = File(widget.video.subtitlesFilePath);
+      if (widget.video.isDownloadedNotifier.value && widget.video.subtitlesFilePath != null) {
+        File file = File(widget.video.subtitlesFilePath!);
         await subtitles.loadSubtitlesFromFile(file);
       } else {
         Map<String, dynamic> jsonData;

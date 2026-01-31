@@ -68,7 +68,7 @@ class PendingUpdatesPageModel with ChangeNotifier {
         hasUpdate = true;
       } 
       else if (item is Media && item.hasUpdateNotifier.value) {
-        tasks.add(item.update(context, {}));
+        tasks.add(item.update(context));
         hasUpdate = true;
       }
     }

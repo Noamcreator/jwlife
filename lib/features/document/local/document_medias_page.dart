@@ -4,6 +4,7 @@ import 'package:html/parser.dart';
 import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/app/jwlife_app_bar.dart';
 import 'package:jwlife/core/icons.dart';
+import 'package:jwlife/core/ui/text_styles.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/core/utils/utils_database.dart';
@@ -199,7 +200,17 @@ class _DocumentMediasViewState extends State<DocumentMediasView> {
                 itemBuilder: (context, index) {
                   final media = videos[index];
                   RealmMediaItem? mediaItem = getMediaItem(media.keySymbol, media.track, media.mepsDocumentId, media.issueTagNumber, media.mepsLanguageId, isVideo: media.mimeType == 'video/mp4');
-                  if (mediaItem == null) return Container();
+                  if (mediaItem == null) {
+                    return FutureBuilder<Widget>(
+                      future: videoTileNoMediaItem(context, media),
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState == ConnectionState.done) {
+                          return snapshot.data ?? const SizedBox.shrink();
+                        }
+                        return const Center(child: CircularProgressIndicator()); // Widget d'attente
+                      },
+                    );
+                  }
                   Video video = Video.fromJson(mediaItem: mediaItem);
                   return videoTile(context, video, screenWidth);
                 },
@@ -260,9 +271,20 @@ class _DocumentMediasViewState extends State<DocumentMediasView> {
                     
                     if (media.mimeType == 'video/mp4') {
                        RealmMediaItem? mediaItem = getMediaItem(media.keySymbol, media.track, media.mepsDocumentId, media.issueTagNumber, media.mepsLanguageId, isVideo: true);
-                       if (mediaItem == null) return Container();
+                       if (mediaItem == null) {
+                          return FutureBuilder<Widget>(
+                            future: videoTileNoMediaItem(context, media),
+                            builder: (context, snapshot) {
+                              if (snapshot.connectionState == ConnectionState.done) {
+                                return snapshot.data ?? Container();
+                              }
+                              return const Center(child: CircularProgressIndicator()); // Widget d'attente
+                            },
+                          );
+                       }
                        return videoTile(context, Video.fromJson(mediaItem: mediaItem), screenWidth);
-                    } else {
+                    } 
+                    else {
                        return imageTile(context, media, screenWidth, publication);
                     }
                   },
@@ -270,6 +292,225 @@ class _DocumentMediasViewState extends State<DocumentMediasView> {
                 SizedBox(height: 4),
               ],
           ],
+        ),
+      ),
+    );
+  }
+
+  Future<Widget> videoTileNoMediaItem(BuildContext context, Multimedia media) async {
+    Video? video = await getVideoApi(multimedia: media);
+    if(video == null) return Container();
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          video.showPlayer(context);
+        },
+        child: Padding(
+          // *** MODIFICATION RTL: Utiliser EdgeInsetsDirectional ***
+          padding: const EdgeInsetsDirectional.only(end: 2.0),
+          child: SizedBox(
+            child: Column(
+              // CrossAxisAlignment.start est CORRECT
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Stack(
+                  children: [
+                    ImageCachedWidget(
+                      imageUrl: '',
+                      icon: JwIcons.video,
+                      width: 180,
+                      height: 180 / 2,
+                      fit: BoxFit.fitHeight,
+                    ),
+
+                    PositionedDirectional(
+                      top: 0,
+                      start: 0, // Utilisé au lieu de 'left'
+                      child: Container(
+                        color: Colors.black.withOpacity(0.85),
+                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                        child: Row(
+                          children: [
+                            Text('►', textAlign: TextAlign.center, style: const TextStyle(fontSize: 9, color: Colors.white)),
+                            const SizedBox(width: 4),
+                            Text(
+                              formatDuration(video.duration),
+                              style: const TextStyle(color: Colors.white, fontSize: 9),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    PositionedDirectional(
+                      top: -13,
+                      end: -7, // Utilisé au lieu de 'right'
+                      child: PopupMenuButton(
+                        useRootNavigator: true,
+                        icon: const Icon(
+                          Icons.more_horiz,
+                          color: Colors.white,
+                          shadows: [Shadow(color: Colors.black, blurRadius: 5)],
+                        ),
+                        shadowColor: Colors.black,
+                        elevation: 8,
+                        itemBuilder: (context) {
+                          return [
+                          if (video.isDownloadedNotifier.value && video.filePath != null) getVideoShareFileItem(video),
+                            getVideoAddPlaylistItem(context, video),
+                            getVideoAddNoteItem(context, video),
+                            getVideoLanguagesItem(context, video),
+                            getVideoFavoriteItem(video),
+                            if (video.isDownloadedNotifier.value && ! video.isDownloadingNotifier.value) getVideoDownloadItem(context, video),
+                            getShowSubtitlesItem(context, video),
+                            getCopySubtitlesItem(context, video),
+                          ];
+                        },
+                      ),
+                    ),
+
+                    // icônes / favoris (Positionné en BAS-FIN)
+                    ValueListenableBuilder<bool>(
+                      valueListenable: video.isDownloadingNotifier,
+                      builder: (context, isDownloading, _) {
+                        if (isDownloading) {
+                          // Icône Annuler le téléchargement
+                          return PositionedDirectional(
+                            bottom: -7,
+                            end: -7, // Utilisé au lieu de 'right'
+                            child: IconButton(
+                              iconSize: 22,
+                              padding: EdgeInsets.zero,
+                              onPressed: () => video.cancelDownload(context),
+                              icon: const Icon(
+                                JwIcons.x,
+                                color: Colors.white,
+                                shadows: [Shadow(color: Colors.black, blurRadius: 10)],
+                              ),
+                            ),
+                          );
+                        }
+
+                        return ValueListenableBuilder<bool>(
+                          valueListenable: video.isDownloadedNotifier,
+                          builder: (context, isDownloaded, _) {
+                            return ValueListenableBuilder<bool>(
+                              valueListenable: video.isFavoriteNotifier,
+                              builder: (context, isFavorite, _) {
+                                final hasUpdate = video.hasUpdate();
+
+                                if (!isDownloaded) {
+                                  // Icône de téléchargement
+                                  return PositionedDirectional(
+                                    bottom: -5,
+                                    end: -5, // Utilisé au lieu de 'right'
+                                    child: Builder(
+                                        builder: (BuildContext iconButtonContext) {
+                                          return IconButton(
+                                            iconSize: 22,
+                                            padding: EdgeInsets.zero,
+                                            onPressed: () {
+                                              final RenderBox renderBox = iconButtonContext.findRenderObject() as RenderBox;
+                                              final Offset tapPosition = renderBox.localToGlobal(Offset.zero) + renderBox.size.center(Offset.zero);
+                                              video.download(context, tapPosition: tapPosition);
+                                            },
+                                            icon: const Icon(
+                                              JwIcons.cloud_arrow_down,
+                                              color: Colors.white,
+                                              shadows: [Shadow(color: Colors.black, blurRadius: 10)],
+                                            ),
+                                          );
+                                        }
+                                    ),
+                                  );
+                                } 
+                                else if (hasUpdate) {
+                                  // Icône de mise à jour
+                                  return PositionedDirectional(
+                                    bottom: -5,
+                                    end: -5, // Utilisé au lieu de 'right'
+                                    child: IconButton(
+                                      iconSize: 22,
+                                      padding: EdgeInsets.zero,
+                                      onPressed: () => video.download(context),
+                                      icon: const Icon(
+                                        JwIcons.arrows_circular,
+                                        color: Colors.white,
+                                        shadows: [Shadow(color: Colors.black, blurRadius: 10)],
+                                      ),
+                                    ),
+                                  );
+                                } else if (isFavorite) {
+                                  // Icône de Favori
+                                  return const PositionedDirectional(
+                                    bottom: 4,
+                                    end: 4, // Utilisé au lieu de 'right'
+                                    child: Icon(
+                                      JwIcons.star,
+                                      color: Colors.white,
+                                      shadows: [Shadow(color: Colors.black, blurRadius: 10)],
+                                    ),
+                                  );
+                                }
+
+                                return const SizedBox.shrink();
+                              },
+                            );
+                          },
+                        );
+                      },
+                    ),
+
+                    // barre de progression (Positionnée sur toute la largeur)
+                    ValueListenableBuilder<bool>(
+                      valueListenable: video.isDownloadingNotifier,
+                      builder: (context, isDownloading, _) {
+                        if (!isDownloading) return const SizedBox.shrink();
+
+                        return PositionedDirectional(
+                          bottom: 0,
+                          start: 0,
+                          end: 0,
+                          child: ValueListenableBuilder<double>(
+                            valueListenable: video.progressNotifier,
+                            builder: (context, progress, _) {
+                              return LinearProgressIndicator(
+                                value: progress == -1 ? null : progress,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  Theme.of(context).primaryColor,
+                                ),
+                                backgroundColor: Colors.black.withOpacity(0.3),
+                                minHeight: 2,
+                              );
+                            },
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Padding(
+                  padding: const EdgeInsetsDirectional.only(start: 2.0, end: 4.0),
+                  child: Column(
+                    // CrossAxisAlignment.start est CORRECT
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        video.title,
+                        style: Theme.of(context).extension<JwLifeThemeStyles>()!.rectangleMediaItemLargeTitle,
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.start,
+                      ),
+                    ],
+                  ),
+                )
+              ],
+            ),
+          ),
         ),
       ),
     );

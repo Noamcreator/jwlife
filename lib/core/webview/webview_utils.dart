@@ -108,7 +108,7 @@ Future<Map<String, dynamic>> fetchVerses(Map<String, dynamic> payload, Publicati
 
         // Extraction des notes (uniquement sur la première bible de la liste pour éviter les doublons)
         if (bibles.indexOf(bible) == 0) {
-          notes.addAll(context.read<NotesController>().getNotesByDocument(
+          notes.addAll(context.read<NotesController>().getNotesByItem(
             firstBookNumber: coords['b1']!, lastBookNumber: coords['b1']!,
             firstChapterNumber: coords['c1']!, lastChapterNumber: coords['c2']!,
             firstBlockIdentifier: coords['v1']!, lastBlockIdentifier: coords['v2']!,
@@ -274,7 +274,7 @@ Future<Map<String, dynamic>?> fetchExtractPublication(BuildContext context, Stri
         'startParagraphId': firstParagraphId,
         'endParagraphId': lastParagraphId,
         'blockRanges': blockRanges.map((blockRange) => blockRange.toMap()).toList(),
-        'notes': context.read<NotesController>().getNotesByDocument(mepsDocumentId: extractMepsDocumentId, mepsLanguageId: extract['MepsLanguageIndex'], firstBlockIdentifier: firstParagraphId, lastBlockIdentifier: lastParagraphId).map((n) => n.toMap()).toList()
+        'notes': context.read<NotesController>().getNotesByItem(mepsDocumentId: extractMepsDocumentId, mepsLanguageId: extract['MepsLanguageIndex'], firstBlockIdentifier: firstParagraphId, lastBlockIdentifier: lastParagraphId).map((n) => n.toMap()).toList()
       };
 
       // Ajouter l'élément document à la liste versesItems
@@ -459,8 +459,7 @@ Future<Map<String, dynamic>?> fetchGuideVerse(BuildContext context, String guide
     extractItems.add({
       'type': 'publication',
       'content': decodedHtml,
-      'className':
-      "publicationCitation html5 pub-${extract['UndatedSymbol']} docId-$extractMepsDocumentId docClass-${extract['RefMepsDocumentClass']} jwac showRuby ml-${refPub?.mepsLanguage.symbol} ms-${refPub?.mepsLanguage.internalScriptName} dir-${refPub?.mepsLanguage.isRtl ?? false ? 'rtl' : 'ltr'} layout-reading layout-sidebar",
+      'className': "publicationCitation html5 pub-${extract['UndatedSymbol']} docId-$extractMepsDocumentId docClass-${extract['RefMepsDocumentClass']} jwac showRuby ml-${refPub?.mepsLanguage.symbol} ms-${refPub?.mepsLanguage.internalScriptName} dir-${refPub?.mepsLanguage.isRtl ?? false ? 'rtl' : 'ltr'} layout-reading layout-sidebar",
       'subtitle': caption,
       'imageUrl': image,
       'mepsDocumentId': extractMepsDocumentId ?? -1,
@@ -482,6 +481,9 @@ Future<Map<String, dynamic>?> fetchGuideVerse(BuildContext context, String guide
 Future<Map<String, dynamic>> fetchFootnote(BuildContext context, Publication publication, String footNoteId, {String? bibleVerseId}) async {
   List<Map<String, dynamic>> response = [];
 
+  List<BlockRange> blockRanges = [];
+  List<Note> notes = [];
+
   if(bibleVerseId != null) {
     response = await publication.documentsManager!.database.rawQuery(
         '''
@@ -501,13 +503,12 @@ Future<Map<String, dynamic>> fetchFootnote(BuildContext context, Publication pub
   }
   else {
     response = await publication.documentsManager!.database.rawQuery(
-        '''
-          SELECT Footnote.* FROM Footnote 
-          INNER JOIN Document ON Footnote.DocumentId = Document.DocumentId
-          WHERE Document.MepsDocumentId = ? AND Footnote.FootnoteIndex = ?
-        ''',
-        [publication.documentsManager!.getCurrentDocument().mepsDocumentId, footNoteId]);
-
+      '''
+        SELECT Footnote.* FROM Footnote 
+        INNER JOIN Document ON Footnote.DocumentId = Document.DocumentId
+        WHERE Document.MepsDocumentId = ? AND Footnote.FootnoteIndex = ?
+      ''',
+      [publication.documentsManager!.getCurrentDocument().mepsDocumentId, footNoteId]);
   }
 
   if (response.isNotEmpty) {
@@ -516,15 +517,45 @@ Future<Map<String, dynamic>> fetchFootnote(BuildContext context, Publication pub
     /// Décoder le contenu
     final decodedHtml = decodeBlobContent(footNote['Content'] as Uint8List, publication.hash!);
 
+    // 1. Parser le HTML
+    var document = parse(decodedHtml);
+
+    // 2. Chercher le premier élément qui contient un data-pid
+    // On cherche soit la balise <p>, soit n'importe quel élément avec l'attribut
+    var paragraphElement = document.querySelector('[data-pid]');
+
+    // 3. Récupérer la valeur et la convertir en int
+    int? firstParagraphId;
+    if (paragraphElement != null) {
+      String? pidString = paragraphElement.attributes['data-pid'];
+      firstParagraphId = pidString != null ? int.tryParse(pidString) : null;
+    }
+
+    blockRanges = await JwLifeApp.userdata.getBlockRangesFromDocumentId(
+      publication.documentsManager!.getCurrentDocument().mepsDocumentId,
+      publication.mepsLanguage.id,
+      startParagraph: firstParagraphId,
+      endParagraph: firstParagraphId,
+    );
+
+    notes = context.read<NotesController>().getNotesByItem(
+      mepsDocumentId: publication.documentsManager!.getCurrentDocument().mepsDocumentId,
+      mepsLanguageId: publication.mepsLanguage.id,
+      firstBlockIdentifier: firstParagraphId,
+      lastBlockIdentifier: firstParagraphId,
+    );
+
     return {
-      'type': 'note',
+      'type': 'footnote',
       'content': decodedHtml,
-      'className': "document html5 pub-${publication.keySymbol} docId-${publication.documentsManager!.getCurrentDocument().mepsDocumentId} docClass-13 jwac showRuby ml-${publication.mepsLanguage.symbol} ms-${publication.mepsLanguage.internalScriptName} dir-${publication.mepsLanguage.isRtl ? 'rtl' : 'ltr'} layout-reading layout-sidebar",
+      'className': "document html5 pub-${publication.keySymbol} docId-${publication.documentsManager!.getCurrentDocument().mepsDocumentId} docClass-13 jwac showRuby ml-${publication.mepsLanguage.symbol} ms-${publication.mepsLanguage.internalScriptName} dir-${publication.mepsLanguage.isRtl ? 'rtl' : 'ltr'}",
       'title': i18n().label_icon_footnotes,
+      'blockRanges': blockRanges.map((blockRange) => blockRange.toMap()).toList(),
+      'notes': notes.map((n) => n.toMap()).toList(),
     };
   }
   return {
-    'type': 'note',
+    'type': 'footnote',
     'content': '',
     'className': '',
     'title': i18n().label_icon_footnotes,
@@ -603,7 +634,7 @@ Future<Map<String, dynamic>> fetchVersesReference(BuildContext context, Publicat
         'mepsLanguageId': bible.mepsLanguage.id,
         'verse': verse['ElementNumber'],
         'blockRanges': blockRanges.map((br) => br.toMap()).toList(),
-        'notes': context.read<NotesController>().getNotesByDocument(
+        'notes': context.read<NotesController>().getNotesByItem(
             firstBookNumber: verse['BookNumber'], lastBookNumber: verse['BookNumber'],
             firstChapterNumber: verse['ChapterNumber'], lastChapterNumber: verse['ChapterNumber'],
             firstBlockIdentifier: verse['VerseNumber'], lastBlockIdentifier: verse['VerseNumber']
@@ -753,7 +784,7 @@ Future<Map<String, dynamic>?> fetchCommentaries(BuildContext context, Publicatio
         'verseContent': verseHtml,
         'verseClassName': "bibleCitation html5 pub-${bible.keySymbol} jwac showRuby ml-${bible.mepsLanguage.symbol} ms-${bible.mepsLanguage.internalScriptName} dir-${bible.mepsLanguage.isRtl ? 'rtl' : 'ltr'} layout-reading layout-sidebar",
         'blockRanges': blockRanges.map((br) => br.toMap()).toList(),
-        'notes': context.read<NotesController>().getNotesByDocument(
+        'notes': context.read<NotesController>().getNotesByItem(
             firstBookNumber: bookNumber, lastBookNumber: bookNumber,
             firstChapterNumber: firstChapter, lastChapterNumber: firstChapter,
             firstBlockIdentifier: firstVerse, lastBlockIdentifier: firstVerse
@@ -940,7 +971,7 @@ Future<List<Map<String, dynamic>>> fetchVerseMedias(
   return [];
 }
 
-Future<List<Map<String, dynamic>>> fetchOtherVerseVersion(BuildContext context, Publication publication, int book, int chapter, int verse, int verseId) async {
+Future<List<Map<String, dynamic>>> fetchOtherVerseVersion(BuildContext context, Publication publication, int book, int chapter, int verse, Map<String, Map<String, int>> bibleSegments) async {
   try {
     List<Map<String, dynamic>> versesTranslations = [];
     for (var bible in PublicationRepository().getOrderBibles()) {
@@ -952,7 +983,8 @@ Future<List<Map<String, dynamic>>> fetchOtherVerseVersion(BuildContext context, 
         bibleDb = bible.documentsManager!.database;
       }
 
-      print('Verse Id: $verseId');
+      final String typeKey = bible.keySymbol.contains('nwt') ? 'NWTR' : 'NWT';
+      final verseId = bibleSegments[typeKey]?['start'] ?? 0;
 
       List<Map<String, dynamic>> results = await bibleDb.rawQuery("""
         SELECT *
@@ -1007,7 +1039,7 @@ Future<List<Map<String, dynamic>>> fetchOtherVerseVersion(BuildContext context, 
         'audio': {},
         'mepsLanguageId': bible.mepsLanguage.id,
         'blockRanges': blockRanges.map((br) => br.toMap()).toList(),
-        'notes': context.read<NotesController>().getNotesByDocument(
+        'notes': context.read<NotesController>().getNotesByItem(
             firstBookNumber: book, lastBookNumber: book,
             firstChapterNumber: chapter, lastChapterNumber: chapter,
             firstBlockIdentifier: verse, lastBlockIdentifier: verse
@@ -1219,7 +1251,7 @@ Future<List<Map<String, dynamic>>> fetchVerseResearchGuide(
               if (extractMepsDocumentId != null) {
                 blockRanges = await JwLifeApp.userdata.getBlockRangesFromDocumentId(extractMepsDocumentId, extract['MepsLanguageIndex'], startParagraph: firstParagraphId, endParagraph: lastParagraphId);
                 context.read<BlockRangesController>().loadBlockRanges(blockRanges);
-                notes = context.read<NotesController>().getNotesByDocument(mepsDocumentId: extractMepsDocumentId, mepsLanguageId: extract['MepsLanguageIndex'], firstBlockIdentifier: firstParagraphId, lastBlockIdentifier: lastParagraphId);
+                notes = context.read<NotesController>().getNotesByItem(mepsDocumentId: extractMepsDocumentId, mepsLanguageId: extract['MepsLanguageIndex'], firstBlockIdentifier: firstParagraphId, lastBlockIdentifier: lastParagraphId);
               }
 
               // Construction de l’article
@@ -1309,7 +1341,7 @@ Future<List<Map<String, dynamic>>> fetchVerseFootnotes(BuildContext context, Pub
           'type': 'footnote',
           'footnoteIndex': footnote['FootnoteIndex'] as int,
           'content': textContent!.trim(),
-          'className': "document jwac"
+          'className': "document jwac",
         });
       }
     }
@@ -1389,7 +1421,7 @@ Future<List<Map<String, dynamic>>> fetchVerseFootnotes(BuildContext context, Pub
             'content': htmlBuffer.toString(), // Contenu HTML du verset individuel
             'label': label,
             'blockRanges': blockRanges.map((br) => br.toMap()).toList(),
-            'notes': context.read<NotesController>().getNotesByDocument(
+            'notes': context.read<NotesController>().getNotesByItem(
                 firstBookNumber: bookN, lastBookNumber: bookN,
                 firstChapterNumber: chapterN, lastChapterNumber: chapterN,
                 firstBlockIdentifier: firstV, lastBlockIdentifier: lastV

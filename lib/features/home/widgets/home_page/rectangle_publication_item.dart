@@ -10,7 +10,6 @@ import '../../../../data/models/publication.dart';
 import '../../../../i18n/i18n.dart';
 import '../../../../widgets/image_cached_widget.dart';
 import '../../../../widgets/multiple_listenable_builder_widget.dart';
-import '../../../library/pages/downloads/downloads_widget.dart';
 
 class HomeRectanglePublicationItem extends StatelessWidget {
   final Publication pub;

@@ -19,6 +19,7 @@ import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/databases/catalog.dart';
 import 'package:jwlife/features/home/pages/search/search_page.dart';
 import 'package:jwlife/features/document/data/models/dated_text.dart';
+import 'package:jwlife/widgets/dialog/confirm_dialog.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 
@@ -121,7 +122,7 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
   // Dans init ou onLoadStop, tu crées des fonctions pour pouvoir les retirer :
   void _updateNotesListener() {
     if (!mounted) return;
-    final notes = _notesController.getNotesByDocument(datedText: widget.publication.datedTextManager!.getCurrentDatedText()).map((note) => note.toMap()).toList();
+    final notes = _notesController.getNotesByItem(datedText: widget.publication.datedTextManager!.getCurrentDatedText()).map((note) => note.toMap()).toList();
     final jsonNotes = jsonEncode(notes);
     if (jsonNotes == _lastSentNotes) return;
     _lastSentNotes = jsonNotes;
@@ -303,36 +304,22 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
                     controller.addJavaScriptHandler(
                       handlerName: 'showConfirmationDialog',
                       callback: (args) async {
-                        // Récupérer les paramètres envoyés depuis JS
                         final Map<String, dynamic> params = args.isNotEmpty ? args[0] : {};
                         final String title = params['title'] ?? 'Confirmation';
                         final String message = params['message'] ?? 'Êtes-vous sûr ?';
 
-                        // Affiche un dialog Flutter et retourne la réponse
-                        final bool? confirmed = await showJwDialog(
-                            context: context,
-                            titleText: title,
-                            contentText: message,
-                            buttonAxisAlignment: MainAxisAlignment.end,
-                            buttons: [
-                              JwDialogButton(
-                                  label: i18n().action_no.toUpperCase(),
-                                  closeDialog: false,
-                                  onPressed: (buildContext) async {
-                                    Navigator.of(buildContext).pop(false);
-                                  }
-                              ),
-                              JwDialogButton(
-                                  label: i18n().action_yes.toUpperCase(),
-                                  closeDialog: false,
-                                  onPressed: (buildContext) async {
-                                    Navigator.of(buildContext).pop(true);
-                                  }
-                              ),
-                            ]
+                        bool result = false;
+
+                        await showConfirmDialog(
+                          context,
+                          title: title,
+                          content: message,
+                          onConfirm: () {
+                            result = true;
+                          },
                         );
 
-                        return confirmed ?? false; // Retourne false si null
+                        return result;
                       },
                     );
 
@@ -426,7 +413,7 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
                         DatedText datedText = widget.publication.datedTextManager!.getCurrentDatedText();
                         return {
                           'blockRanges': _blockRangesController.getBlockRangesByDocument(datedText: datedText).map((blockRange) => blockRange.toMap()).toList(),
-                          'notes': _notesController.getNotesByDocument(datedText: datedText).map((note) => note.toMap()).toList(),
+                          'notes': _notesController.getNotesByItem(datedText: datedText).map((note) => note.toMap()).toList(),
                           'tags': _tagsController.tags.map((tag) => tag.toMap()).toList(),
                           'inputFields': [],
                           'bookmarks': widget.publication.datedTextManager!.getCurrentDatedText().bookmarks,
@@ -457,7 +444,7 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
 
                           _blockRangesController.removeBlockRange(userMarkGuid);
 
-                          final note = _notesController.getNotesByDocument(datedText: datedText).firstWhereOrNull((n) => n.userMarkGuid == userMarkGuid);
+                          final note = _notesController.getNotesByItem(datedText: datedText).firstWhereOrNull((n) => n.userMarkGuid == userMarkGuid);
 
                           if(note != null) {
                             if(showAlertDialog) {
@@ -805,54 +792,6 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
                       },
                     );
 
-                    controller.addJavaScriptHandler(
-                      handlerName: 'bookmark',
-                      callback: (args) async {
-                        final arg = args[0];
-
-                        final bool isBible = arg['isBible'];
-                        final int? id = arg['id'];
-                        final String snippet = arg['snippet'];
-
-                        final docManager = widget.publication.datedTextManager!;
-                        final currentDoc = docManager.getCurrentDatedText();
-
-                        // Cas d’un paragraphe classique
-                        int? blockIdentifier = id;
-                        int blockType = blockIdentifier != null ? 1 : 0;
-
-                        printTime('blockIdentifier: $blockIdentifier');
-                        printTime('blockType: $blockType');
-                        printTime('mepsDocumentId: ${currentDoc.mepsDocumentId}');
-                        printTime('title: ${currentDoc.getTitle()}');
-
-                        Bookmark? bookmark = await showBookmarkDialog(
-                          context,
-                          widget.publication,
-                          webViewController: _controller,
-                          mepsDocumentId: currentDoc.mepsDocumentId,
-                          title: currentDoc.getTitle(),
-                          snippet: snippet.trim(),
-                          blockType: blockType,
-                          blockIdentifier: blockIdentifier,
-                        );
-
-                        if(bookmark != null) {
-                          if (bookmark.location.mepsDocumentId != null) {
-                            final page = docManager.datedTexts.indexWhere((doc) => doc.mepsDocumentId == bookmark.location.mepsDocumentId);
-                            if (page != widget.publication.datedTextManager!.selectedDatedTextId) {
-                              await _jumpToPage(page);
-                            }
-                          }
-
-                          // Aller au paragraphe dans la même page
-                          if (bookmark.blockIdentifier != null) {
-                            _jumpToBlockId(bookmark.blockIdentifier!, bookmark.blockIdentifier!);
-                          }
-                        }
-                      },
-                    );
-
                     // Gestionnaire pour les modifications des champs de formulaire
                     controller.addJavaScriptHandler(
                       handlerName: 'share',
@@ -1149,7 +1088,7 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
     setState(() {
       widget.publication.datedTextManager!.selectedDatedTextId = index;
       _controlsVisible = true;
-      
+      _controlsVisibleSave = true;    
     });
     GlobalKeyService.jwLifePageKey.currentState!.toggleBottomNavBarVisibility(_controlsVisible);
   }

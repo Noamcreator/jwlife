@@ -1,6 +1,9 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:jwlife/app/services/settings_service.dart';
+import 'package:jwlife/core/shared_preferences/shared_preferences_utils.dart';
 import 'package:jwlife/core/utils/utils.dart';
+import 'package:jwlife/core/utils/utils_language_dialog.dart';
 
 import '../../../../core/app_data/app_data_service.dart';
 import '../../../../core/icons.dart';
@@ -45,9 +48,55 @@ class ArticlesWidgetState extends State<ArticlesWidget> {
             _buildImageContainer(imagePath),
             ..._buildNavigationArrows(context, articles.length),
             _buildContentContainer(article, screenSize),
+            _buildLanguageButton(),
           ],
         );
       },
+    );
+  }
+
+  // ----------------------------------------------------------
+  // LANGUAGE BUTTON
+  // ----------------------------------------------------------
+
+  Widget _buildLanguageButton() {
+    return PositionedDirectional(
+      end: 16,
+      top: 10,
+      child: ValueListenableBuilder(
+        valueListenable: JwLifeSettings.instance.articlesLanguage,
+        builder: (context, mepsLanguage, child) {
+          return GestureDetector(
+            onTap: () {
+              showLanguageDialog(context, firstSelectedLanguage: mepsLanguage.symbol).then((language) async {
+                if (language != null && language['Symbol'] != mepsLanguage.symbol) {
+                  await AppSharedPreferences.instance.setArticlesLanguage(language);
+                  AppDataService.instance.changeArticlesLanguageAndRefresh();
+                }
+              });
+            },
+            child: Container(
+              decoration: BoxDecoration(
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.3), // L'ombre bien visible
+                    blurRadius: 15,    // Diffusion de l'ombre
+                    spreadRadius: 8,    // Taille de la zone d'ombre
+                    offset: Offset(0, 5), // Positionnée en dessous
+                  ),
+                ],
+              ),
+              child: Text(
+                mepsLanguage.vernacular,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            )
+          );
+        },
+      ),
     );
   }
 
@@ -125,43 +174,47 @@ class ArticlesWidgetState extends State<ArticlesWidget> {
     final isDark = (article['Theme'] as String).contains('dark');
 
     return Center(
-      child: Container(
-        width: screenSize.width * 0.9,
-        constraints: BoxConstraints(
-          maxWidth: 600,
-          maxHeight: screenSize.height * 0.7,
-        ),
-        margin: const EdgeInsets.only(top: 140),
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: isDark
-              ? Colors.grey[900]!.withOpacity(0.7)
-              : const Color(0xFFF1F1F1).withOpacity(0.9),
-          borderRadius: BorderRadius.circular(8),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.3),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
+      child: Stack(
+        children: [
+          Container(
+            width: screenSize.width * 0.9,
+            constraints: BoxConstraints(
+              maxWidth: 600,
+              maxHeight: screenSize.height * 0.7,
             ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if ((article['ContextTitle'] ?? "").isNotEmpty)
-              _buildText(article['ContextTitle'], 15, FontWeight.normal, isDark),
-
-            _buildText(article['Title'], 26, FontWeight.bold, isDark),
-
-            if ((article['Description'] ?? "").isNotEmpty)
-              _buildDescription(article['Description'], isDark),
-
-            const SizedBox(height: 10),
-            _buildReadMoreButton(article, isDark),
-          ],
-        ),
+            margin: const EdgeInsets.only(top: 140),
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: isDark
+                  ? Colors.grey[900]!.withOpacity(0.7)
+                  : const Color(0xFFF1F1F1).withOpacity(0.9),
+              borderRadius: BorderRadius.circular(8),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.3),
+                  blurRadius: 8,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if ((article['ContextTitle'] ?? "").isNotEmpty)
+                  _buildText(article['ContextTitle'], 15, FontWeight.normal, isDark),
+            
+                _buildText(article['Title'], 26, FontWeight.bold, isDark),
+            
+                if ((article['Description'] ?? "").isNotEmpty)
+                  _buildDescription(article['Description'], isDark),
+            
+                const SizedBox(height: 10),
+                _buildReadMoreButton(article, isDark),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

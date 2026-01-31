@@ -789,7 +789,6 @@ class PublicationMenuPageState extends State<PublicationMenuPage> with SingleTic
 
             // onSearchTextChanged: Appel du modèle pour lancer la recherche (void)
             onSearchTextChanged: (text) {
-              // Vérifie que wordsSuggestionsModel est initialisé lors du clic sur Rechercher
               widget.publication.wordsSuggestionsModel?.fetchSuggestions(text);
             },
 

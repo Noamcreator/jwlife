@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:jwlife/core/ui/app_dimens.dart';
+import 'package:jwlife/core/utils/common_ui.dart';
+import 'package:jwlife/data/controller/notes_controller.dart';
+import 'package:jwlife/data/models/userdata/note.dart';
+import 'package:jwlife/features/personal/pages/note_page.dart';
+import 'package:provider/provider.dart';
 
 import '../../../core/icons.dart';
 import '../../../core/utils/utils.dart'; // Pour formatDateTime
@@ -155,6 +160,40 @@ class RectangleMediaItemItem extends StatelessWidget {
     );
   }
 
+   Widget _buildNoteIndicator(BuildContext context) {
+    final notesController = context.watch<NotesController>();
+    Note? note = notesController.getNotesByItem(media: media).firstOrNull;
+
+    return note != null
+        ? PositionedDirectional(
+            bottom: 4,
+            start: 4,
+            child: GestureDetector(
+              onTap: () {
+                showPage(NotePage(note: note));
+              },
+              child: Container(
+                width: 18,
+                height: 18,
+                decoration: BoxDecoration(
+                  color: note.getColor(context),
+                  // --- Ajout de l'ombre ici ---
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.3), // Couleur de l'ombre
+                      spreadRadius: 10, // Étendue de l'ombre
+                      blurRadius: 10,   // Flou de l'ombre
+                      offset: const Offset(0, 1), // Position (x, y)
+                    ),
+                  ],
+                  // ----------------------------
+                ),
+              ),
+            ),
+          )
+        : const SizedBox.shrink();
+  }
+
   // Extrait le menu contextuel (const)
   Widget _buildPopupMenu(BuildContext context) {
     return PositionedDirectional(
@@ -176,7 +215,7 @@ class RectangleMediaItemItem extends StatelessWidget {
             getAudioAddPlaylistItem(context, media as Audio),
             getAudioLanguagesItem(context, media as Audio),
             getAudioFavoriteItem(media as Audio),
-            getAudioDownloadItem(context, media as Audio),
+             if (media.isDownloadedNotifier.value && ! media.isDownloadingNotifier.value) getAudioDownloadItem(context, media as Audio),
             getAudioLyricsItem(context, media as Audio),
             getCopyLyricsItem(media as Audio)
           ] : media is Video ? [
@@ -184,13 +223,14 @@ class RectangleMediaItemItem extends StatelessWidget {
             getVideoShareItem(media as Video),
             getVideoQrCode(context, media as Video),
             getVideoAddPlaylistItem(context, media as Video),
+            getVideoAddNoteItem(context, media as Video),
             getVideoLanguagesItem(context, media as Video),
             getVideoFavoriteItem(media as Video),
-            getVideoDownloadItem(context, media as Video),
+            if (media.isDownloadedNotifier.value && ! media.isDownloadingNotifier.value) getVideoDownloadItem(context, media as Video),
             getShowSubtitlesItem(context, media as Video),
             getCopySubtitlesItem(context, media as Video),
           ]
-              : [],
+           : [],
         ),
       ),
     );
@@ -304,6 +344,9 @@ class RectangleMediaItemItem extends StatelessWidget {
 
               // Bouton dynamique
               _buildDynamicButton(),
+              
+              // Indicateur de note
+              _buildNoteIndicator(context),
 
               // Barre de progression
               _buildProgressBar(height), // Utilise le paramètre height pour le décalage

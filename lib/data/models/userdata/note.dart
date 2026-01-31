@@ -34,27 +34,55 @@ class Note {
 
   /// Retourne une couleur selon l'index et le thème (clair/sombre)
   Color getColor(BuildContext context, {int? colorId}) {
+    bool isDark = Theme.of(context).brightness == Brightness.dark;
+    
     switch (colorId ?? colorIndex % 9) {
       case 0:
-        return Theme.of(context).brightness == Brightness.dark ? Color(0xFF292929) : Color(0xFFf1f1f1);
+        return isDark ? Color(0xFF292929) : Color(0xFFf1f1f1);
       case 1:
-        return Theme.of(context).brightness == Brightness.dark ? Color(0xFF49400e) : Color(0xFFfffce6);
+        return isDark ? Color(0xFF49400e) : Color(0xFFfffce6);
       case 2:
-        return Theme.of(context).brightness == Brightness.dark ? Color(0xFF233315) : Color(0xFFeffbe6);
+        return isDark ? Color(0xFF233315) : Color(0xFFeffbe6);
       case 3:
-        return Theme.of(context).brightness == Brightness.dark ? Color(0xFF203646) : Color(0xFFe6f7ff);
+        return isDark ? Color(0xFF203646) : Color(0xFFe6f7ff);
       case 4:
-        return Theme.of(context).brightness == Brightness.dark ? Color(0xFF401f2c) : Color(0xFFffe6f0);
+        return isDark ? Color(0xFF401f2c) : Color(0xFFffe6f0);
       case 5:
-        return Theme.of(context).brightness == Brightness.dark ? Color(0xFF49290e) : Color(0xFFfff0e6);
+        return isDark ? Color(0xFF49290e) : Color(0xFFfff0e6);
       case 6:
-        return Theme.of(context).brightness == Brightness.dark ? Color(0xFF2d2438) : Color(0xFFf1eafa);
+        return isDark ? Color(0xFF2d2438) : Color(0xFFf1eafa);
       case 7:
-        return Theme.of(context).brightness == Brightness.dark ? Color(0xFF441A1B) : Color(0xFFFED6D6);
+        return isDark ? Color(0xFF441A1B) : Color(0xFFFED6D6);
       case 8:
-        return Theme.of(context).brightness == Brightness.dark ? Color(0xFF382B18) : Color(0xFFF1E0CE);
+        return isDark ? Color(0xFF382B18) : Color(0xFFF1E0CE);
       default:
-        return Theme.of(context).brightness == Brightness.dark ? Color(0xFF292929) : Color(0xFFf1f1f1);
+        return isDark ? Color(0xFF292929) : Color(0xFFf1f1f1);
+    }
+  }
+
+  Color getIndicatorColor(BuildContext context, {int? colorId}) {
+    bool isDark = Theme.of(context).brightness == Brightness.dark;
+    switch (colorId ?? colorIndex % 9) {
+      case 0:
+        return isDark ? Color(0xFF626262) : Color(0xFFC0C0C0);
+      case 1:
+        return isDark ? Color(0xFFE9C600) : Color(0xFFFFF37A);
+      case 2:
+        return isDark ? Color(0xFF66A333) : Color(0xFFB7E492);
+      case 3:
+        return isDark ? Color(0xFF4AA1DD) : Color(0xFF98D8FF);
+      case 4:
+        return isDark ? Color(0xFFC64677) : Color(0xFFF698BC);
+      case 5:
+        return isDark ? Color(0xFFE96D00) : Color(0xFFFFBA8A);
+      case 6:
+        return isDark ? Color(0xFF7B57A7) : Color(0xFFC1A7E2);
+      case 7:
+        return isDark ? Color.fromARGB(255, 134, 27, 29) : Color.fromARGB(255, 185, 94, 94);
+      case 8:
+        return isDark ? Color.fromARGB(255, 68, 51, 25) : Color.fromARGB(255, 146, 113, 79);
+      default:
+        return isDark ? Color(0xFF626262) : Color(0xFFC0C0C0);
     }
   }
 

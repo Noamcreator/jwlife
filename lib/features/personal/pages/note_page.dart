@@ -2,10 +2,16 @@ import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:jwlife/app/services/global_key_service.dart';
 import 'package:jwlife/core/utils/utils.dart';
+import 'package:jwlife/core/utils/utils_audio.dart';
 import 'package:jwlife/core/utils/utils_document.dart';
+import 'package:jwlife/core/utils/utils_video.dart';
 import 'package:jwlife/data/controller/notes_controller.dart';
 import 'package:jwlife/data/controller/tags_controller.dart';
+import 'package:jwlife/data/models/audio.dart';
+import 'package:jwlife/data/models/media.dart';
 import 'package:jwlife/data/models/userdata/note.dart';
+import 'package:jwlife/data/models/video.dart';
+import 'package:jwlife/data/realm/catalog.dart';
 import 'package:jwlife/widgets/image_cached_widget.dart';
 import 'package:provider/provider.dart';
 import 'package:sqflite/sqflite.dart';
@@ -149,7 +155,7 @@ class _NotePageState extends State<NotePage> {
 
     _scrollController = ScrollController();
 
-    // 🌟 TITRE : Utilisation du HighlightedTextController
+    // 🌟 TITRE : Utilisation du HighlightedTextControlle
     const defaultTitleStyle = TextStyle(fontWeight: FontWeight.bold, fontSize: 22);
     _titleController = HighlightedTextController(
       text: _note.title,
@@ -187,7 +193,7 @@ class _NotePageState extends State<NotePage> {
       _showOverlay();
     });
 
-    _dataFuture = _resolveDependencies();
+    _dataFuture = resolveDependenciesCached(widget.note);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _scrollToQuery();
@@ -197,55 +203,62 @@ class _NotePageState extends State<NotePage> {
     });
   }
 
-  /// Méthode privée qui remplace resolveNoteDependencies de NoteItemWidget
-  Future<Map<String, dynamic>> _resolveDependencies() async {
-    String? keySymbol = _note.location.keySymbol;
-    int? issueTagNumber = _note.location.issueTagNumber;
-    int? mepsLanguageId = _note.location.mepsLanguageId;
+  static final Map<String, Map<String, dynamic>> _cache = {};
 
-    if (keySymbol == null || issueTagNumber == null || mepsLanguageId == null) {
-      return {'pub': null, 'docTitle': ''};
-    }
+  static Future<Map<String, dynamic>> resolveDependenciesCached(Note note) async {
+    if (_cache.containsKey(note.guid)) return _cache[note.guid]!;
 
-    Publication? pub = PublicationRepository()
-        .getAllPublications()
-        .firstWhereOrNull((p) =>
-    p.keySymbol == keySymbol &&
-        p.issueTagNumber == issueTagNumber &&
-        p.mepsLanguage.id == mepsLanguageId);
+    final loc = note.location;
 
+
+    Publication? pub;
+    Media? media;
     String docTitle = '';
 
-    pub ??= await CatalogDb.instance.searchPubNoMepsLanguage(keySymbol, issueTagNumber, mepsLanguageId);
+    if(loc.type == 1 || loc.type == 0) {
+      pub = PublicationRepository().getAllPublications().firstWhereOrNull((p) => p.keySymbol == loc.keySymbol && p.issueTagNumber == loc.issueTagNumber && p.mepsLanguage.id == loc.mepsLanguageId);
 
-    if (pub != null && pub.isDownloadedNotifier.value) {
-      if (pub.isBible() &&
-          _note.location.bookNumber != null &&
-          _note.location.chapterNumber != null) {
-        docTitle = JwLifeApp.bibleCluesInfo.getVerse(
-          _note.location.bookNumber!,
-          _note.location.chapterNumber!,
-          _note.blockIdentifier ?? 0,
-        );
-      } else {
-        if (pub.documentsManager == null) {
-          final db = await openReadOnlyDatabase(pub.databasePath!);
-          final rows = await db.rawQuery(
-            'SELECT Title FROM Document WHERE MepsDocumentId = ?',
-            [_note.location.mepsDocumentId],
+      pub ??= await CatalogDb.instance.searchPubNoMepsLanguage(loc.keySymbol!,loc.issueTagNumber!, loc.mepsLanguageId!);
+
+      if (pub != null && pub.isDownloadedNotifier.value) {
+        if (pub.isBible() &&
+            loc.bookNumber != null &&
+            loc.chapterNumber != null) {
+          docTitle = JwLifeApp.bibleCluesInfo.getVerse(
+            loc.bookNumber!,
+            loc.chapterNumber!,
+            note.blockIdentifier ?? 0,
           );
-          if (rows.isNotEmpty) {
-            docTitle = rows.first['Title'] as String;
+        } 
+        else {
+          if (pub.documentsManager == null) {
+            final db = await openReadOnlyDatabase(pub.databasePath!);
+            final rows = await db.rawQuery(
+              'SELECT Title FROM Document WHERE MepsDocumentId = ?',
+              [loc.mepsDocumentId],
+            );
+            if (rows.isNotEmpty) docTitle = rows.first['Title'] as String;
+          } 
+          else {
+            final doc = pub.documentsManager!.documents.firstWhereOrNull((d) => d.mepsDocumentId == loc.mepsDocumentId);
+            docTitle = doc?.title ?? '';
           }
-        } else {
-          final doc = pub.documentsManager!.documents.firstWhereOrNull(
-                  (d) => d.mepsDocumentId == _note.location.mepsDocumentId);
-          docTitle = doc?.title ?? '';
         }
       }
     }
-
-    return {'pub': pub, 'docTitle': docTitle};
+    else if (loc.type == 2 || loc.type == 3) {
+      RealmMediaItem? realmMediaItem = getMediaItem(loc.keySymbol, loc.track, loc.mepsDocumentId, loc.issueTagNumber, loc.mepsLanguageId);
+      if (realmMediaItem != null) {
+        if(realmMediaItem.type == 'AUDIO') {
+          media = Audio.fromJson(mediaItem: realmMediaItem);
+        }
+        else {
+          media = Video.fromJson(mediaItem: realmMediaItem);
+        }
+      }
+    }
+ 
+    return _cache[note.guid] = {'pub': pub, 'media': media, 'docTitle': docTitle};
   }
 
   @override
@@ -411,13 +424,16 @@ class _NotePageState extends State<NotePage> {
         ? Color(0xFF292929)
         : Color(0xFFe9e9e9);
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return AppPage(
+      isNotePage: true,
       backgroundColor: _note.getColor(context),
       appBar: AppBar(
         backgroundColor: _note.getColor(context),
         titleSpacing: 0.0,
         leading: IconButton(
-            icon: Icon(JwIcons.chevron_down, color: Colors.white),
+            icon: Icon(JwIcons.chevron_down, color: isDark ? Colors.white : Color(0xFF626262)),
             onPressed: () {
               // 2. Vérifie si un champ de texte a le focus (clavier ouvert) et le ferme
               if (FocusScope.of(context).hasFocus) {
@@ -437,7 +453,7 @@ class _NotePageState extends State<NotePage> {
         ),
         actions: [
           PopupMenuButton(
-            icon: Icon(JwIcons.three_dots_horizontal, color: Colors.white),
+            icon: Icon(JwIcons.three_dots_horizontal, color: isDark ? Colors.white : Color(0xFF626262)),
             itemBuilder: (context) => [
               PopupMenuItem(
                 child: ListTile(
@@ -460,17 +476,21 @@ class _NotePageState extends State<NotePage> {
                         : Color(0xFFf1f1f1),
                     value: _note.colorIndex,
                     onChanged: (int? newValue) {
+                      Navigator.pop(context);
                       if (newValue != null) {
+                        setState(() {
+                          widget.note.colorIndex = newValue;
+                        });
                         _notesController.changeNoteColor(_note.guid, 0, newValue);
                       }
                     },
-                    items: List.generate(7, (index) {
+                    items: List.generate(9, (index) {
                       return DropdownMenuItem(
                         value: index,
                         child: Container(
                           width: 20,
                           height: 20,
-                          color: _note.getColor(context, colorId: index),
+                          color: _note.getIndicatorColor(context, colorId: index),
                         ),
                       );
                     }),
@@ -620,91 +640,127 @@ class _NotePageState extends State<NotePage> {
           // 2. ZONE FIXE EN BAS (SÉPARATEUR ET PUBLICATION)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 30),
-            child: Column(
-              children: [
-                Divider(thickness: 1, color: Colors.grey), // SÉPARATEUR
-                FutureBuilder<Map<String, dynamic>>(
-                  future: _dataFuture,
-                  builder: (context, snapshot) {
-                    if (!snapshot.hasData) return SizedBox.shrink();
+            child: FutureBuilder<Map<String, dynamic>>(
+              future: _dataFuture,
+              builder: (context, snapshot) {
+                // On vérifie si les données sont présentes
+                if (!snapshot.hasData || snapshot.data == null) return const SizedBox.shrink();
 
-                    final pub = snapshot.data!['pub'] as Publication?;
-                    final docTitle = snapshot.data!['docTitle'] as String;
+                final data = snapshot.data!;
+                final pub = data['pub'];
+                final media = data['media'];
+                final docTitle = data['docTitle'] ?? '';
 
-                    if (pub == null) return SizedBox.shrink();
+                // 🌟 BLOC DE PUBLICATION
+                if (pub != null || media != null) {
+                  // AJOUT DU RETURN ICI
+                  return Column(
+                    mainAxisSize: MainAxisSize.min, // Évite de prendre trop de place verticalement
+                    children: [
+                      const SizedBox(height: 12),
+                      const Divider(thickness: 1, color: Colors.grey),
+                      const SizedBox(height: 10),
+                      InkWell(
+                        onTap: () {
+                          final loc = widget.note.location;
 
-                    // 🌟 BLOC DE PUBLICATION
-                    return InkWell(
-                      onTap: () {
-                        if (_note.location.mepsDocumentId != null) {
-                          showDocumentView(
-                            context,
-                            _note.location.mepsDocumentId!,
-                            _note.location.mepsLanguageId!,
-                            startParagraphId: _note.blockIdentifier,
-                            endParagraphId: _note.blockIdentifier,
-                          );
-                        } else if (_note.location.bookNumber != null &&
-                            _note.location.chapterNumber != null) {
-                          showChapterView(
-                            context,
-                            _note.location.keySymbol!,
-                            _note.location.mepsLanguageId!,
-                            _note.location.bookNumber!,
-                            _note.location.chapterNumber!,
-                            firstVerseNumber: _note.blockIdentifier,
-                            lastVerseNumber: _note.blockIdentifier,
-                          );
-                        }
-                      },
-                      child: Padding(
-                        padding: EdgeInsets.only(top: 10, bottom: 20 + MediaQuery.of(context).viewInsets.bottom),
-                        child: Row(
-                          children: [
-                            ImageCachedWidget(
-                              imageUrl: pub.imageSqr,
-                              icon: pub.category.icon,
-                              height: 35,
-                              width: 35,
-                            ),
-                            SizedBox(width: 8),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    docTitle.isEmpty
-                                        ? pub.getShortTitle()
-                                        : docTitle,
-                                    style: TextStyle(fontSize: 16, height: 1),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  SizedBox(height: 3),
-                                  Text(
-                                    docTitle.isEmpty
-                                        ? pub.getSymbolAndIssue()
-                                        : pub.getShortTitle(),
-                                    style: TextStyle(
-                                        fontSize: 12,
-                                        height: 1,
-                                        color: Colors.grey),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ],
+                          if (loc.mepsDocumentId != null) {
+                            showDocumentView(
+                              context,
+                              loc.mepsDocumentId!,
+                              loc.mepsLanguageId!,
+                              startParagraphId: widget.note.blockIdentifier,
+                              endParagraphId: widget.note.blockIdentifier,
+                            );
+                          } else if (loc.bookNumber != null && loc.chapterNumber != null) {
+                            showChapterView(
+                              context,
+                              loc.keySymbol!,
+                              loc.mepsLanguageId!,
+                              loc.bookNumber!,
+                              loc.chapterNumber!,
+                              firstVerseNumber: widget.note.blockIdentifier,
+                              lastVerseNumber: widget.note.blockIdentifier,
+                            );
+                          } else if (loc.type == 2) {
+                            final mediaItem = getAudioItem(
+                              loc.keySymbol,
+                              loc.track,
+                              loc.mepsDocumentId,
+                              loc.issueTagNumber,
+                              loc.mepsLanguageId,
+                            );
+                            if (mediaItem != null) {
+                              Audio.fromJson(mediaItem: mediaItem).showPlayer(context);
+                            }
+                          } else if (loc.type == 3) {
+                            final mediaItem = getMediaItem(
+                              loc.keySymbol,
+                              loc.track,
+                              loc.mepsDocumentId,
+                              loc.issueTagNumber,
+                              loc.mepsLanguageId,
+                            );
+                            if (mediaItem != null) {
+                              Video.fromJson(mediaItem: mediaItem).showPlayer(context);
+                            }
+                          }
+                        },
+                        child: Padding(
+                          padding: EdgeInsets.only(
+                            top: 10, 
+                            bottom: 20 + MediaQuery.of(context).viewInsets.bottom,
+                          ),
+                          child: Row(
+                            children: [
+                              ImageCachedWidget(
+                                imageUrl: pub?.imageSqr ?? (media?.networkImageSqr ?? media?.imagePath),
+                                icon: pub != null 
+                                    ? pub.category.icon 
+                                    : (media is Audio ? JwIcons.headphones__simple : JwIcons.video),
+                                height: 35,
+                                width: 35,
                               ),
-                            ),
-                          ],
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      pub != null 
+                                          ? (docTitle.isEmpty ? pub.getShortTitle() : docTitle) 
+                                          : (media?.title ?? ''),
+                                      style: const TextStyle(fontSize: 14, height: 1),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    const SizedBox(height: 3),
+                                    Text(
+                                      pub != null 
+                                          ? (docTitle.isEmpty ? pub.getSymbolAndIssue() : pub.getShortTitle()) 
+                                          : (media is Audio 
+                                              ? i18n().pub_type_audio_programs 
+                                              : (media is Video ? i18n().label_videos : media?.title ?? '')),
+                                      style: const TextStyle(fontSize: 11, height: 1, color: Color(0xFFA0A0A0)),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ));
-                  },
-                ),
-                // Padding en bas pour le cas où le clavier est fermé
-                const SizedBox(height: 5),
-              ],
+                      ),
+                    ],
+                  );
+                }
+
+                // Si aucune donnée pub ou media, on retourne un widget vide
+                return const SizedBox.shrink();
+              },
             ),
-          ),
+          )
         ],
       ),
     );

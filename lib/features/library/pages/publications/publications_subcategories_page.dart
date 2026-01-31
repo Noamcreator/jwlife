@@ -1,3 +1,4 @@
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/app/jwlife_app_bar.dart';
@@ -68,7 +69,7 @@ class _PublicationSubcategoriesPageState extends State<PublicationSubcategoriesP
         days.add({
           "Day": i,
           "Publications": pubs.where((element) => element.conventionReleaseDayNumber == i).toList(),
-          "Medias": convDaysCategories.firstWhere((element) => element.key == 'ConvDay$i').media
+          "Medias": convDaysCategories.firstWhereOrNull((element) => element.key == 'ConvDay$i')?.media ?? List<String>.empty(),
         });
       }
     }
