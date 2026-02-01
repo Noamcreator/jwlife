@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:jwlife/app/services/settings_service.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/core/utils/utils_video.dart';
 import 'package:jwlife/core/utils/widgets_utils.dart';
@@ -268,12 +269,16 @@ class _PlaylistPlayerPageState extends State<PlaylistPlayerPage> {
     _currentMedia = media;
     _currentTitle = item.label ?? media?.title ?? 'Média';
 
+    bool isPlaying = JwLifeSettings.instance.playlistStartupAction == 0 ? true : false;
+
     // 3. Initialiser le contrôleur/Timer
     if (_isImageMedia) {
       if (item.durationTicks != null && item.durationTicks! > 0) {
         _duration = Duration(milliseconds: item.durationTicks! ~/ 10000);
-        _isPlayingNotifier.value = true;
-        _imagePlaybackTimer = Timer.periodic(const Duration(milliseconds: 100), _imageListener);
+        if(isPlaying) {
+          _isPlayingNotifier.value = true;
+          _imagePlaybackTimer = Timer.periodic(const Duration(milliseconds: 100), _imageListener);
+        }
       }
     }
     else if (filePath != null) {
@@ -282,8 +287,10 @@ class _PlaylistPlayerPageState extends State<PlaylistPlayerPage> {
         await _videoController!.initialize();
         _duration = _videoController!.value.duration;
         _videoController!.addListener(_videoListener);
-        _videoController!.play();
-        _isPlayingNotifier.value = true;
+        if(isPlaying) {
+          _videoController!.play();
+          _isPlayingNotifier.value = true;
+        }
       }
       catch (e) {
         print('Erreur lors de l\'initialisation du contrôleur (Local): $e');
@@ -296,8 +303,10 @@ class _PlaylistPlayerPageState extends State<PlaylistPlayerPage> {
         await _videoController!.initialize();
         _duration = _videoController!.value.duration;
         _videoController!.addListener(_videoListener);
-        _videoController!.play();
-        _isPlayingNotifier.value = true;
+        if(isPlaying) {
+          _videoController!.play();
+          _isPlayingNotifier.value = true;
+        }
       }
       catch (e) {
         print('Erreur lors de l\'initialisation du contrôleur (Network): $e');

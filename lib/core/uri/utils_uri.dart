@@ -113,13 +113,18 @@ Future<void> handleUri(JwOrgUri uri) async {
     }
     else if (uri.isMediaItem) {
       Duration startTime = Duration.zero;
+      Duration? endTime;
 
       if (uri.ts != null && uri.ts!.isNotEmpty) {
         final parts = uri.ts!.split('-');
+        
         if (parts.isNotEmpty) {
           startTime = JwOrgUri.parseDuration(parts[0]) ?? Duration.zero;
         }
+        
         if (parts.length > 1) {
+          // On parse la fin de l'intervalle ici
+          endTime = JwOrgUri.parseDuration(parts[1]);
         }
       }
 

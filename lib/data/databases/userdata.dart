@@ -2555,6 +2555,7 @@ class Userdata {
     // Création de l’élément de playlist
     final PlaylistItem playlistItem = PlaylistItem(
       playlistItemId: -1,
+      endAction: JwLifeSettings.instance.playlistEndAction,
       label: originalFile.uri.pathSegments.last,
       thumbnail: thumbnail,
       independentMedia: independentMedia,
@@ -2582,6 +2583,7 @@ class Userdata {
           mepsLanguageId: 3,
           type: media is Audio ? 2 : 3,
         ),
+        endAction: JwLifeSettings.instance.playlistEndAction,
         independentMedia: null,
     );
 

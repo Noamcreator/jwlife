@@ -24,7 +24,14 @@ class JwLifeSettings {
   bool showDocumentDescription = AppSharedPreferences.instance.getShowDocumentDescription();
   bool autoOpenSingleDocument = AppSharedPreferences.instance.getAutoOpenSingleDocument();
 
-  bool notificationDownload = AppSharedPreferences.instance.getDownloadNotification();  
+  bool notificationDownload = AppSharedPreferences.instance.getDownloadNotification();
+
+  bool streamUsingCellularData = AppSharedPreferences.instance.getStreamUsingCellularData();
+  bool downloadUsingCellularData = AppSharedPreferences.instance.getDownloadUsingCellularData();
+  bool offlineMode = AppSharedPreferences.instance.getOfflineMode();
+
+  int playlistStartupAction = AppSharedPreferences.instance.getPlaylistStartupAction();
+  int playlistEndAction = AppSharedPreferences.instance.getPlaylistEndAction();
 
   // --- NOTIFIERS DE LANGUES ---
   final libraryLanguage = ValueNotifier<MepsLanguage>(_defaultMeps());

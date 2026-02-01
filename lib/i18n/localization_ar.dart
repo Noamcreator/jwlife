@@ -1774,7 +1774,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get message_offline_mode =>
-      'مُنع تطبيق ‏JW Library‏ من استخدام الإنترنت. فهل تريد أن تتابع التنزيل أو التشغيل؟‏';
+      'مُنع تطبيق ‏JW Life من استخدام الإنترنت. فهل تريد أن تتابع التنزيل أو التشغيل؟‏';
 
   @override
   String get message_offline_mode_multiple_items =>
@@ -2787,7 +2787,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get settings_offline_mode_subtitle =>
-      'لتخفيض الاستهلاك، امنع ‏JW Library‏ من استخدام الإنترنت.‏';
+      'لتخفيض الاستهلاك، امنع ‏JW Life من استخدام الإنترنت.‏';
 
   @override
   String get settings_open_source_licenses => 'تراخيص البرامج المفتوحة المصدر';

@@ -1,6 +1,8 @@
 import 'package:app_settings/app_settings.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart' show DateFormat;
+import 'package:jwlife/core/utils/common_ui.dart';
+import 'package:jwlife/features/settings_page.dart';
 
 import '../../app/services/settings_service.dart';
 import '../../i18n/i18n.dart';
@@ -28,6 +30,8 @@ Future<T?> showJwDialog<T>({
   String? contentText,
   List<JwDialogButton> buttons = const [],
   MainAxisAlignment buttonAxisAlignment = MainAxisAlignment.spaceBetween,
+  // Nouveau paramètre : par défaut horizontal (Row)
+  Axis buttonDirection = Axis.horizontal, 
 }) {
   return showDialog<T>(
     context: context,
@@ -43,18 +47,15 @@ Future<T?> showJwDialog<T>({
                 : const Color(0xFFFFFFFF),
             borderRadius: BorderRadius.circular(3),
           ),
-          margin: const EdgeInsets.all(0.0),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.start,
             children: [
-              if (title != null || titleText != null)
-                const SizedBox(height: 20),
+              if (title != null || titleText != null) const SizedBox(height: 20),
               if (title != null)
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 25),
-                  child: title
+                  child: title,
                 ),
               if (titleText != null)
                 Padding(
@@ -62,7 +63,9 @@ Future<T?> showJwDialog<T>({
                   child: Text(
                     titleText,
                     style: TextStyle(
-                      color: Theme.of(context).brightness == Brightness.dark ? Color(0xFFFFFFFF) : Color(0xFF212121),
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? const Color(0xFFFFFFFF)
+                          : const Color(0xFF212121),
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
                     ),
@@ -70,45 +73,61 @@ Future<T?> showJwDialog<T>({
                 ),
               if (content != null || contentText != null)
                 SizedBox(height: (title == null && titleText == null) ? 18 : 15),
-              if (content != null)
-                content,
+              if (content != null) content,
               if (contentText != null)
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 25),
                   child: Text(
                     contentText,
                     style: TextStyle(
-                      color: Theme.of(context).brightness == Brightness.dark ? Color(0xFFB1B1B1) : Color(0xFF676767),
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? const Color(0xFFB1B1B1)
+                          : const Color(0xFF676767),
                       fontSize: 16,
                     ),
                   ),
                 ),
-              if (contentText != null)
-                const SizedBox(height: 10),
+              if (contentText != null) const SizedBox(height: 10),
               if (buttons.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 10),
-                  child: Row(
-                    mainAxisAlignment: buttonAxisAlignment,
-                    children: buttons.map((btn) {
-                      return TextButton(
-                        onPressed: () {
-                          if (btn.closeDialog) {
-                            Navigator.of(context).pop(btn.result);
-                          }
-                          btn.onPressed?.call(context);
-                        },
-                        child: Text(
-                          btn.label,
-                          style: TextStyle(
-                            fontFamily: 'Roboto',
-                            letterSpacing: 1,
-                            fontWeight: FontWeight.bold,
-                            color: Theme.of(context).primaryColor,
+                  child: SizedBox(
+                    // On force la largeur maximale pour que CrossAxisAlignment.end 
+                    // puisse réellement pousser les boutons vers la droite en mode vertical.
+                    width: double.infinity, 
+                    child: Flex(
+                      direction: buttonDirection,
+                      mainAxisAlignment: buttonAxisAlignment,
+                      // Logique simplifiée pour le CrossAxisAlignment
+                      crossAxisAlignment: buttonDirection == Axis.vertical
+                          ? (buttonAxisAlignment == MainAxisAlignment.start 
+                              ? CrossAxisAlignment.start 
+                              : buttonAxisAlignment == MainAxisAlignment.center 
+                                  ? CrossAxisAlignment.center 
+                                  : CrossAxisAlignment.end)
+                          : CrossAxisAlignment.center,
+                      children: buttons.map((btn) {
+                        return TextButton(
+                          onPressed: () {
+                            if (btn.closeDialog) {
+                              Navigator.of(context).pop(btn.result);
+                            }
+                            btn.onPressed?.call(context);
+                          },
+                          child: Text(
+                            btn.label,
+                            // On aligne aussi le texte à l'intérieur du bouton si vertical
+                            textAlign: buttonDirection == Axis.vertical ? TextAlign.end : TextAlign.center,
+                            style: TextStyle(
+                              fontFamily: 'Roboto',
+                              letterSpacing: 1,
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).primaryColor,
+                            ),
                           ),
-                        ),
-                      );
-                    }).toList(),
+                        );
+                      }).toList(),
+                    ),
                   ),
                 ),
               const SizedBox(height: 5),
@@ -232,6 +251,87 @@ Future<void> showNoConnectionDialog(BuildContext context) async {
         onPressed: (buildContext) {
           AppSettings.openAppSettings(type: AppSettingsType.wifi);
         },
+      ),
+    ],
+  );
+}
+
+Future<bool?> showStreamCellularConnectionDialog(BuildContext context) async {
+  return await showJwDialog<bool>(
+    context: context,
+    titleText: i18n().settings_stream_over_cellular,
+    contentText: i18n().message_no_wifi_connection,
+    buttonAxisAlignment: MainAxisAlignment.end,
+    buttonDirection: Axis.vertical,
+    buttons: [
+       JwDialogButton(
+        label: i18n().action_settings_uppercase,
+        onPressed: (buildContext) async {
+          await showPage(SettingsPage(scrollToSection: 'stream_download'));
+        },
+        result: false
+      ),
+      JwDialogButton(
+        label: i18n().action_cancel_uppercase,
+        result: false
+      ),
+      JwDialogButton(
+        label: i18n().action_just_once_uppercase,
+        result: true
+      ),
+    ],
+  );
+}
+
+Future<bool?> showDownloadCellularConnectionDialog(BuildContext context) async {
+  return await showJwDialog<bool>(
+    context: context,
+    titleText: i18n().settings_download_over_cellular,
+    contentText: i18n().message_no_wifi_connection,
+    buttonAxisAlignment: MainAxisAlignment.end,
+    buttonDirection: Axis.vertical,
+    buttons: [
+       JwDialogButton(
+        label: i18n().action_settings_uppercase,
+        onPressed: (buildContext) async {
+          await showPage(SettingsPage(scrollToSection: 'stream_download'));
+        },
+        result: false
+      ),
+      JwDialogButton(
+        label: i18n().action_cancel_uppercase,
+        result: false
+      ),
+      JwDialogButton(
+        label: i18n().action_just_once_uppercase,
+        result: true
+      ),
+    ],
+  );
+}
+
+Future<bool?> showOfflineModeDialog(BuildContext context) async {
+  return await showJwDialog<bool>(
+    context: context,
+    titleText: i18n().settings_offline_mode,
+    contentText: i18n().message_offline_mode,
+    buttonAxisAlignment: MainAxisAlignment.end,
+    buttonDirection: Axis.vertical,
+    buttons: [
+       JwDialogButton(
+        label: i18n().action_settings_uppercase,
+        onPressed: (buildContext) async {
+          await showPage(SettingsPage(scrollToSection: 'stream_download'));
+        },
+        result: false
+      ),
+      JwDialogButton(
+        label: i18n().action_cancel_uppercase,
+        result: false
+      ),
+      JwDialogButton(
+        label: i18n().action_just_once_uppercase,
+        result: true
       ),
     ],
   );

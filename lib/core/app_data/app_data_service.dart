@@ -74,6 +74,7 @@ class AppDataService {
       if(context == null) {
         showBottomMessage(i18n().message_no_internet_connection_title);
       }
+      return;
     }
 
     printTime("Refresh start");

@@ -1797,11 +1797,11 @@ class AppLocalizationsAf extends AppLocalizations {
 
   @override
   String get message_offline_mode =>
-      'Internettoegang in JW Library is afgeskakel. Wil jy nog steeds voortgaan?';
+      'Internettoegang in JW Life is afgeskakel. Wil jy nog steeds voortgaan?';
 
   @override
   String get message_offline_mode_multiple_items =>
-      'Internettoegang in JW Library is afgeskakel. Om alle items te speel, moet jy party stroom. Wil jy nog steeds voortgaan?';
+      'Internettoegang in JW Life is afgeskakel. Om alle items te speel, moet jy party stroom. Wil jy nog steeds voortgaan?';
 
   @override
   String message_offline_terms(Object url) {
@@ -2829,7 +2829,7 @@ class AppLocalizationsAf extends AppLocalizations {
 
   @override
   String get settings_offline_mode_subtitle =>
-      'Spaar data deur jou internettoegang in JW Library af te skakel.';
+      'Spaar data deur jou internettoegang in JW Life af te skakel.';
 
   @override
   String get settings_open_source_licenses => 'Oopbron-lisensies';

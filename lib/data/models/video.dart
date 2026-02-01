@@ -153,7 +153,7 @@ class Video extends Media {
 
   @override
   Future<void> download(BuildContext context, {int? resolution, Offset? tapPosition}) async {
-    if (await hasInternetConnection(context: context)) {
+    if (await hasInternetConnection(context: context, type: 'download')) {
       if (!isDownloadingNotifier.value && !isDownloadedNotifier.value) {
         String link = '';
         if(naturalKey == null || naturalKey!.isEmpty) {
@@ -214,7 +214,7 @@ class Video extends Media {
       ));
     }
     else {
-      if(await hasInternetConnection(context: context)) {
+      if(await hasInternetConnection(context: context, type: 'stream')) {
         showPage(VideoPlayerPage(
             video: this,
             videos: medias.whereType<Video>().toList(),

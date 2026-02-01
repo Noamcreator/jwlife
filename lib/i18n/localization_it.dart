@@ -1794,11 +1794,11 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String get message_offline_mode =>
-      'L’accesso a Internet è disattivato in JW Library. Vuoi continuare comunque?';
+      'L’accesso a Internet è disattivato in JW Life. Vuoi continuare comunque?';
 
   @override
   String get message_offline_mode_multiple_items =>
-      'L’accesso a Internet è disattivato in JW Library. Per riprodurre tutti i contenuti, alcuni dovranno essere riprodotti in streaming. Vuoi continuare comunque?';
+      'L’accesso a Internet è disattivato in JW Life. Per riprodurre tutti i contenuti, alcuni dovranno essere riprodotti in streaming. Vuoi continuare comunque?';
 
   @override
   String message_offline_terms(Object url) {
@@ -2836,7 +2836,7 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String get settings_offline_mode_subtitle =>
-      'Risparmia dati disattivando l’accesso a Internet in JW Library.';
+      'Risparmia dati disattivando l’accesso a Internet in JW Life.';
 
   @override
   String get settings_open_source_licenses => 'Licenze open source';

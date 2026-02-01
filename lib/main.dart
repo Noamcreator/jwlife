@@ -28,7 +28,7 @@ Future<void> _initializeServices() async {
   WidgetsFlutterBinding.ensureInitialized();
   if (kDebugMode) {
     // Activation du debug pour InAppWebView uniquement en mode debug
-    InAppWebViewController.setWebContentsDebuggingEnabled(true);
+    InAppWebViewController.setWebContentsDebuggingEnabled(false);
   }
 
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge, overlays: [SystemUiOverlay.top, SystemUiOverlay.bottom]);

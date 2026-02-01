@@ -1807,11 +1807,11 @@ class AppLocalizationsAy extends AppLocalizations {
 
   @override
   String get message_offline_mode =>
-      'JW Library aplicacionar mantañatakejj janiw Internetamajj utjkiti, ukhampachas ¿mantaskakïtati?';
+      'JW Life aplicacionar mantañatakejj janiw Internetamajj utjkiti, ukhampachas ¿mantaskakïtati?';
 
   @override
   String get message_offline_mode_multiple_items =>
-      'JW Library aplicacionan Internetajj jiwtʼayatawa. Taqpach archivonak istʼañataki uñtasiñapatakejja yaqhepajj transmitisiñapawa. ¿Internetamamp transmitiñ munaskaktati?';
+      'JW Life aplicacionan Internetajj jiwtʼayatawa. Taqpach archivonak istʼañataki uñtasiñapatakejja yaqhepajj transmitisiñapawa. ¿Internetamamp transmitiñ munaskaktati?';
 
   @override
   String message_offline_terms(Object url) {
@@ -2851,7 +2851,7 @@ class AppLocalizationsAy extends AppLocalizations {
 
   @override
   String get settings_offline_mode_subtitle =>
-      'Desactive el acceso a Internet en JW Library para guardar los datos.';
+      'Desactive el acceso a Internet en JW Life para guardar los datos.';
 
   @override
   String get settings_open_source_licenses => 'Licencias de código abierto';

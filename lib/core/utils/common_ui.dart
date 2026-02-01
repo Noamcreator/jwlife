@@ -126,14 +126,17 @@ Future<void> showPageDailyText(Publication publication, {DateTime? date}) async 
 Future<void> showPage(Widget page) async {
   GlobalKeyService.jwLifePageKey.currentState!.addPageToTab(page);
 
-  final isTransparentFullscreenPage = page is VideoPlayerPage || page is PlaylistPlayerPage || page is FullScreenImagePage || page is FullAudioView || page is NotePage;
+  final isTransparentFullscreenPage = page is VideoPlayerPage || page is PlaylistPlayerPage || page is FullScreenImagePage || page is FullAudioView;
 
   GlobalKeyService.jwLifePageKey.currentState!.toggleNavBarTransparent(isTransparentFullscreenPage);
 
   final isControlsVisible = GlobalKeyService.jwLifePageKey.currentState!.controlsVisible.value;
 
-  if(page is VideoPlayerPage || page is PlaylistPlayerPage || page is NotePage) {
+  if(page is VideoPlayerPage || page is PlaylistPlayerPage) {
     GlobalKeyService.jwLifePageKey.currentState!.toggleNavBarVisibility(false);
+  }
+  else if (page is NotePage) {
+    GlobalKeyService.jwLifePageKey.currentState!.toggleNavBarVisibility(false, hideSystemUi: false);
   }
 
   final isBottomTransition = page is FullAudioView || page is NotePage || JwLifeSettings.instance.pageTransition == 'bottom';

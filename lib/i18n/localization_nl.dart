@@ -1797,11 +1797,11 @@ class AppLocalizationsNl extends AppLocalizations {
 
   @override
   String get message_offline_mode =>
-      'Internettoegang is in JW Library uitgeschakeld. Wil je toch doorgaan?';
+      'Internettoegang is in JW Life uitgeschakeld. Wil je toch doorgaan?';
 
   @override
   String get message_offline_mode_multiple_items =>
-      'Internettoegang is in JW Library uitgeschakeld. Om alle items af te spelen, moeten sommige worden gestreamd. Wil je toch doorgaan?';
+      'Internettoegang is in JW Life uitgeschakeld. Om alle items af te spelen, moeten sommige worden gestreamd. Wil je toch doorgaan?';
 
   @override
   String message_offline_terms(Object url) {
@@ -2832,7 +2832,7 @@ class AppLocalizationsNl extends AppLocalizations {
 
   @override
   String get settings_offline_mode_subtitle =>
-      'Bespaar op data door internettoegang in JW Library uit te schakelen.';
+      'Bespaar op data door internettoegang in JW Life uit te schakelen.';
 
   @override
   String get settings_open_source_licenses => 'Opensourcelicenties';

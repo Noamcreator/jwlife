@@ -2831,7 +2831,7 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get settings_offline_mode_subtitle =>
-      'Datenvolumen einsparen durch Deaktivierung des Internetzugriffs in JW Library.';
+      'Datenvolumen einsparen durch Deaktivierung des Internetzugriffs in JW Life.';
 
   @override
   String get settings_open_source_licenses => 'Open-Source-Lizenzen';

@@ -57,6 +57,15 @@ class SharedPreferencesKeys {
   static final bibleReadingNotificationTime = PrefKey('bible_reading_notification_time', '08:00'); // Format: HH:mm
 
   static final downloadNotification = PrefKey('download_notification', false);
+
+  // Play and download
+  static const streamUsingCellularData = PrefKey('stream_using_cellular_data', false);
+  static const downloadUsingCellularData = PrefKey('download_using_cellular_data', false);
+  static const offlineMode = PrefKey('offline_mode', false);
+
+  // PLaylists
+  static const playlistStartupAction = PrefKey('playlist_startup_action', 0);
+  static const playlistEndAction = PrefKey('playlist_end_action', 0);
 }
 
 /// Modèle interne pour associer une clé à une valeur par défaut

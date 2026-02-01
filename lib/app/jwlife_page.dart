@@ -61,9 +61,11 @@ class JwLifePageState extends State<JwLifePage> with WidgetsBindingObserver {
     controlsVisible.value = isVisible;
   }
 
-  void toggleNavBarVisibility(bool isVisible) {
+  void toggleNavBarVisibility(bool isVisible, {bool hideSystemUi = true}) {
     toggleBottomNavBarVisibility(isVisible);
-    _updateSystemUiMode(isVisible);
+    if(hideSystemUi) {
+      _updateSystemUiMode(hideSystemUi);
+    }
   }
 
   void toggleNavBarTransparent(bool isDisable) {

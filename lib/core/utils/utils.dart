@@ -6,6 +6,7 @@ import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:jwlife/app/services/global_key_service.dart';
+import 'package:jwlife/app/services/settings_service.dart';
 import 'package:jwlife/core/utils/diacritic.dart';
 import 'package:jwlife/core/utils/utils_dialog.dart';
 
@@ -314,7 +315,7 @@ bool isWindows(BuildContext context) {
   return Theme.of(context).platform == TargetPlatform.windows;
 }
 
-Future<bool> hasInternetConnection({BuildContext? context}) async {
+Future<bool> hasInternetConnection({BuildContext? context, String? type}) async {
   final List<ConnectivityResult> connectivityResult = await (Connectivity().checkConnectivity());
   if (connectivityResult.contains(ConnectivityResult.none)) {
     printTime("Aucune connexion Internet !");
@@ -322,6 +323,26 @@ Future<bool> hasInternetConnection({BuildContext? context}) async {
       showNoConnectionDialog(context);
     }
     return false;
+  }
+  else {
+     if(JwLifeSettings.instance.offlineMode && context != null) {
+      bool? result = await showOfflineModeDialog(context);
+
+      if(!(result ?? false)) {
+        return false;
+      }
+    }
+  }
+
+  if (connectivityResult.contains(ConnectivityResult.mobile)) {
+    printTime("Connexion Internet Mobile !");
+    if(context != null && type == 'download' && !JwLifeSettings.instance.downloadUsingCellularData) {
+      return (await showDownloadCellularConnectionDialog(context) ?? false);
+    }
+    else if(context != null && type == 'stream' && !JwLifeSettings.instance.streamUsingCellularData) {
+      return (await showStreamCellularConnectionDialog(context) ?? false);
+    }
+    return true;
   }
   else {
     return true;

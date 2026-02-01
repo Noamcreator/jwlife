@@ -484,4 +484,47 @@ class AppSharedPreferences {
   Future<void> setDownloadNotification(bool active) async {
     await _sp.setBool(SharedPreferencesKeys.downloadNotification.key, active);
   }
+
+  // --- Play and download ---
+  bool getStreamUsingCellularData() {
+    return _sp.getBool(SharedPreferencesKeys.streamUsingCellularData.key) ?? SharedPreferencesKeys.streamUsingCellularData.defaultValue;
+  }
+
+  Future<void> setStreamUsingCellularData(bool active) async {
+    await _sp.setBool(SharedPreferencesKeys.streamUsingCellularData.key, active);
+  }
+
+  bool getDownloadUsingCellularData() {
+    return _sp.getBool(SharedPreferencesKeys.downloadUsingCellularData.key) ?? SharedPreferencesKeys.downloadUsingCellularData.defaultValue;
+  }
+
+  Future<void> setDownloadUsingCellularData(bool active) async {
+    await _sp.setBool(SharedPreferencesKeys.downloadUsingCellularData.key, active);
+  }
+
+  bool getOfflineMode() {
+    return _sp.getBool(SharedPreferencesKeys.offlineMode.key) ?? SharedPreferencesKeys.offlineMode.defaultValue;
+  }
+
+  Future<void> setOfflineMode(bool active) async {
+    await _sp.setBool(SharedPreferencesKeys.offlineMode.key, active);
+  }
+
+ // --- Playlists ---
+
+  int getPlaylistStartupAction() {
+    return _sp.getInt(SharedPreferencesKeys.playlistStartupAction.key) ?? SharedPreferencesKeys.playlistStartupAction.defaultValue;
+  }
+
+  Future<void> setPlaylistStartupAction(int action) async {
+    await _sp.setInt(SharedPreferencesKeys.playlistStartupAction.key, action);
+  }
+
+  int getPlaylistEndAction() {
+    return _sp.getInt(SharedPreferencesKeys.playlistEndAction.key) ?? SharedPreferencesKeys.playlistEndAction.defaultValue;
+  }
+
+  Future<void> setPlaylistEndAction(int action) async {
+    await _sp.setInt(SharedPreferencesKeys.playlistEndAction.key, action);
+  }
 }

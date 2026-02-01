@@ -226,7 +226,7 @@ class JwLifeAudioPlayer {
     if(audios.isEmpty) return;
     final downloadedAudios = audios.where((element) => element.isDownloadedNotifier.value).toList();
 
-    if(await hasInternetConnection(context: downloadedAudios.isEmpty || (first != null && !downloadedAudios.contains(first)) ? GlobalKeyService.jwLifePageKey.currentContext : null)) {
+    if(await hasInternetConnection(context: downloadedAudios.isEmpty || (first != null && !downloadedAudios.contains(first)) ? GlobalKeyService.jwLifePageKey.currentContext : null, type: 'stream')) {
       Audio firstAudio = first ?? audios.first;
 
       if(randomMode) {

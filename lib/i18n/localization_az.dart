@@ -1780,11 +1780,11 @@ class AppLocalizationsAz extends AppLocalizations {
 
   @override
   String get message_offline_mode =>
-      'JW Library proqramında internetə giriş söndürülüb. Yenə də davam etmək istəyirsiniz?';
+      'JW Life proqramında internetə giriş söndürülüb. Yenə də davam etmək istəyirsiniz?';
 
   @override
   String get message_offline_mode_multiple_items =>
-      'JW Library proqramında internetə giriş söndürülüb. Buna görə sizdən pul tuta bilərlər. Yenə də davam etmək istəyirsiniz?';
+      'JW Life proqramında internetə giriş söndürülüb. Buna görə sizdən pul tuta bilərlər. Yenə də davam etmək istəyirsiniz?';
 
   @override
   String message_offline_terms(Object url) {
@@ -2809,7 +2809,7 @@ class AppLocalizationsAz extends AppLocalizations {
 
   @override
   String get settings_offline_mode_subtitle =>
-      'Qənaət üçün JW Library proqramında internetə çıxışı bağla.';
+      'Qənaət üçün JW Life proqramında internetə çıxışı bağla.';
 
   @override
   String get settings_open_source_licenses => 'Açıq mənbə lisenziyaları';

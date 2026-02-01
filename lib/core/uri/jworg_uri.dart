@@ -69,12 +69,25 @@ class JwOrgUri {
   }
 
   static Duration? parseDuration(String value) {
-    final parts = value.split(':').map(int.tryParse).toList();
-    if (parts.length == 3 && parts.every((e) => e != null)) {
+    // On sépare d'abord les millisecondes (après le point) du reste
+    final timeParts = value.split('.');
+    int milliseconds = 0;
+
+    if (timeParts.length > 1) {
+      // On prend les millisecondes et on s'assure qu'elles sont sur 3 chiffres si besoin
+      final msString = timeParts[1].padRight(3, '0').substring(0, 3);
+      milliseconds = int.tryParse(msString) ?? 0;
+    }
+
+    // On traite les H:M:S normalement
+    final hms = timeParts[0].split(':').map(int.tryParse).toList();
+    
+    if (hms.length == 3 && hms.every((e) => e != null)) {
       return Duration(
-        hours: parts[0]!,
-        minutes: parts[1]!,
-        seconds: parts[2]!,
+        hours: hms[0]!,
+        minutes: hms[1]!,
+        seconds: hms[2]!,
+        milliseconds: milliseconds,
       );
     }
     return null;

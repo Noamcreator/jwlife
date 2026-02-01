@@ -1720,11 +1720,11 @@ class AppLocalizationsZh extends AppLocalizations {
   String get message_not_enough_storage_title => '存储空间不足';
 
   @override
-  String get message_offline_mode => 'JW Library已停用网络连接，是否继续下载？';
+  String get message_offline_mode => 'JW Life已停用网络连接，是否继续下载？';
 
   @override
   String get message_offline_mode_multiple_items =>
-      'JW Library已停用网络连接。如果要播放所有的项目，有些会被切换成在线播放。您仍然要继续吗？';
+      'JW Life已停用网络连接。如果要播放所有的项目，有些会被切换成在线播放。您仍然要继续吗？';
 
   @override
   String message_offline_terms(Object url) {
@@ -2677,7 +2677,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settings_offline_mode => '离线模式';
 
   @override
-  String get settings_offline_mode_subtitle => '禁用JW Library的网络连接，以节省流量。';
+  String get settings_offline_mode_subtitle => '禁用JW Life的网络连接，以节省流量。';
 
   @override
   String get settings_open_source_licenses => '开源授权';
@@ -4753,11 +4753,11 @@ class AppLocalizationsZhHk extends AppLocalizationsZh {
   String get message_not_enough_storage_title => '儲存空間不足';
 
   @override
-  String get message_offline_mode => 'JW Library已停用網路連接，是否繼續下載？';
+  String get message_offline_mode => 'JW Life已停用網路連接，是否繼續下載？';
 
   @override
   String get message_offline_mode_multiple_items =>
-      'JW Library已停用網路連接。如果要播放所有的項目，有些會被切換成線上播放。您仍然要繼續嗎？';
+      'JW Life已停用網路連接。如果要播放所有的項目，有些會被切換成線上播放。您仍然要繼續嗎？';
 
   @override
   String message_offline_terms(Object url) {
@@ -5711,7 +5711,7 @@ class AppLocalizationsZhHk extends AppLocalizationsZh {
   String get settings_offline_mode => '離線模式';
 
   @override
-  String get settings_offline_mode_subtitle => '停用JW Library的網路連接，以節省網路流量。';
+  String get settings_offline_mode_subtitle => '停用JW Life的網路連接，以節省網路流量。';
 
   @override
   String get settings_open_source_licenses => '開放原始碼授權';
@@ -7787,11 +7787,11 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   String get message_not_enough_storage_title => '儲存空間不足';
 
   @override
-  String get message_offline_mode => 'JW Library已停用網路連接，是否繼續下載？';
+  String get message_offline_mode => 'JW Life已停用網路連接，是否繼續下載？';
 
   @override
   String get message_offline_mode_multiple_items =>
-      'JW Library已停用網路連接。如果要播放所有的項目，有些會被切換成線上播放。您仍然要繼續嗎？';
+      'JW Life已停用網路連接。如果要播放所有的項目，有些會被切換成線上播放。您仍然要繼續嗎？';
 
   @override
   String message_offline_terms(Object url) {
@@ -8745,7 +8745,7 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   String get settings_offline_mode => '離線模式';
 
   @override
-  String get settings_offline_mode_subtitle => '停用JW Library的網路連接，以節省網路流量。';
+  String get settings_offline_mode_subtitle => '停用JW Life的網路連接，以節省網路流量。';
 
   @override
   String get settings_open_source_licenses => '開放原始碼授權';

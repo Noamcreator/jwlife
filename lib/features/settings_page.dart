@@ -38,13 +38,20 @@ import '../data/realm/realm_library.dart';
 import '../widgets/settings_widget.dart';
 
 class SettingsPage extends StatefulWidget {
-  const SettingsPage({super.key});
+  final String? scrollToSection; // Paramètre optionnel pour le scroll
+  const SettingsPage({super.key, this.scrollToSection});
 
   @override
   _SettingsPageState createState() => _SettingsPageState();
 }
 
 class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClientMixin {
+  final ScrollController _scrollController = ScrollController();
+
+  // Clés pour identifier les sections
+  final GlobalKey _streamDownloadSectionKey = GlobalKey();
+  bool _highlightStreamSection = false;
+
   // Cache des données pour éviter les recalculs
   ThemeMode _theme = JwLifeSettings.instance.themeMode;
   String _pageTransition = 'default';
@@ -70,6 +77,13 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
 
   bool _downloadNotification = false;
 
+  bool _playUsingCellularData = false;
+  bool _downloadUsingCellularData = false;
+  bool _offlineMode = false;
+
+  int _playlistStartupAction = 0;
+  int _playlistEndAction = 0;
+
   String _currentVersion = '1.0.0';
 
   // Cache des styles pour éviter les recréations
@@ -83,6 +97,38 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
   void initState() {
     super.initState();
     _loadSettings();
+
+    // On attend que le build soit terminé pour scroller
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (widget.scrollToSection != null) {
+        _scrollToSection(widget.scrollToSection!);
+      }
+    });
+  }
+
+  void _scrollToSection(String section) async {
+    GlobalKey? targetKey;
+    if (section == 'stream_download') targetKey = _streamDownloadSectionKey;
+
+    if (targetKey?.currentContext != null) {
+      await Scrollable.ensureVisible(
+        targetKey!.currentContext!,
+        duration: const Duration(milliseconds: 0),
+        curve: Curves.easeInOut,
+        alignment: 0.5,
+        alignmentPolicy: ScrollPositionAlignmentPolicy.explicit,
+      );
+
+      // Active l'effet visuel
+      setState(() => _highlightStreamSection = true);
+
+      // Désactive l'effet après 2 secondes
+      Future.delayed(const Duration(seconds: 2), () {
+        if (mounted) {
+          setState(() => _highlightStreamSection = false);
+        }
+      });
+    }
   }
 
   @override
@@ -120,6 +166,13 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
 
     final downloadNotification = sharedPreferences.getDownloadNotification();
 
+    final playUsingCellularData = sharedPreferences.getStreamUsingCellularData();
+    final downloadUsingCellularData = sharedPreferences.getDownloadUsingCellularData();
+    final offlineMode = sharedPreferences.getOfflineMode();
+
+    final playlistStartupAction = sharedPreferences.getPlaylistStartupAction();
+    final playlistEndAction = sharedPreferences.getPlaylistEndAction();
+
     final info = await PackageInfo.fromPlatform();
     final currentVersion = info.version;
 
@@ -155,6 +208,13 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
         _autoOpenSingleDocument = autoOpenSingleDocument; 
 
         _downloadNotification = downloadNotification;
+
+        _playUsingCellularData = playUsingCellularData;
+        _downloadUsingCellularData = downloadUsingCellularData;
+        _offlineMode = offlineMode;
+
+        _playlistStartupAction = playlistStartupAction; 
+        _playlistEndAction = playlistEndAction;
 
         _currentVersion = currentVersion;
       });
@@ -311,6 +371,80 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
             onChanged: (ThemeMode? value) {
               if (value != null) {
                 _updateTheme(value);
+                Navigator.of(context, rootNavigator: true).pop();
+              }
+            },
+          );
+        }).toList(),
+      ),
+      buttons: [
+        JwDialogButton(
+          label: i18n().action_cancel.toUpperCase(),
+        ),
+      ],
+    );
+  }
+
+  void showPlaylistStartActionSelectionDialog() {
+    showJwDialog(
+      context: context,
+      title: Text(
+        i18n().settings_start_action,
+        style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+      ),
+      buttonAxisAlignment: MainAxisAlignment.end,
+      content: Column(
+        spacing: 0,
+        mainAxisAlignment: MainAxisAlignment.start,
+        children: [0, 1].map((mode) {
+          return RadioListTile<int>(
+            title: Text(mode == 0 ? i18n().action_play : i18n().action_pause),
+            value: mode,
+            groupValue: _playlistStartupAction,
+            onChanged: (int? value) {
+              if (value != null) {
+                setState(() {
+                  _playlistStartupAction = value;
+                });
+                AppSharedPreferences.instance.setPlaylistStartupAction(value);
+                JwLifeSettings.instance.playlistStartupAction = value;
+                Navigator.of(context, rootNavigator: true).pop();
+              }
+            },
+          );
+        }).toList(),
+      ),
+      buttons: [
+        JwDialogButton(
+          label: i18n().action_cancel.toUpperCase(),
+        ),
+      ],
+    );
+  }
+
+  void showPlaylistEndActionSelectionDialog() {
+    showJwDialog(
+      context: context,
+      title: Text(
+        i18n().settings_default_end_action,
+        style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+      ),
+      buttonAxisAlignment: MainAxisAlignment.end,
+      content: Column(
+        spacing: 0,
+        mainAxisAlignment: MainAxisAlignment.start,
+        children: [0, 1, 2, 3].map((mode) {
+          return RadioListTile<int>(
+            title: Text(mode == 0 ? i18n().action_continue : mode == 1 ? i18n().action_playlist_end_stop : mode == 2 ? i18n().action_playlist_end_freeze : mode == 3 ? i18n().label_repeat : i18n().action_continue),
+            value: mode,
+            groupValue: _playlistEndAction,
+            onChanged: (int? value) {
+              if (value != null) {
+                setState(() {
+                  _playlistEndAction = value;
+                });
+                AppSharedPreferences.instance.setPlaylistEndAction(value);
+                JwLifeSettings.instance.playlistEndAction = value;
                 Navigator.of(context, rootNavigator: true).pop();
               }
             },
@@ -676,7 +810,7 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
         title: i18n().navigation_settings
       ),
       body: ListView.builder(
-        // Utilise ListView.builder pour une meilleure performance
+        controller: _scrollController,
         itemCount: _buildItems().length,
         cacheExtent: 500, // Cache plus d'éléments pour un scroll fluide
         itemBuilder: (context, index) {
@@ -891,6 +1025,81 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
 
       const Divider(),
 
+      AnimatedContainer(
+        key: _streamDownloadSectionKey,
+        duration: const Duration(milliseconds: 600), // Vitesse de l'apparition/disparition
+        curve: Curves.linear,
+        decoration: BoxDecoration(
+          color: _highlightStreamSection
+              ? Colors.blue.withValues(alpha: 0.2) // Surbrillance claire bleutée
+              : Colors.transparent, // Couleur invisible par défaut
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SettingsSectionHeader(i18n().settings_category_download_uppercase),
+            SettingsTile(
+                title: i18n().settings_stream_over_cellular,
+                subtitle: i18n().settings_download_over_cellular_subtitle,
+                trailing: Switch(
+                  value: _playUsingCellularData,
+                  onChanged: (bool value) async {
+                    setState(() {
+                      _playUsingCellularData = value;
+                    });
+                    await AppSharedPreferences.instance.setStreamUsingCellularData(value);
+                    JwLifeSettings.instance.streamUsingCellularData = value;
+                  },
+                ),
+            ),
+            SettingsTile(
+                title: i18n().settings_download_over_cellular,
+                subtitle: i18n().settings_download_over_cellular_subtitle,
+                trailing: Switch(
+                  value: _downloadUsingCellularData,
+                  onChanged: (bool value) async {
+                    setState(() {
+                      _downloadUsingCellularData = value;
+                    });
+                    await AppSharedPreferences.instance.setDownloadUsingCellularData(value);
+                    JwLifeSettings.instance.downloadUsingCellularData = value;
+                  },
+                ),
+            ),
+            SettingsTile(
+                title: i18n().settings_offline_mode,
+                subtitle: i18n().settings_offline_mode_subtitle,
+                trailing: Switch(
+                  value: _offlineMode,
+                  onChanged: (bool value) async {
+                    setState(() {
+                      _offlineMode = value;
+                    });
+                    await AppSharedPreferences.instance.setOfflineMode(value);
+                    JwLifeSettings.instance.offlineMode = value;
+                  },
+                ),
+            ),
+          ],
+        ),
+      ),
+
+      const Divider(),
+
+      SettingsSectionHeader(i18n().settings_category_playlists_uppercase),
+      SettingsTile(
+        title: i18n().settings_start_action,
+        subtitle: _playlistStartupAction == 0 ? i18n().action_play : i18n().action_pause,
+        onTap: showPlaylistStartActionSelectionDialog,
+      ),
+      SettingsTile(
+        title: i18n().settings_default_end_action,
+        subtitle: _playlistEndAction == 0 ? i18n().action_continue : _playlistEndAction == 1 ? i18n().action_playlist_end_stop : _playlistEndAction == 2 ? i18n().action_playlist_end_freeze : _playlistEndAction == 3 ? i18n().label_repeat : i18n().action_continue,
+        onTap: showPlaylistEndActionSelectionDialog,
+      ),
+
+      const Divider(),
+
       SettingsSectionHeader(i18n().settings_cache_upper),
       SettingsTile(
         title: i18n().action_clear_cache,
@@ -932,6 +1141,7 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
         },
       ),
 
+      /*
       const Divider(),
 
       SettingsSectionHeader(i18n().settings_suggestions_upper),
@@ -949,10 +1159,11 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
             sendIssuesDialog(context, 'bug');
           }
       ),
+      */
 
       const Divider(),
 
-      SettingsSectionHeader(i18n().settings_about),
+      SettingsSectionHeader(i18n().settings_about_uppercase),
       SettingsTile(
         title: i18n().settings_application_version,
         subtitle: _currentVersion,
@@ -962,8 +1173,10 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
               JwLifeAutoUpdater.checkAndUpdate(showBannerNoUpdate: true);
             }
         ),
-        onTap: () {
-          showPage(ReleasesPage());
+        onTap: () async {
+          if(await hasInternetConnection(context: context)) {
+            showPage(ReleasesPage());
+          }
         }
       ),
       SettingsTile(
@@ -974,6 +1187,18 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
         title: i18n().settings_library_date,
         subtitle: libraryDate,
       ),
+
+      const SizedBox(height: 12),
+
+      Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+          child: Text("Copyright © 2026 JW Life • Noam",
+              style: TextStyle(
+                  fontSize: 15,
+          color: Theme.of(context).brightness == Brightness.dark
+          ? const Color(0xFFc3c3c3)
+          : const Color(0xFF626262))),
+        ),
     ];
   }
 }

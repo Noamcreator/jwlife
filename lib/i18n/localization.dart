@@ -3295,13 +3295,13 @@ abstract class AppLocalizations {
   /// No description provided for @message_offline_mode.
   ///
   /// In fr, this message translates to:
-  /// **'L\'accès à Internet est désactivé sur JW Library. Souhaitez-vous quand même continuer ?'**
+  /// **'L\'accès à Internet est désactivé sur JW Life. Souhaitez-vous quand même continuer ?'**
   String get message_offline_mode;
 
   /// No description provided for @message_offline_mode_multiple_items.
   ///
   /// In fr, this message translates to:
-  /// **'L\'accès à Internet est désactivé sur JW Library. Certains médias ne sont pas téléchargés et devront être lus en ligne. Souhaitez-vous quand même continuer ?'**
+  /// **'L\'accès à Internet est désactivé sur JW Life. Certains médias ne sont pas téléchargés et devront être lus en ligne. Souhaitez-vous quand même continuer ?'**
   String get message_offline_mode_multiple_items;
 
   /// No description provided for @message_offline_terms.
@@ -5103,7 +5103,7 @@ abstract class AppLocalizations {
   /// No description provided for @settings_offline_mode_subtitle.
   ///
   /// In fr, this message translates to:
-  /// **'Économise des données en désactivant l\'accès à Internet sur JW Library.'**
+  /// **'Économise des données en désactivant l\'accès à Internet sur JW Life.'**
   String get settings_offline_mode_subtitle;
 
   /// No description provided for @settings_open_source_licenses.

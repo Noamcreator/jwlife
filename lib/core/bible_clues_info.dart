@@ -129,15 +129,15 @@ class BibleCluesInfo {
     try {
       // On récupère uniquement le premier chapitre et le dernier chapitre de la plage
       final List<Map<String, dynamic>> rangeData = await db.rawQuery("""
-      SELECT 
-        bi.Name, br.BookNumber, br.ChapterNumber, br.FirstBibleVerseId, br.FirstOrdinal,
-        (SELECT COUNT(*) FROM BibleSuperscriptionLocation bsl 
-         WHERE bsl.BookNumber = br.BookNumber AND bsl.ChapterNumber = br.ChapterNumber) as HasSup
-      FROM BibleRange br
-      INNER JOIN BibleInfo bi ON br.BibleInfoId = bi.BibleInfoId
-      WHERE bi.Name IN ('NWTR', 'NWT') 
-      AND ((br.BookNumber = ? AND br.ChapterNumber = ?) OR (br.BookNumber = ? AND br.ChapterNumber = ?))
-    """, [book1, chapter1, endBook, endChapter]);
+        SELECT 
+          bi.Name, br.BookNumber, br.ChapterNumber, br.FirstBibleVerseId, br.FirstOrdinal,
+          (SELECT COUNT(*) FROM BibleSuperscriptionLocation bsl 
+          WHERE bsl.BookNumber = br.BookNumber AND bsl.ChapterNumber = br.ChapterNumber) as HasSup
+        FROM BibleRange br
+        INNER JOIN BibleInfo bi ON br.BibleInfoId = bi.BibleInfoId
+        WHERE bi.Name IN ('NWTR', 'NWT') 
+        AND ((br.BookNumber = ? AND br.ChapterNumber = ?) OR (br.BookNumber = ? AND br.ChapterNumber = ?))
+      """, [book1, chapter1, endBook, endChapter]);
 
       for (var type in ['NWT', 'NWTR']) {
         final typeChapters = rangeData.where((e) => e['Name'] == type).toList();
@@ -149,7 +149,7 @@ class BibleCluesInfo {
 
         // Calcul ID de début
         int startId = startData['FirstBibleVerseId'] + (verse1 - startData['FirstOrdinal']);
-        if (startData['HasSup'] > 0 && verse1 != 0) startId++;
+        if (startData['HasSup'] > 0 && (verse1 != 1)) startId++;
 
         // Calcul ID de fin
         int endId = endData['FirstBibleVerseId'] + (endVerse - endData['FirstOrdinal']);

@@ -59,7 +59,7 @@ class JwLifeAutoUpdater {
       String appInfoApi = '${Api.gitubApi}app/app_versions.json?$antiCacheQuery';
       print(appInfoApi);
 
-      if(await hasInternetConnection(context: GlobalKeyService.jwLifePageKey.currentContext!)) {
+      if(await hasInternetConnection()) {
         final response = await Api.httpGetWithHeaders(appInfoApi, responseType: ResponseType.plain);
         if (response.statusCode != 200) return [];
 

@@ -1776,11 +1776,11 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get message_offline_mode =>
-      'JW Library\'nin internet erişimi kapalı. Yine de devam etmek istiyor musunuz?';
+      'JW Life\'nin internet erişimi kapalı. Yine de devam etmek istiyor musunuz?';
 
   @override
   String get message_offline_mode_multiple_items =>
-      'JW Library\'nin internet erişimi kapalı. Hepsini dinlemek için bazılarının online oynatılması gerekecek. Yine de devam etmek istiyor musunuz?';
+      'JW Life\'nin internet erişimi kapalı. Hepsini dinlemek için bazılarının online oynatılması gerekecek. Yine de devam etmek istiyor musunuz?';
 
   @override
   String message_offline_terms(Object url) {

@@ -1750,11 +1750,11 @@ class AppLocalizationsAm extends AppLocalizations {
 
   @override
   String get message_offline_mode =>
-      'JW Library ኢንተርኔት እንዲጠቀም አልተፈቀደለትም። ለማንኛውም በዚሁ ይቀጥል?';
+      'JW Life ኢንተርኔት እንዲጠቀም አልተፈቀደለትም። ለማንኛውም በዚሁ ይቀጥል?';
 
   @override
   String get message_offline_mode_multiple_items =>
-      'JW Library ኢንተርኔት እንዲጠቀም አልተፈቀደለትም። ሁሉንም ሚዲያ ለመስማት አንዳንዶቹን ፋይሎች ከኢንተርኔት ላይ በቀጥታ ማጫወት ያስፈልጋል። ለማንኛውም በዚሁ ይቀጥል?';
+      'JW Life ኢንተርኔት እንዲጠቀም አልተፈቀደለትም። ሁሉንም ሚዲያ ለመስማት አንዳንዶቹን ፋይሎች ከኢንተርኔት ላይ በቀጥታ ማጫወት ያስፈልጋል። ለማንኛውም በዚሁ ይቀጥል?';
 
   @override
   String message_offline_terms(Object url) {
@@ -2745,7 +2745,7 @@ class AppLocalizationsAm extends AppLocalizations {
 
   @override
   String get settings_offline_mode_subtitle =>
-      'JW Library ኢንተርኔት እንዳይጠቀም በማድረግ የኢንተርኔት ፍጆታህን መቆጠብ ትችላለህ።';
+      'JW Life ኢንተርኔት እንዳይጠቀም በማድረግ የኢንተርኔት ፍጆታህን መቆጠብ ትችላለህ።';
 
   @override
   String get settings_open_source_licenses => 'የባለቤቶቹን ፈቃድ አሳየኝ';

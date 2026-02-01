@@ -1782,11 +1782,11 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get message_offline_mode =>
-      'دسترسی به اینترنت در اَپ JW Library غیرفعال شده است. با این حال، آیا می‌خواهید دانلود را ادامه دهید؟';
+      'دسترسی به اینترنت در اَپ JW Life غیرفعال شده است. با این حال، آیا می‌خواهید دانلود را ادامه دهید؟';
 
   @override
   String get message_offline_mode_multiple_items =>
-      'دسترسی به اینترنت در اَپ JW Library غیرفعال شده است. برای پخش بعضی از فایل‌ها باید به اینترنت وصل شوید. آیا می‌خواهید ادامه دهید؟';
+      'دسترسی به اینترنت در اَپ JW Life غیرفعال شده است. برای پخش بعضی از فایل‌ها باید به اینترنت وصل شوید. آیا می‌خواهید ادامه دهید؟';
 
   @override
   String message_offline_terms(Object url) {
@@ -2798,7 +2798,7 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get settings_offline_mode_subtitle =>
-      'با غیرفعال کردن اینترنت در اَپ JW Library، از data کمتری استفاده کنید.';
+      'با غیرفعال کردن اینترنت در اَپ JW Life، از data کمتری استفاده کنید.';
 
   @override
   String get settings_open_source_licenses => 'مجوزهای مربوطه';

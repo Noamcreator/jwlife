@@ -30,7 +30,7 @@ import 'common_ui.dart';
 import 'package:audio_service/audio_service.dart' as audio_service;
 
 void showAudioPlayerForLink(BuildContext context, String url, audio_service.MediaItem mediaItem, {Duration initialPosition = Duration.zero, Duration? endPosition}) async {
-  if(await hasInternetConnection(context: context)) {
+  if(await hasInternetConnection(context: context, type: 'stream')) {
     JwLifeApp.audioPlayer.playAudioFromLink(url, mediaItem, initialPosition: initialPosition, endPosition: endPosition);
   }
 }
@@ -39,7 +39,7 @@ void showAudioPlayerPublicationLink(BuildContext context, Publication publicatio
   Audio audio = publication.audiosNotifier.value.elementAt(id);
 
   if(publication.audiosNotifier.value.isNotEmpty) {
-    if(await hasInternetConnection(context: context) || audio.isDownloadedNotifier.value) {
+    if(await hasInternetConnection(context: context, type: 'stream') || audio.isDownloadedNotifier.value) {
       JwLifeApp.audioPlayer.playAudioFromPublicationLink(publication, id, start ?? Duration.zero);
     }
   }

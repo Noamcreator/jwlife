@@ -1792,11 +1792,11 @@ class AppLocalizationsGl extends AppLocalizations {
 
   @override
   String get message_offline_mode =>
-      'JW Library non está conectado a Internet. Desexas continuar?';
+      'JW Life non está conectado a Internet. Desexas continuar?';
 
   @override
   String get message_offline_mode_multiple_items =>
-      'JW Library non está conectado a Internet. Os arquivos que non estean descargados teralos que ver en streaming. Desexas continuar?';
+      'JW Life non está conectado a Internet. Os arquivos que non estean descargados teralos que ver en streaming. Desexas continuar?';
 
   @override
   String message_offline_terms(Object url) {
@@ -2831,7 +2831,7 @@ class AppLocalizationsGl extends AppLocalizations {
 
   @override
   String get settings_offline_mode_subtitle =>
-      'Deshabilitando o acceso a Internet en JW Library reduces o consumo de datos.';
+      'Deshabilitando o acceso a Internet en JW Life reduces o consumo de datos.';
 
   @override
   String get settings_open_source_licenses => 'Licenzas de código aberto';

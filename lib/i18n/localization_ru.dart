@@ -1783,11 +1783,11 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get message_offline_mode =>
-      'В JW Library отключен доступ к интернету. Вы хотите продолжить?';
+      'В JW Life отключен доступ к интернету. Вы хотите продолжить?';
 
   @override
   String get message_offline_mode_multiple_items =>
-      'В JW Library отключен доступ к интернету. Некоторые файлы из выбранного списка необходимо воспроизводить онлайн. Вы хотите продолжить?';
+      'В JW Life отключен доступ к интернету. Некоторые файлы из выбранного списка необходимо воспроизводить онлайн. Вы хотите продолжить?';
 
   @override
   String message_offline_terms(Object url) {
@@ -2820,7 +2820,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get settings_offline_mode_subtitle =>
-      'Ограничить передачу данных, отключив в JW Library доступ к интернету.';
+      'Ограничить передачу данных, отключив в JW Life доступ к интернету.';
 
   @override
   String get settings_open_source_licenses =>

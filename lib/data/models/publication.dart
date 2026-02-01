@@ -343,7 +343,7 @@ class Publication {
   }
 
   Future<bool> download(BuildContext context) async {
-    if (await hasInternetConnection(context: context)) {
+    if (await hasInternetConnection(context: context, type: 'download')) {
       if (!isDownloadingNotifier.value) {
         isDownloadingNotifier.value = true;
         progressNotifier.value = 0;
@@ -421,7 +421,7 @@ class Publication {
 }
 
   Future<bool> update(BuildContext context, {bool refreshUi = true}) async {
-    if(await hasInternetConnection(context: context)) {
+    if(await hasInternetConnection(context: context, type: 'download')) {
       if (!isDownloadingNotifier.value) {
         isDownloadingNotifier.value = true;
         progressNotifier.value = 0;
@@ -580,7 +580,7 @@ class Publication {
       }
     }
     else {
-      if(await hasInternetConnection(context: context)) {
+      if(await hasInternetConnection(context: context, type: 'download')) {
         if(showDownloadDialog) {
           await showDownloadPublicationDialog(context, this);
         }

@@ -264,7 +264,9 @@ Future<String?> _showFilesDownloadDialog(BuildContext context, dynamic jsonData,
           label: i18n().label_downloaded_uppercase,
           closeDialog: false,
           onPressed: (context) async {
-            await _downloadAndOpenPdf(file['file']['url']);
+            if(await hasInternetConnection(context: context, type: 'download')) {
+              await _downloadAndOpenPdf(file['file']['url']);
+            }
           })
       ]
   );

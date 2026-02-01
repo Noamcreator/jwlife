@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import 'package:jwlife/app/services/settings_service.dart';
+
 import '../../../core/utils/directory_helper.dart';
 import 'independent_media.dart';
 import 'location.dart';
@@ -10,7 +12,7 @@ class PlaylistItem {
   int? startTrimOffsetTicks;
   int? endTrimOffsetTicks;
   int? accuracy = 1;
-  int? endAction = 0;
+  int? endAction = JwLifeSettings.instance.playlistEndAction;
   IndependentMedia? thumbnail;
   int? position;
   int? durationTicks;
@@ -43,7 +45,7 @@ class PlaylistItem {
       startTrimOffsetTicks: map['StartTrimOffsetTicks'],
       endTrimOffsetTicks: map['EndTrimOffsetTicks'],
       accuracy: map['Accuracy'] ?? 1,
-      endAction: map['EndAction'] ?? 0,
+      endAction: map['EndAction'] ?? JwLifeSettings.instance.playlistEndAction,
       thumbnail: IndependentMedia(originalFileName: map['ThumbnailOriginalFileName'], filePath: map['ThumbnailFilePath'], mimeType: map['ThumbnailMimeType'], hash: map['ThumbnailHash']),
       position: map['Position'],
       durationTicks: map['DurationTicks'],

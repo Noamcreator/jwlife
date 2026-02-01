@@ -1795,11 +1795,11 @@ class AppLocalizationsHu extends AppLocalizations {
 
   @override
   String get message_offline_mode =>
-      'Az automatikus internet-hozzáférés ki van kapcsolva a JW Libraryben. Így is szeretnéd folytatni?';
+      'Az automatikus internet-hozzáférés ki van kapcsolva a JW Lifeben. Így is szeretnéd folytatni?';
 
   @override
   String get message_offline_mode_multiple_items =>
-      'Az automatikus internet-hozzáférés ki van kapcsolva a JW Libraryben. Az összes elem lejátszásához néhányat online kell lejátszani. Így is szeretnéd folytatni?';
+      'Az automatikus internet-hozzáférés ki van kapcsolva a JW Lifeben. Az összes elem lejátszásához néhányat online kell lejátszani. Így is szeretnéd folytatni?';
 
   @override
   String message_offline_terms(Object url) {
@@ -2827,7 +2827,7 @@ class AppLocalizationsHu extends AppLocalizations {
 
   @override
   String get settings_offline_mode_subtitle =>
-      'Az automatikus internet-hozzáférés kikapcsolása a JW Libraryben.';
+      'Az automatikus internet-hozzáférés kikapcsolása a JW Lifeben.';
 
   @override
   String get settings_open_source_licenses => 'Nyílt forráskódú licencek';

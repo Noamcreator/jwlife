@@ -1781,11 +1781,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get message_offline_mode =>
-      'Internet access is disabled in JW Library. Would you like to continue anyway?';
+      'Internet access is disabled in JW Life. Would you like to continue anyway?';
 
   @override
   String get message_offline_mode_multiple_items =>
-      'Internet access is disabled in JW Library. To play all items, some will have to be streamed. Would you like to continue anyway?';
+      'Internet access is disabled in JW Life. To play all items, some will have to be streamed. Would you like to continue anyway?';
 
   @override
   String message_offline_terms(Object url) {
@@ -2802,7 +2802,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settings_offline_mode_subtitle =>
-      'Save data by disabling Internet access in JW Library.';
+      'Save data by disabling Internet access in JW Life.';
 
   @override
   String get settings_open_source_licenses => 'Open-Source Licenses';

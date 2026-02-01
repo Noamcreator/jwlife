@@ -139,7 +139,7 @@ class Audio extends Media {
 
   @override
   Future<void> download(BuildContext context, {int? resolution, Offset? tapPosition}) async {
-    if(await hasInternetConnection(context: context)) {
+    if(await hasInternetConnection(context: context, type: 'download')) {
       if(naturalKey == null) {
         super.performDownload(context, null);
       }
@@ -147,7 +147,7 @@ class Audio extends Media {
         String link = 'https://b.jw-cdn.org/apis/mediator/v1/media-items/$mepsLanguage/$naturalKey';
         final response = await Api.httpGetWithHeaders(link, responseType: ResponseType.json);
         if (response.statusCode == 200) {
-          super.performDownload(context, response.data['media'][0]);
+          super.performDownload(context, response.data['media'][0]['files']);
         }
       }
     }
@@ -159,7 +159,7 @@ class Audio extends Media {
       JwLifeApp.audioPlayer.playAudio(this, initialPosition: initialPosition);
     }
     else {
-      if(await hasInternetConnection(context: context)) {
+      if(await hasInternetConnection(context: context, type: 'stream')) {
         JwLifeApp.audioPlayer.playAudio(this, initialPosition: initialPosition);
       }
     }

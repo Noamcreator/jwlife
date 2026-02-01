@@ -304,7 +304,7 @@ Future<void> showBibleBookView(BuildContext context, String keySymbol, int mepsL
     }
   }
   else {
-    if(await hasInternetConnection(context: context)) {
+    if(await hasInternetConnection(context: context, type: 'download')) {
       bible = await CatalogDb.instance.searchPubFromBookNumber(bookNumber, keySymbol, mepsLanguageId);
       if (bible != null) {
         await showDownloadPublicationDialog(context, bible, bookNumber: bookNumber);
@@ -325,7 +325,7 @@ Future<void> showChapterView(BuildContext context, String keySymbol, int mepsLan
     }
   }
   else {
-    if(await hasInternetConnection(context: context)) {
+    if(await hasInternetConnection(context: context, type: 'download')) {
       bible = await CatalogDb.instance.searchPubFromBookNumber(bookNumber, keySymbol, mepsLanguageId);
       if (bible != null) {
         await showDownloadPublicationDialog(context, bible, bookNumber: bookNumber, chapterNumber: chapterNumber, startParagraphId: firstVerseNumber, endParagraphId: lastVerseNumber, wordsSelected: wordsSelected);
@@ -342,13 +342,13 @@ if (dailyText != null) {
       await showPageDailyText(dailyText, date: date);
     }
     else {
-      if(await hasInternetConnection(context: context)) {
+      if(await hasInternetConnection(context: context, type: 'download')) {
         await showDownloadPublicationDialog(context, dailyText, date: date);
       }
     }
   }
   else {
-    if(await hasInternetConnection(context: context)) {
+    if(await hasInternetConnection(context: context, type: 'download')) {
       dailyText = await CatalogDb.instance.searchPubFromDatedText(start, keySymbol, mepsLanguageId);
       if (dailyText != null) {
         await showDownloadPublicationDialog(context, dailyText, date: date);

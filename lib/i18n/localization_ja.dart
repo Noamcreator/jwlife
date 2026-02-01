@@ -1738,11 +1738,11 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get message_offline_mode =>
-      'JW Libraryでのインターネット接続が無効になっています。インターネット接続を許可しますか。';
+      'JW Lifeでのインターネット接続が無効になっています。インターネット接続を許可しますか。';
 
   @override
   String get message_offline_mode_multiple_items =>
-      'JW Libraryでのインターネット接続が無効になっています。全てを再生するには，インターネット経由のストリーミングが必要です。';
+      'JW Lifeでのインターネット接続が無効になっています。全てを再生するには，インターネット経由のストリーミングが必要です。';
 
   @override
   String message_offline_terms(Object url) {
@@ -2711,7 +2711,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get settings_offline_mode_subtitle =>
-      'JW Libraryでのインターネット接続を無効にして，データ通信を節約します。';
+      'JW Lifeでのインターネット接続を無効にして，データ通信を節約します。';
 
   @override
   String get settings_open_source_licenses => 'オープンソースライセンス';
