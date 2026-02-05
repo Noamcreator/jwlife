@@ -3176,4 +3176,21 @@ class AppLocalizationsNe extends AppLocalizations {
   @override
   String get settings_menu_auto_open_single_document_subtitle =>
       'यदि केवल एक कागजात छ भने, मेनु नदेखाई यसलाई खोल्नुहोस्।';
+
+  @override
+  String get settings_appearance_frequently_used =>
+      'बारम्बार प्रयोग गरिने प्रकाशनहरू';
+
+  @override
+  String get settings_appearance_frequently_used_subtitle =>
+      'गृह पृष्ठमा \"मनपर्ने\" खण्ड मुनि सबैभन्दा धेरै प्रयोग गरिएका प्रकाशनहरू प्रदर्शन गर्नुहोस्';
+
+  @override
+  String get action_all_selection => 'सबै चयन गर्नुहोस्';
+
+  @override
+  String get action_translate => 'अनुवाद गर्नुहोस्';
+
+  @override
+  String get action_open_in_jwlife => 'JW Life मा खोल्नुहोस्';
 }

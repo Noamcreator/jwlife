@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/src/foundation/change_notifier.dart';
@@ -200,15 +202,10 @@ class AppDataService {
     final String publicationSelectQuery = CatalogDb.publicationSelectQuery;
     final String publicationQuery = CatalogDb.publicationQuery;
 
-    final String publicationMepsSelectQuery = CatalogDb.publicationMepsSelectQuery;
-
     final mepsFile = await getMepsUnitDatabaseFile();
 
     final catalogFile = await getCatalogDatabaseFile();
     bool isCatalogFileExist = catalogFile.existsSync();
-
-    final historyFile = await getHistoryDatabaseFile();
-    bool isHistoryFileExist = historyFile.existsSync();
 
     await CatalogDb.instance.init(catalogFile);
 
@@ -225,7 +222,6 @@ class AppDataService {
 
           // Exécution des requêtes EN SÉRIE, pas en parallèle
           List<Map<String, Object?>> result1 = [];
-          List<Map<String, Object?>> result2 = [];
           List<Map<String, Object?>> result3 = [];
           List<Map<String, Object?>> result4 = [];
           List<Map<String, Object?>> result5 = [];
@@ -297,39 +293,10 @@ class AppDataService {
 
           printTime('End: Dated Publications');
 
-          if(isFirst) {
+          if(isFirst && JwLifeSettings.instance.hasFrequentlyUsedPublications) {
             printTime('Start: Frequently Used Publications');
-            await attachTransaction(txn, {'meps': mepsFile.path});
-
-            if(isHistoryFileExist) {
-              await attachTransaction(txn, {'history': historyFile.path});
-            }
-
-            if(isFirst && isHistoryFileExist) {
-              result2 = await txn.rawQuery('''
-                SELECT DISTINCT
-                  SUM(hp.VisitCount) AS TotalVisits,
-                  $publicationMepsSelectQuery
-                FROM history.History hp
-                INNER JOIN Publication p ON p.KeySymbol = hp.KeySymbol AND p.IssueTagNumber = hp.IssueTagNumber AND p.MepsLanguageId = hp.MepsLanguageId
-                INNER JOIN PublicationAsset pa ON p.Id = pa.PublicationId
-                INNER JOIN meps.Language ON p.MepsLanguageId = meps.Language.LanguageId
-                INNER JOIN meps.Script ON meps.Language.ScriptId = meps.Script.ScriptId
-                LEFT JOIN meps.Language AS fallback ON meps.Language.PrimaryFallbackLanguageId = fallback.LanguageId
-                LEFT JOIN PublicationAttributeMap pam ON p.Id = pam.PublicationId
-                GROUP BY p.KeySymbol, p.IssueTagNumber, p.MepsLanguageId
-                ORDER BY TotalVisits DESC
-                LIMIT 10;
-              ''');
-
-              AppDataService.instance.frequentlyUsed.value = result2.map((item) => Publication.fromJson(item)).toList();
-            }
-
-            await detachTransaction(txn, ['meps']);
-
-            if(isHistoryFileExist) {
-              await detachTransaction(txn, ['history']);
-            }
+            
+            fetchFrequentlyUsedPublications(txn, mepsFile);
 
             printTime('End: Frequently Used Publications');
           }
@@ -337,7 +304,7 @@ class AppDataService {
           if(type == 'all' || type == 'toolbox') {
             printTime('Start: ToolBox Pubs');
             result4 = await txn.rawQuery('''
-              SELECT DISTINCT
+              SELECT
                 ca.SortOrder,
                 $publicationSelectQuery
               FROM CuratedAsset ca
@@ -462,25 +429,58 @@ class AppDataService {
       if (type == 'all' || type == 'workship') refreshPublicTalks();
     }
 
-    if(library && type != 'articles' && type != 'dailyText') {
-      checkUpdatesAndRefreshContent(null, isFirst: true, type: type);
+    if(isFirst) {
+      await Mepsunit.loadBibleCluesInfo(appLocalizations.meps_language);
     }
 
     if(type == 'library') {
       await libraryLanguage.loadWolInfo();
     }
 
-
-    if(isFirst) {
-      await Mepsunit.loadBibleCluesInfo(appLocalizations.meps_language);
-
-      final isConnected = await hasInternetConnection();
-      if (isConnected) {
-        Future.wait([
-          JwLifeAutoUpdater.checkAndUpdate(),
-          AssetsDownload.download(),
-        ]);
-      }
+    if(library && type != 'articles' && type != 'dailyText') {
+      checkUpdatesAndRefreshContent(null, isFirst: true, type: type);
     }
+
+    if(isFirst && await hasInternetConnection()) {
+       Future.wait([
+        JwLifeAutoUpdater.checkAndUpdate(),
+        AssetsDownload.download(),
+      ]);
+    }
+  }
+
+  Future<void> fetchFrequentlyUsedPublications(Transaction txn, File mepsFile) async {
+    File historyFile = await getHistoryDatabaseFile();
+    bool isHistoryFileExist = historyFile.existsSync();
+
+    String publicationMepsSelectQuery = CatalogDb.publicationMepsSelectQuery;
+
+    await attachTransaction(txn, {'meps': mepsFile.path});
+
+    List<Map<String, Object?>> result2 = [];
+    if(isHistoryFileExist) {
+      await attachTransaction(txn, {'history': historyFile.path});
+
+      result2 = await txn.rawQuery('''
+        SELECT DISTINCT
+          SUM(hp.VisitCount) AS TotalVisits,
+          $publicationMepsSelectQuery
+        FROM history.History hp
+        INNER JOIN Publication p ON p.KeySymbol = hp.KeySymbol AND p.IssueTagNumber = hp.IssueTagNumber AND p.MepsLanguageId = hp.MepsLanguageId
+        INNER JOIN PublicationAsset pa ON p.Id = pa.PublicationId
+        INNER JOIN meps.Language ON p.MepsLanguageId = meps.Language.LanguageId
+        INNER JOIN meps.Script ON meps.Language.ScriptId = meps.Script.ScriptId
+        LEFT JOIN meps.Language AS fallback ON meps.Language.PrimaryFallbackLanguageId = fallback.LanguageId
+        LEFT JOIN PublicationAttributeMap pam ON p.Id = pam.PublicationId
+        GROUP BY p.KeySymbol, p.IssueTagNumber, p.MepsLanguageId
+        ORDER BY TotalVisits DESC
+        LIMIT 10;
+      ''');
+
+      AppDataService.instance.frequentlyUsed.value = result2.map((item) => Publication.fromJson(item)).toList();
+
+      await detachTransaction(txn, ['history']);
+    }
+    await detachTransaction(txn, ['meps']);
   }
 }

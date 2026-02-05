@@ -931,5 +931,10 @@
   "settings_show_document_description": "Показывать описание для документов",
   "settings_show_document_description_subtitle": "Показывать описание с веб-сайта под документами.",
   "settings_menu_auto_open_single_document": "Открыть документ напрямую",
-  "settings_menu_auto_open_single_document_subtitle": "Если имеется только один документ, открыть его без отображения меню."
+  "settings_menu_auto_open_single_document_subtitle": "Если имеется только один документ, открыть его без отображения меню.",
+  "settings_appearance_frequently_used": "Часто используемые публикации",
+  "settings_appearance_frequently_used_subtitle": "Отображать наиболее часто используемые публикации на главной странице под разделом «Избранное»",
+  "action_all_selection": "Выбрать все",
+  "action_translate": "Перевести",
+  "action_open_in_jwlife": "Открыть в JW Life"
 }

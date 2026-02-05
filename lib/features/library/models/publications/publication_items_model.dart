@@ -94,9 +94,17 @@ class PublicationsItemsViewModel with ChangeNotifier {
         PublicationAttribute attribute = pub.attributes.first;
         // Vérifie s'il y a plus d'un attribut (optionnel)
         if (pub.attributes.length > 1) {
+          // Vérifie si les attributs pour les assemblées de circonscription et régionales sont présents
+          final bool hasAttribute2 = pub.attributes.any((attr) => attr.id == 2);
+
           // Vérifie si la liste contient l'attribut avec ID 3 ET l'attribut avec ID 9
           final bool hasAttribute3 = pub.attributes.any((attr) => attr.id == 3);
           final bool hasAttribute9 = pub.attributes.any((attr) => attr.id == 9);
+
+          // Vérifie si la liste contient l'attribut avec ID 1 ET l'attribut avec ID 2
+          if (hasAttribute2 && hasAttribute3) {
+            attribute = PublicationAttribute.all.firstWhere((attr) => attr.id == 1);
+          }
 
           // Si les deux attributs spéciaux sont présents
           if (hasAttribute3 && hasAttribute9) {

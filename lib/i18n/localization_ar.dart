@@ -3153,4 +3153,20 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get settings_menu_auto_open_single_document_subtitle =>
       'إذا كان هناك مستند واحد فقط، فافتحه دون عرض القائمة.';
+
+  @override
+  String get settings_appearance_frequently_used => 'المنشورات المستخدمة بكثرة';
+
+  @override
+  String get settings_appearance_frequently_used_subtitle =>
+      'عرض المنشورات الأكثر استخدامًا في الصفحة الرئيسية أسفل قسم \"المفضلة\"';
+
+  @override
+  String get action_all_selection => 'تحديد الكل';
+
+  @override
+  String get action_translate => 'ترجمة';
+
+  @override
+  String get action_open_in_jwlife => 'فتح في JW Life';
 }

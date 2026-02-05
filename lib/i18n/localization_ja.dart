@@ -3072,4 +3072,20 @@ class AppLocalizationsJa extends AppLocalizations {
   @override
   String get settings_menu_auto_open_single_document_subtitle =>
       'ドキュメントが1つしかない場合は、メニューを表示せずに開きます。';
+
+  @override
+  String get settings_appearance_frequently_used => '頻繁に使用される出版物';
+
+  @override
+  String get settings_appearance_frequently_used_subtitle =>
+      'ホームページの「お気に入り」セクションの下に、最も頻繁に使用される出版物を表示します';
+
+  @override
+  String get action_all_selection => 'すべて選択';
+
+  @override
+  String get action_translate => '翻訳する';
+
+  @override
+  String get action_open_in_jwlife => 'JW Lifeで開く';
 }

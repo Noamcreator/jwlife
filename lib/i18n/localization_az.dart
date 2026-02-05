@@ -3180,4 +3180,21 @@ class AppLocalizationsAz extends AppLocalizations {
   @override
   String get settings_menu_auto_open_single_document_subtitle =>
       'Yalnız bir sənəd varsa, menyunu göstərmədən onu açın.';
+
+  @override
+  String get settings_appearance_frequently_used =>
+      'Tez-tez istifadə olunan nəşrlər';
+
+  @override
+  String get settings_appearance_frequently_used_subtitle =>
+      'Əsas səhifədə \"Seçilmişlər\" bölməsinin altında ən çox istifadə olunan nəşrləri göstər';
+
+  @override
+  String get action_all_selection => 'Hamısını seçin';
+
+  @override
+  String get action_translate => 'Tərcümə et';
+
+  @override
+  String get action_open_in_jwlife => 'JW Life-da aç';
 }

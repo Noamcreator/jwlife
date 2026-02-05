@@ -3083,4 +3083,20 @@ class AppLocalizationsKo extends AppLocalizations {
   @override
   String get settings_menu_auto_open_single_document_subtitle =>
       '문서가 하나만 있는 경우 메뉴를 표시하지 않고 엽니다.';
+
+  @override
+  String get settings_appearance_frequently_used => '자주 사용하는 간행물';
+
+  @override
+  String get settings_appearance_frequently_used_subtitle =>
+      '홈 페이지의 \"즐겨찾기\" 섹션 아래에 가장 많이 사용되는 간행물을 표시합니다';
+
+  @override
+  String get action_all_selection => '전체 선택';
+
+  @override
+  String get action_translate => '번역';
+
+  @override
+  String get action_open_in_jwlife => 'JW Life에서 열기';
 }

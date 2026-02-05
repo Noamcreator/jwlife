@@ -8,16 +8,16 @@ class NoteController extends ChangeNotifier {
   factory NoteController() => _instance;
   NoteController._internal();
 
-  Note? _currentNote;
+  String? _currentNoteGuid;
   bool _isVisible = false;
 
   // Getters
-  Note? get note => _currentNote;
-  bool get isVisible => _isVisible && _currentNote != null;
+  String? get currentNoteguid => _currentNoteGuid;
+  bool get isVisible => _isVisible && _currentNoteGuid != null;
 
   /// Affiche le widget avec une nouvelle note
   void show(Note note) {
-    _currentNote = note;
+    _currentNoteGuid = note.guid;
     _isVisible = true;
     
     // Met à jour la visibilité globale pour le padding
@@ -29,7 +29,7 @@ class NoteController extends ChangeNotifier {
   /// Cache le widget
   void hide() {
     _isVisible = false;
-    _currentNote = null;
+    _currentNoteGuid = null;
     
     // Met à jour la visibilité globale pour le padding
     GlobalKeyService.jwLifePageKey.currentState?.toggleNoteWidgetVisibility(false);

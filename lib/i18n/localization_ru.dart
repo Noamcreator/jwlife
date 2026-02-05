@@ -3195,4 +3195,21 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String get settings_menu_auto_open_single_document_subtitle =>
       'Если имеется только один документ, открыть его без отображения меню.';
+
+  @override
+  String get settings_appearance_frequently_used =>
+      'Часто используемые публикации';
+
+  @override
+  String get settings_appearance_frequently_used_subtitle =>
+      'Отображать наиболее часто используемые публикации на главной странице под разделом «Избранное»';
+
+  @override
+  String get action_all_selection => 'Выбрать все';
+
+  @override
+  String get action_translate => 'Перевести';
+
+  @override
+  String get action_open_in_jwlife => 'Открыть в JW Life';
 }

@@ -138,6 +138,9 @@ Future<void> showPage(Widget page) async {
   else if (page is NotePage) {
     GlobalKeyService.jwLifePageKey.currentState!.toggleNavBarVisibility(false, hideSystemUi: false);
   }
+  else {
+    GlobalKeyService.jwLifePageKey.currentState!.toggleNavBarVisibility(true);
+  }
 
   final isBottomTransition = page is FullAudioView || page is NotePage || JwLifeSettings.instance.pageTransition == 'bottom';
   final isRightTransition = JwLifeSettings.instance.pageTransition == 'right';

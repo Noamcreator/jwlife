@@ -13,6 +13,7 @@ import 'package:jwlife/core/utils/utils_audio.dart';
 import 'package:jwlife/core/utils/webview_data.dart';
 import 'package:jwlife/data/databases/meps_languages.dart';
 import 'package:jwlife/data/databases/mepsunit.dart';
+import 'package:jwlife/data/models/meps_language.dart';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/databases/catalog.dart';
 import 'package:jwlife/data/models/userdata/bookmark.dart';
@@ -427,19 +428,19 @@ String createHtmlContent(String html, String articleClasses, String javascript) 
   return htmlContent;
 }
 
-String getArticleClass(Publication publication, Document document) {
+String getArticleClass(Publication publication, Document document, {MepsLanguage? language}) {
   final isBible = document.isBibleChapter();
   final type = isBible ? 'bible' : 'document';
   final keySymbol = publication.keySymbol;
   final docClass = document.classType;
   final docId = document.documentId;
   final scriptName = publication.mepsLanguage.internalScriptName;
-  final languageSymbol = publication.mepsLanguage.symbol;
-  final direction = publication.mepsLanguage.isRtl ? 'rtl' : 'ltr';
+  final languageSymbol = language?.symbol ?? publication.mepsLanguage.symbol;
+  final direction = language?.isRtl ?? publication.mepsLanguage.isRtl ? 'rtl' : 'ltr';
 
   String showRuby = '';
   if(document.hasPronunciationGuide) {
-    final languageCode = publication.mepsLanguage.primaryIetfCode;
+    final languageCode = language?.primaryIetfCode ?? publication.mepsLanguage.primaryIetfCode;
     if (languageCode == 'ja' && JwLifeSettings.instance.webViewSettings.isFuriganaActive) {
       showRuby = 'showRuby';
     }

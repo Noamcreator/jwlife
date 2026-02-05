@@ -77,7 +77,6 @@ class DailyTextWidget extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(height: 10),
       ],
     );
   }

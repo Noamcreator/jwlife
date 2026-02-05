@@ -188,7 +188,7 @@ class VideoItemsModel extends ChangeNotifier {
   // --- Logique de service (Changement de Langue) ---
   void showLanguageSelection(BuildContext context) async {
     // Affiche la boîte de dialogue de sélection de langue
-    final language = await showLanguageDialog(context, firstSelectedLanguage: _language.symbol);
+    final language = await showLanguageDialog(context, firstSelectedLanguage: _language.symbol, type: 'medias');
     if (language != null) {
       final languageSymbol = language['Symbol'] as String;
       if (languageSymbol != _language.symbol) {

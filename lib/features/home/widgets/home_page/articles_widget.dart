@@ -68,7 +68,7 @@ class ArticlesWidgetState extends State<ArticlesWidget> {
         builder: (context, mepsLanguage, child) {
           return GestureDetector(
             onTap: () {
-              showLanguageDialog(context, firstSelectedLanguage: mepsLanguage.symbol).then((language) async {
+              showLanguageDialog(context, firstSelectedLanguage: mepsLanguage.symbol, type: 'article').then((language) async {
                 if (language != null && language['Symbol'] != mepsLanguage.symbol) {
                   await AppSharedPreferences.instance.setArticlesLanguage(language);
                   AppDataService.instance.changeArticlesLanguageAndRefresh();
@@ -295,9 +295,13 @@ class ArticlesWidgetState extends State<ArticlesWidget> {
             const Icon(JwIcons.play, color: Colors.white),
             const SizedBox(width: 10),
           ],
-          Text(
-            buttonText,
-            style: const TextStyle(color: Colors.white, fontSize: 22),
+          Flexible(
+            child: Text(
+              buttonText,
+              style: const TextStyle(color: Colors.white, fontSize: 22),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
         ],
       ),

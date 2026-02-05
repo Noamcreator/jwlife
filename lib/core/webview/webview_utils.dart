@@ -1,16 +1,22 @@
+import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart' hide Element;
+import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:html/dom.dart';
 import 'package:html/parser.dart';
 import 'package:jwlife/app/services/global_key_service.dart';
+import 'package:jwlife/core/api/translate_api.dart';
+import 'package:jwlife/core/uri/jworg_uri.dart';
+import 'package:jwlife/core/uri/utils_uri.dart';
 import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/core/utils/utils_document.dart';
 import 'package:jwlife/core/utils/utils_jwpub.dart';
 import 'package:jwlife/data/models/userdata/block_range.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:sqflite/sqflite.dart';
 
 import '../../app/jwlife_app.dart';
@@ -236,8 +242,29 @@ Future<Map<String, dynamic>?> fetchExtractPublication(BuildContext context, Stri
         image = '/android_asset/flutter_assets/assets/images/$path.png';
       }
 
+      final StringBuffer htmlBuffer = StringBuffer();
+      htmlBuffer.write('<div class="extract-publication" padding: 15px 23px;">');
+
       /// Décoder le contenu
       final decodedHtml = decodeBlobContent(extract['Content'] as Uint8List, current.hash!);
+      htmlBuffer.write(decodedHtml);
+
+      if (extractPublication != null) {
+        if(extractPublication.mepsLanguage.symbol != currentPublication.mepsLanguage.symbol) {
+          Map<String, dynamic> translation = await fetchTranslation(decodedHtml, sourceLang: extractPublication.mepsLanguage.primaryIetfCode, targetLang: currentPublication.mepsLanguage.primaryIetfCode);
+          String translatedTextHtml = translation['destination-text'] ?? '';
+          if (translatedTextHtml.isNotEmpty) {
+            // Construire le contenu HTML
+            if (translatedTextHtml.isNotEmpty) {
+              htmlBuffer.write('<div style="font-size: 0.95em; font-weight: bold; color: ${Theme.of(context).brightness == Brightness.dark ? '#ffffff' : '#000000'}; margin-top: 50px; padding-left: 0px; padding-right: 0px;">${currentPublication.mepsLanguage.vernacular} - Traduction Automatique</div>');
+            }
+            
+            htmlBuffer.write(translatedTextHtml);
+          }
+        }
+      }
+
+      htmlBuffer.write('</div>');
 
       int? extractMepsDocumentId = extract['RefMepsDocumentId'];
       int? firstParagraphId = extract['RefBeginParagraphOrdinal'];
@@ -262,8 +289,8 @@ Future<Map<String, dynamic>?> fetchExtractPublication(BuildContext context, Stri
 
       dynamic article = {
         'type': 'publication',
-        'content': decodedHtml,
-        'className': "publicationCitation html5 pub-${extract['UndatedSymbol']} docId-$extractMepsDocumentId docClass-${extract['RefMepsDocumentClass']} jwac ml-${refPub?.mepsLanguage.symbol ?? current.mepsLanguage.symbol} ms-${refPub?.mepsLanguage.internalScriptName ?? current.mepsLanguage.internalScriptName} dir-${refPub?.mepsLanguage.isRtl ?? current.mepsLanguage.isRtl ? 'rtl' : 'ltr'} layout-reading layout-sidebar",
+        'content': htmlBuffer.toString(),
+        'className': "publicationCitation html5 pub-${extract['UndatedSymbol']} docId-$extractMepsDocumentId docClass-${extract['RefMepsDocumentClass']} jwac ml-${refPub?.mepsLanguage.symbol ?? current.mepsLanguage.symbol} ms-${refPub?.mepsLanguage.internalScriptName ?? current.mepsLanguage.internalScriptName} dir-${refPub?.mepsLanguage.isRtl ?? current.mepsLanguage.isRtl ? 'rtl' : 'ltr'}",
         'imageUrl': image,
         'publicationTitle': refPub == null ? extract['ShortTitle'] : refPub.getShortTitle(),
         'subtitleText': caption,
@@ -1471,5 +1498,77 @@ InAppWebViewSettings getWebViewSettings() {
     allowsLinkPreview: false,
     disableDefaultErrorPage: true,
     transparentBackground: true,
+  );
+}
+
+ContextMenu getContextMenu(InAppWebViewController controller) {
+  return ContextMenu(
+    menuItems: [
+      ContextMenuItem(
+        id: 1,
+        title: i18n().action_copy,
+        action: () async {
+          String? selectedText = await controller.getSelectedText();
+          if (selectedText != null && selectedText.isNotEmpty) {
+            await Clipboard.setData(ClipboardData(text: selectedText));
+          }
+        },
+      ),
+      ContextMenuItem(
+        id: 2,
+        title: i18n().action_trim,
+        action: () async {
+          String? selectedText = await controller.getSelectedText();
+          if (selectedText == null) return;
+          controller.evaluateJavascript(source: "trimText('$selectedText');");
+          controller.clearFocus();
+
+          Clipboard.setData(ClipboardData(text: selectedText));
+        },
+      ),
+      ContextMenuItem(
+        id: 3,
+        title: i18n().action_all_selection,
+        action: () async {
+          // Utilisation du JS pour tout sélectionner dans le document
+          await controller.evaluateJavascript(source: "window.getSelection().selectAllChildren(document.body);");
+        },
+      ),
+      ContextMenuItem(
+        id: 4,
+        title: i18n().action_open_in_jwlife,
+        action: () async {
+          String? selectedText = await controller.getSelectedText();
+          if (selectedText == null || selectedText.isEmpty) return;
+
+          JwOrgUri uri = JwOrgUri.parse(selectedText);
+          handleUri(uri);
+        },
+      ),
+      ContextMenuItem(
+        id: 5,
+        title: i18n().action_translate,
+        action: () async {
+          String? selectedText = await controller.getSelectedText();
+          if (selectedText == null) return;
+
+          
+        },
+      ),
+      ContextMenuItem(
+        id: 6,
+        title: i18n().action_share,
+        action: () async {
+          String? selectedText = await controller.getSelectedText();
+          if (selectedText != null && selectedText.isNotEmpty) {
+            // Utilisation du package share_plus
+            await SharePlus.instance.share(ShareParams(title: selectedText, uri: Uri.tryParse(selectedText)));
+          }
+        },
+      ),
+    ],
+    settings: ContextMenuSettings(
+      hideDefaultSystemContextMenuItems: true, // true pour TOUT masquer sauf les tiens
+    ),
   );
 }

@@ -3205,4 +3205,21 @@ class AppLocalizationsHu extends AppLocalizations {
   @override
   String get settings_menu_auto_open_single_document_subtitle =>
       'Ha csak egy dokumentum van jelen, nyissa meg a menü megjelenítése nélkül.';
+
+  @override
+  String get settings_appearance_frequently_used =>
+      'Gyakran használt kiadványok';
+
+  @override
+  String get settings_appearance_frequently_used_subtitle =>
+      'A legtöbbet használt kiadványok megjelenítése a kezdőlapon a „Kedvencek” szakasz alatt';
+
+  @override
+  String get action_all_selection => 'Összes kijelölése';
+
+  @override
+  String get action_translate => 'Fordítás';
+
+  @override
+  String get action_open_in_jwlife => 'Megnyitás a JW Life-ban';
 }

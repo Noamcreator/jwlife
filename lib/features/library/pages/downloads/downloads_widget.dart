@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:jwlife/core/ui/app_dimens.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
+import 'package:jwlife/core/utils/utils_jwpub.dart';
 import 'package:jwlife/data/models/media.dart';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/features/library/widgets/rectangle_mediaItem_item.dart';
@@ -139,8 +140,8 @@ class _DownloadWidgetState extends State<DownloadWidget> {
                 child: Padding(
                   padding: EdgeInsets.all(contentPadding),
                   child: OutlinedButton.icon(
-                    onPressed: () => _model.importJwpub(context),
-                    icon: const Icon(JwIcons.document),
+                    onPressed: () => importJwpubFile(context, () => _model.refreshData()),
+                    icon: const Icon(JwIcons.document_stack),
                     label: Text(i18n().label_import_jwpub),
                     style: OutlinedButton.styleFrom(shape: const RoundedRectangleBorder()),
                   ),

@@ -931,5 +931,10 @@
   "settings_show_document_description": "দস্তাবেজৰ বাবে বিৱৰণ দেখুৱাওক",
   "settings_show_document_description_subtitle": "ৱেবছাইটত থকা বিৱৰণটো দস্তাবেজৰ তলত দেখুৱাওক।",
   "settings_menu_auto_open_single_document": "দস্তাবেজটো পোনপটীয়াকৈ খোলক",
-  "settings_menu_auto_open_single_document_subtitle": "যদি কেৱল এটা দস্তাবেজ থাকে, তেন্তে মেনু নোখোৱাকৈয়ে ইয়াক খোলক।"
+  "settings_menu_auto_open_single_document_subtitle": "যদি কেৱল এটা দস্তাবেজ থাকে, তেন্তে মেনু নোখোৱাকৈয়ে ইয়াক খোলক।",
+  "settings_appearance_frequently_used": "সঘনাই ব্যৱহৃত প্ৰকাশনসমূহ",
+  "settings_appearance_frequently_used_subtitle": "গৃহ পৃষ্ঠাত \"পছন্দৰ\" শাখাৰ তলত সঘনাই ব্যৱহৃত প্ৰকাশনসমূহ দেখুৱাওক",
+  "action_all_selection": "সকলো বাছনি কৰক",
+  "action_translate": "অনুবাদ কৰক",
+  "action_open_in_jwlife": "JW Life-ত খোলক"
 }

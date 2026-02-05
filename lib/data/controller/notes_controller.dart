@@ -78,7 +78,7 @@ class NotesController extends ChangeNotifier {
     notes.removeWhere((n) => n.guid == guid);
 
     if(JwLifeApp.noteController.isVisible) {
-      if(JwLifeApp.noteController.note?.guid == guid) {
+      if(JwLifeApp.noteController.currentNoteguid == guid) {
         JwLifeApp.noteController.hide();
       }
     }

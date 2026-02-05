@@ -10,43 +10,29 @@ import 'directory_helper.dart';
 class WebViewSettings {
   late String theme;
   late String backgroundColor;
-  late double fontSize;
-  late int colorIndex;
-  late int styleIndex;
-  late bool isFullScreenMode;
-  late bool isReadingMode;
-  late bool isBlockingHorizontallyMode;
-  late bool versesInParallel;
+  double fontSize = AppSharedPreferences.instance.getFontSize();
+  int colorIndex = AppSharedPreferences.instance.getColorIndex();
+  int styleIndex = AppSharedPreferences.instance.getStyleIndex();
+  bool isFullScreenMode = AppSharedPreferences.instance.getFullscreenMode();
+  bool isReadingMode = AppSharedPreferences.instance.getReadingMode();
+  bool isBlockingHorizontallyMode = AppSharedPreferences.instance.getBlockingHorizontallyMode();
+  bool versesInParallel = AppSharedPreferences.instance.getVersesInParallel();
 
-  late bool isFuriganaActive;
-  late bool isPinyinActive;
-  late bool isYaleActive;
+  bool isFuriganaActive = AppSharedPreferences.instance.getFuriganaActive();
+  bool isPinyinActive = AppSharedPreferences.instance.getPinyinActive();
+  bool isYaleActive = AppSharedPreferences.instance.getYaleActive();
 
   late String webappPath;
 
-  late List<String> biblesSet;
+  List<String> biblesSet = AppSharedPreferences.instance.getBiblesSet();
 
   // Méthode privée pour charger le CSS
   Future<void> init(bool isDark) async {
-    final sharedPreferences = AppSharedPreferences.instance;
     theme = isDark ? 'cc-theme--dark' : 'cc-theme--light';
     backgroundColor = isDark ? '#121212' : '#ffffff';
-    fontSize = sharedPreferences.getFontSize();
-    styleIndex = sharedPreferences.getStyleIndex();
-    colorIndex = sharedPreferences.getColorIndex();
-    isFullScreenMode = sharedPreferences.getFullscreenMode();
-    isReadingMode = sharedPreferences.getReadingMode();
-    isBlockingHorizontallyMode = sharedPreferences.getBlockingHorizontallyMode();
-    versesInParallel = sharedPreferences.getVersesInParallel();
-
-    isFuriganaActive = sharedPreferences.getFuriganaActive();
-    isPinyinActive = sharedPreferences.getPinyinActive();
-    isYaleActive = sharedPreferences.getYaleActive();
 
     Directory filesDirectory = await getAppFilesDirectory();
     webappPath = '${filesDirectory.path}/webapp_assets';
-
-    biblesSet = sharedPreferences.getBiblesSet();
   }
 
   void updateTheme(bool isDark) {

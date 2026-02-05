@@ -3,9 +3,11 @@ import 'dart:async';
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:jwlife/app/jwlife_app.dart';
+import 'package:jwlife/core/api/api.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/files_helper.dart';
 import 'package:jwlife/core/utils/utils.dart';
+import 'package:jwlife/data/databases/catalog.dart';
 import 'package:jwlife/data/models/media.dart';
 import 'package:jwlife/data/repositories/MediaRepository.dart';
 import 'package:sqflite/sqflite.dart';
@@ -18,12 +20,14 @@ class LanguageDialog extends StatefulWidget {
   final Map<String, dynamic> languagesListJson;
   final String? selectedLanguageSymbol;
   final Media? media;
+  final String type;
 
   const LanguageDialog({
     super.key,
     this.languagesListJson = const {},
     this.selectedLanguageSymbol,
     this.media,
+    this.type = 'library',
   });
 
   @override
@@ -72,77 +76,141 @@ class _LanguageDialogState extends State<LanguageDialog> {
   }
 
   Future<void> _fetchAllLanguages(String languageCode) async {
-    // La requête SQL reste la même, elle récupère toutes les données nécessaires
-    List<Map<String, dynamic>> response = await database!.rawQuery('''
+    // 1. Récupération des données depuis la base de données locale
+    List<Map<String, dynamic>> responseSql = await database!.rawQuery('''
       SELECT 
-        l.LanguageId,
-        l.Symbol,
-        l.VernacularName,
-        COALESCE(ln_src.Name, ln_fallback.Name) AS Name,
-        l.PrimaryIetfCode,
-        l.IsSignLanguage,
-        s.InternalName,
-        s.DisplayName,
-        s.IsBidirectional,
-        s.IsRTL,
-        s.IsCharacterSpaced,
-        s.IsCharacterBreakable,
-        s.HasSystemDigits,
-        fallback.PrimaryIetfCode AS FallbackPrimaryIetfCode
+          l.LanguageId,
+          l.Symbol,
+          COALESCE(NULLIF(l.VernacularName, ''), l.EnglishName) AS VernacularName,
+          COALESCE(ln_src.Name, ln_fallback.Name, l.EnglishName) AS LocalizedName,
+          -- Priorité : IETF -> ISO Alpha 2 -> ISO Alpha 3
+          COALESCE(
+              NULLIF(l.PrimaryIetfCode, ''), 
+              NULLIF(l.IsoAlpha2Code, ''), 
+              NULLIF(l.IsoAlpha3Code, '')
+          ) AS PrimaryIetfCode,
+          l.IsSignLanguage,
+          s.InternalName AS ScriptInternalName,
+          s.DisplayName AS ScriptDisplayName,
+          s.IsBidirectional,
+          s.IsRTL,
+          s.IsCharacterSpaced,
+          s.IsCharacterBreakable,
+          s.HasSystemDigits
       FROM Language l
       INNER JOIN Script s ON l.ScriptId = s.ScriptId
-      LEFT JOIN LocalizedLanguageName lln_src ON l.LanguageId = lln_src.TargetLanguageId AND lln_src.SourceLanguageId = (SELECT LanguageId FROM Language WHERE PrimaryIetfCode = ?)
+      LEFT JOIN LocalizedLanguageName lln_src ON l.LanguageId = lln_src.TargetLanguageId 
+          AND lln_src.SourceLanguageId = (SELECT LanguageId FROM Language WHERE PrimaryIetfCode = ?)
       LEFT JOIN LanguageName ln_src ON lln_src.LanguageNameId = ln_src.LanguageNameId
-      LEFT JOIN LocalizedLanguageName lln_fallback ON l.LanguageId = lln_fallback.TargetLanguageId AND lln_fallback.SourceLanguageId = l.PrimaryFallbackLanguageId
+      LEFT JOIN LocalizedLanguageName lln_fallback ON l.LanguageId = lln_fallback.TargetLanguageId 
+          AND lln_fallback.SourceLanguageId = l.PrimaryFallbackLanguageId
       LEFT JOIN LanguageName ln_fallback ON lln_fallback.LanguageNameId = ln_fallback.LanguageNameId
-      LEFT JOIN Language fallback ON l.PrimaryFallbackLanguageId = fallback.LanguageId
-      WHERE l.VernacularName IS NOT '' AND (ln_src.Name IS NOT NULL OR (ln_src.Name IS NULL AND ln_fallback.Name IS NOT NULL))
-      ORDER BY Name COLLATE NOCASE;
-    ''', [JwLifeSettings.instance.locale.languageCode]);
+      WHERE 
+          -- Doit avoir un nom (Vernaculaire ou Anglais)
+          (NULLIF(l.VernacularName, '') IS NOT NULL OR NULLIF(l.EnglishName, '') IS NOT NULL)
+          -- ET doit avoir au moins un des trois codes d'identification
+          AND (
+              NULLIF(l.PrimaryIetfCode, '') IS NOT NULL OR 
+              NULLIF(l.IsoAlpha2Code, '') IS NOT NULL OR 
+              NULLIF(l.IsoAlpha3Code, '') IS NOT NULL
+          )
+  ''', [JwLifeSettings.instance.locale.languageCode]);
 
-    // Si widget.languagesListJson est fourni, filtrer et mapper les résultats
-    if (widget.languagesListJson.isNotEmpty) {
-      response = response.where((language) =>
-          widget.languagesListJson.keys.contains(language['Symbol']))
-          .map((language) {
-        return {
-          'LanguageId': language['LanguageId'],
-          'VernacularName': language['VernacularName'],
-          'Name': language['Name'],
-          'Symbol': language['Symbol'],
-          'Title': widget.languagesListJson[language['Symbol']]['title'],
-          'IsSignLanguage': language['IsSignLanguage'],
-          'ScriptInternalName': language['InternalName'],
-          'ScriptDisplayName': language['DisplayName'],
-          'IsBidirectional': language['IsBidirectional'],
-          'IsRTL': language['IsRTL'],
-          'IsCharacterSpaced': language['IsCharacterSpaced'],
-          'IsCharacterBreakable': language['IsCharacterBreakable'],
-          'SupportsCodeNames': language['SupportsCodeNames'],
-          'HasSystemDigits': language['HasSystemDigits'],
-        };
-      }).toList();
+    // On crée une liste modifiable
+    List<Map<String, dynamic>> combinedLanguages = [];
+
+    final Set<String> existingSymbols = responseSql.map((l) => l['Symbol'].toString()).toSet();
+
+    if(widget.type != 'media' && widget.type != 'medias' && widget.type != 'article' && widget.type != 'workship') {
+      List<Map<String, dynamic>> responseSqlCatalog = await CatalogDb.instance.database.rawQuery('''
+        SELECT DISTINCT MepsLanguageId 
+        FROM Publication;
+      ''', []);
+
+      final Set<int> existingIds = responseSqlCatalog.map((l) => l['MepsLanguageId'] as int).toSet();
+
+      for (var language in responseSql.map((l) => l).toSet().toList()) {
+        if(existingIds.contains(language['LanguageId'])) {
+          combinedLanguages.add(language);
+          existingSymbols.remove(language['Symbol']);
+        }
+      }
     }
 
-    // Obtenir la liste des langues les plus utilisées
-    List<Map<String,
-        dynamic>> mostUsedLanguages = await getUpdatedMostUsedLanguages(
-        selectedLanguage!, response);
+    if(widget.type != 'publication' && widget.type != 'media' && widget.type != 'workship' && await hasInternetConnection()) {
+      try {
+        List<String> onlineSymbols = await Api.getAllLanguageSymbols();
 
-    // Identifier les langues recommandées (sélectionnée + plus utilisées)
-    _recommendedLanguages = response.where((lang) {
-      return isRecommended(
-          lang, mostUsedLanguages); // isRecommended est l'ancien isFavorite
-    }).toList();
+        if (onlineSymbols.isNotEmpty) {
+          for (var symbol in onlineSymbols) {
+            if(existingSymbols.contains(symbol)) {
+              var sqlLang = responseSql.firstWhereOrNull((l) => l['Symbol'] == symbol);
 
-    // Trier la liste complète (qui est déjà triée par la requête SQL)
-    // Ici, nous nous assurons que le tri par Name de la requête SQL est suffisant pour le tri général
-    List<Map<String, dynamic>> languagesModifiable = List.from(response);
+              if (sqlLang != null) {
+                combinedLanguages.add(sqlLang);
+              }
+            }
+          }
+        }
+      } 
+      catch (e) {
+        debugPrint('Erreur lors de la récupération des langues: $e');
+      }
+    }
+
+    if(widget.type == 'workship') {
+      List<Map<String, dynamic>> responseSqlCatalog = await CatalogDb.instance.database.rawQuery('''
+        SELECT DISTINCT MepsLanguageId 
+        FROM Publication
+        WHERE KeySymbol = 'w'
+          OR KeySymbol = 'mwb'
+          OR KeySymbol LIKE '%CO-pgm%'
+          OR KeySymbol LIKE '%CA-brpgm%'
+          OR KeySymbol LIKE '%CA-copgm%';
+      ''', []);
+
+      final Set<int> existingIds = responseSqlCatalog.map((l) => l['MepsLanguageId'] as int).toSet();
+
+      for (var language in responseSql.map((l) => l).toSet().toList()) {
+        if(existingIds.contains(language['LanguageId'])) {
+          combinedLanguages.add(language);
+        }
+      }
+    }
+
+    if(widget.type == 'media') {
+      combinedLanguages.addAll(responseSql);
+    }
+
+    // 3. Filtrage final si widget.languagesListJson est défini
+    if (widget.languagesListJson.isNotEmpty) {
+      combinedLanguages = combinedLanguages
+          .where((lang) => widget.languagesListJson.containsKey(lang['Symbol']))
+          .map((lang) {
+            var updatedLang = Map<String, dynamic>.from(lang);
+            updatedLang['Title'] = widget.languagesListJson[lang['Symbol']]?['title'] ?? lang['LocalizedName'];
+            return updatedLang;
+          }).toList();
+    }
+
+    // 4. Tri alphabétique final (indispensable après la fusion)
+    combinedLanguages.sort((a, b) {
+      String nameA = (a['LocalizedName'] ?? '').toString().toLowerCase();
+      String nameB = (b['LocalizedName'] ?? '').toString().toLowerCase();
+      return nameA.compareTo(nameB);
+    });
+
+    // 5. Mise à jour de l'interface
+    List<Map<String, dynamic>> mostUsedLanguages = await getUpdatedMostUsedLanguages(selectedLanguage!, combinedLanguages);
 
     setState(() {
-      _allLanguagesList = languagesModifiable;
-      _filteredLanguagesList = languagesModifiable; // Initialisation complète
-      _applySearchFilter(); // Appliquer le filtre de recherche initial (vide)
+      _allLanguagesList = combinedLanguages;
+      _recommendedLanguages = combinedLanguages.where((lang) {
+        return isRecommended(lang, mostUsedLanguages);
+      }).toList();
+      
+      _filteredLanguagesList = combinedLanguages;
+      _applySearchFilter();
     });
   }
 
@@ -197,7 +265,7 @@ class _LanguageDialogState extends State<LanguageDialog> {
 
     // 1. Filtrer la liste complète (_allLanguagesList)
     final filtered = _allLanguagesList.where((lang) {
-      final name = normalize(lang['Name']?.toString() ?? '');
+      final name = normalize(lang['LocalizedName']?.toString() ?? '');
       final vernacularName = normalize(
           lang['VernacularName']?.toString() ?? '');
       return name.contains(searchTerm) || vernacularName.contains(searchTerm);
@@ -222,8 +290,8 @@ class _LanguageDialogState extends State<LanguageDialog> {
       if (!aIsRecommended && bIsRecommended) return 1;
 
       // 3.3. Tri alphabétique par 'Name' (traduit)
-      final aName = a['Name']?.toString() ?? '';
-      final bName = b['Name']?.toString() ?? '';
+      final aName = a['LocalizedName']?.toString() ?? '';
+      final bName = b['LocalizedName']?.toString() ?? '';
       return aName.toLowerCase().compareTo(bName.toLowerCase());
     });
 
@@ -319,7 +387,7 @@ class _LanguageDialogState extends State<LanguageDialog> {
                   final languageData = combinedLanguages[index];
                   final lank = languageData['Symbol'];
                   final vernacularName = languageData['VernacularName'];
-                  final translatedName = languageData['Name'] ?? '';
+                  final translatedName = languageData['LocalizedName'] ?? '';
                   final title = languageData['Title'] ?? '';
                   final isRecommended = languageData['isRecommended'] as bool;
 

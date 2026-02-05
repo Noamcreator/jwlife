@@ -158,7 +158,7 @@ PopupMenuItem getAudioLanguagesItem(BuildContext context, Audio audio) {
         final response = await Api.httpGetWithHeaders(link, responseType: ResponseType.json);
         if (response.statusCode == 200) {
 
-          showLanguageDialog(context, languagesListJson: response.data['languages'], media: audio).then((language) async {
+          showLanguageDialog(context, languagesListJson: response.data['languages'], media: audio, type: 'media').then((language) async {
             String link = 'https://b.jw-cdn.org/apis/mediator/v1/media-items/${language['Symbol']}/${audio.naturalKey}';
             print(link);
 

@@ -3165,4 +3165,21 @@ class AppLocalizationsFa extends AppLocalizations {
   @override
   String get settings_menu_auto_open_single_document_subtitle =>
       'اگر فقط یک سند وجود دارد، آن را بدون نمایش منو باز کنید.';
+
+  @override
+  String get settings_appearance_frequently_used =>
+      'نشریاتی که اغلب استفاده می‌شوند';
+
+  @override
+  String get settings_appearance_frequently_used_subtitle =>
+      'نمایش پرکاربردترین نشریات در صفحه اصلی زیر بخش «علاقه‌مندی‌ها»';
+
+  @override
+  String get action_all_selection => 'انتخاب همه';
+
+  @override
+  String get action_translate => 'ترجمه';
+
+  @override
+  String get action_open_in_jwlife => 'باز کردن در JW Life';
 }

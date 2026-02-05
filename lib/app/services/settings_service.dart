@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:jwlife/core/ui/theme.dart';
 import 'package:jwlife/core/utils/webview_data.dart';
-import '../../core/constants.dart';
 import '../../core/shared_preferences/shared_preferences_utils.dart';
 import '../../data/models/meps_language.dart';
 
@@ -9,16 +8,16 @@ class JwLifeSettings {
   static final JwLifeSettings instance = JwLifeSettings._internal();
   JwLifeSettings._internal();
 
-  ThemeMode themeMode = ThemeMode.system;
-  String pageTransition = 'default';
-  ThemeData lightData = AppTheme.getLightTheme(Constants.defaultLightPrimaryColor);
-  ThemeData darkData = AppTheme.getDarkTheme(Constants.defaultDarkPrimaryColor);
+  ThemeMode themeMode = AppSharedPreferences.instance.getTheme() == 'dark' ? ThemeMode.dark : AppSharedPreferences.instance.getTheme() == 'light' ? ThemeMode.light : ThemeMode.system;
+  String pageTransition = AppSharedPreferences.instance.getPageTransition();
+  bool hasFrequentlyUsedPublications = AppSharedPreferences.instance.hasFrequentlyUsedPublications();
+  ThemeData lightData = AppTheme.getLightTheme(AppSharedPreferences.instance.getPrimaryColor(ThemeMode.light));
+  ThemeData darkData = AppTheme.getDarkTheme(AppSharedPreferences.instance.getPrimaryColor(ThemeMode.dark));
   List<MapEntry<Locale, String>> appLocalesMeps = [];
   Locale locale = Locale(AppSharedPreferences.instance.getLocale());
-  WebViewSettings webViewSettings = WebViewSettings();
-  Color lightPrimaryColor = Constants.defaultLightPrimaryColor;
-  Color darkPrimaryColor = Constants.defaultDarkPrimaryColor;
-  Color bibleColor = Constants.defaultBibleColor;
+  Color lightPrimaryColor = AppSharedPreferences.instance.getPrimaryColor(ThemeMode.light);
+  Color darkPrimaryColor = AppSharedPreferences.instance.getPrimaryColor(ThemeMode.dark);
+  Color bibleColor = AppSharedPreferences.instance.getBibleColor();
 
   bool showPublicationDescription = AppSharedPreferences.instance.getShowPublicationDescription();
   bool showDocumentDescription = AppSharedPreferences.instance.getShowDocumentDescription();
@@ -33,6 +32,9 @@ class JwLifeSettings {
   int playlistStartupAction = AppSharedPreferences.instance.getPlaylistStartupAction();
   int playlistEndAction = AppSharedPreferences.instance.getPlaylistEndAction();
 
+  // Paramètres pour le WebView
+  WebViewSettings webViewSettings = WebViewSettings();
+
   // --- NOTIFIERS DE LANGUES ---
   final libraryLanguage = ValueNotifier<MepsLanguage>(_defaultMeps());
   final dailyTextLanguage = ValueNotifier<MepsLanguage>(_defaultMeps());
@@ -41,26 +43,10 @@ class JwLifeSettings {
   final teachingToolboxLanguage = ValueNotifier<MepsLanguage>(_defaultMeps());
   final latestLanguage = ValueNotifier<MepsLanguage>(_defaultMeps());
 
-  final lookupBible = ValueNotifier<String>('');
+  final lookupBible = ValueNotifier<String>(AppSharedPreferences.instance.getLookUpBible());
 
   Future<void> init() async {
     final sharedPreferences = AppSharedPreferences.instance;
-
-    // ... (Ton code d'initialisation existant pour thèmes et couleurs)
-    final theme = sharedPreferences.getTheme();
-    final pageTrans = sharedPreferences.getPageTransition();
-    final themeMod = theme == 'dark' ? ThemeMode.dark : theme == 'light' ? ThemeMode.light : ThemeMode.system;
-    final lightColor = sharedPreferences.getPrimaryColor(ThemeMode.light);
-    final darkColor = sharedPreferences.getPrimaryColor(ThemeMode.dark);
-
-    lightPrimaryColor = lightColor;
-    darkPrimaryColor = darkColor;
-    bibleColor = sharedPreferences.getBibleColor();
-    locale = Locale(sharedPreferences.getLocale());
-    themeMode = themeMod;
-    pageTransition = pageTrans;
-    lightData = AppTheme.getLightTheme(lightColor);
-    darkData = AppTheme.getDarkTheme(darkColor);
 
     // --- INITIALISATION DES LANGUES ---
     libraryLanguage.value = _mapListToMeps(await sharedPreferences.getLibraryLanguage());
@@ -69,8 +55,6 @@ class JwLifeSettings {
     workshipLanguage.value = _mapListToMeps(await sharedPreferences.getWorkshipLanguage());
     teachingToolboxLanguage.value = _mapListToMeps(await sharedPreferences.getTeachingToolboxLanguage());
     latestLanguage.value = _mapListToMeps(await sharedPreferences.getLatestLanguage());
-
-    lookupBible.value = sharedPreferences.getLookUpBible();
   }
 
   /// Convertit la liste stockée en SharedPreferences vers l'objet modèle

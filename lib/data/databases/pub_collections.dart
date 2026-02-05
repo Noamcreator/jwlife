@@ -414,6 +414,8 @@ class PubCollections {
         for (var attribute in attributes) {
           batch.insert('PublicationAttribute', {'PublicationId': publicationId, 'Attribute': attribute});
         }
+
+        pubDb['AttributeTypes'] = attributes.map((attribute) => attribute).join(',');
       }
 
       // Insertion des attributs de numéro de publication

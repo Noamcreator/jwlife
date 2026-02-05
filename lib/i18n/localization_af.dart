@@ -3200,4 +3200,21 @@ class AppLocalizationsAf extends AppLocalizations {
   @override
   String get settings_menu_auto_open_single_document_subtitle =>
       'As daar net een dokument is, maak dit oop sonder om die spyskaart te wys.';
+
+  @override
+  String get settings_appearance_frequently_used =>
+      'Gereeld gebruikte publikasies';
+
+  @override
+  String get settings_appearance_frequently_used_subtitle =>
+      'Wys die mees gebruikte publikasies op die tuisblad onder die \"Gunstelinge\"-afdeling';
+
+  @override
+  String get action_all_selection => 'Kies alles';
+
+  @override
+  String get action_translate => 'Vertaal';
+
+  @override
+  String get action_open_in_jwlife => 'Maak oop in JW Life';
 }

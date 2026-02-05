@@ -3106,4 +3106,20 @@ class AppLocalizationsAm extends AppLocalizations {
   @override
   String get settings_menu_auto_open_single_document_subtitle =>
       'አንድ ሰነድ ብቻ ካለ ሜኑውን ሳያሳዩ ይክፈቱት።';
+
+  @override
+  String get settings_appearance_frequently_used => 'በተደጋጋሚ ጥቅም ላይ የዋሉ ህትመቶች';
+
+  @override
+  String get settings_appearance_frequently_used_subtitle =>
+      'በመነሻ ገጹ ላይ ከ«ተወዳጆች» ክፍል በታች በብዛት ጥቅም ላይ የዋሉ ህትመቶችን አሳይ';
+
+  @override
+  String get action_all_selection => 'ሁሉንም ይምረጡ';
+
+  @override
+  String get action_translate => 'ተርጉም';
+
+  @override
+  String get action_open_in_jwlife => 'በJW Life ውስጥ ክፈት';
 }

@@ -931,5 +931,10 @@
   "settings_show_document_description": "ለሰነዶች መግለጫ አሳይ",
   "settings_show_document_description_subtitle": "በድረ-ገጹ ላይ ያለውን መግለጫ ከሰነዶቹ በታች አሳይ።",
   "settings_menu_auto_open_single_document": "ሰነዱን በቀጥታ ክፈት",
-  "settings_menu_auto_open_single_document_subtitle": "አንድ ሰነድ ብቻ ካለ ሜኑውን ሳያሳዩ ይክፈቱት።"
+  "settings_menu_auto_open_single_document_subtitle": "አንድ ሰነድ ብቻ ካለ ሜኑውን ሳያሳዩ ይክፈቱት።",
+  "settings_appearance_frequently_used": "በተደጋጋሚ ጥቅም ላይ የዋሉ ህትመቶች",
+  "settings_appearance_frequently_used_subtitle": "በመነሻ ገጹ ላይ ከ«ተወዳጆች» ክፍል በታች በብዛት ጥቅም ላይ የዋሉ ህትመቶችን አሳይ",
+  "action_all_selection": "ሁሉንም ይምረጡ",
+  "action_translate": "ተርጉም",
+  "action_open_in_jwlife": "በJW Life ውስጥ ክፈት"
 }

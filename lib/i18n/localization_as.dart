@@ -3177,4 +3177,20 @@ class AppLocalizationsAs extends AppLocalizations {
   @override
   String get settings_menu_auto_open_single_document_subtitle =>
       'যদি কেৱল এটা দস্তাবেজ থাকে, তেন্তে মেনু নোখোৱাকৈয়ে ইয়াক খোলক।';
+
+  @override
+  String get settings_appearance_frequently_used => 'সঘনাই ব্যৱহৃত প্ৰকাশনসমূহ';
+
+  @override
+  String get settings_appearance_frequently_used_subtitle =>
+      'গৃহ পৃষ্ঠাত \"পছন্দৰ\" শাখাৰ তলত সঘনাই ব্যৱহৃত প্ৰকাশনসমূহ দেখুৱাওক';
+
+  @override
+  String get action_all_selection => 'সকলো বাছনি কৰক';
+
+  @override
+  String get action_translate => 'অনুবাদ কৰক';
+
+  @override
+  String get action_open_in_jwlife => 'JW Life-ত খোলক';
 }

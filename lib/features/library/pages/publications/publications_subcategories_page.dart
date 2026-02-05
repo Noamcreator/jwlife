@@ -141,7 +141,7 @@ class _PublicationSubcategoriesPageState extends State<PublicationSubcategoriesP
               IconTextButton(
                 icon: const Icon(JwIcons.language),
                 onPressed: (BuildContext context) {
-                  showLanguageDialog(context, firstSelectedLanguage: _mepsLanguage.value.symbol).then((language) async {
+                  showLanguageDialog(context, firstSelectedLanguage: _mepsLanguage.value.symbol, type: widget.category.type == 'Convention' ? 'library' : 'publication').then((language) async {
                     if (language != null) {
                       if(widget.category.type == 'Convention') {
                         await loadItemsDays(mepsLanguage: language);

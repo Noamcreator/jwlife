@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/ui/app_dimens.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
-import 'package:jwlife/data/models/userdata/note.dart';
+import 'package:jwlife/data/controller/notes_controller.dart';
 import 'package:jwlife/features/note/note_controller.dart';
 import 'package:jwlife/features/personal/pages/note_page.dart';
+import 'package:provider/provider.dart';
 
 class NoteWidget extends StatefulWidget {
   const NoteWidget({super.key});
@@ -14,13 +15,13 @@ class NoteWidget extends StatefulWidget {
 }
 
 class _NoteWidgetState extends State<NoteWidget> {
-  Note? note;
+  String? noteGuid;
 
   @override
   void initState() {
     super.initState();
     noteController.addListener(_onControllerChanged);
-    note = noteController.note;
+    noteGuid = noteController.currentNoteguid;
   }
 
   @override
@@ -32,13 +33,16 @@ class _NoteWidgetState extends State<NoteWidget> {
   void _onControllerChanged() {
     if (mounted) {
       setState(() {
-        note = noteController.note;
+        noteGuid = noteController.currentNoteguid;
       });
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final notesController = context.watch<NotesController>();
+    final note = notesController.getNoteByGuid(noteController.currentNoteguid ?? '');
+
     if (note == null || !noteController.isVisible) {
       return const SizedBox.shrink();
     }

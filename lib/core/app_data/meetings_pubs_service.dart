@@ -1,6 +1,7 @@
 import 'dart:ui';
 
 import 'package:collection/collection.dart';
+import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:jwlife/app/services/settings_service.dart';
 import 'package:jwlife/data/models/publication.dart';
@@ -16,67 +17,71 @@ void refreshPublicTalks() {
   AppDataService.instance.publicTalkPub.value = PublicationRepository().getPublicationWithSymbol(keySymbol, 0, mepsLanguageSymbol);
 }
 
+// Variable globale ou dans ton service pour suivre la dernière date demandée
+DateTime? _lastRequestedDate;
+
 Future<void> refreshMeetingsPubs({List<Publication>? pubs, DateTime? date}) async {
+  final targetDate = date ?? DateTime.now();
+  _lastRequestedDate = targetDate; // On enregistre la date de cette requête
+
   Publication? midweekMeetingPub = pubs?.firstWhereOrNull((pub) => pub.keySymbol.contains('mwb'));
   Publication? weekendMeetingPub = pubs?.firstWhereOrNull((pub) => pub.keySymbol.contains(RegExp(r'(?<!m)w')));
 
-  if(midweekMeetingPub != AppDataService.instance.midweekMeetingPub.value) {
-    AppDataService.instance.midweekMeetingPub.value = midweekMeetingPub;
-  }
+  // On met à jour les pubs immédiatement
+  AppDataService.instance.midweekMeetingPub.value = midweekMeetingPub;
+  AppDataService.instance.weekendMeetingPub.value = weekendMeetingPub;
 
-  if(weekendMeetingPub != AppDataService.instance.weekendMeetingPub.value) {
-    AppDataService.instance.weekendMeetingPub.value = weekendMeetingPub;
-  }
-
+  // --- TRAITEMENT MIDWEEK ---
   if (midweekMeetingPub != null) {
-    late VoidCallback midweekListener;
-
-    midweekListener = () async {
-      if (midweekMeetingPub.isDownloadedNotifier.value) {
-        midweekMeetingPub.isDownloadedNotifier.removeListener(midweekListener);
-        await refreshMeetingsPubs(pubs: pubs); // relance propre
-      }
-    };
-
-    midweekMeetingPub.isDownloadedNotifier.addListener(midweekListener);
-
     if (midweekMeetingPub.isDownloadedNotifier.value) {
-      AppDataService.instance.midweekMeeting.value = await fetchMidWeekMeeting(midweekMeetingPub, date ?? DateTime.now());
-
-      midweekMeetingPub.fetchAudios();
-    }
-    else {
+      final data = await fetchMidWeekMeeting(midweekMeetingPub, targetDate);
+      
+      // VERIFICATION : Est-ce qu'on est toujours sur la même semaine ?
+      if (_lastRequestedDate == targetDate) {
+        AppDataService.instance.midweekMeeting.value = data;
+        midweekMeetingPub.fetchAudios();
+      }
+    } else {
       AppDataService.instance.midweekMeeting.value = null;
+      // Ajout d'un listener unique pour quand le téléchargement finit
+      late VoidCallback l;
+      l = () {
+        midweekMeetingPub.isDownloadedNotifier.removeListener(l);
+        refreshMeetingsPubs(pubs: pubs, date: targetDate);
+      };
+      midweekMeetingPub.isDownloadedNotifier.addListener(l);
     }
   }
 
+  // --- TRAITEMENT WEEKEND ---
   if (weekendMeetingPub != null) {
-    late VoidCallback weekendListener;
-
-    weekendListener = () async {
-      if (weekendMeetingPub.isDownloadedNotifier.value) {
-        weekendMeetingPub.isDownloadedNotifier.removeListener(weekendListener);
-        await refreshMeetingsPubs(pubs: pubs); // relance propre
-      }
-    };
-
-    weekendMeetingPub.isDownloadedNotifier.addListener(weekendListener);
-
     if (weekendMeetingPub.isDownloadedNotifier.value) {
-      AppDataService.instance.weekendMeeting.value = await fetchWeekendMeeting(weekendMeetingPub, date ?? DateTime.now());
-
-      weekendMeetingPub.fetchAudios();
-    }
-    else {
+      final data = await fetchWeekendMeeting(weekendMeetingPub, targetDate);
+      
+      // VERIFICATION : Est-ce qu'on est toujours sur la même semaine ?
+      if (_lastRequestedDate == targetDate) {
+        AppDataService.instance.weekendMeeting.value = data;
+        weekendMeetingPub.fetchAudios();
+      }
+    } else {
       AppDataService.instance.weekendMeeting.value = null;
+      late VoidCallback l;
+      l = () {
+        weekendMeetingPub.isDownloadedNotifier.removeListener(l);
+        refreshMeetingsPubs(pubs: pubs, date: targetDate);
+      };
+      weekendMeetingPub.isDownloadedNotifier.addListener(l);
     }
   }
 }
 
 Future<Map<String, dynamic>?> fetchMidWeekMeeting(Publication? publication, DateTime dateOfMeetings) async {
-  if (publication != null && publication.isDownloadedNotifier.value) {
-    Database db = await openReadOnlyDatabase(publication.databasePath!);
+  if (publication == null || !publication.isDownloadedNotifier.value) return null;
 
+  Database? db;
+  try {
+    // singleInstance: false permet d'ouvrir plusieurs connexions indépendantes sans conflit
+    db = await openDatabase(publication.databasePath!, readOnly: true, singleInstance: false);
     String weekRange = DateFormat('yyyyMMdd').format(dateOfMeetings);
 
     final List<Map<String, dynamic>> result = await db.rawQuery('''
@@ -90,17 +95,21 @@ Future<Map<String, dynamic>?> fetchMidWeekMeeting(Publication? publication, Date
         LIMIT 1
       ''', [9, weekRange, weekRange]);
 
-    if (result.isNotEmpty) {
-      return result.first;
-    }
+    return result.isNotEmpty ? result.first : null;
+  } catch (e) {
+    debugPrint("Erreur SQL Midweek: $e");
+    return null;
+  } finally {
+    await db?.close();
   }
-  return null;
 }
 
 Future<Map<String, dynamic>?> fetchWeekendMeeting(Publication? publication, DateTime dateOfMeetings) async {
-  if (publication != null) {
-    Database db = await openReadOnlyDatabase(publication.databasePath!);
+  if (publication == null || !publication.isDownloadedNotifier.value) return null;
 
+  Database? db;
+  try {
+    db = await openDatabase(publication.databasePath!, readOnly: true, singleInstance: false);
     String weekRange = DateFormat('yyyyMMdd').format(dateOfMeetings);
 
     final List<Map<String, dynamic>> result = await db.rawQuery('''
@@ -122,9 +131,11 @@ Future<Map<String, dynamic>?> fetchWeekendMeeting(Publication? publication, Date
         LIMIT 1
       ''', [9, weekRange, weekRange]);
 
-    if (result.isNotEmpty) {
-      return result.first;
-    }
+    return result.isNotEmpty ? result.first : null;
+  } catch (e) {
+    debugPrint("Erreur SQL Weekend: $e");
+    return null;
+  } finally {
+    await db?.close();
   }
-  return null;
 }

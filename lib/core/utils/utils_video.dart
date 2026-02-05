@@ -181,7 +181,7 @@ PopupMenuItem getVideoLanguagesItem(BuildContext context, Video video) {
         final response = await Api.httpGetWithHeaders(link, responseType: ResponseType.json);
         if (response.statusCode == 200) {
 
-          showLanguageDialog(context, languagesListJson: response.data['languages'], media: video).then((language) async {
+          showLanguageDialog(context, languagesListJson: response.data['languages'], media: video, type: 'media').then((language) async {
             if (language != null) {
               String link = 'https://b.jw-cdn.org/apis/mediator/v1/media-items/${language['Symbol']}/${video.naturalKey}';
               final response = await Api.httpGetWithHeaders(link, responseType: ResponseType.json);

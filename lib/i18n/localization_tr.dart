@@ -3178,4 +3178,20 @@ class AppLocalizationsTr extends AppLocalizations {
   @override
   String get settings_menu_auto_open_single_document_subtitle =>
       'Yalnızca bir belge varsa, menüyü görüntülemeden açın.';
+
+  @override
+  String get settings_appearance_frequently_used => 'Sık kullanılan yayınlar';
+
+  @override
+  String get settings_appearance_frequently_used_subtitle =>
+      'En çok kullanılan yayınları ana sayfada \"Favoriler\" bölümünün altında göster';
+
+  @override
+  String get action_all_selection => 'Tümünü seç';
+
+  @override
+  String get action_translate => 'Çevir';
+
+  @override
+  String get action_open_in_jwlife => 'JW Life\'ta aç';
 }

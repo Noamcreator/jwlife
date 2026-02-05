@@ -931,5 +931,10 @@
   "settings_show_document_description": "Beschrijving voor documenten weergeven",
   "settings_show_document_description_subtitle": "Toon de beschrijving van de website onder de documenten.",
   "settings_menu_auto_open_single_document": "Document rechtstreeks openen",
-  "settings_menu_auto_open_single_document_subtitle": "Als er slechts één document aanwezig is, open het dan zonder het menu weer te geven."
+  "settings_menu_auto_open_single_document_subtitle": "Als er slechts één document aanwezig is, open het dan zonder het menu weer te geven.",
+  "settings_appearance_frequently_used": "Veelgebruikte publicaties",
+  "settings_appearance_frequently_used_subtitle": "Toon de meest gebruikte publicaties op de startpagina onder de sectie \"Favorieten\"",
+  "action_all_selection": "Alles selecteren",
+  "action_translate": "Vertalen",
+  "action_open_in_jwlife": "Openen in JW Life"
 }

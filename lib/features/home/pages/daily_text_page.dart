@@ -10,6 +10,7 @@ import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/app/jwlife_app_bar.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/uri/jworg_uri.dart';
+import 'package:jwlife/core/uri/utils_uri.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/core/utils/utils_document.dart';
 import 'package:jwlife/core/utils/utils_jwpub.dart';
@@ -21,6 +22,7 @@ import 'package:jwlife/features/home/pages/search/search_page.dart';
 import 'package:jwlife/features/document/data/models/dated_text.dart';
 import 'package:jwlife/widgets/dialog/confirm_dialog.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../app/app_page.dart';
@@ -262,6 +264,115 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
               SafeArea(
                 child: InAppWebView(
                   initialSettings: getWebViewSettings(),
+                  contextMenu: ContextMenu(
+                    menuItems: [
+                      ContextMenuItem(
+                        id: 1,
+                        title: i18n().action_copy,
+                        action: () async {
+                          String? selectedText = await _controller.getSelectedText();
+                          if (selectedText != null && selectedText.isNotEmpty) {
+                            await Clipboard.setData(ClipboardData(text: selectedText));
+                          }
+                        },
+                      ),
+                      /*
+                      ContextMenuItem(
+                        id: 2,
+                        title: i18n().action_trim,
+                        action: () async {
+                          // 1. On récupère le texte pour le mettre dans le presse-papier
+                          String? selectedText = await _controller.getSelectedText();
+                          
+                          // 2. On exécute la modification visuelle dans la WebView
+                          await _controller.evaluateJavascript(source: "trimText();");
+                          
+                          if (selectedText != null) {
+                            await Clipboard.setData(ClipboardData(text: selectedText.trim()));
+                          }
+                          
+                          // 3. On ferme le clavier si nécessaire
+                          await _controller.clearFocus();
+                        },
+                      ),
+                      */
+                      ContextMenuItem(
+                        id: 2,
+                        title: i18n().action_all_selection,
+                        action: () async {
+                          await _controller.evaluateJavascript(source: """
+                            (function() {
+                              const range = document.createRange();
+                              range.selectNodeContents(document.body);
+                              const sel = window.getSelection();
+                              sel.removeAllRanges();
+                              sel.addRange(range);
+                            })();
+                          """);
+
+                          // CRUCIAL pour faire revenir la barre :
+                          // On redemande le focus et on simule un clic long ou on laisse le système détecter le changement
+                          await _controller.requestFocusNodeHref();
+                        },
+                      ),
+                      ContextMenuItem(
+                        id: 3,
+                        title: i18n().action_open_in_jwlife,
+                        action: () async {
+                          String? selectedText = await _controller.getSelectedText();
+                          if (selectedText == null || selectedText.isEmpty) return;
+
+                          // Enlever le clavier
+                          await _controller.evaluateJavascript(source: "hideKeyboard();");
+
+                          JwOrgUri uri = JwOrgUri.parse(selectedText);
+                          handleUri(uri, currentContext: context, openInCurrentContext: true);
+                        },
+                      ),
+                      ContextMenuItem(
+                        id: 4,
+                        title: i18n().action_translate,
+                        action: () async {
+                          String? selectedText = await _controller.getSelectedText();
+                          if (selectedText != null && selectedText.isNotEmpty) {
+                            await _controller.evaluateJavascript(source: "hideKeyboard();");
+
+                            showTranslateDialog(context, selectedText);
+                          }
+                        },
+                      ),
+                      ContextMenuItem(
+                        id: 5,
+                        title: i18n().action_search,
+                        action: () async {
+                          String? selectedText = await _controller.getSelectedText();
+                          if (selectedText != null && selectedText.isNotEmpty) {
+                            // Enlever le clavier
+                            await _controller.evaluateJavascript(source: "hideKeyboard();");
+                            
+                            showPage(SearchPage(query: selectedText));
+                          }
+                        },
+                      ),
+                      ContextMenuItem(
+                        id: 6,
+                        title: i18n().action_share,
+                        action: () async {
+                          String? selectedText = await _controller.getSelectedText();
+                          if (selectedText != null && selectedText.isNotEmpty) {
+                            // Enlever le clavier
+                            await _controller.evaluateJavascript(source: "hideKeyboard();");
+
+                            // Utilisation du package share_plus
+                            await SharePlus.instance.share(ShareParams(title: selectedText, uri: Uri.tryParse(selectedText)));
+                          }
+                        },
+                      ),
+                    ],
+                    settings: ContextMenuSettings(
+                      hideDefaultSystemContextMenuItems: true, // true pour TOUT masquer sauf les tiens
+                    ),
+                  ),
                   initialData: InAppWebViewInitialData(
                       data: _htmlContent,
                       baseUrl: WebUri('file://${JwLifeSettings.instance.webViewSettings.webappPath}/')
@@ -919,7 +1030,12 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
 
                           RealmMediaItem? mediaItem = getMediaItemFromLank(jwOrgUri.lank!, jwOrgUri.wtlocale);
 
-                          if (mediaItem == null) return NavigationActionPolicy.ALLOW;
+                          if (mediaItem == null) {
+                            if (await hasInternetConnection(context: context)) {
+                              return NavigationActionPolicy.ALLOW;
+                            }
+                            return NavigationActionPolicy.CANCEL;
+                          }
 
                           if(mediaItem.type == 'AUDIO') {
                             Audio audio = Audio.fromJson(mediaItem: mediaItem);
@@ -971,14 +1087,14 @@ class DailyTextPageState extends State<DailyTextPage> with SingleTickerProviderS
                 )
             ),  
 
-              LoadingWidget(key: loadingKey),
+            LoadingWidget(key: loadingKey),
 
-              ControlsOverlay(key: controlsKey,
-                  publication: widget.publication,
-                  handleBackPress: handleBackPress,
-                  jumpToPage: _jumpToPage
-              ),
-            ]
+            ControlsOverlay(key: controlsKey,
+                publication: widget.publication,
+                handleBackPress: handleBackPress,
+                jumpToPage: _jumpToPage
+            ),
+          ]
         )
     );
   }
@@ -1121,7 +1237,7 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
     }
     else {
       // Formatte au format souhaité : "1 janvier 2025"
-      _title = DateFormat("d MMMM y", JwLifeSettings.instance.locale.languageCode).format(DateTime.now());
+      _title = DateFormat("d MMMM y", getSafeLocale()).format(DateTime.now());
     }
   }
 

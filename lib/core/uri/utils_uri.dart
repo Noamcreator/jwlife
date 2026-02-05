@@ -1,4 +1,5 @@
 import 'package:collection/collection.dart';
+import 'package:flutter/material.dart';
 import 'package:jwlife/app/services/settings_service.dart';
 import 'package:jwlife/data/databases/meps_languages.dart';
 import 'package:jwlife/data/repositories/PublicationRepository.dart';
@@ -17,14 +18,16 @@ import '../utils/utils_document.dart';
 import '../utils/utils_video.dart';
 import 'jworg_uri.dart';
 
-Future<void> handleUri(JwOrgUri uri) async {
-  final context = GlobalKeyService.jwLifePageKey.currentContext!;
+Future<void> handleUri(JwOrgUri uri, {BuildContext? currentContext, bool openInCurrentContext = false}) async {
+  final context = currentContext ?? GlobalKeyService.jwLifePageKey.currentContext!;
 
   try {
     if (uri.isPublication) {
       Publication? publication = await CatalogDb.instance.searchPub(uri.pub!, uri.issue!, uri.wtlocale);
       if (publication != null) {
-        GlobalKeyService.jwLifePageKey.currentState!.changeNavBarIndex(0);
+        if (!openInCurrentContext) {
+          GlobalKeyService.jwLifePageKey.currentState!.changeNavBarIndex(0);
+        }
         publication.showMenu(context);
       }
     }
@@ -48,7 +51,9 @@ Future<void> handleUri(JwOrgUri uri) async {
         }
       }
 
-      GlobalKeyService.jwLifePageKey.currentState!.changeNavBarIndex(0);
+      if (!openInCurrentContext) {
+        GlobalKeyService.jwLifePageKey.currentState!.changeNavBarIndex(0);
+      }
 
       showDocumentView(
         context,
@@ -62,7 +67,9 @@ Future<void> handleUri(JwOrgUri uri) async {
       Publication? biblePub = PublicationRepository().getLookUpBible();
       if (biblePub == null) return;
 
-      GlobalKeyService.jwLifePageKey.currentState!.changeNavBarIndex(1, goToFirstPage: true);
+      if (!openInCurrentContext) {
+        GlobalKeyService.jwLifePageKey.currentState!.changeNavBarIndex(1, goToFirstPage: true);
+      }
 
       showPage(
           BibleChapterPage(
@@ -101,7 +108,9 @@ Future<void> handleUri(JwOrgUri uri) async {
       Publication? biblePub = PublicationRepository().getLookUpBible();
       if (biblePub == null) return;
 
-      GlobalKeyService.jwLifePageKey.currentState!.changeNavBarIndex(1, goToFirstPage: true);
+      if (!openInCurrentContext) {
+        GlobalKeyService.jwLifePageKey.currentState!.changeNavBarIndex(1, goToFirstPage: true);
+      }
 
       showPageBibleChapter(
         biblePub,
@@ -137,7 +146,9 @@ Future<void> handleUri(JwOrgUri uri) async {
         audio.showPlayer(context, initialPosition: startTime);
       }
       else {
-        GlobalKeyService.jwLifePageKey.currentState!.changeNavBarIndex(0, goToFirstPage: true);
+        if (!openInCurrentContext) {
+          GlobalKeyService.jwLifePageKey.currentState!.changeNavBarIndex(0, goToFirstPage: true);
+        }
         Video video = Video.fromJson(mediaItem: mediaItem);
         video.showPlayer(context, initialPosition: startTime);
       }
@@ -152,7 +163,9 @@ Future<void> handleUri(JwOrgUri uri) async {
 
       if (dailyTextPub == null) return;
 
-      GlobalKeyService.jwLifePageKey.currentState!.changeNavBarIndex(0, goToFirstPage: true);
+      if (!openInCurrentContext) {
+        GlobalKeyService.jwLifePageKey.currentState!.changeNavBarIndex(0, goToFirstPage: true);
+      }
       showPageDailyText(dailyTextPub, date: date);
     }
     else if (uri.isMeetings) {
@@ -163,7 +176,9 @@ Future<void> handleUri(JwOrgUri uri) async {
       refreshMeetingsPubs(pubs: dayPubs);
       GlobalKeyService.workShipKey.currentState!.refreshSelectedDay(date);
 
-      GlobalKeyService.jwLifePageKey.currentState!.changeNavBarIndex(3, goToFirstPage: true);
+      if (!openInCurrentContext) {
+        GlobalKeyService.jwLifePageKey.currentState!.changeNavBarIndex(3, goToFirstPage: true);
+      }
     }
     else {
       // ouvrir le lien

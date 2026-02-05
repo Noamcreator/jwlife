@@ -3035,6 +3035,22 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get settings_menu_auto_open_single_document_subtitle =>
       '如果只有一个文档，则直接打开而不显示菜单。';
+
+  @override
+  String get settings_appearance_frequently_used => '常用出版物';
+
+  @override
+  String get settings_appearance_frequently_used_subtitle =>
+      '在主页的“收藏”栏目下方显示最常用的出版物';
+
+  @override
+  String get action_all_selection => '全选';
+
+  @override
+  String get action_translate => '翻译';
+
+  @override
+  String get action_open_in_jwlife => '在 JW Life 中打开';
 }
 
 /// The translations for Chinese, as used in Hong Kong (`zh_HK`).
@@ -6069,6 +6085,22 @@ class AppLocalizationsZhHk extends AppLocalizationsZh {
   @override
   String get settings_menu_auto_open_single_document_subtitle =>
       '如果只有一個文件，則直接開啟而不顯示菜單。';
+
+  @override
+  String get settings_appearance_frequently_used => '常用刊物';
+
+  @override
+  String get settings_appearance_frequently_used_subtitle =>
+      '在首頁的「收藏」部分下方顯示最常用的刊物';
+
+  @override
+  String get action_all_selection => '全選';
+
+  @override
+  String get action_translate => '翻譯';
+
+  @override
+  String get action_open_in_jwlife => '在 JW Life 中開啟';
 }
 
 /// The translations for Chinese, as used in Taiwan (`zh_TW`).
@@ -9103,4 +9135,20 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   @override
   String get settings_menu_auto_open_single_document_subtitle =>
       '如果只有一個文件，則直接開啟而不顯示菜單。';
+
+  @override
+  String get settings_appearance_frequently_used => '常用出版物';
+
+  @override
+  String get settings_appearance_frequently_used_subtitle =>
+      '在首頁的「收藏」區段下方顯示最常使用的出版物';
+
+  @override
+  String get action_all_selection => '全選';
+
+  @override
+  String get action_translate => '翻譯';
+
+  @override
+  String get action_open_in_jwlife => '在 JW Life 中開啟';
 }

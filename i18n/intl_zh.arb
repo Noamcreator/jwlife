@@ -931,5 +931,10 @@
   "settings_show_document_description": "显示文档描述",
   "settings_show_document_description_subtitle": "在文档下方显示网站上的描述。",
   "settings_menu_auto_open_single_document": "直接打开文档",
-  "settings_menu_auto_open_single_document_subtitle": "如果只有一个文档，则直接打开而不显示菜单。"
+  "settings_menu_auto_open_single_document_subtitle": "如果只有一个文档，则直接打开而不显示菜单。",
+  "settings_appearance_frequently_used": "常用出版物",
+  "settings_appearance_frequently_used_subtitle": "在主页的“收藏”栏目下方显示最常用的出版物",
+  "action_all_selection": "全选",
+  "action_translate": "翻译",
+  "action_open_in_jwlife": "在 JW Life 中打开"
 }

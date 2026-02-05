@@ -3204,4 +3204,20 @@ class AppLocalizationsNl extends AppLocalizations {
   @override
   String get settings_menu_auto_open_single_document_subtitle =>
       'Als er slechts één document aanwezig is, open het dan zonder het menu weer te geven.';
+
+  @override
+  String get settings_appearance_frequently_used => 'Veelgebruikte publicaties';
+
+  @override
+  String get settings_appearance_frequently_used_subtitle =>
+      'Toon de meest gebruikte publicaties op de startpagina onder de sectie \"Favorieten\"';
+
+  @override
+  String get action_all_selection => 'Alles selecteren';
+
+  @override
+  String get action_translate => 'Vertalen';
+
+  @override
+  String get action_open_in_jwlife => 'Openen in JW Life';
 }

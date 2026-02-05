@@ -6,8 +6,8 @@ import 'package:jwlife/widgets/dialog/languages_app_dialog.dart';
 
 import '../../widgets/dialog/language_dialog.dart';
 
-Future<dynamic> showLanguageDialog(BuildContext context, {String? firstSelectedLanguage, Map<String, dynamic> languagesListJson = const {}, Media? media}) async {
-  LanguageDialog languageDialog = LanguageDialog(selectedLanguageSymbol: firstSelectedLanguage, languagesListJson: languagesListJson, media: media);
+Future<dynamic> showLanguageDialog(BuildContext context, {String? firstSelectedLanguage, Map<String, dynamic> languagesListJson = const {}, Media? media, String type = 'library'}) async {
+  LanguageDialog languageDialog = LanguageDialog(selectedLanguageSymbol: firstSelectedLanguage, languagesListJson: languagesListJson, media: media, type: type);
   return await showDialog(
     context: context,
     builder: (context) => languageDialog

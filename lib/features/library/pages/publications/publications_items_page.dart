@@ -5,6 +5,7 @@ import 'package:jwlife/app/jwlife_app_bar.dart';
 
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/utils/utils.dart';
+import 'package:jwlife/core/utils/utils_jwpub.dart';
 import 'package:jwlife/data/models/meps_language.dart';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/models/publication_category.dart';
@@ -71,35 +72,55 @@ class _PublicationsItemsPageState extends State<PublicationsItemsPage> {
   }
 
   // Méthode d'aide pour le Widget
-  Widget _buildCategoryHeader(BuildContext context, PublicationAttribute attribute) {
-    return Padding(
-      padding: EdgeInsets.only(
-        top: 20.0,
-        bottom: 0.0,
-      ),
-      child: FutureBuilder(
-        future: attribute.getNameAsync(_model.mepsLanguage!.getSafeLocale()),
-        builder: (context, snapshot) {
-          String attributeText = attribute.getName();
-          if (snapshot.connectionState == ConnectionState.done && snapshot.hasData) {
-            final loc = snapshot.data!;
-            attributeText = loc;
-          }
-
-          return Text(
-            attributeText,
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-              color: Theme.of(context).brightness == Brightness.dark
-                  ? Colors.white
-                  : Colors.black,
-            ),
-          );
+  Widget _buildCategoryHeader(BuildContext context, PublicationAttribute attribute, List<Publication> publications) {
+  return Padding(
+    padding: EdgeInsets.only(
+      top: 20.0,
+    ),
+    child: FutureBuilder<String>(
+      future: attribute.getNameAsync(_model.mepsLanguage!.getSafeLocale()),
+      builder: (context, snapshot) {
+        String attributeText = attribute.getName();
+        if (snapshot.connectionState == ConnectionState.done && snapshot.hasData) {
+          attributeText = snapshot.data!;
         }
-      ),
-    );
-  }
+
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            // Le titre à gauche
+            Expanded(
+              child: Text(
+                attributeText,
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.white
+                      : Colors.black,
+                ),
+              ),
+            ),
+            // Le bouton de téléchargement à droite
+            IconButton(
+              icon: const Icon(JwIcons.cloud_arrow_down),
+              visualDensity: VisualDensity.compact,
+              onPressed: () {
+                // Logique pour télécharger toutes les publications
+                for (var publication in publications) {
+                  if (publication.isDownloadedNotifier.value == false) {
+                    publication.download(context);
+                  }
+                }
+              },
+              tooltip: i18n().action_download_all
+            ),
+          ],
+        );
+      },
+    ),
+  );
+}
 
   @override
   Widget build(BuildContext context) {
@@ -156,7 +177,7 @@ class _PublicationsItemsPageState extends State<PublicationsItemsPage> {
                     icon: const Icon(JwIcons.language),
                     text: i18n().action_languages,
                     onPressed: (anchorContext) async {
-                      showLanguageDialog(context, firstSelectedLanguage: _model.currentMepsLanguage?.symbol ?? widget.mepsLanguage.symbol).then((language) async {
+                      showLanguageDialog(context, firstSelectedLanguage: _model.currentMepsLanguage?.symbol ?? widget.mepsLanguage.symbol, type: 'publication').then((language) async {
                         if (language != null) {
                           await _model.loadItems(mepsLanguageMap: language);
                           _loadTitle();
@@ -232,11 +253,30 @@ class _PublicationsItemsPageState extends State<PublicationsItemsPage> {
                     },
                   ),
                   IconTextButton(
-                      icon: const Icon(JwIcons.arrow_circular_left_clock),
-                      text: i18n().action_history,
-                      onPressed: (anchorContext) {
-                        JwLifeApp.history.showHistoryDialog(context);
+                    icon: const Icon(JwIcons.arrow_circular_left_clock),
+                    text: i18n().action_history,
+                    onPressed: (anchorContext) {
+                      JwLifeApp.history.showHistoryDialog(context);
+                    }
+                  ),
+                  IconTextButton(
+                    icon: const Icon(JwIcons.cloud_arrow_down),
+                    text: i18n().action_download_all,
+                    onPressed: (anchorContext) {
+                      // Logique pour télécharger toutes les publications
+                      for (var publication in _model.filteredPublications.values.expand((list) => list)) {
+                        if (publication.isDownloadedNotifier.value == false) {
+                          publication.download(context);
+                        }
                       }
+                    }
+                  ),
+                  IconTextButton(
+                    icon: const Icon(JwIcons.document_stack),
+                    text: i18n().label_import_jwpub,
+                    onPressed: (anchorContext) {
+                      importJwpubFile(anchorContext, () => _model.loadItems());
+                    }
                   )
                 ]
               ),
@@ -245,7 +285,7 @@ class _PublicationsItemsPageState extends State<PublicationsItemsPage> {
               body: _PublicationsItemsBody(
                 viewModel: _model,
                 mepsLanguage: widget.mepsLanguage,
-                buildCategoryHeader: _buildCategoryHeader,
+                buildCategoryHeader: (context, attribute, publications) => _buildCategoryHeader(context, attribute, publications),
               ),
             );
           }
@@ -260,7 +300,7 @@ class _PublicationsItemsPageState extends State<PublicationsItemsPage> {
 class _PublicationsItemsBody extends StatelessWidget {
   final PublicationsItemsViewModel viewModel;
   final MepsLanguage? mepsLanguage;
-  final Widget Function(BuildContext, PublicationAttribute) buildCategoryHeader;
+  final Widget Function(BuildContext, PublicationAttribute, List<Publication>) buildCategoryHeader;
 
   const _PublicationsItemsBody({
     required this.viewModel,
@@ -339,7 +379,7 @@ class _PublicationsItemsBody extends StatelessWidget {
                     SliverToBoxAdapter(
                       child: Padding(
                         padding: EdgeInsets.symmetric(horizontal: contentPadding),
-                        child: buildCategoryHeader(context, attribute),
+                        child: buildCategoryHeader(context, attribute, publicationList),
                       ),
                     ),
                   );
@@ -348,7 +388,7 @@ class _PublicationsItemsBody extends StatelessWidget {
                 // Ajout de la grille (sans SizedBox.shrink, tout est rempli)
                 slivers.add(
                   SliverPadding(
-                    padding: EdgeInsets.all(contentPadding),
+                    padding: EdgeInsets.only(top: attribute.id == 0 ? contentPadding : 0, bottom: contentPadding, left: contentPadding, right: contentPadding),
                     sliver: SliverGrid.builder(
                       itemCount: publicationList.length,
                       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(

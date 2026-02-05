@@ -3222,4 +3222,21 @@ class AppLocalizationsAy extends AppLocalizations {
   @override
   String get settings_menu_auto_open_single_document_subtitle =>
       'Maya qillqata utjchi ukhaxa, jist\'araña jan menu uñachayasa.';
+
+  @override
+  String get settings_appearance_frequently_used =>
+      'Walja apnaqata yatiyäwinaka';
+
+  @override
+  String get settings_appearance_frequently_used_subtitle =>
+      'Nayrïr jananxa walja apnaqata yatiyäwinaka uñachayañani, \"Gunakanaka\" uka manqhana';
+
+  @override
+  String get action_all_selection => 'Taqpacha ajlliña';
+
+  @override
+  String get action_translate => 'Jaqukipaña';
+
+  @override
+  String get action_open_in_jwlife => 'JW Life ukan jist’araña';
 }

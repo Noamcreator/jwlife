@@ -26,10 +26,7 @@ const String _kSharedPrefsPrefix = 'jwlife.';
 Future<void> _initializeServices() async {
   // 1. Initialisations de bas niveau
   WidgetsFlutterBinding.ensureInitialized();
-  if (kDebugMode) {
-    // Activation du debug pour InAppWebView uniquement en mode debug
-    InAppWebViewController.setWebContentsDebuggingEnabled(false);
-  }
+  InAppWebViewController.setWebContentsDebuggingEnabled(false);
 
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge, overlays: [SystemUiOverlay.top, SystemUiOverlay.bottom]);
 

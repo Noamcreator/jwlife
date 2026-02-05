@@ -31,7 +31,25 @@ class TeachingToolboxSection extends StatelessWidget {
                 final hasMainItems = combinedMain.isNotEmpty;
                 final hasTracts = tractsList.isNotEmpty;
 
-                if (!hasMainItems && !hasTracts) return const SizedBox.shrink();
+                if (!hasMainItems && !hasTracts) {
+                  SizedBox(
+                    height: 30,
+                    child: Center(
+                      child: Text(
+                        i18n().message_no_ministry_publications,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? Color(0xFFc3c3c3)
+                              : Color(0xFF626262),
+                        ),
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  );
+                }
 
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,

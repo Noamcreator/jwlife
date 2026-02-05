@@ -12,7 +12,9 @@ import 'package:jwlife/app/app_page.dart';
 import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/app/jwlife_app_bar.dart';
 import 'package:jwlife/core/api/api.dart';
+import 'package:jwlife/core/api/translate_api.dart';
 import 'package:jwlife/core/icons.dart';
+import 'package:jwlife/core/uri/utils_uri.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/core/utils/utils.dart';
 import 'package:jwlife/core/utils/utils_audio.dart';
@@ -39,6 +41,7 @@ import 'package:jwlife/widgets/dialog/qr_code_dialog.dart';
 import 'package:jwlife/widgets/responsive_appbar_actions.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../../../../../core/utils/widgets_utils.dart';
@@ -538,13 +541,122 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
             SafeArea(
               child: InAppWebView(
                   initialSettings: getWebViewSettings(),
+                  contextMenu: ContextMenu(
+                    menuItems: [
+                      ContextMenuItem(
+                        id: 1,
+                        title: i18n().action_copy,
+                        action: () async {
+                          String? selectedText = await _controller.getSelectedText();
+                          if (selectedText != null && selectedText.isNotEmpty) {
+                            await Clipboard.setData(ClipboardData(text: selectedText));
+                          }
+                        },
+                      ),
+                      /*
+                      ContextMenuItem(
+                        id: 2,
+                        title: i18n().action_trim,
+                        action: () async {
+                          // 1. On récupère le texte pour le mettre dans le presse-papier
+                          String? selectedText = await _controller.getSelectedText();
+                          
+                          // 2. On exécute la modification visuelle dans la WebView
+                          await _controller.evaluateJavascript(source: "trimText();");
+                          
+                          if (selectedText != null) {
+                            await Clipboard.setData(ClipboardData(text: selectedText.trim()));
+                          }
+                          
+                          // 3. On ferme le clavier si nécessaire
+                          await _controller.clearFocus();
+                        },
+                      ),
+                      */
+                      ContextMenuItem(
+                        id: 2,
+                        title: i18n().action_all_selection,
+                        action: () async {
+                          await _controller.evaluateJavascript(source: """
+                            (function() {
+                              const range = document.createRange();
+                              range.selectNodeContents(document.body);
+                              const sel = window.getSelection();
+                              sel.removeAllRanges();
+                              sel.addRange(range);
+                            })();
+                          """);
+
+                          // CRUCIAL pour faire revenir la barre :
+                          // On redemande le focus et on simule un clic long ou on laisse le système détecter le changement
+                          await _controller.requestFocusNodeHref();
+                        },
+                      ),
+                      ContextMenuItem(
+                        id: 3,
+                        title: i18n().action_open_in_jwlife,
+                        action: () async {
+                          String? selectedText = await _controller.getSelectedText();
+                          if (selectedText == null || selectedText.isEmpty) return;
+
+                          // Enlever le clavier
+                          await _controller.evaluateJavascript(source: "hideKeyboard();");
+
+                          JwOrgUri uri = JwOrgUri.parse(selectedText);
+                          handleUri(uri, currentContext: context, openInCurrentContext: true);
+                        },
+                      ),
+                      ContextMenuItem(
+                        id: 4,
+                        title: i18n().action_translate,
+                        action: () async {
+                          String? selectedText = await _controller.getSelectedText();
+                          if (selectedText != null && selectedText.isNotEmpty) {
+                            await _controller.evaluateJavascript(source: "hideKeyboard();");
+
+                            showTranslateDialog(context, selectedText);
+                          }
+                        },
+                      ),
+                      ContextMenuItem(
+                        id: 5,
+                        title: i18n().action_search,
+                        action: () async {
+                          String? selectedText = await _controller.getSelectedText();
+                          if (selectedText != null && selectedText.isNotEmpty) {
+                            // Enlever le clavier
+                            await _controller.evaluateJavascript(source: "hideKeyboard();");
+                            
+                            showPage(SearchPage(query: selectedText));
+                          }
+                        },
+                      ),
+                      ContextMenuItem(
+                        id: 6,
+                        title: i18n().action_share,
+                        action: () async {
+                          String? selectedText = await _controller.getSelectedText();
+                          if (selectedText != null && selectedText.isNotEmpty) {
+                            // Enlever le clavier
+                            await _controller.evaluateJavascript(source: "hideKeyboard();");
+
+                            // Utilisation du package share_plus
+                            await SharePlus.instance.share(ShareParams(title: selectedText, uri: Uri.tryParse(selectedText)));
+                          }
+                        },
+                      ),
+                    ],
+                    settings: ContextMenuSettings(
+                      hideDefaultSystemContextMenuItems: true, // true pour TOUT masquer sauf les tiens
+                    ),
+                  ),
                   initialData: InAppWebViewInitialData(
                       data: _htmlContent,
                       baseUrl: WebUri('file://${JwLifeSettings.instance.webViewSettings.webappPath}/')
                   ),
                   onWebViewCreated: (controller) async {
                     _controller = controller;
-                                
+
                     registerWebViewJavaScriptChannel(controller);
                   },
                   shouldInterceptRequest: (controller, request) async {
@@ -593,7 +705,12 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
                                 
                         RealmMediaItem? mediaItem = getMediaItemFromLank(jwOrgUri.lank!, jwOrgUri.wtlocale);
                                 
-                        if (mediaItem == null) return NavigationActionPolicy.ALLOW;
+                        if (mediaItem == null) {
+                          if (await hasInternetConnection(context: context)) {
+                            return NavigationActionPolicy.ALLOW;
+                          }
+                          return NavigationActionPolicy.CANCEL;
+                        }
                                 
                         if(mediaItem.type == 'AUDIO') {
                           Audio audio = Audio.fromJson(mediaItem: mediaItem);
@@ -1959,14 +2076,14 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
                   setState(() {
                     _isSearching = false;
                   });
+                  return false;
                 }
               ) : JwLifeAppBar(
                 title: _title,
                 subTitle: widget.publication.getShortTitle(),
                 handleBackPress: widget.handleBackPress,
                 actions: [
-                  // AUDIO
-                  
+                  // AUDIO   
                 if (_hasAudio) 
                   IconTextButton(
                       text: "",
@@ -2251,6 +2368,29 @@ class _ControlsOverlayState extends State<ControlsOverlay> {
                       setState(() {});
                     },
                   ),
+
+                  // TRANSLATION 
+                  if (_currentDocument?.mepsDocumentId != null && _currentDocument!.mepsLanguageId != JwLifeSettings.instance.libraryLanguage.value.id)
+                    IconTextButton(
+                      text: 'Traduire automatiquement',
+                      icon: const Icon(JwIcons.printed_text),
+                      onPressed: (anchorContext) async {
+                        final doc = _currentDocument!;
+                        final content = doc.isBibleChapter()
+                            ? doc.chapterContent!
+                            : doc.content!;
+                        final decodedText = decodeBlobContent(content, widget.publication.hash!);
+
+                        String translatedHtml = await translateHtml(decodedText, widget.publication.mepsLanguage.primaryIetfCode, JwLifeSettings.instance.libraryLanguage.value.primaryIetfCode);
+
+                        final className = getArticleClass(widget.publication, doc, language: JwLifeSettings.instance.libraryLanguage.value);
+                        
+                        final escapedHtml = jsonEncode(translatedHtml);
+                        final escapedClassName = jsonEncode(className);
+                        
+                        _controller.evaluateJavascript(source: "translateText($escapedHtml, $escapedClassName);");
+                      },
+                    ),
     
                   // DEBUG HTML
                   if (kDebugMode && _currentDocument != null)

@@ -4,18 +4,28 @@ import 'package:archive/archive.dart';
 import 'package:collection/collection.dart';
 import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/material.dart';
 import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/app/services/global_key_service.dart';
+import 'package:jwlife/app/services/settings_service.dart';
+import 'package:jwlife/core/app_data/meetings_pubs_service.dart';
+import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/core/utils/utils.dart';
+import 'package:jwlife/core/utils/utils_pub.dart';
+import 'package:jwlife/data/databases/catalog.dart';
 import 'package:jwlife/data/models/publication.dart';
 
 import 'dart:typed_data';
 import 'package:encrypt/encrypt.dart' as encrypt;
 import 'package:jwlife/data/repositories/PublicationRepository.dart';
+import 'package:jwlife/features/publication/pages/local/publication_menu_view.dart';
 
 import '../api/api.dart';
 import '../keys.dart';
 import 'directory_helper.dart';
+
+import 'package:path/path.dart' as path;
 
 Future<Publication?> downloadJwpubFile(Publication publication, CancelToken? cancelToken, bool update, {bool refreshUi = true}) async {
   final queryParams = {
@@ -181,6 +191,37 @@ Future<void> removePublication(Publication pub, {bool update = false}) async {
   if (!update) {
     await JwLifeApp.pubCollections.deletePublication(pub);
   }
+}
+
+/// Importer un fichier .jwpub
+Future<void> importJwpubFile(BuildContext context, Function() refresh) async {
+  FilePicker.platform.pickFiles(allowMultiple: true).then((result) async {
+      if (result != null && result.files.isNotEmpty) {
+        for (PlatformFile f in result.files) {
+          String filePath = f.path!;
+          if (showInvalidExtensionDialog(context, filePath: filePath, expectedExtension: '.jwpub')) {
+            File file = File(filePath);
+            String fileName = path.basename(file.path);
+            BuildContext? dialogContext = await showJwImport(context, fileName);
+            Publication? jwpub = await jwpubUnzip(file.readAsBytesSync());
+
+            if (dialogContext != null) Navigator.of(dialogContext).pop();
+
+            if (jwpub == null) {
+              showImportFileError(context, '.jwpub');
+            } 
+            else {
+              if (jwpub.keySymbol == 'S-34') refreshPublicTalks();
+              if (f == result.files.last) {
+                CatalogDb.instance.updateCatalogCategories(JwLifeSettings.instance.libraryLanguage.value);
+                await refresh();
+                showPage(PublicationMenuPage(publication: jwpub));
+              }
+            }
+          }
+        }
+      }
+    });
 }
 
 /// Calcule le hash SHA-256 à partir des identifiants donnés

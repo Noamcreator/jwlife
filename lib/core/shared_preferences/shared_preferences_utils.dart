@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:ui' as ui;
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:jwlife/core/utils/files_helper.dart';
@@ -64,6 +65,16 @@ class AppSharedPreferences {
     await _sp.setString(SharedPreferencesKeys.pageTransition.key, pageTransition);
   }
 
+  // --- FREQUENTLY USED PUBLICATIONS ---
+
+  bool hasFrequentlyUsedPublications() {
+    return _sp.getBool(SharedPreferencesKeys.hasFrequentlyUsedPublications.key) ?? SharedPreferencesKeys.hasFrequentlyUsedPublications.defaultValue;
+  }
+
+  Future<void> setHasFrequentlyUsedPublications(bool value) async {
+    await _sp.setBool(SharedPreferencesKeys.hasFrequentlyUsedPublications.key, value);
+  }
+
   // --- COULEUR PRIMAIRE ---
 
   Color getPrimaryColor(ThemeMode theme) {
@@ -121,13 +132,22 @@ class AppSharedPreferences {
   // --- LOCALE ---
 
   String getLocale() {
-    if (_sp.containsKey(SharedPreferencesKeys.locale.key)) {
-      return _sp.getString(SharedPreferencesKeys.locale.key) ?? SharedPreferencesKeys.locale.defaultValue;
-    }
-    Locale deviceLocale = WidgetsBinding.instance.window.locales.first;
-    if (AppLocalizations.supportedLocales.contains(deviceLocale)) {
+    // Priorité aux préférences sauvegardées
+    final savedLocale = _sp.getString(SharedPreferencesKeys.locale.key);
+    if (savedLocale != null) return savedLocale;
+
+    // Récupérer la locale du device (méthode moderne)
+    final deviceLocale = PlatformDispatcher.instance.locale;
+    
+    bool isSupported = AppLocalizations.supportedLocales.any(
+      (locale) => locale.languageCode == deviceLocale.languageCode
+    );
+
+    if (isSupported) {
       return deviceLocale.languageCode;
     }
+
+    // Fallback par défaut
     return SharedPreferencesKeys.locale.defaultValue;
   }
 

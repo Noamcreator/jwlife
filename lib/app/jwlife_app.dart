@@ -63,7 +63,7 @@ class JwLifeAppState extends State<JwLifeApp> {
   ThemeMode _themeMode = JwLifeSettings.instance.themeMode;
   ThemeData _lightTheme = JwLifeSettings.instance.lightData;
   ThemeData _darkTheme = JwLifeSettings.instance.darkData;
-  Locale _locale = JwLifeSettings.instance.locale;
+  Locale _locale = Locale(AppSharedPreferences.instance.getLocale());
 
   @override
   void initState() {

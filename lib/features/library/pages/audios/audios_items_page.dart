@@ -220,7 +220,7 @@ class _AudioItemsPageState extends State<AudioItemsPage> {
           IconTextButton(
             icon: const Icon(JwIcons.language),
             onPressed: (BuildContext context) async {
-              showLanguageDialog(context, firstSelectedLanguage: _language.symbol).then((language) async {
+              showLanguageDialog(context, firstSelectedLanguage: _language.symbol, type: 'medias').then((language) async {
                 if (language != null) {
                   if(language['Symbol'] != _language.symbol) {
                     loadItems(symbol: language['Symbol']);

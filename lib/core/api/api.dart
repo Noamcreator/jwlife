@@ -1,3 +1,7 @@
+import 'dart:convert';
+import 'dart:io';
+import 'dart:typed_data';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:jwlife/core/shared_preferences/shared_preferences_utils.dart';
@@ -19,6 +23,8 @@ class Api {
   //static const String jwTokenUrl = 'https://app.jw-cdn-qa.org/tokens/jwl-public.jwt';
   static const String catalogInfoUrl = 'https://app.jw-cdn.org/catalogs/publications/$version/{currentVersion}/catalog.info.json.gz';
   static const String catalogUrl = 'https://app.jw-cdn.org/catalogs/publications/$version/{currentVersion}/catalog.db.gz';
+
+  static const String allLanguages = 'https://app.jw-cdn.org/catalogs/media/languages.json.gz';
   static const String langCatalogUrl = 'https://app.jw-cdn.org/catalogs/media/{language_code}.json.gz';
 
   static const String baseUrl = 'b.jw-cdn.org';
@@ -293,6 +299,53 @@ class Api {
       'sec-ch-ua-mobile': '?0',
       'sec-ch-ua-platform': '"Android"',
       'Connection': 'keep-alive',
+    };
+  }
+
+  /// Vérifie si une mise à jour de la bibliothèque pour une langue donnée est disponible.
+  static Future<List<String>> getAllLanguageSymbols() async {
+    try { 
+      final response = await httpGetWithHeaders(allLanguages);
+
+      if (response.statusCode == 200) {
+        Map<String, dynamic> data = _parseToJson(response.data);
+
+        final List<dynamic> languagesList = data['languages'];
+
+        return languagesList.map((e) => e['code'] as String).toList();
+      }
+      else {
+        printTime("Erreur lors de la récupération des langues : ${response.statusCode}");
+      }
+    }
+    catch (e) {
+      printTime('Erreur lors de la vérification de mise à jour de la bibliothèque : $e');
+    }
+    return [];
+  }
+
+  static Map<String, dynamic> _parseToJson(Uint8List bodyBytes) {
+    final decoded = GZipCodec().decode(bodyBytes);
+    final jsonString = utf8.decode(decoded);
+
+    final lines = LineSplitter.split(jsonString).map((line) => json.decode(line) as Map<String, dynamic>).toList();
+
+    int catalogSchemaVersion = 0;
+    List<dynamic> languages = [];
+    String signature = '';
+
+    for (final entry in lines) {
+      final type = entry['type'];
+      final data = entry['o'];
+      if (type == 'catalogSchemaVersion') catalogSchemaVersion = data as int;
+      if (type == 'languages') languages = data as List<dynamic>;
+      if (type == 'signature') signature = data as String;
+    }
+
+    return {
+      'catalogSchemaVersion': catalogSchemaVersion,
+      'languages': languages,
+      'signature': signature,
     };
   }
 }

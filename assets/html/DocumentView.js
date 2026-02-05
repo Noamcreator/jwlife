@@ -279,6 +279,100 @@ function toggleAudioPlayer(visible) {
     adjustArticle('article-right', next.link);
 }
 
+function hideKeyboard() {
+    const activeEl = document.activeElement;
+
+    // 1. Vérifie si le clavier est potentiellement ouvert (focus sur un champ)
+    const isInput = activeEl && (
+        activeEl.tagName === 'INPUT' || 
+        activeEl.tagName === 'TEXTAREA' || 
+        activeEl.isContentEditable
+    );
+
+    if (isInput) {
+        // --- LOGIQUE FERMETURE CLAVIER ---
+        activeEl.blur();
+
+        // Astuce de l'input invisible pour forcer la fermeture sur mobile
+        const tempField = document.createElement('input');
+        tempField.setAttribute('type', 'text');
+        tempField.setAttribute('style', 'position:fixed; top:' + window.scrollY + 'px; opacity:0;');
+        
+        document.body.appendChild(tempField);
+        tempField.focus();
+
+        setTimeout(function() {
+            tempField.blur();
+            document.body.removeChild(tempField);
+        }, 10);
+    }
+
+    // 2. DANS TOUS LES CAS : On efface la sélection visuelle (le surlignage bleu)
+    clearTextSelection();
+}
+
+function selectAll() {
+    const activeEl = document.activeElement;
+
+    // Si l'utilisateur est dans un champ de saisie, on utilise la méthode native
+    if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) {
+        activeEl.select();
+    } else {
+        // Sinon, on sélectionne tout le contenu du document (HTML statique)
+        const range = document.createRange();
+        range.selectNodeContents(document.body);
+        const selection = window.getSelection();
+        selection.removeAllRanges();
+        selection.addRange(range);
+    }
+}
+
+function trimText() {
+    const selection = window.getSelection();
+    if (!selection.rangeCount) return;
+
+    const range = selection.getRangeAt(0);
+    const selectedText = selection.toString();
+    
+    // On nettoie le texte (enlève les espaces/retours à la ligne au début et à la fin)
+    const trimmedText = selectedText.trim();
+
+    // Si on est dans un champ éditable (input, textarea, contenteditable)
+    const activeEl = document.activeElement;
+    if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) {
+        const start = activeEl.selectionStart;
+        const end = activeEl.selectionEnd;
+        const fullText = activeEl.value;
+        
+        // Remplace la sélection par le texte "trimmé"
+        activeEl.value = fullText.substring(0, start) + trimmedText + fullText.substring(end);
+        
+        // Repositionne le curseur
+        activeEl.setSelectionRange(start, start + trimmedText.length);
+    } 
+    // Si c'est du texte HTML classique (contentEditable="true")
+    else if (range.commonAncestorContainer.parentElement.isContentEditable || document.designMode === 'on') {
+        range.deleteContents();
+        range.insertNode(document.createTextNode(trimmedText));
+    }
+    
+    // Note : Si le texte n'est pas éditable, le trim ne fera rien visuellement 
+    // sur la page, mais tu as déjà le texte propre dans ton Clipboard côté Flutter.
+}
+
+function clearTextSelection() {
+    if (window.getSelection) {
+        // Méthode moderne pour la plupart des navigateurs
+        const selection = window.getSelection();
+        if (selection) {
+            selection.removeAllRanges();
+        }
+    } else if (document.selection) {
+        // Compatibilité pour les versions très anciennes d'Internet Explorer
+        document.selection.empty();
+    }
+}
+
 function toggleNoteWidget(visible) {
     const floatingButton = document.getElementById('dialogFloatingButton');
     noteWidgetVisible = visible;
@@ -291,6 +385,16 @@ function toggleNoteWidget(visible) {
     adjustArticle('article-center', curr.link);
     adjustArticle('article-left', prev.link);
     adjustArticle('article-right', next.link);
+}
+
+function translateText(translatedHtml, className) {
+    pageCenter.innerHTML = `<article id="article-center" class="${className}">${translatedHtml}</article>`;
+    adjustArticle(`article-center`, cachedPages[currentIndex].link);
+    addVideoCover(`article-center`);
+
+    const article = document.getElementById("article-center");
+    wrapWordsWithSpan(article, isBible());
+    paragraphsData = fetchAllParagraphsOfTheArticle(article);
 }
 
 async function fetchPage(index) {
@@ -4743,8 +4847,7 @@ function showExtractPublicationDialog(article, dialogData, href) {
                 const article = document.createElement('div');
                 article.innerHTML = `<article id="publication-dialog" class="${item.className}">${item.content}</article>`;
                 article.style.cssText = `
-                      position: relative;
-                      padding-block: 16px;
+                    padding: 15px 23px;
                 `;
 
                 wrapWordsWithSpan(article, false);
@@ -6287,7 +6390,7 @@ pageCenter.addEventListener('contextmenu', (event) => {
     }
 }, false);
 
-document.addEventListener('selectionchange', () => {
+pageCenter.addEventListener('selectionchange', () => {
     // NOUVEAU : Ignore le selectionchange si c'est la sélection initiale
     if (isInitialSelectionChange) {
         return;

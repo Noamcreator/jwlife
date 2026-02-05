@@ -931,5 +931,10 @@
   "settings_show_document_description": "Afficher la description pour les documents",
   "settings_show_document_description_subtitle": "Afficher la description qui a sur le site internet en dessous des documents",
   "settings_menu_auto_open_single_document": "Ouvrir directement le document",
-  "settings_menu_auto_open_single_document_subtitle": "Si un seul document est présent, l'ouvrir sans afficher le menu."
+  "settings_menu_auto_open_single_document_subtitle": "Si un seul document est présent, l'ouvrir sans afficher le menu.",
+  "settings_appearance_frequently_used": "Publications souvent utilisées",
+  "settings_appearance_frequently_used_subtitle": "Afficher les publications les plus utilisées sur la page d'accueil en dessous de la section « Favoris »",
+  "action_all_selection": "Tout sélectionner",
+  "action_translate": "Traduire",
+  "action_open_in_jwlife": "Ouvrir dans JW Life"
 }

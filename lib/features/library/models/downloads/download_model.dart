@@ -140,35 +140,6 @@ class DownloadPageModel with ChangeNotifier {
       notifyListeners();
     }
   }
-
-  void importJwpub(BuildContext context) {
-    FilePicker.platform.pickFiles(allowMultiple: true).then((result) async {
-      if (result != null && result.files.isNotEmpty) {
-        for (PlatformFile f in result.files) {
-          String filePath = f.path!;
-          if (showInvalidExtensionDialog(context, filePath: filePath, expectedExtension: '.jwpub')) {
-            File file = File(filePath);
-            String fileName = path.basename(file.path);
-            BuildContext? dialogContext = await showJwImport(context, fileName);
-            Publication? jwpub = await jwpubUnzip(file.readAsBytesSync());
-
-            if (dialogContext != null) Navigator.of(dialogContext).pop();
-
-            if (jwpub == null) {
-              showImportFileError(context, '.jwpub');
-            } else {
-              if (jwpub.keySymbol == 'S-34') refreshPublicTalks();
-              if (f == result.files.last) {
-                CatalogDb.instance.updateCatalogCategories(JwLifeSettings.instance.libraryLanguage.value);
-                await _loadData();
-                showPage(PublicationMenuPage(publication: jwpub));
-              }
-            }
-          }
-        }
-      }
-    });
-  }
-
+  
   Future<void> refreshData() async => await _loadData();
 }

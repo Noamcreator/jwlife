@@ -1,5 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:jwlife/core/utils/utils_document.dart';
+import 'package:jwlife/core/utils/utils_pub.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:photo_view/photo_view_gallery.dart';
 import 'package:jwlife/core/icons.dart';
@@ -126,22 +128,29 @@ class _FullScreenImagePageState extends State<FullScreenImagePage> {
                 );
               }
 
-              if (isVideo && mediaItem != null) {
+              if (isVideo) {
                 final video = Video.fromJson(mediaItem: mediaItem);
                 return PhotoViewGalleryPageOptions.customChild(
                   child: GestureDetector(
-                    onTap: () => video.showPlayer(context),
+                    onTap: () {
+                      if(mediaItem != null) {
+                        video.showPlayer(context);
+                      }
+                      else {
+                        showImportMedia(context, keySymbol: media.keySymbol, documentId: media.mepsDocumentId, issueTagNumber: media.issueTagNumber, mepsLanguageId: media.mepsLanguageId);
+                      }
+                    },
                     child: Stack(
                       alignment: Alignment.center,
                       children: [
-                        ImageCachedWidget(
+                        mediaItem != null ? ImageCachedWidget(
                           imageUrl: mediaItem.images?.wideFullSizeImageUrl ??
                               mediaItem.images?.wideImageUrl ??
                               mediaItem.images?.squareImageUrl,
                           icon: JwIcons.video,
                           fit: BoxFit.cover,
                           animation: false,
-                        ),
+                        ) : media.filePath.isNotEmpty ? Image.file(File('${widget.publication.path}/${media.filePath}'), fit: BoxFit.cover) : Container(),
                         const Icon(JwIcons.play_circle, size: 80, color: Colors.white70),
                       ],
                     ),
@@ -370,7 +379,7 @@ class _FullScreenImagePageState extends State<FullScreenImagePage> {
                                   width: 80,
                                   height: 80,
 
-                                ) : Image.file(File('${widget.publication.path}/${media.filePath}'), fit: BoxFit.fitHeight, width: 80, height: 80),
+                                ) : media.filePath.isNotEmpty ? Image.file(File('${widget.publication.path}/${media.filePath}'), fit: BoxFit.fitHeight, width: 80, height: 80) : Container(height: 80, width: 80, color: Colors.black),
                               ),
                               isVideo ? Icon(JwIcons.play_circle, color: Colors.white, size: 30) : Container(),
                             ],

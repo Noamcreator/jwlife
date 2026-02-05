@@ -931,5 +931,10 @@
   "settings_show_document_description": "顯示文件描述",
   "settings_show_document_description_subtitle": "在文件下方顯示網站上的描述。",
   "settings_menu_auto_open_single_document": "直接開啟文件",
-  "settings_menu_auto_open_single_document_subtitle": "如果只有一個文件，則直接開啟而不顯示菜單。"
+  "settings_menu_auto_open_single_document_subtitle": "如果只有一個文件，則直接開啟而不顯示菜單。",
+  "settings_appearance_frequently_used": "常用刊物",
+  "settings_appearance_frequently_used_subtitle": "在首頁的「收藏」部分下方顯示最常用的刊物",
+  "action_all_selection": "全選",
+  "action_translate": "翻譯",
+  "action_open_in_jwlife": "在 JW Life 中開啟"
 }

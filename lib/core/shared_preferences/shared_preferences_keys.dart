@@ -5,6 +5,7 @@ class SharedPreferencesKeys {
   // Apparence
   static const theme = PrefKey('theme', 'system');
   static const pageTransition = PrefKey('page_transition', 'default');
+  static const hasFrequentlyUsedPublications = PrefKey('has_frequently_used_publications', false);
   static const primaryColor = PrefKey('primary_color', null);
   static const bibleColor = PrefKey('bible_color', null);
 

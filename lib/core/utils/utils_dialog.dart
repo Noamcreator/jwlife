@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart' show DateFormat;
 import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/features/settings_page.dart';
+import 'package:jwlife/widgets/dialog/translate_dialog.dart';
 
 import '../../app/services/settings_service.dart';
 import '../../i18n/i18n.dart';
@@ -549,4 +550,22 @@ Future<DateTime?> showMonthCalendarDialog(BuildContext context, DateTime initial
   );
 
   return result;
+}
+
+Future<void> showTranslateDialog(BuildContext context, String text, {String? languageIeftCode}) async {
+  return await showJwDialog(
+    context: context,
+    titleText: i18n().action_translate,
+    buttonAxisAlignment: MainAxisAlignment.end,
+    buttons: [
+      JwDialogButton(label: i18n().action_ok),
+    ],
+    content: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 10),
+      child: TranslationContent(
+        text: text, 
+        initialTargetLang: languageIeftCode
+      ),
+    ),
+  );
 }

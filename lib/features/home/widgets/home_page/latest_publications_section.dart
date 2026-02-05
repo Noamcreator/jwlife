@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:jwlife/core/ui/app_dimens.dart';
 import 'package:jwlife/features/home/widgets/home_page/rectangle_publication_item.dart';
 import '../../../../app/services/settings_service.dart';
 import '../../../../core/app_data/app_data_service.dart';
@@ -18,13 +19,7 @@ class LatestPublicationSection extends StatelessWidget {
       valueListenable: AppDataService.instance.latestPublications,
       builder: (context, latestList, _) {
         // Convert dynamic → Publication si nécessaire
-        final latestPublications = latestList
-            .whereType<Publication>()
-            .toList();
-
-        if (latestPublications.isEmpty) {
-          return const SizedBox.shrink();
-        }
+        final latestPublications = latestList.whereType<Publication>().toList();
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -74,22 +69,41 @@ class LatestPublicationSection extends StatelessWidget {
                 )
               ],
             ),
-            SizedBox(
-              height: 80, // Ajuster la hauteur si besoin
-              child: ListView.builder(
-                padding: EdgeInsets.zero,
-                scrollDirection: Axis.horizontal,
-                itemCount: latestPublications.length,
-                itemBuilder: (context, index) {
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 2.0),
-                    child: HomeRectanglePublicationItem(
-                      pub: latestPublications[index],
-                    ),
-                  );
-                },
+            if (latestPublications.isNotEmpty)
+              SizedBox(
+                height: kItemHeight, // Ajuster la hauteur si besoin
+                child: ListView.builder(
+                  padding: EdgeInsets.zero,
+                  scrollDirection: Axis.horizontal,
+                  itemCount: latestPublications.length,
+                  itemBuilder: (context, index) {
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 2.0),
+                      child: HomeRectanglePublicationItem(
+                        pub: latestPublications[index],
+                      ),
+                    );
+                  },
+                ),
               ),
-            ),
+            if (latestPublications.isEmpty)
+              SizedBox(
+                height: 30,
+                child: Center(
+                  child: Text(
+                    i18n().messages_no_new_publications,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Color(0xFFc3c3c3)
+                          : Color(0xFF626262),
+                    ),
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ),
           ],
         );
       },

@@ -5744,6 +5744,36 @@ abstract class AppLocalizations {
   /// In fr, this message translates to:
   /// **'Si un seul document est présent, l\'ouvrir sans afficher le menu.'**
   String get settings_menu_auto_open_single_document_subtitle;
+
+  /// No description provided for @settings_appearance_frequently_used.
+  ///
+  /// In fr, this message translates to:
+  /// **'Publications souvent utilisées'**
+  String get settings_appearance_frequently_used;
+
+  /// No description provided for @settings_appearance_frequently_used_subtitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Afficher les publications les plus utilisées sur la page d\'accueil en dessous de la section « Favoris »'**
+  String get settings_appearance_frequently_used_subtitle;
+
+  /// No description provided for @action_all_selection.
+  ///
+  /// In fr, this message translates to:
+  /// **'Tout sélectionner'**
+  String get action_all_selection;
+
+  /// No description provided for @action_translate.
+  ///
+  /// In fr, this message translates to:
+  /// **'Traduire'**
+  String get action_translate;
+
+  /// No description provided for @action_open_in_jwlife.
+  ///
+  /// In fr, this message translates to:
+  /// **'Ouvrir dans JW Life'**
+  String get action_open_in_jwlife;
 }
 
 class _AppLocalizationsDelegate

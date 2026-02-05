@@ -161,7 +161,7 @@ class PublicationMenuModel {
       ${_documentMultimediaExists ? 'LEFT JOIN DocumentMultimedia dm ON dm.DocumentId = pvi.DefaultDocumentId' : ''}
       ${useMultimedia ? 'LEFT JOIN Multimedia m ON dm.MultimediaId = m.MultimediaId' : ''}
       LEFT JOIN PublicationViewItem pvx ON pvx.PublicationViewItemId = pvi.ParentPublicationViewItemId AND pvx.ParentPublicationViewItemId = ? AND pvx.DefaultDocumentId = -1
-      ${_hasDocumentMetadataTable ? 'LEFT JOIN DocumentMetadata dmd ON dmd.DocumentId = d.DocumentId AND dmd.MetadataKey = "WEB:OnSiteAdDescription"' : ''}
+      ${_hasDocumentMetadataTable ? 'LEFT JOIN DocumentMetadata dmd ON dmd.DocumentId = d.DocumentId AND dmd.MetadataKey = \'WEB:OnSiteAdDescription\'' : ''}
       WHERE pvi.ParentPublicationViewItemId = ? OR pvx.PublicationViewItemId IS NOT NULL
       GROUP BY pvi.PublicationViewItemId;
     ''', [parentId, parentId]);

@@ -55,6 +55,7 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
   // Cache des données pour éviter les recalculs
   ThemeMode _theme = JwLifeSettings.instance.themeMode;
   String _pageTransition = 'default';
+  bool _hasFrequentlyUsedPublications = false;
   Locale _selectedLocale = const Locale('en');
   String _selectedLocaleVernacular = 'English';
   Color? _selectedColor = Constants.defaultDarkPrimaryColor;
@@ -151,6 +152,7 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
 
     final theme = sharedPreferences.getTheme();
     final pageTransition = sharedPreferences.getPageTransition();
+    final hasFrequentlyUsedPublications = sharedPreferences.hasFrequentlyUsedPublications();
     final selectedLanguage = sharedPreferences.getLocale();
     final primaryColor = sharedPreferences.getPrimaryColor(_theme);
     final bibleColor = sharedPreferences.getBibleColor();
@@ -194,6 +196,7 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
       setState(() {
         _theme = themeMode;
         _pageTransition = pageTransition;
+        _hasFrequentlyUsedPublications = hasFrequentlyUsedPublications;
         _selectedLocale = Locale(selectedLanguage);
         _selectedColor = primaryColor;
         _bibleSelectedColor = bibleColor;
@@ -300,7 +303,7 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
     final localDate = dateTime.toLocal();
     return DateFormat(
       'EEEE d MMMM yyyy HH:mm:ss',
-      JwLifeSettings.instance.libraryLanguage.value.primaryIetfCode,
+      getSafeLocale(),
     ).format(localDate);
   }
 
@@ -836,6 +839,31 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
         title: i18n().settings_page_transition,
         subtitle: _pageTransition == 'default' ? i18n().settings_appearance_system : _pageTransition == 'right' ? i18n().settings_page_transition_right : i18n().settings_page_transition_bottom,
         onTap: showPageTransitionSelectionDialog,
+      ),
+      SettingsTile(
+          title: i18n().settings_appearance_frequently_used,
+          subtitle: i18n().settings_appearance_frequently_used_subtitle,
+          trailing: Switch(
+            value: _hasFrequentlyUsedPublications,
+            onChanged: (bool value) async {
+              setState(() {
+                _hasFrequentlyUsedPublications = value;
+              });
+              AppSharedPreferences.instance.setHasFrequentlyUsedPublications(value);
+              JwLifeSettings.instance.hasFrequentlyUsedPublications = value;
+
+              if(value) {
+                Database database = CatalogDb.instance.database;
+                File mepsFile = await getMepsUnitDatabaseFile();
+                await database.transaction((txn) async {
+                  AppDataService.instance.fetchFrequentlyUsedPublications(txn, mepsFile);
+                });
+              }
+              else {
+                AppDataService.instance.frequentlyUsed.value = [];
+              }
+            },
+          ),
       ),
       SettingsColorTile(
         title: i18n().settings_main_color,

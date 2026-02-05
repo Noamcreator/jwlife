@@ -931,5 +931,10 @@
   "settings_show_document_description": "Sənədlər üçün təsviri göstər",
   "settings_show_document_description_subtitle": "Veb-saytdakı təsviri sənədlərin altında göstər.",
   "settings_menu_auto_open_single_document": "Sənədi birbaşa aç",
-  "settings_menu_auto_open_single_document_subtitle": "Yalnız bir sənəd varsa, menyunu göstərmədən onu açın."
+  "settings_menu_auto_open_single_document_subtitle": "Yalnız bir sənəd varsa, menyunu göstərmədən onu açın.",
+  "settings_appearance_frequently_used": "Tez-tez istifadə olunan nəşrlər",
+  "settings_appearance_frequently_used_subtitle": "Əsas səhifədə \"Seçilmişlər\" bölməsinin altında ən çox istifadə olunan nəşrləri göstər",
+  "action_all_selection": "Hamısını seçin",
+  "action_translate": "Tərcümə et",
+  "action_open_in_jwlife": "JW Life-da aç"
 }

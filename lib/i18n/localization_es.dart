@@ -3220,4 +3220,21 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get settings_menu_auto_open_single_document_subtitle =>
       'Si solo hay un documento presente, abrirlo sin mostrar el menú.';
+
+  @override
+  String get settings_appearance_frequently_used =>
+      'Publicaciones utilizadas con frecuencia';
+
+  @override
+  String get settings_appearance_frequently_used_subtitle =>
+      'Mostrar las publicaciones más utilizadas en la página de inicio debajo de la sección \"Favoritos\"';
+
+  @override
+  String get action_all_selection => 'Seleccionar todo';
+
+  @override
+  String get action_translate => 'Traducir';
+
+  @override
+  String get action_open_in_jwlife => 'Abrir en JW Life';
 }

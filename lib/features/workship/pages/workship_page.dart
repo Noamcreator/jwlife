@@ -7,7 +7,6 @@ import 'package:jwlife/core/app_data/app_data_service.dart';
 import 'package:jwlife/core/icons.dart';
 import 'package:jwlife/core/uri/jworg_uri.dart';
 import 'package:jwlife/core/utils/utils_document.dart';
-import 'package:jwlife/data/models/meps_language.dart';
 import 'package:jwlife/data/models/publication.dart';
 import 'package:jwlife/data/databases/catalog.dart';
 import 'package:jwlife/features/library/widgets/rectangle_publication_item.dart';
@@ -20,14 +19,12 @@ import '../../../app/jwlife_app.dart';
 import '../../../app/jwlife_app_bar.dart';
 import '../../../app/services/settings_service.dart';
 import '../../../core/app_data/meetings_pubs_service.dart';
-import '../../../core/shared_preferences/shared_preferences_keys.dart';
 import '../../../core/shared_preferences/shared_preferences_utils.dart';
 import '../../../core/ui/text_styles.dart';
 import '../../../core/utils/common_ui.dart';
 import '../../../core/utils/utils.dart';
 import '../../../core/utils/utils_audio.dart';
 import '../../../core/utils/utils_language_dialog.dart';
-import '../../../data/databases/history.dart';
 import '../../../data/models/audio.dart';
 import '../../../data/models/userdata/congregation.dart';
 import '../../../widgets/dialog/qr_code_dialog.dart';
@@ -58,8 +55,6 @@ class WorkShipPageState extends State<WorkShipPage> with TickerProviderStateMixi
   final ScrollController _scrollController = ScrollController();
   late TabController _tabController;
 
-  int _animKey = 0;
-
   @override
   void initState() {
     super.initState();
@@ -85,10 +80,6 @@ class WorkShipPageState extends State<WorkShipPage> with TickerProviderStateMixi
 
     fetchFirstCongregation();
     List<Publication> dayPubs = await CatalogDb.instance.getPublicationsForTheDay(JwLifeSettings.instance.workshipLanguage.value, date: _dateOfMeetingValue.value);
-
-    setState(() {
-      _animKey++; 
-    });
 
     refreshMeetingsPubs(pubs: dayPubs);
   }
@@ -141,10 +132,6 @@ class WorkShipPageState extends State<WorkShipPage> with TickerProviderStateMixi
 
   void refreshSelectedDay(DateTime selectedDay) {
     _dateOfMeetingValue.value = selectedDay;
-
-    setState(() {
-    _animKey++; 
-    });
   }
 
   int getWeekOfYear(DateTime date) {
@@ -254,9 +241,9 @@ class WorkShipPageState extends State<WorkShipPage> with TickerProviderStateMixi
                               autocorrect: false,
                               enableSuggestions: false,
                               keyboardType: TextInputType.text,
-                              decoration: const InputDecoration(
-                                hintText: 'Rechercher un discours',
-                                hintStyle: TextStyle(fontSize: 18),
+                              decoration: InputDecoration(
+                                hintText: i18n().action_search,
+                                hintStyle: const TextStyle(fontSize: 18),
                               ),
                               onChanged: (value) {
                                 localSetState(() {
@@ -361,7 +348,7 @@ class WorkShipPageState extends State<WorkShipPage> with TickerProviderStateMixi
             icon: const Icon(JwIcons.language),
             text: i18n().label_languages_more,
             onPressed: (anchorContext) {
-              showLanguageDialog(context, firstSelectedLanguage: JwLifeSettings.instance.workshipLanguage.value.symbol).then((language) async {
+              showLanguageDialog(context, firstSelectedLanguage: JwLifeSettings.instance.workshipLanguage.value.symbol, type: 'workship').then((language) async {
                 if (language != null) {
                   if (language['Symbol'] != JwLifeSettings.instance.workshipLanguage.value.symbol) {
                     await AppSharedPreferences.instance.setWorkshipLanguage(language);
@@ -537,45 +524,10 @@ class WorkShipPageState extends State<WorkShipPage> with TickerProviderStateMixi
                                         mainAxisAlignment: MainAxisAlignment.center,
                                         children: [
                                           const SizedBox(width: 20),
-                                          AnimatedSwitcher(
-                                            duration: const Duration(milliseconds: 300), // 300ms pour sortir, 300ms pour entrer = 600ms total
-                                            
-                                            layoutBuilder: (Widget? currentChild, List<Widget> previousChildren) {
-                                              if (previousChildren.isNotEmpty) {
-                                                return previousChildren.first; 
-                                              }
-                                              return currentChild ?? const SizedBox.shrink();
-                                            },
-                                                            
-                                            transitionBuilder: (Widget child, Animation<double> animation) {
-                                              final isRTL = Directionality.of(context) == TextDirection.rtl;
-                                              
-                                              // On définit le décalage vers le bord
-                                              final edgeOffset = isRTL ? const Offset(8.0, 0.0) : const Offset(-8.0, 0.0);
-                                                            
-                                              final isEntering = child.key == ValueKey<int>(_animKey);
-                                                            
-                                              return SlideTransition(
-                                                position: Tween<Offset>(
-                                                  // Entrée : Bord -> Centre (0.0)
-                                                  // Sortie : Centre (0.0) -> Bord
-                                                  begin: isEntering ? edgeOffset : Offset.zero,
-                                                  end: isEntering ? Offset.zero : edgeOffset,
-                                                ).animate(CurvedAnimation(
-                                                  parent: animation,
-                                                  // On utilise la même courbe pour les deux, mais inversée par le Tween
-                                                  curve: Curves.easeInOutQuart
-                                                )),
-                                                child: child,
-                                              );
-                                            },
-                                            
-                                            child: Icon(
-                                              icon,
-                                              key: ValueKey<int>(_animKey),
-                                              color: Theme.of(context).primaryColor,
-                                              size: 50,
-                                            ),
+                                          Icon(
+                                            icon,
+                                            color: Theme.of(context).primaryColor,
+                                            size: 50,
                                           ),
                                           Expanded(
                                             child: Column(
@@ -1207,9 +1159,8 @@ class WorkShipPageState extends State<WorkShipPage> with TickerProviderStateMixi
                           .of(context)
                           .primaryColor,
                       shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8)),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 20, vertical: 0),
+                          borderRadius: BorderRadius.circular(0)),
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 0),
                       visualDensity: VisualDensity.compact,
                     ),
                     onPressed: () {
@@ -1218,7 +1169,7 @@ class WorkShipPageState extends State<WorkShipPage> with TickerProviderStateMixi
                     child: Text(
                       i18n().action_download_uppercase,
                       style: const TextStyle(
-                        fontSize: 12,
+                        fontSize: 14,
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
                       ),

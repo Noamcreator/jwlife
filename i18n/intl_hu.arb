@@ -931,5 +931,10 @@
   "settings_show_document_description": "Dokumentumok leírásának megjelenítése",
   "settings_show_document_description_subtitle": "A weboldalon található leírás megjelenítése a dokumentumok alatt.",
   "settings_menu_auto_open_single_document": "Dokumentum közvetlen megnyitása",
-  "settings_menu_auto_open_single_document_subtitle": "Ha csak egy dokumentum van jelen, nyissa meg a menü megjelenítése nélkül."
+  "settings_menu_auto_open_single_document_subtitle": "Ha csak egy dokumentum van jelen, nyissa meg a menü megjelenítése nélkül.",
+  "settings_appearance_frequently_used": "Gyakran használt kiadványok",
+  "settings_appearance_frequently_used_subtitle": "A legtöbbet használt kiadványok megjelenítése a kezdőlapon a „Kedvencek” szakasz alatt",
+  "action_all_selection": "Összes kijelölése",
+  "action_translate": "Fordítás",
+  "action_open_in_jwlife": "Megnyitás a JW Life-ban"
 }
