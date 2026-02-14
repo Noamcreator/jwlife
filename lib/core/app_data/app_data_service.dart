@@ -433,7 +433,7 @@ class AppDataService {
       await Mepsunit.loadBibleCluesInfo(appLocalizations.meps_language);
     }
 
-    if(type == 'library') {
+    if(isFirst || type == 'library' || type == 'all') {
       await libraryLanguage.loadWolInfo();
     }
 

@@ -131,6 +131,7 @@ class _FullScreenImagePageState extends State<FullScreenImagePage> {
               if (isVideo) {
                 final video = Video.fromJson(mediaItem: mediaItem);
                 return PhotoViewGalleryPageOptions.customChild(
+                  disableGestures: true,
                   child: GestureDetector(
                     onTap: () {
                       if(mediaItem != null) {

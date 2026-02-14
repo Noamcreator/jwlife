@@ -1277,8 +1277,8 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
         int book = document.bookNumber!;
         int chapter = document.chapterNumberBible!;
         int verse = args[0]['id'];
+        
         // Préparation des segments
-
         final bibleSegments = await JwLifeApp.bibleCluesInfo.getBibleVerseId(book, chapter, verse);
         int verseId = bibleSegments['NWTR']?['start'] ?? 0;
 
@@ -1308,6 +1308,7 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
         if (document != null) {
           if (document['mepsDocumentId'] != null) {
             // Conversion de mepsDocumentId et mepsLanguageId
+            String keySymbol = document['keySymbol'];
             int? mepsDocumentId = document['mepsDocumentId'] is int ? document['mepsDocumentId'] : int.tryParse(document['mepsDocumentId'].toString());
             int? mepsLanguageId = document['mepsLanguageId'] is int ? document['mepsLanguageId'] : int.tryParse(document['mepsLanguageId'].toString());
 
@@ -1322,13 +1323,30 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
                 : null;
 
             // Appel de la vue de document avec les IDs convertis
-            await showDocumentView(
-              context,
-              mepsDocumentId!,
-              mepsLanguageId!,
-              startParagraphId: startParagraphId, // Passé comme int?
-              endParagraphId: endParagraphId       // Passé comme int?
-            );
+            if(widget.publication.keySymbol == keySymbol && mepsLanguageId == widget.publication.mepsLanguage.id) {
+              if (mepsDocumentId != null && mepsDocumentId != widget.publication.documentsManager!.getCurrentDocument().mepsDocumentId) {
+                int index = widget.publication.documentsManager!.getIndexFromMepsDocumentId(mepsDocumentId);
+                if(startParagraphId != null) {
+                  await _jumpToPage(index, startBlockId: startParagraphId, endBlockId: endParagraphId ?? startParagraphId);
+                }
+                else {
+                  await _jumpToPage(index);
+                }
+              }
+              else if (startParagraphId != null) {
+                await _jumpToBlockId(startParagraphId, endParagraphId ?? startParagraphId);
+              }
+            }
+            else {
+               await showDocumentView(
+                context,
+                mepsDocumentId!,
+                mepsLanguageId!,
+                startParagraphId: startParagraphId, // Passé comme int?
+                endParagraphId: endParagraphId       // Passé comme int?
+              );
+            }
+           
           }
           else if (document['type'] != null && (document['type'] == 'verse' || document['type'] == 'verse-references' || document['type'] == 'commentary')) {
             Map<String, dynamic> verse = args.length == 1 ? args[0] : args[1];
@@ -1346,7 +1364,7 @@ class DocumentPageState extends State<DocumentPage> with SingleTickerProviderSta
               bool hasSameChapter = bookNumber1 == bookNumber2 && chapterNumber1 == chapterNumber2;
               int? lastVerseNumber = hasSameChapter ? firstVerseNumber : null;
 
-              if (bookNumber1 != widget.publication.documentsManager!.getCurrentDocument().bookNumber || chapterNumber1 != widget.publication.documentsManager!.getCurrentDocument().chapterNumberBible) {
+              if (bookNumber1 != widget.publication.documentsManager!.getCurrentDocument().bookNumber && chapterNumber1 != widget.publication.documentsManager!.getCurrentDocument().chapterNumberBible) {
                 int index = widget.publication.documentsManager!.getIndexFromBookNumberAndChapterNumber(bookNumber1, chapterNumber1);
                 if(firstVerseNumber != null) {
                   await _jumpToPage(index, startBlockId: firstVerseNumber, endBlockId: lastVerseNumber ?? firstVerseNumber);

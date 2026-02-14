@@ -3227,4 +3227,75 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String get action_open_in_jwlife => 'Apri in JW Life';
+
+  @override
+  String get search_scope_article => 'Nello stesso articolo';
+
+  @override
+  String get search_scope_paragraph => 'Nello stesso paragrafo';
+
+  @override
+  String get search_scope_sentence => 'Nella stessa frase';
+
+  @override
+  String get forebears_subtitle => 'Origine dei nomi';
+
+  @override
+  String get forebears_search_hint => 'Cerca un nome o un cognome...';
+
+  @override
+  String forebears_count_description(Object count) {
+    return 'Circa $count persone portano questo nome';
+  }
+
+  @override
+  String get forebears_prevalent_label => 'Più diffuso:';
+
+  @override
+  String get forebears_density_label => 'Massima densità:';
+
+  @override
+  String get forebears_map_title => 'Mappa di distribuzione';
+
+  @override
+  String get forebears_table_title => 'Distribuzione per paese';
+
+  @override
+  String get forebears_external_link => 'Vedi più informazioni su Forebears';
+
+  @override
+  String get forebears_incidence_label => 'Incidenza:';
+
+  @override
+  String get forebears_frequency_label => 'Frequenza:';
+
+  @override
+  String get forebears_rank_label => 'Rango:';
+
+  @override
+  String get forebears_gender_stats_title => 'Distribuzione per genere';
+
+  @override
+  String get forebears_table_header_place => 'Luogo';
+
+  @override
+  String get forebears_table_header_incidence => 'Incidenza';
+
+  @override
+  String get forebears_table_header_rank => 'Rango';
+
+  @override
+  String get forebears_empty_state_text =>
+      'Cerca un nome o un cognome su Forebears per conoscere la sua distribuzione mondiale.';
+
+  @override
+  String get forebears_type_surname => 'Cognome';
+
+  @override
+  String get forebears_type_firstname => 'Nome';
+
+  @override
+  String forebears_frequency_format(Object ratio, Object total) {
+    return '$ratio su $total';
+  }
 }

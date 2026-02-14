@@ -1007,6 +1007,9 @@ async function jumpToPage(index, startBlockId, endBlockId, articleId) {
     currentIndex = index;
     await loadPages(index);
 
+    // Attendre quelques millisecondes pour que le DOM soit prêt
+    await new Promise(resolve => setTimeout(resolve, 100));
+
     if (startBlockId !== null && endBlockId !== null) {
         jumpToBlockId(articleId, startBlockId, endBlockId);
     }
@@ -4243,8 +4246,58 @@ function showVerseInfoDialog(article, verseInfo, href, pid, replace) {
                         articleDiv.id = 'verse-info-dialog-id';
                         let contentHtml = '';
                         let isLast = items.indexOf(item) === items.length - 1;
+                        
+                        if (key === 'commentary') {
+                            const articleCommentary = document.createElement('div');
+                            articleCommentary.id = 'commentary-dialog';
+                            articleCommentary.innerHTML = `<article class="${item.className}">${item.content}</article>`;
+                            articleCommentary.style.cssText = `
+                                position: relative;
+                                padding-top: 10px;
+                                padding-bottom: 16px;
+                            `;
 
-                        if (key === 'medias') {
+                            wrapWordsWithSpan(articleCommentary, false);
+
+                            paragraphsDataDialog = fetchAllParagraphsOfTheArticle(articleCommentary);
+
+                            item.blockRanges.forEach(b => {
+                                if ((item.startParagraphId == null || b.Identifier >= item.startParagraphId) && (item.endParagraphId == null || b.Identifier <= item.endParagraphId)) {
+                                    paragraphInfo = paragraphsDataDialog.get(b.Identifier);
+                                    addBlockRange(
+                                        paragraphInfo,
+                                        b.StartToken,
+                                        b.EndToken,
+                                        b.UserMarkGuid,
+                                        b.StyleIndex,
+                                        b.ColorIndex
+                                    );
+                                }
+                            });
+            
+                            item.notes.forEach(note => {
+                                const matchingBlockRange = item.blockRanges.find(b => b.UserMarkGuid === note.UserMarkGuid);
+                                const paragraphInfo = paragraphsDataDialog.get(note.BlockIdentifier)
+            
+                                addNoteWithGuid(
+                                    articleCommentary,
+                                    paragraphInfo,
+                                    matchingBlockRange?.UserMarkGuid || null,
+                                    note.Guid,
+                                    note.ColorIndex ?? 0,
+                                    false,
+                                    false
+                                );
+                            });
+            
+            
+                            articleCommentary.addEventListener('click', async (event) => {
+                                onClickOnPage(articleCommentary, event, item, item);
+                            });
+
+                            dynamicContent.appendChild(articleCommentary);
+                        }
+                        else if (key === 'medias') {
                             contentHtml = `
                                 <div id="verse-info-dialog" class="mediaItem ${item.isVideo ? 'hasVideo' : ''}">
                                 <div class="mediaImgWrapper">
@@ -5065,13 +5118,46 @@ function showVerseCommentaryDialog(article, dialogData, href) {
 
             dialogData.commentaries.forEach((item) => {
                 const articleCommentary = document.createElement('div');
-                articleCommentary.innerHTML = `<article id="commentary-dialog" class="${item.className}">${item.content}</article>`;
-                articleCommentary.style.cssText = `
-                      padding-bottom: 16px;
-                    `;
+                articleCommentary.id = 'commentary-dialog';
+                articleCommentary.innerHTML = `<article class="${item.className}">${item.content}</article>`;
+                articleCommentary.style.cssText = `padding-bottom: 16px;`;
+
+                wrapWordsWithSpan(articleCommentary, false);
+
+                paragraphsDataDialog = fetchAllParagraphsOfTheArticle(articleCommentary);
+
+                item.blockRanges.forEach(b => {
+                    if ((item.startParagraphId == null || b.Identifier >= item.startParagraphId) && (item.endParagraphId == null || b.Identifier <= item.endParagraphId)) {
+                        paragraphInfo = paragraphsDataDialog.get(b.Identifier);
+                        addBlockRange(
+                            paragraphInfo,
+                            b.StartToken,
+                            b.EndToken,
+                            b.UserMarkGuid,
+                            b.StyleIndex,
+                            b.ColorIndex
+                        );
+                    }
+                });
+
+                item.notes.forEach(note => {
+                    const matchingBlockRange = item.blockRanges.find(b => b.UserMarkGuid === note.UserMarkGuid);
+                    const paragraphInfo = paragraphsDataDialog.get(note.BlockIdentifier)
+
+                    addNoteWithGuid(
+                        articleCommentary,
+                        paragraphInfo,
+                        matchingBlockRange?.UserMarkGuid || null,
+                        note.Guid,
+                        note.ColorIndex ?? 0,
+                        false,
+                        false
+                    );
+                });
+
 
                 articleCommentary.addEventListener('click', async (event) => {
-                    onClickOnPage(articleCommentary, event, dialogData);
+                    onClickOnPage(articleCommentary, event, dialogData, item);
                 });
 
                 contentContainer.appendChild(articleCommentary);
@@ -6138,7 +6224,7 @@ const throttle = (func) => {
     };
 };
 
-async function onClickOnPage(article, event, infoPublication = null) {
+async function onClickOnPage(article, event, infoPublication = null, item = null) {
     const target = event.target;
     const tagName = target.tagName;
 
@@ -6172,6 +6258,14 @@ async function onClickOnPage(article, event, infoPublication = null) {
     const linkHandled = await onClickOnLink(article, target, event, infoPublication);
 
     if (linkHandled || closeToolbarResult || target.closest('.gen-field')) {
+        return;
+    }
+
+    if(article.id === 'commentary-dialog') {
+        const paragraph = target.closest('[data-pid]');
+        item['startParagraphId'] = paragraph.getAttribute('data-pid');
+        item['endParagraphId'] = paragraph.getAttribute('data-pid');
+        window.flutter_inappwebview?.callHandler('openMepsDocument', item);
         return;
     }
 
@@ -6327,7 +6421,8 @@ let isInitialSelectionChange = false;
 // Empêche le menu contextuel du navigateur (qui apparaît suite à un clic droit ou un appui long)
 pageCenter.addEventListener('contextmenu', (event) => {
     const linkElement = event.target.closest('a');
-
+    
+    /*
     setLongPressing(false);
 
     if ((isLongTouchFix || isSelecting) && !isReadingMode && !linkElement) {
@@ -6367,35 +6462,36 @@ pageCenter.addEventListener('contextmenu', (event) => {
         setTimeout(() => {
             isInitialSelectionChange = false;
         }, 100);
-    } 
+    }
+     */
+    if (linkElement) {
+        event.preventDefault();
+        event.stopPropagation();
+
+        (async () => { await onClickOnLink(pageCenter, linkElement, event); })();
+    }
     else {
-        if (linkElement) {
+         // 1. Vérifie si l'élément cliqué est une image ou l'un de ses parents
+        const target = event.target.closest('img');
+
+        if (target) {
+            // Empêche le menu contextuel par défaut du navigateur d'apparaître
             event.preventDefault();
-            event.stopPropagation();
 
-            (async () => { await onClickOnLink(pageCenter, linkElement, event); })();
-        }
-        else {
-             // 1. Vérifie si l'élément cliqué est une image ou l'un de ses parents
-            const target = event.target.closest('img');
-
-            if (target) {
-                // Empêche le menu contextuel par défaut du navigateur d'apparaître
-                event.preventDefault();
-
-                const imageUrl = target.src;
-                window.flutter_inappwebview.callHandler('imageLongPressHandler', imageUrl, event.clientX, event.clientY);
-            }
+            const imageUrl = target.src;
+            window.flutter_inappwebview.callHandler('imageLongPressHandler', imageUrl, event.clientX, event.clientY);
         }
     }
 }, false);
 
+/*
 pageCenter.addEventListener('selectionchange', () => {
     // NOUVEAU : Ignore le selectionchange si c'est la sélection initiale
     if (isInitialSelectionChange) {
         return;
     }
 });
+*/
 
 pageCenter.addEventListener('click', (event) => {
     event.stopPropagation();
@@ -6418,28 +6514,43 @@ const visibleParagraphIds = new Set();
 let magnifierElementMap = new Map();
 
 pageCenter.addEventListener('touchstart', (event) => {
-    if (isReadingMode || isSelecting) return;
+    //if (isReadingMode || isSelecting) return;
+    if (isReadingMode) return;
 
     if (pressTimer) clearTimeout(pressTimer);
     firstLongPressTarget = event.target;
 
     const targetClass = firstLongPressTarget?.classList;
 
+    prepareMagnifier();
+
     pressTimer = setTimeout(() => {
         closeToolbar();
-        toggleSelection(true);
 
         if (firstLongPressTarget && (targetClass.contains('word') || targetClass.contains('punctuation'))) {
+            const { styleIndex: tStyleIdx, colorIndex: tColorIdx } = getActiveStyleAndColorIndex(firstLongPressTarget);
+            const styleClass = getStyleClass(tStyleIdx, tColorIdx);
+
+            if (styleClass) {
+                const startGuid = firstLongPressTarget.getAttribute(blockRangeAttr);
+                const group = pageCenter.querySelectorAll(`[${blockRangeAttr}="${startGuid}"]`);
+                if (group.length > 0) {
+                    if(group[0] !== firstLongPressTarget) {
+                        firstLongPressTarget = group[0];
+                    }
+                    else if(group[group.length - 1] !== firstLongPressTarget) {
+                        firstLongPressTarget = group[group.length - 1];
+                    }
+                   
+                }
+            }
+
             isDragging = false;
             setLongPressing(true);
             isLongTouchFix = true;
             currentGuid = generateGuid();
-
-            requestAnimationFrame(() => {
-                 prepareMagnifier();
-            });
         }
-    }, 250);
+    }, 190);
 }, { passive: false });
 
 const handleTouchMove = throttle((event) => {
@@ -6447,9 +6558,11 @@ const handleTouchMove = throttle((event) => {
 
     isLongTouchFix = false;
 
+    /*
     if (document.body.classList.contains('selection-active') && !isSelecting) {
         document.body.classList.remove('selection-active');
     }
+    */
 
     if (isLongPressing && currentGuid && !isSelecting) {
         if (event.cancelable) event.preventDefault();
@@ -6478,11 +6591,13 @@ pageCenter.addEventListener('touchmove', handleTouchMove, {
     passive: false
 });
 
+
 pageCenter.addEventListener('touchend', () => {
+    hideMagnifier();
+
     if (isReadingMode) return;
 
     if (isLongPressing) {
-        hideMagnifier();
         onLongPressEnd();
         magnifierElementMap.clear();
         firstLongPressTarget = null;
@@ -7020,6 +7135,7 @@ function updateMagnifier(x, y) {
 }
 
 function hideMagnifier() {
+    if (magnifierWrapper.classList.contains("hide")) return;
     magnifierWrapper.classList.add("hide");
 }
 

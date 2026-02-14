@@ -3193,4 +3193,75 @@ class AppLocalizationsAs extends AppLocalizations {
 
   @override
   String get action_open_in_jwlife => 'JW Life-ত খোলক';
+
+  @override
+  String get search_scope_article => 'একে একে নিবন্ধত';
+
+  @override
+  String get search_scope_paragraph => 'একে একে দফাত';
+
+  @override
+  String get search_scope_sentence => 'একে একে বাক্যত';
+
+  @override
+  String get forebears_subtitle => 'নামৰ উৎপত্তি';
+
+  @override
+  String get forebears_search_hint => 'নাম বা উপাধি সন্ধান কৰক...';
+
+  @override
+  String forebears_count_description(Object count) {
+    return 'প্ৰায় $count জন লোকৰ এই নাম আছে';
+  }
+
+  @override
+  String get forebears_prevalent_label => 'আটাইতকৈ বেছি প্ৰচলিত:';
+
+  @override
+  String get forebears_density_label => 'আটাইতকৈ বেছি ঘনত্ব:';
+
+  @override
+  String get forebears_map_title => 'বিতৰণৰ মানচিত্ৰ';
+
+  @override
+  String get forebears_table_title => 'দেশ অনুসৰি বিতৰণ';
+
+  @override
+  String get forebears_external_link => 'Forebears ত অধিক তথ্য চাওক';
+
+  @override
+  String get forebears_incidence_label => 'প্ৰাদুৰ্ভাৱ:';
+
+  @override
+  String get forebears_frequency_label => 'ঘনত্ব:';
+
+  @override
+  String get forebears_rank_label => 'স্থান:';
+
+  @override
+  String get forebears_gender_stats_title => 'লিংগ অনুসৰি বিতৰণ';
+
+  @override
+  String get forebears_table_header_place => 'ঠাই';
+
+  @override
+  String get forebears_table_header_incidence => 'প্ৰাদুৰ্ভাৱ';
+
+  @override
+  String get forebears_table_header_rank => 'স্থান';
+
+  @override
+  String get forebears_empty_state_text =>
+      'বিশ্বব্যাপী বিতৰণ জানিবলৈ Forebears ত এটা নাম বা উপাধি সন্ধান কৰক।';
+
+  @override
+  String get forebears_type_surname => 'উপাধি';
+
+  @override
+  String get forebears_type_firstname => 'নাম';
+
+  @override
+  String forebears_frequency_format(Object ratio, Object total) {
+    return '$total ৰ ভিতৰত $ratio';
+  }
 }

@@ -3051,6 +3051,76 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get action_open_in_jwlife => '在 JW Life 中打开';
+
+  @override
+  String get search_scope_article => '在同一篇文章中';
+
+  @override
+  String get search_scope_paragraph => '在同一段落中';
+
+  @override
+  String get search_scope_sentence => '在同一句子中';
+
+  @override
+  String get forebears_subtitle => '名字起源';
+
+  @override
+  String get forebears_search_hint => '搜索名字或姓氏...';
+
+  @override
+  String forebears_count_description(Object count) {
+    return '大约有 $count 人使用这个名字';
+  }
+
+  @override
+  String get forebears_prevalent_label => '最普遍：';
+
+  @override
+  String get forebears_density_label => '最高密度：';
+
+  @override
+  String get forebears_map_title => '分布地图';
+
+  @override
+  String get forebears_table_title => '各国分布';
+
+  @override
+  String get forebears_external_link => '在 Forebears 上查看更多信息';
+
+  @override
+  String get forebears_incidence_label => '出现率：';
+
+  @override
+  String get forebears_frequency_label => '频率：';
+
+  @override
+  String get forebears_rank_label => '排名：';
+
+  @override
+  String get forebears_gender_stats_title => '性别分布';
+
+  @override
+  String get forebears_table_header_place => '地点';
+
+  @override
+  String get forebears_table_header_incidence => '出现率';
+
+  @override
+  String get forebears_table_header_rank => '排名';
+
+  @override
+  String get forebears_empty_state_text => '在 Forebears 上搜索名字或姓氏，了解其在全球的分布情况。';
+
+  @override
+  String get forebears_type_surname => '姓氏';
+
+  @override
+  String get forebears_type_firstname => '名字';
+
+  @override
+  String forebears_frequency_format(Object ratio, Object total) {
+    return '$total 人中的 $ratio';
+  }
 }
 
 /// The translations for Chinese, as used in Hong Kong (`zh_HK`).
@@ -6101,6 +6171,76 @@ class AppLocalizationsZhHk extends AppLocalizationsZh {
 
   @override
   String get action_open_in_jwlife => '在 JW Life 中開啟';
+
+  @override
+  String get search_scope_article => '在同一篇文章中';
+
+  @override
+  String get search_scope_paragraph => '在同一段落中';
+
+  @override
+  String get search_scope_sentence => '在同一句子中';
+
+  @override
+  String get forebears_subtitle => '名字起源';
+
+  @override
+  String get forebears_search_hint => '搜尋名字或姓氏...';
+
+  @override
+  String forebears_count_description(Object count) {
+    return '大約有 $count 人使用這個名字';
+  }
+
+  @override
+  String get forebears_prevalent_label => '最普遍：';
+
+  @override
+  String get forebears_density_label => '最高密度：';
+
+  @override
+  String get forebears_map_title => '分佈地圖';
+
+  @override
+  String get forebears_table_title => '各國分佈';
+
+  @override
+  String get forebears_external_link => '在 Forebears 上查看更多資訊';
+
+  @override
+  String get forebears_incidence_label => '出現率：';
+
+  @override
+  String get forebears_frequency_label => '頻率：';
+
+  @override
+  String get forebears_rank_label => '排名：';
+
+  @override
+  String get forebears_gender_stats_title => '性別分佈';
+
+  @override
+  String get forebears_table_header_place => '地點';
+
+  @override
+  String get forebears_table_header_incidence => '出現率';
+
+  @override
+  String get forebears_table_header_rank => '排名';
+
+  @override
+  String get forebears_empty_state_text => '在 Forebears 上搜尋名字或姓氏，了解其在全球的分佈情況。';
+
+  @override
+  String get forebears_type_surname => '姓氏';
+
+  @override
+  String get forebears_type_firstname => '名字';
+
+  @override
+  String forebears_frequency_format(Object ratio, Object total) {
+    return '$total 人中的 $ratio';
+  }
 }
 
 /// The translations for Chinese, as used in Taiwan (`zh_TW`).
@@ -9151,4 +9291,74 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get action_open_in_jwlife => '在 JW Life 中開啟';
+
+  @override
+  String get search_scope_article => '在同一篇文章中';
+
+  @override
+  String get search_scope_paragraph => '在同一段落中';
+
+  @override
+  String get search_scope_sentence => '在同一句子中';
+
+  @override
+  String get forebears_subtitle => '名字起源';
+
+  @override
+  String get forebears_search_hint => '搜尋名字或姓氏...';
+
+  @override
+  String forebears_count_description(Object count) {
+    return '大約有 $count 人使用這個名字';
+  }
+
+  @override
+  String get forebears_prevalent_label => '最普遍：';
+
+  @override
+  String get forebears_density_label => '最高密度：';
+
+  @override
+  String get forebears_map_title => '分佈地圖';
+
+  @override
+  String get forebears_table_title => '各國分佈';
+
+  @override
+  String get forebears_external_link => '在 Forebears 上查看更多資訊';
+
+  @override
+  String get forebears_incidence_label => '出現率：';
+
+  @override
+  String get forebears_frequency_label => '頻率：';
+
+  @override
+  String get forebears_rank_label => '排名：';
+
+  @override
+  String get forebears_gender_stats_title => '性別分佈';
+
+  @override
+  String get forebears_table_header_place => '地點';
+
+  @override
+  String get forebears_table_header_incidence => '出現率';
+
+  @override
+  String get forebears_table_header_rank => '排名';
+
+  @override
+  String get forebears_empty_state_text => '在 Forebears 上搜尋名字或姓氏，了解其在全球的分佈情況。';
+
+  @override
+  String get forebears_type_surname => '姓氏';
+
+  @override
+  String get forebears_type_firstname => '名字';
+
+  @override
+  String forebears_frequency_format(Object ratio, Object total) {
+    return '$total 人中的 $ratio';
+  }
 }

@@ -762,29 +762,35 @@ Future<Map<String, dynamic>?> fetchCommentaries(BuildContext context, Publicatio
         final int endP = int.parse(paragraphs.length > 1 ? paragraphs[1] : paragraphs[0]);
 
         final commRes = await db.rawQuery('''
-          SELECT Content FROM VerseCommentary
+          SELECT Content, CommentaryMepsDocumentId, BeginParagraphOrdinal, EndParagraphOrdinal FROM VerseCommentary
           WHERE CommentaryMepsDocumentId = ? AND EndParagraphOrdinal >= ? AND BeginParagraphOrdinal <= ?
         ''', [commDocId, startP, endP]);
         
         for (var row in commRes) {
-          commentaries.add(_formatCommentaryRow(row['Content'] as Uint8List, bible.hash ?? '', startP, endP));
+          final mepsDocumentId = row['CommentaryMepsDocumentId'] as int;
+          final firstParagraphId = row['BeginParagraphOrdinal'] as int;
+          final lastParagraphId = row['EndParagraphOrdinal'] as int;
+
+          Map<String, dynamic> commentary = await _formatCommentaryRow(context, row['Content'] as Uint8List, bible.hash ?? '', startP, endP, bible.mepsLanguage.id, mepsDocumentId, firstParagraphId, lastParagraphId);
+          commentaries.add(commentary);
         }
       } 
       else {
         // NOUVEAU CAS : Lien simple -> On utilise la table de jointure VerseCommentaryMap
         final commRes = await db.rawQuery('''
-          SELECT vc.Content 
+          SELECT vc.Content, vc.CommentaryMepsDocumentId, vc.BeginParagraphOrdinal, vc.EndParagraphOrdinal
           FROM VerseCommentary vc
           INNER JOIN VerseCommentaryMap vcm ON vc.VerseCommentaryId = vcm.VerseCommentaryId
           WHERE vcm.BibleVerseId = ?
         ''', [bibleVerseId]);
 
         for (var row in commRes) {
-          commentaries.add({
-            'type': 'commentary',
-            'content': decodeBlobContent(row['Content'] as Uint8List, bible.hash ?? ''),
-            'className': "scriptureIndexLink html5 layout-reading layout-sidebar",
-          });
+          final mepsDocumentId = row['CommentaryMepsDocumentId'] as int;
+          final firstParagraphId = row['BeginParagraphOrdinal'] as int;
+          final lastParagraphId = row['EndParagraphOrdinal'] as int;
+
+          Map<String, dynamic> commentary = await _formatCommentaryRow(context, row['Content'] as Uint8List, bible.hash ?? '', null, null, bible.mepsLanguage.id, mepsDocumentId, firstParagraphId, lastParagraphId);
+          commentaries.add(commentary);
         }
       }
 
@@ -829,22 +835,36 @@ Future<Map<String, dynamic>?> fetchCommentaries(BuildContext context, Publicatio
 
 // --- HELPERS POUR LA CLARTÉ ---
 
-Map<String, dynamic> _formatCommentaryRow(Uint8List content, String hash, int startP, int endP) {
+Future<Map<String, dynamic>> _formatCommentaryRow(BuildContext context, Uint8List content, String hash, int? startP, int? endP, int mepsLanguageId, int? extractMepsDocumentId, int firstParagraphId, int lastParagraphId) async {
   final fullHtml = decodeBlobContent(content, hash);
-  final document = parse(fullHtml);
   final buffer = StringBuffer();
-  
-  for (var p in document.querySelectorAll('p')) {
-    final pid = int.tryParse(p.attributes['data-pid'] ?? '');
-    if (pid != null && pid >= startP && pid <= endP) {
-      buffer.write(p.outerHtml);
+
+  if(startP != null && endP != null) {
+    final document = parse(fullHtml);
+    
+    for (var p in document.querySelectorAll('p')) {
+      final pid = int.tryParse(p.attributes['data-pid'] ?? '');
+      if (pid != null && pid >= startP && pid <= endP) {
+        buffer.write(p.outerHtml);
+      }
     }
+  }
+
+  List<BlockRange> blockRanges = [];
+  if (extractMepsDocumentId != null) {
+    blockRanges = await JwLifeApp.userdata.getBlockRangesFromDocumentId(extractMepsDocumentId, mepsLanguageId, startParagraph: firstParagraphId, endParagraph: lastParagraphId);
   }
   
   return {
     'type': 'commentary',
     'content': buffer.isEmpty ? fullHtml : buffer.toString(),
     'className': "scriptureIndexLink html5 layout-reading layout-sidebar",
+    'mepsDocumentId': extractMepsDocumentId,
+    'mepsLanguageId': mepsLanguageId,
+    'startParagraphId': firstParagraphId,
+    'endParagraphId': lastParagraphId,
+    'blockRanges': blockRanges.map((br) => br.toMap()).toList(),
+    'notes': context.read<NotesController>().getNotesByItem(mepsDocumentId: extractMepsDocumentId, mepsLanguageId: mepsLanguageId, firstBlockIdentifier: firstParagraphId, lastBlockIdentifier: lastParagraphId).map((n) => n.toMap()).toList()
   };
 }
 
@@ -866,34 +886,59 @@ String _formatVerseHtml(Map<String, dynamic> verseData, Publication bible) {
   return buffer.toString();
 }
 
-Future<List<Map<String, dynamic>>> fetchVerseCommentaries(BuildContext context, Publication publication, int verseId, bool showLabel) async {
-  Database db = publication.documentsManager!.database;
+Future<List<Map<String, dynamic>>> fetchVerseCommentaries(
+    BuildContext context, Publication publication, int verseId, bool showLabel) async {
+  
+  final db = publication.documentsManager!.database;
+  
   try {
     bool hasCommentaryTable = await checkIfTableExists(db, 'VerseCommentary');
-    bool hasCommentaryMepsDocumentIdColumn = hasCommentaryTable ? await checkIfColumnsExists(db, 'VerseCommentary', ['CommentaryMepsDocumentId']) : false;
+    bool hasCommentaryMepsDocumentIdColumn = hasCommentaryTable 
+        ? await checkIfColumnsExists(db, 'VerseCommentary', ['CommentaryMepsDocumentId']) 
+        : false;
 
-    if(hasCommentaryTable && hasCommentaryMepsDocumentIdColumn) {
-      List<Map<String, dynamic>> response = await db.rawQuery('''
-      SELECT
-        Label, 
-        Content, 
-        CommentaryMepsDocumentId
-      FROM VerseCommentary
-      INNER JOIN VerseCommentaryMap ON VerseCommentary.VerseCommentaryId = VerseCommentaryMap.VerseCommentaryId
-      WHERE VerseCommentaryMap.BibleVerseId = ?
-    ''', [verseId]);
+    if (hasCommentaryTable && hasCommentaryMepsDocumentIdColumn) {
+      final List<Map<String, dynamic>> response = await db.rawQuery('''
+        SELECT
+          Label, 
+          Content, 
+          CommentaryMepsDocumentId,
+          BeginParagraphOrdinal,
+          EndParagraphOrdinal
+        FROM VerseCommentary
+        INNER JOIN VerseCommentaryMap ON VerseCommentary.VerseCommentaryId = VerseCommentaryMap.VerseCommentaryId
+        WHERE VerseCommentaryMap.BibleVerseId = ?
+      ''', [verseId]);
 
       if (response.isNotEmpty) {
-        return response.map((commentary) {
+        // On utilise Future.wait pour résoudre tous les maps asynchrones
+        return await Future.wait(response.map((commentary) async {
           String htmlContent = '';
           if (showLabel) {
             htmlContent += commentary['Label'] ?? '';
           }
+
           final decodedHtml = decodeBlobContent(
             commentary['Content'] as Uint8List,
             publication.hash!,
           );
           htmlContent += decodedHtml;
+
+          final mepsDocumentId = commentary['CommentaryMepsDocumentId'] as int;
+          final mepsLanguageId = publication.mepsLanguage.id;
+          final firstParagraphId = commentary['BeginParagraphOrdinal'] as int;
+          final lastParagraphId = commentary['EndParagraphOrdinal'] as int;
+
+          List<BlockRange> blockRanges = [];
+          if (commentary['CommentaryMepsDocumentId'] != null) {
+            // Correction ici : utilisation de mepsDocumentId au lieu de extractMepsDocumentId
+            blockRanges = await JwLifeApp.userdata.getBlockRangesFromDocumentId(
+              mepsDocumentId, 
+              mepsLanguageId, 
+              startParagraph: firstParagraphId, 
+              endParagraph: lastParagraphId
+            );
+          }
 
           return {
             'type': 'commentary',
@@ -901,16 +946,28 @@ Future<List<Map<String, dynamic>>> fetchVerseCommentaries(BuildContext context, 
             'className': "scriptureIndexLink html5 layout-reading layout-sidebar",
             'subtitle': publication.mepsLanguage.vernacular,
             'imageUrl': publication.imageSqr,
+            'mepsDocumentId': mepsDocumentId,
+            'mepsLanguageId': mepsLanguageId,
+            'startParagraphId': firstParagraphId,
+            'endParagraphId': lastParagraphId,
+            'keySymbol': publication.keySymbol,
+            'issueTagNumber': publication.issueTagNumber,
             'publicationTitle': publication.getTitle(),
+            'blockRanges': blockRanges.map((br) => br.toMap()).toList(),
+            'notes': context.read<NotesController>().getNotesByItem(
+              mepsDocumentId: mepsDocumentId, 
+              mepsLanguageId: mepsLanguageId, 
+              firstBlockIdentifier: firstParagraphId, 
+              lastBlockIdentifier: lastParagraphId
+            ).map((n) => n.toMap()).toList()
           };
-        }).toList();
+        }).toList());
       }
     }
   } catch (e) {
-    print(e);
+    debugPrint('Error fetching commentaries: $e');
   }
 
-  // Retourne une liste vide si aucun commentaire
   return [];
 }
 

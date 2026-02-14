@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:jwlife/app/container.dart';
 import 'package:jwlife/core/app_data/app_data_service.dart';
 import 'package:jwlife/app/services/global_key_service.dart';
 import 'package:jwlife/app/services/settings_service.dart';
@@ -17,7 +18,6 @@ import 'package:jwlife/data/databases/pub_collections.dart';
 import 'package:jwlife/data/models/publication_attribute.dart';
 import 'package:jwlife/data/models/publication_category.dart';
 import 'package:jwlife/data/databases/userdata.dart';
-import 'package:jwlife/data/models/userdata/note.dart';
 import 'package:jwlife/features/note/note_controller.dart';
 import 'package:provider/provider.dart';
 
@@ -31,17 +31,7 @@ import '../features/home/pages/daily_text_page.dart';
 import '../i18n/i18n.dart';
 import '../i18n/localization.dart';
 import '../widgets/webview_manager.dart';
-import 'jwlife_page.dart';
 import 'language_fallback_delegate.dart';
-
-class _JwLifePageContainer extends StatelessWidget {
-  const _JwLifePageContainer();
-
-  @override
-  Widget build(BuildContext context) {
-    return JwLifePage(key: GlobalKeyService.jwLifePageKey);
-  }
-}
 
 class JwLifeApp extends StatefulWidget {
   static final PubCollections pubCollections = PubCollections();
@@ -192,7 +182,7 @@ class JwLifeAppState extends State<JwLifeApp> {
                       ChangeNotifierProvider(create: (_) => NotesController()..loadNotes()),
                       ChangeNotifierProvider(create: (_) => TagsController()..loadTags()),
                     ],
-                    child: const _JwLifePageContainer()
+                    child: const JwLifePageContainer()
                 );
               }
               else {

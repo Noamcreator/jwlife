@@ -3220,4 +3220,77 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get action_open_in_jwlife => 'In JW Life öffnen';
+
+  @override
+  String get search_scope_article => 'Im selben Artikel';
+
+  @override
+  String get search_scope_paragraph => 'Im selben Absatz';
+
+  @override
+  String get search_scope_sentence => 'Im selben Satz';
+
+  @override
+  String get forebears_subtitle => 'Herkunft der Namen';
+
+  @override
+  String get forebears_search_hint =>
+      'Nach einem Vor- oder Nachnamen suchen...';
+
+  @override
+  String forebears_count_description(Object count) {
+    return 'Etwa $count Personen tragen diesen Namen';
+  }
+
+  @override
+  String get forebears_prevalent_label => 'Am weitesten verbreitet:';
+
+  @override
+  String get forebears_density_label => 'Höchste Dichte:';
+
+  @override
+  String get forebears_map_title => 'Verteilungskarte';
+
+  @override
+  String get forebears_table_title => 'Verteilung nach Ländern';
+
+  @override
+  String get forebears_external_link =>
+      'Weitere Informationen auf Forebears ansehen';
+
+  @override
+  String get forebears_incidence_label => 'Häufigkeit:';
+
+  @override
+  String get forebears_frequency_label => 'Häufigkeit (Frequenz):';
+
+  @override
+  String get forebears_rank_label => 'Rang:';
+
+  @override
+  String get forebears_gender_stats_title => 'Verteilung nach Geschlecht';
+
+  @override
+  String get forebears_table_header_place => 'Ort';
+
+  @override
+  String get forebears_table_header_incidence => 'Häufigkeit';
+
+  @override
+  String get forebears_table_header_rank => 'Rang';
+
+  @override
+  String get forebears_empty_state_text =>
+      'Suchen Sie einen Vor- oder Nachnamen auf Forebears, um seine weltweite Verteilung zu erfahren.';
+
+  @override
+  String get forebears_type_surname => 'Nachname';
+
+  @override
+  String get forebears_type_firstname => 'Vorname';
+
+  @override
+  String forebears_frequency_format(Object ratio, Object total) {
+    return '$ratio von $total';
+  }
 }

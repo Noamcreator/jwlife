@@ -32,7 +32,6 @@ class SearchPage extends StatefulWidget {
 
 class _SearchPageState extends State<SearchPage> {
   late SearchModel _searchModel;
-  late TextEditingController _searchController;
   late FocusNode _focusNode;
 
   bool isInitialized = false;
@@ -55,7 +54,6 @@ class _SearchPageState extends State<SearchPage> {
   @override
   void initState() {
     super.initState();
-    _searchController = TextEditingController(text: widget.query);
     _focusNode = FocusNode();
     currentTab = widget.tab;
 
@@ -71,7 +69,6 @@ class _SearchPageState extends State<SearchPage> {
 
   @override
   void dispose() {
-    _searchController.dispose();
     _focusNode.dispose();
     super.dispose();
   }

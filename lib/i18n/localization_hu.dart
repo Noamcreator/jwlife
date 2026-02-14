@@ -3222,4 +3222,76 @@ class AppLocalizationsHu extends AppLocalizations {
 
   @override
   String get action_open_in_jwlife => 'Megnyitás a JW Life-ban';
+
+  @override
+  String get search_scope_article => 'Ugyanabban a cikkben';
+
+  @override
+  String get search_scope_paragraph => 'Ugyanabban a bekezdésben';
+
+  @override
+  String get search_scope_sentence => 'Ugyanabban a mondatban';
+
+  @override
+  String get forebears_subtitle => 'Nevek eredete';
+
+  @override
+  String get forebears_search_hint =>
+      'Keresés keresztnév vagy vezetéknév alapján...';
+
+  @override
+  String forebears_count_description(Object count) {
+    return 'Körülbelül $count ember viseli ezt a nevet';
+  }
+
+  @override
+  String get forebears_prevalent_label => 'Legelterjedtebb:';
+
+  @override
+  String get forebears_density_label => 'Legmagasabb sűrűség:';
+
+  @override
+  String get forebears_map_title => 'Eloszlási térkép';
+
+  @override
+  String get forebears_table_title => 'Országonkénti eloszlás';
+
+  @override
+  String get forebears_external_link => 'További információk a Forebears-en';
+
+  @override
+  String get forebears_incidence_label => 'Előfordulás:';
+
+  @override
+  String get forebears_frequency_label => 'Gyakoriság:';
+
+  @override
+  String get forebears_rank_label => 'Helyezés:';
+
+  @override
+  String get forebears_gender_stats_title => 'Nemenkénti eloszlás';
+
+  @override
+  String get forebears_table_header_place => 'Hely';
+
+  @override
+  String get forebears_table_header_incidence => 'Előfordulás';
+
+  @override
+  String get forebears_table_header_rank => 'Helyezés';
+
+  @override
+  String get forebears_empty_state_text =>
+      'Keressen rá egy keresztnévre vagy vezetéknévre a Forebears-en, hogy megismerje a világméretű eloszlását.';
+
+  @override
+  String get forebears_type_surname => 'Vezetéknév';
+
+  @override
+  String get forebears_type_firstname => 'Keresztnév';
+
+  @override
+  String forebears_frequency_format(Object ratio, Object total) {
+    return '$ratio a $total közül';
+  }
 }

@@ -5774,6 +5774,138 @@ abstract class AppLocalizations {
   /// In fr, this message translates to:
   /// **'Ouvrir dans JW Life'**
   String get action_open_in_jwlife;
+
+  /// No description provided for @search_scope_article.
+  ///
+  /// In fr, this message translates to:
+  /// **'Dans un même article'**
+  String get search_scope_article;
+
+  /// No description provided for @search_scope_paragraph.
+  ///
+  /// In fr, this message translates to:
+  /// **'Dans un même paragraphe'**
+  String get search_scope_paragraph;
+
+  /// No description provided for @search_scope_sentence.
+  ///
+  /// In fr, this message translates to:
+  /// **'Dans une même phrase'**
+  String get search_scope_sentence;
+
+  /// No description provided for @forebears_subtitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Origine des noms'**
+  String get forebears_subtitle;
+
+  /// No description provided for @forebears_search_hint.
+  ///
+  /// In fr, this message translates to:
+  /// **'Rechercher un nom ou prénom...'**
+  String get forebears_search_hint;
+
+  /// No description provided for @forebears_count_description.
+  ///
+  /// In fr, this message translates to:
+  /// **'Environ {count} personnes portent ce nom'**
+  String forebears_count_description(Object count);
+
+  /// No description provided for @forebears_prevalent_label.
+  ///
+  /// In fr, this message translates to:
+  /// **'Le plus répandu :'**
+  String get forebears_prevalent_label;
+
+  /// No description provided for @forebears_density_label.
+  ///
+  /// In fr, this message translates to:
+  /// **'Densité la plus élevée :'**
+  String get forebears_density_label;
+
+  /// No description provided for @forebears_map_title.
+  ///
+  /// In fr, this message translates to:
+  /// **'Carte de répartition'**
+  String get forebears_map_title;
+
+  /// No description provided for @forebears_table_title.
+  ///
+  /// In fr, this message translates to:
+  /// **'Répartition par pays'**
+  String get forebears_table_title;
+
+  /// No description provided for @forebears_external_link.
+  ///
+  /// In fr, this message translates to:
+  /// **'Voir plus d\'informations sur Forebears'**
+  String get forebears_external_link;
+
+  /// No description provided for @forebears_incidence_label.
+  ///
+  /// In fr, this message translates to:
+  /// **'Incidence :'**
+  String get forebears_incidence_label;
+
+  /// No description provided for @forebears_frequency_label.
+  ///
+  /// In fr, this message translates to:
+  /// **'Fréquence :'**
+  String get forebears_frequency_label;
+
+  /// No description provided for @forebears_rank_label.
+  ///
+  /// In fr, this message translates to:
+  /// **'Rang :'**
+  String get forebears_rank_label;
+
+  /// No description provided for @forebears_gender_stats_title.
+  ///
+  /// In fr, this message translates to:
+  /// **'Répartition par genre'**
+  String get forebears_gender_stats_title;
+
+  /// No description provided for @forebears_table_header_place.
+  ///
+  /// In fr, this message translates to:
+  /// **'Lieu'**
+  String get forebears_table_header_place;
+
+  /// No description provided for @forebears_table_header_incidence.
+  ///
+  /// In fr, this message translates to:
+  /// **'Incidence'**
+  String get forebears_table_header_incidence;
+
+  /// No description provided for @forebears_table_header_rank.
+  ///
+  /// In fr, this message translates to:
+  /// **'Rang'**
+  String get forebears_table_header_rank;
+
+  /// No description provided for @forebears_empty_state_text.
+  ///
+  /// In fr, this message translates to:
+  /// **'Rechercher un nom ou prénom sur Forebears pour connaître sa répartition mondiale.'**
+  String get forebears_empty_state_text;
+
+  /// No description provided for @forebears_type_surname.
+  ///
+  /// In fr, this message translates to:
+  /// **'Nom de famille'**
+  String get forebears_type_surname;
+
+  /// No description provided for @forebears_type_firstname.
+  ///
+  /// In fr, this message translates to:
+  /// **'Prénom'**
+  String get forebears_type_firstname;
+
+  /// No description provided for @forebears_frequency_format.
+  ///
+  /// In fr, this message translates to:
+  /// **'{ratio} sur {total}'**
+  String forebears_frequency_format(Object ratio, Object total);
 }
 
 class _AppLocalizationsDelegate

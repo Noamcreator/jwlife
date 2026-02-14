@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/core/utils/common_ui.dart';
 import 'package:jwlife/core/utils/utils.dart';
+import 'package:jwlife/features/predication/pages/forebears_page.dart';
 import 'package:jwlife/widgets/responsive_appbar_actions.dart';
 
 import '../../../app/app_page.dart';
@@ -114,6 +115,15 @@ class PredicationPageState extends State<PredicationPage> {
                 icon: JwIcons.envelope,
                 onTap: () {},
               ),
+              _buildSimpleTile(
+                context,
+                title: 'Forebears',
+                subtitle: i18n().forebears_subtitle,
+                icon: JwIcons.globe_lands,
+                onTap: () {
+                  showPage(ForebearsPage());
+                },
+              ),
 
               const SizedBox(height: 32),
 
@@ -136,7 +146,7 @@ class PredicationPageState extends State<PredicationPage> {
                 trailing: 'Chap. 01',
               ),
 
-              const SizedBox(height: 100), // Espace pour le FAB
+              const SizedBox(height: 50), // Espace pour le FAB
             ],
           ),
         ),

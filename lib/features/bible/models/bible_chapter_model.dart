@@ -77,7 +77,19 @@ class BibleChapterController {
       final bool hasOverview = columns.contains('OverviewDocumentId');
 
       // 2. Construction de la requête SQL
-      String selectFields = 'BibleBook.*, d1.Title AS IntroTitle, d1.MepsDocumentId AS IntroMepsDocumentId, dTitle.Title AS BookName';
+      // Ajout de la sous-requête pour récupérer le premier commentaire (Classe 118)
+      String selectFields = '''
+        BibleBook.*, 
+        d1.Title AS IntroTitle, 
+        d1.MepsDocumentId AS IntroMepsDocumentId, 
+        dTitle.Title AS BookName,
+        (SELECT MepsDocumentId 
+        FROM Document 
+        WHERE ChapterNumber = BibleBook.BibleBookId 
+        AND Class = 118 
+        LIMIT 1) AS FirstCommentaryMepsDocumentId
+      ''';
+
       String joins = '''
         LEFT JOIN Document d1 ON BibleBook.IntroDocumentId = d1.DocumentId
         LEFT JOIN Document dTitle ON BibleBook.BookDocumentId = dTitle.DocumentId
@@ -101,24 +113,29 @@ class BibleChapterController {
       if (multimediaExists && docMultimediaExists) {
         multimediaSubquery = '''
         (SELECT M.FilePath 
-         FROM DocumentMultimedia DM
-         JOIN Multimedia M ON DM.MultimediaId = M.MultimediaId 
-         WHERE DM.DocumentId = BibleBook.IntroDocumentId 
-         AND M.CategoryType = 13
-         LIMIT 1) AS FilePath''';
+        FROM DocumentMultimedia DM
+        JOIN Multimedia M ON DM.MultimediaId = M.MultimediaId 
+        WHERE DM.DocumentId = BibleBook.IntroDocumentId 
+        AND M.CategoryType = 13
+        LIMIT 1) AS FilePath''';
       }
 
       final String finalQuery = 'SELECT $selectFields, $multimediaSubquery FROM BibleBook $joins';
       final List<Map<String, dynamic>> results = await database.rawQuery(finalQuery);
 
+      // 3. Mapping des résultats
       _books = results.map((map) {
         final book = BibleBook.fromMap(map);
         
+        // Récupération des contenus HTML (Overview ou Outline selon dispo)
         final dynamic overviewBlob = map['OverviewContent'] ?? map['OutlineContent'];
         final dynamic profileBlob = map['Profile'];
         
         book.overviewHtml = _decodeHtml(overviewBlob);
         book.profileHtml = _decodeHtml(profileBlob);
+
+        // Note : Pense à ajouter le champ firstCommentaryMepsDocumentId 
+        // dans ta classe BibleBook pour exploiter map['FirstCommentaryMepsDocumentId']
         
         return book;
       }).toList();

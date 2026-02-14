@@ -120,10 +120,10 @@ class MepsLanguage {
               printTime('rCode: $rCode');
               printTime('lpCode: $lpCode');
 
-              JwLifeSettings.instance.libraryLanguage.value.setRsConf(rCode);
-              JwLifeSettings.instance.libraryLanguage.value.setLib(lpCode);
+              setRsConf(rCode);
+              setLib(lpCode);
 
-              AppSharedPreferences.instance.setLibraryLanguage(JwLifeSettings.instance.libraryLanguage);
+              AppSharedPreferences.instance.setLibraryLanguage(this);
             }
           } else {
             printTime('No location header found in redirect response');

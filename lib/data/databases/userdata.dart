@@ -80,12 +80,16 @@ class Userdata {
     context.read<NotesController>().clearAll();
     context.read<TagsController>().clearAll();
 
+    GlobalKeyService.workShipKey.currentState!.clearCongregation();
+
     await init();
 
     AppDataService.instance.favorites.value = await fetchFavorites();
 
     context.read<NotesController>().loadNotes();
     context.read<TagsController>().loadTags();
+
+    GlobalKeyService.workShipKey.currentState!.fetchFirstCongregation();
 
     // vérifier si les nouvelles tables sont présentes
     if(!await checkIfTableExists(_database, "Congregation")) {

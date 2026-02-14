@@ -134,6 +134,10 @@ class WorkShipPageState extends State<WorkShipPage> with TickerProviderStateMixi
     _dateOfMeetingValue.value = selectedDay;
   }
 
+  void clearCongregation() {
+    _congregationValue.value = null;
+  }
+
   int getWeekOfYear(DateTime date) {
     final firstDayOfYear = DateTime(date.year, 1, 1);
     final daysPassed = date.difference(firstDayOfYear).inDays;

@@ -3220,4 +3220,75 @@ class AppLocalizationsNl extends AppLocalizations {
 
   @override
   String get action_open_in_jwlife => 'Openen in JW Life';
+
+  @override
+  String get search_scope_article => 'In hetzelfde artikel';
+
+  @override
+  String get search_scope_paragraph => 'In dezelfde paragraaf';
+
+  @override
+  String get search_scope_sentence => 'In dezelfde zin';
+
+  @override
+  String get forebears_subtitle => 'Oorsprong van namen';
+
+  @override
+  String get forebears_search_hint => 'Zoek een voor- of achternaam...';
+
+  @override
+  String forebears_count_description(Object count) {
+    return 'Ongeveer $count mensen dragen deze naam';
+  }
+
+  @override
+  String get forebears_prevalent_label => 'Meest voorkomend:';
+
+  @override
+  String get forebears_density_label => 'Hoogste dichtheid:';
+
+  @override
+  String get forebears_map_title => 'Verspreidingskaart';
+
+  @override
+  String get forebears_table_title => 'Verspreiding per land';
+
+  @override
+  String get forebears_external_link => 'Bekijk meer informatie op Forebears';
+
+  @override
+  String get forebears_incidence_label => 'Incidentie:';
+
+  @override
+  String get forebears_frequency_label => 'Frequentie:';
+
+  @override
+  String get forebears_rank_label => 'Rang:';
+
+  @override
+  String get forebears_gender_stats_title => 'Verspreiding per geslacht';
+
+  @override
+  String get forebears_table_header_place => 'Plaats';
+
+  @override
+  String get forebears_table_header_incidence => 'Incidentie';
+
+  @override
+  String get forebears_table_header_rank => 'Rang';
+
+  @override
+  String get forebears_empty_state_text =>
+      'Zoek een voor- of achternaam op Forebears om de wereldwijde verspreiding te ontdekken.';
+
+  @override
+  String get forebears_type_surname => 'Achternaam';
+
+  @override
+  String get forebears_type_firstname => 'Voornaam';
+
+  @override
+  String forebears_frequency_format(Object ratio, Object total) {
+    return '$ratio op $total';
+  }
 }

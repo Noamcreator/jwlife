@@ -95,7 +95,6 @@ class DocumentsManager {
           FROM Document
           LEFT JOIN BibleBook ON Document.Type = 2 AND BibleBook.BookDocumentId = Document.DocumentId
           LEFT JOIN BibleChapter ON BibleChapter.BookNumber = BibleBook.BibleBookId
-          WHERE Document.Class <> 118;
         """);
       }
       else {

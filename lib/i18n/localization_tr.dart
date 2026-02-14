@@ -3194,4 +3194,75 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get action_open_in_jwlife => 'JW Life\'ta aç';
+
+  @override
+  String get search_scope_article => 'Aynı makalede';
+
+  @override
+  String get search_scope_paragraph => 'Aynı paragrafta';
+
+  @override
+  String get search_scope_sentence => 'Aynı cümlede';
+
+  @override
+  String get forebears_subtitle => 'İsimlerin kökeni';
+
+  @override
+  String get forebears_search_hint => 'Ad veya soyad arayın...';
+
+  @override
+  String forebears_count_description(Object count) {
+    return 'Yaklaşık $count kişi bu ismi taşıyor';
+  }
+
+  @override
+  String get forebears_prevalent_label => 'En yaygın:';
+
+  @override
+  String get forebears_density_label => 'En yüksek yoğunluk:';
+
+  @override
+  String get forebears_map_title => 'Dağılım haritası';
+
+  @override
+  String get forebears_table_title => 'Ülkeye göre dağılım';
+
+  @override
+  String get forebears_external_link => 'Forebears\'da daha fazla bilgi görün';
+
+  @override
+  String get forebears_incidence_label => 'Görülme sıklığı:';
+
+  @override
+  String get forebears_frequency_label => 'Frekans:';
+
+  @override
+  String get forebears_rank_label => 'Sıralama:';
+
+  @override
+  String get forebears_gender_stats_title => 'Cinsiyete göre dağılım';
+
+  @override
+  String get forebears_table_header_place => 'Yer';
+
+  @override
+  String get forebears_table_header_incidence => 'Görülme sıklığı';
+
+  @override
+  String get forebears_table_header_rank => 'Sıralama';
+
+  @override
+  String get forebears_empty_state_text =>
+      'Dünya çapındaki dağılımını öğrenmek için Forebears\'da bir ad veya soyad arayın.';
+
+  @override
+  String get forebears_type_surname => 'Soyadı';
+
+  @override
+  String get forebears_type_firstname => 'Ad';
+
+  @override
+  String forebears_frequency_format(Object ratio, Object total) {
+    return '$total kişide $ratio';
+  }
 }

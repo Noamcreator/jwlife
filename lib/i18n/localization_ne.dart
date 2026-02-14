@@ -3193,4 +3193,75 @@ class AppLocalizationsNe extends AppLocalizations {
 
   @override
   String get action_open_in_jwlife => 'JW Life मा खोल्नुहोस्';
+
+  @override
+  String get search_scope_article => 'एउटै लेखमा';
+
+  @override
+  String get search_scope_paragraph => 'एउटै अनुच्छेदमा';
+
+  @override
+  String get search_scope_sentence => 'एउटै वाक्यमा';
+
+  @override
+  String get forebears_subtitle => 'नामहरूको उत्पत्ति';
+
+  @override
+  String get forebears_search_hint => 'नाम वा थर खोज्नुहोस्...';
+
+  @override
+  String forebears_count_description(Object count) {
+    return 'लगभग $count जना मानिसहरूको यो नाम छ';
+  }
+
+  @override
+  String get forebears_prevalent_label => 'सबैभन्दा प्रचलित:';
+
+  @override
+  String get forebears_density_label => 'उच्चतम घनत्व:';
+
+  @override
+  String get forebears_map_title => 'वितरण नक्सा';
+
+  @override
+  String get forebears_table_title => 'देश अनुसार वितरण';
+
+  @override
+  String get forebears_external_link => 'Forebears मा थप जानकारी हेर्नुहोस्';
+
+  @override
+  String get forebears_incidence_label => 'घटना:';
+
+  @override
+  String get forebears_frequency_label => 'आवृत्ति:';
+
+  @override
+  String get forebears_rank_label => 'क्रम:';
+
+  @override
+  String get forebears_gender_stats_title => 'लिङ्ग अनुसार वितरण';
+
+  @override
+  String get forebears_table_header_place => 'स्थान';
+
+  @override
+  String get forebears_table_header_incidence => 'घटना';
+
+  @override
+  String get forebears_table_header_rank => 'क्रम';
+
+  @override
+  String get forebears_empty_state_text =>
+      'यसको विश्वव्यापी वितरण जान्नको लागि Forebears मा नाम वा थर खोज्नुहोस्।';
+
+  @override
+  String get forebears_type_surname => 'थर';
+
+  @override
+  String get forebears_type_firstname => 'नाम';
+
+  @override
+  String forebears_frequency_format(Object ratio, Object total) {
+    return '$total मध्ये $ratio';
+  }
 }

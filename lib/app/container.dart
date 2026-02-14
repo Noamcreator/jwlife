@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:jwlife/app/jwlife_page.dart';
 import 'package:jwlife/app/services/global_key_service.dart';
 import '../features/bible/pages/bible_page.dart';
 import '../features/home/pages/home_page.dart' show HomePage, HomePageState;
@@ -6,6 +7,19 @@ import '../features/library/pages/library_page.dart';
 import '../features/personal/pages/personal_page.dart';
 import '../features/predication/pages/predication_page.dart';
 import '../features/workship/pages/workship_page.dart';
+
+class JwLifePageContainer extends StatelessWidget {
+  const JwLifePageContainer({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MediaQuery.removeViewInsets(
+      removeBottom: true,
+      context: context,
+      child: JwLifePage(key: GlobalKeyService.jwLifePageKey)
+    );
+  }
+}
 
 /// --- HomePage Container ---
 class HomePageContainer extends StatelessWidget {

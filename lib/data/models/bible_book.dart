@@ -7,6 +7,7 @@ class BibleBook {
   final String? imagePath;
   final String? introTitle;
   final int? introDocumentId;
+  final int? firstCommentaryDocumentId;
   final bool hasCommentary;
   final int? firstVerseId;
   final int? lastVerseId;
@@ -25,6 +26,7 @@ class BibleBook {
     this.introTitle,
     this.imagePath,
     this.introDocumentId,
+    this.firstCommentaryDocumentId,
     this.hasCommentary = false,
     this.firstVerseId,
     this.lastVerseId,
@@ -41,6 +43,7 @@ class BibleBook {
       introTitle: map['IntroTitle'] as String?,
       imagePath: map['FilePath'] as String?,
       introDocumentId: map['IntroMepsDocumentId'] as int?,
+      firstCommentaryDocumentId: map['FirstCommentaryMepsDocumentId'] as int?,
       hasCommentary: map['HasCommentary'] == 1,
       firstVerseId: map['FirstVerseId'] as int?,
       lastVerseId: map['LastVerseId'] as int?,

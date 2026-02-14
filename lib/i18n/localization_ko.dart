@@ -3099,4 +3099,75 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get action_open_in_jwlife => 'JW Life에서 열기';
+
+  @override
+  String get search_scope_article => '동일한 기사 내';
+
+  @override
+  String get search_scope_paragraph => '동일한 단락 내';
+
+  @override
+  String get search_scope_sentence => '동일한 문장 내';
+
+  @override
+  String get forebears_subtitle => '이름의 유래';
+
+  @override
+  String get forebears_search_hint => '이름 또는 성씨 검색...';
+
+  @override
+  String forebears_count_description(Object count) {
+    return '약 $count명이 이 이름을 사용합니다';
+  }
+
+  @override
+  String get forebears_prevalent_label => '가장 흔한 곳:';
+
+  @override
+  String get forebears_density_label => '가장 높은 밀도:';
+
+  @override
+  String get forebears_map_title => '분포 지도';
+
+  @override
+  String get forebears_table_title => '국가별 분포';
+
+  @override
+  String get forebears_external_link => 'Forebears에서 더 많은 정보 보기';
+
+  @override
+  String get forebears_incidence_label => '발생 수:';
+
+  @override
+  String get forebears_frequency_label => '빈도:';
+
+  @override
+  String get forebears_rank_label => '순위:';
+
+  @override
+  String get forebears_gender_stats_title => '성별 분포';
+
+  @override
+  String get forebears_table_header_place => '장소';
+
+  @override
+  String get forebears_table_header_incidence => '발생 수';
+
+  @override
+  String get forebears_table_header_rank => '순위';
+
+  @override
+  String get forebears_empty_state_text =>
+      '전 세계 분포를 확인하려면 Forebears에서 이름 또는 성씨를 검색하세요.';
+
+  @override
+  String get forebears_type_surname => '성씨';
+
+  @override
+  String get forebears_type_firstname => '이름';
+
+  @override
+  String forebears_frequency_format(Object ratio, Object total) {
+    return '$total명 중 $ratio명';
+  }
 }

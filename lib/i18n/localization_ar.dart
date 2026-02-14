@@ -3169,4 +3169,75 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get action_open_in_jwlife => 'فتح في JW Life';
+
+  @override
+  String get search_scope_article => 'في نفس المقال';
+
+  @override
+  String get search_scope_paragraph => 'في نفس الفقرة';
+
+  @override
+  String get search_scope_sentence => 'في نفس الجملة';
+
+  @override
+  String get forebears_subtitle => 'أصل الأسماء';
+
+  @override
+  String get forebears_search_hint => 'البحث عن اسم أو لقب...';
+
+  @override
+  String forebears_count_description(Object count) {
+    return 'حوالي $count شخص يحملون هذا الاسم';
+  }
+
+  @override
+  String get forebears_prevalent_label => 'الأكثر انتشاراً:';
+
+  @override
+  String get forebears_density_label => 'أعلى كثافة:';
+
+  @override
+  String get forebears_map_title => 'خريطة التوزيع';
+
+  @override
+  String get forebears_table_title => 'التوزيع حسب الدولة';
+
+  @override
+  String get forebears_external_link => 'عرض المزيد من المعلومات على Forebears';
+
+  @override
+  String get forebears_incidence_label => 'الانتشار:';
+
+  @override
+  String get forebears_frequency_label => 'التكرار:';
+
+  @override
+  String get forebears_rank_label => 'المرتبة:';
+
+  @override
+  String get forebears_gender_stats_title => 'التوزيع حسب الجنس';
+
+  @override
+  String get forebears_table_header_place => 'المكان';
+
+  @override
+  String get forebears_table_header_incidence => 'الانتشار';
+
+  @override
+  String get forebears_table_header_rank => 'المرتبة';
+
+  @override
+  String get forebears_empty_state_text =>
+      'ابحث عن اسم أو لقب على Forebears لمعرفة توزيعه العالمي.';
+
+  @override
+  String get forebears_type_surname => 'اسم العائلة';
+
+  @override
+  String get forebears_type_firstname => 'الاسم الأول';
+
+  @override
+  String forebears_frequency_format(Object ratio, Object total) {
+    return '$ratio من $total';
+  }
 }

@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:jwlife/app/jwlife_app.dart';
 import 'package:jwlife/app/services/global_key_service.dart';
-import 'package:jwlife/data/models/userdata/note.dart';
 import 'package:jwlife/features/home/pages/daily_text_page.dart';
 import 'package:jwlife/features/document/local/document_page.dart';
 import 'package:jwlife/features/image/pages/full_screen_image_page.dart';
@@ -301,7 +300,7 @@ class JwLifePageState extends State<JwLifePage> with WidgetsBindingObserver {
           key: navigatorKeys[0],
           onGenerateRoute: (settings) {
             return MaterialPageRoute(
-              builder: (_) => const HomePageContainer(),
+              builder: (_) => const PopScope(canPop: false, child: HomePageContainer()),
               settings: settings,
             );
           },
@@ -311,7 +310,7 @@ class JwLifePageState extends State<JwLifePage> with WidgetsBindingObserver {
           key: navigatorKeys[1],
           onGenerateRoute: (settings) {
             return MaterialPageRoute(
-              builder: (_) => const BiblePageContainer(),
+              builder: (_) => const PopScope(canPop: false, child: BiblePageContainer()),
               settings: settings,
             );
           },
@@ -321,7 +320,7 @@ class JwLifePageState extends State<JwLifePage> with WidgetsBindingObserver {
           key: navigatorKeys[2],
           onGenerateRoute: (settings) {
             return MaterialPageRoute(
-              builder: (_) => const LibraryPageContainer(),
+              builder: (_) => const PopScope(canPop: false, child: LibraryPageContainer()),
               settings: settings,
             );
           },
@@ -331,7 +330,7 @@ class JwLifePageState extends State<JwLifePage> with WidgetsBindingObserver {
           key: navigatorKeys[3],
           onGenerateRoute: (settings) {
             return MaterialPageRoute(
-              builder: (_) => const WorkShipPageContainer(),
+              builder: (_) => const PopScope(canPop: false, child: WorkShipPageContainer()),
               settings: settings,
             );
           },
@@ -341,7 +340,7 @@ class JwLifePageState extends State<JwLifePage> with WidgetsBindingObserver {
           key: navigatorKeys[4],
           onGenerateRoute: (settings) {
             return MaterialPageRoute(
-              builder: (_) => const PredicationPageContainer(),
+              builder: (_) => const PopScope(canPop: false, child: PredicationPageContainer()),
               settings: settings,
             );
           },
@@ -351,7 +350,7 @@ class JwLifePageState extends State<JwLifePage> with WidgetsBindingObserver {
           key: navigatorKeys[5],
           onGenerateRoute: (settings) {
             return MaterialPageRoute(
-              builder: (_) => const PersonalPageContainer(),
+              builder: (_) => const PopScope(canPop: false, child: PersonalPageContainer()),
               settings: settings,
             );
           },
@@ -363,51 +362,47 @@ class JwLifePageState extends State<JwLifePage> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    return MediaQuery.removeViewInsets(
-      removeBottom: true, // empêche les rebuilds liés au clavier
-      context: context,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+        await handleBack(context);
+      },
       child: Scaffold(
         resizeToAvoidBottomInset: false,
         extendBody: true,
         extendBodyBehindAppBar: true,
-
+      
         body: Stack(
           children: [
             // --- CONTENU PRINCIPAL AVEC NAVIGATORS ---
-            PopScope(
-              canPop: false,
-              onPopInvokedWithResult: (didPop, result) async {
-                if (didPop) return;
-                handleBack(context);
+            ValueListenableBuilder<int>(
+              valueListenable: currentNavigationBottomBarIndex,
+              builder: (context, index, child) {
+                return ValueListenableBuilder<Set<int>>(
+                  valueListenable: loadedNavigators,
+                  builder: (context, loaded, _) {
+                    return IndexedStack(
+                      index: index,
+                      children: List.generate(6, (i) {
+                        if (loaded.contains(i) || i == index) {
+                          return _createNavigator(i);
+                        }
+                        // Sinon, on met un placeholder léger
+                        return const SizedBox.shrink();
+                      }),
+                    );
+                  },
+                );
               },
-              child: ValueListenableBuilder<int>(
-                valueListenable: currentNavigationBottomBarIndex,
-                builder: (context, index, child) {
-                  return ValueListenableBuilder<Set<int>>(
-                    valueListenable: loadedNavigators,
-                    builder: (context, loaded, _) {
-                      return IndexedStack(
-                        index: index,
-                        children: List.generate(6, (i) {
-                          if (loaded.contains(i) || i == index) {
-                            return _createNavigator(i);
-                          }
-                          // Sinon, on met un placeholder léger
-                          return const SizedBox.shrink();
-                        }),
-                      );
-                    },
-                  );
-                },
-              ),
             ),
-
+      
             // --- BOTTOM BAR + AUDIO WIDGET ---
             ValueListenableBuilder<bool>(
               valueListenable: controlsVisible,
               builder: (context, isVisible, _) {
                 if (!isVisible) return const SizedBox.shrink();
-
+      
                 return ValueListenableBuilder<int>(
                   valueListenable: currentNavigationBottomBarIndex,
                   builder: (context, currentIndex, _) {
@@ -415,7 +410,7 @@ class JwLifePageState extends State<JwLifePage> with WidgetsBindingObserver {
                       valueListenable: navBarIsTransparentNotifier,
                       builder: (context, navBarTransparentList, _) {
                         final bool isTransparent = navBarTransparentList[currentIndex];
-
+      
                         return Align(
                           alignment: Alignment.bottomCenter,
                           child: Column(
@@ -430,7 +425,7 @@ class JwLifePageState extends State<JwLifePage> with WidgetsBindingObserver {
                                 },
                                 child: const NoteWidget(),
                               ),
-
+      
                               // --- AUDIO WIDGET ---
                               ValueListenableBuilder<bool>(
                                 valueListenable: audioWidgetVisible,
@@ -440,7 +435,7 @@ class JwLifePageState extends State<JwLifePage> with WidgetsBindingObserver {
                                 },
                                 child: const AudioPlayerWidget(),
                               ),
-
+      
                               // --- NAVIGATION BAR ---
                               LongPressBottomNavBar(
                                 currentIndex: currentIndex,
@@ -448,30 +443,30 @@ class JwLifePageState extends State<JwLifePage> with WidgetsBindingObserver {
                                 backgroundColor: isTransparent
                                     ? Colors.transparent
                                     : Theme.of(context).bottomNavigationBarTheme.backgroundColor,
-
+      
                                 selectedItemColor: Theme.of(context).bottomNavigationBarTheme.selectedItemColor,
                                 unselectedItemColor: isTransparent
                                     ? Colors.white
                                     : Theme.of(context).bottomNavigationBarTheme.unselectedItemColor,
-
+      
                                 selectedLabelStyle: const TextStyle(fontSize: 9),
                                 unselectedLabelStyle: const TextStyle(fontSize: 8.0),
-
+      
                                 onTap: (index) {
                                   changeNavBarIndex(index);
                                 },
-
+      
                                 onLongPress: (index) {
                                   if (index != currentNavigationBottomBarIndex.value) {
                                     GlobalKeyService.setCurrentPage(navigatorKeys[index]);
                                     currentNavigationBottomBarIndex.value = index;
                                   }
-
+      
                                   final BuildContext context = navigatorKeys[index].currentContext!;
                                   HapticFeedback.lightImpact();
                                   JwLifeApp.history.showHistoryDialog(context, bottomBarIndex: index);
                                 },
-
+      
                                 items: [
                                   BottomNavigationBarItem(
                                     icon: const Icon(JwIcons.home),

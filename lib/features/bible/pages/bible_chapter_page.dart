@@ -327,8 +327,8 @@ class _BibleChapterPageState extends State<BibleChapterPage> {
             left: 0,
             right: 0,
             child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 12.0),
-              color: Colors.black.withOpacity(0.55),
+              padding: const EdgeInsets.symmetric(vertical: 8.0),
+              color: Colors.black.withOpacity(0.35),
               child: Text(
                 bookData.bookDisplayTitle ?? '',
                 style: const TextStyle(fontSize: 21, color: Colors.white),
@@ -370,6 +370,15 @@ class _BibleChapterPageState extends State<BibleChapterPage> {
                   label: mediaLabel,
                   icon: JwIcons.image_stack,
                   onPressed: () => showPage(BibleBookMediasView(bible: widget.bible, bibleBook: bookData)),
+                ),
+              ),
+            if (bookData.hasCommentary)
+              Padding(
+                padding: const EdgeInsets.only(top: 10.0),
+                child: _buildMepsButton(
+                  label: i18n().label_icon_commentary,
+                  icon: JwIcons.gem,
+                  onPressed: () => showPageDocument(widget.bible, bookData.firstCommentaryDocumentId!),
                 ),
               ),
           ],

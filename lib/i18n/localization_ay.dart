@@ -3239,4 +3239,76 @@ class AppLocalizationsAy extends AppLocalizations {
 
   @override
   String get action_open_in_jwlife => 'JW Life ukan jist’araña';
+
+  @override
+  String get search_scope_article => 'Mä kipka qillqata';
+
+  @override
+  String get search_scope_paragraph => 'Mä kipka t\'aqana';
+
+  @override
+  String get search_scope_sentence => 'Mä kipka amuyunaka';
+
+  @override
+  String get forebears_subtitle => 'Sutinakata qalltawi';
+
+  @override
+  String get forebears_search_hint => 'Suti thaqhaña...';
+
+  @override
+  String forebears_count_description(Object count) {
+    return 'Niya $count jaqinaka aka sutini';
+  }
+
+  @override
+  String get forebears_prevalent_label => 'Juk\'amp yatiyata:';
+
+  @override
+  String get forebears_density_label => 'Juk\'amp ch\'uqi:';
+
+  @override
+  String get forebears_map_title => 'Jaqichawi mapa';
+
+  @override
+  String get forebears_table_title => 'Markanaka jaqichawi';
+
+  @override
+  String get forebears_external_link =>
+      'Forebears ukan juk\'amp yatiyawi uñjaña';
+
+  @override
+  String get forebears_incidence_label => 'Uñstawi:';
+
+  @override
+  String get forebears_frequency_label => 'Kuti kuti:';
+
+  @override
+  String get forebears_rank_label => 'Thakhiki:';
+
+  @override
+  String get forebears_gender_stats_title => 'Chacha warmi jaqichawi';
+
+  @override
+  String get forebears_table_header_place => 'Chiqa';
+
+  @override
+  String get forebears_table_header_incidence => 'Uñstawi';
+
+  @override
+  String get forebears_table_header_rank => 'Thakhiki';
+
+  @override
+  String get forebears_empty_state_text =>
+      'Forebears ukan mä suti thaqhaña aka markan jaqichawip yatiñataki.';
+
+  @override
+  String get forebears_type_surname => 'Apellidu';
+
+  @override
+  String get forebears_type_firstname => 'Suti';
+
+  @override
+  String forebears_frequency_format(Object ratio, Object total) {
+    return '$ratio ukatxa $total';
+  }
 }

@@ -3122,4 +3122,75 @@ class AppLocalizationsAm extends AppLocalizations {
 
   @override
   String get action_open_in_jwlife => 'በJW Life ውስጥ ክፈት';
+
+  @override
+  String get search_scope_article => 'በተመሳሳይ ጽሑፍ ውስጥ';
+
+  @override
+  String get search_scope_paragraph => 'በተመሳሳይ አንቀጽ ውስጥ';
+
+  @override
+  String get search_scope_sentence => 'በተመሳሳይ ዓረፍተ ነገር ውስጥ';
+
+  @override
+  String get forebears_subtitle => 'የስሞች ምንጭ';
+
+  @override
+  String get forebears_search_hint => 'ስም ወይም መጠሪያ ይፈልጉ...';
+
+  @override
+  String forebears_count_description(Object count) {
+    return 'በግምት $count ሰዎች ይህን ስም ይጠራሉ';
+  }
+
+  @override
+  String get forebears_prevalent_label => 'ይበልጥ የተለመደው:';
+
+  @override
+  String get forebears_density_label => 'ከፍተኛው ስርጭት:';
+
+  @override
+  String get forebears_map_title => 'የስርጭት ካርታ';
+
+  @override
+  String get forebears_table_title => 'በየሀገሩ ያለው ስርጭት';
+
+  @override
+  String get forebears_external_link => 'በ Forebears ላይ ተጨማሪ መረጃ ይመልከቱ';
+
+  @override
+  String get forebears_incidence_label => 'ተከታታይነት:';
+
+  @override
+  String get forebears_frequency_label => 'ድግግሞሽ:';
+
+  @override
+  String get forebears_rank_label => 'ደረጃ:';
+
+  @override
+  String get forebears_gender_stats_title => 'በጾታ ስርጭት';
+
+  @override
+  String get forebears_table_header_place => 'ቦታ';
+
+  @override
+  String get forebears_table_header_incidence => 'ተከታታይነት';
+
+  @override
+  String get forebears_table_header_rank => 'ደረጃ';
+
+  @override
+  String get forebears_empty_state_text =>
+      'በአለም ዙሪያ ያለውን ስርጭት ለማወቅ በ Forebears ላይ ስም ወይም መጠሪያ ይፈልጉ።';
+
+  @override
+  String get forebears_type_surname => 'የአያት ስም';
+
+  @override
+  String get forebears_type_firstname => 'የመጀመሪያ ስም';
+
+  @override
+  String forebears_frequency_format(Object ratio, Object total) {
+    return '$ratio ከ $total';
+  }
 }

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'package:collection/collection.dart';
 import 'package:html/parser.dart';
+import 'package:jwlife/core/utils/utils_database.dart';
 import 'package:jwlife/core/utils/utils_jwpub.dart';
 import 'package:jwlife/data/models/publication.dart';
 
@@ -23,247 +24,344 @@ class PublicationSearchModel {
 
   PublicationSearchModel(this.publication);
 
-  /* DOCUMENTS */
-  Future<List<Map<String, dynamic>>> getDocuments(List<int> textUnitIds) async {
-    final searchResults = await publication.documentsManager!.database.rawQuery('''
-    SELECT DocumentId, Title, MepsDocumentId, Content, TextPositions, TextLengths, ScopeParagraphData
-    FROM Document
-    LEFT JOIN TextUnit ON Document.DocumentId = TextUnit.Id
-    LEFT JOIN SearchTextRangeDocument ON TextUnit.Id = SearchTextRangeDocument.TextUnitId
-    WHERE TextUnit.Type = 'Document' AND TextUnit.Id IN (${textUnitIds.join(',')})
-  ''');
-
-    return searchResults.isNotEmpty ? searchResults : [];
-  }
-
-  Future<List<Map<String, dynamic>>> getParagraphs(List<int> documentIds) async {
-    final searchResults = await publication.documentsManager!.database.rawQuery('''
-      SELECT 
-        Document.DocumentId,
-        DocumentParagraph.ParagraphIndex,
-        DocumentParagraph.BeginPosition, 
-        DocumentParagraph.EndPosition
-      FROM 
-        Document
-      LEFT JOIN 
-        DocumentParagraph ON Document.DocumentId = DocumentParagraph.DocumentId
-      WHERE 
-        Document.DocumentId IN (${documentIds.join(',')});
-    ''');
-
-    return searchResults.isNotEmpty ? searchResults : [];
-  }
-
-  Future<void> searchDocuments(String query, int mode, {bool newSearch = false}) async {
-    if(newSearch) {
+  Future<void> searchDocuments(String query, int searchScope, {bool newSearch = false}) async {
+    if (newSearch) {
       _documents.clear();
     }
-    wordsSelectedDocument = query.trim().split(RegExp(r'\s+'));
-
+    
+    // On normalise les mots de la recherche pour la comparaison
+    wordsSelectedDocument = query.toLowerCase().trim().split(RegExp(r"[\s']+"));
     nbWordResultsInDocuments = 0;
     documents.clear();
 
-    if(_documents.isEmpty) {
-      List<Set<int>> documentIdSets = [];
-      Map<int, Map<String, dynamic>> tempDocuments = {};
+    if (_documents.isEmpty && wordsSelectedDocument.isNotEmpty) {
+      final results = await searchWordInDocuments(wordsSelectedDocument);
+      _documents.addAll(results);
+    }
 
-      await Future.wait(wordsSelectedDocument.map((queryWord) async {
-        final results = await searchWordInDocuments(queryWord);
+    if (searchScope == 0 || wordsSelectedDocument.length == 1) {
+      documents = List<Map<String, dynamic>>.from(_documents);
+    } 
+    else {
+      List<Map<String, dynamic>> filteredDocs = [];
+      final int queryLen = wordsSelectedDocument.length;
 
-        if (results.isNotEmpty) {
-          final docIds = results.map((doc) => doc['documentId'] as int).toSet();
-          documentIdSets.add(docIds);
+      for (var doc in _documents) {
+        final List<dynamic> allParas = doc['paragraphs'];
+        List<Map<String, dynamic>> validParagraphs = [];
+        int totalExpressionsInDoc = 0;
 
-          for (var rawDoc in results) {
-            final doc = Map<String, dynamic>.from(rawDoc);
-            final int id = doc['documentId'] as int;
+        for (var para in allParas) {
+          final List<dynamic> wordsInPara = para['words'];
 
-            final List<Map<String, dynamic>> newParagraphs = (doc['paragraphs'] as List)
-                .map((p) => Map<String, dynamic>.from(p as Map))
-                .toList();
+          // --- DANS LA BOUCLE DES PARAGRAPHES (searchScope == 1) ---
 
-            if (tempDocuments.containsKey(id)) {
-              tempDocuments[id]!['occurrences'] += doc['occurrences'] as int;
+          if (searchScope == 1) {
+            // 1. On prépare les mots présents dans CE paragraphe (en minuscule/normalisé)
+            final Set<String> wordsInThisPara = para['words']
+                .map((w) => (w['word'] as String).toLowerCase().trim()).cast<String>()
+                .toSet();
 
-              final existingParagraphs = tempDocuments[id]!['paragraphs'] as List<dynamic>;
+            // 2. On vérifie si TOUS les mots de la recherche sont inclus dans ce set
+            bool allWordsFoundInThisPara = wordsSelectedDocument.every((queryWord) {
+              return wordsInThisPara.contains(queryWord.toLowerCase().trim());
+            });
 
-              for (var newPara in newParagraphs) {
-                final paraId = newPara['paragraphId'];
-                final List<Map<String, dynamic>> newWords = (newPara['words'] as List)
-                    .map((w) => Map<String, dynamic>.from(w as Map))
-                    .toList();
+            if (allWordsFoundInThisPara) {
+              // 3. Optionnel : On ne garde que les mots qui font partie de la recherche pour le surlignage
+              final List<dynamic> highlightedWords = (para['words'] as List).where((w) {
+                return wordsSelectedDocument.contains((w['word'] as String).toLowerCase().trim());
+              }).toList();
 
-                final existingIndex = existingParagraphs.indexWhere(
-                        (p) => (p as Map)['paragraphId'] == paraId);
+              validParagraphs.add({
+                ...para,
+                'words': highlightedWords, // On remplace par les mots filtrés
+              });
 
-                if (existingIndex != -1) {
-                  final existingPara = Map<String, dynamic>.from(existingParagraphs[existingIndex]);
-                  final List<Map<String, dynamic>> existingWords = (existingPara['words'] as List)
-                      .map((w) => Map<String, dynamic>.from(w as Map))
-                      .toList();
+              // On compte le nombre de mots trouvés comme occurrences
+              totalExpressionsInDoc += highlightedWords.length;
+            }
+          }
+          else if (searchScope == 2) {
+            // --- MODE PHRASE : SÉQUENCE EXACTE ---
+            final List<Map<String, dynamic>> sortedWords = List.from(wordsInPara);
+            sortedWords.sort((a, b) => (a['index'] as int).compareTo(b['index'] as int));
 
-                  final existingIndexes = existingWords.map((w) => w['index']).toSet();
-                  final mergedWords = [
-                    ...existingWords,
-                    ...newWords.where((w) => !existingIndexes.contains(w['index']))
-                  ];
+            List<Map<String, dynamic>> exactMatchHighlights = [];
+            int expressionCount = 0;
 
-                  existingPara['words'] = mergedWords..sort((a, b) => (a['index'] as int).compareTo(b['index'] as int));
-                  existingParagraphs[existingIndex] = existingPara;
+            for (int i = 0; i <= sortedWords.length - queryLen; i++) {
+              bool match = true;
+              List<Map<String, dynamic>> potentialHighlights = [];
+
+              for (int j = 0; j < queryLen; j++) {
+                final currentHit = sortedWords[i + j];
+                bool sameWord = currentHit['word'] == wordsSelectedDocument[j];
+                bool consecutive = j == 0 || (currentHit['index'] == sortedWords[i + j - 1]['index'] + 1);
+                
+                if (sameWord && consecutive) {
+                  potentialHighlights.add(currentHit);
                 } else {
-                  existingParagraphs.add(newPara);
+                  match = false;
+                  break;
                 }
               }
-            } else {
-              tempDocuments[id] = {
-                ...doc,
-                'paragraphs': newParagraphs,
-              };
-            }
-          }
-        }
-      }));
 
-      if (documentIdSets.isNotEmpty) {
-        final commonDocumentIds = documentIdSets.reduce((a, b) => a.intersection(b));
-        _documents.addAll(tempDocuments.entries
-            .where((entry) => commonDocumentIds.contains(entry.key))
-            .map((e) => e.value));
-      }
-    }
-
-    if (mode == 1 || wordsSelectedDocument.length == 1) {
-      documents = List<Map<String, dynamic>>.from(_documents);
-    }
-    else if (mode == 2) {
-      final int expectedWordCount = wordsSelectedDocument.length;
-
-      documents = _documents.map((doc) {
-        final paragraphs = doc['paragraphs'] as List<dynamic>;
-
-        final matchingParagraphs = <dynamic>[];
-
-        for (final para in paragraphs) {
-          final words = para['words'] as List<dynamic>;
-          if (words.length < expectedWordCount) continue;
-
-          for (int i = 0; i <= words.length - expectedWordCount; i++) {
-            bool sequenceMatch = true;
-
-            for (int j = 1; j < expectedWordCount; j++) {
-              final currentIndex = words[i + j]['index'] as int;
-              final prevIndex = words[i + j - 1]['index'] as int;
-
-              if (currentIndex != prevIndex + 1) {
-                sequenceMatch = false;
-                break;
+              if (match) {
+                expressionCount++;
+                exactMatchHighlights.addAll(potentialHighlights);
+                i += queryLen - 1; // On saute l'expression trouvée
               }
             }
 
-            if (sequenceMatch) {
-              matchingParagraphs.add(para);
-              break;
+            if (expressionCount > 0) {
+              // On remplace le paragraphe par une version qui ne contient QUE les bons highlights
+              validParagraphs.add({
+                ...para,
+                'words': exactMatchHighlights,
+              });
+              totalExpressionsInDoc += expressionCount;
             }
           }
         }
 
-        if (matchingParagraphs.isEmpty) return null;
-
-        return {
-          ...doc,
-          'paragraphs': matchingParagraphs,
-          'occurrences': matchingParagraphs.length,
-        };
-      }).whereType<Map<String, dynamic>>().toList();
+        if (validParagraphs.isNotEmpty) {
+          filteredDocs.add({
+            ...doc,
+            'paragraphs': validParagraphs,
+            'occurrences': totalExpressionsInDoc,
+          });
+        }
+      }
+      documents = filteredDocs;
     }
 
     for (var doc in documents) {
       nbWordResultsInDocuments += doc['occurrences'] as int;
     }
-
     documents.sort((a, b) => b['occurrences'].compareTo(a['occurrences']));
   }
 
-  Future<List<Map<String, dynamic>>> searchWordInDocuments(String query) async {
-    final Map<int, Map<String, dynamic>> tempDocuments = {};
+  /* DOCUMENTS */
+  Future<List<Map<String, dynamic>>> getDocuments(List<int> textUnitIds) async {
+    if (textUnitIds.isEmpty) return [];
+    final ids = textUnitIds.join(',');
+    return await publication.documentsManager!.database.rawQuery('''
+      SELECT DocumentId, Title, MepsDocumentId, TextPositions, TextLengths
+      FROM Document
+      JOIN TextUnit ON Document.DocumentId = TextUnit.Id
+      JOIN SearchTextRangeDocument ON TextUnit.Id = SearchTextRangeDocument.TextUnitId
+      WHERE TextUnit.Type = 'Document' AND TextUnit.Id IN ($ids)
+    ''');
+  }
 
-    final searchResults = await publication.documentsManager!.database.rawQuery('''
-    SELECT TextUnitCount, WordOccurrenceCount, TextUnitIndices, PositionalList, PositionalListIndex
-    FROM SearchIndexDocument
-    LEFT JOIN Word ON SearchIndexDocument.WordId = Word.WordId
-    WHERE Word.Word LIKE ?
-    ''', [query]);
+  Future<List<Map<String, dynamic>>> getParagraphsMap(List<int> documentIds) async {
+    if (documentIds.isEmpty) return [];
+    return await publication.documentsManager!.database.rawQuery('''
+      SELECT DocumentId, ParagraphIndex, BeginPosition, EndPosition
+      FROM DocumentParagraph
+      WHERE DocumentId IN (${documentIds.join(',')})
+    ''');
+  }
 
-    if (searchResults.isNotEmpty) {
-      final documentIds = getTextUnitIds(searchResults.first['TextUnitIndices'] as Uint8List);
-      final wordOccurrencesInDocuments = getOccurrenceByDocument(searchResults.first['PositionalListIndex'] as Uint8List);
-      final wordPositionalsListInDocuments = getPositionsInDocument(searchResults.first['PositionalList'] as Uint8List, wordOccurrencesInDocuments);
+  Future<List<Map<String, dynamic>>> searchWordInDocuments(List<String> queryWords) async {
+    if (queryWords.isEmpty) return [];
 
-      final docs = await getDocuments(documentIds);
-      final paragraphs = await getParagraphs(documentIds);
+    final placeholders = List.filled(queryWords.length, '?').join(', ');
+    //final sqlColumn = buildAccentInsensitiveQuery('');
 
-      for (int i = 0; i < documentIds.length; i++) {
-        final document = docs[i];
-        final positions = getWordsPositionsAndParagraphId(document['TextPositions']);
-        final lengths = getWordsLengths(document['TextLengths']);
+    final sqlQuery = '''
+      SELECT TextUnitIndices, PositionalList, PositionalListIndex, Word.Word as WordValue
+      FROM SearchIndexDocument
+      JOIN Word ON SearchIndexDocument.WordId = Word.WordId
+      WHERE Word.Word IN ($placeholders)
+    ''';
 
-        tempDocuments.putIfAbsent(documentIds[i], () => {
-          'documentId': documentIds[i],
-          'mepsDocumentId': document['MepsDocumentId'],
-          'title': document['Title'],
-          'occurrences': 0,
-          'paragraphs': <int, Map<String, dynamic>>{}
-        });
+    final searchResults = await publication.documentsManager!.database.rawQuery(sqlQuery, queryWords);
 
-        final docEntry = tempDocuments[documentIds[i]]!;
+    if (searchResults.isEmpty) return [];
 
-        docEntry['occurrences'] += wordOccurrencesInDocuments[i];
-
-        for(int wordPositionalsListInDocument in wordPositionalsListInDocuments[i]) {
-          final wordPosition = positions.elementAtOrNull(wordPositionalsListInDocument);
-          final wordLength = lengths.elementAtOrNull(wordPositionalsListInDocument);
-
-          if (wordPosition != null && wordLength != null) {
-            final paragraphPosition = paragraphs.where((element) => element['DocumentId'] == documentIds[i] && element['ParagraphIndex'] == wordPosition['paragraphId']).firstOrNull;
-
-            if (paragraphPosition != null) {
-              String paragraphText = '';
-              int? paragraphId = wordPosition['paragraphId'];
-
-              if (!docEntry['paragraphs'].containsKey(paragraphId)) {
-                final beginPosition = paragraphPosition['BeginPosition'];
-                final endPosition = paragraphPosition['EndPosition'];
-
-                if (beginPosition != null && endPosition != null) {
-                  final documentBlob = decodeBlobParagraph(document['Content'], publication.hash!);
-                  final paragraphBlob = documentBlob.sublist(beginPosition, endPosition);
-                  final paragraphHtml = utf8.decode(paragraphBlob);
-                  paragraphText = parse(paragraphHtml).body?.text ?? '';
-                }
-
-                docEntry['paragraphs'][paragraphId] = {
-                  'paragraphId': paragraphId,
-                  'paragraphText': paragraphText,
-                  'words': <Map<String, int?>>[],
-                };
-              }
-
-              docEntry['paragraphs'][paragraphId]['words'].add({
-                'index': wordPositionalsListInDocument,
-                'startHighlight': wordPosition['position'],
-                'endHighlight': (wordPosition['position'] ?? 0) + wordLength,
-              });
-            }
-          }
-        }
+    Set<int>? commonDocIds;
+    for (var row in searchResults) {
+      final ids = getTextUnitIds(row['TextUnitIndices'] as Uint8List).toSet();
+      if (commonDocIds == null) {
+        commonDocIds = ids;
+      } else {
+        commonDocIds = commonDocIds.intersection(ids);
+        if (commonDocIds.isEmpty) return [];
       }
     }
 
-    for (var doc in tempDocuments.values) {
-      doc['paragraphs'] = (doc['paragraphs'] as Map<int, Map<String, dynamic>>).values.toList();
+    // Map : DocID -> List of { index, word }
+    final Map<int, List<Map<String, dynamic>>> aggregatedData = {};
+    final Map<int, int> aggregatedOccurrences = {};
+
+    for (var row in searchResults) {
+      final currentDocIds = getTextUnitIds(row['TextUnitIndices'] as Uint8List);
+      final occs = getOccurrenceByDocument(row['PositionalListIndex'] as Uint8List);
+      final pos = bytesVLQToIntList(row['PositionalList'] as Uint8List);
+      final String wordValue = row['WordValue'] as String;
+
+      int posOffset = 0;
+      for (int i = 0; i < currentDocIds.length; i++) {
+        final docId = currentDocIds[i];
+        final count = occs[i];
+        
+        if (commonDocIds!.contains(docId)) {
+          aggregatedOccurrences[docId] = (aggregatedOccurrences[docId] ?? 0) + count;
+          final list = aggregatedData.putIfAbsent(docId, () => []);
+          for (int j = 0; j < count; j++) {
+            list.add({
+              'index': pos[posOffset + j],
+              'word': wordValue,
+            });
+          }
+        }
+        posOffset += count;
+      }
     }
 
-    return tempDocuments.values.toList();
+    final finalDocIds = commonDocIds!.toList();
+    final docsList = await getDocuments(finalDocIds);
+    final Map<int, Map<String, dynamic>> docsMap = {
+      for (var d in docsList) d['DocumentId'] as int: d
+    };
+
+    final paragraphsList = await getParagraphsMap(finalDocIds);
+    final Map<int, List<Map<String, dynamic>>> paragraphsByDoc = {};
+    for (var p in paragraphsList) {
+      (paragraphsByDoc[p['DocumentId'] as int] ??= []).add(p);
+    }
+
+    final List<Map<String, dynamic>> finalDocs = [];
+
+    for (final docId in finalDocIds) {
+      final doc = docsMap[docId];
+      if (doc == null) continue;
+
+      final allPositions = getWordsPositionsAndParagraphId(doc['TextPositions']);
+      final allLengths = getWordsLengths(doc['TextLengths']);
+      final Map<int, Map<String, dynamic>> docParagraphs = {};
+
+      // On utilise aggregatedData[docId] qui contient maintenant le mot
+      for (var hit in aggregatedData[docId]!) {
+        int wordIdx = hit['index'];
+        String wordValue = hit['word'];
+
+        if (wordIdx >= allPositions.length) continue;
+
+        final posInfo = allPositions[wordIdx];
+        final paraId = posInfo['paragraphId'];
+        if (paraId == null) continue;
+        
+        final docParas = paragraphsByDoc[docId];
+        final paraInfo = docParas?.firstWhereOrNull((p) => p['ParagraphIndex'] == paraId);
+
+        if (paraInfo != null) {
+          docParagraphs.putIfAbsent(paraId, () => {
+            'paragraphId': paraId,
+            'begin': paraInfo['BeginPosition'],
+            'end': paraInfo['EndPosition'],
+            'words': [],
+          });
+
+          (docParagraphs[paraId]!['words'] as List).add({
+            'index': wordIdx,
+            'word': wordValue, // On le transmet au paragraphe
+            'startHighlight': posInfo['position'],
+            'endHighlight': (posInfo['position'] as int) + allLengths[wordIdx],
+          });
+        }
+      }
+
+      finalDocs.add({
+        'documentId': docId,
+        'mepsDocumentId': doc['MepsDocumentId'],
+        'title': doc['Title'],
+        'occurrences': aggregatedOccurrences[docId],
+        'paragraphs': docParagraphs.values.toList(),
+      });
+    }
+
+    return finalDocs;
+  }
+
+  /* VERSETS DE LA BIBLE */
+  Future<void> searchBibleVerses(String query, bool isExactMatch, {bool newSearch = false}) async {
+    if (newSearch) {
+      _verses.clear();
+    }
+
+    wordsSelectedVerse = query.toLowerCase().trim().split(RegExp(r"[\s']+"));
+    nbWordResultsInVerses = 0;
+    verses.clear();
+
+    if (versesRanking.isEmpty) {
+      await findRankingBlob();
+    }
+
+    if (_verses.isEmpty && wordsSelectedVerse.isNotEmpty) {
+      final results = await searchWordInBibleVerses(wordsSelectedVerse);
+      _verses.addAll(results);
+    }
+
+    if (!isExactMatch || wordsSelectedVerse.length == 1) {
+      verses = List<Map<String, dynamic>>.from(_verses);
+    } 
+    else {
+      final List<Map<String, dynamic>> matchingVerses = [];
+      final int queryLen = wordsSelectedVerse.length;
+
+      for (final verse in _verses) {
+        final List<Map<String, dynamic>> allWords = List<Map<String, dynamic>>.from(verse['words']);
+        // Important : trier par index pour détecter la suite
+        allWords.sort((a, b) => (a['index'] as int).compareTo(b['index'] as int));
+
+        List<Map<String, dynamic>> exactMatchHighlights = [];
+        int expressionCount = 0;
+
+        // On parcourt les mots pour trouver des séquences qui matchent la requête
+        for (int i = 0; i <= allWords.length - queryLen; i++) {
+          bool sequenceMatch = true;
+          List<Map<String, dynamic>> potentialHighlights = [];
+
+          for (int j = 0; j < queryLen; j++) {
+            final currentHit = allWords[i + j];
+            
+            bool sameWord = currentHit['word'] == wordsSelectedVerse[j];
+            bool consecutive = (j == 0) || (currentHit['index'] == allWords[i + j - 1]['index'] + 1);
+
+            if (sameWord && consecutive) {
+              potentialHighlights.add(currentHit);
+            } else {
+              sequenceMatch = false;
+              break;
+            }
+          }
+
+          if (sequenceMatch) {
+            expressionCount++;
+            exactMatchHighlights.addAll(potentialHighlights);
+            // On avance l'index pour ne pas compter deux fois les mots de cette expression
+            i += queryLen - 1; 
+          }
+        }
+
+        if (expressionCount > 0) {
+          matchingVerses.add({
+            ...verse,
+            'occurrences': expressionCount, // On remplace par le nombre d'expressions
+            'words': exactMatchHighlights,  // On ne garde QUE les highlights de l'expression
+          });
+        }
+      }
+      verses = matchingVerses;
+    }
+
+    // Calcul du total global basé sur le nombre d'expressions trouvées
+    for (var verse in verses) {
+      nbWordResultsInVerses += verse['occurrences'] as int;
+    }
   }
 
   Future<List<Map<String, dynamic>>> getVerses(List<int> bibleVerseIds) async {
@@ -277,208 +375,141 @@ class PublicationSearchModel {
     return searchResults.isNotEmpty ? searchResults : [];
   }
 
-  Future<void> searchBibleVerses(String query, int mode, {bool newSearch = false}) async {
-    if(newSearch) {
-      _verses.clear();
-    }
-    wordsSelectedVerse = query.trim().split(RegExp(r'\s+'));
+  Future<List<Map<String, dynamic>>> searchWordInBibleVerses(List<String> queryWords) async {
+  if (queryWords.isEmpty) return [];
 
-    nbWordResultsInVerses = 0;
-    verses.clear();
+  final placeholders = List.filled(queryWords.length, '?').join(', ');
+  //final sqlColumn = buildAccentInsensitiveQuery('');
 
-    // Optimisation : Charge le classement une seule fois si besoin
-    if (versesRanking.isEmpty) {
-      await findRankingBlob();
-    }
+  // 1. On récupère les positions ET le texte du mot (WordValue)
+  final searchResults = await publication.documentsManager!.database.rawQuery('''
+    SELECT TextUnitIndices, PositionalList, PositionalListIndex, Word.Word as WordValue
+    FROM SearchIndexBibleVerse
+    JOIN Word ON SearchIndexBibleVerse.WordId = Word.WordId
+    WHERE Word.Word IN ($placeholders)
+  ''', queryWords);
 
-    if (_verses.isEmpty && wordsSelectedVerse.isNotEmpty) {
-      List<Set<int>> verseIdSets = [];
-      Map<int, Map<String, dynamic>> tempVerses = {};
+  // Si on n'a pas trouvé tous les mots de la requête, on arrête
+  if (searchResults.isEmpty) return [];
 
-      await Future.wait(wordsSelectedVerse.map((queryWord) async {
-        final results = await searchWordInBibleVerses(queryWord);
-
-        Set<int> currentWordVerseIds = {};
-
-        for (var result in results) {
-          int verseId = result['verseId'];
-          int bookNumber = result['bookNumber'];
-          int chapterNumber = result['chapterNumber'];
-          int verseNumber = result['verseNumber'];
-          String verseText = result['verse'];
-          int occurrences = result['occurrences'];
-          List<Map<String, int?>> words = List<Map<String, int?>>.from(result['words']);
-
-          currentWordVerseIds.add(verseId);
-
-          tempVerses.putIfAbsent(verseId, () => {
-            'verseId': verseId,
-            'bookNumber': bookNumber,
-            'chapterNumber': chapterNumber,
-            'verseNumber': verseNumber,
-            'verse': verseText,
-            'occurrences': occurrences,
-            'words': <Map<String, int?>>[]
-          });
-
-          final existingWords = tempVerses[verseId]!['words'] as List<Map<String, int?>>;
-
-          final existingIndexes = existingWords.map((w) => w['index']).toSet();
-          final mergedWords = [
-            ...existingWords,
-            ...words.where((w) => !existingIndexes.contains(w['index']))
-          ];
-
-          tempVerses[verseId]!['words'] = mergedWords..sort((a, b) => (a['index'] as int).compareTo(b['index'] as int));
-        }
-
-        if (currentWordVerseIds.isNotEmpty) {
-          verseIdSets.add(currentWordVerseIds);
-        }
-      }));
-
-      if (verseIdSets.isNotEmpty) {
-        final commonVerseIds = verseIdSets.reduce((a, b) => a.intersection(b));
-        _verses.addAll(tempVerses.entries.where((entry) => commonVerseIds.contains(entry.key)).map((e) => e.value));
-      }
-    }
-
-    if (mode == 1 || wordsSelectedVerse.length == 1) {
-      verses = List<Map<String, dynamic>>.from(_verses);
-    }
-    else if (mode == 2) {
-      final int expectedWordCount = wordsSelectedVerse.length;
-
-      final List<Map<String, dynamic>> matchingVerses = [];
-
-      for (final verse in _verses) {
-        final words = verse['words'] as List<dynamic>;
-
-        if (words.length < expectedWordCount) {
-          continue;
-        }
-
-        bool hasConsecutiveSequence = false;
-        for (int i = 0; i <= words.length - expectedWordCount; i++) {
-          bool sequenceMatch = true;
-
-          for (int j = 1; j < expectedWordCount; j++) {
-            final int currentIndex = words[i + j]['index'] as int;
-            final int prevIndex = words[i + j - 1]['index'] as int;
-
-            if (currentIndex != prevIndex + 1) {
-              sequenceMatch = false;
-              break;
-            }
-          }
-
-          if (sequenceMatch) {
-            hasConsecutiveSequence = true;
-            break;
-          }
-        }
-
-        if (hasConsecutiveSequence) {
-          matchingVerses.add({
-            ...verse,
-          });
-        }
-      }
-
-      verses = matchingVerses;
-    }
-
-    for (var verse in verses) {
-      nbWordResultsInVerses += verse['occurrences'] as int;
+  // 2. Intersection pour ne garder que les versets qui contiennent TOUS les mots
+  Set<int>? commonBibleVerseIds;
+  for (var row in searchResults) {
+    final ids = getTextUnitIds(row['TextUnitIndices'] as Uint8List).toSet();
+    if (commonBibleVerseIds == null) {
+      commonBibleVerseIds = ids;
+    } else {
+      commonBibleVerseIds = commonBibleVerseIds.intersection(ids);
+      if (commonBibleVerseIds.isEmpty) return [];
     }
   }
 
-  Future<List<Map<String, dynamic>>> searchWordInBibleVerses(String query) async {
-    final Map<int, Map<String, dynamic>> tempVerses = {};
+  // 3. Agrégation des données par ID de verset
+  // Map : BibleVerseId -> List of { index, word }
+  final Map<int, List<Map<String, dynamic>>> aggregatedData = {};
+  final Map<int, int> aggregatedOccurrences = {};
 
-    final searchResults = await publication.documentsManager!.database.rawQuery('''
-      SELECT TextUnitCount, WordOccurrenceCount, TextUnitIndices, PositionalList, PositionalListIndex
-      FROM SearchIndexBibleVerse
-      LEFT JOIN Word ON SearchIndexBibleVerse.WordId = Word.WordId
-      WHERE Word.Word LIKE ?
-    ''', [query]);
+  for (var row in searchResults) {
+    final currentDocIds = getTextUnitIds(row['TextUnitIndices'] as Uint8List);
+    final occs = getOccurrenceByDocument(row['PositionalListIndex'] as Uint8List);
+    final pos = bytesVLQToIntList(row['PositionalList'] as Uint8List);
+    final String wordValue = row['WordValue'] as String;
 
-    if (searchResults.isNotEmpty) {
-      final bibleVerseIds = getTextUnitIds(searchResults.first['TextUnitIndices'] as Uint8List);
-      final wordOccurrencesInVerses = getOccurrenceByDocument(searchResults.first['PositionalListIndex'] as Uint8List);
-      final wordPositionalsListInVerses = getPositionsInDocument(searchResults.first['PositionalList'] as Uint8List, wordOccurrencesInVerses);
-
-      final bibleVerses = await getVerses(bibleVerseIds);
-      final versesById = { for (var v in bibleVerses) v['BibleVerseId'] as int : v };
-
-      for (int i = 0; i < bibleVerseIds.length; i++) {
-        final verseId = bibleVerseIds[i];
-        final verse = versesById[verseId];
-
-        if (verse == null) continue;
-
-        final positions = getWordsPositionsAndParagraphId(verse['TextPositions']);
-        final lengths = getWordsLengths(verse['TextLengths']);
-
-        String verseHtml = decodeBlobContent(verse['Content'], publication.hash!);
-
-        List<PositionAdjustment> adjustments = verse['AdjustmentInfo'] == null ? [] : getAdjustmentsInfo(verse['AdjustmentInfo']);
-
-        RegExp regExp = RegExp(r'id="v(\d+)-(\d+)-(\d+)"');
-        Match? match = regExp.firstMatch(verseHtml);
-
-        int bookNumber = 0;
-        int chapterNumber = 0;
-        int verseNumber = 0;
-
-        if (match != null) {
-          bookNumber = int.parse(match.group(1)!);
-          chapterNumber = int.parse(match.group(2)!);
-          verseNumber = int.parse(match.group(3)!);
-        }
-        else {
-          printTime('Aucune correspondance trouvée');
-        }
-
-        String verseText = parse(verseHtml).body?.text ?? '';
-        final wordOccurrences = wordOccurrencesInVerses[i];
-        final wordPositionals = wordPositionalsListInVerses[i];
-
-        tempVerses.putIfAbsent(verseId, () => {
-          'verseId': verseId,
-          'bookNumber': bookNumber,
-          'chapterNumber': chapterNumber,
-          'verseNumber': verseNumber,
-          'verse': verseText,
-          'occurrences': 0,
-          'words': <Map<String, int?>>[]
-        });
-
-        final verseEntry = tempVerses[verseId]!;
-
-        verseEntry['occurrences'] += wordOccurrences;
-
-        for(int j = 0; j < wordOccurrences; j++) {
-          final wordPositionalListIndex = wordPositionals[j];
-          final wordPosition = positions.elementAtOrNull(wordPositionalListIndex);
-          final wordLength = lengths.elementAtOrNull(wordPositionalListIndex);
-
-          if (wordPosition != null && wordLength != null) {
-            int start = adjustPosition(wordPosition['position']!, adjustments);
-            int end = start + wordLength;
-
-            verseEntry['words'].add({
-              'index': wordPositionalListIndex,
-              'startHighlight': start,
-              'endHighlight': end,
-            });
-          }
+    int posOffset = 0;
+    for (int i = 0; i < currentDocIds.length; i++) {
+      final docId = currentDocIds[i];
+      final count = occs[i];
+      
+      if (commonBibleVerseIds!.contains(docId)) {
+        aggregatedOccurrences[docId] = (aggregatedOccurrences[docId] ?? 0) + count;
+        
+        final list = aggregatedData.putIfAbsent(docId, () => []);
+        for (int j = 0; j < count; j++) {
+          list.add({
+            'index': pos[posOffset + j],
+            'word': wordValue,
+          });
         }
       }
+      posOffset += count;
+    }
+  }
+
+  final finalBibleVerseIds = commonBibleVerseIds!.toList();
+  
+  // 4. Récupération des contenus des versets
+  final bibleVerseList = await getVerses(finalBibleVerseIds);
+  final Map<int, Map<String, dynamic>> bibleVerseMap = {
+    for (var d in bibleVerseList) d['BibleVerseId'] as int: d
+  };
+
+  final List<Map<String, dynamic>> finalBibleVerses = [];
+
+  for (final bibleVerseId in finalBibleVerseIds) {
+    final bibleVerse = bibleVerseMap[bibleVerseId];
+    if (bibleVerse == null) continue;
+
+    final allPositions = getWordsPositionsAndParagraphId(bibleVerse['TextPositions']);
+    final allLengths = getWordsLengths(bibleVerse['TextLengths']);
+
+    // Décodage du contenu HTML et parsing des références (Livre, Chapitre, Verset)
+    String verseHtml = decodeBlobContent(bibleVerse['Content'], publication.hash!);
+    List<PositionAdjustment> adjustments = bibleVerse['AdjustmentInfo'] == null 
+        ? [] 
+        : getAdjustmentsInfo(bibleVerse['AdjustmentInfo']);
+
+    RegExp regExp = RegExp(r'id="v(\d+)-(\d+)-(\d+)"');
+    Match? match = regExp.firstMatch(verseHtml);
+
+    int bookNumber = 0, chapterNumber = 0, verseNumber = 0;
+
+    if (match != null) {
+      bookNumber = int.parse(match.group(1)!);
+      chapterNumber = int.parse(match.group(2)!);
+      verseNumber = int.parse(match.group(3)!);
+    } 
+    else {
+      continue;
     }
 
-    return tempVerses.values.toList();
+    String verseText = parse(verseHtml).body?.text ?? '';
+    
+    final verseEntry = {
+      'verseId': bibleVerseId,
+      'bookNumber': bookNumber,
+      'chapterNumber': chapterNumber,
+      'verseNumber': verseNumber,
+      'verse': verseText,
+      'occurrences': aggregatedOccurrences[bibleVerseId],
+      'words': []
+    };
+
+    // 5. Mapping des positions de surbrillance
+    final List<Map<String, dynamic>> hits = aggregatedData[bibleVerseId]!;
+    for (var hit in hits) {
+      int wordIdx = hit['index'];
+
+      if (wordIdx >= allPositions.length) continue;
+
+      final posInfo = allPositions[wordIdx];
+      
+      // Ajustement de la position (gestion des caractères spéciaux/HTML)
+      int start = adjustPosition(posInfo['position']!, adjustments);
+      int end = start + allLengths[wordIdx];
+
+      (verseEntry['words'] as List).add({
+        'index': wordIdx,
+        'word': hit['word'], // Transmis pour le filtrage searchBibleVerses
+        'startHighlight': start,
+        'endHighlight': end,
+      });
+    }
+
+    finalBibleVerses.add(verseEntry);
   }
+
+  return finalBibleVerses;
+}
 
   void sortVerses(int type) {
     if(type == 0) {

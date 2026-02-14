@@ -3088,4 +3088,75 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get action_open_in_jwlife => 'JW Lifeで開く';
+
+  @override
+  String get search_scope_article => '同じ記事内';
+
+  @override
+  String get search_scope_paragraph => '同じ段落内';
+
+  @override
+  String get search_scope_sentence => '同じ一文中';
+
+  @override
+  String get forebears_subtitle => '名前の由来';
+
+  @override
+  String get forebears_search_hint => '名前または苗字を検索...';
+
+  @override
+  String forebears_count_description(Object count) {
+    return '約 $count 人がこの名前を持っています';
+  }
+
+  @override
+  String get forebears_prevalent_label => '最も一般的：';
+
+  @override
+  String get forebears_density_label => '最高の密度：';
+
+  @override
+  String get forebears_map_title => '分布図';
+
+  @override
+  String get forebears_table_title => '国別の分布';
+
+  @override
+  String get forebears_external_link => 'Forebearsで詳細情報を見る';
+
+  @override
+  String get forebears_incidence_label => '出現数：';
+
+  @override
+  String get forebears_frequency_label => '頻度：';
+
+  @override
+  String get forebears_rank_label => '順位：';
+
+  @override
+  String get forebears_gender_stats_title => '性別の分布';
+
+  @override
+  String get forebears_table_header_place => '場所';
+
+  @override
+  String get forebears_table_header_incidence => '出現数';
+
+  @override
+  String get forebears_table_header_rank => '順位';
+
+  @override
+  String get forebears_empty_state_text =>
+      'Forebearsで名前または苗字を検索して、世界的な分布を確認してください。';
+
+  @override
+  String get forebears_type_surname => '苗字';
+
+  @override
+  String get forebears_type_firstname => '名前';
+
+  @override
+  String forebears_frequency_format(Object ratio, Object total) {
+    return '$total 人中 $ratio 人';
+  }
 }

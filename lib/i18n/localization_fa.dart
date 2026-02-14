@@ -3182,4 +3182,75 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get action_open_in_jwlife => 'باز کردن در JW Life';
+
+  @override
+  String get search_scope_article => 'در همان مقاله';
+
+  @override
+  String get search_scope_paragraph => 'در همان پاراگراف';
+
+  @override
+  String get search_scope_sentence => 'در همان جمله';
+
+  @override
+  String get forebears_subtitle => 'منشأ نام‌ها';
+
+  @override
+  String get forebears_search_hint => 'جستجوی نام یا نام خانوادگی...';
+
+  @override
+  String forebears_count_description(Object count) {
+    return 'حدود $count نفر این نام را دارند';
+  }
+
+  @override
+  String get forebears_prevalent_label => 'رایج‌ترین:';
+
+  @override
+  String get forebears_density_label => 'بیشترین تراکم:';
+
+  @override
+  String get forebears_map_title => 'نقشه توزیع';
+
+  @override
+  String get forebears_table_title => 'توزیع بر اساس کشور';
+
+  @override
+  String get forebears_external_link => 'مشاهده اطلاعات بیشتر در Forebears';
+
+  @override
+  String get forebears_incidence_label => 'میزان وقوع:';
+
+  @override
+  String get forebears_frequency_label => 'فراوانی:';
+
+  @override
+  String get forebears_rank_label => 'رتبه:';
+
+  @override
+  String get forebears_gender_stats_title => 'توزیع بر اساس جنسیت';
+
+  @override
+  String get forebears_table_header_place => 'مکان';
+
+  @override
+  String get forebears_table_header_incidence => 'میزان وقوع';
+
+  @override
+  String get forebears_table_header_rank => 'رتبه';
+
+  @override
+  String get forebears_empty_state_text =>
+      'برای اطلاع از توزیع جهانی نام یا نام خانوادگی، در Forebears جستجو کنید.';
+
+  @override
+  String get forebears_type_surname => 'نام خانوادگی';
+
+  @override
+  String get forebears_type_firstname => 'نام کوچک';
+
+  @override
+  String forebears_frequency_format(Object ratio, Object total) {
+    return '$ratio از $total';
+  }
 }

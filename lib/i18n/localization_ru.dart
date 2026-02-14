@@ -3212,4 +3212,76 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get action_open_in_jwlife => 'Открыть в JW Life';
+
+  @override
+  String get search_scope_article => 'В той же статье';
+
+  @override
+  String get search_scope_paragraph => 'В том же абзаце';
+
+  @override
+  String get search_scope_sentence => 'В том же предложении';
+
+  @override
+  String get forebears_subtitle => 'Происхождение имен';
+
+  @override
+  String get forebears_search_hint => 'Поиск имени или фамилии...';
+
+  @override
+  String forebears_count_description(Object count) {
+    return 'Примерно $count человек носят это имя';
+  }
+
+  @override
+  String get forebears_prevalent_label => 'Наиболее распространен:';
+
+  @override
+  String get forebears_density_label => 'Самая высокая плотность:';
+
+  @override
+  String get forebears_map_title => 'Карта распределения';
+
+  @override
+  String get forebears_table_title => 'Распределение по странам';
+
+  @override
+  String get forebears_external_link =>
+      'Смотреть больше информации на Forebears';
+
+  @override
+  String get forebears_incidence_label => 'Распространенность:';
+
+  @override
+  String get forebears_frequency_label => 'Частота:';
+
+  @override
+  String get forebears_rank_label => 'Ранг:';
+
+  @override
+  String get forebears_gender_stats_title => 'Распределение по полу';
+
+  @override
+  String get forebears_table_header_place => 'Место';
+
+  @override
+  String get forebears_table_header_incidence => 'Распространенность';
+
+  @override
+  String get forebears_table_header_rank => 'Ранг';
+
+  @override
+  String get forebears_empty_state_text =>
+      'Найдите имя или фамилию на Forebears, чтобы узнать их распределение по миру.';
+
+  @override
+  String get forebears_type_surname => 'Фамилия';
+
+  @override
+  String get forebears_type_firstname => 'Имя';
+
+  @override
+  String forebears_frequency_format(Object ratio, Object total) {
+    return '$ratio из $total';
+  }
 }

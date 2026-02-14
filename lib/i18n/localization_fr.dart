@@ -3245,4 +3245,76 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get action_open_in_jwlife => 'Ouvrir dans JW Life';
+
+  @override
+  String get search_scope_article => 'Dans un même article';
+
+  @override
+  String get search_scope_paragraph => 'Dans un même paragraphe';
+
+  @override
+  String get search_scope_sentence => 'Dans une même phrase';
+
+  @override
+  String get forebears_subtitle => 'Origine des noms';
+
+  @override
+  String get forebears_search_hint => 'Rechercher un nom ou prénom...';
+
+  @override
+  String forebears_count_description(Object count) {
+    return 'Environ $count personnes portent ce nom';
+  }
+
+  @override
+  String get forebears_prevalent_label => 'Le plus répandu :';
+
+  @override
+  String get forebears_density_label => 'Densité la plus élevée :';
+
+  @override
+  String get forebears_map_title => 'Carte de répartition';
+
+  @override
+  String get forebears_table_title => 'Répartition par pays';
+
+  @override
+  String get forebears_external_link =>
+      'Voir plus d\'informations sur Forebears';
+
+  @override
+  String get forebears_incidence_label => 'Incidence :';
+
+  @override
+  String get forebears_frequency_label => 'Fréquence :';
+
+  @override
+  String get forebears_rank_label => 'Rang :';
+
+  @override
+  String get forebears_gender_stats_title => 'Répartition par genre';
+
+  @override
+  String get forebears_table_header_place => 'Lieu';
+
+  @override
+  String get forebears_table_header_incidence => 'Incidence';
+
+  @override
+  String get forebears_table_header_rank => 'Rang';
+
+  @override
+  String get forebears_empty_state_text =>
+      'Rechercher un nom ou prénom sur Forebears pour connaître sa répartition mondiale.';
+
+  @override
+  String get forebears_type_surname => 'Nom de famille';
+
+  @override
+  String get forebears_type_firstname => 'Prénom';
+
+  @override
+  String forebears_frequency_format(Object ratio, Object total) {
+    return '$ratio sur $total';
+  }
 }
