@@ -1,7 +1,7 @@
 {
   "app": {
     "enabled": true,
-    "blacklistedDevices": [3505bc1c-b21b-4a83-a957-63faebd06ede],
+    "blacklistedDevices": ["3505bc1c-b21b-4a83-a957-63faebd06ede"],
 
     "disabledMessage": "Tant pis pour toi !",
 
@@ -18,7 +18,7 @@
   },
   "messages": {
     "banner": {
-      "enabled": true,
+      "enabled": false,
       "title": "<h3>Information</h3><p>Les données du mémorial 2027 sont maintenant disponibles.</p>",
       "content": "<p>Les données du mémorial 2027 sont maintenant disponibles sur l'application JW Life</p>"
     },
