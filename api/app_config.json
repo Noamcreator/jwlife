@@ -1,7 +1,7 @@
 {
   "app": {
     "enabled": true,
-    "blacklistedDevices": [24091RPADG],
+    "blacklistedDevices": [3505bc1c-b21b-4a83-a957-63faebd06ede],
 
     "disabledMessage": "Tant pis pour toi !",
 
