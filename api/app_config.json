@@ -1,0 +1,44 @@
+{
+  "app": {
+    "enabled": true,
+    "blacklistedDevices": [],
+
+    "disabledMessage": "",
+
+    "lastVersion": "2.0.0",
+    "name": "jwlife-2-0-0.apk",
+    "timestamp": "2026-02-13T23:58:39Z",
+    "changelog": "",
+
+    "fonts": {
+        "version": "1.0.1",
+        "name": "jw_fonts.zip",
+        "timestamp": "2026-04-10T20:42:00Z"
+    }
+  },
+  "messages": {
+    "banner": {
+      "enabled": false,
+      "title": "<h3>Information</h3><p>Les données du mémorial 2027 sont maintenant disponibles.</p>",
+      "content": "<p>Les données du mémorial 2027 sont maintenant disponibles sur l'application JW Life</p>"
+    },
+
+    "dialog": {
+      "enabled": false,
+      "id": "welcome_2027",
+      "html": "<h3>Bienvenue sur JW Life</h3><p>Soyez le bienvenu ici !</p>"
+    }
+  },
+
+  "memorials": {
+    "2027": "2027-03-22",
+    "2028": "2028-04-09",
+    "2029": "2029-03-29"
+  },
+
+  "teachingToolbox": {
+    "toolboxOrder": [-1, 5, 8, -1, 9, -1, 15, 16, 17],
+    "tractsOrder": [18, 19, 20, 21, 22, 23, 24, 25, 26]
+  }
+}
+
