@@ -1,9 +1,9 @@
 {
   "app": {
-    "enabled": false,
+    "enabled": true,
     "blacklistedDevices": [],
 
-    "disabledMessage": "Plus de JW Life 🤣🥲",
+    "disabledMessage": "",
 
     "lastVersion": "2.0.0",
     "name": "jwlife-2-0-0.apk",
@@ -18,7 +18,7 @@
   },
   "messages": {
     "banner": {
-      "enabled": false,
+      "enabled": true,
       "title": "<h3>Information</h3><p>Les données du mémorial 2027 sont maintenant disponibles.</p>",
       "content": "<p>Les données du mémorial 2027 sont maintenant disponibles sur l'application JW Life</p>"
     },
