@@ -1,9 +1,9 @@
 {
   "app": {
     "enabled": true,
-    "blacklistedDevices": ["3505bc1c-b21b-4a83-a957-63faebd06ede"],
+    "blacklistedDevices": [],
 
-    "disabledMessage": "Tant pis pour toi !",
+    "disabledMessage": "",
 
     "lastVersion": "2.0.0",
     "name": "jwlife-2-0-0.apk",
