@@ -1,9 +1,9 @@
 {
   "app": {
-    "enabled": true,
+    "enabled": false,
     "blacklistedDevices": [],
 
-    "disabledMessage": "",
+    "disabledMessage": "Plus de JW Life 🤣🥲",
 
     "lastVersion": "2.0.0",
     "name": "jwlife-2-0-0.apk",
