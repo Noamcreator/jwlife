@@ -1,39 +1,62 @@
 {
   "app": {
     "enabled": true,
-    "blacklistedDevices": [],
+    "mandatory": false,
+    "lastVersion": "2.0.0",
+    "minSupportedVersion": "2.0.0",
 
     "disabledMessage": "",
+    "blacklistedDevices": [],
 
-    "lastVersion": "2.0.0",
-    "name": "jwlife-2-0-0.apk",
-    "timestamp": "2026-02-13T23:58:39Z",
-    "changelog": "",
+    "downloads": {
+      "android": {
+        "name": "jwlife-2-0-0.apk",
+        "url": "https://github.com/Noamcreator/jwlife/releases/download/v2.0.0/jwlife-2-0-0.apk"
+      },
+      "windows": {
+        "name": "jwlife-2-0-0.exe",
+        "url": "https://github.com/Noamcreator/jwlife/releases/download/v2.0.0/jwlife-2-0-0.exe"
+      },
+      "linux": {
+        "name": "jwlife-2-0-0.AppImage",
+        "url": "https://github.com/Noamcreator/jwlife/releases/download/v2.0.0/jwlife-2-0-0.AppImage"
+      },
+      "macos": {
+        "name": "jwlife-2-0-0.dmg",
+        "url": "https://github.com/Noamcreator/jwlife/releases/download/v2.0.0/jwlife-2-0-0.dmg"
+      }
+    },
 
+    "changelog": "<h3>Version 2.0.0</h3><ul><li>Nouvelle interface</li><li>Amélioration des performances</li></ul>"
+  },
+
+  "resources": {
     "fonts": {
-        "version": "2.0.0",
-        "name": "fonts.zip",
-        "timestamp": "2026-10-20T23:01:00Z"
+      "version": 2,
+      "updatedAt": "2026-10-22T15:00:00Z"
     }
   },
+
   "messages": {
     "banner": {
       "enabled": false,
-      "title": "<h3>Information</h3><p>Les données du mémorial 2027 sont maintenant disponibles.</p>",
-      "content": "<p>Les données du mémorial 2027 sont maintenant disponibles sur l'application JW Life</p>"
+      "title": "",
+      "content": ""
     },
 
     "dialog": {
       "enabled": false,
-      "id": "welcome_2027",
-      "html": "<h3>Bienvenue sur JW Life</h3><p>Soyez le bienvenu ici !</p>"
+      "id": "",
+      "title": "",
+      "content": ""
     }
   },
 
   "memorials": {
     "2027": "2027-03-22",
     "2028": "2028-04-09",
-    "2029": "2029-03-29"
+    "2029": "2029-03-29",
+    "2030": "2030-04-16"
   },
 
   "teachingToolbox": {
@@ -41,4 +64,3 @@
     "tractsOrder": [18, 19, 20, 21, 22, 23, 24, 25, 26]
   }
 }
-
