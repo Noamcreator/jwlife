@@ -1,6 +1,6 @@
 {
   "app": {
-    "enabled": true,
+    "enabled": false,
     "mandatory": false,
     "lastVersion": "2.0.0",
     "minSupportedVersion": "2.0.0",
