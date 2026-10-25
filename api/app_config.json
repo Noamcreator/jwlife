@@ -1,6 +1,6 @@
 {
   "app": {
-    "enabled": false,
+    "enabled": true,
     "mandatory": false,
     "lastVersion": "2.0.0",
     "minSupportedVersion": "2.0.0",
@@ -45,10 +45,10 @@
     },
 
     "dialog": {
-      "enabled": false,
-      "id": "",
-      "title": "",
-      "content": ""
+      "enabled": true,
+      "id": "test_dialog_1",
+      "title": "Hello c'est le test",
+      "content": "Bonjour, je voulais voir si ce que j'écris est bien affiché dans un dialog au démarrage"
     }
   },
 
