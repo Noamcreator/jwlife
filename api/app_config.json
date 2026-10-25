@@ -27,7 +27,7 @@
       }
     },
 
-    "changelog": "<h3>Version 2.0.1</h3><ul><li>Nouvelle interface</li><li>Amélioration des performances</li></ul>"
+    "changelog": "##### 📢 Mise à jour – v1.4.11 (14/02/2026)\n\n##### 🚀 Nouvelles Fonctionnalités\n- Les surlignages et les notes réalisés sur les notes d’étude de la Bible sont désormais affichés également dans les notes d’étude données en référence (dans une fenêtre ou dans le diamant).\n- Ajout d’un nouvel outil sur la page « Prédication » : Forebears, permettant de rechercher un prénom ou un nom de famille pour afficher la répartition mondiale (connexion Internet requise).\n- Il est désormais possible de rechercher les articles présents dans la Bible (notes d’étude et autres contenus) en plus des chapitres, avec ouverture directe vers la bonne note d’étude.\n- Ajout d’un bouton « Notes d’étude » dans le menu des chapitres contenant des notes d’étude.\n- Intégration des notes d’étude dans le défilement des pages.\n\n##### 🧩 Améliorations de l’Expérience\n- Ouverture directe du document lors d’un clic sur un paragraphe de note d’étude afin de permettre le surlignage.\n- Amélioration majeure du système de surlignage : plus fluide et plus rapide (sélection temporairement désactivée).\n- Lors d’un surlignage sur une phrase déjà surlignée, celui-ci s’ajoute désormais à la suite au lieu de remplacer.\n- Optimisation importante de la recherche dans le menu des publications avec prise en charge multi-mots et filtres « Même article », « Même paragraphe » ou « Même phrase ».\n- Amélioration du comportement du bouton Retour Android avec confirmation sur la page principale.\n- Correction des suggestions WOL lors d’un changement de langue ou au démarrage.\n\n##### 🐞 Corrections & Stabilité\n- Correction d’un bug où la loupe restait affichée.\n- Correction d’un problème de mise à jour de l’assemblée locale lors d’une réinitialisation ou importation de sauvegarde.\n- Désactivation du zoom infini sur les vidéos affichées en plein écran.\n\n##### 📦 Mises à Jour Techniques\n- Ajout de countries_world_map : 1.3.0\n- Mise à jour de audio_info : 0.0.3 → 0.0.4\n- Mise à jour de flutter_local_notifications : 20.0.0 → 20.1.0\n- Mise à jour de Flutter : 3.38.9 → 3.41.1\n- Mise à jour de Dart : 3.10.8 → 3.11.0"
   },
 
   "resources": {
@@ -40,7 +40,7 @@
   "messages": {
     "banner": {
       "enabled": true,
-      "title": "<strong>Hello c'est un nouveau test avec une banner !<strong>",
+      "title": "<strong>Hello c'est un nouveau test avec une banner !</strong>",
       "content": "J’ouvre grand les yeux sur un ciel si bleu, je respire un air si pur. C’est le paradis, le réveil des amis : on oublie toutes nos blessures. Allons, partons au bout du monde — on a tout le temps — Voir les trésors que Dieu nous donne généreusement."
     },
 
