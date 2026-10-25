@@ -39,16 +39,16 @@
 
   "messages": {
     "banner": {
-      "enabled": false,
-      "title": "",
-      "content": ""
+      "enabled": true,
+      "title": "Hello c'est un nouveau test !",
+      "content": "J’ouvre grand les yeux sur un ciel si bleu, je respire un air si pur. C’est le paradis, le réveil des amis : on oublie toutes nos blessures. Allons, partons au bout du monde — on a tout le temps — Voir les trésors que Dieu nous donne généreusement."
     },
 
     "dialog": {
-      "enabled": true,
-      "id": "test_dialog_1",
-      "title": "Hello c'est le test",
-      "content": "Bonjour, je voulais voir si ce que j'écris est bien affiché dans un dialog au démarrage"
+      "enabled": false,
+      "id": "",
+      "title": "",
+      "content": ""
     }
   },
 
