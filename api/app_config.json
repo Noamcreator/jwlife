@@ -40,7 +40,7 @@
   "messages": {
     "banner": {
       "enabled": true,
-      "title": "Hello c'est un nouveau test !",
+      "title": "Hello c'est <strong>un nouveau test !<strong>",
       "content": "J’ouvre grand les yeux sur un ciel si bleu, je respire un air si pur. C’est le paradis, le réveil des amis : on oublie toutes nos blessures. Allons, partons au bout du monde — on a tout le temps — Voir les trésors que Dieu nous donne généreusement."
     },
 
