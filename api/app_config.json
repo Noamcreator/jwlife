@@ -2,7 +2,7 @@
   "app": {
     "enabled": true,
     "mandatory": false,
-    "lastVersion": "2.0.1",
+    "lastVersion": "2.0.0",
     "minSupportedVersion": "2.0.0",
 
     "disabledMessage": "",
